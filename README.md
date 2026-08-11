@@ -2,8 +2,7 @@
 
 El punto de venta gastronómico que no te hace pelear con la tecnología.
 
-FRIG es un POS multi-tenant y white-label pensado para restaurantes, cafeterías, locales de comida rápida y cualquier negocio gastronómico que necesite vender sin complicaciones. Nace con una misión clara: ser mejor que las herramientas actuales, más ágiles que Fudo y más modernas que gourmet-c.
-
+FRIG es un POS multi-tenant y white-label pensado para restaurantes, cafeterías, locales de comida rápida y cualquier negocio gastronómico que necesite vender sin complicaciones. Nace con una misión clara: ser facil de usar.
 ## ¿Qué hace FRIG?
 
 - **Varias sucursales, una sola cuenta.** Cada usuario puede operar el punto de venta de la sucursal que le corresponda, con su propio tema y branding.
