@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+/*
+ * FRIG — Design tokens multi-tenant.
+ *
+ * Los tokens de marca (--brand-*) se inyectan dinámicamente en :root
+ * desde la config de sucursal (BranchThemeConfig de Yggdra). Todo el UI
+ * consume estas variables, por lo que cada negocio se re-themezca sin
+ * recompilar. Los tokens shadcn mapean a los de marca.
+ */
+:root {
+  --brand-primary: #2f6b3c;
+  --brand-secondary: #f2e8cf;
+  --brand-surface: #f7f6f1;
+  --brand-foreground: #1a1d18;
+  --brand-radius: 0.75rem;
+  --brand-motion: 1;
+  --brand-compact: 0;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--brand-primary);
+  --color-secondary: var(--brand-secondary);
+  --color-surface: var(--brand-surface);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--brand-primary);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+:root,
+.light {
+  --background: var(--brand-surface);
+  --foreground: var(--brand-foreground);
+  --muted: hsl(120 8% 91%);
+  --muted-foreground: hsl(120 5% 45%);
+  --border: hsl(120 10% 86%);
+  --input: hsl(120 10% 86%);
+  --card: #ffffff;
+  --card-foreground: var(--brand-foreground);
+  --danger: #dc2626;
+  --success: #16a34a;
+  --warning: #f59e0b;
+  --radius: var(--brand-radius);
+}
+
+.dark {
+  --background: #14160f;
+  --foreground: #f2f4ee;
+  --muted: hsl(120 8% 18%);
+  --muted-foreground: hsl(120 5% 62%);
+  --border: hsl(120 8% 24%);
+  --input: hsl(120 8% 24%);
+  --card: #1c1f17;
+  --card-foreground: #f2f4ee;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --brand-motion: 0;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+}
