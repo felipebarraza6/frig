@@ -38,12 +38,23 @@ export async function createInventoryMovement(payload: InventoryHistoryRequest):
   });
 }
 
-export async function fetchLowStock(): Promise<ProductInventorySummary[]> {
-  const data = await apiFetch<{ results?: ProductInventorySummary[] }>("/inventory/product-inventory/low_stock/");
+function normalizeSummaryList(
+  data: ProductInventorySummary[] | { results?: ProductInventorySummary[] },
+): ProductInventorySummary[] {
+  if (Array.isArray(data)) return data;
   return data.results ?? [];
 }
 
+export async function fetchLowStock(): Promise<ProductInventorySummary[]> {
+  const data = await apiFetch<ProductInventorySummary[] | { results?: ProductInventorySummary[] }>(
+    "/inventory/product-inventory/low_stock/",
+  );
+  return normalizeSummaryList(data);
+}
+
 export async function fetchOutOfStock(): Promise<ProductInventorySummary[]> {
-  const data = await apiFetch<{ results?: ProductInventorySummary[] }>("/inventory/product-inventory/out_of_stock/");
-  return data.results ?? [];
+  const data = await apiFetch<ProductInventorySummary[] | { results?: ProductInventorySummary[] }>(
+    "/inventory/product-inventory/out_of_stock/",
+  );
+  return normalizeSummaryList(data);
 }

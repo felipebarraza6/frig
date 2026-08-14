@@ -85,6 +85,8 @@ export default function InventoryPage() {
     queryFn: fetchOutOfStock,
   });
 
+  const totalAlerts = lowStock.length + outOfStock.length;
+
   const create = useMutation({
     mutationFn: createInventoryMovement,
     onSuccess: () => {
@@ -127,13 +129,18 @@ export default function InventoryPage() {
           </button>
           <button
             onClick={() => setTab("alerts")}
-            className={`border-b-2 px-2 py-3 text-sm font-medium transition ${
+            className={`flex items-center gap-2 border-b-2 px-2 py-3 text-sm font-medium transition ${
               tab === "alerts"
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
             Alertas
+            {totalAlerts > 0 && (
+              <span className="rounded-full bg-danger px-1.5 py-0.5 text-[10px] font-bold text-white">
+                {totalAlerts}
+              </span>
+            )}
           </button>
         </div>
       </div>
