@@ -82,7 +82,8 @@ export async function apiFetch<T>(path: string, opts: ApiOptions = {}): Promise<
   }
 
   // credentials: "include" para la cookie HttpOnly de auth_token
-  const res = await fetch(`${API_BASE}${path}`, {
+  const url = /^https?:\/\//i.test(path) ? path : `${API_BASE}${path}`;
+  const res = await fetch(url, {
     method,
     headers: finalHeaders,
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -146,7 +147,8 @@ export async function apiFile(path: string, opts: ApiOptions = {}): Promise<Blob
   const branchId = getBranchId();
   if (branch === "auto" && branchId) finalHeaders["X-Branch-ID"] = branchId;
 
-  const res = await fetch(`${API_BASE}${path}`, { method, headers: finalHeaders, credentials: "include" });
+  const url = /^https?:\/\//i.test(path) ? path : `${API_BASE}${path}`;
+  const res = await fetch(url, { method, headers: finalHeaders, credentials: "include" });
   if (!res.ok) {
     throw new ApiError(res.status, `Error ${res.status} al descargar archivo`);
   }

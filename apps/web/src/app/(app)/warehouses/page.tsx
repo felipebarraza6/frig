@@ -1,0 +1,387 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { Plus, Search, Pencil, Trash2, Loader2, Warehouse, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
+import {
+  fetchWarehouses,
+  createWarehouse,
+  updateWarehouse,
+  deleteWarehouse,
+  type WarehousesFilter,
+} from "@/lib/api/warehouses";
+import type { YggdraSchemas } from "@/lib/api/types";
+
+type Warehouse = YggdraSchemas["Warehouse"];
+
+const WAREHOUSE_TYPES = [
+  { value: "GENERAL", label: "General" },
+  { value: "TOOLS", label: "Herramientas" },
+  { value: "RAW_MATERIAL", label: "Materias primas" },
+  { value: "WASTE", label: "Residuos" },
+  { value: "CUSTOM", label: "Personalizada" },
+] as const;
+
+function typeLabel(value?: string | null): string {
+  return WAREHOUSE_TYPES.find((t) => t.value === value)?.label ?? (value ?? "—");
+}
+
+export default function WarehousesPage() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [type, setType] = useState("");
+  const [pageUrl, setPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<Warehouse | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Warehouse | null>(null);
+  const [form, setForm] = useState({
+    name: "",
+    warehouse_type: "GENERAL" as string,
+    description: "",
+    location: "",
+    capacity: "",
+    is_default: false,
+  });
+
+  const filter = useMemo<WarehousesFilter>(
+    () => ({
+      search: search || undefined,
+      warehouse_type: type || undefined,
+      ...pageUrl,
+    }),
+    [search, type, pageUrl],
+  );
+
+  const { data: page, isLoading, error } = useQuery({
+    queryKey: ["warehouses", "manage", filter],
+    queryFn: () => fetchWarehouses(filter),
+  });
+
+  const warehouses = page?.results ?? [];
+  const totalWarehouses = page?.count ?? 0;
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const payload = {
+        name: form.name,
+        warehouse_type: (form.warehouse_type || "GENERAL") as "GENERAL" | "TOOLS" | "RAW_MATERIAL" | "WASTE" | "CUSTOM",
+        description: form.description || null,
+        location: form.location || null,
+        capacity: form.capacity || null,
+        is_default: form.is_default,
+        branch_id: 0, // el backend resuelve la sucursal desde X-Branch-ID
+      };
+      if (editing) {
+        await updateWarehouse(editing.id, payload);
+      } else {
+        await createWarehouse(payload);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["warehouses"] });
+      closeModal();
+    },
+  });
+
+  const remove = useMutation({
+    mutationFn: (id: number) => deleteWarehouse(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["warehouses"] });
+      setConfirmDelete(null);
+    },
+  });
+
+  function openModal(warehouse?: Warehouse) {
+    setEditing(warehouse ?? null);
+    if (warehouse) {
+      setForm({
+        name: warehouse.name,
+        warehouse_type: warehouse.warehouse_type ?? "GENERAL",
+        description: warehouse.description ?? "",
+        location: warehouse.location ?? "",
+        capacity: warehouse.capacity ?? "",
+        is_default: warehouse.is_default ?? false,
+      });
+    } else {
+      setForm({
+        name: "",
+        warehouse_type: "GENERAL",
+        description: "",
+        location: "",
+        capacity: "",
+        is_default: false,
+      });
+    }
+    setModalOpen(true);
+  }
+
+  function closeModal() {
+    setModalOpen(false);
+    setEditing(null);
+  }
+
+  return (
+    <div className="flex min-h-full flex-col">
+      <header className="flex items-center justify-between border-b border-border px-6 py-3">
+        <div>
+          <h1 className="text-lg font-semibold">Bodegas</h1>
+          <p className="text-xs text-muted-foreground">
+            Gestiona las bodegas de la sucursal
+          </p>
+        </div>
+        <Button onClick={() => openModal()}>
+          <Plus className="h-4 w-4" />
+          Nueva bodega
+        </Button>
+      </header>
+
+      <div className="flex flex-1 flex-col gap-4 p-6">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="relative w-full max-w-xs">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPageUrl({});
+              }}
+              placeholder="Buscar por nombre…"
+              className="pl-9"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="filter-type" className="text-xs text-muted-foreground">Tipo</label>
+            <Select
+              id="filter-type"
+              value={type}
+              onChange={(e) => {
+                setType(e.target.value);
+                setPageUrl({});
+              }}
+            >
+              <option value="">Todos</option>
+              {WAREHOUSE_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </Select>
+          </div>
+        </div>
+
+        {error ? (
+          <p className="text-sm text-danger">No se pudieron cargar las bodegas.</p>
+        ) : isLoading ? (
+          <div className="grid flex-1 place-items-center">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {warehouses.map((w) => (
+                <div
+                  key={w.id}
+                  onClick={() => router.push(`/warehouses/${w.id}`)}
+                  className="cursor-pointer rounded-xl border border-border bg-card p-4 transition hover:border-primary"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-secondary">
+                        <Warehouse className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <p className="font-medium">{w.name}</p>
+                        <p className="text-xs text-muted-foreground">{typeLabel(w.warehouse_type)}</p>
+                      </div>
+                    </div>
+                    {w.is_default && (
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                        Principal
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                    <span>Productos: {w.total_products ?? 0}</span>
+                    <span>Cantidad: {w.total_quantity ?? 0}</span>
+                  </div>
+                  <div className="mt-3 flex justify-end gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openModal(w);
+                      }}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      Editar
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-danger hover:text-danger"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setConfirmDelete(w);
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Eliminar
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between text-sm">
+              <p className="text-muted-foreground">
+                {totalWarehouses} bodega{totalWarehouses === 1 ? "" : "s"} en total
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPageUrl({ previous: page?.previous })}
+                  disabled={!page?.previous}
+                >
+                  Anterior
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPageUrl({ next: page?.next })}
+                  disabled={!page?.next}
+                >
+                  Siguiente
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-lg">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-base font-semibold">
+                {editing ? "Editar bodega" : "Nueva bodega"}
+              </h2>
+              <button onClick={closeModal} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                save.mutate();
+              }}
+              className="flex flex-col gap-4"
+            >
+              <div className="flex flex-col gap-2">
+                <label htmlFor="warehouse-name" className="text-sm font-medium">Nombre</label>
+                <Input
+                  id="warehouse-name"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="warehouse-type" className="text-sm font-medium">Tipo</label>
+                  <Select
+                    id="warehouse-type"
+                    value={form.warehouse_type}
+                    onChange={(e) => setForm({ ...form, warehouse_type: e.target.value })}
+                  >
+                    {WAREHOUSE_TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="warehouse-capacity" className="text-sm font-medium">Capacidad</label>
+                  <Input
+                    id="warehouse-capacity"
+                    value={form.capacity}
+                    onChange={(e) => setForm({ ...form, capacity: e.target.value })}
+                    placeholder="Opcional"
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col gap-2">
+                <label htmlFor="warehouse-location" className="text-sm font-medium">Ubicación</label>
+                <Input
+                  id="warehouse-location"
+                  value={form.location}
+                  onChange={(e) => setForm({ ...form, location: e.target.value })}
+                  placeholder="Opcional"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label htmlFor="warehouse-description" className="text-sm font-medium">Descripción</label>
+                <Input
+                  id="warehouse-description"
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  placeholder="Opcional"
+                />
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={form.is_default}
+                  onChange={(e) => setForm({ ...form, is_default: e.target.checked })}
+                  className="h-4 w-4 accent-primary"
+                />
+                Bodega principal
+              </label>
+              {save.isError && (
+                <p className="text-sm text-danger">
+                  {save.error instanceof Error ? save.error.message : "Error al guardar"}
+                </p>
+              )}
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={closeModal} disabled={save.isPending}>
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={save.isPending}>
+                  {save.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Guardar
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-lg">
+            <h2 className="text-base font-semibold">¿Eliminar bodega?</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Se desactivará <span className="font-medium text-foreground">{confirmDelete.name}</span>.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setConfirmDelete(null)} disabled={remove.isPending}>
+                Cancelar
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => remove.mutate(confirmDelete.id)}
+                disabled={remove.isPending}
+              >
+                {remove.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Eliminar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -17,11 +17,34 @@ export async function createPaymentMethod(payload: {
   payment_type: YggdraPaymentMethod["payment_type"];
   is_active?: boolean;
   is_pos_enabled?: boolean;
+  requires_reference?: boolean;
+  processing_fee?: string;
 }): Promise<YggdraPaymentMethod> {
   return apiFetch<YggdraPaymentMethod>("/finance/payment-methods/", {
     method: "POST",
     body: payload,
   });
+}
+
+export async function updatePaymentMethod(
+  id: string,
+  payload: Partial<{
+    name: string;
+    payment_type: YggdraPaymentMethod["payment_type"];
+    is_active: boolean;
+    is_pos_enabled: boolean;
+    requires_reference: boolean;
+    processing_fee: string;
+  }>,
+): Promise<YggdraPaymentMethod> {
+  return apiFetch<YggdraPaymentMethod>(`/finance/payment-methods/${id}/`, {
+    method: "PATCH",
+    body: payload,
+  });
+}
+
+export async function deletePaymentMethod(id: string): Promise<void> {
+  await apiFetch(`/finance/payment-methods/${id}/`, { method: "DELETE" });
 }
 
 export async function createPayment(

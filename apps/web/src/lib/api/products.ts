@@ -14,23 +14,40 @@ export type ProductPayload = Partial<
     | "measurement_unit"
     | "is_active"
     | "is_for_sale"
+    | "is_for_internal_use"
     | "price"
     | "sale_price"
+    | "price_internal"
+    | "wholesale_price"
     | "cost_price"
     | "minimum_stock"
     | "quantity"
   >
 > & { category?: number | null };
 
-export async function fetchProducts(params?: {
-  page?: number;
-  name__icontains?: string;
+export interface ProductsFilter {
+  search?: string;
   category?: number;
-}): Promise<YggdraPaginated> {
+  product_type?: string;
+  is_for_sale?: boolean;
+  is_active?: boolean;
+  next?: string | null;
+  previous?: string | null;
+}
+
+export async function fetchProducts(filter: ProductsFilter = {}): Promise<YggdraPaginated> {
+  if (filter.next) {
+    return apiFetch<YggdraPaginated>(filter.next);
+  }
+  if (filter.previous) {
+    return apiFetch<YggdraPaginated>(filter.previous);
+  }
   const qs = new URLSearchParams();
-  if (params?.page) qs.set("page", String(params.page));
-  if (params?.name__icontains) qs.set("name__icontains", params.name__icontains);
-  if (params?.category) qs.set("category", String(params.category));
+  if (filter.search) qs.set("name__icontains", filter.search);
+  if (filter.category) qs.set("category", String(filter.category));
+  if (filter.product_type) qs.set("product_type", filter.product_type);
+  if (filter.is_for_sale !== undefined) qs.set("is_for_sale", String(filter.is_for_sale));
+  if (filter.is_active !== undefined) qs.set("is_active", String(filter.is_active));
   const q = qs.toString();
   return apiFetch<YggdraPaginated>(`/inventory/products/${q ? `?${q}` : ""}`);
 }

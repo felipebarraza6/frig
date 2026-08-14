@@ -29,7 +29,7 @@ export default function LoginPage() {
     try {
       const res = await loginComplete({ email, password });
       setToken(res.token);
-      setSession(res.user, res.branches);
+      setSession(res.user, res.branches, res.permissions ?? null);
       if (res.branches.length === 1) {
         setCurrentBranch(String(res.branches[0].branch_id));
         router.replace("/pos");

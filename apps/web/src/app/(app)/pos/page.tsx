@@ -2,14 +2,42 @@
 
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Plus, Loader2 } from "lucide-react";
+import { Search, Plus, Loader2, Box, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import CartPanel from "@/components/pos/cart-panel";
 import { useProducts, useCategories } from "@/lib/hooks/useCatalog";
 import { useCartStore } from "@/lib/store/cart";
+import type { PosProduct } from "@/lib/api/types";
 import { formatCLP, cn } from "@/lib/utils";
 import { useCurrentBranch } from "@/lib/store/session";
 import { branchName } from "@/lib/types";
+
+function productTypeLabel(type?: string): string {
+  if (type === "DIRECT_SALE") return "Simple";
+  if (type === "RECIPE_BASED") return "Compuesto";
+  return type ?? "—";
+}
+
+function stockStatus(product: PosProduct): { text: string; variant: "ok" | "low" | "empty" } {
+  const qty = product.quantity ?? 0;
+  const min = product.minimum_stock ?? 0;
+  if (qty === 0) return { text: "Sin stock", variant: "empty" };
+  if (min > 0 && qty <= min) return { text: "Stock bajo", variant: "low" };
+  return { text: `${qty} disp.`, variant: "ok" };
+}
+
+function StockBadge({ product }: { product: PosProduct }) {
+  const status = stockStatus(product);
+  if (status.variant === "ok") {
+    return <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">{status.text}</span>;
+  }
+  return (
+    <span className="inline-flex items-center gap-0.5 rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+      <AlertTriangle className="h-3 w-3" />
+      {status.text}
+    </span>
+  );
+}
 
 export default function PosPage() {
   const branch = useCurrentBranch();
@@ -113,13 +141,14 @@ export default function PosPage() {
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.15, delay: Math.min(i * 0.02, 0.3) }}
                     onClick={() => addItem(product)}
-                    className="group flex flex-col gap-1 rounded-xl border border-border bg-card p-4 text-left transition-[transform,box-shadow,border-color] duration-150 hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md"
+                    disabled={(product.quantity ?? 0) === 0}
+                    className="group flex flex-col gap-1 rounded-xl border border-border bg-card p-4 text-left transition-[transform,box-shadow,border-color] duration-150 hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <p className="line-clamp-2 text-sm font-medium leading-tight">
                         {product.name}
                       </p>
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100 disabled:group-hover:opacity-0">
                         <Plus className="h-3.5 w-3.5" />
                       </span>
                     </div>
@@ -128,9 +157,18 @@ export default function PosPage() {
                         {product.categoryName}
                       </p>
                     )}
-                    <p className="mt-auto text-base font-semibold tabular-nums">
-                      {formatCLP(product.price)}
-                    </p>
+                    <div className="mt-auto flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          <Box className="h-3 w-3" />
+                          {productTypeLabel(product.product_type)}
+                        </span>
+                        <StockBadge product={product} />
+                      </div>
+                      <p className="text-base font-semibold tabular-nums">
+                        {formatCLP(product.price)}
+                      </p>
+                    </div>
                   </motion.button>
                 ))}
               </AnimatePresence>

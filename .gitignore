@@ -1,6 +1,7 @@
 # Directorios locales que no se suben
 legacy/
 .omo/
+graphify-out/
 
 # OS
 .DS_Store

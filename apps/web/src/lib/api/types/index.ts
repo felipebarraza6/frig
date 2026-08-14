@@ -16,7 +16,9 @@ export interface PosProduct {
   categoryId?: number | null;
   categoryName?: string | null;
   is_for_sale?: boolean;
+  is_active?: boolean;
   quantity?: number;
+  minimum_stock?: number;
 }
 
 export function toPosProduct(p: YggdraProduct): PosProduct {
@@ -31,6 +33,8 @@ export function toPosProduct(p: YggdraProduct): PosProduct {
     categoryId: cat?.id ?? null,
     categoryName: cat?.name ?? null,
     is_for_sale: p.is_for_sale,
+    is_active: p.is_active,
     quantity: p.quantity,
+    minimum_stock: p.minimum_stock,
   };
 }

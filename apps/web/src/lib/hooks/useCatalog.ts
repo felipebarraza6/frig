@@ -12,7 +12,7 @@ export function useProducts(enabled = true) {
     queryKey: [...PRODUCT_KEYS.all, "sale"],
     queryFn: async () => {
       const data = await apiFetch<YggdraPaginatedProduct>(
-        "/inventory/products/?is_for_sale=true",
+        "/inventory/products/?is_for_sale=true&is_active=true",
       );
       return data.results.map(toPosProduct);
     },

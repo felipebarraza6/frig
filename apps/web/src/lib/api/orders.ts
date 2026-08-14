@@ -3,6 +3,18 @@ import type { YggdraSchemas } from "@/lib/api/types";
 import type { CartItem } from "@/lib/store/cart";
 
 type YggdraOrder = YggdraSchemas["Order"];
+type PaginatedOrder = YggdraSchemas["PaginatedOrderList"];
+
+export interface OrdersFilter {
+  search?: string;
+  order_type?: string;
+  status?: string;
+  payment_status?: string;
+  start_date?: string;
+  end_date?: string;
+  next?: string | null;
+  previous?: string | null;
+}
 
 export interface OrderItemInput {
   product: number;
@@ -13,6 +25,7 @@ export interface OrderItemInput {
 export interface CreateOrderInput {
   items: OrderItemInput[];
   observation?: string | null;
+  client_id?: number | null;
 }
 
 /**
@@ -20,6 +33,32 @@ export interface CreateOrderInput {
  * El backend asigna branch/owner automáticamente desde el request
  * (X-Branch-ID + token). La fecha se envía en hora local ISO.
  */
+export async function fetchOrders(filter: OrdersFilter = {}): Promise<PaginatedOrder> {
+  if (filter.next) {
+    return apiFetch<PaginatedOrder>(filter.next);
+  }
+  if (filter.previous) {
+    return apiFetch<PaginatedOrder>(filter.previous);
+  }
+  const qs = new URLSearchParams();
+  if (filter.search) qs.set("search", filter.search);
+  if (filter.order_type) qs.set("order_type", filter.order_type);
+  if (filter.status) qs.set("status", filter.status);
+  if (filter.payment_status) qs.set("payment_status", filter.payment_status);
+  if (filter.start_date) qs.set("date__gte", filter.start_date);
+  if (filter.end_date) qs.set("date__lte", filter.end_date);
+  const q = qs.toString();
+  return apiFetch<PaginatedOrder>(`/sales/orders/${q ? `?${q}` : ""}`);
+}
+
+export async function fetchOrder(id: string): Promise<YggdraOrder> {
+  return apiFetch<YggdraOrder>(`/sales/orders/${id}/`);
+}
+
+export async function cancelOrder(id: string): Promise<YggdraOrder> {
+  return apiFetch<YggdraOrder>(`/sales/orders/${id}/cancel/`, { method: "POST" });
+}
+
 export async function createOrder(input: CreateOrderInput): Promise<YggdraOrder> {
   const data = await apiFetch<YggdraOrder>("/sales/orders/", {
     method: "POST",
@@ -27,6 +66,7 @@ export async function createOrder(input: CreateOrderInput): Promise<YggdraOrder>
       order_type: "SALE",
       date: new Date().toISOString(),
       observation: input.observation ?? null,
+      client_id: input.client_id ?? null,
       items: input.items,
     },
   });

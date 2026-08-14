@@ -1,0 +1,258 @@
+"use client";
+
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { X, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useSessionStore } from "@/lib/store/session";
+import { createBranch, updateBranch } from "@/lib/api/branches";
+import { branchName } from "@/lib/types";
+import type { Branch, BranchPayload } from "@/lib/types";
+
+interface BranchFormProps {
+  branch?: Branch;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+export function BranchForm({ branch, onClose, onSuccess }: BranchFormProps) {
+  const user = useSessionStore((s) => s.user);
+  const isSuperAdmin = Boolean(user?.is_superuser || user?.type_user === "ADM");
+  const isEditing = Boolean(branch);
+
+  const [businessName, setBusinessName] = useState(branch?.business_name ?? "");
+  const [fantasyName, setFantasyName] = useState(branch?.fantasy_name ?? "");
+  const [commercialBusiness, setCommercialBusiness] = useState(branch?.commercial_business ?? "");
+  const [phone, setPhone] = useState(branch?.phone ?? "");
+  const [email, setEmail] = useState(branch?.email ?? "");
+  const [address, setAddress] = useState(branch?.address ?? "");
+  const [region, setRegion] = useState(branch?.region ?? "");
+  const [province, setProvince] = useState(branch?.province ?? "");
+  const [commune, setCommune] = useState(branch?.commune ?? "");
+  const [dni, setDni] = useState(branch?.dni ?? "");
+  const [isActive, setIsActive] = useState(branch?.is_active ?? true);
+  const [ownerId, setOwnerId] = useState<string>(branch?.owner_id ? String(branch.owner_id) : "");
+  const [error, setError] = useState<string | null>(null);
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const payload: BranchPayload = {
+        business_name: businessName,
+        fantasy_name: fantasyName || undefined,
+        commercial_business: commercialBusiness || undefined,
+        phone: phone || undefined,
+        email: email || undefined,
+        address: address || undefined,
+        region: region || undefined,
+        province: province || undefined,
+        commune: commune || undefined,
+        dni: dni || undefined,
+        is_active: isActive,
+      };
+      if (isSuperAdmin && ownerId) {
+        payload.owner_id = Number(ownerId);
+      }
+
+      if (isEditing && branch) {
+        return updateBranch(branch.branch_id, payload);
+      }
+      return createBranch(payload);
+    },
+    onSuccess: () => onSuccess(),
+    onError: (err: Error) => setError(err.message || "No se pudo guardar la sucursal."),
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (!businessName.trim()) {
+      setError("El nombre de la sucursal es obligatorio.");
+      return;
+    }
+    save.mutate();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl border border-border bg-card p-6 shadow-lg">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">
+            {isEditing ? `Editar ${branchName(branch!)}` : "Nueva sucursal"}
+          </h2>
+          <button
+            onClick={onClose}
+            className="rounded-md p-1 text-muted-foreground hover:bg-muted"
+            aria-label="Cerrar"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="business_name" className="text-sm font-medium">
+              Nombre de la sucursal
+            </label>
+            <Input
+              id="business_name"
+              value={businessName}
+              onChange={(e) => setBusinessName(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="fantasy_name" className="text-sm font-medium">
+              Nombre de fantasía
+            </label>
+            <Input
+              id="fantasy_name"
+              value={fantasyName}
+              onChange={(e) => setFantasyName(e.target.value)}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="commercial_business" className="text-sm font-medium">
+              Giro comercial
+            </label>
+            <Input
+              id="commercial_business"
+              value={commercialBusiness}
+              onChange={(e) => setCommercialBusiness(e.target.value)}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="phone" className="text-sm font-medium">
+                Teléfono
+              </label>
+              <Input
+                id="phone"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="email" className="text-sm font-medium">
+                Email
+              </label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="address" className="text-sm font-medium">
+              Dirección
+            </label>
+            <Input
+              id="address"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="region" className="text-sm font-medium">
+                Región
+              </label>
+              <Input
+                id="region"
+                value={region}
+                onChange={(e) => setRegion(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="province" className="text-sm font-medium">
+                Provincia
+              </label>
+              <Input
+                id="province"
+                value={province}
+                onChange={(e) => setProvince(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="commune" className="text-sm font-medium">
+                Comuna
+              </label>
+              <Input
+                id="commune"
+                value={commune}
+                onChange={(e) => setCommune(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="dni" className="text-sm font-medium">
+                RUT
+              </label>
+              <Input
+                id="dni"
+                value={dni}
+                onChange={(e) => setDni(e.target.value)}
+                placeholder="12.345.678-9"
+              />
+            </div>
+            {isSuperAdmin && (
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="owner_id" className="text-sm font-medium">
+                  ID propietario
+                </label>
+                <Input
+                  id="owner_id"
+                  type="number"
+                  value={ownerId}
+                  onChange={(e) => setOwnerId(e.target.value)}
+                  placeholder="Opcional"
+                />
+              </div>
+            )}
+          </div>
+
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={isActive}
+              onChange={(e) => setIsActive(e.target.checked)}
+              className="h-4 w-4 rounded border-input"
+            />
+            Sucursal activa
+          </label>
+
+          {error && (
+            <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
+              {error}
+            </p>
+          )}
+
+          <div className="mt-2 flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={save.isPending}>
+              {save.isPending ? (
+                <>
+                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                  Guardando…
+                </>
+              ) : (
+                "Guardar"
+              )}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
