@@ -1,4 +1,5 @@
-import { apiFetch } from "./client";
+import { apiFetch, apiFile } from "./client";
+import type { ApiFileResult } from "./client";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 type YggdraProduct = YggdraSchemas["ProductList"];
@@ -91,4 +92,15 @@ export async function deleteProduct(id: number): Promise<void> {
 
 export async function setProductActive(id: number, isActive: boolean): Promise<YggdraProduct> {
   return updateProduct(id, { is_active: isActive });
+}
+
+export function exportProducts(filter: ProductsFilter, format: "excel" | "pdf"): Promise<ApiFileResult> {
+  const qs = new URLSearchParams();
+  if (filter.search) qs.set("name__icontains", filter.search);
+  if (filter.category) qs.set("category", String(filter.category));
+  if (filter.product_type) qs.set("product_type", filter.product_type);
+  if (filter.is_for_sale !== undefined) qs.set("is_for_sale", String(filter.is_for_sale));
+  if (filter.is_active !== undefined) qs.set("is_active", String(filter.is_active));
+  const q = qs.toString();
+  return apiFile(`/inventory/products/export-${format}/${q ? `?${q}` : ""}`);
 }

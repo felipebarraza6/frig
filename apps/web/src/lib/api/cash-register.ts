@@ -1,4 +1,4 @@
-import { apiFetch } from "./client";
+import { apiFetch, apiFile, type ApiFileResult } from "./client";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 export type CashRegister = YggdraSchemas["CashRegister"];
@@ -120,4 +120,25 @@ export interface CashAudit {
 export async function fetchCashAudit(date?: string): Promise<CashAudit> {
   const qs = date ? `?date=${encodeURIComponent(date)}` : "";
   return apiFetch<CashAudit>(`/sales/orders/arqueo/${qs}`);
+}
+
+export interface CashRegisterExportFilter {
+  date_from?: string;
+  date_to?: string;
+  status?: string;
+}
+
+export async function exportCashRegisters(
+  filter: CashRegisterExportFilter = {},
+): Promise<ApiFileResult> {
+  const qs = new URLSearchParams();
+  if (filter.date_from) qs.set("date_from", filter.date_from);
+  if (filter.date_to) qs.set("date_to", filter.date_to);
+  if (filter.status) qs.set("status", filter.status);
+  const q = qs.toString();
+  return apiFile(`/finance/cash-registers/export/${q ? `?${q}` : ""}`);
+}
+
+export async function exportCashRegisterMovements(id: number): Promise<ApiFileResult> {
+  return apiFile(`/finance/cash-registers/${id}/export-movements/`);
 }

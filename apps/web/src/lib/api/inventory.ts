@@ -1,4 +1,5 @@
-import { apiFetch } from "./client";
+import { apiFetch, apiFile } from "./client";
+import type { ApiFileResult } from "./client";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 type InventoryHistory = YggdraSchemas["InventoryHistory"];
@@ -57,4 +58,14 @@ export async function fetchOutOfStock(): Promise<ProductInventorySummary[]> {
     "/inventory/product-inventory/out_of_stock/",
   );
   return normalizeSummaryList(data);
+}
+
+export function exportInventoryMovements(filter: MovementsFilter, format: "excel" | "pdf"): Promise<ApiFileResult> {
+  const qs = new URLSearchParams();
+  if (filter.search) qs.set("search", filter.search);
+  if (filter.movement_type) qs.set("movement_type", filter.movement_type);
+  if (filter.product) qs.set("product", String(filter.product));
+  if (filter.warehouse) qs.set("warehouse", String(filter.warehouse));
+  const q = qs.toString();
+  return apiFile(`/inventory/inventory-history/export-${format}/${q ? `?${q}` : ""}`);
 }

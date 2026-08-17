@@ -1,4 +1,4 @@
-import { apiFetch } from "./client";
+import { apiFetch, apiFile, type ApiFileResult } from "./client";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 export type FixedExpense = YggdraSchemas["FixedExpense"];
@@ -13,6 +13,8 @@ export interface ExpensesFilter {
   search?: string;
   category?: string;
   status?: string;
+  startDate?: string;
+  endDate?: string;
   next?: string | null;
   previous?: string | null;
 }
@@ -28,6 +30,8 @@ export async function fetchExpenses(filter: ExpensesFilter = {}): Promise<Pagina
   if (filter.search) qs.set("search", filter.search);
   if (filter.category) qs.set("category", filter.category);
   if (filter.status) qs.set("status", filter.status);
+  if (filter.startDate) qs.set("start_date", filter.startDate);
+  if (filter.endDate) qs.set("end_date", filter.endDate);
   const q = qs.toString();
   return apiFetch<PaginatedFixedExpense>(`/finance/fixed-expenses/${q ? `?${q}` : ""}`);
 }
@@ -67,4 +71,23 @@ export async function createExpenseCategory(payload: ExpenseCategoryRequest): Pr
     method: "POST",
     body: payload,
   });
+}
+
+function expensesQueryString(filter: ExpensesFilter): string {
+  const qs = new URLSearchParams();
+  if (filter.search) qs.set("search", filter.search);
+  if (filter.category) qs.set("category", filter.category);
+  if (filter.status) qs.set("status", filter.status);
+  if (filter.startDate) qs.set("start_date", filter.startDate);
+  if (filter.endDate) qs.set("end_date", filter.endDate);
+  const q = qs.toString();
+  return q ? `?${q}` : "";
+}
+
+export async function exportExpensesExcel(filter: ExpensesFilter): Promise<ApiFileResult> {
+  return apiFile(`/finance/fixed-expenses/export-excel/${expensesQueryString(filter)}`);
+}
+
+export async function downloadExpenseVoucher(id: string): Promise<ApiFileResult> {
+  return apiFile(`/finance/fixed-expenses/${id}/download-voucher/`);
 }

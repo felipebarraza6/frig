@@ -16,6 +16,8 @@ import {
   Trash2,
   Users,
   MapPin,
+  FileSpreadsheet,
+  FileText,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -30,6 +32,7 @@ import {
   reserveTable,
   cleanTable,
   assignWaiter,
+  exportTables,
   type TableStatus,
   type TablesFilter,
 } from "@/lib/api/tables";
@@ -37,6 +40,7 @@ import { fetchBranchUsers } from "@/lib/api/branches";
 import { useCurrentBranch, useCanManageTables, useSessionStore } from "@/lib/store/session";
 import { useToast } from "@/lib/store/toast";
 import type { YggdraSchemas } from "@/lib/api/types";
+import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
@@ -64,6 +68,7 @@ export default function TablesPage() {
   const branch = useCurrentBranch();
   const canManage = useCanManageTables();
   const toast = useToast();
+  const { download: downloadFile, isLoading: isExporting } = useDownloadFile();
 
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<TableStatus | "">("");
@@ -229,6 +234,12 @@ export default function TablesPage() {
     setPageUrl({});
   }
 
+  function handleExport(format: "excel" | "pdf") {
+    downloadFile(() => exportTables(filter, format), {
+      filename: exportFilename("mesas", format === "excel" ? "xlsx" : "pdf"),
+    });
+  }
+
   return (
     <div className="flex min-h-full flex-col">
       <header className="flex items-center justify-between border-b border-border px-6 py-3">
@@ -236,12 +247,32 @@ export default function TablesPage() {
           <h1 className="text-lg font-semibold">Mesas</h1>
           <p className="text-xs text-muted-foreground">Gestión de mesas del local</p>
         </div>
-        {canManage && (
-          <Button onClick={() => setCreating(true)}>
-            <Plus className="h-4 w-4" />
-            Nueva mesa
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleExport("excel")}
+            disabled={isExporting}
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            Excel
           </Button>
-        )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleExport("pdf")}
+            disabled={isExporting}
+          >
+            <FileText className="h-4 w-4" />
+            PDF
+          </Button>
+          {canManage && (
+            <Button onClick={() => setCreating(true)}>
+              <Plus className="h-4 w-4" />
+              Nueva mesa
+            </Button>
+          )}
+        </div>
       </header>
 
       <div className="flex flex-1 flex-col gap-4 p-6">

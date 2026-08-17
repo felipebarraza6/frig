@@ -1,10 +1,112 @@
-import { apiFetch } from "./client";
+import { apiFetch, apiFile, type ApiFileResult } from "./client";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 export type PromotionDiscount = YggdraSchemas["PromotionDiscount"];
 export type PromotionDiscountList = YggdraSchemas["PromotionDiscountList"];
 export type PromotionDiscountApplication = YggdraSchemas["PromotionDiscountApplication"];
 export type PromotionDiscountValidation = YggdraSchemas["PromotionDiscountValidation"];
+export type PromotionDiscountUsage = YggdraSchemas["PromotionDiscountUsage"];
+
+export type DiscountDashboard = {
+  summary: {
+    total_discounts: number;
+    active_discounts: number;
+    expired_discounts: number;
+    scheduled_discounts: number;
+    total_usage: number;
+    total_discount_amount: number;
+    average_usage_per_discount: number;
+    average_discount_amount: number;
+  };
+  active_promotions: Array<{
+    id: string;
+    name: string;
+    code: string;
+    discount_type: string;
+    discount_type_display: string;
+    discount_value: number;
+    apply_to: string;
+    apply_to_display: string;
+    minimum_amount: number;
+    maximum_discount: number | null;
+    start_date: string;
+    end_date: string;
+    current_uses: number;
+    max_uses: number | null;
+    usage_percentage: number | null;
+    is_stackable: boolean;
+    is_first_time_only: boolean;
+    days_remaining: number;
+  }>;
+  promotions_by_type: Array<{
+    type: string;
+    count: number;
+    active_count: number;
+    total_usage: number;
+    total_discount_amount: number;
+  }>;
+  performance_metrics: {
+    average_usage_rate: number;
+    average_effectiveness: number;
+    conversion_rate: number;
+    roi_metrics: Record<string, unknown>;
+  };
+  recent_usage: Array<{
+    discount_name: string;
+    discount_code: string;
+    order_id: string;
+    user_name: string;
+    original_amount: number;
+    discount_amount: number;
+    final_amount: number;
+    usage_date: string;
+  }>;
+  expiring_soon: Array<{
+    id: string;
+    name: string;
+    code: string;
+    end_date: string;
+    days_remaining: number;
+    current_uses: number;
+    max_uses: number | null;
+    usage_percentage: number | null;
+  }>;
+  top_performing: Array<{
+    id: string;
+    name: string;
+    code: string;
+    discount_type: string;
+    total_usage: number;
+    total_discount_amount: number;
+    average_discount_per_use: number;
+  }>;
+};
+
+export type DiscountAnalytics = {
+  summary: {
+    total_discounts: number;
+    total_usage: number;
+    total_discount_amount: number;
+  };
+  performance_trends: Array<{
+    month: string | null;
+    usage_count: number;
+    total_discount: number;
+  }>;
+  discount_type_analysis: Array<{
+    type: string;
+    count: number;
+    active_count: number;
+    total_usage: number;
+    total_discount_amount: number;
+  }>;
+  branch_comparison: Array<{
+    branch: string;
+    discount_count: number;
+    total_usage: number;
+    total_discount_amount: number;
+  }>;
+};
 
 export type DiscountFormPayload = {
   branch?: number;
@@ -121,4 +223,81 @@ export async function updateDiscount(
 
 export async function deleteDiscount(id: string): Promise<void> {
   await apiFetch(`/promotions/discounts/${id}/`, { method: "DELETE" });
+}
+
+export async function fetchDiscountDashboard(
+  branchId?: number | string | null,
+): Promise<DiscountDashboard> {
+  const qs = new URLSearchParams();
+  if (branchId) qs.set("branch_id", String(branchId));
+  const params = qs.toString() ? `?${qs.toString()}` : "";
+  return apiFetch<DiscountDashboard>(`/promotions/discounts/dashboard/${params}`);
+}
+
+export async function fetchDiscountAnalytics(
+  startDate?: string,
+  endDate?: string,
+  branchId?: number | string | null,
+): Promise<DiscountAnalytics> {
+  const qs = new URLSearchParams();
+  if (startDate) qs.set("start_date", startDate);
+  if (endDate) qs.set("end_date", endDate);
+  if (branchId) qs.set("branch_id", String(branchId));
+  const params = qs.toString() ? `?${qs.toString()}` : "";
+  return apiFetch<DiscountAnalytics>(`/promotions/discounts/analytics/${params}`);
+}
+
+export async function exportDiscountsExcel(
+  filters: { status?: string; discount_type?: string } = {},
+): Promise<ApiFileResult> {
+  const qs = new URLSearchParams();
+  if (filters.status) qs.set("status", filters.status);
+  if (filters.discount_type) qs.set("discount_type", filters.discount_type);
+  const params = qs.toString() ? `?${qs.toString()}` : "";
+  return apiFile(`/promotions/discounts/export/${params}`);
+}
+
+export interface DiscountUsageReportFilters {
+  discount_id?: string;
+  start_date?: string;
+  end_date?: string;
+  next?: string | null;
+  previous?: string | null;
+}
+
+export type PaginatedPromotionDiscountUsageList =
+  YggdraSchemas["PaginatedPromotionDiscountUsageList"];
+
+export async function fetchDiscountUsageReport(
+  filters: DiscountUsageReportFilters = {},
+): Promise<PaginatedPromotionDiscountUsageList> {
+  if (filters.next) {
+    return apiFetch<PaginatedPromotionDiscountUsageList>(filters.next);
+  }
+  if (filters.previous) {
+    return apiFetch<PaginatedPromotionDiscountUsageList>(filters.previous);
+  }
+  const qs = new URLSearchParams();
+  if (filters.discount_id) qs.set("discount_id", filters.discount_id);
+  if (filters.start_date) qs.set("start_date", filters.start_date);
+  if (filters.end_date) qs.set("end_date", filters.end_date);
+  const params = qs.toString() ? `?${qs.toString()}` : "";
+  return apiFetch<PaginatedPromotionDiscountUsageList>(
+    `/promotions/discounts/usage-report/${params}`,
+  );
+}
+
+export type DiscountDetailReport = {
+  discount_info: Record<string, unknown>;
+  usage_statistics: Record<string, unknown>;
+  affected_products: Array<Record<string, unknown>>;
+  usage_history: Array<Record<string, unknown>>;
+  performance_analysis: Record<string, unknown>;
+  effectiveness_metrics: Record<string, unknown>;
+};
+
+export async function fetchDiscountDetailReport(
+  id: string,
+): Promise<DiscountDetailReport> {
+  return apiFetch<DiscountDetailReport>(`/promotions/discounts/${id}/detail-report/`);
 }

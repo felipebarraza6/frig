@@ -1,4 +1,5 @@
-import { apiFetch } from "./client";
+import { apiFetch, apiFile } from "./client";
+import type { ApiFileResult } from "./client";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 type Warehouse = YggdraSchemas["Warehouse"];
@@ -97,4 +98,12 @@ export async function transferStock(payload: TransferStockPayload): Promise<Ware
     method: "POST",
     body: payload,
   });
+}
+
+export function exportWarehouses(filter: WarehousesFilter, format: "excel" | "pdf"): Promise<ApiFileResult> {
+  const qs = new URLSearchParams();
+  if (filter.search) qs.set("search", filter.search);
+  if (filter.warehouse_type) qs.set("warehouse_type", filter.warehouse_type);
+  const q = qs.toString();
+  return apiFile(`/inventory/warehouses/export-${format}/${q ? `?${q}` : ""}`);
 }

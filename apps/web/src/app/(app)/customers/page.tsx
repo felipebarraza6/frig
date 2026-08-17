@@ -2,19 +2,24 @@
 
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Pencil, Power, Loader2, User, X } from "lucide-react";
+import { Plus, Search, Pencil, Power, Loader2, User, X, FileDown, FileText } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
 import {
   fetchCustomers,
   createCustomer,
   updateCustomer,
   deleteCustomer,
   fetchCustomerTags,
+  exportCustomersExcel,
+  exportCustomersPdf,
   type CustomersFilter,
   type CustomerPayload,
+  type CustomerStatusFilter,
 } from "@/lib/api/customers";
 import { useCanManageCustomers } from "@/lib/store/session";
+import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 type Customer = YggdraSchemas["Client"];
@@ -27,6 +32,9 @@ export default function CustomersPage() {
   const [dni, setDni] = useState("");
   const [phone, setPhone] = useState("");
   const [tagFilter, setTagFilter] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [statusFilter, setStatusFilter] = useState<CustomersFilter["status"]>("");
   const [pageUrl, setPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
@@ -49,9 +57,12 @@ export default function CustomersPage() {
       search: search || undefined,
       dni: dni || undefined,
       phone: phone || undefined,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+      status: statusFilter || undefined,
       ...pageUrl,
     }),
-    [search, dni, phone, pageUrl],
+    [search, dni, phone, startDate, endDate, statusFilter, pageUrl],
   );
 
   const { data: page, isLoading, error } = useQuery({
@@ -67,6 +78,22 @@ export default function CustomersPage() {
   });
 
   const totalCustomers = page?.count ?? 0;
+
+  const { download: downloadFile, isLoading: isDownloading } = useDownloadFile();
+
+  async function handleExportExcel() {
+    await downloadFile(() => exportCustomersExcel(filter), {
+      filename: exportFilename("clientes", "xlsx"),
+      extension: "xlsx",
+    });
+  }
+
+  async function handleExportPdf() {
+    await downloadFile(() => exportCustomersPdf(filter), {
+      filename: exportFilename("reporte_clientes", "pdf"),
+      extension: "pdf",
+    });
+  }
 
   const filteredCustomers = useMemo(() => {
     const customers = page?.results ?? [];
@@ -139,7 +166,7 @@ export default function CustomersPage() {
     setEditing(null);
   }
 
-  function updateFilter(setter: (v: string) => void, value: string) {
+  function updateFilter<T>(setter: (v: T) => void, value: T) {
     setter(value);
     setPageUrl({});
   }
@@ -165,10 +192,38 @@ export default function CustomersPage() {
             Gestiona la base de clientes de la sucursal
           </p>
         </div>
-        <Button onClick={() => openModal()}>
-          <Plus className="h-4 w-4" />
-          Nuevo cliente
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportExcel}
+            disabled={isDownloading}
+          >
+            {isDownloading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <FileDown className="mr-2 h-4 w-4" />
+            )}
+            Exportar Excel
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportPdf}
+            disabled={isDownloading}
+          >
+            {isDownloading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <FileText className="mr-2 h-4 w-4" />
+            )}
+            Exportar PDF
+          </Button>
+          <Button onClick={() => openModal()}>
+            <Plus className="h-4 w-4" />
+            Nuevo cliente
+          </Button>
+        </div>
       </header>
 
       <div className="flex flex-1 flex-col gap-4 p-6">
@@ -218,6 +273,36 @@ export default function CustomersPage() {
                 <option key={t} value={t} />
               ))}
             </datalist>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="filter-status" className="text-xs text-muted-foreground">Estado</label>
+            <Select
+              id="filter-status"
+              value={statusFilter}
+              onChange={(e) => updateFilter(setStatusFilter, e.target.value as CustomerStatusFilter)}
+            >
+              <option value="">Todos</option>
+              <option value="active">Activos</option>
+              <option value="inactive">Inactivos</option>
+            </Select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="filter-start" className="text-xs text-muted-foreground">Desde</label>
+            <Input
+              id="filter-start"
+              type="date"
+              value={startDate}
+              onChange={(e) => updateFilter(setStartDate, e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="filter-end" className="text-xs text-muted-foreground">Hasta</label>
+            <Input
+              id="filter-end"
+              type="date"
+              value={endDate}
+              onChange={(e) => updateFilter(setEndDate, e.target.value)}
+            />
           </div>
         </div>
 

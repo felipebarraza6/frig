@@ -1,4 +1,4 @@
-import { apiFetch, ApiError } from "@/lib/api/client";
+import { apiFetch, apiFile, ApiError, type ApiFileResult } from "@/lib/api/client";
 import type { YggdraSchemas } from "@/lib/api/types";
 import type { CartItem } from "@/lib/store/cart";
 
@@ -56,8 +56,8 @@ export async function fetchOrders(filter: OrdersFilter = {}): Promise<PaginatedO
   if (filter.order_type) qs.set("order_type", filter.order_type);
   if (filter.status) qs.set("status", filter.status);
   if (filter.payment_status) qs.set("payment_status", filter.payment_status);
-  if (filter.start_date) qs.set("date__gte", filter.start_date);
-  if (filter.end_date) qs.set("date__lte", filter.end_date);
+  if (filter.start_date) qs.set("start_date", filter.start_date);
+  if (filter.end_date) qs.set("end_date", filter.end_date);
   const q = qs.toString();
   return apiFetch<PaginatedOrder>(`/sales/orders/${q ? `?${q}` : ""}`);
 }
@@ -114,6 +114,30 @@ export function cartToOrderItems(items: CartItem[]): OrderItemInput[] {
       notes: null,
     })),
   }));
+}
+
+function ordersQueryString(filter: OrdersFilter): string {
+  const qs = new URLSearchParams();
+  if (filter.search) qs.set("search", filter.search);
+  if (filter.order_type) qs.set("order_type", filter.order_type);
+  if (filter.status) qs.set("status", filter.status);
+  if (filter.payment_status) qs.set("payment_status", filter.payment_status);
+  if (filter.start_date) qs.set("start_date", filter.start_date);
+  if (filter.end_date) qs.set("end_date", filter.end_date);
+  const q = qs.toString();
+  return q ? `?${q}` : "";
+}
+
+export async function downloadOrderThermalPdf(id: string): Promise<ApiFileResult> {
+  return apiFile(`/sales/orders/${id}/generate-boleta-pdf/`);
+}
+
+export async function downloadOrderA4Pdf(id: string): Promise<ApiFileResult> {
+  return apiFile(`/sales/orders/${id}/generate-boleta-domiciliaria-pdf/`);
+}
+
+export async function exportOrdersExcel(filter: OrdersFilter): Promise<ApiFileResult> {
+  return apiFile(`/sales/orders/export/${ordersQueryString(filter)}`);
 }
 
 export { ApiError };

@@ -1,4 +1,4 @@
-import { apiFetch } from "./client";
+import { apiFetch, apiFile, type ApiFileResult } from "./client";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 export type Revenue = YggdraSchemas["Revenue"];
@@ -13,6 +13,8 @@ export interface RevenuesFilter {
   search?: string;
   category?: string;
   status?: string;
+  startDate?: string;
+  endDate?: string;
   next?: string | null;
   previous?: string | null;
 }
@@ -28,6 +30,8 @@ export async function fetchRevenues(filter: RevenuesFilter = {}): Promise<Pagina
   if (filter.search) qs.set("search", filter.search);
   if (filter.category) qs.set("category", filter.category);
   if (filter.status) qs.set("status", filter.status);
+  if (filter.startDate) qs.set("start_date", filter.startDate);
+  if (filter.endDate) qs.set("end_date", filter.endDate);
   const q = qs.toString();
   return apiFetch<PaginatedRevenue>(`/finance/revenues/${q ? `?${q}` : ""}`);
 }
@@ -64,4 +68,26 @@ export async function cancelRevenue(id: string): Promise<Revenue> {
 
 export async function markRevenueAsReceived(id: string): Promise<Revenue> {
   return apiFetch<Revenue>(`/finance/revenues/${id}/mark_received/`, { method: "POST" });
+}
+
+function revenuesQueryString(filter: RevenuesFilter): string {
+  const qs = new URLSearchParams();
+  if (filter.search) qs.set("search", filter.search);
+  if (filter.category) qs.set("category", filter.category);
+  if (filter.status) qs.set("status", filter.status);
+  if (filter.startDate) qs.set("start_date", filter.startDate);
+  if (filter.endDate) qs.set("end_date", filter.endDate);
+  const q = qs.toString();
+  return q ? `?${q}` : "";
+}
+
+export async function exportRevenuesExcel(filter: RevenuesFilter): Promise<ApiFileResult> {
+  return apiFile(`/finance/revenues/export-excel/${revenuesQueryString(filter)}`);
+}
+
+export async function downloadRevenueVoucher(
+  id: string,
+  format: "thermal" | "a4" = "thermal",
+): Promise<ApiFileResult> {
+  return apiFile(`/finance/revenues/${id}/download-voucher/?pdf_format=${format}`);
 }

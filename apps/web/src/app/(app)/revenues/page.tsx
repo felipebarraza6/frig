@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Pencil, Trash2, Loader2, X, CheckCircle2, TrendingDown } from "lucide-react";
+import { Search, Pencil, Trash2, Loader2, X, CheckCircle2, TrendingDown, FileDown, Receipt } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -14,10 +14,13 @@ import {
   deleteRevenue,
   cancelRevenue,
   markRevenueAsReceived,
+  exportRevenuesExcel,
+  downloadRevenueVoucher,
   type Revenue,
   type RevenueRequest,
 } from "@/lib/api/revenues";
 import { formatCLP } from "@/lib/utils";
+import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
 
 const STATUS_OPTIONS = [
   { value: "", label: "Todos" },
@@ -47,6 +50,8 @@ export default function RevenuesPage() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
   const [status, setStatus] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [pageUrl, setPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Revenue | null>(null);
@@ -63,9 +68,25 @@ export default function RevenuesPage() {
   });
 
   const { data: page, isLoading } = useQuery({
-    queryKey: ["revenues", { search, category, status, pageUrl }],
-    queryFn: () => fetchRevenues({ search, category, status, ...pageUrl }),
+    queryKey: ["revenues", { search, category, status, startDate, endDate, pageUrl }],
+    queryFn: () => fetchRevenues({ search, category, status, startDate, endDate, ...pageUrl }),
   });
+
+  const { download: downloadFile, isLoading: isDownloading } = useDownloadFile();
+  const filter = { search, category, status, startDate, endDate };
+
+  async function handleExportExcel() {
+    await downloadFile(() => exportRevenuesExcel(filter), {
+      filename: exportFilename("ingresos", "xlsx"),
+      extension: "xlsx",
+    });
+  }
+
+  async function handleDownloadVoucher(revenue: Revenue) {
+    await downloadFile(() => downloadRevenueVoucher(revenue.id), {
+      filename: `comprobante_${revenue.id.slice(0, 8)}.pdf`,
+    });
+  }
 
   const { data: categories = [] } = useQuery({
     queryKey: ["revenue-categories"],
@@ -154,10 +175,25 @@ export default function RevenuesPage() {
             Ventas, servicios y otros ingresos
           </p>
         </div>
-        <Button onClick={() => openModal()}>
-          <TrendingDown className="mr-1 h-4 w-4" />
-          Nuevo ingreso
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportExcel}
+            disabled={isDownloading}
+          >
+            {isDownloading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <FileDown className="mr-2 h-4 w-4" />
+            )}
+            Exportar Excel
+          </Button>
+          <Button onClick={() => openModal()}>
+            <TrendingDown className="mr-1 h-4 w-4" />
+            Nuevo ingreso
+          </Button>
+        </div>
       </header>
 
       <div className="flex flex-1 flex-col gap-4 p-6">
@@ -195,6 +231,24 @@ export default function RevenuesPage() {
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </Select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="filter-start" className="text-xs text-muted-foreground">Desde</label>
+            <Input
+              id="filter-start"
+              type="date"
+              value={startDate}
+              onChange={(e) => updateFilter(setStartDate, e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="filter-end" className="text-xs text-muted-foreground">Hasta</label>
+            <Input
+              id="filter-end"
+              type="date"
+              value={endDate}
+              onChange={(e) => updateFilter(setEndDate, e.target.value)}
+            />
           </div>
         </div>
 
@@ -256,6 +310,15 @@ export default function RevenuesPage() {
                               Recibir
                             </Button>
                           )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDownloadVoucher(r)}
+                            disabled={isDownloading}
+                            title="Descargar comprobante"
+                          >
+                            <Receipt className="h-3.5 w-3.5" />
+                          </Button>
                           <Button variant="ghost" size="sm" onClick={() => openModal(r)}>
                             <Pencil className="h-3.5 w-3.5" />
                             Editar

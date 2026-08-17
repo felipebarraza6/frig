@@ -3,17 +3,17 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, RefreshCcw, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useCurrentBranch, useIsOwner, useIsSuperAdmin, useSessionStore } from "@/lib/store/session";
+import { useCurrentBranch, useIsOwner, useIsSuperAdmin } from "@/lib/store/session";
 import { useToast } from "@/lib/store/toast";
 import {
   fetchBranchModules,
-  enableBranchModule,
-  disableBranchModule,
+  toggleBranchModule,
   syncBranchModules,
   type ModuleName,
 } from "@/lib/api/branch-modules";
 import type { YggdraSchemas } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
+import { CORE_UI_MODULES } from "@/lib/modules";
 
 type ModuleConfig = YggdraSchemas["BranchModuleConfiguration"];
 
@@ -23,7 +23,6 @@ const RESTAURANT_MODULES: ModuleName[] = [
   "pos",
   "tables",
   "customers",
-  "clients",
   "promotions",
   "scheduling",
   "finance",
@@ -32,24 +31,12 @@ const RESTAURANT_MODULES: ModuleName[] = [
   "bank_accounts",
   "inventory",
   "warehouse_management",
-  "stock_control",
   "products",
-  "recipes",
-  "ingredients",
   "nutrition",
   "suppliers",
   "employees",
   "analytics",
   "public_catalog",
-];
-
-const CORE_MODULES: ModuleName[] = [
-  "dashboard",
-  "config",
-  "sales",
-  "finance",
-  "customers",
-  "inventory",
 ];
 
 const MODULE_LABELS: Partial<Record<ModuleName, string>> = {
@@ -85,7 +72,7 @@ const MODULE_GROUPS: { title: string; modules: ModuleName[] }[] = [
   },
   {
     title: "Clientes y promociones",
-    modules: ["customers", "clients", "promotions", "public_catalog"],
+    modules: ["customers", "promotions", "public_catalog"],
   },
   {
     title: "Finanzas",
@@ -93,11 +80,11 @@ const MODULE_GROUPS: { title: string; modules: ModuleName[] }[] = [
   },
   {
     title: "Inventario y productos",
-    modules: ["inventory", "warehouse_management", "stock_control", "products", "suppliers"],
+    modules: ["inventory", "warehouse_management", "products", "suppliers"],
   },
   {
     title: "Nutrición",
-    modules: ["nutrition", "recipes", "ingredients"],
+    modules: ["nutrition"],
   },
   {
     title: "Organización",
@@ -106,7 +93,7 @@ const MODULE_GROUPS: { title: string; modules: ModuleName[] }[] = [
 ];
 
 function isCore(moduleName: ModuleName): boolean {
-  return CORE_MODULES.includes(moduleName);
+  return CORE_UI_MODULES.includes(moduleName);
 }
 
 export default function BranchModulesPage() {
@@ -117,8 +104,6 @@ export default function BranchModulesPage() {
   const queryClient = useQueryClient();
   const branchId = branch?.branch_id ? Number(branch.branch_id) : null;
   const canManage = isOwner || isSuperAdmin;
-  const enabledApps = useSessionStore((s) => s.permissions?.enabled_apps ?? []);
-  const setEnabledApps = useSessionStore((s) => s.setEnabledApps);
 
   const { data: configs = [], isLoading, error } = useQuery({
     queryKey: ["branch-modules", branchId],
@@ -130,22 +115,16 @@ export default function BranchModulesPage() {
   const configByName = new Map<ModuleName, ModuleConfig>();
   filtered.forEach((c) => configByName.set(c.module_name, c));
 
-  const enable = useMutation({
-    mutationFn: enableBranchModule,
-    onSuccess: () => {
+  const toggle = useMutation({
+    mutationFn: toggleBranchModule,
+    onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["branch-modules", branchId] });
-      toast.success("Módulo habilitado");
+      toast.success(vars.isEnabled ? "Módulo habilitado" : "Módulo deshabilitado");
     },
-    onError: (err: Error) => toast.error(err.message),
-  });
-
-  const disable = useMutation({
-    mutationFn: disableBranchModule,
-    onSuccess: () => {
+    onError: (err: Error) => {
       queryClient.invalidateQueries({ queryKey: ["branch-modules", branchId] });
-      toast.success("Módulo deshabilitado");
+      toast.error(err.message);
     },
-    onError: (err: Error) => toast.error(err.message),
   });
 
   const sync = useMutation({
@@ -162,15 +141,12 @@ export default function BranchModulesPage() {
       toast.error("No tienes permisos para modificar módulos");
       return;
     }
-    const nextApps = new Set(enabledApps);
-    if (config.is_enabled) {
-      nextApps.delete(config.module_name);
-      disable.mutate(config.id);
-    } else {
-      nextApps.add(config.module_name);
-      enable.mutate(config.id);
-    }
-    setEnabledApps(Array.from(nextApps));
+    if (!branchId) return;
+
+    toggle.mutate({
+      id: config.id,
+      isEnabled: !config.is_enabled,
+    });
   }
 
   return (
@@ -227,10 +203,10 @@ export default function BranchModulesPage() {
                   <div className="flex flex-col gap-2">
                     {groupConfigs.map((config) => {
                       const core = isCore(config.module_name);
-                      const toggling = enable.isPending || disable.isPending;
+                      const toggling = toggle.isPending;
                       return (
                         <div
-                          key={config.id}
+                          key={config.module_name}
                           className={cn(
                             "flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2.5",
                             config.is_enabled ? "bg-background" : "bg-muted/30"

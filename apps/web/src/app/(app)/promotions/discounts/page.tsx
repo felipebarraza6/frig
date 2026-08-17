@@ -10,6 +10,10 @@ import {
   Percent,
   X,
   Calendar,
+  FileDown,
+  BarChart3,
+  TrendingUp,
+  Tag,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -21,14 +25,16 @@ import {
   useCreateDiscountMutation,
   useUpdateDiscountMutation,
   useDeleteDiscountMutation,
+  useDiscountDashboard,
   type PromotionDiscount,
   type PromotionDiscountList,
   type DiscountFormPayload,
 } from "@/lib/hooks/useDiscounts";
 import { useProducts } from "@/lib/hooks/useCatalog";
 import { useCategories } from "@/lib/hooks/useCatalog";
-import { fetchDiscount } from "@/lib/api/discounts";
+import { fetchDiscount, exportDiscountsExcel } from "@/lib/api/discounts";
 import { useCurrentBranch } from "@/lib/store/session";
+import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
 
 const DISCOUNT_TYPES = [
   { value: "PERCENTAGE", label: "Porcentaje" },
@@ -134,6 +140,10 @@ function toIsoDateTime(dateValue: string, endOfDay = false): string | null {
 export default function DiscountsPage() {
   const branch = useCurrentBranch();
   const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [applyToFilter, setApplyToFilter] = useState("");
+  const [activeOnly, setActiveOnly] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<PromotionDiscountList | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<PromotionDiscountList | null>(null);
@@ -143,21 +153,38 @@ export default function DiscountsPage() {
   const toast = useToast();
 
   const { data: discounts = [], isLoading, error } = useAllDiscounts();
+  const { data: dashboard } = useDiscountDashboard(branch?.branch_id);
   const { data: products = [] } = useProducts();
   const { data: categories = [] } = useCategories();
   const createMutation = useCreateDiscountMutation();
   const updateMutation = useUpdateDiscountMutation();
   const deleteMutation = useDeleteDiscountMutation();
+  const { download: downloadFile, isLoading: isDownloading } = useDownloadFile();
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return discounts;
-    return discounts.filter(
-      (d) =>
+    return discounts.filter((d) => {
+      const q = search.trim().toLowerCase();
+      const matchesSearch =
+        !q ||
         d.name.toLowerCase().includes(q) ||
-        d.code.toLowerCase().includes(q),
+        d.code.toLowerCase().includes(q);
+      const matchesType = !typeFilter || d.discount_type === typeFilter;
+      const matchesStatus = !statusFilter || d.status === statusFilter;
+      const matchesApplyTo = !applyToFilter || d.apply_to === applyToFilter;
+      const matchesActive = !activeOnly || (d.status === "ACTIVE" && !d.is_expired);
+      return matchesSearch && matchesType && matchesStatus && matchesApplyTo && matchesActive;
+    });
+  }, [discounts, search, typeFilter, statusFilter, applyToFilter, activeOnly]);
+
+  async function handleExportExcel() {
+    await downloadFile(
+      () => exportDiscountsExcel({ status: statusFilter, discount_type: typeFilter }),
+      {
+        filename: exportFilename("descuentos", "xlsx"),
+        extension: "xlsx",
+      },
     );
-  }, [discounts, search]);
+  }
 
   function openModal(discount?: PromotionDiscountList) {
     setEditing(discount ?? null);
@@ -279,22 +306,116 @@ export default function DiscountsPage() {
             Gestiona promociones, códigos y descuentos para el POS
           </p>
         </div>
-        <Button onClick={() => openModal()}>
-          <Plus className="h-4 w-4" />
-          Nuevo descuento
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportExcel}
+            disabled={isDownloading || isLoading}
+          >
+            {isDownloading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <FileDown className="mr-2 h-4 w-4" />
+            )}
+            Exportar Excel
+          </Button>
+          <Button onClick={() => openModal()}>
+            <Plus className="h-4 w-4" />
+            Nuevo descuento
+          </Button>
+        </div>
       </header>
 
       <div className="flex flex-1 flex-col gap-4 p-6">
-        <div className="relative max-w-sm">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar descuento…"
-            className="pl-9"
-            aria-label="Buscar descuento"
-          />
+        {dashboard && (
+          <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              label="Total descuentos"
+              value={dashboard.summary.total_discounts}
+              icon={Tag}
+              sub={`${dashboard.summary.active_discounts} activos`}
+            />
+            <StatCard
+              label="Usos totales"
+              value={dashboard.summary.total_usage}
+              icon={TrendingUp}
+              sub="acumulados"
+            />
+            <StatCard
+              label="Monto descontado"
+              value={formatCLP(dashboard.summary.total_discount_amount)}
+              icon={BarChart3}
+              sub="total"
+            />
+            <StatCard
+              label="Promos expirando"
+              value={dashboard.expiring_soon.length}
+              icon={Calendar}
+              sub="en 7 días"
+            />
+          </section>
+        )}
+
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="relative w-full max-w-xs">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar descuento…"
+              className="pl-9"
+              aria-label="Buscar descuento"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="filter-type" className="text-xs text-muted-foreground">Tipo</label>
+            <Select
+              id="filter-type"
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+            >
+              <option value="">Todos</option>
+              {DISCOUNT_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </Select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="filter-status" className="text-xs text-muted-foreground">Estado</label>
+            <Select
+              id="filter-status"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="">Todos</option>
+              {STATUS_OPTIONS.map((s) => (
+                <option key={s.value} value={s.value}>{s.label}</option>
+              ))}
+            </Select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="filter-apply" className="text-xs text-muted-foreground">Aplicar a</label>
+            <Select
+              id="filter-apply"
+              value={applyToFilter}
+              onChange={(e) => setApplyToFilter(e.target.value)}
+            >
+              <option value="">Todos</option>
+              {APPLY_TO.map((a) => (
+                <option key={a.value} value={a.value}>{a.label}</option>
+              ))}
+            </Select>
+          </div>
+          <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm">
+            <input
+              type="checkbox"
+              checked={activeOnly}
+              onChange={(e) => setActiveOnly(e.target.checked)}
+              className="h-4 w-4 rounded border-border"
+            />
+            <span className="text-muted-foreground">Solo activos</span>
+          </label>
         </div>
 
         {error ? (
@@ -796,6 +917,29 @@ export default function DiscountsPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  sub,
+}: {
+  label: string;
+  value: string | number;
+  icon: React.ComponentType<{ className?: string }>;
+  sub: string;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-card p-4">
+      <div className="mb-2 flex items-center gap-2 text-muted-foreground">
+        <Icon className="h-4 w-4" />
+        <span className="text-xs font-medium">{label}</span>
+      </div>
+      <p className="text-xl font-semibold tabular-nums">{value}</p>
+      <p className="text-xs text-muted-foreground">{sub}</p>
     </div>
   );
 }

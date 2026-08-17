@@ -2,11 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Loader2, ShoppingBag, X, Eye, Ban, Banknote, Plus, Trash2 } from "lucide-react";
+import { Search, Loader2, ShoppingBag, X, Eye, Ban, Banknote, Plus, Trash2, FileDown, Printer } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
-import { fetchOrders, cancelOrder, type OrdersFilter } from "@/lib/api/orders";
+import { fetchOrders, cancelOrder, downloadOrderThermalPdf, downloadOrderA4Pdf, exportOrdersExcel, type OrdersFilter } from "@/lib/api/orders";
 import { fetchPaymentMethods, createPayment } from "@/lib/api/payments";
 import { getCurrentCashRegister } from "@/lib/api/cash-register";
 import { fetchTables } from "@/lib/api/tables";
@@ -17,8 +17,9 @@ import {
   useCurrentBranchRole,
   canCancelOrder,
   useCanViewTables,
-  useIsAppEnabled,
 } from "@/lib/store/session";
+import { useIsModuleEnabled } from "@/lib/hooks/useBranchModules";
+import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 type Order = YggdraSchemas["Order"] & { order_number?: string | null };
@@ -74,8 +75,9 @@ export default function SalesPage() {
   const currentRole = useCurrentBranchRole();
   const canCancel = (ownerId?: string | number) => canCancelOrder(user, currentRole, ownerId);
   const canViewTables = useCanViewTables();
-  const tablesEnabled = useIsAppEnabled("tables");
+  const tablesEnabled = useIsModuleEnabled("tables");
   const showTables = canViewTables && tablesEnabled;
+  const { download: downloadFile, isLoading: isDownloading } = useDownloadFile();
   const openView = useClientSearchParam("view") === "open";
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
@@ -200,6 +202,25 @@ export default function SalesPage() {
     ]);
   }
 
+  async function handleExportExcel() {
+    await downloadFile(() => exportOrdersExcel(filter), {
+      filename: exportFilename("ordenes", "xlsx"),
+      extension: "xlsx",
+    });
+  }
+
+  async function handleDownloadThermalPdf(order: Order) {
+    await downloadFile(() => downloadOrderThermalPdf(order.id), {
+      filename: `boleta_${order.order_number ?? order.id.slice(0, 8)}.pdf`,
+    });
+  }
+
+  async function handleDownloadA4Pdf(order: Order) {
+    await downloadFile(() => downloadOrderA4Pdf(order.id), {
+      filename: `boleta_${order.order_number ?? order.id.slice(0, 8)}_a4.pdf`,
+    });
+  }
+
   function closeCollect() {
     setCollecting(null);
     setPaymentLines([]);
@@ -249,6 +270,19 @@ export default function SalesPage() {
             Historial de ventas, pedidos y convenios
           </p>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExportExcel}
+          disabled={isDownloading}
+        >
+          {isDownloading ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <FileDown className="mr-2 h-4 w-4" />
+          )}
+          Exportar Excel
+        </Button>
       </header>
 
       <div className="flex flex-1 flex-col gap-4 p-6">
@@ -473,6 +507,30 @@ export default function SalesPage() {
                               <Banknote className="h-3.5 w-3.5" />
                               Cobrar
                             </Button>
+                          )}
+                          {order.payment_status === "PAID" && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDownloadThermalPdf(order)}
+                                disabled={isDownloading}
+                                title="Boleta 80 mm"
+                              >
+                                <Printer className="h-3.5 w-3.5" />
+                                80 mm
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDownloadA4Pdf(order)}
+                                disabled={isDownloading}
+                                title="Boleta A4"
+                              >
+                                <FileDown className="h-3.5 w-3.5" />
+                                A4
+                              </Button>
+                            </>
                           )}
                           {order.status !== "CANCELLED" && canCancel(order.owner) && (
                             <Button

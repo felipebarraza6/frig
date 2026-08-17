@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Pencil, Power, Loader2, Package, AlertTriangle, Warehouse, X } from "lucide-react";
+import { Plus, Search, Pencil, Power, Loader2, Package, AlertTriangle, Warehouse, X, FileSpreadsheet, FileText } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -13,12 +13,14 @@ import {
   updateProduct,
   setProductActive,
   deleteProduct,
+  exportProducts,
   type ProductPayload,
   type ProductsFilter,
 } from "@/lib/api/products";
 import { fetchCategoryList } from "@/lib/api/categories";
 import { fetchProductWarehouses } from "@/lib/api/warehouses";
 import { ProductForm } from "@/components/products/product-form";
+import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
 import type { YggdraProduct } from "@/lib/api/types";
 
 const PRODUCT_TYPES = [
@@ -38,6 +40,7 @@ function isLowStock(p: YggdraProduct): boolean {
 
 export default function ProductsPage() {
   const queryClient = useQueryClient();
+  const { download: downloadFile, isLoading: isExporting } = useDownloadFile();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
   const [productType, setProductType] = useState("");
@@ -103,6 +106,12 @@ export default function ProductsPage() {
     setPageUrl({});
   }
 
+  function handleExport(format: "excel" | "pdf") {
+    downloadFile(() => exportProducts(filter, format), {
+      filename: exportFilename("productos", format === "excel" ? "xlsx" : "pdf"),
+    });
+  }
+
   return (
     <div className="flex min-h-full flex-col">
       <header className="flex items-center justify-between border-b border-border px-6 py-3">
@@ -112,10 +121,30 @@ export default function ProductsPage() {
             Gestiona el catálogo de la sucursal
           </p>
         </div>
-        <Button onClick={() => setCreating(true)}>
-          <Plus className="h-4 w-4" />
-          Nuevo producto
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleExport("excel")}
+            disabled={isExporting}
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            Excel
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleExport("pdf")}
+            disabled={isExporting}
+          >
+            <FileText className="h-4 w-4" />
+            PDF
+          </Button>
+          <Button onClick={() => setCreating(true)}>
+            <Plus className="h-4 w-4" />
+            Nuevo producto
+          </Button>
+        </div>
       </header>
 
       <div className="flex flex-1 flex-col gap-4 p-6">

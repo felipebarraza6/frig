@@ -105,6 +105,15 @@ export async function apiFetch<T>(path: string, opts: ApiOptions = {}): Promise<
     }
   }
 
+  if (!res.ok) {
+    const detail = data;
+    const message = formatErrorDetail(detail) || `Error ${res.status}`;
+    throw new ApiError(res.status, message, detail);
+  }
+
+  return data as T;
+}
+
 function formatErrorDetail(detail: unknown): string {
   if (typeof detail === "string") return detail;
   if (Array.isArray(detail) && detail.length > 0) {
@@ -129,28 +138,92 @@ function formatErrorDetail(detail: unknown): string {
   return "";
 }
 
+export interface ApiFileResult {
+  blob: Blob;
+  filename?: string;
+}
+
+function extractFilename(headers: Headers): string | undefined {
+  const disposition = headers.get("content-disposition");
+  if (!disposition) return undefined;
+
+  const filenameStar = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (filenameStar) {
+    return decodeURIComponent(filenameStar[1].replace(/['"]/g, ""));
+  }
+
+  const filename = disposition.match(/filename=['"]?([^'";]+)['"]?/i);
+  if (filename) {
+    return filename[1];
+  }
+
+  return undefined;
+}
+
+/**
+ * Helper para descargar archivos binarios (PDF, XLSX, PNG).
+ * Por defecto envía Accept: cualquier tipo MIME para evitar que DRF devuelva
+ * 406 cuando los viewsets no registran un renderer para application/pdf o
+ * application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.
+ */
+export async function apiFile(
+  path: string,
+  opts: ApiOptions = {},
+): Promise<ApiFileResult> {
+  const {
+    method = "GET",
+    body,
+    headers = {},
+    auth = "required",
+    branch = "auto",
+  } = opts;
+
+  const finalHeaders: Record<string, string> = {
+    Accept: "*/*",
+    ...headers,
+  };
+  if (body !== undefined) {
+    finalHeaders["Content-Type"] = "application/json";
+  }
+
+  const token = getToken();
+  if (auth === "required" && !token) {
+    redirectToLogin();
+    throw new ApiError(401, "No autenticado");
+  }
+  if (token && auth !== "none") {
+    finalHeaders["Authorization"] = `Token ${token}`;
+  }
+
+  const branchId = getBranchId();
+  if (branch === "auto" && branchId) {
+    finalHeaders["X-Branch-ID"] = branchId;
+  }
+
+  const url = /^https?:\/\//i.test(path) ? path : `${API_BASE}${path}`;
+  const res = await fetch(url, {
+    method,
+    headers: finalHeaders,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+    credentials: "include",
+  });
+
+  if (res.status === 401 && auth === "required") {
+    redirectToLogin();
+    throw new ApiError(401, "Sesión expirada");
+  }
+
   if (!res.ok) {
-    const detail = data;
-    const message = formatErrorDetail(detail) || `Error ${res.status}`;
+    const text = await res.text();
+    let detail: unknown = text;
+    try {
+      detail = JSON.parse(text);
+    } catch {
+      // respuesta no JSON: conservamos el texto crudo
+    }
+    const message = formatErrorDetail(detail) || `Error ${res.status} al descargar archivo`;
     throw new ApiError(res.status, message, detail);
   }
 
-  return data as T;
-}
-
-/** Helper para respuestas binarias (PDFs, boletas). */
-export async function apiFile(path: string, opts: ApiOptions = {}): Promise<Blob> {
-  const { method = "GET", auth = "required", branch = "auto", headers = {} } = opts;
-  const finalHeaders: Record<string, string> = { Accept: "application/pdf", ...headers };
-  const token = getToken();
-  if (token && auth !== "none") finalHeaders["Authorization"] = `Token ${token}`;
-  const branchId = getBranchId();
-  if (branch === "auto" && branchId) finalHeaders["X-Branch-ID"] = branchId;
-
-  const url = /^https?:\/\//i.test(path) ? path : `${API_BASE}${path}`;
-  const res = await fetch(url, { method, headers: finalHeaders, credentials: "include" });
-  if (!res.ok) {
-    throw new ApiError(res.status, `Error ${res.status} al descargar archivo`);
-  }
-  return res.blob();
+  return { blob: await res.blob(), filename: extractFilename(res.headers) };
 }

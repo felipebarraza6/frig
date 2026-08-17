@@ -59887,6 +59887,16 @@ export interface components {
             discount_type: "PERCENTAGE" | "FIXED_AMOUNT" | "BUY_X_GET_Y" | "BULK_DISCOUNT" | "LOYALTY" | "SEASONAL" | "PROMOTIONAL";
             readonly discount_type_display: string;
             /**
+             * Aplicar a
+             * @description * `ALL_PRODUCTS` - Todos los Productos
+             *     * `SPECIFIC_PRODUCTS` - Productos Específicos
+             *     * `CATEGORY` - Por Categoría
+             *     * `ORDER_TOTAL` - Total de la Orden
+             * @enum {string}
+             */
+            apply_to: "ALL_PRODUCTS" | "SPECIFIC_PRODUCTS" | "CATEGORY" | "ORDER_TOTAL";
+            readonly apply_to_display: string;
+            /**
              * Estado
              * @description * `ACTIVE` - Activo
              *     * `INACTIVE` - Inactivo

@@ -54,9 +54,11 @@ import {
   useIsOwner,
   useIsAdminLocal,
   useCanViewTables,
-  useIsAppEnabled,
   useCanSwitchBranch,
 } from "@/lib/store/session";
+import { useBranchModules } from "@/lib/hooks/useBranchModules";
+import type { ModuleName } from "@/lib/api/branch-modules";
+import { isModuleEnabled } from "@/lib/modules";
 import { useNavFavorites } from "@/lib/store/nav-favorites";
 import { useSidebarStore } from "@/lib/store/sidebar";
 import { logout } from "@/lib/api/auth";
@@ -68,83 +70,87 @@ import { getCurrentCashRegister } from "@/lib/api/cash-register";
 import { BrandLogo } from "@/components/brand-logo";
 import { CommandPalette, type CommandPaletteItem } from "@/components/command-palette/command-palette";
 
-const OPERATIONAL_NAV = [
-  { href: "/pos", label: "POS", icon: Receipt, badge: "ordersPending" as const },
-  { href: "/cash-register", label: "Caja", icon: Banknote, badge: "cashOpen" as const },
-  { href: "/kds", label: "Cocina", icon: ChefHat, badge: "kitchenReady" as const },
-  { href: "/sales", label: "Ventas", icon: ShoppingBag, badge: "ordersPending" as const },
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+interface NavItem {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  module: ModuleName | null;
+  badge?: "ordersPending" | "cashOpen" | "kitchenReady";
+  requiresManageUsers?: boolean;
+  requiresViewBranches?: boolean;
+  requiresInventory?: boolean;
+  requiresManageCustomers?: boolean;
+  requiresViewTables?: boolean;
+  requiresOwner?: boolean;
+}
+
+const OPERATIONAL_NAV: NavItem[] = [
+  { href: "/pos", label: "POS", icon: Receipt, module: "pos", badge: "ordersPending" },
+  { href: "/cash-register", label: "Caja", icon: Banknote, module: "cash_register", badge: "cashOpen" },
+  { href: "/kds", label: "Cocina", icon: ChefHat, module: "pos", badge: "kitchenReady" },
+  { href: "/sales", label: "Ventas", icon: ShoppingBag, module: "sales", badge: "ordersPending" },
+  { href: "/quotations", label: "Cotizaciones", icon: FileText, module: "sales" },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, module: "dashboard" },
 ];
 
 interface AdminGroup {
   title: string;
-  items: {
-    href: string;
-    label: string;
-    icon: React.ComponentType<{ className?: string }>;
-    requiresManageUsers?: boolean;
-    requiresViewBranches?: boolean;
-    requiresInventory?: boolean;
-    requiresManageCustomers?: boolean;
-    requiresViewTables?: boolean;
-    requiresOwner?: boolean;
-  }[];
+  items: NavItem[];
 }
 
 const ADMIN_GROUPS: AdminGroup[] = [
   {
     title: "Productos",
     items: [
-      { href: "/products", label: "Productos", icon: Package },
-      { href: "/products/combos", label: "Combos", icon: Boxes, requiresInventory: true },
-      { href: "/products/menus", label: "Menús", icon: QrCode, requiresInventory: true },
-      { href: "/products/nutrition", label: "Etiquetado nutricional", icon: Apple, requiresInventory: true },
-      { href: "/categories", label: "Categorías", icon: Tags, requiresInventory: true },
-      { href: "/warehouses", label: "Bodegas", icon: Warehouse, requiresInventory: true },
-      { href: "/inventory", label: "Inventario", icon: ClipboardList, requiresInventory: true },
+      { href: "/products", label: "Productos", icon: Package, module: "products" },
+      { href: "/products/combos", label: "Combos", icon: Boxes, module: "products" },
+      { href: "/products/menus", label: "Menús", icon: QrCode, module: "public_catalog" },
+      { href: "/products/nutrition", label: "Etiquetado nutricional", icon: Apple, module: "nutrition" },
+      { href: "/categories", label: "Categorías", icon: Tags, module: "products" },
+      { href: "/warehouses", label: "Bodegas", icon: Warehouse, module: "warehouse_management" },
+      { href: "/inventory", label: "Inventario", icon: ClipboardList, module: "inventory" },
     ],
   },
   {
     title: "Sala",
     items: [
-      { href: "/tables", label: "Mesas", icon: Table, requiresViewTables: true },
-      { href: "/tables/map", label: "Mapa de mesas", icon: Table, requiresViewTables: true },
+      { href: "/tables", label: "Mesas", icon: Table, module: "tables", requiresViewTables: true },
+      { href: "/tables/map", label: "Mapa de mesas", icon: Table, module: "tables", requiresViewTables: true },
     ],
   },
   {
     title: "CRM",
     items: [
-      { href: "/customers", label: "Clientes", icon: UserCircle, requiresManageCustomers: true },
+      { href: "/customers", label: "Clientes", icon: UserCircle, module: "customers", requiresManageCustomers: true },
     ],
   },
   {
     title: "Promociones",
-    items: [{ href: "/promotions/discounts", label: "Descuentos", icon: Percent }],
+    items: [{ href: "/promotions/discounts", label: "Descuentos", icon: Percent, module: "promotions" }],
   },
   {
     title: "Finanzas",
     items: [
-      { href: "/cash-register", label: "Arqueo de caja", icon: Banknote },
-      { href: "/cash-register/stations", label: "Estaciones POS", icon: Monitor },
-      { href: "/payment-methods", label: "Métodos de pago", icon: CreditCard },
-      { href: "/bank-accounts", label: "Cuentas bancarias", icon: Landmark },
-      { href: "/revenues", label: "Ingresos", icon: ArrowDownLeft },
-      { href: "/expenses", label: "Egresos", icon: ArrowUpRight },
+      { href: "/cash-register/stations", label: "Estaciones POS", icon: Monitor, module: "cash_register" },
+      { href: "/payment-methods", label: "Métodos de pago", icon: CreditCard, module: "payment_methods" },
+      { href: "/bank-accounts", label: "Cuentas bancarias", icon: Landmark, module: "bank_accounts" },
+      { href: "/revenues", label: "Ingresos", icon: ArrowDownLeft, module: "finance" },
+      { href: "/expenses", label: "Egresos", icon: ArrowUpRight, module: "finance" },
     ],
   },
   {
     title: "Compras",
     items: [
-      { href: "/suppliers", label: "Proveedores", icon: Truck },
-      { href: "/purchase-orders", label: "Órdenes de compra", icon: FileText },
+      { href: "/suppliers", label: "Proveedores", icon: Truck, module: "suppliers" },
+      { href: "/purchase-orders", label: "Órdenes de compra", icon: FileText, module: "suppliers" },
     ],
   },
   {
     title: "Organización",
     items: [
-      { href: "/users", label: "Usuarios", icon: UserIcon, requiresManageUsers: true },
-      { href: "/branches", label: "Sucursales", icon: Store, requiresViewBranches: true },
-      { href: "/settings/modules", label: "Módulos", icon: Settings, requiresOwner: true },
+      { href: "/users", label: "Usuarios", icon: UserIcon, module: "config", requiresManageUsers: true },
+      { href: "/branches", label: "Sucursales", icon: Store, module: "config", requiresViewBranches: true },
+      { href: "/settings/modules", label: "Módulos", icon: Settings, module: "config", requiresOwner: true },
     ],
   },
 ];
@@ -176,7 +182,7 @@ export function AppSidebar({ onNavigate, forceExpanded }: AppSidebarProps) {
   const canManageInventory = useCanManageInventory();
   const canManageCustomers = useCanManageCustomers();
   const canViewTables = useCanViewTables();
-  const tablesEnabled = useIsAppEnabled("tables");
+  const { enabledModules, isLoading: modulesLoading } = useBranchModules();
   const isCashier = useIsCashier();
   const isWaiter = useIsWaiter();
   const isOwner = useIsOwner();
@@ -195,7 +201,9 @@ export function AppSidebar({ onNavigate, forceExpanded }: AppSidebarProps) {
           : item
       )
         .filter((item) => {
-          if ("requiresViewTables" in item && item.requiresViewTables) return canViewTables && tablesEnabled;
+          if (modulesLoading) return true;
+          if (!isModuleEnabled(item.module, enabledModules)) return false;
+          if (item.requiresViewTables) return canViewTables;
           if (isCashier) {
             return ["/pos/terminal", "/cash-register", "/kds", "/sales"].includes(item.href);
           }
@@ -215,7 +223,7 @@ export function AppSidebar({ onNavigate, forceExpanded }: AppSidebarProps) {
           if (b.href === "/pos") return 1;
           return 0;
         }),
-    [isCashier, isWaiter, isOwner, isGlobalAdmin, canViewTables, tablesEnabled]
+    [isCashier, isWaiter, isOwner, isGlobalAdmin, canViewTables, modulesLoading, enabledModules]
   );
 
   const visibleAdminGroups = useMemo(
@@ -223,17 +231,18 @@ export function AppSidebar({ onNavigate, forceExpanded }: AppSidebarProps) {
       ADMIN_GROUPS.map((group) => ({
         ...group,
         items: group.items.filter((item) => {
-          if (isWaiter) return item.requiresViewTables && canViewTables && tablesEnabled;
-          if (item.requiresOwner) return isOwner || isGlobalAdmin;
-          if (item.requiresManageUsers) return canManageUsers;
-          if (item.requiresManageCustomers) return canManageCustomers;
-          if (item.requiresViewBranches) return canManageBranches;
-          if (item.requiresInventory) return canManageInventory;
+          if (isWaiter) return item.requiresViewTables && canViewTables;
+          if (item.requiresOwner) return (isOwner || isGlobalAdmin) && isModuleEnabled(item.module, enabledModules);
+          if (item.requiresManageUsers) return canManageUsers && isModuleEnabled(item.module, enabledModules);
+          if (item.requiresManageCustomers) return canManageCustomers && isModuleEnabled(item.module, enabledModules);
+          if (item.requiresViewBranches) return canManageBranches && isModuleEnabled(item.module, enabledModules);
+          if (item.requiresInventory) return canManageInventory && isModuleEnabled(item.module, enabledModules);
           if (item.requiresViewTables) {
+            if (!isModuleEnabled(item.module, enabledModules)) return false;
             if (isOwner || isGlobalAdmin || isAdminLocal) return canViewTables;
-            return canViewTables && tablesEnabled;
+            return canViewTables;
           }
-          return true;
+          return isModuleEnabled(item.module, enabledModules);
         }),
       })).filter((group) => group.items.length > 0),
     [
@@ -242,7 +251,7 @@ export function AppSidebar({ onNavigate, forceExpanded }: AppSidebarProps) {
       canManageBranches,
       canManageInventory,
       canViewTables,
-      tablesEnabled,
+      enabledModules,
       isOwner,
       isGlobalAdmin,
       isAdminLocal,

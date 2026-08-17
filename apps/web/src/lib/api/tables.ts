@@ -1,4 +1,5 @@
-import { apiFetch } from "./client";
+import { apiFetch, apiFile } from "./client";
+import type { ApiFileResult } from "./client";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 type Table = YggdraSchemas["Table"];
@@ -138,4 +139,16 @@ export async function assignWaiter(
       body: { assigned_waiter: assignedWaiter },
     },
   );
+}
+
+export function exportTables(filter: TablesFilter, format: "excel" | "pdf"): Promise<ApiFileResult> {
+  const qs = new URLSearchParams();
+  if (filter.search) qs.set("number__icontains", filter.search);
+  if (filter.status) qs.set("status", filter.status);
+  if (filter.area) qs.set("area__icontains", filter.area);
+  if (filter.capacity_min !== undefined) qs.set("capacity_min", String(filter.capacity_min));
+  if (filter.capacity_max !== undefined) qs.set("capacity_max", String(filter.capacity_max));
+  if (filter.is_active !== undefined) qs.set("is_active", String(filter.is_active));
+  const q = qs.toString();
+  return apiFile(`/tables/tables/export-${format}/${q ? `?${q}` : ""}`);
 }

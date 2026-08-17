@@ -8,20 +8,25 @@ export type ModuleName = YggdraSchemas["BranchModuleConfiguration"]["module_name
 export async function fetchBranchModules(branchId: number): Promise<BranchModuleConfiguration[]> {
   const qs = new URLSearchParams();
   qs.set("branch_id", String(branchId));
-  return apiFetch<BranchModuleConfiguration[]>(`/branches/modules/by_branch/?${qs.toString()}`);
+  const data = await apiFetch<BranchModuleConfiguration | BranchModuleConfiguration[]>(
+    `/branches/modules/by_branch/?${qs.toString()}`,
+  );
+  return Array.isArray(data) ? data : [data];
 }
 
-export async function enableBranchModule(id: number): Promise<BranchModuleConfiguration> {
-  return apiFetch<BranchModuleConfiguration>(`/branches/modules/${id}/`, {
-    method: "PATCH",
-    body: { is_enabled: true },
-  });
+export interface ToggleBranchModulePayload {
+  /** ID de la configuración de módulo (BranchModuleConfiguration). */
+  id: number;
+  isEnabled: boolean;
 }
 
-export async function disableBranchModule(id: number): Promise<BranchModuleConfiguration> {
+export async function toggleBranchModule({
+  id,
+  isEnabled,
+}: ToggleBranchModulePayload): Promise<BranchModuleConfiguration> {
   return apiFetch<BranchModuleConfiguration>(`/branches/modules/${id}/`, {
     method: "PATCH",
-    body: { is_enabled: false },
+    body: { is_enabled: isEnabled },
   });
 }
 

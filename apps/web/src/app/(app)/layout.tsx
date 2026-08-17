@@ -12,7 +12,9 @@ import {
   useWaiterAllowedPaths,
 } from "@/lib/store/session";
 import { useSidebarStore } from "@/lib/store/sidebar";
+import { useIsRouteModuleEnabled } from "@/lib/hooks/useBranchModules";
 import { AppSidebar } from "@/components/app-sidebar/app-sidebar";
+import { RealtimeProvider } from "@/components/realtime/realtime-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -40,6 +42,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const sidebarHovering = useSidebarStore((s) => s.hovering);
   const effectivelyExpanded = sidebarExpanded || sidebarHovering;
   const [mobileOpen, setMobileOpen] = useState(false);
+  const isRouteModuleEnabled = useIsRouteModuleEnabled(pathname);
 
   useEffect(() => {
     if (!hasHydrated) return;
@@ -59,8 +62,24 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
     if (isWaiter && !isAllowed(pathname, waiterAllowedPaths)) {
       router.replace("/pos/terminal");
+      return;
     }
-  }, [hasHydrated, user, currentBranchId, pathname, router, isCashier, isWaiter, cashierAllowedPaths, waiterAllowedPaths]);
+
+    if (!isRouteModuleEnabled && pathname !== "/dashboard") {
+      router.replace("/dashboard");
+    }
+  }, [
+    hasHydrated,
+    user,
+    currentBranchId,
+    pathname,
+    router,
+    isCashier,
+    isWaiter,
+    cashierAllowedPaths,
+    waiterAllowedPaths,
+    isRouteModuleEnabled,
+  ]);
 
   if (!hasHydrated || !user) {
     return (
@@ -71,47 +90,49 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-full">
-      {!shouldHideSidebar && (
-        <>
-          <div className="hidden md:block">
-            <AppSidebar />
-          </div>
-          {mobileOpen && (
-            <div className="fixed inset-0 z-50 md:hidden">
-              <div
-                className="absolute inset-0 bg-black/50"
-                onClick={() => setMobileOpen(false)}
-              />
-              <div className="absolute left-0 top-0 h-full w-60 bg-card shadow-2xl">
-                <AppSidebar onNavigate={() => setMobileOpen(false)} forceExpanded />
-              </div>
-            </div>
-          )}
-        </>
-      )}
-
-      <main
-        className={cn(
-          "flex min-h-full flex-1 flex-col",
-          !shouldHideSidebar && (effectivelyExpanded ? "md:ml-60" : "md:ml-16")
-        )}
-      >
+    <RealtimeProvider>
+      <div className="flex min-h-full">
         {!shouldHideSidebar && (
-          <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-background/80 px-4 py-2 backdrop-blur md:hidden">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setMobileOpen(true)}
-              aria-label="Abrir menú"
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
-          </header>
+          <>
+            <div className="hidden md:block">
+              <AppSidebar />
+            </div>
+            {mobileOpen && (
+              <div className="fixed inset-0 z-50 md:hidden">
+                <div
+                  className="absolute inset-0 bg-black/50"
+                  onClick={() => setMobileOpen(false)}
+                />
+                <div className="absolute left-0 top-0 h-full w-60 bg-card shadow-2xl">
+                  <AppSidebar onNavigate={() => setMobileOpen(false)} forceExpanded />
+                </div>
+              </div>
+            )}
+          </>
         )}
-        {children}
-      </main>
-      <Toaster />
-    </div>
+
+        <main
+          className={cn(
+            "flex min-h-full flex-1 flex-col",
+            !shouldHideSidebar && (effectivelyExpanded ? "md:ml-60" : "md:ml-16")
+          )}
+        >
+          {!shouldHideSidebar && (
+            <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-background/80 px-4 py-2 backdrop-blur md:hidden">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setMobileOpen(true)}
+                aria-label="Abrir menú"
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+            </header>
+          )}
+          {children}
+        </main>
+        <Toaster />
+      </div>
+    </RealtimeProvider>
   );
 }

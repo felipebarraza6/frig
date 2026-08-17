@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Plus, Minus, ArrowDownLeft, ArrowUpRight, RefreshCcw } from "lucide-react";
+import { Loader2, Plus, Minus, ArrowDownLeft, ArrowUpRight, RefreshCcw, FileDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -15,6 +15,7 @@ import {
   cashOut,
   getMovements,
   fetchCashAudit,
+  exportCashRegisterMovements,
   type CashRegisterMovement,
 } from "@/lib/api/cash-register";
 import { fetchCashRegisterStations } from "@/lib/api/cash-register-stations";
@@ -24,6 +25,7 @@ import {
   useCurrentBranch,
   useCurrentBranchStation,
 } from "@/lib/store/session";
+import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
 
 function numberValue(v: string): string {
   const cleaned = v.replace(/[^0-9]/g, "");
@@ -47,6 +49,7 @@ export default function CashRegisterPage() {
   const toast = useToast();
   const [tab, setTab] = useState<"summary" | "movements" | "audit">("summary");
   const [auditDate, setAuditDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const { download: downloadFile, isLoading: isDownloading } = useDownloadFile();
 
   const assignedStationId = station?.station_id ?? null;
   const [selectedStationId, setSelectedStationId] = useState<number | null>(
@@ -141,6 +144,14 @@ export default function CashRegisterPage() {
   });
 
   const expected = cashRegister?.expected_amount ?? summary?.expected_amount ?? null;
+
+  async function handleExportMovements() {
+    if (!cashRegister?.id) return;
+    await downloadFile(() => exportCashRegisterMovements(cashRegister.id), {
+      filename: exportFilename(`movimientos_caja_${cashRegister.id}`, "xlsx"),
+      extension: "xlsx",
+    });
+  }
 
   return (
     <div className="flex min-h-full flex-col gap-6 p-6">
@@ -466,10 +477,28 @@ export default function CashRegisterPage() {
           )
         ) : loadingMovements ? (
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-        ) : movements.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Sin movimientos registrados.</p>
         ) : (
-          <ul className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Movimientos registrados</h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportMovements}
+                disabled={!cashRegister?.id || movements.length === 0 || isDownloading}
+              >
+                {isDownloading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <FileDown className="mr-2 h-4 w-4" />
+                )}
+                Exportar movimientos
+              </Button>
+            </div>
+            {movements.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Sin movimientos registrados.</p>
+            ) : (
+              <ul className="flex flex-col gap-2">
             {movements.map((m: CashRegisterMovement) => (
               <li
                 key={m.id}
@@ -492,6 +521,8 @@ export default function CashRegisterPage() {
               </li>
             ))}
           </ul>
+            )}
+          </div>
         )}
       </section>
     </div>

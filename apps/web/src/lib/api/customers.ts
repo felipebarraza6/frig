@@ -1,25 +1,39 @@
-import { apiFetch } from "./client";
+import { apiFetch, apiFile, type ApiFileResult } from "./client";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 type Client = YggdraSchemas["Client"];
 type ClientRequest = YggdraSchemas["ClientRequest"];
 type PaginatedClientList = YggdraSchemas["PaginatedClientDepthList"];
 
+export type CustomerStatusFilter = "" | "active" | "inactive";
+
 export interface CustomersFilter {
   search?: string;
   dni?: string;
   phone?: string;
+  startDate?: string;
+  endDate?: string;
+  status?: CustomerStatusFilter;
   next?: string | null;
   previous?: string | null;
+}
+
+function buildCustomersQueryString(filter: CustomersFilter): URLSearchParams {
+  const qs = new URLSearchParams();
+  if (filter.search) qs.set("name__icontains", filter.search);
+  if (filter.dni) qs.set("dni__icontains", filter.dni);
+  if (filter.phone) qs.set("phone_number__icontains", filter.phone);
+  if (filter.startDate) qs.set("created__gte", filter.startDate);
+  if (filter.endDate) qs.set("created__lte", filter.endDate);
+  if (filter.status === "active") qs.set("is_active", "true");
+  if (filter.status === "inactive") qs.set("is_active", "false");
+  return qs;
 }
 
 function buildCustomersUrl(filter: CustomersFilter): string {
   if (filter.next) return filter.next;
   if (filter.previous) return filter.previous;
-  const qs = new URLSearchParams();
-  if (filter.search) qs.set("name__icontains", filter.search);
-  if (filter.dni) qs.set("dni__icontains", filter.dni);
-  if (filter.phone) qs.set("phone_number__icontains", filter.phone);
+  const qs = buildCustomersQueryString(filter);
   const q = qs.toString();
   return `/customers/clients/${q ? `?${q}` : ""}`;
 }
@@ -97,4 +111,18 @@ export async function fetchCustomerTags(): Promise<string[]> {
     }
   }
   return Array.from(tags).sort();
+}
+
+function buildCustomersExportQuery(filter: CustomersFilter): string {
+  const qs = buildCustomersQueryString(filter);
+  const q = qs.toString();
+  return q ? `?${q}` : "";
+}
+
+export async function exportCustomersExcel(filter: CustomersFilter): Promise<ApiFileResult> {
+  return apiFile(`/customers/clients/__xlsx/${buildCustomersExportQuery(filter)}`);
+}
+
+export async function exportCustomersPdf(filter: CustomersFilter): Promise<ApiFileResult> {
+  return apiFile(`/customers/clients/__pdf/${buildCustomersExportQuery(filter)}`);
 }

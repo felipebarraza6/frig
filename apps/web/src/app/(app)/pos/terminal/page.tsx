@@ -49,10 +49,10 @@ import {
   useCurrentBranch,
   useCurrentBranchStation,
   useCanViewTables,
-  useIsAppEnabled,
   useIsWaiter,
   useSessionStore,
 } from "@/lib/store/session";
+import { useIsModuleEnabled } from "@/lib/hooks/useBranchModules";
 import { branchName } from "@/lib/types";
 import ModifierModal from "@/components/pos/modifier-modal";
 import { WaiterTablesView } from "@/components/pos/waiter-tables-view";
@@ -104,7 +104,7 @@ export default function PosPage() {
   }
 
   const canViewTables = useCanViewTables();
-  const tablesEnabled = useIsAppEnabled("tables");
+  const tablesEnabled = useIsModuleEnabled("tables");
   const showTables = (canViewTables && tablesEnabled) || isWaiterSimulation;
   const toast = useToast();
 
