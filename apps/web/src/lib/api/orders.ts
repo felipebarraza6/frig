@@ -16,16 +16,27 @@ export interface OrdersFilter {
   previous?: string | null;
 }
 
+export interface OrderItemModifierInput {
+  modifier_option: number;
+  surcharge_applied: string;
+  notes?: string | null;
+}
+
 export interface OrderItemInput {
   product: number;
   quantity: number;
   unit_price: string;
+  discount_percentage?: number;
+  notes?: string | null;
+  modifiers?: OrderItemModifierInput[];
 }
 
 export interface CreateOrderInput {
   items: OrderItemInput[];
   observation?: string | null;
   client_id?: number | null;
+  table_id?: number | null;
+  order_type?: "SALE" | "ORDER" | "AGREEMENT";
 }
 
 /**
@@ -63,12 +74,28 @@ export async function createOrder(input: CreateOrderInput): Promise<YggdraOrder>
   const data = await apiFetch<YggdraOrder>("/sales/orders/", {
     method: "POST",
     body: {
-      order_type: "SALE",
+      order_type: input.order_type ?? "SALE",
       date: new Date().toISOString(),
       observation: input.observation ?? null,
       client_id: input.client_id ?? null,
+      table_id: input.table_id ?? null,
       items: input.items,
     },
+  });
+  return data;
+}
+
+/**
+ * Agregar ítems a una orden existente.
+ * Útil para ampliar pedidos de mesa sin crear órdenes paralelas.
+ */
+export async function addItemsToOrder(
+  orderId: string,
+  items: OrderItemInput[],
+): Promise<YggdraOrder> {
+  const data = await apiFetch<YggdraOrder>(`/sales/orders/${orderId}/add_items/`, {
+    method: "POST",
+    body: { items },
   });
   return data;
 }
@@ -79,6 +106,13 @@ export function cartToOrderItems(items: CartItem[]): OrderItemInput[] {
     product: i.product.id,
     quantity: i.quantity,
     unit_price: i.product.price.toFixed(2),
+    discount_percentage: i.discountPercentage,
+    notes: i.notes || null,
+    modifiers: i.modifiers.map((m) => ({
+      modifier_option: m.modifierOptionId,
+      surcharge_applied: m.surcharge.toFixed(2),
+      notes: null,
+    })),
   }));
 }
 

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Store, Building2 } from "lucide-react";
-import { useSessionStore } from "@/lib/store/session";
+import { useSessionStore, useIsPosFirstRole } from "@/lib/store/session";
 import { fetchBranchTheme } from "@/lib/api/branches";
 import { branchName } from "@/lib/types";
 
@@ -17,6 +17,7 @@ export default function SelectBranchPage() {
   const user = useSessionStore((s) => s.user);
   const setCurrentBranch = useSessionStore((s) => s.setCurrentBranch);
   const setTheme = useSessionStore((s) => s.setTheme);
+  const isPosFirst = useIsPosFirstRole();
 
   async function handleSelect(branchId: string) {
     setCurrentBranch(branchId);
@@ -24,9 +25,9 @@ export default function SelectBranchPage() {
       const theme = await fetchBranchTheme();
       if (theme) setTheme(theme);
     } catch {
-      // tema no crítico: continuar al POS igual
+      // tema no crítico: continuar a la ruta destino igual
     }
-    router.replace("/pos");
+    router.replace(isPosFirst ? "/pos" : "/dashboard");
   }
 
   return (

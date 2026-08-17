@@ -34268,6 +34268,8 @@ export interface components {
             image?: string | null;
             /** @description Cantidad de productos incluidos en el combo. */
             readonly items_count: number;
+            /** @description Ítems incluidos en el combo. */
+            readonly items: components["schemas"]["ComboItem"][];
         };
         /** @description Serializer de escritura para combos con sus ítems. */
         ComboWrite: {
@@ -63339,10 +63341,22 @@ export interface components {
              */
             capacity?: number;
             /**
+             * Forma
+             * @description Forma de la mesa en el mapa visual
+             */
+            shape?: "ROUND" | "SQUARE" | "RECTANGLE" | "OVAL" | null;
+            /**
              * Área
              * @description Área donde está ubicada la mesa (terraza, interior, VIP, etc.)
              */
             area?: string | null;
+            /**
+             * Mesero asignado
+             * @description Usuario mesero responsable de atender esta mesa.
+             */
+            assigned_waiter?: number | null;
+            /** @description Nombre completo del mesero asignado. */
+            readonly assigned_waiter_name?: string;
             /**
              * Descripción
              * @description Descripción adicional de la mesa

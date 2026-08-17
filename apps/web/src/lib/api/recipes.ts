@@ -86,3 +86,18 @@ export async function updateRecipeIngredient(
 export async function deleteRecipeIngredient(id: number): Promise<void> {
   await apiFetch(`/recipes/ingredients/${id}/`, { method: "DELETE" });
 }
+
+export async function calculateRecipeNutrition(id: string): Promise<Recipe> {
+  return apiFetch<Recipe>(`/recipes/recipes/${id}/calculate_nutrition/`, {
+    method: "POST",
+    body: {},
+  });
+}
+
+export function nutritionLabelPdfUrl(id: string): string {
+  return `/recipes/recipes/${id}/download-nutrition-label-pdf/`;
+}
+
+export async function fetchRecipeNutritionLabel(id: string): Promise<Record<string, unknown>> {
+  return apiFetch<Record<string, unknown>>(`/recipes/recipes/${id}/nutrition_label/`);
+}

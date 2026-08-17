@@ -3,10 +3,11 @@ import type { YggdraSchemas } from "@/lib/api/types";
 
 type YggdraProduct = YggdraSchemas["ProductList"];
 type YggdraPaginated = YggdraSchemas["PaginatedProductListList"];
+type ProductWrite = YggdraSchemas["Product"];
 
 export type ProductPayload = Partial<
   Pick<
-    YggdraProduct,
+    ProductWrite,
     | "name"
     | "code"
     | "description"
@@ -15,6 +16,7 @@ export type ProductPayload = Partial<
     | "is_active"
     | "is_for_sale"
     | "is_for_internal_use"
+    | "is_public"
     | "price"
     | "sale_price"
     | "price_internal"
@@ -22,6 +24,18 @@ export type ProductPayload = Partial<
     | "cost_price"
     | "minimum_stock"
     | "quantity"
+    | "is_nutritional_ingredient"
+    | "energy_kcal"
+    | "proteins_g"
+    | "total_fats_g"
+    | "saturated_fats_g"
+    | "monounsaturated_fats_g"
+    | "polyunsaturated_fats_g"
+    | "trans_fats_g"
+    | "cholesterol_mg"
+    | "carbohydrates_g"
+    | "total_sugars_g"
+    | "sodium_mg"
   >
 > & { category?: number | null };
 
@@ -31,6 +45,7 @@ export interface ProductsFilter {
   product_type?: string;
   is_for_sale?: boolean;
   is_active?: boolean;
+  page_size?: number;
   next?: string | null;
   previous?: string | null;
 }
@@ -48,6 +63,7 @@ export async function fetchProducts(filter: ProductsFilter = {}): Promise<Yggdra
   if (filter.product_type) qs.set("product_type", filter.product_type);
   if (filter.is_for_sale !== undefined) qs.set("is_for_sale", String(filter.is_for_sale));
   if (filter.is_active !== undefined) qs.set("is_active", String(filter.is_active));
+  if (filter.page_size) qs.set("page_size", String(filter.page_size));
   const q = qs.toString();
   return apiFetch<YggdraPaginated>(`/inventory/products/${q ? `?${q}` : ""}`);
 }

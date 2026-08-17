@@ -3,7 +3,10 @@ import type { YggdraSchemas } from "@/lib/api/types";
 
 export type YggdraPaymentMethod = YggdraSchemas["PaymentMethodList"];
 export type YggdraPayment = YggdraSchemas["Payment"];
-export type YggdraPaymentCreate = YggdraSchemas["PaymentCreateRequest"];
+export type YggdraPaymentCreate = YggdraSchemas["PaymentCreateRequest"] & {
+  /** ID de la caja abierta a la que se asocia el pago (efectivo). */
+  cash_register_id?: number | null;
+};
 
 type PaginatedPaymentMethod = YggdraSchemas["PaginatedPaymentMethodListList"];
 

@@ -1,0 +1,199 @@
+"use client";
+
+import { useState } from "react";
+import { X, Plus, Trash2, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { formatCLP, paymentTypeLabel } from "@/lib/utils";
+import { createPayment } from "@/lib/api/payments";
+import { freeTable } from "@/lib/api/tables";
+import type { YggdraSchemas } from "@/lib/api/types";
+
+type Order = YggdraSchemas["Order"] & { order_number?: string | null };
+type PaymentMethod = YggdraSchemas["PaymentMethodList"];
+type CashRegister = YggdraSchemas["CashRegister"];
+
+interface OrderCollectModalProps {
+  order: Order;
+  paymentMethods: PaymentMethod[] | undefined;
+  currentCashRegister: CashRegister | null | undefined;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+interface PaymentLine {
+  id: string;
+  payment_method_id: string;
+  amount: string;
+}
+
+export default function OrderCollectModal({
+  order,
+  paymentMethods,
+  currentCashRegister,
+  onClose,
+  onSuccess,
+}: OrderCollectModalProps) {
+  const firstMethod = paymentMethods?.[0];
+  const total = parseFloat(order.total_amount ?? "0");
+  const [paymentLines, setPaymentLines] = useState<PaymentLine[]>([
+    {
+      id: "initial",
+      payment_method_id: firstMethod?.id ?? "",
+      amount: Math.round(total).toString(),
+    },
+  ]);
+  const [collectError, setCollectError] = useState<string | null>(null);
+  const [collectSuccess, setCollectSuccess] = useState<string | null>(null);
+  const [isPending, setIsPending] = useState(false);
+
+  function addPaymentLine() {
+    setPaymentLines((prev) => [
+      ...prev,
+      {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        payment_method_id: firstMethod?.id ?? "",
+        amount: "",
+      },
+    ]);
+  }
+
+  function removePaymentLine(id: string) {
+    setPaymentLines((prev) => prev.filter((p) => p.id !== id));
+  }
+
+  function updatePaymentLine(id: string, patch: Partial<PaymentLine>) {
+    setPaymentLines((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  }
+
+  const paidAmount = paymentLines.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+  const remaining = Math.max(0, total - paidAmount);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setCollectError(null);
+    if (paidAmount < total) {
+      setCollectError(`Faltan ${formatCLP(remaining)} para completar el pago.`);
+      return;
+    }
+    setIsPending(true);
+    try {
+      for (const payment of paymentLines) {
+        const method = paymentMethods?.find((m) => m.id === payment.payment_method_id);
+        const isCash = method?.payment_type === "CASH";
+        await createPayment({
+          payment_method_id: payment.payment_method_id,
+          order_id: order.id,
+          amount: Number(payment.amount).toFixed(2),
+          status: "COMPLETED",
+          cash_register_id: isCash && currentCashRegister ? currentCashRegister.id : null,
+        });
+      }
+      // Al cobrar la cuenta completa, la mesa queda libre.
+      if (order.table) {
+        try {
+          await freeTable(order.table);
+        } catch {
+          // Si falla, la mesa puede liberarse manualmente.
+        }
+      }
+      setCollectSuccess("Pago registrado correctamente.");
+      setTimeout(() => {
+        onSuccess();
+      }, 800);
+    } catch (err) {
+      setCollectError(err instanceof Error ? err.message : "Error al registrar el pago.");
+    } finally {
+      setIsPending(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
+      <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-lg">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-base font-semibold">
+            Cobrar orden {order.order_number ?? order.id.slice(0, 8)}
+          </h2>
+          <button onClick={onClose} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="flex items-center justify-between rounded-lg border border-border p-3 text-sm">
+            <span className="text-muted-foreground">Total a cobrar</span>
+            <span className="text-lg font-semibold tabular-nums">{formatCLP(total)}</span>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium">Pagos</label>
+              <Button type="button" variant="outline" size="sm" onClick={addPaymentLine}>
+                <Plus className="mr-1 h-3.5 w-3.5" />
+                Agregar
+              </Button>
+            </div>
+            {paymentLines.map((line) => (
+              <div key={line.id} className="flex items-end gap-2 rounded-lg border border-border p-2">
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  <label className="text-xs text-muted-foreground">Método</label>
+                  <Select
+                    value={line.payment_method_id}
+                    onChange={(e) => updatePaymentLine(line.id, { payment_method_id: e.target.value })}
+                  >
+                    {paymentMethods?.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {paymentTypeLabel(m.payment_type) || m.name || m.payment_type}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="flex w-28 flex-col gap-1">
+                  <label className="text-xs text-muted-foreground">Monto</label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="1"
+                    value={line.amount ? Math.round(parseFloat(line.amount)).toString() : ""}
+                    onChange={(e) => updatePaymentLine(line.id, { amount: e.target.value })}
+                    className="tabular-nums"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removePaymentLine(line.id)}
+                  className="mb-2 text-muted-foreground hover:text-danger"
+                  aria-label="Quitar pago"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>Total ingresado</span>
+              <span className="tabular-nums">{formatCLP(paidAmount)}</span>
+            </div>
+          </div>
+
+          {collectError && (
+            <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{collectError}</p>
+          )}
+          {collectSuccess && (
+            <p className="rounded-lg bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700">{collectSuccess}</p>
+          )}
+
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={isPending}>
+              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Registrar pago
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}

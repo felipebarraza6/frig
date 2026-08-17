@@ -1,181 +1,66 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
-import Link from "next/link";
+import { useEffect, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  LayoutDashboard,
-  Receipt,
-  RotateCcw,
-  LogOut,
-  Package,
-  User as UserIcon,
-  UserCircle,
-  Store,
-  Tags,
-  Warehouse,
-  ClipboardList,
-  CreditCard,
-  Landmark,
-  ArrowDownLeft,
-  ArrowUpRight,
-  ShoppingBag,
-  Truck,
-  FileText,
-  ChevronDown,
-  ChevronRight,
-} from "lucide-react";
+import { Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { branchName } from "@/lib/types";
 import {
   useSessionStore,
-  useCurrentBranch,
-  useCanManageUsers,
-  useCanViewBranches,
-  useCanManageInventory,
-  useCanManageCustomers,
+  useIsCashier,
+  useIsWaiter,
+  useCashierAllowedPaths,
+  useWaiterAllowedPaths,
 } from "@/lib/store/session";
-import { logout } from "@/lib/api/auth";
-import { clearToken } from "@/lib/api/session-storage";
-import { BrandLogo } from "@/components/brand-logo";
+import { useSidebarStore } from "@/lib/store/sidebar";
+import { AppSidebar } from "@/components/app-sidebar/app-sidebar";
+import { Toaster } from "@/components/ui/toaster";
+import { Button } from "@/components/ui/button";
+import { useState } from "react";
 
-const OPERATIONAL_NAV = [
-  { href: "/pos", label: "POS", icon: Receipt },
-  { href: "/kds", label: "Cocina", icon: RotateCcw },
-  { href: "/sales", label: "Ventas", icon: ShoppingBag },
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-];
+const HIDDEN_SIDEBAR_PATHS = ["/pos/terminal", "/kds/terminal", "/kds/monitor"];
 
-interface AdminGroup {
-  title: string;
-  items: {
-    href: string;
-    label: string;
-    icon: React.ComponentType<{ className?: string }>;
-    requiresManageUsers?: boolean;
-    requiresViewBranches?: boolean;
-    requiresInventory?: boolean;
-    requiresManageCustomers?: boolean;
-  }[];
-}
-
-const ADMIN_GROUPS: AdminGroup[] = [
-  {
-    title: "Productos",
-    items: [
-      { href: "/products", label: "Productos", icon: Package },
-      { href: "/categories", label: "Categorías", icon: Tags, requiresInventory: true },
-      { href: "/warehouses", label: "Bodegas", icon: Warehouse, requiresInventory: true },
-      { href: "/inventory", label: "Inventario", icon: ClipboardList, requiresInventory: true },
-    ],
-  },
-  {
-    title: "CRM",
-    items: [
-      { href: "/customers", label: "Clientes", icon: UserCircle, requiresManageCustomers: true },
-    ],
-  },
-  {
-    title: "Finanzas",
-    items: [
-      { href: "/payment-methods", label: "Métodos de pago", icon: CreditCard },
-      { href: "/bank-accounts", label: "Cuentas bancarias", icon: Landmark },
-      { href: "/revenues", label: "Ingresos", icon: ArrowDownLeft },
-      { href: "/expenses", label: "Egresos", icon: ArrowUpRight },
-    ],
-  },
-  {
-    title: "Compras",
-    items: [
-      { href: "/suppliers", label: "Proveedores", icon: Truck },
-      { href: "/purchase-orders", label: "Órdenes de compra", icon: FileText },
-    ],
-  },
-  {
-    title: "Organización",
-    items: [
-      { href: "/users", label: "Usuarios", icon: UserIcon, requiresManageUsers: true },
-      { href: "/branches", label: "Sucursales", icon: Store, requiresViewBranches: true },
-    ],
-  },
-];
-
-function AdminGroupNav({
-  group,
-  renderItem,
-}: {
-  group: AdminGroup;
-  renderItem: (item: AdminGroup["items"][number]) => ReactNode;
-}) {
-  const [open, setOpen] = useState(true);
-  return (
-    <div className="flex flex-col gap-1">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center justify-between rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-      >
-        {group.title}
-        {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-      </button>
-      {open && group.items.map(renderItem)}
-    </div>
+function isAllowed(pathname: string, allowedPaths: string[]): boolean {
+  return allowedPaths.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`)
   );
 }
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const shouldHideSidebar = HIDDEN_SIDEBAR_PATHS.includes(pathname);
   const hasHydrated = useSessionStore((s) => s.hasHydrated);
   const user = useSessionStore((s) => s.user);
   const currentBranchId = useSessionStore((s) => s.currentBranchId);
-  const clearSession = useSessionStore((s) => s.clearSession);
-  const theme = useSessionStore((s) => s.theme);
-  const branch = useCurrentBranch();
-  const canManageUsers = useCanManageUsers();
-  const canViewBranches = useCanViewBranches();
-  const canManageInventory = useCanManageInventory();
-  const canManageCustomers = useCanManageCustomers();
-  const appName = theme?.app_name ?? "FRIG";
-
-  const visibleOperationalNav = OPERATIONAL_NAV;
-
-  const visibleAdminGroups = ADMIN_GROUPS.map((group) => ({
-    ...group,
-    items: group.items.filter((item) => {
-      if (item.requiresManageUsers) return canManageUsers;
-      if (item.requiresManageCustomers) return canManageCustomers;
-      if (item.requiresViewBranches) return canViewBranches;
-      if (item.requiresInventory) return canManageInventory;
-      return true;
-    }),
-  })).filter((group) => group.items.length > 0);
-
-  const renderNavItem = (item: (typeof OPERATIONAL_NAV[number]) | AdminGroup["items"][number]) => {
-    const active = pathname.startsWith(item.href);
-    const Icon = item.icon;
-    return (
-      <Link
-        key={item.href}
-        href={item.href}
-        className={cn(
-          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-[background-color,color] duration-150",
-          active
-            ? "bg-primary text-white"
-            : "text-muted-foreground hover:bg-muted hover:text-foreground",
-        )}
-      >
-        <Icon className="h-4 w-4" />
-        {item.label}
-      </Link>
-    );
-  };
+  const isCashier = useIsCashier();
+  const isWaiter = useIsWaiter();
+  const cashierAllowedPaths = useCashierAllowedPaths();
+  const waiterAllowedPaths = useWaiterAllowedPaths();
+  const sidebarExpanded = useSidebarStore((s) => s.expanded);
+  const sidebarHovering = useSidebarStore((s) => s.hovering);
+  const effectivelyExpanded = sidebarExpanded || sidebarHovering;
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     if (!hasHydrated) return;
-    if (!user) router.replace("/login");
-    else if (!currentBranchId) router.replace("/select-branch");
-  }, [hasHydrated, user, currentBranchId, router]);
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+    if (!currentBranchId) {
+      router.replace("/select-branch");
+      return;
+    }
+
+    if (isCashier && !isAllowed(pathname, cashierAllowedPaths)) {
+      router.replace("/pos/terminal");
+      return;
+    }
+
+    if (isWaiter && !isAllowed(pathname, waiterAllowedPaths)) {
+      router.replace("/pos/terminal");
+    }
+  }, [hasHydrated, user, currentBranchId, pathname, router, isCashier, isWaiter, cashierAllowedPaths, waiterAllowedPaths]);
 
   if (!hasHydrated || !user) {
     return (
@@ -185,83 +70,48 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  async function handleLogout() {
-    try {
-      await logout();
-    } catch {
-      // ignora errores de red en logout; se limpia sesión local igual
-    }
-    clearToken();
-    clearSession();
-    router.replace("/login");
-  }
-
   return (
     <div className="flex min-h-full">
-      <aside className="fixed inset-y-0 left-0 flex w-56 flex-col overflow-hidden border-r border-border bg-card">
-        <div className="flex shrink-0 items-center gap-2 px-4 py-4">
-          <BrandLogo src={theme?.logo} alt={appName} containerClassName="h-9 w-9 shrink-0" />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">{appName}</p>
-            {branch && (
-              <p className="truncate text-xs text-muted-foreground">{branchName(branch)}</p>
-            )}
+      {!shouldHideSidebar && (
+        <>
+          <div className="hidden md:block">
+            <AppSidebar />
           </div>
-        </div>
-
-        <div className="flex flex-1 flex-col gap-2 overflow-y-auto px-2 py-2">
-          <nav className="flex flex-col gap-1">
-            {visibleOperationalNav.map(renderNavItem)}
-          </nav>
-
-          {visibleAdminGroups.length > 0 && (
-            <nav className="flex flex-col gap-3 border-t border-border pt-2">
-              {visibleAdminGroups.map((group) => (
-                <AdminGroupNav key={group.title} group={group} renderItem={renderNavItem} />
-              ))}
-            </nav>
+          {mobileOpen && (
+            <div className="fixed inset-0 z-50 md:hidden">
+              <div
+                className="absolute inset-0 bg-black/50"
+                onClick={() => setMobileOpen(false)}
+              />
+              <div className="absolute left-0 top-0 h-full w-60 bg-card shadow-2xl">
+                <AppSidebar onNavigate={() => setMobileOpen(false)} forceExpanded />
+              </div>
+            </div>
           )}
-        </div>
+        </>
+      )}
 
-        <div className="flex shrink-0 flex-col gap-1 border-t border-border p-2">
-          <Link
-            href="/profile"
-            className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2 transition-[background-color,color] duration-150",
-              pathname.startsWith("/profile")
-                ? "bg-primary text-white"
-                : "hover:bg-muted hover:text-foreground",
-            )}
-          >
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary">
-              <UserIcon className="h-4 w-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium">
-                {user?.first_name ?? user?.email}
-              </p>
-              <p className="truncate text-xs opacity-80">
-                {user?.email}
-              </p>
-            </div>
-          </Link>
-          <Link
-            href="/select-branch"
-            className="rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground transition-[background-color,color] duration-150 hover:bg-muted hover:text-foreground"
-          >
-            Cambiar sucursal
-          </Link>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-[background-color,color] duration-150 hover:bg-muted hover:text-foreground"
-          >
-            <LogOut className="h-4 w-4" />
-            Cerrar sesión
-          </button>
-        </div>
-      </aside>
-
-      <main className="ml-56 flex min-h-full flex-1 flex-col">{children}</main>
+      <main
+        className={cn(
+          "flex min-h-full flex-1 flex-col",
+          !shouldHideSidebar && (effectivelyExpanded ? "md:ml-60" : "md:ml-16")
+        )}
+      >
+        {!shouldHideSidebar && (
+          <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-background/80 px-4 py-2 backdrop-blur md:hidden">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setMobileOpen(true)}
+              aria-label="Abrir menú"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+          </header>
+        )}
+        {children}
+      </main>
+      <Toaster />
     </div>
   );
 }

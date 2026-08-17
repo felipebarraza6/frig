@@ -80,11 +80,15 @@ export async function updateWarehouseProductQuantity(
   });
 }
 
-export interface TransferStockPayload {
-  source_warehouse: number;
-  target_warehouse: number;
-  product: number;
+export interface TransferStockItem {
+  product_id: number;
   quantity: number;
+}
+
+export interface TransferStockPayload {
+  source_warehouse_id: number;
+  target_warehouse_id: number;
+  products: TransferStockItem[];
   notes?: string;
 }
 

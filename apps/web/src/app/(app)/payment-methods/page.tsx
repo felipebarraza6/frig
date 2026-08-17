@@ -13,21 +13,18 @@ import {
   deletePaymentMethod,
   type YggdraPaymentMethod,
 } from "@/lib/api/payments";
+import { paymentTypeLabel } from "@/lib/utils";
 
 const PAYMENT_TYPES = [
-  { value: "CASH", label: "Efectivo" },
-  { value: "BANK_TRANSFER", label: "Transferencia" },
-  { value: "CHECK", label: "Cheque" },
-  { value: "CREDIT_CARD", label: "Tarjeta de crédito" },
-  { value: "DEBIT_CARD", label: "Tarjeta de débito" },
-  { value: "DIGITAL_WALLET", label: "Billetera digital" },
-  { value: "CRYPTO", label: "Criptomoneda" },
-  { value: "OTHER", label: "Otro" },
+  { value: "CASH", label: paymentTypeLabel("CASH") },
+  { value: "BANK_TRANSFER", label: paymentTypeLabel("BANK_TRANSFER") },
+  { value: "CHECK", label: paymentTypeLabel("CHECK") },
+  { value: "CREDIT_CARD", label: paymentTypeLabel("CREDIT_CARD") },
+  { value: "DEBIT_CARD", label: paymentTypeLabel("DEBIT_CARD") },
+  { value: "DIGITAL_WALLET", label: paymentTypeLabel("DIGITAL_WALLET") },
+  { value: "CRYPTO", label: paymentTypeLabel("CRYPTO") },
+  { value: "OTHER", label: paymentTypeLabel("OTHER") },
 ] as const;
-
-function paymentTypeLabel(value?: string | null): string {
-  return PAYMENT_TYPES.find((t) => t.value === value)?.label ?? (value ?? "—");
-}
 
 export default function PaymentMethodsPage() {
   const queryClient = useQueryClient();
@@ -151,7 +148,7 @@ export default function PaymentMethodsPage() {
                         <div className="flex h-7 w-7 items-center justify-center rounded-md bg-secondary">
                           <CreditCard className="h-3.5 w-3.5 text-muted-foreground" />
                         </div>
-                        <span className="font-medium">{m.display_name ?? m.name}</span>
+                        <span className="font-medium">{m.name}</span>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">

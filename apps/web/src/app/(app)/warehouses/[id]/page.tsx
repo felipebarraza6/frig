@@ -102,10 +102,14 @@ export default function WarehouseDetailPage() {
   const transfer = useMutation({
     mutationFn: () =>
       transferStock({
-        source_warehouse: warehouseId,
-        target_warehouse: Number(transferTarget),
-        product: Number(transferProduct?.product),
-        quantity: Number(transferQuantity),
+        source_warehouse_id: warehouseId,
+        target_warehouse_id: Number(transferTarget),
+        products: [
+          {
+            product_id: Number(transferProduct?.product),
+            quantity: Number(transferQuantity),
+          },
+        ],
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["warehouses", warehouseId, "products"] });

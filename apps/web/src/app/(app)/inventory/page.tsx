@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Loader2, Plus, X, AlertTriangle, Package } from "lucide-react";
+import { Search, Loader2, Plus, X, AlertTriangle, Package, AlertCircle, PackageX, TrendingDown, Ban } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -18,6 +18,7 @@ import { fetchWarehouses } from "@/lib/api/warehouses";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 type InventoryHistory = YggdraSchemas["InventoryHistory"];
+type ProductInventorySummary = YggdraSchemas["ProductInventorySummary"];
 
 const MOVEMENT_TYPES = [
   { value: "IN", label: "Entrada" },
@@ -46,8 +47,11 @@ export default function InventoryPage() {
   const [tab, setTab] = useState<"movements" | "alerts">("movements");
   const [search, setSearch] = useState("");
   const [movementType, setMovementType] = useState("");
+  const [productFilter, setProductFilter] = useState("");
+  const [warehouseFilter, setWarehouseFilter] = useState("");
   const [pageUrl, setPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
   const [modalOpen, setModalOpen] = useState(false);
+  const [alertSearch, setAlertSearch] = useState("");
 
   const { data: productsPage } = useQuery({
     queryKey: ["products", "catalog"],
@@ -65,9 +69,11 @@ export default function InventoryPage() {
     () => ({
       search: search || undefined,
       movement_type: movementType || undefined,
+      product: productFilter ? Number(productFilter) : undefined,
+      warehouse: warehouseFilter ? Number(warehouseFilter) : undefined,
       ...pageUrl,
     }),
-    [search, movementType, pageUrl],
+    [search, movementType, productFilter, warehouseFilter, pageUrl],
   );
 
   const { data: movementsPage, isLoading: loadingMovements } = useQuery({
@@ -86,6 +92,26 @@ export default function InventoryPage() {
   });
 
   const totalAlerts = lowStock.length + outOfStock.length;
+
+  const alertMatches = (p: ProductInventorySummary, term: string) => {
+    if (!term) return true;
+    const t = term.toLowerCase();
+    return (
+      p.name?.toLowerCase().includes(t) ||
+      p.code?.toLowerCase().includes(t) ||
+      p.category_name?.toLowerCase().includes(t)
+    );
+  };
+
+  const filteredLowStock = useMemo(
+    () => lowStock.filter((p) => alertMatches(p, alertSearch)),
+    [lowStock, alertSearch]
+  );
+
+  const filteredOutOfStock = useMemo(
+    () => outOfStock.filter((p) => alertMatches(p, alertSearch)),
+    [outOfStock, alertSearch]
+  );
 
   const create = useMutation({
     mutationFn: createInventoryMovement,
@@ -177,6 +203,38 @@ export default function InventoryPage() {
                   ))}
                 </Select>
               </div>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="filter-product" className="text-xs text-muted-foreground">Producto</label>
+                <Select
+                  id="filter-product"
+                  value={productFilter}
+                  onChange={(e) => {
+                    setProductFilter(e.target.value);
+                    setPageUrl({});
+                  }}
+                >
+                  <option value="">Todos</option>
+                  {products.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </Select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="filter-warehouse" className="text-xs text-muted-foreground">Bodega</label>
+                <Select
+                  id="filter-warehouse"
+                  value={warehouseFilter}
+                  onChange={(e) => {
+                    setWarehouseFilter(e.target.value);
+                    setPageUrl({});
+                  }}
+                >
+                  <option value="">Todas</option>
+                  {warehouses.map((w) => (
+                    <option key={w.id} value={w.id}>{w.name}</option>
+                  ))}
+                </Select>
+              </div>
             </div>
 
             {loadingMovements ? (
@@ -253,67 +311,135 @@ export default function InventoryPage() {
 
         {tab === "alerts" && (
           <>
-            <h2 className="text-sm font-semibold">Productos sin stock</h2>
-            {outOfStock.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No hay productos sin stock.</p>
-            ) : (
-              <div className="overflow-x-auto rounded-xl border border-border">
-                <table className="w-full min-w-[480px] text-sm">
-                  <thead>
-                    <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                      <th className="px-4 py-3">Producto</th>
-                      <th className="px-4 py-3 text-right">Cantidad</th>
-                      <th className="px-4 py-3 text-right">Stock mínimo</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {outOfStock.map((p) => (
-                      <tr key={p.id} className="border-b border-border last:border-0">
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <AlertTriangle className="h-3.5 w-3.5 text-danger" />
-                            <span className="font-medium">{p.name}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-right tabular-nums">{p.quantity ?? 0}</td>
-                        <td className="px-4 py-3 text-right tabular-nums">{p.minimum_stock ?? "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border border-border bg-card p-4">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <AlertCircle className="h-4 w-4 text-danger" />
+                  Sin stock
+                </div>
+                <p className="mt-1 text-2xl font-semibold">{outOfStock.length}</p>
               </div>
-            )}
+              <div className="rounded-xl border border-border bg-card p-4">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <TrendingDown className="h-4 w-4 text-amber-500" />
+                  Stock bajo
+                </div>
+                <p className="mt-1 text-2xl font-semibold">{lowStock.length}</p>
+              </div>
+              <div className="rounded-xl border border-border bg-card p-4">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Package className="h-4 w-4 text-primary" />
+                  Total alertas
+                </div>
+                <p className="mt-1 text-2xl font-semibold">{totalAlerts}</p>
+              </div>
+            </div>
 
-            <h2 className="mt-4 text-sm font-semibold">Stock bajo</h2>
-            {lowStock.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No hay productos con stock bajo.</p>
-            ) : (
-              <div className="overflow-x-auto rounded-xl border border-border">
-                <table className="w-full min-w-[480px] text-sm">
-                  <thead>
-                    <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                      <th className="px-4 py-3">Producto</th>
-                      <th className="px-4 py-3 text-right">Cantidad</th>
-                      <th className="px-4 py-3 text-right">Stock mínimo</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {lowStock.map((p) => (
-                      <tr key={p.id} className="border-b border-border last:border-0">
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-                            <span className="font-medium">{p.name}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-right tabular-nums">{p.quantity ?? 0}</td>
-                        <td className="px-4 py-3 text-right tabular-nums">{p.minimum_stock ?? "—"}</td>
+            <div className="relative w-full max-w-xs">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={alertSearch}
+                onChange={(e) => setAlertSearch(e.target.value)}
+                placeholder="Buscar en alertas…"
+                className="pl-9"
+              />
+            </div>
+
+            <section>
+              <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
+                <PackageX className="h-4 w-4 text-danger" />
+                Productos sin stock
+              </h2>
+              {filteredOutOfStock.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border py-8 text-sm text-muted-foreground">
+                  <Ban className="h-6 w-6" />
+                  {outOfStock.length === 0
+                    ? "No hay productos sin stock."
+                    : "Ningún producto sin stock coincide con la búsqueda."}
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-border">
+                  <table className="w-full min-w-[480px] text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+                        <th className="px-4 py-3">Producto</th>
+                        <th className="px-4 py-3">Categoría</th>
+                        <th className="px-4 py-3 text-right">Cantidad</th>
+                        <th className="px-4 py-3 text-right">Stock mínimo</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                    </thead>
+                    <tbody>
+                      {filteredOutOfStock.map((p) => (
+                        <tr key={p.id} className="border-b border-border last:border-0">
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <span className="rounded-full bg-danger/10 p-1">
+                                <AlertTriangle className="h-3.5 w-3.5 text-danger" />
+                              </span>
+                              <div>
+                                <p className="font-medium">{p.name}</p>
+                                {p.code && <p className="text-xs text-muted-foreground">{p.code}</p>}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-muted-foreground">{p.category_name || "—"}</td>
+                          <td className="px-4 py-3 text-right tabular-nums font-medium text-danger">{p.quantity ?? 0}</td>
+                          <td className="px-4 py-3 text-right tabular-nums">{p.minimum_stock ?? "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+
+            <section>
+              <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
+                <TrendingDown className="h-4 w-4 text-amber-500" />
+                Stock bajo
+              </h2>
+              {filteredLowStock.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border py-8 text-sm text-muted-foreground">
+                  <Ban className="h-6 w-6" />
+                  {lowStock.length === 0
+                    ? "No hay productos con stock bajo."
+                    : "Ningún producto con stock bajo coincide con la búsqueda."}
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-border">
+                  <table className="w-full min-w-[480px] text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+                        <th className="px-4 py-3">Producto</th>
+                        <th className="px-4 py-3">Categoría</th>
+                        <th className="px-4 py-3 text-right">Cantidad</th>
+                        <th className="px-4 py-3 text-right">Stock mínimo</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredLowStock.map((p) => (
+                        <tr key={p.id} className="border-b border-border last:border-0">
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <span className="rounded-full bg-amber-500/10 p-1">
+                                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                              </span>
+                              <div>
+                                <p className="font-medium">{p.name}</p>
+                                {p.code && <p className="text-xs text-muted-foreground">{p.code}</p>}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-muted-foreground">{p.category_name || "—"}</td>
+                          <td className="px-4 py-3 text-right tabular-nums font-medium text-amber-600">{p.quantity ?? 0}</td>
+                          <td className="px-4 py-3 text-right tabular-nums">{p.minimum_stock ?? "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
           </>
         )}
       </div>

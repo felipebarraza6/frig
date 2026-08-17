@@ -28,9 +28,13 @@ export async function fetchCustomers(filter: CustomersFilter = {}): Promise<Pagi
   return apiFetch<PaginatedClientList>(buildCustomersUrl(filter));
 }
 
-export async function searchCustomers(query: string): Promise<Client[]> {
+export async function searchCustomers(query: string, branchId?: number): Promise<Client[]> {
+  const qs = new URLSearchParams();
+  qs.set("search", query);
+  qs.set("page_size", "20");
+  if (branchId) qs.set("branch", String(branchId));
   const data = await apiFetch<PaginatedClientList>(
-    `/customers/clients/?name__icontains=${encodeURIComponent(query)}`,
+    `/customers/clients/search/?${qs.toString()}`,
   );
   return data.results;
 }
@@ -46,11 +50,19 @@ export interface CustomerPayload {
   is_active?: boolean;
 }
 
+function getStoredBranchId(): number | undefined {
+  if (typeof window === "undefined") return undefined;
+  const raw = window.localStorage.getItem("frig.branch_id");
+  if (!raw) return undefined;
+  const n = Number(raw);
+  return Number.isNaN(n) || n <= 0 ? undefined : n;
+}
+
 function toApiPayload(payload: CustomerPayload): ClientRequest {
   return {
     ...payload,
     auto_create_meter: false,
-    branch: 0, // el backend resuelve la sucursal desde el header X-Branch-ID
+    branch: getStoredBranchId(),
   } as ClientRequest;
 }
 

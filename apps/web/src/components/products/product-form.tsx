@@ -11,6 +11,7 @@ import { fetchCategoryList } from "@/lib/api/categories";
 import { fetchProducts } from "@/lib/api/products";
 import type { ProductPayload } from "@/lib/api/products";
 import type { YggdraProduct } from "@/lib/api/types";
+import { NutritionLabelPreview } from "@/components/products/nutrition-label-preview";
 import {
   fetchRecipesByProduct,
   createRecipe,
@@ -18,6 +19,8 @@ import {
   createRecipeIngredient,
   updateRecipeIngredient,
   deleteRecipeIngredient,
+  calculateRecipeNutrition,
+  nutritionLabelPdfUrl,
   type RecipePayload,
   type RecipeIngredientPayload,
 } from "@/lib/api/recipes";
@@ -48,8 +51,24 @@ interface IngredientDraft {
   preparation_notes?: string;
 }
 
+interface YggdraProductDetail extends YggdraProduct {
+  is_nutritional_ingredient?: boolean;
+  is_public?: boolean;
+  energy_kcal?: string | null;
+  proteins_g?: string | null;
+  total_fats_g?: string | null;
+  saturated_fats_g?: string | null;
+  monounsaturated_fats_g?: string | null;
+  polyunsaturated_fats_g?: string | null;
+  trans_fats_g?: string | null;
+  cholesterol_mg?: string | null;
+  carbohydrates_g?: string | null;
+  total_sugars_g?: string | null;
+  sodium_mg?: string | null;
+}
+
 interface ProductFormProps {
-  product?: YggdraProduct;
+  product?: YggdraProductDetail;
   onClose: () => void;
   onSubmit: (payload: ProductPayload, id?: number) => Promise<YggdraProduct>;
 }
@@ -80,7 +99,20 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
     productType: string;
     isForSale: boolean;
     isForInternalUse: boolean;
+    isPublic: boolean;
     isActive: boolean;
+    isNutritionalIngredient: boolean;
+    energyKcal: string;
+    proteinsG: string;
+    totalFatsG: string;
+    saturatedFatsG: string;
+    monounsaturatedFatsG: string;
+    polyunsaturatedFatsG: string;
+    transFatsG: string;
+    cholesterolMg: string;
+    carbohydratesG: string;
+    totalSugarsG: string;
+    sodiumMg: string;
   }>({
     name: product?.name ?? "",
     code: product?.code ?? "",
@@ -96,7 +128,20 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
     productType: product?.product_type ?? "DIRECT_SALE",
     isForSale: product?.is_for_sale ?? true,
     isForInternalUse: product?.is_for_internal_use ?? false,
+    isPublic: (product as YggdraProduct & { is_public?: boolean })?.is_public ?? false,
     isActive: product?.is_active ?? true,
+    isNutritionalIngredient: (product as YggdraProduct & { is_nutritional_ingredient?: boolean })?.is_nutritional_ingredient ?? false,
+    energyKcal: product?.energy_kcal ?? "",
+    proteinsG: product?.proteins_g ?? "",
+    totalFatsG: product?.total_fats_g ?? "",
+    saturatedFatsG: product?.saturated_fats_g ?? "",
+    monounsaturatedFatsG: product?.monounsaturated_fats_g ?? "",
+    polyunsaturatedFatsG: product?.polyunsaturated_fats_g ?? "",
+    transFatsG: product?.trans_fats_g ?? "",
+    cholesterolMg: product?.cholesterol_mg ?? "",
+    carbohydratesG: product?.carbohydrates_g ?? "",
+    totalSugarsG: product?.total_sugars_g ?? "",
+    sodiumMg: product?.sodium_mg ?? "",
   });
 
   const { data: warehouses = [] } = useQuery({
@@ -192,6 +237,37 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [calculatingNutrition, setCalculatingNutrition] = useState(false);
+
+  async function handleCalculateNutrition() {
+    if (!recipe.id) {
+      setError("Guarda la receta primero para calcular la nutrición.");
+      return;
+    }
+    setCalculatingNutrition(true);
+    setError(null);
+    try {
+      const result = await calculateRecipeNutrition(recipe.id);
+      setForm((prev) => ({
+        ...prev,
+        isNutritionalIngredient: true,
+        energyKcal: result.calculated_energy_kcal ?? "",
+        proteinsG: result.calculated_proteins_g ?? "",
+        totalFatsG: result.calculated_total_fats_g ?? "",
+        saturatedFatsG: result.calculated_saturated_fats_g ?? "",
+        monounsaturatedFatsG: result.calculated_monounsaturated_fats_g ?? "",
+        polyunsaturatedFatsG: result.calculated_polyunsaturated_fats_g ?? "",
+        cholesterolMg: result.calculated_cholesterol_mg ?? "",
+        carbohydratesG: result.calculated_carbohydrates_g ?? "",
+        totalSugarsG: result.calculated_total_sugars_g ?? "",
+        sodiumMg: result.calculated_sodium_mg ?? "",
+      }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al calcular nutrición");
+    } finally {
+      setCalculatingNutrition(false);
+    }
+  }
 
   function updateField<K extends keyof typeof form>(field: K, value: (typeof form)[K]) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -324,7 +400,20 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
         product_type: form.productType as unknown as ProductPayload["product_type"],
         is_for_sale: form.isForSale,
         is_for_internal_use: form.isForInternalUse,
+        is_public: form.isPublic,
         is_active: form.isActive,
+        is_nutritional_ingredient: form.isNutritionalIngredient,
+        energy_kcal: form.energyKcal || null,
+        proteins_g: form.proteinsG || null,
+        total_fats_g: form.totalFatsG || null,
+        saturated_fats_g: form.saturatedFatsG || null,
+        monounsaturated_fats_g: form.monounsaturatedFatsG || null,
+        polyunsaturated_fats_g: form.polyunsaturatedFatsG || null,
+        trans_fats_g: form.transFatsG || null,
+        cholesterol_mg: form.cholesterolMg || null,
+        carbohydrates_g: form.carbohydratesG || null,
+        total_sugars_g: form.totalSugarsG || null,
+        sodium_mg: form.sodiumMg || null,
       };
       const savedProduct = await onSubmit(payload, product?.id);
 
@@ -538,6 +627,15 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
                 className="h-4 w-4 accent-primary"
               />
               Activo
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={form.isPublic}
+                onChange={(e) => updateField("isPublic", e.target.checked)}
+                className="h-4 w-4 accent-primary"
+              />
+              Público en menú QR
             </label>
           </div>
 
@@ -812,6 +910,102 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
               </div>
             </div>
           )}
+
+          <div className="rounded-xl border border-border bg-muted/40 p-4">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold">Etiquetado nutricional (por 100 g)</h3>
+              <div className="flex items-center gap-2">
+                {isCompound && recipe.id && (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCalculateNutrition}
+                      disabled={calculatingNutrition}
+                    >
+                      {calculatingNutrition ? (
+                        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Plus className="mr-2 h-3.5 w-3.5" />
+                      )}
+                      Calcular desde receta
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (!recipe.id) return;
+                        window.open(nutritionLabelPdfUrl(recipe.id), "_blank", "noopener,noreferrer");
+                      }}
+                    >
+                      Descargar PDF
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+            <label className="mb-4 flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={form.isNutritionalIngredient}
+                onChange={(e) => updateField("isNutritionalIngredient", e.target.checked)}
+                className="h-4 w-4 accent-primary"
+              />
+              Este producto tiene información nutricional
+            </label>
+
+            {form.isNutritionalIngredient && (
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+                {[
+                  { key: "energyKcal", label: "Energía (kcal)" },
+                  { key: "proteinsG", label: "Proteínas (g)" },
+                  { key: "totalFatsG", label: "Grasas totales (g)" },
+                  { key: "saturatedFatsG", label: "Grasas saturadas (g)" },
+                  { key: "monounsaturatedFatsG", label: "Grasas monoinsaturadas (g)" },
+                  { key: "polyunsaturatedFatsG", label: "Grasas poliinsaturadas (g)" },
+                  { key: "transFatsG", label: "Grasas trans (g)" },
+                  { key: "cholesterolMg", label: "Colesterol (mg)" },
+                  { key: "carbohydratesG", label: "Carbohidratos (g)" },
+                  { key: "totalSugarsG", label: "Azúcares totales (g)" },
+                  { key: "sodiumMg", label: "Sodio (mg)" },
+                ].map((field) => (
+                  <div key={field.key} className="flex flex-col gap-2">
+                    <label htmlFor={`nutrition-${field.key}`} className="text-xs font-medium text-muted-foreground">
+                      {field.label}
+                    </label>
+                    <Input
+                      id={`nutrition-${field.key}`}
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={form[field.key as keyof typeof form] as string}
+                      onChange={(e) => updateField(field.key as keyof typeof form, e.target.value)}
+                      placeholder="0"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+            {form.isNutritionalIngredient && (
+              <NutritionLabelPreview
+                values={{
+                  energyKcal: form.energyKcal,
+                  proteinsG: form.proteinsG,
+                  totalFatsG: form.totalFatsG,
+                  saturatedFatsG: form.saturatedFatsG,
+                  monounsaturatedFatsG: form.monounsaturatedFatsG,
+                  polyunsaturatedFatsG: form.polyunsaturatedFatsG,
+                  transFatsG: form.transFatsG,
+                  cholesterolMg: form.cholesterolMg,
+                  carbohydratesG: form.carbohydratesG,
+                  totalSugarsG: form.totalSugarsG,
+                  sodiumMg: form.sodiumMg,
+                }}
+              />
+            )}
+          </div>
 
           {error && (
             <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>

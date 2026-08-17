@@ -12,6 +12,8 @@ export interface BranchAssignment {
   role?: ID | string;
   role_code?: string;
   role_name?: string;
+  station_id?: ID | null;
+  station_name?: string | null;
   is_active?: boolean;
   is_default?: boolean;
   assigned_at?: string | null;
@@ -51,6 +53,8 @@ export interface Branch {
   assigned_at?: string | null;
   /** id de la asignación BranchUser (login_complete). */
   id?: ID;
+  station_id?: ID | null;
+  station_name?: string | null;
   owner?: ID | null;
   owner_id?: ID | null;
   organization?: ID | null;

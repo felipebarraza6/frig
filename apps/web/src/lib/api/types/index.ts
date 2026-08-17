@@ -23,13 +23,14 @@ export interface PosProduct {
 
 export function toPosProduct(p: YggdraProduct): PosProduct {
   const cat = p.category && typeof p.category === "object" ? p.category : null;
+  const rawPrice = parseFloat(p.sale_price ?? p.price ?? "0") || 0;
   return {
     id: p.id,
     name: p.name,
     code: p.code,
     description: p.description,
-    price: parseFloat(p.sale_price ?? p.price ?? "0") || 0,
-    product_type: p.product_type,
+    price: Math.round(rawPrice),
+    product_type: p.product_type?.toUpperCase(),
     categoryId: cat?.id ?? null,
     categoryName: cat?.name ?? null,
     is_for_sale: p.is_for_sale,

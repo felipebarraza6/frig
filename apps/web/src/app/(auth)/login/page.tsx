@@ -11,6 +11,21 @@ import { setToken } from "@/lib/api/session-storage";
 import { cn } from "@/lib/utils";
 import { BrandLogo } from "@/components/brand-logo";
 
+function getHomeRouteForUser(user: {
+  is_superuser?: boolean;
+  type_user?: string;
+  branch_assignments?: { branch_id?: string | number; role_code?: string }[];
+} | null): string {
+  if (!user) return "/dashboard";
+  if (user.is_superuser || user.type_user === "ADM") return "/dashboard";
+  const assignments = user.branch_assignments ?? [];
+  const firstRole = assignments[0]?.role_code?.trim().toUpperCase();
+  if (firstRole === "OWNER") return "/dashboard";
+  if (firstRole === "ADMIN_LOCAL") return "/pos";
+  if (firstRole === "CAJERO") return "/pos/terminal";
+  return "/dashboard";
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const theme = useSessionStore((s) => s.theme);
@@ -32,7 +47,7 @@ export default function LoginPage() {
       setSession(res.user, res.branches, res.permissions ?? null);
       if (res.branches.length === 1) {
         setCurrentBranch(String(res.branches[0].branch_id));
-        router.replace("/pos");
+        router.replace(getHomeRouteForUser(res.user));
       } else {
         router.replace("/select-branch");
       }
