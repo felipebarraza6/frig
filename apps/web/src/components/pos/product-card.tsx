@@ -1,6 +1,7 @@
 "use client";
 
 import { memo } from "react";
+import { motion } from "framer-motion";
 import { AlertTriangle } from "lucide-react";
 import type { PosProduct } from "@/lib/api/types";
 import { formatCLP } from "@/lib/utils";
@@ -56,13 +57,15 @@ function ProductCardRaw({ product, onClick, onKeyDown }: ProductCardProps) {
   const disabled = (product.quantity ?? 0) === 0;
 
   return (
-    <div
+    <motion.div
       role="button"
       tabIndex={0}
       aria-disabled={disabled}
       onClick={() => !disabled && onClick(product)}
       onKeyDown={(e) => onKeyDown?.(e, product)}
-      className="group flex h-[132px] cursor-pointer flex-col justify-between overflow-hidden rounded-xl border border-border/60 bg-muted/20 p-3 transition-all hover:border-primary/40 hover:bg-muted/40 hover:shadow-sm active:scale-[0.98] active:bg-muted/60 aria-disabled:cursor-not-allowed aria-disabled:opacity-50 aria-disabled:hover:border-border/60 aria-disabled:hover:bg-muted/20 aria-disabled:hover:shadow-none aria-disabled:active:scale-100 aria-disabled:active:bg-muted/20"
+      whileTap={disabled ? undefined : { scale: 0.95 }}
+      transition={{ type: "spring", stiffness: 500, damping: 20 }}
+      className="group flex h-[132px] cursor-pointer flex-col justify-between overflow-hidden rounded-xl border border-border/60 bg-muted/20 p-3 transition-all hover:border-primary/40 hover:bg-muted/40 hover:shadow-sm aria-disabled:cursor-not-allowed aria-disabled:opacity-50 aria-disabled:hover:border-border/60 aria-disabled:hover:bg-muted/20 aria-disabled:hover:shadow-none"
     >
       <div className="flex items-start justify-between gap-2">
         <p className="line-clamp-2 text-[15px] font-medium leading-snug">{product.name}</p>
@@ -79,7 +82,7 @@ function ProductCardRaw({ product, onClick, onKeyDown }: ProductCardProps) {
           {formatCLP(product.price)}
         </p>
       </div>
-    </div>
+    </motion.div>
   );
 }
 

@@ -1,5 +1,6 @@
 import { apiFetch, apiFile, type ApiFileResult } from "./client";
 import type { YggdraSchemas } from "@/lib/api/types";
+import type { Paginated } from "@/lib/types";
 
 export type CashRegister = YggdraSchemas["CashRegister"];
 export type CashRegisterOpenRequest = YggdraSchemas["CashRegisterOpenRequest"];
@@ -93,6 +94,27 @@ export async function cashOut(
 
 export async function getMovements(id: number): Promise<CashRegisterMovement[]> {
   return apiFetch<CashRegisterMovement[]>(`/finance/cash-registers/${id}/movements/`);
+}
+
+export type CashRegisterFilter = {
+  station?: number | string | null;
+  status?: "OPEN" | "CLOSED" | "";
+  date?: string;
+  page?: number;
+  page_size?: number;
+};
+
+export async function getCashRegisters(
+  filter: CashRegisterFilter = {},
+): Promise<Paginated<CashRegister>> {
+  const qs = new URLSearchParams();
+  if (filter.station) qs.set("station", String(filter.station));
+  if (filter.status) qs.set("status", filter.status);
+  if (filter.date) qs.set("date", filter.date);
+  if (filter.page && filter.page > 1) qs.set("page", String(filter.page));
+  if (filter.page_size) qs.set("page_size", String(filter.page_size));
+  const q = qs.toString();
+  return apiFetch<Paginated<CashRegister>>(`/finance/cash-registers/${q ? `?${q}` : ""}`);
 }
 
 export interface CashAudit {

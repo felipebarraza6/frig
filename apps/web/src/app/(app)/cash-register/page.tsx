@@ -2,7 +2,19 @@
 
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Plus, Minus, ArrowDownLeft, ArrowUpRight, RefreshCcw, FileDown } from "lucide-react";
+import {
+  Loader2,
+  Plus,
+  Minus,
+  ArrowDownLeft,
+  ArrowUpRight,
+  RefreshCcw,
+  FileDown,
+  History,
+  AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -16,7 +28,9 @@ import {
   getMovements,
   fetchCashAudit,
   exportCashRegisterMovements,
+  getCashRegisters,
   type CashRegisterMovement,
+  type CashRegister as CashRegisterType,
 } from "@/lib/api/cash-register";
 import { fetchCashRegisterStations } from "@/lib/api/cash-register-stations";
 import { formatCLP, cn } from "@/lib/utils";
@@ -24,6 +38,8 @@ import { useToast } from "@/lib/store/toast";
 import {
   useCurrentBranch,
   useCurrentBranchStation,
+  useCanViewCashRegisterHistory,
+  useCashierStationOnly,
 } from "@/lib/store/session";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
 
@@ -37,6 +53,21 @@ function toDecimal(v: string): string {
   return n.toFixed(2);
 }
 
+function toNum(v: string | null | undefined): number {
+  return parseFloat(v || "0") || 0;
+}
+
+function hasMultipleOpenGaps(items: CashRegisterType[] | undefined): boolean {
+  if (!items || items.length === 0) return false;
+  const openByStation = new Map<number | string | null, number>();
+  for (const item of items) {
+    if (item.status !== "OPEN") continue;
+    const key = item.station ?? "legacy";
+    openByStation.set(key, (openByStation.get(key) ?? 0) + 1);
+  }
+  return Array.from(openByStation.values()).some((count) => count > 1);
+}
+
 export default function CashRegisterPage() {
   const branch = useCurrentBranch();
   const station = useCurrentBranchStation();
@@ -47,7 +78,7 @@ export default function CashRegisterPage() {
   const [movementReason, setMovementReason] = useState("");
   const [movementType, setMovementType] = useState<"CASH_IN" | "CASH_OUT">("CASH_IN");
   const toast = useToast();
-  const [tab, setTab] = useState<"summary" | "movements" | "audit">("summary");
+  const [tab, setTab] = useState<"summary" | "movements" | "audit" | "history">("summary");
   const [auditDate, setAuditDate] = useState(() => new Date().toISOString().split("T")[0]);
   const { download: downloadFile, isLoading: isDownloading } = useDownloadFile();
 
@@ -56,6 +87,17 @@ export default function CashRegisterPage() {
     assignedStationId ? Number(assignedStationId) : null,
   );
   const canChangeStation = !assignedStationId;
+
+  const canViewHistory = useCanViewCashRegisterHistory();
+  const cashierStationOnly = useCashierStationOnly();
+
+  const [historyStationId, setHistoryStationId] = useState<number | null>(
+    assignedStationId ? Number(assignedStationId) : null,
+  );
+  const [historyStatus, setHistoryStatus] = useState<"" | "OPEN" | "CLOSED">("");
+  const [historyDate, setHistoryDate] = useState("");
+  const [historyPage, setHistoryPage] = useState(1);
+  const HISTORY_PAGE_SIZE = 20;
 
   const { data: stations = [], isLoading: loadingStations } = useQuery({
     queryKey: ["cash-register-stations", "cash-register-page"],
@@ -98,6 +140,30 @@ export default function CashRegisterPage() {
     queryKey: ["cash-register", "audit", auditDate],
     queryFn: () => fetchCashAudit(auditDate),
     enabled: !!branch,
+  });
+
+  const effectiveHistoryStationId = cashierStationOnly
+    ? (assignedStationId ? Number(assignedStationId) : null)
+    : historyStationId;
+
+  const { data: history, isLoading: loadingHistory } = useQuery({
+    queryKey: [
+      "cash-register",
+      "history",
+      effectiveHistoryStationId,
+      historyStatus,
+      historyDate,
+      historyPage,
+    ],
+    queryFn: () =>
+      getCashRegisters({
+        station: effectiveHistoryStationId,
+        status: historyStatus,
+        date: historyDate || undefined,
+        page: historyPage,
+        page_size: HISTORY_PAGE_SIZE,
+      }),
+    enabled: !!branch && (canViewHistory || cashierStationOnly) && tab === "history",
   });
 
   const openMutation = useMutation({
@@ -386,6 +452,18 @@ export default function CashRegisterPage() {
           >
             Arqueo por rol
           </button>
+          {(canViewHistory || cashierStationOnly) && (
+            <button
+              onClick={() => setTab("history")}
+              className={cn(
+                "flex items-center gap-1.5 text-sm font-medium",
+                tab === "history" ? "text-foreground" : "text-muted-foreground",
+              )}
+            >
+              <History className="h-3.5 w-3.5" />
+              Histórico
+            </button>
+          )}
         </div>
 
         {tab === "summary" ? (
@@ -475,6 +553,183 @@ export default function CashRegisterPage() {
           ) : (
             <p className="text-sm text-muted-foreground">No hay arqueo disponible.</p>
           )
+        ) : tab === "history" ? (
+          <div className="flex flex-col gap-4">
+            {hasMultipleOpenGaps(history?.results) && (
+              <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-800">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <div>
+                  <p className="font-medium">Se detectaron cajas abiertas duplicadas</p>
+                  <p className="text-xs opacity-90">
+                    Una misma estación tiene más de una caja en estado abierto. Revisa el histórico y cierra las cajas sobrantes para evitar gaps.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-end gap-3">
+              {!cashierStationOnly && (
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-muted-foreground">Estación</label>
+                  <Select
+                    value={historyStationId ?? ""}
+                    onChange={(e) => {
+                      setHistoryStationId(e.target.value ? Number(e.target.value) : null);
+                      setHistoryPage(1);
+                    }}
+                    className="h-8 text-xs w-44"
+                  >
+                    <option value="">Todas</option>
+                    {stations.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.code})
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              )}
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted-foreground">Estado</label>
+                <Select
+                  value={historyStatus}
+                  onChange={(e) => {
+                    setHistoryStatus(e.target.value as "" | "OPEN" | "CLOSED");
+                    setHistoryPage(1);
+                  }}
+                  className="h-8 text-xs w-36"
+                >
+                  <option value="">Todos</option>
+                  <option value="OPEN">Abierta</option>
+                  <option value="CLOSED">Cerrada</option>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted-foreground">Fecha</label>
+                <Input
+                  type="date"
+                  value={historyDate}
+                  onChange={(e) => {
+                    setHistoryDate(e.target.value);
+                    setHistoryPage(1);
+                  }}
+                  className="h-8 text-xs w-40"
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setHistoryStationId(null);
+                  setHistoryStatus("");
+                  setHistoryDate("");
+                  setHistoryPage(1);
+                }}
+                disabled={!historyStationId && !historyStatus && !historyDate}
+              >
+                Limpiar
+              </Button>
+            </div>
+
+            {loadingHistory ? (
+              <div className="grid place-items-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : !history || history.results.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No hay registros de caja para los filtros seleccionados.</p>
+            ) : (
+              <>
+                <div className="overflow-x-auto rounded-lg border border-border">
+                  <table className="w-full min-w-[720px] text-sm">
+                    <thead className="bg-muted/50 text-left text-xs uppercase text-muted-foreground">
+                      <tr>
+                        <th className="px-4 py-2">Fecha</th>
+                        <th className="px-4 py-2">Estación</th>
+                        <th className="px-4 py-2">Estado</th>
+                        <th className="px-4 py-2 text-right">Apertura</th>
+                        <th className="px-4 py-2 text-right">Cierre</th>
+                        <th className="px-4 py-2 text-right">Esperado</th>
+                        <th className="px-4 py-2 text-right">Diferencia</th>
+                        <th className="px-4 py-2">Abierto por</th>
+                        <th className="px-4 py-2">Cerrado por</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {history.results.map((cr: CashRegisterType) => {
+                        const diff = toNum(cr.difference);
+                        return (
+                          <tr key={cr.id} className="border-t border-border">
+                            <td className="px-4 py-2 whitespace-nowrap">{cr.date}</td>
+                            <td className="px-4 py-2">
+                              {cr.station_name || cr.station_code || "—"}
+                            </td>
+                            <td className="px-4 py-2">
+                              <span
+                                className={cn(
+                                  "inline-flex rounded px-2 py-0.5 text-xs font-medium",
+                                  cr.status === "OPEN"
+                                    ? "bg-emerald-500/10 text-emerald-700"
+                                    : "bg-muted text-muted-foreground",
+                                )}
+                              >
+                                {cr.status_display || (cr.status === "OPEN" ? "Abierta" : "Cerrada")}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2 text-right tabular-nums">{formatCLP(toNum(cr.opening_amount))}</td>
+                            <td className="px-4 py-2 text-right tabular-nums">
+                              {cr.closing_amount !== null && cr.closing_amount !== undefined
+                                ? formatCLP(toNum(cr.closing_amount))
+                                : "—"}
+                            </td>
+                            <td className="px-4 py-2 text-right tabular-nums">
+                              {cr.expected_amount !== null && cr.expected_amount !== undefined
+                                ? formatCLP(toNum(cr.expected_amount))
+                                : "—"}
+                            </td>
+                            <td className="px-4 py-2 text-right tabular-nums">
+                              <span
+                                className={cn(
+                                  diff === 0 ? "text-emerald-600" : "text-amber-600",
+                                )}
+                              >
+                                {formatCLP(diff)}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2">{cr.opened_by_name || "—"}</td>
+                            <td className="px-4 py-2">{cr.closed_by_name || "—"}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex items-center justify-between text-sm">
+                  <p className="text-muted-foreground">
+                    {history.count} registro{history.count === 1 ? "" : "s"}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setHistoryPage((p) => Math.max(1, p - 1))}
+                      disabled={!history.previous}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="text-xs text-muted-foreground">Página {historyPage}</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setHistoryPage((p) => p + 1)}
+                      disabled={!history.next}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         ) : loadingMovements ? (
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         ) : (

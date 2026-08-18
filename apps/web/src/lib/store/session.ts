@@ -197,6 +197,32 @@ export function useIsCashier(): boolean {
   return useCurrentBranchRole() === "CAJERO";
 }
 
+/** True si el usuario puede ver el histórico completo de cajas (administradores). */
+export function useCanViewCashRegisterHistory(): boolean {
+  const user = useSessionStore((s) => s.user);
+  const currentRole = useCurrentBranchRole();
+  if (!user) return false;
+  if (user.is_superuser || user.type_user === "ADM") return true;
+  return ["OWNER", "ADMIN_LOCAL", "MANAGER"].includes(currentRole ?? "");
+}
+
+/**
+ * True si el cajero debe estar restringido a su estación asignada
+ * en el histórico de cajas.
+ */
+export function useCashierStationOnly(): boolean {
+  const user = useSessionStore((s) => s.user);
+  const currentBranchId = useSessionStore((s) => s.currentBranchId);
+  const currentRole = useCurrentBranchRole();
+  if (!user || !currentBranchId) return false;
+  if (user.is_superuser || user.type_user === "ADM") return false;
+  if (currentRole !== "CAJERO") return false;
+  const assignment = user.branch_assignments?.find(
+    (a) => String(a.branch_id) === currentBranchId,
+  );
+  return !!assignment?.station_id;
+}
+
 /** True si el rol activo es MESERO (WAITER). */
 export function useIsWaiter(): boolean {
   return useCurrentBranchRole() === "WAITER";

@@ -15,6 +15,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { useCurrentBranch, useCurrentBranchStation, useIsOwner, useIsAdminLocal, useIsSuperAdmin } from "@/lib/store/session";
+import { useIsModuleEnabled } from "@/lib/hooks/useBranchModules";
 import { branchName } from "@/lib/types";
 import { formatCLP, cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -37,7 +38,8 @@ export default function PosZenPage() {
   const isOwner = useIsOwner();
   const isAdminLocal = useIsAdminLocal();
   const isSuperAdmin = useIsSuperAdmin();
-  const canSimulateWaiter = isOwner || isAdminLocal || isSuperAdmin;
+  const tablesEnabled = useIsModuleEnabled("tables");
+  const canSimulateWaiter = (isOwner || isAdminLocal || isSuperAdmin) && tablesEnabled;
   const today = todayIso();
   const [selectedStationId, setSelectedStationId] = useState<number | null>(
     userStation?.station_id ? Number(userStation.station_id) : null,

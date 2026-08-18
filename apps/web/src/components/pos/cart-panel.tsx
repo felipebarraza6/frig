@@ -25,6 +25,7 @@ import {
   cartItemTotal,
   cartItemDiscount,
   cartItemSubtotal,
+  type CartItem,
 } from "@/lib/store/cart";
 import { formatCLP, paymentTypeLabel } from "@/lib/utils";
 import { useToast } from "@/lib/store/toast";
@@ -40,6 +41,7 @@ import {
   type ValidatedDiscount,
 } from "@/lib/api/discounts";
 import type { YggdraSchemas } from "@/lib/api/types";
+import { PostSaleModal } from "./post-sale-modal";
 
 type Customer = YggdraSchemas["Client"];
 type Order = YggdraSchemas["Order"];
@@ -94,6 +96,8 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
   const clientSearchRef = useRef<HTMLDivElement>(null);
   const [discountCode, setDiscountCode] = useState("");
   const [validatedDiscount, setValidatedDiscount] = useState<ValidatedDiscount | null>(null);
+  const [postSaleOrder, setPostSaleOrder] = useState<Order | null>(null);
+  const [postSaleItems, setPostSaleItems] = useState<CartItem[]>([]);
 
   const debouncedClientQuery = useDebounce(clientQuery, 300);
 
@@ -336,6 +340,14 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
         }
       }
 
+      if (orderType === "SALE" && payments.length > 0) {
+        // Venta pagada: mostrar modal de comprobantes en lugar de toast.
+        setPostSaleOrder(order);
+        setPostSaleItems([...items]);
+        onOrderRegistered?.();
+        return;
+      }
+
       clear();
       resetPayments();
       setSelectedClient(null);
@@ -349,6 +361,16 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
     } finally {
       setSaving(false);
     }
+  }
+
+  function handleClosePostSale() {
+    setPostSaleOrder(null);
+    setPostSaleItems([]);
+    clear();
+    resetPayments();
+    setSelectedClient(null);
+    setDiscountCode("");
+    setValidatedDiscount(null);
   }
 
   async function handleApplyDiscount() {
@@ -872,6 +894,15 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
           onSubmit={(payload) => createCustomerMutation.mutate(payload)}
           isPending={createCustomerMutation.isPending}
           error={createCustomerMutation.error}
+        />
+      )}
+
+      {postSaleOrder && (
+        <PostSaleModal
+          order={postSaleOrder}
+          items={postSaleItems}
+          branchName={branch?.business_name}
+          onClose={handleClosePostSale}
         />
       )}
     </div>

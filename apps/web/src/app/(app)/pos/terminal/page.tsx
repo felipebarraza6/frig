@@ -13,8 +13,11 @@ import {
   ArrowRight,
   ArrowLeft,
   Table,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import CartPanel from "@/components/pos/cart-panel";
 import { ProductCard } from "@/components/pos/product-card";
 import OrderCollectModal from "@/components/orders/order-collect-modal";
@@ -32,7 +35,7 @@ import {
   fetchPublicMenuBySlug,
 } from "@/lib/api/public-catalog";
 import { fetchCashRegisterStations } from "@/lib/api/cash-register-stations";
-import { fetchOrders, fetchOrder } from "@/lib/api/orders";
+import { fetchOrders, fetchOrder, cancelOrder } from "@/lib/api/orders";
 import { useElapsedTime } from "@/lib/hooks/useElapsedTime";
 import { fetchPaymentMethods } from "@/lib/api/payments";
 import { getCurrentCashRegister } from "@/lib/api/cash-register";
@@ -91,6 +94,9 @@ export default function PosPage() {
   const [showComboPicker, setShowComboPicker] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [collectingOrder, setCollectingOrder] = useState<Order | null>(null);
+  const [openAccountsQuery, setOpenAccountsQuery] = useState("");
+  const [cancelingOrder, setCancelingOrder] = useState<Order | null>(null);
+  const [isCanceling, setIsCanceling] = useState(false);
   // undefined = sin interacción (usa table_id del query param), null = sin mesa, TableItem = mesa elegida
   const [selectedTableState, setSelectedTableState] = useState<TableItem | null | undefined>(undefined);
 
@@ -101,6 +107,42 @@ export default function PosPage() {
     if (queryReturnTo) url.searchParams.set("return_to", queryReturnTo);
     if (queryStationId) url.searchParams.set("station_id", queryStationId);
     router.push(url.pathname + url.search);
+  }
+
+  function resetPosContext() {
+    setSelectedTableState(undefined);
+    const url = new URL("/pos/terminal", window.location.origin);
+    if (isWaiterSimulation) url.searchParams.set("view", "waiter");
+    if (queryReturnTo) url.searchParams.set("return_to", queryReturnTo);
+    if (queryStationId) url.searchParams.set("station_id", queryStationId);
+    router.replace(url.pathname + url.search);
+  }
+
+  function handleEditOrder(order: Order) {
+    const url = new URL("/pos/terminal", window.location.origin);
+    url.searchParams.set("order_id", order.id);
+    if (queryReturnTo) url.searchParams.set("return_to", queryReturnTo);
+    if (queryStationId) url.searchParams.set("station_id", queryStationId);
+    router.push(url.pathname + url.search);
+    setShowOpenAccounts(false);
+  }
+
+  async function handleCancelOrder(order: Order) {
+    setIsCanceling(true);
+    try {
+      await cancelOrder(order.id);
+      toast.success("Cuenta anulada correctamente");
+      queryClient.invalidateQueries({
+        queryKey: ["orders", "open-accounts", "pos-terminal"],
+      });
+      setCancelingOrder(null);
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Error al anular la cuenta",
+      );
+    } finally {
+      setIsCanceling(false);
+    }
   }
 
   const canViewTables = useCanViewTables();
@@ -264,7 +306,6 @@ export default function PosPage() {
       setModifierGroups(groups);
     } else {
       addItem(product);
-      toast.success(`${product.name} agregado`);
       // En móvil abrir el carrito para que el usuario vea el ítem agregado.
       if (typeof window !== "undefined" && window.innerWidth < 768) {
         setCartOpen(true);
@@ -275,7 +316,6 @@ export default function PosPage() {
   function handleConfirmModifiers(modifiers: CartItemModifier[]) {
     if (modifierProduct) {
       addItem(modifierProduct, { modifiers });
-      toast.success(`${modifierProduct.name} agregado`);
       if (typeof window !== "undefined" && window.innerWidth < 768) {
         setCartOpen(true);
       }
@@ -312,19 +352,35 @@ export default function PosPage() {
           notes: `Parte de combo: ${combo.name}`,
         });
       }
-      toast.success(`Combo "${combo.name}" agregado a la cuenta`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "No se pudo cargar el combo.");
     }
   }
 
   const visibleOpenAccounts = useMemo(() => {
-    if (!isWaiter || !user) return openAccountsPage?.results ?? [];
-    const myTableIds = new Set(myTables.map((t) => t.id));
-    return (openAccountsPage?.results ?? []).filter(
-      (o) => o.table && myTableIds.has(o.table),
-    );
-  }, [openAccountsPage, isWaiter, user, myTables]);
+    let accounts: Order[] = (openAccountsPage?.results ?? []) as Order[];
+    if (isWaiter && user) {
+      const myTableIds = new Set(myTables.map((t) => t.id));
+      accounts = accounts.filter((o) => o.table && myTableIds.has(o.table));
+    }
+    const q = openAccountsQuery.trim().toLowerCase();
+    if (q) {
+      accounts = accounts.filter((o) => {
+        const clientName = o.client?.name ?? "";
+        const orderNumber = (o.order_number ?? o.id).toLowerCase();
+        const table = o.table
+          ? tables.find((t) => String(t.id) === String(o.table))
+          : null;
+        const tableNumber = table?.number ?? String(o.table ?? "");
+        return (
+          clientName.toLowerCase().includes(q) ||
+          orderNumber.includes(q) ||
+          tableNumber.toLowerCase().includes(q)
+        );
+      });
+    }
+    return accounts;
+  }, [openAccountsPage, isWaiter, user, myTables, openAccountsQuery, tables]);
 
   const itemCount = useCartStore((s) => s.items.reduce((sum, i) => sum + i.quantity, 0));
   const existingOrderTotal = existingOrder
@@ -598,7 +654,7 @@ export default function PosPage() {
               existingOrderError={existingOrderError}
               onOrderRegistered={() => {
                 if (isWaiter) goToWaiterTablesView();
-                else setSelectedTable(null);
+                else resetPosContext();
               }}
               isWaiter={isWaiter}
             />
@@ -636,7 +692,7 @@ export default function PosPage() {
               existingOrderError={existingOrderError}
               onOrderRegistered={() => {
                 if (isWaiter) goToWaiterTablesView();
-                else setSelectedTable(null);
+                else resetPosContext();
                 setCartOpen(false);
               }}
               onClose={() => setCartOpen(false)}
@@ -762,6 +818,17 @@ export default function PosPage() {
                 </button>
               </div>
             </div>
+            <div className="flex shrink-0 flex-col gap-2 border-b border-border p-3">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={openAccountsQuery}
+                  onChange={(e) => setOpenAccountsQuery(e.target.value)}
+                  placeholder="Buscar por cliente, n° orden o mesa…"
+                  className="h-9 pl-8 text-xs"
+                />
+              </div>
+            </div>
             <div className="flex-1 overflow-y-auto p-4">
               {loadingOpenAccounts ? (
                 <div className="grid place-items-center py-12">
@@ -803,34 +870,81 @@ export default function PosPage() {
                         <p className="text-xs text-muted-foreground">
                           {new Date(order.date).toLocaleString()}
                         </p>
-                        {!isWaiter && (
+                        <div className="flex items-center gap-2">
                           <button
                             type="button"
-                            onClick={() => setCollectingOrder(order)}
-                            className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-primary/90"
+                            onClick={() => handleEditOrder(order)}
+                            className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
                           >
-                            Cobrar
-                            <ArrowRight className="h-3 w-3" />
+                            <Pencil className="h-3 w-3" />
+                            Editar
                           </button>
-                        )}
+                          {!isWaiter && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => setCancelingOrder(order)}
+                                className="inline-flex items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-medium text-rose-700 transition-colors hover:bg-rose-100"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                                Anular
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setCollectingOrder(order)}
+                                className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-primary/90"
+                              >
+                                Cobrar
+                                <ArrowRight className="h-3 w-3" />
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
             </div>
-            {!isWaiter && (
-              <div className="flex shrink-0 items-center justify-between border-t border-border p-3">
-                <Link
-                  href="/sales?view=open"
-                  onClick={() => setShowOpenAccounts(false)}
-                  className="text-xs font-medium text-primary hover:underline"
-                >
-                  Ver todas en Ventas
-                </Link>
-              </div>
-            )}
           </motion.div>
+        </div>
+      )}
+
+      {cancelingOrder && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setCancelingOrder(null);
+          }}
+        >
+          <div className="w-full max-w-sm rounded-xl border border-border bg-card p-5 shadow-lg">
+            <h3 className="text-base font-semibold">¿Anular cuenta?</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Se anulará la cuenta de{" "}
+              <strong>{cancelingOrder.client?.name ?? "Sin cliente"}</strong> ({" "}
+              {cancelingOrder.order_number ?? cancelingOrder.id.slice(0, 8)} ). Esta acción no se
+              puede deshacer.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setCancelingOrder(null)}
+                disabled={isCanceling}
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => handleCancelOrder(cancelingOrder)}
+                disabled={isCanceling}
+              >
+                {isCanceling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Anular
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
