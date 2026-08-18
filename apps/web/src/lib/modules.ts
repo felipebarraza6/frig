@@ -1,4 +1,4 @@
-import type { ModuleName } from "@/lib/api/branch-modules";
+import type { ModuleName, SubmoduleConfig } from "@/lib/api/branch-modules";
 
 /**
  * Mapeo de rutas de Frig al módulo de Yggdra que las controla.
@@ -37,6 +37,39 @@ export const ROUTE_MODULE_MAP: Record<string, ModuleName | null> = {
   "/settings/modules": "config",
   "/profile": null,
 };
+
+/** Módulos que el backend trata como compuestos (tienen submódulos opcionales). */
+export const COMPOSITE_MODULES: ModuleName[] = ["customers", "inventory", "nutrition"];
+
+/** Submódulos opcionales soportados por cada módulo compuesto. */
+export const COMPOSITE_SUBMODULES: Partial<Record<ModuleName, ModuleName[]>> = {
+  customers: ["clients"],
+  inventory: ["warehouse_management", "products", "stock_control", "product_catalog", "suppliers"],
+  nutrition: ["recipes", "ingredients"],
+};
+
+export function isCompositeModule(moduleName: ModuleName): boolean {
+  return COMPOSITE_MODULES.includes(moduleName);
+}
+
+export function getCompositeSubmodules(moduleName: ModuleName): ModuleName[] {
+  return COMPOSITE_SUBMODULES[moduleName] ?? [];
+}
+
+/** Todos los submódulos conocidos, útil para evitar mostrarlos también como módulos independientes. */
+export const ALL_COMPOSITE_SUBMODULES: ModuleName[] = Object.values(COMPOSITE_SUBMODULES).flat();
+
+/** Verifica si un submódulo específico está habilitado dentro de su compuesto. */
+export function isSubmoduleEnabled(
+  compositeName: ModuleName,
+  submoduleName: ModuleName,
+  submoduleConfig: SubmoduleConfig,
+): boolean {
+  if (!isCompositeModule(compositeName)) return false;
+  const submodules = getCompositeSubmodules(compositeName);
+  if (!submodules.includes(submoduleName)) return false;
+  return submoduleConfig[submoduleName] ?? false;
+}
 
 const ROUTE_KEYS = Object.keys(ROUTE_MODULE_MAP);
 

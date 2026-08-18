@@ -58,7 +58,7 @@ import {
 } from "@/lib/store/session";
 import { useBranchModules } from "@/lib/hooks/useBranchModules";
 import type { ModuleName } from "@/lib/api/branch-modules";
-import { isModuleEnabled } from "@/lib/modules";
+import { isModuleEnabled, isSubmoduleEnabled } from "@/lib/modules";
 import { useNavFavorites } from "@/lib/store/nav-favorites";
 import { useSidebarStore } from "@/lib/store/sidebar";
 import { logout } from "@/lib/api/auth";
@@ -75,6 +75,8 @@ interface NavItem {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   module: ModuleName | null;
+  /** Si este ítem depende de un submódulo específico, indica el padre compuesto. */
+  submoduleParent?: ModuleName;
   badge?: "ordersPending" | "cashOpen" | "kitchenReady";
   requiresManageUsers?: boolean;
   requiresViewBranches?: boolean;
@@ -146,7 +148,7 @@ const ADMIN_GROUPS: AdminGroup[] = [
     ],
   },
   {
-    title: "Organización",
+    title: "Configuración",
     items: [
       { href: "/users", label: "Usuarios", icon: UserIcon, module: "config", requiresManageUsers: true },
       { href: "/branches", label: "Sucursales", icon: Store, module: "config", requiresViewBranches: true },
@@ -182,7 +184,7 @@ export function AppSidebar({ onNavigate, forceExpanded }: AppSidebarProps) {
   const canManageInventory = useCanManageInventory();
   const canManageCustomers = useCanManageCustomers();
   const canViewTables = useCanViewTables();
-  const { enabledModules, isLoading: modulesLoading } = useBranchModules();
+  const { enabledModules, submoduleConfigs, isLoading: modulesLoading } = useBranchModules();
   const isCashier = useIsCashier();
   const isWaiter = useIsWaiter();
   const isOwner = useIsOwner();
@@ -242,6 +244,11 @@ export function AppSidebar({ onNavigate, forceExpanded }: AppSidebarProps) {
             if (isOwner || isGlobalAdmin || isAdminLocal) return canViewTables;
             return canViewTables;
           }
+          // Si el ítem depende de un submódulo, verificar que el submódulo esté habilitado.
+          if (item.submoduleParent && item.module) {
+            const parentConfig = submoduleConfigs.get(item.submoduleParent) ?? {};
+            if (!isSubmoduleEnabled(item.submoduleParent, item.module, parentConfig)) return false;
+          }
           return isModuleEnabled(item.module, enabledModules);
         }),
       })).filter((group) => group.items.length > 0),
@@ -256,6 +263,7 @@ export function AppSidebar({ onNavigate, forceExpanded }: AppSidebarProps) {
       isGlobalAdmin,
       isAdminLocal,
       isWaiter,
+      submoduleConfigs,
     ]
   );
 
