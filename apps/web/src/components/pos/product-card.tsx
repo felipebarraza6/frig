@@ -4,20 +4,13 @@ import { memo } from "react";
 import { motion } from "framer-motion";
 import { AlertTriangle } from "lucide-react";
 import type { PosProduct } from "@/lib/api/types";
+import { useBranchProductTypes } from "@/lib/hooks/useBranchProductTypes";
 import { formatCLP } from "@/lib/utils";
 
 interface ProductCardProps {
   product: PosProduct;
   onClick: (product: PosProduct) => void;
   onKeyDown?: (e: React.KeyboardEvent, product: PosProduct) => void;
-}
-
-function productTypeLabel(type?: string): string {
-  const t = type?.toUpperCase();
-  if (t === "DIRECT_SALE") return "Simple";
-  if (t === "RECIPE_BASED") return "Compuesto";
-  if (t === "RAW_MATERIAL") return "Ingrediente";
-  return type ?? "—";
 }
 
 function stockStatus(product: PosProduct): { text: string; variant: "ok" | "low" | "empty" } {
@@ -54,6 +47,7 @@ function StockBadge({ product }: { product: PosProduct }) {
 }
 
 function ProductCardRaw({ product, onClick, onKeyDown }: ProductCardProps) {
+  const { labelFor: productTypeLabel } = useBranchProductTypes();
   const disabled = (product.quantity ?? 0) === 0;
 
   return (

@@ -4,30 +4,46 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Store, Building2 } from "lucide-react";
 import { useSessionStore, useIsPosFirstRole } from "@/lib/store/session";
-import { fetchBranchTheme } from "@/lib/api/branches";
+import { fetchFrontendConfig } from "@/lib/api/frontend-config";
+import { fetchBranchTheme, applyThemeConfig } from "@/lib/api/branches";
 import { branchName } from "@/lib/types";
 
 /**
  * Selector de sucursal (multi-tenant): el usuario elige la sucursal a operar.
- * Se guarda como sucursal activa y se aplica/refresca su tema.
+ * Se guarda como sucursal activa, se carga la configuración completa del
+ * frontend y se aplica/refresca su tema.
  */
 export default function SelectBranchPage() {
   const router = useRouter();
   const branches = useSessionStore((s) => s.branches);
   const user = useSessionStore((s) => s.user);
-  const setCurrentBranch = useSessionStore((s) => s.setCurrentBranch);
+  const setFrontendConfig = useSessionStore((s) => s.setFrontendConfig);
   const setTheme = useSessionStore((s) => s.setTheme);
   const isPosFirst = useIsPosFirstRole();
 
   async function handleSelect(branchId: string) {
-    setCurrentBranch(branchId);
     try {
-      const theme = await fetchBranchTheme();
-      if (theme) setTheme(theme);
+      const config = await fetchFrontendConfig(Number(branchId));
+      setFrontendConfig(config, branchId);
+      try {
+        const theme = await fetchBranchTheme();
+        if (theme) {
+          setTheme(theme);
+          applyThemeConfig(theme);
+        }
+      } catch {
+        // tema no crítico
+      }
+      const dashboard = config.dashboard;
+      if (dashboard) {
+        router.replace(dashboard);
+      } else {
+        router.replace(isPosFirst ? "/pos" : "/dashboard");
+      }
     } catch {
-      // tema no crítico: continuar a la ruta destino igual
+      // Si frontend-config falla, mantener comportamiento anterior como fallback.
+      router.replace(isPosFirst ? "/pos" : "/dashboard");
     }
-    router.replace(isPosFirst ? "/pos" : "/dashboard");
   }
 
   return (

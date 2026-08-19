@@ -1,5 +1,6 @@
 "use client";
 
+/* eslint-disable react-hooks/static-components */
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -8,31 +9,6 @@ import {
   RefreshCcw,
   AlertTriangle,
   CheckCircle2,
-  LayoutDashboard,
-  ShoppingCart,
-  CreditCard,
-  Receipt,
-  Table,
-  Users,
-  UserCircle,
-  Percent,
-  Calendar,
-  TrendingUp,
-  Banknote,
-  Landmark,
-  Package,
-  Warehouse,
-  Boxes,
-  Apple,
-  Utensils,
-  Leaf,
-  Truck,
-  QrCode,
-  FileText,
-  BoxesIcon,
-  Settings,
-  PackageCheck,
-  Tags,
   Search,
   X,
 } from "lucide-react";
@@ -51,134 +27,29 @@ import {
 import { ApiError } from "@/lib/api/client";
 import type { YggdraSchemas } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
+import { getIcon, type IconName } from "@/lib/icons";
 import {
-  CORE_UI_MODULES,
-  isCompositeModule,
-  getCompositeSubmodules,
-  ALL_COMPOSITE_SUBMODULES,
-} from "@/lib/modules";
+  useModuleCatalog,
+  getModuleMetadata,
+  isCompositeModuleFromCatalog,
+  getCompositeSubmodulesFromCatalog,
+} from "@/lib/hooks/useModuleCatalog";
+import type { ModuleCatalogMetadata } from "@/lib/api/types/modules";
 
-type ModuleConfig = YggdraSchemas["BranchModuleConfiguration"];
-
-/** Módulos que Frig muestra en esta pantalla (excluye verticalidades ajenas). */
-const FRIG_MODULES: ModuleName[] = [
+/** Módulos que el frontend considera core y no se pueden deshabilitar desde UI. */
+const CORE_UI_MODULES: ModuleName[] = [
   "dashboard",
   "config",
   "sales",
   "pos",
-  "tables",
-  "customers",
-  "promotions",
-  "scheduling",
-  "finance",
-  "cash_register",
-  "payment_methods",
-  "bank_accounts",
-  "inventory",
-  "warehouse_management",
   "products",
-  "stock_control",
-  "product_catalog",
+  "finance",
+  "customers",
+  "inventory",
   "suppliers",
-  "nutrition",
-  "recipes",
-  "ingredients",
-  "public_catalog",
-  "invoices",
 ];
 
-const MODULE_META: Partial<
-  Record<
-    ModuleName,
-    {
-      label: string;
-      icon: React.ComponentType<{ className?: string }>;
-      color: string;
-      bg: string;
-    }
-  >
-> = {
-  dashboard: { label: "Dashboard", icon: LayoutDashboard, color: "text-blue-600", bg: "bg-blue-500/10" },
-  config: { label: "Configuración", icon: Settings, color: "text-slate-600", bg: "bg-slate-500/10" },
-  sales: { label: "Ventas", icon: ShoppingCart, color: "text-green-600", bg: "bg-green-500/10" },
-  pos: { label: "Punto de venta", icon: Receipt, color: "text-emerald-600", bg: "bg-emerald-500/10" },
-  tables: { label: "Mesas", icon: Table, color: "text-amber-600", bg: "bg-amber-500/10" },
-  customers: { label: "Clientes", icon: Users, color: "text-purple-600", bg: "bg-purple-500/10" },
-  clients: { label: "Clientes", icon: UserCircle, color: "text-purple-600", bg: "bg-purple-500/10" },
-  promotions: { label: "Promociones", icon: Percent, color: "text-pink-600", bg: "bg-pink-500/10" },
-  scheduling: { label: "Agendamiento", icon: Calendar, color: "text-indigo-600", bg: "bg-indigo-500/10" },
-  finance: { label: "Finanzas", icon: TrendingUp, color: "text-emerald-600", bg: "bg-emerald-500/10" },
-  cash_register: { label: "Arqueo de caja", icon: Banknote, color: "text-lime-600", bg: "bg-lime-500/10" },
-  payment_methods: { label: "Métodos de pago", icon: CreditCard, color: "text-cyan-600", bg: "bg-cyan-500/10" },
-  bank_accounts: { label: "Cuentas bancarias", icon: Landmark, color: "text-blue-600", bg: "bg-blue-500/10" },
-  inventory: { label: "Inventario", icon: Package, color: "text-orange-600", bg: "bg-orange-500/10" },
-  warehouse_management: { label: "Bodegas", icon: Warehouse, color: "text-stone-600", bg: "bg-stone-500/10" },
-  products: { label: "Productos", icon: Boxes, color: "text-violet-600", bg: "bg-violet-500/10" },
-  nutrition: { label: "Nutrición", icon: Apple, color: "text-red-600", bg: "bg-red-500/10" },
-  recipes: { label: "Recetas", icon: Utensils, color: "text-orange-600", bg: "bg-orange-500/10" },
-  ingredients: { label: "Ingredientes", icon: Leaf, color: "text-green-600", bg: "bg-green-500/10" },
-  suppliers: { label: "Proveedores", icon: Truck, color: "text-amber-600", bg: "bg-amber-500/10" },
-  public_catalog: { label: "Catálogo QR", icon: QrCode, color: "text-pink-600", bg: "bg-pink-500/10" },
-  invoices: { label: "Facturas", icon: FileText, color: "text-sky-600", bg: "bg-sky-500/10" },
-  stock_control: { label: "Control de stock", icon: PackageCheck, color: "text-lime-600", bg: "bg-lime-500/10" },
-  product_catalog: { label: "Catálogo", icon: Tags, color: "text-violet-600", bg: "bg-violet-500/10" },
-  product_gallery: { label: "Galería", icon: BoxesIcon, color: "text-fuchsia-600", bg: "bg-fuchsia-500/10" },
-  raw_materials: { label: "Materias primas", icon: Package, color: "text-amber-600", bg: "bg-amber-500/10" },
-  tariffs: { label: "Tarifarios", icon: Receipt, color: "text-cyan-600", bg: "bg-cyan-500/10" },
-  equipment: { label: "Equipos", icon: Settings, color: "text-gray-600", bg: "bg-gray-500/10" },
-  certificates: { label: "Certificados", icon: FileText, color: "text-emerald-600", bg: "bg-emerald-500/10" },
-};
-
-const MODULE_GROUPS: {
-  title: string;
-  modules: ModuleName[];
-  gradient: string;
-  icon: React.ComponentType<{ className?: string }>;
-}[] = [
-  {
-    title: "Operaciones",
-    modules: ["dashboard", "sales", "pos", "tables", "scheduling"],
-    gradient: "from-blue-500/5 to-transparent",
-    icon: LayoutDashboard,
-  },
-  {
-    title: "Clientes y promociones",
-    modules: ["customers", "promotions", "public_catalog"],
-    gradient: "from-purple-500/5 to-transparent",
-    icon: Users,
-  },
-  {
-    title: "Finanzas",
-    modules: ["finance", "cash_register", "payment_methods", "bank_accounts", "invoices"],
-    gradient: "from-emerald-500/5 to-transparent",
-    icon: TrendingUp,
-  },
-  {
-    title: "Inventario y productos",
-    modules: [
-      "inventory",
-    ],
-    gradient: "from-orange-500/5 to-transparent",
-    icon: Package,
-  },
-  {
-    title: "Nutrición",
-    modules: ["nutrition"],
-    gradient: "from-red-500/5 to-transparent",
-    icon: Apple,
-  },
-];
-
-function getModuleMeta(moduleName: ModuleName) {
-  return (
-    MODULE_META[moduleName] ?? {
-      label: moduleName,
-      icon: Package,
-      color: "text-gray-600",
-      bg: "bg-gray-500/10",
-    }
-  );
-}
+type ModuleConfig = YggdraSchemas["BranchModuleConfiguration"];
 
 function isCore(moduleName: ModuleName): boolean {
   return CORE_UI_MODULES.includes(moduleName);
@@ -200,12 +71,34 @@ export default function BranchModulesPage() {
     enabled: !!branchId,
   });
 
-  const filtered = configs.filter((c) => FRIG_MODULES.includes(c.module_name));
+  const {
+    catalog,
+    metadataByName,
+    compositeByName,
+    allSubmodules,
+    isLoading: catalogLoading,
+  } = useModuleCatalog();
+
+  const filtered = configs.filter((c) => !allSubmodules.includes(c.module_name));
   const configByName = useMemo(() => {
     const map = new Map<ModuleName, ModuleConfig>();
     filtered.forEach((c) => map.set(c.module_name, c));
     return map;
   }, [filtered]);
+
+  const groups = useMemo(() => {
+    const map = new Map<string, ModuleConfig[]>();
+    filtered.forEach((config) => {
+      const meta = getModuleMetadata(config.module_name, metadataByName);
+      const category = meta.category || "General";
+      if (!map.has(category)) map.set(category, []);
+      map.get(category)!.push(config);
+    });
+    return Array.from(map.entries()).map(([title, modules]) => ({
+      title,
+      modules,
+    }));
+  }, [filtered, metadataByName]);
 
   const stats = useMemo(() => {
     const total = filtered.length;
@@ -223,7 +116,8 @@ export default function BranchModulesPage() {
     onError: (err: Error, vars) => {
       queryClient.invalidateQueries({ queryKey: ["branch-modules", branchId] });
       if (err instanceof ApiError && err.status === 403) {
-        toast.error(`El módulo "${getModuleMeta(vars.moduleName).label}" no está incluido en tu plan.`);
+        const meta = getModuleMetadata(vars.moduleName, metadataByName);
+        toast.error(`El módulo "${meta.label}" no está incluido en tu plan.`);
       } else {
         toast.error(err.message);
       }
@@ -360,32 +254,32 @@ export default function BranchModulesPage() {
           </div>
         )}
 
-        {error ? (
+        {(error || catalog?.modules.length === 0) && !isLoading && !catalogLoading && (
           <div className="flex flex-col items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
             <AlertTriangle className="h-8 w-8 text-destructive" />
             <p>No se pudieron cargar los módulos.</p>
           </div>
-        ) : isLoading ? (
+        )}
+
+        {isLoading || catalogLoading ? (
           <div className="flex flex-1 items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         ) : (
           <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
-            {MODULE_GROUPS.map((group) => {
-              const GroupIcon = group.icon;
-              const groupConfigs = group.modules
-                .map((m) => configByName.get(m))
-                .filter((c): c is ModuleConfig => {
-                  if (!c) return false;
-                  if (ALL_COMPOSITE_SUBMODULES.includes(c.module_name)) return false;
-                  if (searchLower) {
-                    const meta = getModuleMeta(c.module_name);
-                    return meta.label.toLowerCase().includes(searchLower);
-                  }
-                  return true;
-                });
+            {groups.map((group) => {
+              const GroupIcon = getIcon(
+                group.modules[0] ? metadataByName[group.modules[0].module_name]?.icon : undefined,
+              );
+              const groupModules = group.modules.filter((c) => {
+                if (searchLower) {
+                  const meta = getModuleMetadata(c.module_name, metadataByName);
+                  return meta.label.toLowerCase().includes(searchLower);
+                }
+                return true;
+              });
 
-              if (groupConfigs.length === 0) return null;
+              if (groupModules.length === 0) return null;
 
               return (
                 <motion.section
@@ -394,8 +288,7 @@ export default function BranchModulesPage() {
                   animate={{ opacity: 1, y: 0 }}
                   className={cn(
                     "overflow-hidden rounded-xl border border-border bg-card",
-                    "bg-gradient-to-br",
-                    group.gradient
+                    "bg-gradient-to-br from-primary/5 to-transparent"
                   )}
                 >
                   <div className="flex items-center gap-2 border-b border-border px-4 py-3">
@@ -404,24 +297,26 @@ export default function BranchModulesPage() {
                     </div>
                     <h2 className="text-sm font-semibold">{group.title}</h2>
                     <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                      {groupConfigs.filter((c) => c.is_enabled).length}/{groupConfigs.length}
+                      {groupModules.filter((c) => c.is_enabled).length}/{groupModules.length}
                     </span>
                   </div>
                   <div className="p-2">
-                    {groupConfigs.map((config) => {
-                      if (isCompositeModule(config.module_name)) {
+                    {groupModules.map((config) => {
+                      if (isCompositeModuleFromCatalog(config.module_name, compositeByName)) {
                         return (
                           <CompositeModuleCard
                             key={config.module_name}
                             config={config}
                             canManage={canManage}
                             isPending={toggle.isPending || updateSubmodules.isPending}
-                            getConfig={(name) => configByName.get(name)}
+                            getConfig={(name) => configByName.get(name as ModuleName)}
+                            metadataByName={metadataByName}
+                            compositeByName={compositeByName}
                             onToggle={() => handleToggle(config.module_name)}
                             onSubmoduleToggle={(sub, next) =>
                               handleSubmoduleToggle(
                                 config.module_name,
-                                sub,
+                                sub as ModuleName,
                                 parseSubmoduleConfig(config.submodule_config),
                                 next,
                               )
@@ -435,6 +330,7 @@ export default function BranchModulesPage() {
                           config={config}
                           canManage={canManage}
                           isPending={toggle.isPending}
+                          metadataByName={metadataByName}
                           onToggle={() => handleToggle(config.module_name)}
                         />
                       );
@@ -454,15 +350,17 @@ function ModuleCard({
   config,
   canManage,
   isPending,
+  metadataByName,
   onToggle,
 }: {
   config: ModuleConfig;
   canManage: boolean;
   isPending: boolean;
+  metadataByName: Record<string, ModuleCatalogMetadata>;
   onToggle: () => void;
 }) {
   const core = isCore(config.module_name);
-  const { label, icon: Icon, color, bg } = getModuleMeta(config.module_name);
+  const meta = getModuleMetadata(config.module_name, metadataByName);
   const enabled = !!config.is_enabled;
 
   return (
@@ -473,11 +371,11 @@ function ModuleCard({
         !enabled && "opacity-60"
       )}
     >
-      <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg", bg)}>
-        <Icon className={cn("h-4.5 w-4.5", color)} />
+      <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10")}>
+        <ModuleIcon name={meta.icon} className={cn("h-4.5 w-4.5 text-primary")} />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium leading-none">{label}</p>
+        <p className="text-sm font-medium leading-none">{meta.label}</p>
         <p className="mt-1 text-xs text-muted-foreground">
           {core ? (
             <span className="text-emerald-600">Core — siempre activo</span>
@@ -516,21 +414,25 @@ function CompositeModuleCard({
   canManage,
   isPending,
   getConfig,
+  metadataByName,
+  compositeByName,
   onToggle,
   onSubmoduleToggle,
 }: {
   config: ModuleConfig;
   canManage: boolean;
   isPending: boolean;
-  getConfig: (name: ModuleName) => ModuleConfig | undefined;
+  getConfig: (name: string) => ModuleConfig | undefined;
+  metadataByName: Record<string, ModuleCatalogMetadata>;
+  compositeByName: Map<string, string[]>;
   onToggle: () => void;
-  onSubmoduleToggle: (submoduleName: ModuleName, nextEnabled: boolean) => void;
+  onSubmoduleToggle: (submoduleName: string, nextEnabled: boolean) => void;
 }) {
   const core = isCore(config.module_name);
-  const submodules = getCompositeSubmodules(config.module_name);
+  const submodules = getCompositeSubmodulesFromCatalog(config.module_name, compositeByName);
   const submoduleConfig = parseSubmoduleConfig(config.submodule_config);
   const compositeEnabled = !!config.is_enabled;
-  const { label, icon: Icon, color, bg } = getModuleMeta(config.module_name);
+  const meta = getModuleMetadata(config.module_name, metadataByName);
 
   const enabledCount = submodules.filter((s) => submoduleConfig[s]).length;
 
@@ -542,12 +444,12 @@ function CompositeModuleCard({
       )}
     >
       <div className="flex items-center gap-3 px-3 py-2.5">
-        <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg", bg)}>
-          <Icon className={cn("h-4.5 w-4.5", color)} />
+        <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10")}>
+          <ModuleIcon name={meta.icon} className={cn("h-4.5 w-4.5 text-primary")} />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <p className="text-sm font-medium leading-none">{label}</p>
+            <p className="text-sm font-medium leading-none">{meta.label}</p>
             {submodules.length > 0 && (
               <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
                 {enabledCount}/{submodules.length}
@@ -592,7 +494,7 @@ function CompositeModuleCard({
               {submodules.map((subName) => {
                 const subConfig = getConfig(subName);
                 const subEnabled = !!submoduleConfig[subName];
-                const { label: subLabel, icon: SubIcon, color: subColor, bg: subBg } = getModuleMeta(subName);
+                const subMeta = getModuleMetadata(subName, metadataByName);
                 return (
                   <div
                     key={subName}
@@ -602,11 +504,11 @@ function CompositeModuleCard({
                       !subEnabled && "opacity-50"
                     )}
                   >
-                    <div className={cn("flex h-6 w-6 items-center justify-center rounded", subBg)}>
-                      <SubIcon className={cn("h-3 w-3", subColor)} />
+                    <div className={cn("flex h-6 w-6 items-center justify-center rounded bg-primary/10")}>
+                      <ModuleIcon name={subMeta.icon} className={cn("h-3 w-3 text-primary")} />
                     </div>
                     <span className="min-w-0 flex-1 text-xs font-medium text-muted-foreground">
-                      {subLabel}
+                      {subMeta.label}
                     </span>
                     {subConfig && subConfig.validation_status === "pending" && subEnabled && (
                       <AlertTriangle className="h-3 w-3 text-amber-500" />
@@ -670,4 +572,15 @@ function ToggleSwitch({
       />
     </button>
   );
+}
+
+function ModuleIcon({
+  name,
+  className,
+}: {
+  name?: IconName | string | null;
+  className?: string;
+}) {
+  const Icon = getIcon(name);
+  return <Icon className={className} />;
 }

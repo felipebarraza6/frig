@@ -28,7 +28,7 @@ export async function fetchBranchModules(branchId: number): Promise<BranchModule
   const qs = new URLSearchParams();
   qs.set("branch_id", String(branchId));
   const data = await apiFetch<BranchModuleConfiguration | BranchModuleConfiguration[]>(
-    `/branches/modules/by_branch/?${qs.toString()}`,
+    `/branches/module-configs/by_branch/?${qs.toString()}`,
   );
   return Array.isArray(data) ? data : [data];
 }
@@ -47,7 +47,7 @@ export async function toggleBranchModuleByName({
   const qs = new URLSearchParams();
   qs.set("branch_id", String(branchId));
   const data = await apiFetch<BranchModuleToggleResponse>(
-    `/branches/modules/by_branch/toggle/?${qs.toString()}`,
+    `/branches/module-configs/by_branch/toggle/?${qs.toString()}`,
     {
       method: "POST",
       body: { branch_id: branchId, module_name: moduleName, is_enabled: isEnabled },
@@ -67,7 +67,7 @@ export async function updateSubmoduleConfig({
   submoduleConfig,
 }: UpdateSubmoduleConfigPayload): Promise<BranchModuleConfiguration> {
   const data = await apiFetch<SubmoduleUpdateResponse>(
-    `/branches/modules/${moduleConfigId}/submodules/update/`,
+    `/branches/module-configs/${moduleConfigId}/submodules/update/`,
     {
       method: "POST",
       body: { submodule_config: submoduleConfig },
@@ -79,14 +79,14 @@ export async function updateSubmoduleConfig({
 export async function fetchSubmoduleStatus(
   moduleConfigId: number,
 ): Promise<BranchModuleConfiguration> {
-  return apiFetch<BranchModuleConfiguration>(`/branches/modules/${moduleConfigId}/submodules/status/`);
+  return apiFetch<BranchModuleConfiguration>(`/branches/module-configs/${moduleConfigId}/submodules/status/`);
 }
 
 export async function syncBranchModules(branchId: number): Promise<{ message: string; synced: { created: number; disabled: number; total: number } }> {
   const qs = new URLSearchParams();
   qs.set("branch_id", String(branchId));
   return apiFetch<{ message: string; synced: { created: number; disabled: number; total: number } }>(
-    `/branches/modules/by_branch/sync/?${qs.toString()}`,
+    `/branches/module-configs/by_branch/sync/?${qs.toString()}`,
     { method: "POST" },
   );
 }

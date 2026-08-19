@@ -5,8 +5,13 @@ import { persist } from "zustand/middleware";
 import { useMemo } from "react";
 import type { Branch, BranchAssignment, BranchThemeConfig, User } from "@/lib/types";
 import { setBranchId, clearBranchId } from "@/lib/api/session-storage";
+import type {
+  FrontendConfigResponse,
+  FrontendMenuGroup,
+  FrontendModuleState,
+} from "@/lib/api/types/modules";
 
-interface SessionPermissions {
+export interface SessionPermissions {
   user_role?: string;
   enabled_apps?: string[];
   read_only_apps?: string[];
@@ -19,13 +24,17 @@ interface SessionState {
   currentBranchId: ID_STR | null;
   theme: BranchThemeConfig | null;
   permissions: SessionPermissions | null;
+  menu: FrontendMenuGroup[];
+  modules: Record<string, FrontendModuleState>;
+  dashboard: string | null;
+  featureFlags: Record<string, boolean>;
   hasHydrated: boolean;
   setSession: (user: User, branches: Branch[], permissions?: SessionPermissions | null) => void;
+  setFrontendConfig: (config: FrontendConfigResponse, branchId?: ID_STR) => void;
   setUser: (user: User) => void;
   setCurrentBranch: (branchId: ID_STR) => void;
   setTheme: (theme: BranchThemeConfig | null) => void;
   setPermissions: (permissions: SessionPermissions | null) => void;
-  setEnabledApps: (apps: string[]) => void;
   clearSession: () => void;
   setHasHydrated: (v: boolean) => void;
 }
@@ -40,9 +49,28 @@ export const useSessionStore = create<SessionState>()(
       currentBranchId: null,
       theme: null,
       permissions: null,
+      menu: [],
+      modules: {},
+      dashboard: null,
+      featureFlags: {},
       hasHydrated: false,
       setSession: (user, branches, permissions = null) =>
         set({ user, branches, currentBranchId: null, permissions }),
+      setFrontendConfig: (config, branchId) => {
+        if (branchId) {
+          setBranchId(branchId);
+        }
+        set({
+          user: config.user,
+          branches: config.branches,
+          currentBranchId: branchId ?? String(config.current_branch?.branch_id ?? config.branches[0]?.branch_id ?? ""),
+          permissions: config.permissions ?? null,
+          menu: config.menu ?? [],
+          modules: config.modules ?? {},
+          dashboard: config.dashboard ?? null,
+          featureFlags: config.feature_flags ?? {},
+        });
+      },
       setUser: (user) => set({ user }),
       setCurrentBranch: (branchId) => {
         setBranchId(branchId);
@@ -50,13 +78,6 @@ export const useSessionStore = create<SessionState>()(
       },
       setTheme: (theme) => set({ theme }),
       setPermissions: (permissions) => set({ permissions }),
-      setEnabledApps: (apps) =>
-        set((state) => ({
-          permissions: {
-            ...(state.permissions ?? {}),
-            enabled_apps: apps,
-          },
-        })),
       clearSession: () => {
         clearBranchId();
         set({
@@ -65,6 +86,10 @@ export const useSessionStore = create<SessionState>()(
           currentBranchId: null,
           theme: null,
           permissions: null,
+          menu: [],
+          modules: {},
+          dashboard: null,
+          featureFlags: {},
         });
       },
       setHasHydrated: (v) => set({ hasHydrated: v }),
@@ -77,6 +102,10 @@ export const useSessionStore = create<SessionState>()(
         currentBranchId: s.currentBranchId,
         theme: s.theme,
         permissions: s.permissions,
+        menu: s.menu,
+        modules: s.modules,
+        dashboard: s.dashboard,
+        featureFlags: s.featureFlags,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) state.setHasHydrated(true);
@@ -246,19 +275,37 @@ export function useCanViewTables(): boolean {
   return ["OWNER", "ADMIN_LOCAL", "MANAGER", "WAITER", "CAJERO"].includes(currentRole ?? "");
 }
 
-/** Verifica si una app está habilitada para la sucursal activa según permisos del backend. */
-export function useIsAppEnabled(appName: string): boolean {
-  const role = useCurrentBranchRole();
-  const user = useSessionStore((s) => s.user);
-  const permissions = useSessionStore((s) => s.permissions);
-  if (!user) return false;
-  if (user.is_superuser || user.type_user === "ADM") return true;
-  const enabled = permissions?.enabled_apps ?? [];
-  if (enabled.length > 0) {
-    return enabled.includes(appName);
-  }
-  // Fallback si no hay permisos de apps: dejar pasar a roles de gestión.
-  return ["OWNER", "ADMIN_LOCAL", "MANAGER"].includes(role ?? "");
+/** Menú filtrado devuelto por frontend-config. */
+export function useMenu(): FrontendMenuGroup[] {
+  return useSessionStore((s) => s.menu);
+}
+
+/** Módulos y submódulos habilitados devueltos por frontend-config. */
+export function useBranchModulesState(): Record<string, FrontendModuleState> {
+  return useSessionStore((s) => s.modules);
+}
+
+/** Estado de un módulo específico según frontend-config. */
+export function useBranchModuleState(moduleName: string | null | undefined): FrontendModuleState | undefined {
+  return useSessionStore((s) => (moduleName ? s.modules[moduleName] : undefined));
+}
+
+/** True si un módulo está habilitado según frontend-config. */
+export function useIsModuleEnabledFromConfig(moduleName: string | null | undefined): boolean {
+  return useSessionStore((s) => {
+    if (!moduleName) return true;
+    return s.modules[moduleName]?.is_enabled ?? false;
+  });
+}
+
+/** Feature flags devueltos por frontend-config. */
+export function useFeatureFlag(flag: string): boolean {
+  return useSessionStore((s) => s.featureFlags[flag] ?? false);
+}
+
+/** Ruta de inicio configurada por el backend. */
+export function useDashboardRoute(): string {
+  return useSessionStore((s) => s.dashboard ?? "/dashboard");
 }
 
 /** Estación de caja asignada al usuario en la sucursal activa. */

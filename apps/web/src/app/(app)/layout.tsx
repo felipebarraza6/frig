@@ -12,10 +12,11 @@ import {
   useWaiterAllowedPaths,
 } from "@/lib/store/session";
 import { useSidebarStore } from "@/lib/store/sidebar";
-import { useIsRouteModuleEnabled } from "@/lib/hooks/useBranchModules";
+import { useIsRouteModuleEnabled } from "@/lib/hooks/useRouteModuleAccess";
 import { AppSidebar } from "@/components/app-sidebar/app-sidebar";
 import { RealtimeProvider } from "@/components/realtime/realtime-provider";
 import { Toaster } from "@/components/ui/toaster";
+import { ForbiddenListener } from "@/components/forbidden-listener";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 
@@ -91,6 +92,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <RealtimeProvider>
+      <ForbiddenListener />
       <div className="flex min-h-full">
         {!shouldHideSidebar && (
           <>

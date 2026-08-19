@@ -7,15 +7,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSessionStore } from "@/lib/store/session";
 import { loginComplete } from "@/lib/api/auth";
+import { fetchFrontendConfig } from "@/lib/api/frontend-config";
+import { fetchBranchTheme, applyThemeConfig } from "@/lib/api/branches";
 import { setToken } from "@/lib/api/session-storage";
 import { cn } from "@/lib/utils";
 import { BrandLogo } from "@/components/brand-logo";
 
-function getHomeRouteForUser(user: {
-  is_superuser?: boolean;
-  type_user?: string;
-  branch_assignments?: { branch_id?: string | number; role_code?: string }[];
-} | null): string {
+function getHomeRouteForUser(
+  user: {
+    is_superuser?: boolean;
+    type_user?: string;
+    branch_assignments?: { branch_id?: string | number; role_code?: string }[];
+  } | null,
+  dashboard?: string | null,
+): string {
+  if (dashboard) return dashboard;
   if (!user) return "/dashboard";
   if (user.is_superuser || user.type_user === "ADM") return "/dashboard";
   const assignments = user.branch_assignments ?? [];
@@ -30,7 +36,8 @@ export default function LoginPage() {
   const router = useRouter();
   const theme = useSessionStore((s) => s.theme);
   const setSession = useSessionStore((s) => s.setSession);
-  const setCurrentBranch = useSessionStore((s) => s.setCurrentBranch);
+  const setFrontendConfig = useSessionStore((s) => s.setFrontendConfig);
+  const setTheme = useSessionStore((s) => s.setTheme);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -44,11 +51,23 @@ export default function LoginPage() {
     try {
       const res = await loginComplete({ email, password });
       setToken(res.token);
-      setSession(res.user, res.branches, res.permissions ?? null);
       if (res.branches.length === 1) {
-        setCurrentBranch(String(res.branches[0].branch_id));
-        router.replace(getHomeRouteForUser(res.user));
+        const branchId = Number(res.branches[0].branch_id);
+        const config = await fetchFrontendConfig(branchId);
+        setFrontendConfig(config, String(branchId));
+        try {
+          const branchTheme = await fetchBranchTheme();
+          if (branchTheme) {
+            setTheme(branchTheme);
+            applyThemeConfig(branchTheme);
+          }
+        } catch {
+          // tema no crítico
+        }
+        router.replace(getHomeRouteForUser(config.user, config.dashboard));
       } else {
+        // Múltiples sucursales: guardar datos básicos y dejar que select-branch cargue frontend-config.
+        setSession(res.user, res.branches, res.permissions ?? null);
         router.replace("/select-branch");
       }
     } catch (err) {

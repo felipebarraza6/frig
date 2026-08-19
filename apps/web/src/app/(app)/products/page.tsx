@@ -21,17 +21,8 @@ import { fetchCategoryList } from "@/lib/api/categories";
 import { fetchProductWarehouses } from "@/lib/api/warehouses";
 import { ProductForm } from "@/components/products/product-form";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
+import { useBranchProductTypes } from "@/lib/hooks/useBranchProductTypes";
 import type { YggdraProduct } from "@/lib/api/types";
-
-const PRODUCT_TYPES = [
-  { value: "DIRECT_SALE", label: "Simple" },
-  { value: "RECIPE_BASED", label: "Compuesto" },
-  { value: "RAW_MATERIAL", label: "Ingrediente" },
-] as const;
-
-function productTypeLabel(value?: string | null): string {
-  return PRODUCT_TYPES.find((t) => t.value === value)?.label ?? (value ?? "—");
-}
 
 function isLowStock(p: YggdraProduct): boolean {
   if (p.minimum_stock === undefined || p.minimum_stock === null) return false;
@@ -41,6 +32,7 @@ function isLowStock(p: YggdraProduct): boolean {
 export default function ProductsPage() {
   const queryClient = useQueryClient();
   const { download: downloadFile, isLoading: isExporting } = useDownloadFile();
+  const { options: productTypeOptions, labelFor: productTypeLabel } = useBranchProductTypes();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
   const [productType, setProductType] = useState("");
@@ -180,7 +172,7 @@ export default function ProductsPage() {
               onChange={(e) => updateFilter(setProductType, e.target.value)}
             >
               <option value="">Todos</option>
-              {PRODUCT_TYPES.map((t) => (
+              {productTypeOptions.map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
               ))}
             </Select>

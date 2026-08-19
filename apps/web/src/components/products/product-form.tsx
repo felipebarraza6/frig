@@ -25,12 +25,8 @@ import {
   type RecipeIngredientPayload,
 } from "@/lib/api/recipes";
 import { fetchWarehouses, addProductToWarehouse } from "@/lib/api/warehouses";
+import { useBranchProductTypes } from "@/lib/hooks/useBranchProductTypes";
 import type { YggdraSchemas } from "@/lib/api/types";
-
-const PRODUCT_TYPES = [
-  { value: "DIRECT_SALE", label: "Simple" },
-  { value: "RECIPE_BASED", label: "Compuesto (elaboración)" },
-] as const;
 
 const RECIPE_TYPES = [
   { value: "SIMPLE", label: "Simple" },
@@ -79,6 +75,7 @@ function generateId() {
 
 export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
   const queryClient = useQueryClient();
+  const { options: productTypeOptions, defaultType } = useBranchProductTypes();
   const { data: categories = [], isLoading: loadingCategories } = useQuery({
     queryKey: ["categories", "list"],
     queryFn: fetchCategoryList,
@@ -125,7 +122,7 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
     minimumStock: product?.minimum_stock !== undefined ? String(product.minimum_stock) : "",
     measurementUnit: product?.measurement_unit ?? "",
     category: product?.category && typeof product.category === "object" ? String(product.category.id) : "",
-    productType: product?.product_type ?? "DIRECT_SALE",
+    productType: product?.product_type ?? defaultType ?? productTypeOptions[0]?.value ?? "DIRECT_SALE",
     isForSale: product?.is_for_sale ?? true,
     isForInternalUse: product?.is_for_internal_use ?? false,
     isPublic: (product as YggdraProduct & { is_public?: boolean })?.is_public ?? false,
@@ -574,7 +571,7 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
                 value={form.productType}
                 onChange={(e) => updateField("productType", e.target.value)}
               >
-                {PRODUCT_TYPES.map((t) => (
+                {productTypeOptions.map((t) => (
                   <option key={t.value} value={t.value}>{t.label}</option>
                 ))}
               </Select>

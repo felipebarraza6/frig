@@ -56,6 +56,7 @@ import {
   useSessionStore,
 } from "@/lib/store/session";
 import { useIsModuleEnabled } from "@/lib/hooks/useBranchModules";
+import { useBranchProductTypes } from "@/lib/hooks/useBranchProductTypes";
 import { branchName } from "@/lib/types";
 import ModifierModal from "@/components/pos/modifier-modal";
 import { WaiterTablesView } from "@/components/pos/waiter-tables-view";
@@ -148,6 +149,11 @@ export default function PosPage() {
   const canViewTables = useCanViewTables();
   const tablesEnabled = useIsModuleEnabled("tables");
   const showTables = (canViewTables && tablesEnabled) || isWaiterSimulation;
+  const { options: productTypeOptions } = useBranchProductTypes();
+  const allowedProductTypes = useMemo(
+    () => new Set(productTypeOptions.map((o) => o.value)),
+    [productTypeOptions]
+  );
   const toast = useToast();
 
   const addItem = useCartStore((s) => s.addItem);
@@ -289,13 +295,16 @@ export default function PosPage() {
     if (!products) return [];
     const q = query.trim().toLowerCase();
     return products.filter((p) => {
-      if (p.product_type === "RAW_MATERIAL") return false;
+      const productType = p.product_type?.toUpperCase();
+      if (productType && allowedProductTypes.size > 0 && !allowedProductTypes.has(productType)) {
+        return false;
+      }
       if (allowedProductIds && !allowedProductIds.has(p.id)) return false;
       if (activeCategory !== null && p.categoryId !== activeCategory) return false;
       if (q && !p.name.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [products, query, activeCategory, allowedProductIds]);
+  }, [products, query, activeCategory, allowedProductIds, allowedProductTypes]);
 
   function handleAddProduct(product: PosProduct) {
     const groups = productModifierGroups

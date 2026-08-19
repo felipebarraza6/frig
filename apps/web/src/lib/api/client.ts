@@ -108,7 +108,11 @@ export async function apiFetch<T>(path: string, opts: ApiOptions = {}): Promise<
   if (!res.ok) {
     const detail = data;
     const message = formatErrorDetail(detail) || `Error ${res.status}`;
-    throw new ApiError(res.status, message, detail);
+    const error = new ApiError(res.status, message, detail);
+    if (res.status === 403 && typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("api:forbidden", { detail: error }));
+    }
+    throw error;
   }
 
   return data as T;

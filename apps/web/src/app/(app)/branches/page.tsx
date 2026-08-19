@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Pencil, Power, Loader2, Store, Users } from "lucide-react";
+import { Plus, Search, Pencil, Power, Loader2, Store, Users, CreditCard } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,6 +14,7 @@ import { branchName } from "@/lib/types";
 import { fetchBranches, updateBranch } from "@/lib/api/branches";
 import { BranchForm } from "@/components/branches/branch-form";
 import { BranchUsersDialog } from "@/components/branches/branch-users-dialog";
+import { ApplyPlanDialog } from "@/components/branches/apply-plan-dialog";
 import type { Branch } from "@/lib/types";
 import type { BranchesFilter } from "@/lib/api/branches";
 
@@ -29,6 +30,7 @@ export default function BranchesPage() {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Branch | null>(null);
   const [viewingUsers, setViewingUsers] = useState<Branch | null>(null);
+  const [applyingPlan, setApplyingPlan] = useState<Branch | null>(null);
 
   const filter = useMemo<BranchesFilter>(() => {
     const base: BranchesFilter = {};
@@ -188,6 +190,16 @@ export default function BranchesPage() {
                                 Editar
                               </Button>
                             )}
+                            {isSuperAdmin && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setApplyingPlan(b)}
+                              >
+                                <CreditCard className="h-3.5 w-3.5" />
+                                Plan
+                              </Button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -243,6 +255,14 @@ export default function BranchesPage() {
         <BranchUsersDialog
           branch={viewingUsers}
           onClose={() => setViewingUsers(null)}
+        />
+      )}
+
+      {applyingPlan && (
+        <ApplyPlanDialog
+          branch={applyingPlan}
+          onClose={() => setApplyingPlan(null)}
+          onApplied={() => queryClient.invalidateQueries({ queryKey: ["branches"] })}
         />
       )}
     </div>
