@@ -265,7 +265,6 @@ export default function DashboardPage() {
                     label: "Venta promedio",
                     value: salesCount > 0 ? formatCLP(salesTotal / salesCount) : "—",
                   },
-                  { label: "Período", value: dates.label },
                 ],
                 chart:
                   summary?.time_series && summary.time_series.length > 1 ? (
@@ -302,7 +301,6 @@ export default function DashboardPage() {
                 sections: [
                   { label: "Total de órdenes", value: String(totalOrders) },
                   { label: "Cuentas abiertas", value: String(pendingOrders) },
-                  { label: "Período", value: dates.label },
                 ],
                 actions: (
                   <Link
@@ -335,7 +333,6 @@ export default function DashboardPage() {
                 sections: [
                   { label: "Órdenes completadas", value: String(completedOrders) },
                   { label: "Total de órdenes", value: String(totalOrders) },
-                  { label: "Período", value: dates.label },
                 ],
                 actions: (
                   <Link
@@ -423,7 +420,6 @@ export default function DashboardPage() {
                     label: "Venta promedio",
                     value: salesCount > 0 ? formatCLP(salesTotal / salesCount) : "—",
                   },
-                  { label: "Período", value: dates.label },
                 ],
               },
             })
@@ -477,8 +473,7 @@ export default function DashboardPage() {
                       label: "Insumos distintos",
                       value: String(ingredientConsumption?.items?.length ?? 0),
                     },
-                    { label: "Período", value: dates.label },
-                  ],
+                    ],
                   actions: (
                     <Link
                       href="/reports"
@@ -558,7 +553,6 @@ export default function DashboardPage() {
                     label: "Proveedores con gastos",
                     value: String(counts?.expenses_by_supplier?.length ?? 0),
                   },
-                  { label: "Período", value: dates.label },
                 ],
                 actions: (
                   <Link
