@@ -224,6 +224,8 @@ export default function DashboardPage() {
           icon={TrendingUp}
           tone="primary"
           sub={`${salesCount} órdenes`}
+          href="/sales"
+          description="Suma total de ventas pagadas en el rango seleccionado. Click para ver el detalle de órdenes."
         />
         <StatCard
           label="Órdenes completadas"
@@ -231,6 +233,8 @@ export default function DashboardPage() {
           icon={Receipt}
           tone="emerald"
           sub={`de ${totalOrders} totales`}
+          href="/sales"
+          description="Órdenes finalizadas y pagadas. Click para revisar el historial de ventas."
         />
         <StatCard
           label="Cuentas abiertas"
@@ -238,6 +242,8 @@ export default function DashboardPage() {
           icon={Clock}
           tone="amber"
           sub="pedidos sin pagar"
+          href="/sales"
+          description="Órdenes pendientes de pago o cierre. Click para gestionarlas."
         />
         <StatCard
           label="Clientes"
@@ -245,6 +251,8 @@ export default function DashboardPage() {
           icon={Users}
           tone="default"
           sub="registrados"
+          href="/customers"
+          description="Base de clientes registrados en la sucursal. Click para ver el listado."
         />
       </motion.section>
 
@@ -261,6 +269,8 @@ export default function DashboardPage() {
           icon={Package}
           tone="default"
           sub={`${lowStockCount} con stock bajo`}
+          href="/products"
+          description="Productos activos en el catálogo. Click para ver el inventario de productos."
         />
         <StatCard
           label="Ingresos"
@@ -268,6 +278,8 @@ export default function DashboardPage() {
           icon={ArrowDownLeft}
           tone="emerald"
           sub="ventas del período"
+          href="/sales"
+          description="Total de dinero ingresado por ventas en el período seleccionado."
         />
         <StatCard
           label="Ganancia estimada"
@@ -275,6 +287,8 @@ export default function DashboardPage() {
           icon={Wallet}
           tone="primary"
           sub="aproximada"
+          href="/sales"
+          description="Margen aproximado calculado sobre las ventas del período."
         />
         <StatCard
           label="Gastos"
@@ -282,6 +296,8 @@ export default function DashboardPage() {
           icon={ArrowUpRight}
           tone="rose"
           sub="del período"
+          href="/expenses"
+          description="Total de gastos registrados. Click para ver el detalle de compras."
         />
       </motion.section>
 
@@ -352,10 +368,19 @@ export default function DashboardPage() {
         className="grid gap-4 lg:grid-cols-2"
       >
         <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
-            <ShoppingBag className="h-4 w-4 text-primary" />
-            Métodos de pago
-          </h2>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-sm font-semibold">
+              <ShoppingBag className="h-4 w-4 text-primary" />
+              Métodos de pago
+            </h2>
+            <Link
+              href="/payment-methods"
+              className="inline-flex items-center gap-1 text-xs font-medium text-primary transition-colors hover:text-primary/80"
+            >
+              Configurar
+              <ChevronRight className="h-3 w-3" />
+            </Link>
+          </div>
           {summary?.payments && summary.payments.length > 0 ? (
             <div className="flex flex-col gap-3">
               {(() => {
@@ -363,9 +388,13 @@ export default function DashboardPage() {
                 return summary.payments.map((p, i) => {
                   const pct = totalPayments > 0 ? (p.total / totalPayments) * 100 : 0;
                   return (
-                  <div key={i} className="flex flex-col gap-1.5">
+                  <Link
+                    key={i}
+                    href="/sales"
+                    className="group flex flex-col gap-1.5 rounded-lg p-1.5 -mx-1.5 transition-colors hover:bg-muted/50"
+                  >
                     <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium">{paymentTypeLabel(p.type_payment__name)}</span>
+                      <span className="font-medium group-hover:text-primary">{paymentTypeLabel(p.type_payment__name)}</span>
                       <span className="tabular-nums font-semibold">{formatCLP(p.total)}</span>
                     </div>
                     <div className="h-2.5 w-full rounded-full bg-muted">
@@ -376,7 +405,7 @@ export default function DashboardPage() {
                         className="h-2.5 rounded-full bg-primary"
                       />
                     </div>
-                  </div>
+                  </Link>
                 );
               })}
             )()}
@@ -387,16 +416,29 @@ export default function DashboardPage() {
         </div>
 
         <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-          <h2 className="mb-3 text-sm font-semibold">Productos más vendidos</h2>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold">Productos más vendidos</h2>
+            <Link
+              href="/products"
+              className="inline-flex items-center gap-1 text-xs font-medium text-primary transition-colors hover:text-primary/80"
+            >
+              Ver todos
+              <ChevronRight className="h-3 w-3" />
+            </Link>
+          </div>
           {summary?.products?.best_selling && summary.products.best_selling.length > 0 ? (
             <div className="flex flex-col gap-3">
               {summary.products.best_selling.map((p, i) => {
                 const maxQty = Math.max(...summary.products.best_selling.map((x) => x.quantity), 1);
                 const pct = (p.quantity / maxQty) * 100;
                 return (
-                  <div key={i} className="flex flex-col gap-1.5">
+                  <Link
+                    key={i}
+                    href="/products"
+                    className="group flex flex-col gap-1.5 rounded-lg p-1.5 -mx-1.5 transition-colors hover:bg-muted/50"
+                  >
                     <div className="flex items-center justify-between text-sm">
-                      <span className="min-w-0 truncate font-medium">{p.product__name}</span>
+                      <span className="min-w-0 truncate font-medium group-hover:text-primary">{p.product__name}</span>
                       <span className="shrink-0 tabular-nums font-semibold">
                         {p.quantity} · {formatCLP(p.total)}
                       </span>
@@ -409,7 +451,7 @@ export default function DashboardPage() {
                         className="h-2.5 rounded-full bg-emerald-500"
                       />
                     </div>
-                  </div>
+                  </Link>
                 );
               })}
             </div>
@@ -443,15 +485,16 @@ export default function DashboardPage() {
             </div>
             <div className="flex flex-wrap gap-2">
               {lowStockProducts.map((p) => (
-                <div
+                <Link
                   key={p.id}
+                  href="/inventory"
                   className="flex items-center gap-2 rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1.5 transition-colors hover:bg-amber-500/15"
                 >
                   <span className="max-w-[160px] truncate text-sm font-medium">{p.name}</span>
                   <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-700">
                     {p.quantity} / {p.minimum_stock}
                   </span>
-                </div>
+                </Link>
               ))}
             </div>
           </div>
@@ -467,12 +510,16 @@ function StatCard({
   icon: Icon,
   sub,
   tone = "default",
+  href,
+  description,
 }: {
   label: string;
   value: string | number;
   icon: LucideIcon;
   sub: string;
   tone?: "default" | "primary" | "emerald" | "amber" | "rose";
+  href?: string;
+  description?: string;
 }) {
   const tones = {
     default: "bg-card",
@@ -489,23 +536,41 @@ function StatCard({
     rose: "bg-rose-500/15 text-rose-600",
   };
 
-  return (
-    <motion.div
-      variants={item}
-      className={cn(
-        "rounded-xl border border-border p-2.5 shadow-sm transition-all duration-200",
-        "hover:-translate-y-0.5 hover:shadow-md",
-        tones[tone]
-      )}
-    >
+  const content = (
+    <>
       <div className="mb-1.5 flex items-center gap-2">
         <div className={cn("flex h-7 w-7 items-center justify-center rounded-lg", iconBg[tone])}>
           <Icon className="h-3.5 w-3.5" strokeWidth={2} />
         </div>
-        <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
+        <span className="flex-1 text-[11px] font-medium text-muted-foreground">{label}</span>
+        {href && (
+          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60 transition-colors group-hover:text-foreground" />
+        )}
       </div>
       <p className="text-lg font-semibold tabular-nums tracking-tight">{value}</p>
       <p className="text-[11px] text-muted-foreground">{sub}</p>
+    </>
+  );
+
+  const baseClassName = cn(
+    "group rounded-xl border border-border p-2.5 shadow-sm transition-all duration-200",
+    "hover:-translate-y-0.5 hover:shadow-md",
+    tones[tone]
+  );
+
+  if (href) {
+    return (
+      <motion.div variants={item} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
+        <Link href={href} title={description} className={baseClassName}>
+          {content}
+        </Link>
+      </motion.div>
+    );
+  }
+
+  return (
+    <motion.div variants={item} title={description} className={baseClassName}>
+      {content}
     </motion.div>
   );
 }
