@@ -105,7 +105,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                   className="absolute inset-0 bg-black/50"
                   onClick={() => setMobileOpen(false)}
                 />
-                <div className="absolute left-0 top-0 h-full w-72 bg-card shadow-2xl">
+                <div className="absolute left-0 top-0 h-full w-[85vw] max-w-sm bg-card shadow-2xl">
                   <div className="flex items-center justify-between border-b border-border px-4 py-3">
                     <p className="text-sm font-semibold">Menú</p>
                     <button
@@ -117,7 +117,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                       <X className="h-5 w-5" />
                     </button>
                   </div>
-                  <AppSidebar onNavigate={() => setMobileOpen(false)} forceExpanded />
+                  <AppSidebar
+                    onNavigate={() => setMobileOpen(false)}
+                    forceExpanded
+                    defaultOpenGroups="all"
+                  />
                 </div>
               </div>
             )}

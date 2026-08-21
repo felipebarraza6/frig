@@ -13,9 +13,10 @@ import {
 } from "@/lib/store/session";
 
 interface NavItem {
-  href: string;
+  href?: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
+  onClick?: () => void;
 }
 
 interface MobileBottomNavProps {
@@ -26,21 +27,6 @@ function isAllowed(pathname: string, allowedPaths: string[]): boolean {
   return allowedPaths.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
-function NavButton({ item, isActive }: { item: NavItem; isActive: boolean }) {
-  return (
-    <Link
-      href={item.href}
-      className={cn(
-        "flex flex-col items-center justify-center gap-1 px-2 py-2 transition-colors",
-        isActive ? "text-primary" : "text-muted-foreground hover:text-foreground",
-      )}
-    >
-      <item.icon className={cn("h-5 w-5", isActive && "stroke-[2.5px]")} />
-      <span className="text-[10px] font-medium leading-none">{item.label}</span>
-    </Link>
-  );
-}
-
 export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
   const pathname = usePathname();
   const isCashier = useIsCashier();
@@ -49,54 +35,65 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
   const waiterAllowedPaths = useWaiterAllowedPaths();
   const posEnabled = useIsModuleEnabledFromConfig("pos");
 
-  const leftItems: NavItem[] = [
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  const routeItems: NavItem[] = [
+    { href: "/dashboard", label: "Inicio", icon: LayoutDashboard },
     { href: "/sales", label: "Ventas", icon: ShoppingBag },
-  ];
-
-  const rightItems: NavItem[] = [
     ...(posEnabled ? [{ href: "/pos", label: "POS", icon: Receipt }] : []),
     ...(posEnabled ? [{ href: "/cash-register", label: "Caja", icon: Banknote }] : []),
   ];
 
-  const filterByRole = (item: NavItem) => {
+  const visibleRoutes = routeItems.filter((item) => {
+    if (!item.href) return true;
     if (isCashier) return isAllowed(item.href, cashierAllowedPaths);
     if (isWaiter) return isAllowed(item.href, waiterAllowedPaths);
     return true;
-  };
+  });
 
-  const visibleLeft = leftItems.filter(filterByRole);
-  const visibleRight = rightItems.filter(filterByRole);
+  const items: NavItem[] = [
+    ...visibleRoutes.slice(0, 4),
+    { label: "Menú", icon: Menu, onClick: onMenuClick },
+  ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur md:hidden pb-[env(safe-area-inset-bottom)]">
-      <div className="flex h-20 items-end px-2 pb-2">
-        <div className="flex flex-1 items-end justify-around">
-          {visibleLeft.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
-            return <NavButton key={item.href} item={item} isActive={isActive} />;
-          })}
-        </div>
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur-xl md:hidden pb-[env(safe-area-inset-bottom)]">
+      <div className="flex h-16 items-center justify-around px-1">
+        {items.map((item, idx) => {
+          const isActive = item.href && (pathname === item.href || pathname.startsWith(`${item.href}/`));
+          const className = cn(
+            "relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 py-2 transition-colors",
+            isActive ? "text-primary" : "text-muted-foreground hover:text-foreground",
+          );
+          const content = (
+            <>
+              <item.icon className={cn("h-[22px] w-[22px]", isActive && "stroke-[2.5px]")} />
+              <span className="max-w-full truncate px-1 text-[11px] font-medium leading-none">
+                {item.label}
+              </span>
+              {isActive && (
+                <span className="absolute top-1 h-1 w-1 rounded-full bg-primary" />
+              )}
+            </>
+          );
 
-        <button
-          type="button"
-          onClick={onMenuClick}
-          className="relative -top-3 mx-2 flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 transition-transform active:scale-95"
-          aria-label="Abrir menú"
-        >
-          <Menu className="h-6 w-6" />
-        </button>
+          if (item.href) {
+            return (
+              <Link key={item.label + idx} href={item.href} className={className}>
+                {content}
+              </Link>
+            );
+          }
 
-        <div className="flex flex-1 items-end justify-around">
-          {visibleRight.length > 0 ? (
-            visibleRight.map((item) => {
-              const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
-              return <NavButton key={item.href} item={item} isActive={isActive} />;
-            })
-          ) : (
-            <span className="w-10" />
-          )}
-        </div>
+          return (
+            <button
+              key={item.label + idx}
+              type="button"
+              onClick={item.onClick}
+              className={className}
+            >
+              {content}
+            </button>
+          );
+        })}
       </div>
     </nav>
   );

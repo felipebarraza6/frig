@@ -48,9 +48,10 @@ interface NavItem {
 interface AppSidebarProps {
   onNavigate?: () => void;
   forceExpanded?: boolean;
+  defaultOpenGroups?: "all";
 }
 
-export function AppSidebar({ onNavigate, forceExpanded }: AppSidebarProps) {
+export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: AppSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const storeExpanded = useSidebarStore((s) => s.expanded);
@@ -59,8 +60,10 @@ export function AppSidebar({ onNavigate, forceExpanded }: AppSidebarProps) {
   const hovering = useSidebarStore((s) => s.hovering);
   const setHovering = useSidebarStore((s) => s.setHovering);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [openGroup, setOpenGroup] = useState<string | null>(null);
+  const [openGroup, setOpenGroup] = useState<string | null>(defaultOpenGroups === "all" ? "all" : null);
   const effectivelyExpanded = expanded || hovering;
+
+  const isGroupOpen = (title: string) => openGroup === "all" || openGroup === title;
 
   const hasHydrated = useSessionStore((s) => s.hasHydrated);
   const user = useSessionStore((s) => s.user);
@@ -324,7 +327,7 @@ export function AppSidebar({ onNavigate, forceExpanded }: AppSidebarProps) {
             <NavGroup
               title="Estaciones"
               expanded={effectivelyExpanded}
-              isOpen={openGroup === "Estaciones"}
+              isOpen={isGroupOpen("Estaciones")}
               onToggle={() =>
                 setOpenGroup((prev) => (prev === "Estaciones" ? null : "Estaciones"))
               }
@@ -354,7 +357,7 @@ export function AppSidebar({ onNavigate, forceExpanded }: AppSidebarProps) {
                   key={group.title}
                   title={group.title}
                   expanded={effectivelyExpanded}
-                  isOpen={openGroup === group.title}
+                  isOpen={isGroupOpen(group.title)}
                   onToggle={() =>
                     setOpenGroup((prev) => (prev === group.title ? null : group.title))
                   }
