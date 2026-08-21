@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion, type Variants } from "framer-motion";
 import {
-  Loader2,
   TrendingUp,
   Package,
   Users,
@@ -127,11 +126,7 @@ export default function DashboardPage() {
   const error = countsError || summaryError;
 
   if (loading) {
-    return (
-      <div className="grid min-h-full place-items-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   if (error) {
@@ -841,6 +836,108 @@ function RadarChart({ metrics }: { metrics: { label: string; value: number }[] }
           );
         })}
       </svg>
+    </div>
+  );
+}
+
+function SkeletonPulse({ className }: { className?: string }) {
+  return <div className={cn("animate-pulse rounded-lg bg-muted", className)} />;
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="flex min-h-full flex-col gap-4 p-4">
+      {/* Header */}
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+        <div className="flex flex-wrap items-center gap-2">
+          <SkeletonPulse className="h-8 w-48" />
+          <SkeletonPulse className="h-8 w-44" />
+        </div>
+      </header>
+
+      {/* Stats principales */}
+      <section className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div
+            key={i}
+            className="rounded-xl border border-border bg-card p-2.5 shadow-sm"
+          >
+            <div className="mb-1.5 flex items-center gap-2">
+              <SkeletonPulse className="h-7 w-7 rounded-lg" />
+              <SkeletonPulse className="h-3 w-20" />
+            </div>
+            <SkeletonPulse className="mb-1 h-6 w-24" />
+            <SkeletonPulse className="h-3 w-16" />
+          </div>
+        ))}
+      </section>
+
+      {/* Stats secundarias */}
+      <section className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div
+            key={i}
+            className="rounded-xl border border-border bg-card p-2.5 shadow-sm"
+          >
+            <div className="mb-1.5 flex items-center gap-2">
+              <SkeletonPulse className="h-7 w-7 rounded-lg" />
+              <SkeletonPulse className="h-3 w-20" />
+            </div>
+            <SkeletonPulse className="mb-1 h-6 w-24" />
+            <SkeletonPulse className="h-3 w-16" />
+          </div>
+        ))}
+      </section>
+
+      {/* Gráficos */}
+      <section className="grid gap-4 lg:grid-cols-3">
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm lg:col-span-2">
+          <SkeletonPulse className="mb-4 h-4 w-40" />
+          <SkeletonPulse className="h-40 w-full" />
+        </div>
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+          <SkeletonPulse className="mb-4 h-4 w-36" />
+          <div className="flex flex-col items-center">
+            <SkeletonPulse className="h-24 w-24 rounded-full" />
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <SkeletonPulse className="h-14 w-full" />
+            <SkeletonPulse className="h-14 w-full" />
+          </div>
+        </div>
+      </section>
+
+      {/* Métodos de pago y productos */}
+      <section className="grid gap-4 lg:grid-cols-2">
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+          <SkeletonPulse className="mb-4 h-4 w-32" />
+          <div className="flex flex-col gap-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <SkeletonPulse className="h-3 w-28" />
+                  <SkeletonPulse className="h-3 w-16" />
+                </div>
+                <SkeletonPulse className="h-2.5 w-full" />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+          <SkeletonPulse className="mb-4 h-4 w-40" />
+          <div className="flex flex-col gap-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <SkeletonPulse className="h-3 w-32" />
+                  <SkeletonPulse className="h-3 w-20" />
+                </div>
+                <SkeletonPulse className="h-2.5 w-full" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
