@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion, type Variants } from "framer-motion";
 import {
@@ -19,11 +19,7 @@ import {
   FlaskConical,
   type LucideIcon,
 } from "lucide-react";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-} from "@/components/ui/carousel";
+
 import {
   fetchModuleCounts,
   fetchDashboardSummary,
@@ -33,6 +29,7 @@ import {
 import { formatCLP, cn, paymentTypeLabel } from "@/lib/utils";
 import { useCurrentBranch, useIsModuleEnabledFromConfig } from "@/lib/store/session";
 import { useProducts } from "@/lib/hooks/useCatalog";
+import { MetricDrawer, type MetricDrawerSection } from "@/components/metric-drawer";
 import Link from "next/link";
 
 const container: Variants = {
@@ -43,6 +40,15 @@ const container: Variants = {
 const item: Variants = {
   hidden: { opacity: 0, y: 12 },
   show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 200, damping: 24 } },
+};
+
+type MetricConfig = {
+  title: string;
+  value: string | number;
+  icon: LucideIcon;
+  description: string;
+  sections?: MetricDrawerSection[];
+  children?: ReactNode;
 };
 
 function formatDateInput(date: Date): string {
@@ -108,6 +114,7 @@ export default function DashboardPage() {
   const monthRange = useMemo(() => getCurrentMonthRange(), []);
   const [range, setRange] = useState<DateRange>("custom");
   const [customRange, setCustomRange] = useState<{ start: string; end: string }>(monthRange);
+  const [drawer, setDrawer] = useState<{ open: boolean; metric?: MetricConfig }>({ open: false });
   const dates = useMemo(() => rangeDates(range, customRange), [range, customRange]);
 
   const branchId = branch?.branch_id;
@@ -231,505 +238,437 @@ export default function DashboardPage() {
       </header>
 
       {/* Stats principales */}
-      <motion.section variants={container} initial="hidden" animate="show" className="grid gap-4">
-        <Carousel className="md:hidden" opts={{ align: "start" }}>
-          <CarouselContent>
-            <CarouselItem className="basis-[70%]">
-              <StatCard
-                label="Ventas del período"
-                value={formatCLP(salesTotal)}
-                icon={TrendingUp}
-                sub={`${salesCount} órdenes`}
-                href="/sales"
-                description="Suma total de ventas pagadas en el rango seleccionado. Click para ver el detalle de órdenes."
-              />
-            </CarouselItem>
-            <CarouselItem className="basis-[70%]">
-              <StatCard
-                label="Órdenes completadas"
-                value={completedOrders}
-                icon={Receipt}
-                sub={`de ${totalOrders} totales`}
-                href="/sales"
-                description="Órdenes finalizadas y pagadas. Click para revisar el historial de ventas."
-              />
-            </CarouselItem>
-            <CarouselItem className="basis-[70%]">
-              <StatCard
-                label="Cuentas abiertas"
-                value={pendingOrders}
-                icon={Clock}
-                sub="pedidos sin pagar"
-                href="/sales"
-                description="Órdenes pendientes de pago o cierre. Click para gestionarlas."
-              />
-            </CarouselItem>
-            <CarouselItem className="basis-[70%]">
-              <StatCard
-                label="Clientes"
-                value={customers}
-                icon={Users}
-                sub="registrados"
-                href="/customers"
-                description="Base de clientes registrados en la sucursal. Click para ver el listado."
-              />
-            </CarouselItem>
-          </CarouselContent>
-        </Carousel>
-        <div className="hidden md:grid gap-1 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            label="Ventas del período"
-            value={formatCLP(salesTotal)}
-            icon={TrendingUp}
-            sub={`${salesCount} órdenes`}
-            href="/sales"
-            description="Suma total de ventas pagadas en el rango seleccionado. Click para ver el detalle de órdenes."
-          />
-          <StatCard
-            label="Órdenes completadas"
-            value={completedOrders}
-            icon={Receipt}
-            sub={`de ${totalOrders} totales`}
-            href="/sales"
-            description="Órdenes finalizadas y pagadas. Click para revisar el historial de ventas."
-          />
-          <StatCard
-            label="Cuentas abiertas"
-            value={pendingOrders}
-            icon={Clock}
-            sub="pedidos sin pagar"
-            href="/sales"
-            description="Órdenes pendientes de pago o cierre. Click para gestionarlas."
-          />
-          <StatCard
-            label="Clientes"
-            value={customers}
-            icon={Users}
-            sub="registrados"
-            href="/customers"
-            description="Base de clientes registrados en la sucursal. Click para ver el listado."
-          />
-        </div>
+      <motion.section variants={container} initial="hidden" animate="show" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatCard
+          label="Ventas del período"
+          value={formatCLP(salesTotal)}
+          icon={TrendingUp}
+          sub={`${salesCount} órdenes`}
+          href="/sales"
+          description="Suma total de ventas pagadas en el rango seleccionado. Click para ver el detalle de órdenes."
+          onClick={() =>
+            setDrawer({
+              open: true,
+              metric: {
+                title: "Ventas del período",
+                value: formatCLP(salesTotal),
+                icon: TrendingUp,
+                description:
+                  "Suma total de ventas pagadas en el rango seleccionado. Click para ver el detalle de órdenes.",
+                sections: [
+                  { label: "Órdenes pagadas", value: String(salesCount) },
+                  {
+                    label: "Venta promedio",
+                    value: salesCount > 0 ? formatCLP(salesTotal / salesCount) : "—",
+                  },
+                  { label: "Período", value: dates.label },
+                ],
+              },
+            })
+          }
+        />
+        <StatCard
+          label="Órdenes completadas"
+          value={completedOrders}
+          icon={Receipt}
+          sub={`de ${totalOrders} totales`}
+          href="/sales"
+          description="Órdenes finalizadas y pagadas. Click para revisar el historial de ventas."
+          onClick={() =>
+            setDrawer({
+              open: true,
+              metric: {
+                title: "Órdenes completadas",
+                value: completedOrders,
+                icon: Receipt,
+                description: "Órdenes finalizadas y pagadas. Click para revisar el historial de ventas.",
+                sections: [
+                  { label: "Total de órdenes", value: String(totalOrders) },
+                  { label: "Cuentas abiertas", value: String(pendingOrders) },
+                  { label: "Período", value: dates.label },
+                ],
+              },
+            })
+          }
+        />
+        <StatCard
+          label="Cuentas abiertas"
+          value={pendingOrders}
+          icon={Clock}
+          sub="pedidos sin pagar"
+          href="/sales"
+          description="Órdenes pendientes de pago o cierre. Click para gestionarlas."
+          onClick={() =>
+            setDrawer({
+              open: true,
+              metric: {
+                title: "Cuentas abiertas",
+                value: pendingOrders,
+                icon: Clock,
+                description: "Órdenes pendientes de pago o cierre. Click para gestionarlas.",
+                sections: [
+                  { label: "Órdenes completadas", value: String(completedOrders) },
+                  { label: "Total de órdenes", value: String(totalOrders) },
+                  { label: "Período", value: dates.label },
+                ],
+              },
+            })
+          }
+        />
+        <StatCard
+          label="Clientes"
+          value={customers}
+          icon={Users}
+          sub="registrados"
+          href="/customers"
+          description="Base de clientes registrados en la sucursal. Click para ver el listado."
+          onClick={() =>
+            setDrawer({
+              open: true,
+              metric: {
+                title: "Clientes",
+                value: customers,
+                icon: Users,
+                description: "Base de clientes registrados en la sucursal. Click para ver el listado.",
+                sections: [{ label: "Total registrados", value: String(customers) }],
+              },
+            })
+          }
+        />
       </motion.section>
 
       {/* Stats secundarias */}
-      <motion.section variants={container} initial="hidden" animate="show" className="grid gap-4">
-        <Carousel className="md:hidden" opts={{ align: "start" }}>
-          <CarouselContent>
-            <CarouselItem className="basis-[70%]">
-              <StatCard
-                label="Productos"
-                value={productsCount}
-                icon={Package}
-                sub={`${lowStockCount} con stock bajo`}
-                href="/products"
-                description="Productos activos en el catálogo. Click para ver el inventario de productos."
-              />
-            </CarouselItem>
-            <CarouselItem className="basis-[70%]">
-              <StatCard
-                label="Ingresos"
-                value={formatCLP(salesTotal)}
-                icon={ArrowDownLeft}
-                sub="ventas del período"
-                href="/sales"
-                description="Total de dinero ingresado por ventas en el período seleccionado."
-              />
-            </CarouselItem>
-            <CarouselItem className="basis-[70%]">
-              <StatCard
-                label="Ganancia estimada"
-                value={formatCLP(profit)}
-                icon={Wallet}
-                sub="aproximada"
-                href="/sales"
-                description="Margen aproximado calculado sobre las ventas del período."
-              />
-            </CarouselItem>
-            {nutritionEnabled && (
-              <CarouselItem className="basis-[70%]">
-                <StatCard
-                  label="Costo de insumos"
-                  value={formatCLP(ingredientConsumption?.total_cost ?? 0)}
-                  icon={FlaskConical}
-                  sub="según recetas vendidas"
-                  href="/reports"
-                  description="Costo estimado de los insumos consumidos según las recetas de los productos vendidos."
-                />
-              </CarouselItem>
-            )}
-            <CarouselItem className="basis-[70%]">
-              <StatCard
-                label="Gastos"
-                value={formatCLP(expensesTotal)}
-                icon={ArrowUpRight}
-                sub="del período"
-                href="/expenses"
-                description="Total de gastos registrados. Click para ver el detalle de compras."
-              />
-            </CarouselItem>
-          </CarouselContent>
-        </Carousel>
-        <div
-          className={cn(
-            "hidden md:grid gap-1 sm:grid-cols-2",
-            nutritionEnabled ? "lg:grid-cols-5" : "lg:grid-cols-4",
-          )}
-        >
+      <motion.section
+        variants={container}
+        initial="hidden"
+        animate="show"
+        className={cn("grid grid-cols-2 gap-3", nutritionEnabled ? "lg:grid-cols-5" : "lg:grid-cols-4")}
+      >
+        <StatCard
+          label="Productos"
+          value={productsCount}
+          icon={Package}
+          sub={`${lowStockCount} con stock bajo`}
+          href="/products"
+          description="Productos activos en el catálogo. Click para ver el inventario de productos."
+          onClick={() =>
+            setDrawer({
+              open: true,
+              metric: {
+                title: "Productos",
+                value: productsCount,
+                icon: Package,
+                description: "Productos activos en el catálogo. Click para ver el inventario de productos.",
+                sections: [
+                  { label: "Con stock bajo", value: String(lowStockCount) },
+                  { label: "Catálogo local", value: String(productsCount) },
+                ],
+              },
+            })
+          }
+        />
+        <StatCard
+          label="Ingresos"
+          value={formatCLP(salesTotal)}
+          icon={ArrowDownLeft}
+          sub="ventas del período"
+          href="/sales"
+          description="Total de dinero ingresado por ventas en el período seleccionado."
+          onClick={() =>
+            setDrawer({
+              open: true,
+              metric: {
+                title: "Ingresos",
+                value: formatCLP(salesTotal),
+                icon: ArrowDownLeft,
+                description: "Total de dinero ingresado por ventas en el período seleccionado.",
+                sections: [
+                  { label: "Órdenes pagadas", value: String(salesCount) },
+                  {
+                    label: "Venta promedio",
+                    value: salesCount > 0 ? formatCLP(salesTotal / salesCount) : "—",
+                  },
+                  { label: "Período", value: dates.label },
+                ],
+              },
+            })
+          }
+        />
+        <StatCard
+          label="Ganancia estimada"
+          value={formatCLP(profit)}
+          icon={Wallet}
+          sub="aproximada"
+          href="/sales"
+          description="Margen aproximado calculado sobre las ventas del período."
+          onClick={() =>
+            setDrawer({
+              open: true,
+              metric: {
+                title: "Ganancia estimada",
+                value: formatCLP(profit),
+                icon: Wallet,
+                description: "Margen aproximado calculado sobre las ventas del período.",
+                sections: [
+                  {
+                    label: "Margen estimado",
+                    value: salesTotal > 0 ? `${((profit / salesTotal) * 100).toFixed(1)}%` : "—",
+                  },
+                  { label: "Ventas del período", value: formatCLP(salesTotal) },
+                ],
+              },
+            })
+          }
+        />
+        {nutritionEnabled && (
           <StatCard
-            label="Productos"
-            value={productsCount}
-            icon={Package}
-            sub={`${lowStockCount} con stock bajo`}
-            href="/products"
-            description="Productos activos en el catálogo. Click para ver el inventario de productos."
+            label="Costo de insumos"
+            value={formatCLP(ingredientConsumption?.total_cost ?? 0)}
+            icon={FlaskConical}
+            sub="según recetas vendidas"
+            href="/reports"
+            description="Costo estimado de los insumos consumidos según las recetas de los productos vendidos."
+            onClick={() =>
+              setDrawer({
+                open: true,
+                metric: {
+                  title: "Costo de insumos",
+                  value: formatCLP(ingredientConsumption?.total_cost ?? 0),
+                  icon: FlaskConical,
+                  description:
+                    "Costo estimado de los insumos consumidos según las recetas de los productos vendidos.",
+                  sections: [
+                    {
+                      label: "Insumos distintos",
+                      value: String(ingredientConsumption?.items?.length ?? 0),
+                    },
+                    { label: "Período", value: dates.label },
+                  ],
+                  children:
+                    ingredientConsumption?.items && ingredientConsumption.items.length > 0 ? (
+                      <div className="flex flex-col">
+                        {(() => {
+                          const maxCost = Math.max(
+                            ...ingredientConsumption.items.map((i) => i.cost),
+                            1,
+                          );
+                          return ingredientConsumption.items.map((item) => {
+                            const pct = (item.cost / maxCost) * 100;
+                            return (
+                              <div
+                                key={item.ingredient_id}
+                                className="flex flex-col gap-1 border-b border-border py-2.5 last:border-0"
+                                title={`${item.ingredient_name}: ${item.total_quantity} ${item.unit} consumidos`}
+                              >
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="min-w-0 truncate font-medium">
+                                    {item.ingredient_name}
+                                  </span>
+                                  <span className="shrink-0 tabular-nums font-semibold">
+                                    {formatCLP(item.cost)}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  {item.total_quantity} {item.unit}
+                                </p>
+                                <div className="h-1.5 w-full rounded-full bg-muted">
+                                  <motion.div
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${pct}%` }}
+                                    transition={{ duration: 0.8 }}
+                                    className="h-1.5 rounded-full bg-primary"
+                                  />
+                                </div>
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Sin consumo de insumos en el período.
+                      </p>
+                    ),
+                },
+              })
+            }
           />
-          <StatCard
-            label="Ingresos"
-            value={formatCLP(salesTotal)}
-            icon={ArrowDownLeft}
-            sub="ventas del período"
-            href="/sales"
-            description="Total de dinero ingresado por ventas en el período seleccionado."
-          />
-          <StatCard
-            label="Ganancia estimada"
-            value={formatCLP(profit)}
-            icon={Wallet}
-            sub="aproximada"
-            href="/sales"
-            description="Margen aproximado calculado sobre las ventas del período."
-          />
-          {nutritionEnabled && (
-            <StatCard
-              label="Costo de insumos"
-              value={formatCLP(ingredientConsumption?.total_cost ?? 0)}
-              icon={FlaskConical}
-              sub="según recetas vendidas"
-              href="/reports"
-              description="Costo estimado de los insumos consumidos según las recetas de los productos vendidos."
-            />
-          )}
-          <StatCard
-            label="Gastos"
-            value={formatCLP(expensesTotal)}
-            icon={ArrowUpRight}
-            sub="del período"
-            href="/expenses"
-            description="Total de gastos registrados. Click para ver el detalle de compras."
-          />
-        </div>
+        )}
+        <StatCard
+          label="Gastos"
+          value={formatCLP(expensesTotal)}
+          icon={ArrowUpRight}
+          sub="del período"
+          href="/expenses"
+          description="Total de gastos registrados. Click para ver el detalle de compras."
+          onClick={() =>
+            setDrawer({
+              open: true,
+              metric: {
+                title: "Gastos",
+                value: formatCLP(expensesTotal),
+                icon: ArrowUpRight,
+                description: "Total de gastos registrados. Click para ver el detalle de compras.",
+                sections: [
+                  {
+                    label: "Proveedores con gastos",
+                    value: String(counts?.expenses_by_supplier?.length ?? 0),
+                  },
+                  { label: "Período", value: dates.label },
+                ],
+              },
+            })
+          }
+        />
       </motion.section>
 
       {/* Gráficos principales */}
-      <motion.section variants={container} initial="hidden" animate="show" className="grid gap-4">
-        <Carousel className="lg:hidden" opts={{ align: "start" }}>
-          <CarouselContent>
-            <CarouselItem className="basis-full">
-              <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-                <div className="mb-2 flex items-center justify-between">
-                  <h2 className="flex items-center gap-2 text-sm font-semibold">
-                    <TrendingUp className="h-4 w-4 text-primary" />
-                    Evolución de ventas
-                  </h2>
-                  <span className="text-xs text-muted-foreground">{dates.label}</span>
-                </div>
-                {summary?.time_series && summary.time_series.length > 0 ? (
-                  <SalesChart
-                    data={summary.time_series}
-                    startDate={dates.start}
-                    endDate={dates.end}
-                  />
-                ) : (
-                  <div className="grid h-36 place-items-center rounded-lg border border-dashed border-border bg-muted/30">
-                    <p className="text-sm text-muted-foreground">Sin datos de ventas en el período.</p>
-                  </div>
-                )}
-              </div>
-            </CarouselItem>
-            <CarouselItem className="basis-full">
-              <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-                <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
-                  <Target className="h-4 w-4 text-primary" />
-                  Resumen del negocio
-                </h2>
-                <RadarChart
-                  metrics={[
-                    { label: "Ventas", value: Math.min(salesTotal / 100000, 1) },
-                    { label: "Órdenes", value: Math.min(totalOrders / 50, 1) },
-                    { label: "Clientes", value: Math.min(customers / 100, 1) },
-                    { label: "Productos", value: Math.min(productsCount / 50, 1) },
-                    { label: "Ganancia", value: Math.min(profit / 50000, 1) },
-                  ]}
-                />
-                <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
-                  <div>
-                    <p className="text-muted-foreground">Venta promedio</p>
-                    <p className="font-semibold tabular-nums">
-                      {salesCount > 0 ? formatCLP(salesTotal / salesCount) : "—"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Margen estimado</p>
-                    <p className="font-semibold tabular-nums">
-                      {salesTotal > 0 ? `${((profit / salesTotal) * 100).toFixed(1)}%` : "—"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </CarouselItem>
-          </CarouselContent>
-        </Carousel>
-        <div className="hidden lg:grid lg:grid-cols-3 gap-6">
-          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm lg:col-span-2">
-            <div className="mb-2 flex items-center justify-between">
-              <h2 className="flex items-center gap-2 text-sm font-semibold">
-                <TrendingUp className="h-4 w-4 text-primary" />
-                Evolución de ventas
-              </h2>
-              <span className="text-xs text-muted-foreground">{dates.label}</span>
-            </div>
-            {summary?.time_series && summary.time_series.length > 0 ? (
-              <SalesChart
-                data={summary.time_series}
-                startDate={dates.start}
-                endDate={dates.end}
-              />
-            ) : (
-              <div className="grid h-36 place-items-center rounded-lg border border-dashed border-border bg-muted/30">
-                <p className="text-sm text-muted-foreground">Sin datos de ventas en el período.</p>
-              </div>
-            )}
-          </div>
-
-          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-            <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
-              <Target className="h-4 w-4 text-primary" />
-              Resumen del negocio
+      <motion.section variants={container} initial="hidden" animate="show" className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm lg:col-span-2">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-sm font-semibold">
+              <TrendingUp className="h-4 w-4 text-primary" />
+              Evolución de ventas
             </h2>
-            <RadarChart
-              metrics={[
-                { label: "Ventas", value: Math.min(salesTotal / 100000, 1) },
-                { label: "Órdenes", value: Math.min(totalOrders / 50, 1) },
-                { label: "Clientes", value: Math.min(customers / 100, 1) },
-                { label: "Productos", value: Math.min(productsCount / 50, 1) },
-                { label: "Ganancia", value: Math.min(profit / 50000, 1) },
-              ]}
-            />
-            <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
-              <div>
-                <p className="text-muted-foreground">Venta promedio</p>
-                <p className="font-semibold tabular-nums">
-                  {salesCount > 0 ? formatCLP(salesTotal / salesCount) : "—"}
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Margen estimado</p>
-                <p className="font-semibold tabular-nums">
-                  {salesTotal > 0 ? `${((profit / salesTotal) * 100).toFixed(1)}%` : "—"}
-                </p>
-              </div>
+            <span className="text-xs text-muted-foreground">{dates.label}</span>
+          </div>
+          {summary?.time_series && summary.time_series.length > 0 ? (
+            <SalesChart data={summary.time_series} startDate={dates.start} endDate={dates.end} />
+          ) : (
+            <div className="grid h-36 place-items-center rounded-lg border border-dashed border-border bg-muted/30">
+              <p className="text-sm text-muted-foreground">Sin datos de ventas en el período.</p>
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+          <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
+            <Target className="h-4 w-4 text-primary" />
+            Resumen del negocio
+          </h2>
+          <RadarChart
+            metrics={[
+              { label: "Ventas", value: Math.min(salesTotal / 100000, 1) },
+              { label: "Órdenes", value: Math.min(totalOrders / 50, 1) },
+              { label: "Clientes", value: Math.min(customers / 100, 1) },
+              { label: "Productos", value: Math.min(productsCount / 50, 1) },
+              { label: "Ganancia", value: Math.min(profit / 50000, 1) },
+            ]}
+          />
+          <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
+            <div>
+              <p className="text-muted-foreground">Venta promedio</p>
+              <p className="font-semibold tabular-nums">
+                {salesCount > 0 ? formatCLP(salesTotal / salesCount) : "—"}
+              </p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Margen estimado</p>
+              <p className="font-semibold tabular-nums">
+                {salesTotal > 0 ? `${((profit / salesTotal) * 100).toFixed(1)}%` : "—"}
+              </p>
             </div>
           </div>
         </div>
       </motion.section>
 
       {/* Métodos de pago y productos */}
-      <motion.section variants={container} initial="hidden" animate="show" className="grid gap-4">
-        <Carousel className="lg:hidden" opts={{ align: "start" }}>
-          <CarouselContent>
-            <CarouselItem className="basis-[85%]">
-              <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-                <div className="mb-3 flex items-center justify-between">
-                  <h2 className="flex items-center gap-2 text-sm font-semibold">
-                    <ShoppingBag className="h-4 w-4 text-primary" />
-                    Métodos de pago
-                  </h2>
-                  <Link
-                    href="/payment-methods"
-                    className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
-                  >
-                    Ver métodos
-                  </Link>
-                </div>
-                {summary?.payments && summary.payments.length > 0 ? (
-                  <div className="flex flex-col">
-                    {(() => {
-                      const totalPayments = summary.payments.reduce((s, x) => s + x.total, 0);
-                      return summary.payments.map((p, i) => {
-                        const pct = totalPayments > 0 ? (p.total / totalPayments) * 100 : 0;
-                        return (
-                          <div
-                            key={i}
-                            className="flex flex-col gap-1 border-b border-border py-2.5 last:border-0"
-                            title={`${paymentTypeLabel(p.type_payment__name)}: ${formatCLP(p.total)} en el período`}
-                          >
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="font-medium">{paymentTypeLabel(p.type_payment__name)}</span>
-                              <span className="tabular-nums font-semibold">{formatCLP(p.total)}</span>
-                            </div>
-                            <div className="h-1.5 w-full rounded-full bg-muted">
-                              <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${pct}%` }}
-                                transition={{ duration: 0.8, delay: i * 0.05 }}
-                                className="h-1.5 rounded-full bg-primary"
-                              />
-                            </div>
-                          </div>
-                        );
-                      });
-                    })()}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Sin pagos en el período.</p>
-                )}
-              </div>
-            </CarouselItem>
-            <CarouselItem className="basis-[85%]">
-              <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-                <div className="mb-3 flex items-center justify-between">
-                  <h2 className="text-sm font-semibold">Productos más vendidos</h2>
-                  <Link
-                    href="/products"
-                    className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
-                  >
-                    Ver productos
-                  </Link>
-                </div>
-                {summary?.products?.best_selling && summary.products.best_selling.length > 0 ? (
-                  <div className="flex flex-col">
-                    {summary.products.best_selling.map((p, i) => {
-                      const maxQty = Math.max(...summary.products.best_selling.map((x) => x.quantity), 1);
-                      const pct = (p.quantity / maxQty) * 100;
-                      return (
-                        <div
-                          key={i}
-                          className="flex flex-col gap-1 border-b border-border py-2.5 last:border-0"
-                          title={`${p.product__name}: ${p.quantity} vendidos por ${formatCLP(p.total)}`}
-                        >
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="min-w-0 truncate font-medium">{p.product__name}</span>
-                            <span className="shrink-0 tabular-nums font-semibold">
-                              {p.quantity} · {formatCLP(p.total)}
-                            </span>
-                          </div>
-                          <div className="h-1.5 w-full rounded-full bg-muted">
-                            <motion.div
-                              initial={{ width: 0 }}
-                              animate={{ width: `${pct}%` }}
-                              transition={{ duration: 0.8, delay: i * 0.05 }}
-                              className="h-1.5 rounded-full bg-emerald-500"
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Sin ventas en el período.</p>
-                )}
-              </div>
-            </CarouselItem>
-          </CarouselContent>
-        </Carousel>
-        <div className="hidden lg:grid lg:grid-cols-2 gap-6">
-          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="flex items-center gap-2 text-sm font-semibold">
-                <ShoppingBag className="h-4 w-4 text-primary" />
-                Métodos de pago
-              </h2>
-              <Link
-                href="/payment-methods"
-                className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
-              >
-                Ver métodos
-              </Link>
-            </div>
-            {summary?.payments && summary.payments.length > 0 ? (
-              <div className="flex flex-col">
-                {(() => {
-                  const totalPayments = summary.payments.reduce((s, x) => s + x.total, 0);
-                  return summary.payments.map((p, i) => {
-                    const pct = totalPayments > 0 ? (p.total / totalPayments) * 100 : 0;
-                    return (
-                      <div
-                        key={i}
-                        className="flex flex-col gap-1 border-b border-border py-2.5 last:border-0"
-                        title={`${paymentTypeLabel(p.type_payment__name)}: ${formatCLP(p.total)} en el período`}
-                      >
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="font-medium">{paymentTypeLabel(p.type_payment__name)}</span>
-                          <span className="tabular-nums font-semibold">{formatCLP(p.total)}</span>
-                        </div>
-                        <div className="h-1.5 w-full rounded-full bg-muted">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${pct}%` }}
-                            transition={{ duration: 0.8, delay: i * 0.05 }}
-                            className="h-1.5 rounded-full bg-primary"
-                          />
-                        </div>
-                      </div>
-                    );
-                  });
-                })()}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">Sin pagos en el período.</p>
-            )}
+      <motion.section variants={container} initial="hidden" animate="show" className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-sm font-semibold">
+              <ShoppingBag className="h-4 w-4 text-primary" />
+              Métodos de pago
+            </h2>
+            <Link
+              href="/payment-methods"
+              className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
+            >
+              Ver métodos
+            </Link>
           </div>
-
-          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold">Productos más vendidos</h2>
-              <Link
-                href="/products"
-                className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
-              >
-                Ver productos
-              </Link>
-            </div>
-            {summary?.products?.best_selling && summary.products.best_selling.length > 0 ? (
-              <div className="flex flex-col">
-                {summary.products.best_selling.map((p, i) => {
-                  const maxQty = Math.max(...summary.products.best_selling.map((x) => x.quantity), 1);
-                  const pct = (p.quantity / maxQty) * 100;
+          {summary?.payments && summary.payments.length > 0 ? (
+            <div className="flex flex-col">
+              {(() => {
+                const totalPayments = summary.payments.reduce((s, x) => s + x.total, 0);
+                return summary.payments.map((p, i) => {
+                  const pct = totalPayments > 0 ? (p.total / totalPayments) * 100 : 0;
                   return (
                     <div
                       key={i}
                       className="flex flex-col gap-1 border-b border-border py-2.5 last:border-0"
-                      title={`${p.product__name}: ${p.quantity} vendidos por ${formatCLP(p.total)}`}
+                      title={`${paymentTypeLabel(p.type_payment__name)}: ${formatCLP(p.total)} en el período`}
                     >
                       <div className="flex items-center justify-between text-sm">
-                        <span className="min-w-0 truncate font-medium">{p.product__name}</span>
-                        <span className="shrink-0 tabular-nums font-semibold">
-                          {p.quantity} · {formatCLP(p.total)}
-                        </span>
+                        <span className="font-medium">{paymentTypeLabel(p.type_payment__name)}</span>
+                        <span className="tabular-nums font-semibold">{formatCLP(p.total)}</span>
                       </div>
                       <div className="h-1.5 w-full rounded-full bg-muted">
                         <motion.div
                           initial={{ width: 0 }}
                           animate={{ width: `${pct}%` }}
                           transition={{ duration: 0.8, delay: i * 0.05 }}
-                          className="h-1.5 rounded-full bg-emerald-500"
+                          className="h-1.5 rounded-full bg-primary"
                         />
                       </div>
                     </div>
                   );
-                })}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">Sin ventas en el período.</p>
-            )}
+                });
+              })()}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Sin pagos en el período.</p>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold">Productos más vendidos</h2>
+            <Link
+              href="/products"
+              className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
+            >
+              Ver productos
+            </Link>
           </div>
+          {summary?.products?.best_selling && summary.products.best_selling.length > 0 ? (
+            <div className="flex flex-col">
+              {summary.products.best_selling.map((p, i) => {
+                const maxQty = Math.max(...summary.products.best_selling.map((x) => x.quantity), 1);
+                const pct = (p.quantity / maxQty) * 100;
+                return (
+                  <div
+                    key={i}
+                    className="flex flex-col gap-1 border-b border-border py-2.5 last:border-0"
+                    title={`${p.product__name}: ${p.quantity} vendidos por ${formatCLP(p.total)}`}
+                  >
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="min-w-0 truncate font-medium">{p.product__name}</span>
+                      <span className="shrink-0 tabular-nums font-semibold">
+                        {p.quantity} · {formatCLP(p.total)}
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full rounded-full bg-muted">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${pct}%` }}
+                        transition={{ duration: 0.8, delay: i * 0.05 }}
+                        className="h-1.5 rounded-full bg-emerald-500"
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Sin ventas en el período.</p>
+          )}
         </div>
       </motion.section>
 
       {/* Insumos consumidos */}
       {nutritionEnabled && (
-        <motion.section variants={container} initial="hidden" animate="show" className="grid gap-4">
+        <motion.section variants={container} initial="hidden" animate="show" className="grid gap-3">
           <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="flex items-center gap-2 text-sm font-semibold">
@@ -747,67 +686,34 @@ export default function DashboardPage() {
               (() => {
                 const maxCost = Math.max(...ingredientConsumption.items.map((i) => i.cost), 1);
                 return (
-                  <>
-                    <Carousel className="lg:hidden" opts={{ align: "start" }}>
-                      <CarouselContent>
-                        {ingredientConsumption.items.map((item) => {
-                          const pct = (item.cost / maxCost) * 100;
-                          return (
-                            <CarouselItem key={item.ingredient_id} className="basis-[70%]">
-                              <div
-                                className="flex flex-col gap-1"
-                                title={`${item.ingredient_name}: ${item.total_quantity} ${item.unit} consumidos`}
-                              >
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="min-w-0 truncate font-medium">{item.ingredient_name}</span>
-                                  <span className="shrink-0 tabular-nums font-semibold">{formatCLP(item.cost)}</span>
-                                </div>
-                                <p className="text-xs text-muted-foreground">
-                                  {item.total_quantity} {item.unit}
-                                </p>
-                                <div className="h-1.5 w-full rounded-full bg-muted">
-                                  <motion.div
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${pct}%` }}
-                                    transition={{ duration: 0.8 }}
-                                    className="h-1.5 rounded-full bg-primary"
-                                  />
-                                </div>
-                              </div>
-                            </CarouselItem>
-                          );
-                        })}
-                      </CarouselContent>
-                    </Carousel>
-                    <div className="hidden lg:grid gap-3 lg:grid-cols-4">
-                      {ingredientConsumption.items.map((item) => {
-                        const pct = (item.cost / maxCost) * 100;
-                        return (
-                          <div
-                            key={item.ingredient_id}
-                            className="flex flex-col gap-1 border-b border-border pb-2.5 last:border-0"
-                            title={`${item.ingredient_name}: ${item.total_quantity} ${item.unit} consumidos`}
-                          >
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="min-w-0 truncate font-medium">{item.ingredient_name}</span>
-                              <span className="shrink-0 tabular-nums font-semibold">{formatCLP(item.cost)}</span>
-                            </div>
-                            <p className="text-xs text-muted-foreground">
-                              {item.total_quantity} {item.unit}
-                            </p>
-                            <div className="h-1.5 w-full rounded-full bg-muted">
-                              <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${pct}%` }}
-                                transition={{ duration: 0.8 }}
-                                className="h-1.5 rounded-full bg-primary"
-                              />
-                            </div>
+                  <div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
+                    {ingredientConsumption.items.map((item) => {
+                      const pct = (item.cost / maxCost) * 100;
+                      return (
+                        <div
+                          key={item.ingredient_id}
+                          className="flex flex-col gap-1 border-b border-border pb-2.5 last:border-0"
+                          title={`${item.ingredient_name}: ${item.total_quantity} ${item.unit} consumidos`}
+                        >
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="min-w-0 truncate font-medium">{item.ingredient_name}</span>
+                            <span className="shrink-0 tabular-nums font-semibold">{formatCLP(item.cost)}</span>
                           </div>
-                        );
-                      })}
-                    </div>
-                  </>
+                          <p className="text-xs text-muted-foreground">
+                            {item.total_quantity} {item.unit}
+                          </p>
+                          <div className="h-1.5 w-full rounded-full bg-muted">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${pct}%` }}
+                              transition={{ duration: 0.8 }}
+                              className="h-1.5 rounded-full bg-primary"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 );
               })()
             ) : (
@@ -815,6 +721,20 @@ export default function DashboardPage() {
             )}
           </div>
         </motion.section>
+      )}
+
+      {drawer.metric && (
+        <MetricDrawer
+          open={drawer.open}
+          onClose={() => setDrawer({ open: false })}
+          title={drawer.metric.title}
+          value={drawer.metric.value}
+          icon={drawer.metric.icon}
+          description={drawer.metric.description}
+          sections={drawer.metric.sections}
+        >
+          {drawer.metric.children}
+        </MetricDrawer>
       )}
 
       {/* Stock bajo */}
@@ -867,6 +787,7 @@ function StatCard({
   sub,
   href,
   description,
+  onClick,
 }: {
   label: string;
   value: string | number;
@@ -874,6 +795,7 @@ function StatCard({
   sub: string;
   href?: string;
   description?: string;
+  onClick?: () => void;
 }) {
   const content = (
     <>
@@ -886,15 +808,39 @@ function StatCard({
     </>
   );
 
-  const baseClassName = "group flex flex-col gap-0.5 rounded-lg p-2 transition-colors hover:bg-muted/30";
+  const baseClassName =
+    "group flex flex-col gap-0.5 rounded-2xl border border-border bg-card p-4 shadow-sm transition-colors hover:bg-muted/30";
 
   if (href) {
     return (
       <motion.div variants={item}>
-        <Link href={href} title={description} className={cn(baseClassName, "block cursor-pointer")}>
+        <Link
+          href={href}
+          title={description}
+          className={cn(baseClassName, "block cursor-pointer")}
+          onClick={(e) => {
+            if (!onClick) return;
+            e.preventDefault();
+            onClick();
+          }}
+        >
           {content}
         </Link>
       </motion.div>
+    );
+  }
+
+  if (onClick) {
+    return (
+      <motion.button
+        type="button"
+        variants={item}
+        title={description}
+        onClick={onClick}
+        className={cn(baseClassName, "w-full cursor-pointer text-left")}
+      >
+        {content}
+      </motion.button>
     );
   }
 
@@ -1241,7 +1187,7 @@ function SkeletonPulse({ className }: { className?: string }) {
 
 function DashboardSkeleton() {
   return (
-    <div className="flex min-h-full flex-col gap-6 p-4">
+    <div className="flex min-h-full flex-col gap-4 p-4">
       {/* Header */}
       <header className="flex justify-end">
         <div className="flex flex-wrap items-center gap-2">
@@ -1251,39 +1197,35 @@ function DashboardSkeleton() {
       </header>
 
       {/* Stats principales */}
-      <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-        <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="rounded-lg p-2">
-              <div className="mb-1 flex items-center gap-1.5">
-                <SkeletonPulse className="h-3.5 w-3.5 rounded-sm" />
-                <SkeletonPulse className="h-3 w-20" />
-              </div>
-              <SkeletonPulse className="mb-1 h-7 w-28" />
-              <SkeletonPulse className="h-3 w-16" />
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <div className="mb-2 flex items-center gap-1.5">
+              <SkeletonPulse className="h-3.5 w-3.5 rounded-sm" />
+              <SkeletonPulse className="h-3 w-20" />
             </div>
-          ))}
-        </div>
+            <SkeletonPulse className="mb-2 h-7 w-28" />
+            <SkeletonPulse className="h-3 w-16" />
+          </div>
+        ))}
       </section>
 
       {/* Stats secundarias */}
-      <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-        <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="rounded-lg p-2">
-              <div className="mb-1 flex items-center gap-1.5">
-                <SkeletonPulse className="h-3.5 w-3.5 rounded-sm" />
-                <SkeletonPulse className="h-3 w-20" />
-              </div>
-              <SkeletonPulse className="mb-1 h-7 w-28" />
-              <SkeletonPulse className="h-3 w-16" />
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <div className="mb-2 flex items-center gap-1.5">
+              <SkeletonPulse className="h-3.5 w-3.5 rounded-sm" />
+              <SkeletonPulse className="h-3 w-20" />
             </div>
-          ))}
-        </div>
+            <SkeletonPulse className="mb-2 h-7 w-28" />
+            <SkeletonPulse className="h-3 w-16" />
+          </div>
+        ))}
       </section>
 
       {/* Gráficos */}
-      <section className="grid gap-6 lg:grid-cols-3">
+      <section className="grid gap-3 lg:grid-cols-3">
         <div className="rounded-2xl border border-border bg-card p-4 shadow-sm lg:col-span-2">
           <SkeletonPulse className="mb-2 h-4 w-40" />
           <SkeletonPulse className="h-36 w-full" />
@@ -1301,7 +1243,7 @@ function DashboardSkeleton() {
       </section>
 
       {/* Métodos de pago y productos */}
-      <section className="grid gap-6 lg:grid-cols-2">
+      <section className="grid gap-3 lg:grid-cols-2">
         <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
           <SkeletonPulse className="mb-3 h-4 w-32" />
           <div className="flex flex-col">
