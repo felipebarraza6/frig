@@ -375,10 +375,9 @@ export default function DashboardPage() {
             </h2>
             <Link
               href="/payment-methods"
-              className="inline-flex items-center gap-1 text-xs font-medium text-primary transition-colors hover:text-primary/80"
+              className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
             >
-              Configurar
-              <ChevronRight className="h-3 w-3" />
+              Ver métodos
             </Link>
           </div>
           {summary?.payments && summary.payments.length > 0 ? (
@@ -388,13 +387,13 @@ export default function DashboardPage() {
                 return summary.payments.map((p, i) => {
                   const pct = totalPayments > 0 ? (p.total / totalPayments) * 100 : 0;
                   return (
-                  <Link
+                  <div
                     key={i}
-                    href="/sales"
-                    className="group flex flex-col gap-1.5 rounded-lg p-1.5 -mx-1.5 transition-colors hover:bg-muted/50"
+                    className="flex flex-col gap-1.5"
+                    title={`${paymentTypeLabel(p.type_payment__name)}: ${formatCLP(p.total)} en el período`}
                   >
                     <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium group-hover:text-primary">{paymentTypeLabel(p.type_payment__name)}</span>
+                      <span className="font-medium">{paymentTypeLabel(p.type_payment__name)}</span>
                       <span className="tabular-nums font-semibold">{formatCLP(p.total)}</span>
                     </div>
                     <div className="h-2.5 w-full rounded-full bg-muted">
@@ -405,7 +404,7 @@ export default function DashboardPage() {
                         className="h-2.5 rounded-full bg-primary"
                       />
                     </div>
-                  </Link>
+                  </div>
                 );
               })}
             )()}
@@ -420,10 +419,9 @@ export default function DashboardPage() {
             <h2 className="text-sm font-semibold">Productos más vendidos</h2>
             <Link
               href="/products"
-              className="inline-flex items-center gap-1 text-xs font-medium text-primary transition-colors hover:text-primary/80"
+              className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
             >
-              Ver todos
-              <ChevronRight className="h-3 w-3" />
+              Ver productos
             </Link>
           </div>
           {summary?.products?.best_selling && summary.products.best_selling.length > 0 ? (
@@ -432,13 +430,13 @@ export default function DashboardPage() {
                 const maxQty = Math.max(...summary.products.best_selling.map((x) => x.quantity), 1);
                 const pct = (p.quantity / maxQty) * 100;
                 return (
-                  <Link
+                  <div
                     key={i}
-                    href="/products"
-                    className="group flex flex-col gap-1.5 rounded-lg p-1.5 -mx-1.5 transition-colors hover:bg-muted/50"
+                    className="flex flex-col gap-1.5"
+                    title={`${p.product__name}: ${p.quantity} vendidos por ${formatCLP(p.total)}`}
                   >
                     <div className="flex items-center justify-between text-sm">
-                      <span className="min-w-0 truncate font-medium group-hover:text-primary">{p.product__name}</span>
+                      <span className="min-w-0 truncate font-medium">{p.product__name}</span>
                       <span className="shrink-0 tabular-nums font-semibold">
                         {p.quantity} · {formatCLP(p.total)}
                       </span>
@@ -451,7 +449,7 @@ export default function DashboardPage() {
                         className="h-2.5 rounded-full bg-emerald-500"
                       />
                     </div>
-                  </Link>
+                  </div>
                 );
               })}
             </div>
@@ -543,9 +541,6 @@ function StatCard({
           <Icon className="h-3.5 w-3.5" strokeWidth={2} />
         </div>
         <span className="flex-1 text-[11px] font-medium text-muted-foreground">{label}</span>
-        {href && (
-          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60 transition-colors group-hover:text-foreground" />
-        )}
       </div>
       <p className="text-lg font-semibold tabular-nums tracking-tight">{value}</p>
       <p className="text-[11px] text-muted-foreground">{sub}</p>
@@ -553,15 +548,15 @@ function StatCard({
   );
 
   const baseClassName = cn(
-    "group rounded-xl border border-border p-2.5 shadow-sm transition-all duration-200",
-    "hover:-translate-y-0.5 hover:shadow-md",
+    "rounded-xl border border-border p-2.5 shadow-sm transition-all duration-200",
+    "hover:border-primary/20 hover:shadow-md",
     tones[tone]
   );
 
   if (href) {
     return (
-      <motion.div variants={item} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
-        <Link href={href} title={description} className={baseClassName}>
+      <motion.div variants={item}>
+        <Link href={href} title={description} className={cn(baseClassName, "block cursor-pointer")}>
           {content}
         </Link>
       </motion.div>
