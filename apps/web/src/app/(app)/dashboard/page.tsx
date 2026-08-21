@@ -152,8 +152,7 @@ export default function DashboardPage() {
   return (
     <div className="flex min-h-full flex-col gap-6 p-4 sm:p-6">
       {/* Header */}
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
         <div className="flex flex-wrap items-center gap-2">
           <div className="inline-flex rounded-xl border border-border bg-card p-1 shadow-sm">
             {(["today", "yesterday", "week", "month"] as DateRange[]).map((r) => (
