@@ -20,6 +20,11 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+} from "@/components/ui/carousel";
+import {
   fetchModuleCounts,
   fetchDashboardSummary,
   fetchIngredientConsumption,
@@ -226,267 +231,506 @@ export default function DashboardPage() {
       </header>
 
       {/* Stats principales */}
-      <motion.section
-        variants={container}
-        initial="hidden"
-        animate="show"
-        className="grid gap-1 sm:grid-cols-2 lg:grid-cols-4"
-      >
-        <StatCard
-          label="Ventas del período"
-          value={formatCLP(salesTotal)}
-          icon={TrendingUp}
-          sub={`${salesCount} órdenes`}
-          href="/sales"
-          description="Suma total de ventas pagadas en el rango seleccionado. Click para ver el detalle de órdenes."
-        />
-        <StatCard
-          label="Órdenes completadas"
-          value={completedOrders}
-          icon={Receipt}
-          sub={`de ${totalOrders} totales`}
-          href="/sales"
-          description="Órdenes finalizadas y pagadas. Click para revisar el historial de ventas."
-        />
-        <StatCard
-          label="Cuentas abiertas"
-          value={pendingOrders}
-          icon={Clock}
-          sub="pedidos sin pagar"
-          href="/sales"
-          description="Órdenes pendientes de pago o cierre. Click para gestionarlas."
-        />
-        <StatCard
-          label="Clientes"
-          value={customers}
-          icon={Users}
-          sub="registrados"
-          href="/customers"
-          description="Base de clientes registrados en la sucursal. Click para ver el listado."
-        />
+      <motion.section variants={container} initial="hidden" animate="show" className="grid gap-4">
+        <Carousel className="md:hidden" opts={{ align: "start" }}>
+          <CarouselContent>
+            <CarouselItem className="basis-[70%]">
+              <StatCard
+                label="Ventas del período"
+                value={formatCLP(salesTotal)}
+                icon={TrendingUp}
+                sub={`${salesCount} órdenes`}
+                href="/sales"
+                description="Suma total de ventas pagadas en el rango seleccionado. Click para ver el detalle de órdenes."
+              />
+            </CarouselItem>
+            <CarouselItem className="basis-[70%]">
+              <StatCard
+                label="Órdenes completadas"
+                value={completedOrders}
+                icon={Receipt}
+                sub={`de ${totalOrders} totales`}
+                href="/sales"
+                description="Órdenes finalizadas y pagadas. Click para revisar el historial de ventas."
+              />
+            </CarouselItem>
+            <CarouselItem className="basis-[70%]">
+              <StatCard
+                label="Cuentas abiertas"
+                value={pendingOrders}
+                icon={Clock}
+                sub="pedidos sin pagar"
+                href="/sales"
+                description="Órdenes pendientes de pago o cierre. Click para gestionarlas."
+              />
+            </CarouselItem>
+            <CarouselItem className="basis-[70%]">
+              <StatCard
+                label="Clientes"
+                value={customers}
+                icon={Users}
+                sub="registrados"
+                href="/customers"
+                description="Base de clientes registrados en la sucursal. Click para ver el listado."
+              />
+            </CarouselItem>
+          </CarouselContent>
+        </Carousel>
+        <div className="hidden md:grid gap-1 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            label="Ventas del período"
+            value={formatCLP(salesTotal)}
+            icon={TrendingUp}
+            sub={`${salesCount} órdenes`}
+            href="/sales"
+            description="Suma total de ventas pagadas en el rango seleccionado. Click para ver el detalle de órdenes."
+          />
+          <StatCard
+            label="Órdenes completadas"
+            value={completedOrders}
+            icon={Receipt}
+            sub={`de ${totalOrders} totales`}
+            href="/sales"
+            description="Órdenes finalizadas y pagadas. Click para revisar el historial de ventas."
+          />
+          <StatCard
+            label="Cuentas abiertas"
+            value={pendingOrders}
+            icon={Clock}
+            sub="pedidos sin pagar"
+            href="/sales"
+            description="Órdenes pendientes de pago o cierre. Click para gestionarlas."
+          />
+          <StatCard
+            label="Clientes"
+            value={customers}
+            icon={Users}
+            sub="registrados"
+            href="/customers"
+            description="Base de clientes registrados en la sucursal. Click para ver el listado."
+          />
+        </div>
       </motion.section>
 
       {/* Stats secundarias */}
-      <motion.section
-        variants={container}
-        initial="hidden"
-        animate="show"
-        className={cn(
-          "grid gap-1 sm:grid-cols-2",
-          nutritionEnabled ? "lg:grid-cols-5" : "lg:grid-cols-4"
-        )}
-      >
-        <StatCard
-          label="Productos"
-          value={productsCount}
-          icon={Package}
-          sub={`${lowStockCount} con stock bajo`}
-          href="/products"
-          description="Productos activos en el catálogo. Click para ver el inventario de productos."
-        />
-        <StatCard
-          label="Ingresos"
-          value={formatCLP(salesTotal)}
-          icon={ArrowDownLeft}
-          sub="ventas del período"
-          href="/sales"
-          description="Total de dinero ingresado por ventas en el período seleccionado."
-        />
-        <StatCard
-          label="Ganancia estimada"
-          value={formatCLP(profit)}
-          icon={Wallet}
-          sub="aproximada"
-          href="/sales"
-          description="Margen aproximado calculado sobre las ventas del período."
-        />
-        {nutritionEnabled && (
+      <motion.section variants={container} initial="hidden" animate="show" className="grid gap-4">
+        <Carousel className="md:hidden" opts={{ align: "start" }}>
+          <CarouselContent>
+            <CarouselItem className="basis-[70%]">
+              <StatCard
+                label="Productos"
+                value={productsCount}
+                icon={Package}
+                sub={`${lowStockCount} con stock bajo`}
+                href="/products"
+                description="Productos activos en el catálogo. Click para ver el inventario de productos."
+              />
+            </CarouselItem>
+            <CarouselItem className="basis-[70%]">
+              <StatCard
+                label="Ingresos"
+                value={formatCLP(salesTotal)}
+                icon={ArrowDownLeft}
+                sub="ventas del período"
+                href="/sales"
+                description="Total de dinero ingresado por ventas en el período seleccionado."
+              />
+            </CarouselItem>
+            <CarouselItem className="basis-[70%]">
+              <StatCard
+                label="Ganancia estimada"
+                value={formatCLP(profit)}
+                icon={Wallet}
+                sub="aproximada"
+                href="/sales"
+                description="Margen aproximado calculado sobre las ventas del período."
+              />
+            </CarouselItem>
+            {nutritionEnabled && (
+              <CarouselItem className="basis-[70%]">
+                <StatCard
+                  label="Costo de insumos"
+                  value={formatCLP(ingredientConsumption?.total_cost ?? 0)}
+                  icon={FlaskConical}
+                  sub="según recetas vendidas"
+                  href="/reports"
+                  description="Costo estimado de los insumos consumidos según las recetas de los productos vendidos."
+                />
+              </CarouselItem>
+            )}
+            <CarouselItem className="basis-[70%]">
+              <StatCard
+                label="Gastos"
+                value={formatCLP(expensesTotal)}
+                icon={ArrowUpRight}
+                sub="del período"
+                href="/expenses"
+                description="Total de gastos registrados. Click para ver el detalle de compras."
+              />
+            </CarouselItem>
+          </CarouselContent>
+        </Carousel>
+        <div
+          className={cn(
+            "hidden md:grid gap-1 sm:grid-cols-2",
+            nutritionEnabled ? "lg:grid-cols-5" : "lg:grid-cols-4",
+          )}
+        >
           <StatCard
-            label="Costo de insumos"
-            value={formatCLP(ingredientConsumption?.total_cost ?? 0)}
-            icon={FlaskConical}
-            sub="según recetas vendidas"
-            href="/reports"
-            description="Costo estimado de los insumos consumidos según las recetas de los productos vendidos."
+            label="Productos"
+            value={productsCount}
+            icon={Package}
+            sub={`${lowStockCount} con stock bajo`}
+            href="/products"
+            description="Productos activos en el catálogo. Click para ver el inventario de productos."
           />
-        )}
-        <StatCard
-          label="Gastos"
-          value={formatCLP(expensesTotal)}
-          icon={ArrowUpRight}
-          sub="del período"
-          href="/expenses"
-          description="Total de gastos registrados. Click para ver el detalle de compras."
-        />
+          <StatCard
+            label="Ingresos"
+            value={formatCLP(salesTotal)}
+            icon={ArrowDownLeft}
+            sub="ventas del período"
+            href="/sales"
+            description="Total de dinero ingresado por ventas en el período seleccionado."
+          />
+          <StatCard
+            label="Ganancia estimada"
+            value={formatCLP(profit)}
+            icon={Wallet}
+            sub="aproximada"
+            href="/sales"
+            description="Margen aproximado calculado sobre las ventas del período."
+          />
+          {nutritionEnabled && (
+            <StatCard
+              label="Costo de insumos"
+              value={formatCLP(ingredientConsumption?.total_cost ?? 0)}
+              icon={FlaskConical}
+              sub="según recetas vendidas"
+              href="/reports"
+              description="Costo estimado de los insumos consumidos según las recetas de los productos vendidos."
+            />
+          )}
+          <StatCard
+            label="Gastos"
+            value={formatCLP(expensesTotal)}
+            icon={ArrowUpRight}
+            sub="del período"
+            href="/expenses"
+            description="Total de gastos registrados. Click para ver el detalle de compras."
+          />
+        </div>
       </motion.section>
 
       {/* Gráficos principales */}
-      <motion.section
-        variants={container}
-        initial="hidden"
-        animate="show"
-        className="grid gap-6 lg:grid-cols-3"
-      >
-        <div className="border-b border-border pb-4 lg:col-span-2">
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-sm font-semibold">
-              <TrendingUp className="h-4 w-4 text-primary" />
-              Evolución de ventas
-            </h2>
-            <span className="text-xs text-muted-foreground">{dates.label}</span>
+      <motion.section variants={container} initial="hidden" animate="show" className="grid gap-4">
+        <Carousel className="lg:hidden" opts={{ align: "start" }}>
+          <CarouselContent>
+            <CarouselItem className="basis-full">
+              <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                <div className="mb-2 flex items-center justify-between">
+                  <h2 className="flex items-center gap-2 text-sm font-semibold">
+                    <TrendingUp className="h-4 w-4 text-primary" />
+                    Evolución de ventas
+                  </h2>
+                  <span className="text-xs text-muted-foreground">{dates.label}</span>
+                </div>
+                {summary?.time_series && summary.time_series.length > 0 ? (
+                  <SalesChart
+                    data={summary.time_series}
+                    startDate={dates.start}
+                    endDate={dates.end}
+                  />
+                ) : (
+                  <div className="grid h-36 place-items-center rounded-lg border border-dashed border-border bg-muted/30">
+                    <p className="text-sm text-muted-foreground">Sin datos de ventas en el período.</p>
+                  </div>
+                )}
+              </div>
+            </CarouselItem>
+            <CarouselItem className="basis-full">
+              <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
+                  <Target className="h-4 w-4 text-primary" />
+                  Resumen del negocio
+                </h2>
+                <RadarChart
+                  metrics={[
+                    { label: "Ventas", value: Math.min(salesTotal / 100000, 1) },
+                    { label: "Órdenes", value: Math.min(totalOrders / 50, 1) },
+                    { label: "Clientes", value: Math.min(customers / 100, 1) },
+                    { label: "Productos", value: Math.min(productsCount / 50, 1) },
+                    { label: "Ganancia", value: Math.min(profit / 50000, 1) },
+                  ]}
+                />
+                <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <p className="text-muted-foreground">Venta promedio</p>
+                    <p className="font-semibold tabular-nums">
+                      {salesCount > 0 ? formatCLP(salesTotal / salesCount) : "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Margen estimado</p>
+                    <p className="font-semibold tabular-nums">
+                      {salesTotal > 0 ? `${((profit / salesTotal) * 100).toFixed(1)}%` : "—"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CarouselItem>
+          </CarouselContent>
+        </Carousel>
+        <div className="hidden lg:grid lg:grid-cols-3 gap-6">
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm lg:col-span-2">
+            <div className="mb-2 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-sm font-semibold">
+                <TrendingUp className="h-4 w-4 text-primary" />
+                Evolución de ventas
+              </h2>
+              <span className="text-xs text-muted-foreground">{dates.label}</span>
+            </div>
+            {summary?.time_series && summary.time_series.length > 0 ? (
+              <SalesChart
+                data={summary.time_series}
+                startDate={dates.start}
+                endDate={dates.end}
+              />
+            ) : (
+              <div className="grid h-36 place-items-center rounded-lg border border-dashed border-border bg-muted/30">
+                <p className="text-sm text-muted-foreground">Sin datos de ventas en el período.</p>
+              </div>
+            )}
           </div>
-          {summary?.time_series && summary.time_series.length > 0 ? (
-            <SalesChart
-              data={summary.time_series}
-              startDate={dates.start}
-              endDate={dates.end}
-            />
-          ) : (
-            <div className="grid h-36 place-items-center rounded-lg border border-dashed border-border bg-muted/30">
-              <p className="text-sm text-muted-foreground">Sin datos de ventas en el período.</p>
-            </div>
-          )}
-        </div>
 
-        <div className="border-b border-border pb-4">
-          <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
-            <Target className="h-4 w-4 text-primary" />
-            Resumen del negocio
-          </h2>
-          <RadarChart
-            metrics={[
-              { label: "Ventas", value: Math.min(salesTotal / 100000, 1) },
-              { label: "Órdenes", value: Math.min(totalOrders / 50, 1) },
-              { label: "Clientes", value: Math.min(customers / 100, 1) },
-              { label: "Productos", value: Math.min(productsCount / 50, 1) },
-              { label: "Ganancia", value: Math.min(profit / 50000, 1) },
-            ]}
-          />
-          <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
-            <div>
-              <p className="text-muted-foreground">Venta promedio</p>
-              <p className="font-semibold tabular-nums">
-                {salesCount > 0 ? formatCLP(salesTotal / salesCount) : "—"}
-              </p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Margen estimado</p>
-              <p className="font-semibold tabular-nums">
-                {salesTotal > 0 ? `${((profit / salesTotal) * 100).toFixed(1)}%` : "—"}
-              </p>
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
+              <Target className="h-4 w-4 text-primary" />
+              Resumen del negocio
+            </h2>
+            <RadarChart
+              metrics={[
+                { label: "Ventas", value: Math.min(salesTotal / 100000, 1) },
+                { label: "Órdenes", value: Math.min(totalOrders / 50, 1) },
+                { label: "Clientes", value: Math.min(customers / 100, 1) },
+                { label: "Productos", value: Math.min(productsCount / 50, 1) },
+                { label: "Ganancia", value: Math.min(profit / 50000, 1) },
+              ]}
+            />
+            <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <p className="text-muted-foreground">Venta promedio</p>
+                <p className="font-semibold tabular-nums">
+                  {salesCount > 0 ? formatCLP(salesTotal / salesCount) : "—"}
+                </p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Margen estimado</p>
+                <p className="font-semibold tabular-nums">
+                  {salesTotal > 0 ? `${((profit / salesTotal) * 100).toFixed(1)}%` : "—"}
+                </p>
+              </div>
             </div>
           </div>
         </div>
       </motion.section>
 
       {/* Métodos de pago y productos */}
-      <motion.section
-        variants={container}
-        initial="hidden"
-        animate="show"
-        className="grid gap-6 lg:grid-cols-2"
-      >
-        <div>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-sm font-semibold">
-              <ShoppingBag className="h-4 w-4 text-primary" />
-              Métodos de pago
-            </h2>
-            <Link
-              href="/payment-methods"
-              className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
-            >
-              Ver métodos
-            </Link>
-          </div>
-          {summary?.payments && summary.payments.length > 0 ? (
-            <div className="flex flex-col">
-              {(() => {
-                const totalPayments = summary.payments.reduce((s, x) => s + x.total, 0);
-                return summary.payments.map((p, i) => {
-                  const pct = totalPayments > 0 ? (p.total / totalPayments) * 100 : 0;
-                  return (
-                  <div
-                    key={i}
-                    className="flex flex-col gap-1 border-b border-border py-2.5 last:border-0"
-                    title={`${paymentTypeLabel(p.type_payment__name)}: ${formatCLP(p.total)} en el período`}
+      <motion.section variants={container} initial="hidden" animate="show" className="grid gap-4">
+        <Carousel className="lg:hidden" opts={{ align: "start" }}>
+          <CarouselContent>
+            <CarouselItem className="basis-[85%]">
+              <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                <div className="mb-3 flex items-center justify-between">
+                  <h2 className="flex items-center gap-2 text-sm font-semibold">
+                    <ShoppingBag className="h-4 w-4 text-primary" />
+                    Métodos de pago
+                  </h2>
+                  <Link
+                    href="/payment-methods"
+                    className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
                   >
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium">{paymentTypeLabel(p.type_payment__name)}</span>
-                      <span className="tabular-nums font-semibold">{formatCLP(p.total)}</span>
-                    </div>
-                    <div className="h-1.5 w-full rounded-full bg-muted">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${pct}%` }}
-                        transition={{ duration: 0.8, delay: i * 0.05 }}
-                        className="h-1.5 rounded-full bg-primary"
-                      />
-                    </div>
+                    Ver métodos
+                  </Link>
+                </div>
+                {summary?.payments && summary.payments.length > 0 ? (
+                  <div className="flex flex-col">
+                    {(() => {
+                      const totalPayments = summary.payments.reduce((s, x) => s + x.total, 0);
+                      return summary.payments.map((p, i) => {
+                        const pct = totalPayments > 0 ? (p.total / totalPayments) * 100 : 0;
+                        return (
+                          <div
+                            key={i}
+                            className="flex flex-col gap-1 border-b border-border py-2.5 last:border-0"
+                            title={`${paymentTypeLabel(p.type_payment__name)}: ${formatCLP(p.total)} en el período`}
+                          >
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="font-medium">{paymentTypeLabel(p.type_payment__name)}</span>
+                              <span className="tabular-nums font-semibold">{formatCLP(p.total)}</span>
+                            </div>
+                            <div className="h-1.5 w-full rounded-full bg-muted">
+                              <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${pct}%` }}
+                                transition={{ duration: 0.8, delay: i * 0.05 }}
+                                className="h-1.5 rounded-full bg-primary"
+                              />
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
-                );
-              })}
-            )()}
+                ) : (
+                  <p className="text-sm text-muted-foreground">Sin pagos en el período.</p>
+                )}
+              </div>
+            </CarouselItem>
+            <CarouselItem className="basis-[85%]">
+              <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                <div className="mb-3 flex items-center justify-between">
+                  <h2 className="text-sm font-semibold">Productos más vendidos</h2>
+                  <Link
+                    href="/products"
+                    className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
+                  >
+                    Ver productos
+                  </Link>
+                </div>
+                {summary?.products?.best_selling && summary.products.best_selling.length > 0 ? (
+                  <div className="flex flex-col">
+                    {summary.products.best_selling.map((p, i) => {
+                      const maxQty = Math.max(...summary.products.best_selling.map((x) => x.quantity), 1);
+                      const pct = (p.quantity / maxQty) * 100;
+                      return (
+                        <div
+                          key={i}
+                          className="flex flex-col gap-1 border-b border-border py-2.5 last:border-0"
+                          title={`${p.product__name}: ${p.quantity} vendidos por ${formatCLP(p.total)}`}
+                        >
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="min-w-0 truncate font-medium">{p.product__name}</span>
+                            <span className="shrink-0 tabular-nums font-semibold">
+                              {p.quantity} · {formatCLP(p.total)}
+                            </span>
+                          </div>
+                          <div className="h-1.5 w-full rounded-full bg-muted">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${pct}%` }}
+                              transition={{ duration: 0.8, delay: i * 0.05 }}
+                              className="h-1.5 rounded-full bg-emerald-500"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Sin ventas en el período.</p>
+                )}
+              </div>
+            </CarouselItem>
+          </CarouselContent>
+        </Carousel>
+        <div className="hidden lg:grid lg:grid-cols-2 gap-6">
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-sm font-semibold">
+                <ShoppingBag className="h-4 w-4 text-primary" />
+                Métodos de pago
+              </h2>
+              <Link
+                href="/payment-methods"
+                className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
+              >
+                Ver métodos
+              </Link>
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">Sin pagos en el período.</p>
-          )}
-        </div>
+            {summary?.payments && summary.payments.length > 0 ? (
+              <div className="flex flex-col">
+                {(() => {
+                  const totalPayments = summary.payments.reduce((s, x) => s + x.total, 0);
+                  return summary.payments.map((p, i) => {
+                    const pct = totalPayments > 0 ? (p.total / totalPayments) * 100 : 0;
+                    return (
+                      <div
+                        key={i}
+                        className="flex flex-col gap-1 border-b border-border py-2.5 last:border-0"
+                        title={`${paymentTypeLabel(p.type_payment__name)}: ${formatCLP(p.total)} en el período`}
+                      >
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-medium">{paymentTypeLabel(p.type_payment__name)}</span>
+                          <span className="tabular-nums font-semibold">{formatCLP(p.total)}</span>
+                        </div>
+                        <div className="h-1.5 w-full rounded-full bg-muted">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${pct}%` }}
+                            transition={{ duration: 0.8, delay: i * 0.05 }}
+                            className="h-1.5 rounded-full bg-primary"
+                          />
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Sin pagos en el período.</p>
+            )}
+          </div>
 
-        <div>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold">Productos más vendidos</h2>
-            <Link
-              href="/products"
-              className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
-            >
-              Ver productos
-            </Link>
-          </div>
-          {summary?.products?.best_selling && summary.products.best_selling.length > 0 ? (
-            <div className="flex flex-col">
-              {summary.products.best_selling.map((p, i) => {
-                const maxQty = Math.max(...summary.products.best_selling.map((x) => x.quantity), 1);
-                const pct = (p.quantity / maxQty) * 100;
-                return (
-                  <div
-                    key={i}
-                    className="flex flex-col gap-1 border-b border-border py-2.5 last:border-0"
-                    title={`${p.product__name}: ${p.quantity} vendidos por ${formatCLP(p.total)}`}
-                  >
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="min-w-0 truncate font-medium">{p.product__name}</span>
-                      <span className="shrink-0 tabular-nums font-semibold">
-                        {p.quantity} · {formatCLP(p.total)}
-                      </span>
-                    </div>
-                    <div className="h-1.5 w-full rounded-full bg-muted">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${pct}%` }}
-                        transition={{ duration: 0.8, delay: i * 0.05 }}
-                        className="h-1.5 rounded-full bg-emerald-500"
-                      />
-                    </div>
-                  </div>
-                );
-              })}
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-semibold">Productos más vendidos</h2>
+              <Link
+                href="/products"
+                className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
+              >
+                Ver productos
+              </Link>
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">Sin ventas en el período.</p>
-          )}
+            {summary?.products?.best_selling && summary.products.best_selling.length > 0 ? (
+              <div className="flex flex-col">
+                {summary.products.best_selling.map((p, i) => {
+                  const maxQty = Math.max(...summary.products.best_selling.map((x) => x.quantity), 1);
+                  const pct = (p.quantity / maxQty) * 100;
+                  return (
+                    <div
+                      key={i}
+                      className="flex flex-col gap-1 border-b border-border py-2.5 last:border-0"
+                      title={`${p.product__name}: ${p.quantity} vendidos por ${formatCLP(p.total)}`}
+                    >
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="min-w-0 truncate font-medium">{p.product__name}</span>
+                        <span className="shrink-0 tabular-nums font-semibold">
+                          {p.quantity} · {formatCLP(p.total)}
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full rounded-full bg-muted">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${pct}%` }}
+                          transition={{ duration: 0.8, delay: i * 0.05 }}
+                          className="h-1.5 rounded-full bg-emerald-500"
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Sin ventas en el período.</p>
+            )}
+          </div>
         </div>
       </motion.section>
 
       {/* Insumos consumidos */}
       {nutritionEnabled && (
-        <motion.section
-          variants={container}
-          initial="hidden"
-          animate="show"
-          className="grid gap-4"
-        >
-          <div className="border-b border-border pb-4">
+        <motion.section variants={container} initial="hidden" animate="show" className="grid gap-4">
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="flex items-center gap-2 text-sm font-semibold">
                 <FlaskConical className="h-4 w-4 text-primary" />
@@ -500,37 +744,72 @@ export default function DashboardPage() {
               </Link>
             </div>
             {ingredientConsumption?.items && ingredientConsumption.items.length > 0 ? (
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {(() => {
-                  const maxCost = Math.max(...ingredientConsumption.items.map((i) => i.cost), 1);
-                  return ingredientConsumption.items.map((item) => {
-                    const pct = (item.cost / maxCost) * 100;
-                    return (
-                      <div
-                        key={item.ingredient_id}
-                        className="flex flex-col gap-1 border-b border-border pb-2.5 last:border-0"
-                        title={`${item.ingredient_name}: ${item.total_quantity} ${item.unit} consumidos`}
-                      >
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="min-w-0 truncate font-medium">{item.ingredient_name}</span>
-                          <span className="shrink-0 tabular-nums font-semibold">{formatCLP(item.cost)}</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {item.total_quantity} {item.unit}
-                        </p>
-                        <div className="h-1.5 w-full rounded-full bg-muted">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${pct}%` }}
-                            transition={{ duration: 0.8 }}
-                            className="h-1.5 rounded-full bg-primary"
-                          />
-                        </div>
-                      </div>
-                    );
-                  });
-                })()}
-              </div>
+              (() => {
+                const maxCost = Math.max(...ingredientConsumption.items.map((i) => i.cost), 1);
+                return (
+                  <>
+                    <Carousel className="lg:hidden" opts={{ align: "start" }}>
+                      <CarouselContent>
+                        {ingredientConsumption.items.map((item) => {
+                          const pct = (item.cost / maxCost) * 100;
+                          return (
+                            <CarouselItem key={item.ingredient_id} className="basis-[70%]">
+                              <div
+                                className="flex flex-col gap-1"
+                                title={`${item.ingredient_name}: ${item.total_quantity} ${item.unit} consumidos`}
+                              >
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="min-w-0 truncate font-medium">{item.ingredient_name}</span>
+                                  <span className="shrink-0 tabular-nums font-semibold">{formatCLP(item.cost)}</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  {item.total_quantity} {item.unit}
+                                </p>
+                                <div className="h-1.5 w-full rounded-full bg-muted">
+                                  <motion.div
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${pct}%` }}
+                                    transition={{ duration: 0.8 }}
+                                    className="h-1.5 rounded-full bg-primary"
+                                  />
+                                </div>
+                              </div>
+                            </CarouselItem>
+                          );
+                        })}
+                      </CarouselContent>
+                    </Carousel>
+                    <div className="hidden lg:grid gap-3 lg:grid-cols-4">
+                      {ingredientConsumption.items.map((item) => {
+                        const pct = (item.cost / maxCost) * 100;
+                        return (
+                          <div
+                            key={item.ingredient_id}
+                            className="flex flex-col gap-1 border-b border-border pb-2.5 last:border-0"
+                            title={`${item.ingredient_name}: ${item.total_quantity} ${item.unit} consumidos`}
+                          >
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="min-w-0 truncate font-medium">{item.ingredient_name}</span>
+                              <span className="shrink-0 tabular-nums font-semibold">{formatCLP(item.cost)}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              {item.total_quantity} {item.unit}
+                            </p>
+                            <div className="h-1.5 w-full rounded-full bg-muted">
+                              <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${pct}%` }}
+                                transition={{ duration: 0.8 }}
+                                className="h-1.5 rounded-full bg-primary"
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                );
+              })()
             ) : (
               <p className="text-sm text-muted-foreground">Sin consumo de insumos en el período.</p>
             )}
@@ -972,40 +1251,44 @@ function DashboardSkeleton() {
       </header>
 
       {/* Stats principales */}
-      <section className="grid gap-1 sm:grid-cols-2 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="rounded-lg p-2">
-            <div className="mb-1 flex items-center gap-1.5">
-              <SkeletonPulse className="h-3.5 w-3.5 rounded-sm" />
-              <SkeletonPulse className="h-3 w-20" />
+      <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+        <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="rounded-lg p-2">
+              <div className="mb-1 flex items-center gap-1.5">
+                <SkeletonPulse className="h-3.5 w-3.5 rounded-sm" />
+                <SkeletonPulse className="h-3 w-20" />
+              </div>
+              <SkeletonPulse className="mb-1 h-7 w-28" />
+              <SkeletonPulse className="h-3 w-16" />
             </div>
-            <SkeletonPulse className="mb-1 h-7 w-28" />
-            <SkeletonPulse className="h-3 w-16" />
-          </div>
-        ))}
+          ))}
+        </div>
       </section>
 
       {/* Stats secundarias */}
-      <section className="grid gap-1 sm:grid-cols-2 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="rounded-lg p-2">
-            <div className="mb-1 flex items-center gap-1.5">
-              <SkeletonPulse className="h-3.5 w-3.5 rounded-sm" />
-              <SkeletonPulse className="h-3 w-20" />
+      <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+        <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="rounded-lg p-2">
+              <div className="mb-1 flex items-center gap-1.5">
+                <SkeletonPulse className="h-3.5 w-3.5 rounded-sm" />
+                <SkeletonPulse className="h-3 w-20" />
+              </div>
+              <SkeletonPulse className="mb-1 h-7 w-28" />
+              <SkeletonPulse className="h-3 w-16" />
             </div>
-            <SkeletonPulse className="mb-1 h-7 w-28" />
-            <SkeletonPulse className="h-3 w-16" />
-          </div>
-        ))}
+          ))}
+        </div>
       </section>
 
       {/* Gráficos */}
       <section className="grid gap-6 lg:grid-cols-3">
-        <div className="border-b border-border pb-4 lg:col-span-2">
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm lg:col-span-2">
           <SkeletonPulse className="mb-2 h-4 w-40" />
           <SkeletonPulse className="h-36 w-full" />
         </div>
-        <div className="border-b border-border pb-4">
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
           <SkeletonPulse className="mb-2 h-4 w-36" />
           <div className="flex flex-col items-center">
             <SkeletonPulse className="h-20 w-20 rounded-full" />
@@ -1019,7 +1302,7 @@ function DashboardSkeleton() {
 
       {/* Métodos de pago y productos */}
       <section className="grid gap-6 lg:grid-cols-2">
-        <div>
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
           <SkeletonPulse className="mb-3 h-4 w-32" />
           <div className="flex flex-col">
             {Array.from({ length: 3 }).map((_, i) => (
@@ -1033,7 +1316,7 @@ function DashboardSkeleton() {
             ))}
           </div>
         </div>
-        <div>
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
           <SkeletonPulse className="mb-3 h-4 w-40" />
           <div className="flex flex-col">
             {Array.from({ length: 3 }).map((_, i) => (
