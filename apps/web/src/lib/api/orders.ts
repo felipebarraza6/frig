@@ -12,6 +12,7 @@ export interface OrdersFilter {
   payment_status?: string;
   start_date?: string;
   end_date?: string;
+  page_size?: number;
   next?: string | null;
   previous?: string | null;
 }
@@ -124,6 +125,7 @@ function ordersQueryString(filter: OrdersFilter): string {
   if (filter.payment_status) qs.set("payment_status", filter.payment_status);
   if (filter.start_date) qs.set("start_date", filter.start_date);
   if (filter.end_date) qs.set("end_date", filter.end_date);
+  if (filter.page_size) qs.set("page_size", String(filter.page_size));
   const q = qs.toString();
   return q ? `?${q}` : "";
 }

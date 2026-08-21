@@ -17,8 +17,8 @@ import {
   useCurrentBranchRole,
   canCancelOrder,
   useCanViewTables,
+  useIsModuleEnabledFromConfig,
 } from "@/lib/store/session";
-import { useIsModuleEnabled } from "@/lib/hooks/useBranchModules";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
 import type { YggdraSchemas } from "@/lib/api/types";
 
@@ -75,7 +75,7 @@ export default function SalesPage() {
   const currentRole = useCurrentBranchRole();
   const canCancel = (ownerId?: string | number) => canCancelOrder(user, currentRole, ownerId);
   const canViewTables = useCanViewTables();
-  const tablesEnabled = useIsModuleEnabled("tables");
+  const tablesEnabled = useIsModuleEnabledFromConfig("tables");
   const showTables = canViewTables && tablesEnabled;
   const { download: downloadFile, isLoading: isDownloading } = useDownloadFile();
   const openView = useClientSearchParam("view") === "open";
@@ -154,14 +154,12 @@ export default function SalesPage() {
       payments: { payment_method_id: string; amount: string }[];
     }) => {
       for (const payment of payments) {
-        const method = paymentMethods?.find((m) => m.id === payment.payment_method_id);
-        const isCash = method?.payment_type === "CASH";
         await createPayment({
           payment_method_id: payment.payment_method_id,
           order_id: orderId,
           amount: Number(payment.amount).toFixed(2),
           status: "COMPLETED",
-          cash_register_id: isCash && currentCashRegister ? currentCashRegister.id : null,
+          cash_register_id: currentCashRegister ? currentCashRegister.id : null,
         });
       }
     },
@@ -285,8 +283,9 @@ export default function SalesPage() {
         </Button>
       </header>
 
-      <div className="flex flex-1 flex-col gap-4 p-6">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
+        {/* Filtros rápidos */}
+        <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible">
           <button
             onClick={() => {
               setStatus("");
@@ -295,7 +294,7 @@ export default function SalesPage() {
               setPageUrl({});
             }}
             className={cn(
-              "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+              "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
               status === "" && paymentStatus === "" && orderType === ""
                 ? "bg-primary text-white"
                 : "bg-card text-muted-foreground ring-1 ring-border hover:bg-muted",
@@ -311,7 +310,7 @@ export default function SalesPage() {
               setPageUrl({});
             }}
             className={cn(
-              "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+              "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
               paymentStatus === "PENDING" && status === "" && orderType === ""
                 ? "bg-amber-500 text-white"
                 : "bg-card text-muted-foreground ring-1 ring-border hover:bg-muted",
@@ -327,7 +326,7 @@ export default function SalesPage() {
               setPageUrl({});
             }}
             className={cn(
-              "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+              "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
               orderType === "ORDER" && status === "" && paymentStatus === ""
                 ? "bg-blue-500 text-white"
                 : "bg-card text-muted-foreground ring-1 ring-border hover:bg-muted",
@@ -343,7 +342,7 @@ export default function SalesPage() {
               setPageUrl({});
             }}
             className={cn(
-              "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+              "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
               paymentStatus === "PAID" && status === "" && orderType === ""
                 ? "bg-emerald-500 text-white"
                 : "bg-card text-muted-foreground ring-1 ring-border hover:bg-muted",
@@ -359,7 +358,7 @@ export default function SalesPage() {
               setPageUrl({});
             }}
             className={cn(
-              "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+              "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
               status === "CANCELLED" && paymentStatus === "" && orderType === ""
                 ? "bg-danger text-white"
                 : "bg-card text-muted-foreground ring-1 ring-border hover:bg-muted",
@@ -369,8 +368,9 @@ export default function SalesPage() {
           </button>
         </div>
 
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="relative w-full max-w-xs">
+        {/* Filtros avanzados */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="relative col-span-2 sm:col-span-3 lg:col-span-2">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={search}
@@ -428,12 +428,127 @@ export default function SalesPage() {
         {error ? (
           <p className="text-sm text-danger">No se pudieron cargar las órdenes.</p>
         ) : isLoading ? (
-          <div className="grid flex-1 place-items-center">
+          <div className="grid flex-1 place-items-center py-12">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto rounded-xl border border-border">
+            {/* Vista móvil: cards */}
+            <div className="grid gap-3 sm:hidden">
+              {orders.map((order) => (
+                <div
+                  key={order.id}
+                  className="rounded-xl border border-border bg-card p-4"
+                >
+                  <div className="mb-2 flex items-start justify-between">
+                    <div className="flex items-center gap-2">
+                      <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-semibold">{order.order_number ?? order.id.slice(0, 8)}</span>
+                    </div>
+                    <span
+                      className={cn(
+                        "rounded-full px-2 py-0.5 text-xs font-medium",
+                        order.status === "COMPLETED"
+                          ? "bg-emerald-500/10 text-emerald-700"
+                          : order.status === "CANCELLED"
+                            ? "bg-danger/10 text-danger"
+                            : "bg-amber-500/10 text-amber-700",
+                      )}
+                    >
+                      {statusLabel(order.status)}
+                    </span>
+                  </div>
+                  <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                    <span>{order.client?.name ?? "Sin cliente"}</span>
+                    <span>·</span>
+                    <span>{order.order_type === "SALE" ? "Venta" : order.order_type === "ORDER" ? "Pedido" : "Convenio"}</span>
+                    {showTables && order.table && (
+                      <>
+                        <span>·</span>
+                        <span className="rounded bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
+                          Mesa {tableById.get(order.table)?.number ?? order.table}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  <div className="mb-3 flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">
+                      {new Date(order.date).toLocaleString("es-CL", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                    <span className="text-lg font-bold tabular-nums">
+                      {formatCLP(order.total_amount ?? "0")}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span
+                      className={cn(
+                        "rounded-full px-2 py-0.5 text-xs font-medium",
+                        order.payment_status === "PAID"
+                          ? "bg-emerald-500/10 text-emerald-700"
+                          : order.payment_status === "PARTIAL"
+                            ? "bg-blue-500/10 text-blue-700"
+                            : order.payment_status === "REFUNDED"
+                              ? "bg-rose-500/10 text-rose-700"
+                              : "bg-muted text-muted-foreground",
+                      )}
+                    >
+                      {paymentStatusLabel(order.payment_status)}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => setDetail(order)}>
+                        <Eye className="h-3.5 w-3.5" />
+                      </Button>
+                      {(order.payment_status === "PENDING" || order.payment_status === "PARTIAL") && (
+                        <Button variant="ghost" size="sm" onClick={() => openCollect(order)}>
+                          <Banknote className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      {order.payment_status === "PAID" && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDownloadThermalPdf(order)}
+                            disabled={isDownloading}
+                            title="Boleta 80 mm"
+                          >
+                            <Printer className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDownloadA4Pdf(order)}
+                            disabled={isDownloading}
+                            title="Boleta A4"
+                          >
+                            <FileDown className="h-3.5 w-3.5" />
+                          </Button>
+                        </>
+                      )}
+                      {order.status !== "CANCELLED" && canCancel(order.owner) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-danger hover:text-danger"
+                          onClick={() => cancel.mutate(order.id)}
+                          disabled={cancel.isPending}
+                        >
+                          <Ban className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Vista desktop: tabla */}
+            <div className="hidden overflow-x-auto rounded-xl border border-border sm:block">
               <table className="w-full min-w-[900px] text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">

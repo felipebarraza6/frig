@@ -12,15 +12,15 @@ export const ROUTE_MODULE_MAP: Record<string, ModuleName | null> = {
   "/sales": "sales",
   "/cash-register": "cash_register",
   "/cash-register/stations": "cash_register",
-  "/kds": "pos",
-  "/kds/monitor": "pos",
-  "/kds/terminal": "pos",
-  "/products": "products",
-  "/products/combos": "products",
+  "/kds": "production",
+  "/kds/monitor": "production",
+  "/kds/terminal": "production",
+  "/products": "product_catalog",
+  "/products/combos": "product_catalog",
   "/products/menus": "public_catalog",
   "/products/nutrition": "nutrition",
-  "/categories": "products",
-  "/warehouses": "warehouse_management",
+  "/categories": "product_catalog",
+  "/warehouses": "inventory",
   "/inventory": "inventory",
   "/tables": "tables",
   "/tables/map": "tables",
@@ -39,13 +39,32 @@ export const ROUTE_MODULE_MAP: Record<string, ModuleName | null> = {
 };
 
 /** Módulos que el backend trata como compuestos (tienen submódulos opcionales). */
-export const COMPOSITE_MODULES: ModuleName[] = ["customers", "inventory", "nutrition"];
+export const COMPOSITE_MODULES: ModuleName[] = [
+  "employees",
+  "finance",
+  "sales",
+  "customers",
+  "suppliers",
+  "inventory",
+  "logistics",
+  "services",
+  "water_management",
+  "nutrition",
+  "waste_management",
+];
 
-/** Submódulos opcionales soportados por cada módulo compuesto. */
+/** Submódulos opcionales soportados por cada módulo compuesto (alineado al backend). */
 export const COMPOSITE_SUBMODULES: Partial<Record<ModuleName, ModuleName[]>> = {
-  customers: ["clients"],
-  inventory: ["warehouse_management", "products", "stock_control", "product_catalog", "suppliers"],
+  employees: ["payroll"],
+  finance: ["payment_methods", "bank_accounts", "cash_register"],
+  sales: ["tables"],
+  customers: ["promotions", "scheduling"],
+  inventory: ["product_gallery", "raw_materials", "certificates", "tariffs", "equipment"],
+  logistics: ["deliveries"],
+  services: ["memberships", "subscriptions"],
+  water_management: ["tariffs", "certificates", "agreements"],
   nutrition: ["recipes", "ingredients"],
+  waste_management: ["waste_tariffs", "waste_certificates", "waste_agreements"],
 };
 
 export function isCompositeModule(moduleName: ModuleName): boolean {
@@ -111,17 +130,131 @@ export function isModuleEnabled(
 }
 
 /**
- * Módulos que el frontend considera core para Frig y que no deberían poder
- * deshabilitarse desde la UI de configuración.
+ * Módulos que en Frig siempre están activos: no aparecen en /settings/modules
+ * y el menú las muestra sin consultar el estado del backend.
  */
-export const CORE_UI_MODULES: ModuleName[] = [
+export const FRIG_ALWAYS_ON_MODULES: ModuleName[] = [
   "dashboard",
   "config",
   "sales",
-  "pos",
   "products",
-  "finance",
   "customers",
-  "inventory",
+  "finance",
+  "payment_methods",
+  "bank_accounts",
   "suppliers",
+  "product_catalog",
 ];
+
+/**
+ * Módulos que sí aparecen como cards en /settings/modules para activar/desactivar.
+ * Todo lo demás se oculta de esa vista.
+ */
+export const FRIG_SETTINGS_MODULES: ModuleName[] = [
+  "pos",
+  "tables",
+  "production",
+  "inventory",
+  "nutrition",
+  "public_catalog",
+];
+
+// ── Definición del menú de Frig ───────────────────────────────────────────────
+
+export interface FrigMenuItem {
+  href: string;
+  label: string;
+  /** Nombre del icono Lucide (para getMenuIcon). */
+  icon: string;
+  /** Módulo que controla este ítem. Si está en FRIG_ALWAYS_ON_MODULES se muestra
+   *  siempre; de lo contrario requiere `is_enabled === true` en el backend. */
+  module: ModuleName;
+  /** Badge opcional (pedidos pendientes, caja abierta, etc.). */
+  badge?: "ordersPending" | "cashOpen" | "kitchenReady";
+}
+
+export interface FrigMenuGroup {
+  title: string;
+  items: FrigMenuItem[];
+}
+
+/**
+ * Estructura completa del menú de Frig.
+ * Cada grupo agrupa rutas funcionales; cada ítem declara el módulo del que depende.
+ */
+export const FRIG_MENU_DEF: FrigMenuGroup[] = [
+  {
+    title: "Operaciones",
+    items: [
+      { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard", module: "dashboard" },
+      { href: "/pos", label: "POS", icon: "Receipt", module: "pos" },
+      { href: "/cash-register", label: "Caja", icon: "Banknote", module: "cash_register" },
+      { href: "/sales", label: "Ventas", icon: "ShoppingBag", module: "sales" },
+      { href: "/kds", label: "Cocina", icon: "ChefHat", module: "production", badge: "kitchenReady" },
+    ],
+  },
+  {
+    title: "Productos",
+    items: [
+      { href: "/products", label: "Productos", icon: "Package", module: "product_catalog" },
+      { href: "/products/combos", label: "Combos", icon: "Boxes", module: "product_catalog" },
+      { href: "/products/menus", label: "Menús digitales", icon: "QrCode", module: "public_catalog" },
+      { href: "/categories", label: "Categorías", icon: "Tags", module: "product_catalog" },
+      { href: "/warehouses", label: "Bodegas", icon: "Warehouse", module: "inventory" },
+      { href: "/inventory", label: "Inventario", icon: "ClipboardList", module: "inventory" },
+    ],
+  },
+  {
+    title: "Nutrición",
+    items: [
+      { href: "/products/nutrition", label: "Etiquetado nutricional", icon: "Apple", module: "nutrition" },
+    ],
+  },
+  {
+    title: "Sala",
+    items: [
+      { href: "/tables", label: "Mesas", icon: "Table", module: "tables" },
+      { href: "/tables/map", label: "Mapa de mesas", icon: "Table", module: "tables" },
+    ],
+  },
+  {
+    title: "Clientes",
+    items: [
+      { href: "/customers", label: "Clientes", icon: "UserCircle", module: "customers" },
+      { href: "/promotions/discounts", label: "Promociones", icon: "Percent", module: "promotions" },
+    ],
+  },
+  {
+    title: "Proveedores",
+    items: [
+      { href: "/suppliers", label: "Proveedores", icon: "Truck", module: "suppliers" },
+      { href: "/purchase-orders", label: "Órdenes de compra", icon: "ShoppingCart", module: "suppliers" },
+    ],
+  },
+  {
+    title: "Finanzas",
+    items: [
+      { href: "/cash-register/stations", label: "Estaciones POS", icon: "Monitor", module: "cash_register" },
+      { href: "/payment-methods", label: "Métodos de pago", icon: "CreditCard", module: "payment_methods" },
+      { href: "/bank-accounts", label: "Cuentas bancarias", icon: "Landmark", module: "bank_accounts" },
+      { href: "/revenues", label: "Ingresos", icon: "ArrowDownLeft", module: "finance" },
+      { href: "/expenses", label: "Egresos", icon: "ArrowUpRight", module: "finance" },
+    ],
+  },
+  {
+    title: "Configuración",
+    items: [
+      { href: "/users", label: "Usuarios", icon: "UserIcon", module: "config" },
+      { href: "/branches", label: "Sucursales", icon: "Store", module: "config" },
+      { href: "/settings/modules", label: "Módulos", icon: "Settings", module: "config" },
+    ],
+  },
+];
+
+/**
+ * Todos los módulos que aparecen en el menú de Frig.
+ * Útil para saber qué módulos son relevantes para esta app.
+ */
+export const FRIG_MODULE_NAMES = Array.from(
+  new Set(FRIG_MENU_DEF.flatMap((g) => g.items.map((i) => i.module))),
+) as ModuleName[];

@@ -32104,6 +32104,7 @@ export interface components {
             station_id?: number | null;
             /** Format: decimal */
             total_sales: string;
+            total_orders?: number | null;
             /** Format: decimal */
             cash_sales: string;
             /** Format: decimal */

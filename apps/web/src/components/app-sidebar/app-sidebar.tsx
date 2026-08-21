@@ -17,28 +17,6 @@ import {
   ChevronDown,
   ChevronRight,
   User as UserIcon,
-  Receipt,
-  Banknote,
-  ShoppingBag,
-  FileText,
-  Package,
-  Boxes,
-  QrCode,
-  Apple,
-  Tags,
-  Warehouse,
-  ClipboardList,
-  Table,
-  UserCircle,
-  Percent,
-  CreditCard,
-  Landmark,
-  ArrowDownLeft,
-  ArrowUpRight,
-  Monitor,
-  Truck,
-  Store,
-  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { branchName } from "@/lib/types";
@@ -47,104 +25,30 @@ import {
   useCurrentBranch,
   useIsCashier,
   useIsWaiter,
-  useIsOwner,
   useCanSwitchBranch,
-  useMenu,
+  useIsModuleEnabledFromConfig,
 } from "@/lib/store/session";
+import { useFrigMenu } from "@/lib/hooks/useFrigMenu";
 import { useNavFavorites } from "@/lib/store/nav-favorites";
 import { useSidebarStore } from "@/lib/store/sidebar";
 import { logout } from "@/lib/api/auth";
 import { clearToken } from "@/lib/api/session-storage";
 import { fetchKitchenStations } from "@/lib/api/kitchen-stations";
 import { fetchKitchenTickets } from "@/lib/api/kitchen";
-import { fetchOrders } from "@/lib/api/orders";
-import { getCurrentCashRegister } from "@/lib/api/cash-register";
 import { BrandLogo } from "@/components/brand-logo";
 import { CommandPalette, type CommandPaletteItem } from "@/components/command-palette/command-palette";
-import { getMenuIcon, type MenuIconName } from "./menu-icons";
-import type { FrontendMenuItem, FrontendMenuGroup } from "@/lib/api/types/modules";
 
-interface NavItem extends Omit<FrontendMenuItem, "icon"> {
+interface NavItem {
+  href: string;
+  label: string;
   icon: React.ComponentType<{ className?: string }>;
-}
-
-interface AdminGroup extends Omit<FrontendMenuGroup, "items"> {
-  items: NavItem[];
+  badge?: "kitchenReady";
 }
 
 interface AppSidebarProps {
   onNavigate?: () => void;
   forceExpanded?: boolean;
 }
-
-/** Menú de respaldo mientras el backend no entrega frontend-config.menu. */
-const FALLBACK_MENU: AdminGroup[] = [
-  {
-    title: "Operaciones",
-    items: [
-      { href: "/pos", label: "POS", icon: Receipt, module: "pos", badge: "ordersPending" },
-      { href: "/cash-register", label: "Caja", icon: Banknote, module: "cash_register", badge: "cashOpen" },
-      { href: "/kds", label: "Cocina", icon: ChefHat, module: "pos", badge: "kitchenReady" },
-      { href: "/sales", label: "Ventas", icon: ShoppingBag, module: "sales", badge: "ordersPending" },
-      { href: "/quotations", label: "Cotizaciones", icon: FileText, module: "sales" },
-      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, module: "dashboard" },
-    ],
-  },
-  {
-    title: "Productos",
-    items: [
-      { href: "/products", label: "Productos", icon: Package, module: "products" },
-      { href: "/products/combos", label: "Combos", icon: Boxes, module: "products" },
-      { href: "/products/menus", label: "Menús", icon: QrCode, module: "public_catalog" },
-      { href: "/products/nutrition", label: "Etiquetado nutricional", icon: Apple, module: "nutrition" },
-      { href: "/categories", label: "Categorías", icon: Tags, module: "products" },
-      { href: "/warehouses", label: "Bodegas", icon: Warehouse, module: "warehouse_management" },
-      { href: "/inventory", label: "Inventario", icon: ClipboardList, module: "inventory" },
-    ],
-  },
-  {
-    title: "Sala",
-    items: [
-      { href: "/tables", label: "Mesas", icon: Table, module: "tables" },
-      { href: "/tables/map", label: "Mapa de mesas", icon: Table, module: "tables" },
-    ],
-  },
-  {
-    title: "CRM",
-    items: [
-      { href: "/customers", label: "Clientes", icon: UserCircle, module: "customers" },
-    ],
-  },
-  {
-    title: "Promociones",
-    items: [{ href: "/promotions/discounts", label: "Descuentos", icon: Percent, module: "promotions" }],
-  },
-  {
-    title: "Finanzas",
-    items: [
-      { href: "/cash-register/stations", label: "Estaciones POS", icon: Monitor, module: "cash_register" },
-      { href: "/payment-methods", label: "Métodos de pago", icon: CreditCard, module: "payment_methods" },
-      { href: "/bank-accounts", label: "Cuentas bancarias", icon: Landmark, module: "bank_accounts" },
-      { href: "/revenues", label: "Ingresos", icon: ArrowDownLeft, module: "finance" },
-      { href: "/expenses", label: "Egresos", icon: ArrowUpRight, module: "finance" },
-    ],
-  },
-  {
-    title: "Compras",
-    items: [
-      { href: "/suppliers", label: "Proveedores", icon: Truck, module: "suppliers" },
-      { href: "/purchase-orders", label: "Órdenes de compra", icon: FileText, module: "suppliers" },
-    ],
-  },
-  {
-    title: "Configuración",
-    items: [
-      { href: "/users", label: "Usuarios", icon: UserIcon, module: "config" },
-      { href: "/branches", label: "Sucursales", icon: Store, module: "config" },
-      { href: "/settings/modules", label: "Módulos", icon: Settings, module: "config" },
-    ],
-  },
-];
 
 export function AppSidebar({ onNavigate, forceExpanded }: AppSidebarProps) {
   const pathname = usePathname();
@@ -163,82 +67,42 @@ export function AppSidebar({ onNavigate, forceExpanded }: AppSidebarProps) {
   const clearSession = useSessionStore((s) => s.clearSession);
   const theme = useSessionStore((s) => s.theme);
   const branch = useCurrentBranch();
-  const menu = useMenu();
+  const menuGroups = useFrigMenu();
   const isCashier = useIsCashier();
   const isWaiter = useIsWaiter();
-  const isOwner = useIsOwner();
   const canSwitchBranch = useCanSwitchBranch();
   const appName = theme?.app_name ?? "FRIG";
   const { favorites, toggleFavorite, isFavorite } = useNavFavorites();
 
-  const isGlobalAdmin = Boolean(user?.is_superuser || user?.type_user === "ADM");
-
   const cashierAllowedPaths = useMemo(
-    () => ["/pos/terminal", "/cash-register", "/kds", "/sales", "/profile"],
+    () => ["/pos", "/cash-register", "/kds", "/sales", "/profile"],
     []
   );
   const waiterAllowedPaths = useMemo(
-    () => ["/pos/terminal", "/tables/map", "/sales", "/profile"],
+    () => ["/pos", "/tables", "/tables/map", "/sales", "/profile"],
     []
   );
 
   function isAllowedPath(href: string, allowedPaths: string[]): boolean {
-    return allowedPaths.some((p) => href === p || href.startsWith(`${p}/`));
+    return allowedPaths.some((p) => href === p);
   }
 
-  const menuGroups = useMemo<AdminGroup[]>(() => {
-    if (menu.length === 0) return FALLBACK_MENU;
-    return menu.map((group) => ({
+  const visibleMenuGroups = menuGroups
+    .map((group) => ({
       ...group,
-      items: group.items.map((item) => ({
-        ...item,
-        icon: getMenuIcon(item.icon as MenuIconName),
-      })),
-    }));
-  }, [menu]);
-
-  const visibleMenuGroups = useMemo<AdminGroup[]>(() => {
-    return menuGroups
-      .map((group) => ({
-        ...group,
-        items: group.items.filter((item) => {
-          if (isCashier) return isAllowedPath(item.href, cashierAllowedPaths);
-          if (isWaiter) {
-            if (item.href === "/pos") return true;
-            return isAllowedPath(item.href, waiterAllowedPaths);
-          }
-          return true;
-        }),
-      }))
-      .filter((group) => group.items.length > 0);
-  }, [menuGroups, isCashier, isWaiter, cashierAllowedPaths, waiterAllowedPaths]);
-
-  // Separamos operaciones (primer grupo "Operaciones" o sin título) del resto.
-  const operationalGroup = visibleMenuGroups.find((g) => g.title.toLowerCase() === "operaciones");
-  const adminGroups = visibleMenuGroups.filter((g) => g.title.toLowerCase() !== "operaciones");
-
-  const visibleOperationalNav = useMemo<NavItem[]>(() => {
-    const items = operationalGroup?.items ?? [];
-    return items
-      .map((item) =>
-        (isCashier || isWaiter) && item.href === "/pos"
-          ? { ...item, href: "/pos/terminal" as const }
-          : item
-      )
-      .sort((a, b) => {
-        if (isCashier || isWaiter) return 0;
-        if (isOwner || isGlobalAdmin) {
-          if (a.href === "/dashboard") return -1;
-          if (b.href === "/dashboard") return 1;
-          return 0;
+      items: group.items.filter((item) => {
+        if (isCashier) return isAllowedPath(item.href, cashierAllowedPaths);
+        if (isWaiter) {
+          if (item.href === "/pos") return true;
+          return isAllowedPath(item.href, waiterAllowedPaths);
         }
-        if (a.href === "/pos") return -1;
-        if (b.href === "/pos") return 1;
-        return 0;
-      });
-  }, [operationalGroup, isCashier, isWaiter, isOwner, isGlobalAdmin]);
+        return true;
+      }),
+    }))
+    .filter((group) => group.items.length > 0);
 
   const branchId = branch?.id ? Number(branch.id) : null;
+  const isProductionEnabled = useIsModuleEnabledFromConfig("production");
   const { data: kitchenStations = [] } = useQuery({
     queryKey: ["kitchen-stations"],
     queryFn: fetchKitchenStations,
@@ -252,27 +116,10 @@ export function AppSidebar({ onNavigate, forceExpanded }: AppSidebarProps) {
     enabled: !!branch,
   });
 
-  const { data: pendingOrders } = useQuery({
-    queryKey: ["orders", "pending"],
-    queryFn: () => fetchOrders({ payment_status: "PENDING" }),
-    refetchInterval: 30_000,
-    enabled: !!branch,
-  });
-
-  const { data: currentCashRegister } = useQuery({
-    queryKey: ["cash-register", "current"],
-    queryFn: () => getCurrentCashRegister(),
-    staleTime: 30_000,
-    retry: false,
-    enabled: !!branch,
-  });
-
   const badges = useMemo(() => {
     const readyCount = kitchenTickets.length;
-    const pendingCount = pendingOrders?.count ?? 0;
-    const cashOpen = Boolean(currentCashRegister);
-    return { readyCount, pendingCount, cashOpen };
-  }, [kitchenTickets, pendingOrders, currentCashRegister]);
+    return { readyCount };
+  }, [kitchenTickets]);
 
   const stationItems = useMemo(
     () =>
@@ -285,27 +132,25 @@ export function AppSidebar({ onNavigate, forceExpanded }: AppSidebarProps) {
   );
 
   const allItems = useMemo<CommandPaletteItem[]>(() => {
-    const ops = visibleOperationalNav.map((i) => ({ href: i.href, label: i.label, group: "Operaciones" }));
+    const ops = visibleMenuGroups.flatMap((g) => g.title.toLowerCase() === "operaciones" ? g.items.map((i) => ({ href: i.href, label: i.label, group: "Operaciones" as const })) : []);
     const stations = kitchenStations.map((s) => ({
       href: `/kds/station/${s.id}`,
       label: s.name,
       group: "Estaciones de cocina",
     }));
-    const admin = adminGroups.flatMap((g) =>
-      g.items.map((i) => ({ href: i.href, label: i.label, group: g.title }))
-    );
+    const admin = visibleMenuGroups
+      .filter((g) => g.title.toLowerCase() !== "operaciones")
+      .flatMap((g) => g.items.map((i) => ({ href: i.href, label: i.label, group: g.title })));
     return [...ops, ...stations, ...admin];
-  }, [visibleOperationalNav, kitchenStations, adminGroups]);
+  }, [visibleMenuGroups, kitchenStations]);
 
   const allNavHrefs = useMemo(
-    () => [...visibleOperationalNav, ...stationItems, ...adminGroups.flatMap((g) => g.items)],
-    [visibleOperationalNav, stationItems, adminGroups]
+    () => [...visibleMenuGroups.flatMap((g) => g.items), ...stationItems],
+    [visibleMenuGroups, stationItems]
   );
 
   function getBadgeValue(badge?: string) {
     if (badge === "kitchenReady") return badges.readyCount > 0 ? badges.readyCount : undefined;
-    if (badge === "ordersPending") return badges.pendingCount > 0 ? badges.pendingCount : undefined;
-    if (badge === "cashOpen") return badges.cashOpen ? undefined : "cerrada";
     return undefined;
   }
 
@@ -445,31 +290,37 @@ export function AppSidebar({ onNavigate, forceExpanded }: AppSidebarProps) {
             </nav>
           )}
 
-          {visibleOperationalNav.length > 0 && (
+          {visibleMenuGroups.some((g) => g.title.toLowerCase() === "operaciones") && (
             <nav className="flex flex-col gap-1">
               {effectivelyExpanded && (
                 <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Operaciones
                 </p>
               )}
-              {visibleOperationalNav.map((item) => (
-                <NavItem
-                  key={item.href}
-                  href={item.href}
-                  label={item.label}
-                  icon={item.icon}
-                  active={activeHref === item.href}
-                  expanded={effectivelyExpanded}
-                  badge={getBadgeValue(item.badge)}
-                  onToggleFavorite={() => toggleFavorite(item.href)}
-                  favorited={isFavorite(item.href)}
-                  onClick={onNavigate}
-                />
-              ))}
+              {visibleMenuGroups
+                .find((g) => g.title.toLowerCase() === "operaciones")
+                ?.items.map((item) => (
+                  <NavItem
+                    key={item.href}
+                    href={
+                      (isCashier || isWaiter) && item.href === "/pos"
+                        ? ("/pos/terminal" as string)
+                        : item.href
+                    }
+                    label={item.label}
+                    icon={item.icon}
+                    active={activeHref === item.href}
+                    expanded={effectivelyExpanded}
+                    badge={getBadgeValue(item.badge)}
+                    onToggleFavorite={() => toggleFavorite(item.href)}
+                    favorited={isFavorite(item.href)}
+                    onClick={onNavigate}
+                  />
+                ))}
             </nav>
           )}
 
-          {branchId && stationItems.length > 0 && (
+          {branchId && isProductionEnabled && stationItems.length > 0 && (
             <NavGroup
               title="Estaciones"
               expanded={effectivelyExpanded}
@@ -494,9 +345,10 @@ export function AppSidebar({ onNavigate, forceExpanded }: AppSidebarProps) {
             </NavGroup>
           )}
 
-          {adminGroups.length > 0 &&
-            adminGroups.map((group) => {
-              const activeHref = getActiveHref(group.items, pathname);
+          {visibleMenuGroups
+            .filter((g) => g.title.toLowerCase() !== "operaciones")
+            .map((group) => {
+              const groupActiveHref = getActiveHref(group.items, pathname);
               return (
                 <NavGroup
                   key={group.title}
@@ -513,7 +365,7 @@ export function AppSidebar({ onNavigate, forceExpanded }: AppSidebarProps) {
                       href={item.href}
                       label={item.label}
                       icon={item.icon}
-                      active={activeHref === item.href}
+                      active={groupActiveHref === item.href}
                       expanded={effectivelyExpanded}
                       onToggleFavorite={() => toggleFavorite(item.href)}
                       favorited={isFavorite(item.href)}

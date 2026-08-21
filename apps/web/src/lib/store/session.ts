@@ -35,11 +35,113 @@ interface SessionState {
   setCurrentBranch: (branchId: ID_STR) => void;
   setTheme: (theme: BranchThemeConfig | null) => void;
   setPermissions: (permissions: SessionPermissions | null) => void;
+  /** Actualiza el estado de un módulo tras un toggle, para que el menú y los gates reaccionen al instante. */
+  setModuleState: (moduleName: string, state: FrontendModuleState) => void;
   clearSession: () => void;
   setHasHydrated: (v: boolean) => void;
 }
 
 type ID_STR = string;
+
+/**
+ * Normaliza la ruta de inicio devuelta por frontend-config. El backend puede
+ * enviarla como string o como objeto con la ruta en alguna de estas claves;
+ * si no se puede resolver a un string, devuelve null para usar el fallback.
+ */
+export function normalizeDashboardRoute(value: unknown): string | null {
+  if (typeof value === "string") {
+    return value || null;
+  }
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    for (const key of ["pathname", "path", "route", "href", "url", "slug"]) {
+      const v = record[key];
+      if (typeof v === "string" && v) return v;
+    }
+  }
+  return null;
+}
+
+/**
+ * Filtra grupos de menú sin `items` válido que el backend pueda enviar
+ * (por ejemplo grupos solo con título). Mantiene el contrato de
+ * FrontendMenuGroup: grupos con un array de items.
+ */
+export function sanitizeMenu(menu: unknown): FrontendMenuGroup[] {
+  if (!Array.isArray(menu)) return [];
+  const groups = menu.filter(
+    (g): g is FrontendMenuGroup =>
+      !!g && typeof g === "object" && Array.isArray(g.items),
+  );
+  return groups.map((g) => ({ title: g.title ?? "", items: g.items }));
+}
+
+/**
+ * Normaliza el campo `modules` de frontend-config a un mapa
+ * `{ [module_name]: { is_enabled, submodule_config } }`.
+ *
+ * El backend puede enviarlo en cualquiera de estas formas:
+ * 1. `{ enabled: [...], disabled: [...], permissions: {...} }`  ← forma real actual
+ * 2. `{ [module_name]: { is_enabled, submodule_config } }`       ← contrato tipado
+ * 3. Array de BranchModuleConfiguration con `module_name`
+ */
+export function normalizeModules(raw: unknown): Record<string, FrontendModuleState> {
+  const out: Record<string, FrontendModuleState> = {};
+  if (!raw || typeof raw !== "object") return out;
+
+  const toState = (rec: Record<string, unknown>): FrontendModuleState => {
+    const sub = rec.submodule_config;
+    return {
+      is_enabled: rec.is_enabled === true,
+      ...(sub && typeof sub === "object" && !Array.isArray(sub)
+        ? { submodule_config: sub as Record<string, boolean> }
+        : {}),
+    };
+  };
+
+  // Forma 1: { enabled: [...], disabled: [...], permissions: {...} }
+  if (Array.isArray((raw as { enabled?: unknown }).enabled)) {
+    const r = raw as { enabled?: string[]; disabled?: string[]; permissions?: Record<string, unknown> };
+    const perms = r.permissions ?? {};
+    for (const mod of r.enabled ?? []) {
+      const perm = perms[mod];
+      out[mod] = {
+        is_enabled: true,
+        ...(perm && typeof perm === "object"
+          ? { submodule_config: perm as Record<string, boolean> }
+          : {}),
+      };
+    }
+    for (const mod of r.disabled ?? []) {
+      out[mod] = { is_enabled: false };
+    }
+    return out;
+  }
+
+  // Forma 3: array de BranchModuleConfiguration
+  if (Array.isArray(raw)) {
+    for (const item of raw) {
+      if (!item || typeof item !== "object") continue;
+      const rec = item as Record<string, unknown>;
+      const name =
+        typeof rec.module_name === "string"
+          ? rec.module_name
+          : typeof rec.name === "string"
+            ? rec.name
+            : undefined;
+      if (!name) continue;
+      out[name] = toState(rec);
+    }
+    return out;
+  }
+
+  // Forma 2: objeto { [module_name]: { is_enabled, ... } }
+  for (const [key, value] of Object.entries(raw)) {
+    if (!value || typeof value !== "object") continue;
+    out[key] = toState(value as Record<string, unknown>);
+  }
+  return out;
+}
 
 export const useSessionStore = create<SessionState>()(
   persist(
@@ -65,9 +167,9 @@ export const useSessionStore = create<SessionState>()(
           branches: config.branches,
           currentBranchId: branchId ?? String(config.current_branch?.branch_id ?? config.branches[0]?.branch_id ?? ""),
           permissions: config.permissions ?? null,
-          menu: config.menu ?? [],
-          modules: config.modules ?? {},
-          dashboard: config.dashboard ?? null,
+          menu: sanitizeMenu(config.menu),
+          modules: normalizeModules(config.modules),
+          dashboard: normalizeDashboardRoute(config.dashboard),
           featureFlags: config.feature_flags ?? {},
         });
       },
@@ -78,6 +180,8 @@ export const useSessionStore = create<SessionState>()(
       },
       setTheme: (theme) => set({ theme }),
       setPermissions: (permissions) => set({ permissions }),
+      setModuleState: (moduleName, state) =>
+        set((s) => ({ modules: { ...s.modules, [moduleName]: state } })),
       clearSession: () => {
         clearBranchId();
         set({
@@ -233,6 +337,15 @@ export function useCanViewCashRegisterHistory(): boolean {
   if (!user) return false;
   if (user.is_superuser || user.type_user === "ADM") return true;
   return ["OWNER", "ADMIN_LOCAL", "MANAGER"].includes(currentRole ?? "");
+}
+
+/** True si el usuario puede registrar ingresos/retiros de caja (OWNER o super admin). */
+export function useCanManageCashMovements(): boolean {
+  const user = useSessionStore((s) => s.user);
+  const currentRole = useCurrentBranchRole();
+  if (!user) return false;
+  if (user.is_superuser || user.type_user === "ADM") return true;
+  return currentRole === "OWNER";
 }
 
 /**

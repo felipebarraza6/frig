@@ -69,8 +69,12 @@ export interface ProductTypeOption {
 }
 
 export interface BranchProductTypesResponse {
-  product_types: ProductTypeOption[];
+  /** Tipos disponibles (formato usado por el endpoint /branches/modules/product-types/). */
+  available_product_types: ProductTypeOption[];
+  product_types?: ProductTypeOption[];
   default?: string;
+  count?: number;
+  branch_id?: number;
 }
 
 export interface AppAccessResponse {

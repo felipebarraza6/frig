@@ -225,8 +225,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
   );
   const change = cashReceivedTotal > cashPaidTotal ? cashReceivedTotal - cashPaidTotal : 0;
 
-  const cashRegisterMissing =
-    cashPayments.length > 0 && !currentCashRegister;
+  const cashRegisterMissing = payments.length > 0 && !currentCashRegister;
 
   function addPayment() {
     const firstMethod = paymentMethods?.[0];
@@ -318,14 +317,12 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
       }
 
       for (const payment of paymentsToProcess) {
-        const method = paymentMethods?.find((m) => m.id === payment.payment_method_id);
-        const isCash = method?.payment_type === "CASH";
         await createPayment({
           payment_method_id: payment.payment_method_id,
           order_id: order.id,
           amount: Number(payment.amount).toFixed(2),
           status: "COMPLETED",
-          cash_register_id: isCash && currentCashRegister ? currentCashRegister.id : null,
+          cash_register_id: currentCashRegister ? currentCashRegister.id : null,
         });
       }
 
@@ -828,7 +825,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
       <div className="flex shrink-0 flex-col gap-2 border-t border-border/60 bg-background p-4">
         {!existingOrderId && cashRegisterMissing && (
           <p className="rounded-lg bg-amber-500/10 px-3 py-1.5 text-xs text-amber-700">
-            Debes abrir la caja antes de cobrar en efectivo.
+            Debes abrir una caja antes de cobrar.
           </p>
         )}
         {!existingOrderId && hasPendingPayment && (

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useSessionStore } from "@/lib/store/session";
+import { useSessionStore, normalizeDashboardRoute } from "@/lib/store/session";
 import { loginComplete } from "@/lib/api/auth";
 import { fetchFrontendConfig } from "@/lib/api/frontend-config";
 import { fetchBranchTheme, applyThemeConfig } from "@/lib/api/branches";
@@ -21,7 +21,8 @@ function getHomeRouteForUser(
   } | null,
   dashboard?: string | null,
 ): string {
-  if (dashboard) return dashboard;
+  const home = normalizeDashboardRoute(dashboard);
+  if (home) return home;
   if (!user) return "/dashboard";
   if (user.is_superuser || user.type_user === "ADM") return "/dashboard";
   const assignments = user.branch_assignments ?? [];

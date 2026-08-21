@@ -3,7 +3,11 @@
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Store, Building2 } from "lucide-react";
-import { useSessionStore, useIsPosFirstRole } from "@/lib/store/session";
+import {
+  useSessionStore,
+  useIsPosFirstRole,
+  normalizeDashboardRoute,
+} from "@/lib/store/session";
 import { fetchFrontendConfig } from "@/lib/api/frontend-config";
 import { fetchBranchTheme, applyThemeConfig } from "@/lib/api/branches";
 import { branchName } from "@/lib/types";
@@ -34,7 +38,7 @@ export default function SelectBranchPage() {
       } catch {
         // tema no crítico
       }
-      const dashboard = config.dashboard;
+      const dashboard = normalizeDashboardRoute(config.dashboard);
       if (dashboard) {
         router.replace(dashboard);
       } else {

@@ -127,8 +127,11 @@ export default function ProductNutritionPage() {
         ) : filtered.length === 0 ? (
           <div className="rounded-xl border border-border bg-card p-8 text-center">
             <Apple className="mx-auto h-10 w-10 text-muted-foreground" />
-            <p className="mt-3 text-muted-foreground">
-              No se encontraron productos con información nutricional.
+            <p className="mt-3 font-medium text-foreground">
+              No hay productos con información nutricional.
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Edita un producto para agregar sus datos nutricionales.
             </p>
           </div>
         ) : (

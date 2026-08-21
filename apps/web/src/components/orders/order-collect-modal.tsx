@@ -77,17 +77,19 @@ export default function OrderCollectModal({
       setCollectError(`Faltan ${formatCLP(remaining)} para completar el pago.`);
       return;
     }
+    if (!currentCashRegister) {
+      setCollectError("Debes abrir una caja antes de registrar el pago.");
+      return;
+    }
     setIsPending(true);
     try {
       for (const payment of paymentLines) {
-        const method = paymentMethods?.find((m) => m.id === payment.payment_method_id);
-        const isCash = method?.payment_type === "CASH";
         await createPayment({
           payment_method_id: payment.payment_method_id,
           order_id: order.id,
           amount: Number(payment.amount).toFixed(2),
           status: "COMPLETED",
-          cash_register_id: isCash && currentCashRegister ? currentCashRegister.id : null,
+          cash_register_id: currentCashRegister.id,
         });
       }
       // Al cobrar la cuenta completa, la mesa queda libre.

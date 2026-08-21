@@ -65,9 +65,11 @@ export async function closeCashRegister(
 
 export async function getDailySummary(
   stationId?: number | string | null,
+  options?: { ignoreCashRegister?: boolean },
 ): Promise<CashRegisterSummary> {
   const qs = new URLSearchParams();
   if (stationId) qs.set("station_id", String(stationId));
+  if (options?.ignoreCashRegister) qs.set("ignore_cash_register", "true");
   const q = qs.toString();
   return apiFetch<CashRegisterSummary>(`/finance/cash-registers/daily_summary/${q ? `?${q}` : ""}`);
 }
@@ -137,11 +139,58 @@ export interface CashAudit {
   total_mediciones?: number;
   total_ordenes_generadas?: number;
   total_monto_generado?: number;
+  ordenes_pagadas_detalle?: Array<{
+    id: string;
+    order_number?: string | null;
+    client_name?: string;
+    total_amount: number | string;
+    date: string;
+    payment_status?: string;
+    payment_methods?: Array<{
+      type: string;
+      name: string;
+      amount: number | string;
+    }>;
+  }>;
 }
 
-export async function fetchCashAudit(date?: string): Promise<CashAudit> {
-  const qs = date ? `?date=${encodeURIComponent(date)}` : "";
-  return apiFetch<CashAudit>(`/sales/orders/arqueo/${qs}`);
+export async function fetchCashAudit(
+  date?: string,
+  mode: "day" | "week" = "day",
+  stationId?: number | string | null,
+): Promise<CashAudit> {
+  const qs = new URLSearchParams();
+  if (date) qs.set("date", date);
+  qs.set("mode", mode);
+  if (stationId) qs.set("station_id", String(stationId));
+  const q = qs.toString();
+  return apiFetch<CashAudit>(`/sales/orders/arqueo/${q ? `?${q}` : ""}`);
+}
+
+export async function exportCashAudit(
+  date?: string,
+  mode: "day" | "week" = "day",
+  stationId?: number | string | null,
+): Promise<ApiFileResult> {
+  const qs = new URLSearchParams();
+  if (date) qs.set("date", date);
+  qs.set("mode", mode);
+  if (stationId) qs.set("station_id", String(stationId));
+  const q = qs.toString();
+  return apiFile(`/sales/orders/arqueo/export/${q ? `?${q}` : ""}`);
+}
+
+export async function exportCashAuditSimple(
+  date?: string,
+  mode: "day" | "week" = "day",
+  stationId?: number | string | null,
+): Promise<ApiFileResult> {
+  const qs = new URLSearchParams();
+  if (date) qs.set("date", date);
+  qs.set("mode", mode);
+  if (stationId) qs.set("station_id", String(stationId));
+  const q = qs.toString();
+  return apiFile(`/sales/orders/arqueo/export-simple/${q ? `?${q}` : ""}`);
 }
 
 export interface CashRegisterExportFilter {
@@ -163,4 +212,8 @@ export async function exportCashRegisters(
 
 export async function exportCashRegisterMovements(id: number): Promise<ApiFileResult> {
   return apiFile(`/finance/cash-registers/${id}/export-movements/`);
+}
+
+export async function exportCashRegisterMovementsSimple(id: number): Promise<ApiFileResult> {
+  return apiFile(`/finance/cash-registers/${id}/export-movements-simple/`);
 }

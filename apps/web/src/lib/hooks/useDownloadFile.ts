@@ -27,7 +27,9 @@ export function useDownloadFile() {
         const finalName =
           filename ??
           (options.filename
-            ? `${options.filename}.${options.extension ?? "pdf"}`
+            ? options.extension && !options.filename.toLowerCase().endsWith(`.${options.extension.toLowerCase()}`)
+              ? `${options.filename}.${options.extension}`
+              : options.filename
             : `descarga.${options.extension ?? "pdf"}`);
         downloadBlob(blob, finalName);
         options.onSuccess?.();
@@ -50,6 +52,6 @@ export function useDownloadFile() {
  * Genera un nombre de archivo con timestamp para exports.
  */
 export function exportFilename(base: string, extension: string): string {
-  const date = new Date().toISOString().split("T")[0];
+  const date = new Date().toLocaleDateString("en-CA");
   return `${base}_${date}.${extension}`;
 }

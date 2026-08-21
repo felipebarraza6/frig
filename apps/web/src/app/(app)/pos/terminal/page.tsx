@@ -55,7 +55,7 @@ import {
   useIsWaiter,
   useSessionStore,
 } from "@/lib/store/session";
-import { useIsModuleEnabled } from "@/lib/hooks/useBranchModules";
+import { useBranchModules } from "@/lib/hooks/useBranchModules";
 import { useBranchProductTypes } from "@/lib/hooks/useBranchProductTypes";
 import { branchName } from "@/lib/types";
 import ModifierModal from "@/components/pos/modifier-modal";
@@ -147,7 +147,9 @@ export default function PosPage() {
   }
 
   const canViewTables = useCanViewTables();
-  const tablesEnabled = useIsModuleEnabled("tables");
+  const { enabledModules, isLoading: modulesLoading } = useBranchModules();
+  const tablesEnabled = !modulesLoading && enabledModules.has("tables");
+  const publicCatalogEnabled = !modulesLoading && enabledModules.has("public_catalog");
   const showTables = (canViewTables && tablesEnabled) || isWaiterSimulation;
   const { options: productTypeOptions } = useBranchProductTypes();
   const allowedProductTypes = useMemo(
@@ -269,6 +271,7 @@ export default function PosPage() {
   const { data: catalogs } = useQuery({
     queryKey: ["public-catalogs", "pos-terminal"],
     queryFn: () => fetchPublicCatalogs(),
+    enabled: publicCatalogEnabled,
     staleTime: 60_000,
   });
 
@@ -282,7 +285,7 @@ export default function PosPage() {
   const { data: assignedMenu, isLoading: assignedMenuLoading } = useQuery({
     queryKey: ["public-menu", assignedCatalog?.slug],
     queryFn: () => fetchPublicMenuBySlug(assignedCatalog!.slug),
-    enabled: Boolean(assignedCatalog?.slug),
+    enabled: Boolean(publicCatalogEnabled && assignedCatalog?.slug),
     staleTime: 60_000,
   });
 
