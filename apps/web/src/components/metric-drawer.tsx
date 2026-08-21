@@ -17,6 +17,8 @@ export interface MetricDrawerProps {
   icon: LucideIcon;
   description: string;
   sections?: MetricDrawerSection[];
+  chart?: React.ReactNode;
+  actions?: React.ReactNode;
   children?: React.ReactNode;
 }
 
@@ -28,6 +30,8 @@ export function MetricDrawer({
   icon: Icon,
   description,
   sections,
+  chart,
+  actions,
   children,
 }: MetricDrawerProps) {
   const dragControls = useDragControls();
@@ -123,8 +127,21 @@ export function MetricDrawer({
                 </div>
               )}
 
+              {chart && (
+                <div className="mt-5 rounded-xl border border-border bg-background p-3">
+                  <p className="mb-2 text-xs font-medium text-muted-foreground">Evolución en el período</p>
+                  {chart}
+                </div>
+              )}
+
               {children && <div className="mt-5">{children}</div>}
             </div>
+
+            {actions && (
+              <div className="border-t border-border p-4">
+                {actions}
+              </div>
+            )}
           </motion.div>
         </div>
       )}

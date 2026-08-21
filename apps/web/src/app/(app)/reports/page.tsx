@@ -13,12 +13,17 @@ import {
   CreditCard,
   BarChart3,
   AlertTriangle,
+  FileText,
+  FileSpreadsheet,
   type LucideIcon,
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import {
   fetchDashboardSummary,
   fetchIngredientConsumption,
   type DateRange,
+  type DashboardSummary,
+  type IngredientConsumption,
 } from "@/lib/api/analytics";
 import { formatCLP, cn, paymentTypeLabel } from "@/lib/utils";
 import { useCurrentBranch } from "@/lib/store/session";
@@ -91,6 +96,60 @@ function rangeDates(
   return { start: formatDateInput(startDate), end, label: labels[range] };
 }
 
+function exportToPDF() {
+  window.print();
+}
+
+function exportToExcel(
+  summary: DashboardSummary,
+  ingredientConsumption: IngredientConsumption | undefined,
+) {
+  const wb = XLSX.utils.book_new();
+
+  const resumenRows = [
+    { Concepto: "Ventas del período", Valor: summary.sales.total_amount },
+    { Concepto: "Cantidad de órdenes", Valor: summary.orders.count },
+    { Concepto: "Órdenes completadas", Valor: summary.orders.completed },
+    { Concepto: "Ganancia estimada", Valor: summary.sales.profit },
+    { Concepto: "Costo de insumos", Valor: ingredientConsumption?.total_cost ?? 0 },
+    {
+      Concepto: "Gastos estimados",
+      Valor: summary.sales.total_amount - summary.sales.profit - (ingredientConsumption?.total_cost ?? 0),
+    },
+  ];
+  const wsResumen = XLSX.utils.json_to_sheet(resumenRows);
+  XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen");
+
+  const productosRows = summary.products.best_selling.map((p) => ({
+    Nombre: p.product__name,
+    Cantidad: p.quantity,
+    Total: p.total,
+  }));
+  const wsProductos = XLSX.utils.json_to_sheet(productosRows);
+  XLSX.utils.book_append_sheet(wb, wsProductos, "Productos");
+
+  const pagosRows = summary.payments.map((p) => ({
+    Método: paymentTypeLabel(p.type_payment__name),
+    Total: p.total,
+  }));
+  const wsPagos = XLSX.utils.json_to_sheet(pagosRows);
+  XLSX.utils.book_append_sheet(wb, wsPagos, "Pagos");
+
+  if (ingredientConsumption && ingredientConsumption.items.length > 0) {
+    const insumosRows = ingredientConsumption.items.map((item) => ({
+      Nombre: item.ingredient_name,
+      Cantidad: item.total_quantity,
+      Unidad: item.unit,
+      Costo: item.cost,
+    }));
+    const wsInsumos = XLSX.utils.json_to_sheet(insumosRows);
+    XLSX.utils.book_append_sheet(wb, wsInsumos, "Insumos");
+  }
+
+  const dateStr = new Date().toISOString().split("T")[0];
+  XLSX.writeFile(wb, `informe-frig-${dateStr}.xlsx`);
+}
+
 export default function ReportsPage() {
   const branch = useCurrentBranch();
   const monthRange = useMemo(() => getCurrentMonthRange(), []);
@@ -112,12 +171,8 @@ export default function ReportsPage() {
     enabled: !!branch,
   });
 
-  const loading = loadingSummary || loadingIngredients;
+  const loading = loadingSummary || loadingIngredients || !branch;
   const error = summaryError;
-
-  if (loading) {
-    return <ReportsSkeleton />;
-  }
 
   if (error) {
     return (
@@ -144,10 +199,17 @@ export default function ReportsPage() {
     .sort((a, b) => b.cost - a.cost)
     .slice(0, 10);
 
+  const exportDisabled = loading || !summary;
+
   return (
     <div className="flex min-h-full flex-col gap-4 p-4">
+      <style>{`
+        @media print {
+          .print-hidden { display: none !important; }
+        }
+      `}</style>
       {/* Header */}
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <header className="print-hidden flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-bold tracking-tight">Informes</h1>
         <div className="flex flex-wrap items-center gap-2">
           <div className="inline-flex rounded-xl border border-border bg-card p-1 shadow-sm">
@@ -199,10 +261,35 @@ export default function ReportsPage() {
               className="rounded-lg border-0 bg-transparent px-2.5 py-1.5 text-xs font-medium text-foreground outline-none transition-colors hover:bg-muted focus:bg-muted"
             />
           </div>
+
+          <div className="inline-flex items-center gap-1">
+            <button
+              type="button"
+              onClick={exportToPDF}
+              disabled={exportDisabled}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              Exportar PDF
+            </button>
+            <button
+              type="button"
+              onClick={() => summary && exportToExcel(summary, ingredientConsumption)}
+              disabled={exportDisabled}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5" />
+              Exportar Excel
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* Resumen ejecutivo */}
+      {loading ? (
+        <ReportsSkeleton />
+      ) : (
+        <>
+          {/* Resumen ejecutivo */}
       <motion.section
         variants={container}
         initial="hidden"
@@ -413,6 +500,8 @@ export default function ReportsPage() {
           )}
         </div>
       </motion.section>
+        </>
+      )}
     </div>
   );
 }
@@ -687,15 +776,7 @@ function SkeletonPulse({ className }: { className?: string }) {
 
 function ReportsSkeleton() {
   return (
-    <div className="flex min-h-full flex-col gap-4 p-4">
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <SkeletonPulse className="h-7 w-32" />
-        <div className="flex flex-wrap items-center gap-2">
-          <SkeletonPulse className="h-8 w-48" />
-          <SkeletonPulse className="h-8 w-44" />
-        </div>
-      </header>
-
+    <>
       <section className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="rounded-xl border border-border bg-card p-2.5 shadow-sm">
@@ -760,6 +841,6 @@ function ReportsSkeleton() {
           </div>
         </div>
       </section>
-    </div>
+    </>
   );
 }

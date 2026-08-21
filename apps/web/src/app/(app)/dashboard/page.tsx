@@ -17,6 +17,7 @@ import {
   Wallet,
   Target,
   FlaskConical,
+  ArrowRight,
   type LucideIcon,
 } from "lucide-react";
 
@@ -30,6 +31,7 @@ import { formatCLP, cn, paymentTypeLabel } from "@/lib/utils";
 import { useCurrentBranch, useIsModuleEnabledFromConfig } from "@/lib/store/session";
 import { useProducts } from "@/lib/hooks/useCatalog";
 import { MetricDrawer, type MetricDrawerSection } from "@/components/metric-drawer";
+import { Sparkline } from "@/components/sparkline";
 import Link from "next/link";
 
 const container: Variants = {
@@ -48,6 +50,8 @@ type MetricConfig = {
   icon: LucideIcon;
   description: string;
   sections?: MetricDrawerSection[];
+  chart?: ReactNode;
+  actions?: ReactNode;
   children?: ReactNode;
 };
 
@@ -254,7 +258,7 @@ export default function DashboardPage() {
                 value: formatCLP(salesTotal),
                 icon: TrendingUp,
                 description:
-                  "Suma total de ventas pagadas en el rango seleccionado. Click para ver el detalle de órdenes.",
+                  "Suma total de ventas pagadas en el rango seleccionado. Este monto considera solo órdenes pagadas y completadas dentro del período seleccionado.",
                 sections: [
                   { label: "Órdenes pagadas", value: String(salesCount) },
                   {
@@ -263,6 +267,19 @@ export default function DashboardPage() {
                   },
                   { label: "Período", value: dates.label },
                 ],
+                chart:
+                  summary?.time_series && summary.time_series.length > 1 ? (
+                    <Sparkline data={summary.time_series.map((d) => d.sales)} />
+                  ) : undefined,
+                actions: (
+                  <Link
+                    href="/sales"
+                    className="flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary/90"
+                  >
+                    Ver detalle de ventas
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                ),
               },
             })
           }
@@ -281,12 +298,21 @@ export default function DashboardPage() {
                 title: "Órdenes completadas",
                 value: completedOrders,
                 icon: Receipt,
-                description: "Órdenes finalizadas y pagadas. Click para revisar el historial de ventas.",
+                description: "Órdenes finalizadas y pagadas. Representa el volumen de operaciones concretadas en el período.",
                 sections: [
                   { label: "Total de órdenes", value: String(totalOrders) },
                   { label: "Cuentas abiertas", value: String(pendingOrders) },
                   { label: "Período", value: dates.label },
                 ],
+                actions: (
+                  <Link
+                    href="/sales"
+                    className="flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary/90"
+                  >
+                    Ver historial de ventas
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                ),
               },
             })
           }
@@ -305,12 +331,21 @@ export default function DashboardPage() {
                 title: "Cuentas abiertas",
                 value: pendingOrders,
                 icon: Clock,
-                description: "Órdenes pendientes de pago o cierre. Click para gestionarlas.",
+                description: "Órdenes pendientes de pago o cierre. Requiere atención para cerrar la cuenta o completar el cobro.",
                 sections: [
                   { label: "Órdenes completadas", value: String(completedOrders) },
                   { label: "Total de órdenes", value: String(totalOrders) },
                   { label: "Período", value: dates.label },
                 ],
+                actions: (
+                  <Link
+                    href="/sales"
+                    className="flex items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-amber-600/90"
+                  >
+                    Gestionar cuentas abiertas
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                ),
               },
             })
           }
@@ -444,6 +479,15 @@ export default function DashboardPage() {
                     },
                     { label: "Período", value: dates.label },
                   ],
+                  actions: (
+                    <Link
+                      href="/reports"
+                      className="flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary/90"
+                    >
+                      Ver informe completo
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  ),
                   children:
                     ingredientConsumption?.items && ingredientConsumption.items.length > 0 ? (
                       <div className="flex flex-col">
@@ -508,7 +552,7 @@ export default function DashboardPage() {
                 title: "Gastos",
                 value: formatCLP(expensesTotal),
                 icon: ArrowUpRight,
-                description: "Total de gastos registrados. Click para ver el detalle de compras.",
+                description: "Total de gastos registrados en compras a proveedores durante el período.",
                 sections: [
                   {
                     label: "Proveedores con gastos",
@@ -516,6 +560,15 @@ export default function DashboardPage() {
                   },
                   { label: "Período", value: dates.label },
                 ],
+                actions: (
+                  <Link
+                    href="/expenses"
+                    className="flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-rose-600/90"
+                  >
+                    Ver detalle de compras
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                ),
               },
             })
           }
@@ -732,6 +785,8 @@ export default function DashboardPage() {
           icon={drawer.metric.icon}
           description={drawer.metric.description}
           sections={drawer.metric.sections}
+          chart={drawer.metric.chart}
+          actions={drawer.metric.actions}
         >
           {drawer.metric.children}
         </MetricDrawer>
