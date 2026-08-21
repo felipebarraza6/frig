@@ -35,16 +35,33 @@ const item: Variants = {
   show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 200, damping: 24 } },
 };
 
-function rangeDates(range: DateRange, singleDate?: string): { start: string; end: string; label: string } {
-  const today = new Date();
-  const y = today.getFullYear();
-  const m = String(today.getMonth() + 1).padStart(2, "0");
-  const d = String(today.getDate()).padStart(2, "0");
-  const end = `${y}-${m}-${d}`;
+function formatDateInput(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
 
-  if (range === "single") {
-    const date = singleDate || end;
-    return { start: date, end: date, label: "Día específico" };
+function getCurrentMonthRange(): { start: string; end: string } {
+  const today = new Date();
+  const start = new Date(today.getFullYear(), today.getMonth(), 1);
+  const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  return { start: formatDateInput(start), end: formatDateInput(end) };
+}
+
+function rangeDates(
+  range: DateRange,
+  customRange: { start: string; end: string },
+): { start: string; end: string; label: string } {
+  const today = new Date();
+  const end = formatDateInput(today);
+
+  if (range === "custom") {
+    return {
+      start: customRange.start,
+      end: customRange.end,
+      label: "Rango personalizado",
+    };
   }
 
   const startDate = new Date(today);
@@ -54,8 +71,8 @@ function rangeDates(range: DateRange, singleDate?: string): { start: string; end
     case "yesterday":
       startDate.setDate(today.getDate() - 1);
       return {
-        start: `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, "0")}-${String(startDate.getDate()).padStart(2, "0")}`,
-        end: `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, "0")}-${String(startDate.getDate()).padStart(2, "0")}`,
+        start: formatDateInput(startDate),
+        end: formatDateInput(startDate),
         label: "Ayer",
       };
     case "week":
@@ -65,30 +82,23 @@ function rangeDates(range: DateRange, singleDate?: string): { start: string; end
       startDate.setDate(today.getDate() - 29);
       break;
   }
-  const sy = startDate.getFullYear();
-  const sm = String(startDate.getMonth() + 1).padStart(2, "0");
-  const sd = String(startDate.getDate()).padStart(2, "0");
   const labels: Record<DateRange, string> = {
     today: "Hoy",
     yesterday: "Ayer",
     week: "Últimos 7 días",
     month: "Últimos 30 días",
     single: "Día específico",
+    custom: "Rango personalizado",
   };
-  return { start: `${sy}-${sm}-${sd}`, end, label: labels[range] };
+  return { start: formatDateInput(startDate), end, label: labels[range] };
 }
 
 export default function DashboardPage() {
   const branch = useCurrentBranch();
-  const [range, setRange] = useState<DateRange>("today");
-  const [singleDate, setSingleDate] = useState<string>(() => {
-    const today = new Date();
-    const y = today.getFullYear();
-    const m = String(today.getMonth() + 1).padStart(2, "0");
-    const d = String(today.getDate()).padStart(2, "0");
-    return `${y}-${m}-${d}`;
-  });
-  const dates = useMemo(() => rangeDates(range, singleDate), [range, singleDate]);
+  const monthRange = useMemo(() => getCurrentMonthRange(), []);
+  const [range, setRange] = useState<DateRange>("custom");
+  const [customRange, setCustomRange] = useState<{ start: string; end: string }>(monthRange);
+  const dates = useMemo(() => rangeDates(range, customRange), [range, customRange]);
 
   const branchId = branch?.branch_id;
 
@@ -158,7 +168,11 @@ export default function DashboardPage() {
             {(["today", "yesterday", "week", "month"] as DateRange[]).map((r) => (
               <button
                 key={r}
-                onClick={() => setRange(r)}
+                onClick={() => {
+                  setRange(r);
+                  const computed = rangeDates(r, customRange);
+                  setCustomRange({ start: computed.start, end: computed.end });
+                }}
                 className={cn(
                   "rounded-lg px-3 py-1.5 text-xs font-medium transition-all",
                   range === r
@@ -173,15 +187,32 @@ export default function DashboardPage() {
               </button>
             ))}
           </div>
-          <input
-            type="date"
-            value={range === "single" ? singleDate : dates.start}
-            onChange={(e) => {
-              setSingleDate(e.target.value);
-              setRange("single");
-            }}
-            className="rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm outline-none transition-colors focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-          />
+
+          <div className="inline-flex items-center gap-1 rounded-xl border border-border bg-card p-1 shadow-sm">
+            <input
+              type="date"
+              value={customRange.start}
+              max={customRange.end}
+              onChange={(e) => {
+                const start = e.target.value;
+                setCustomRange((prev) => ({ start, end: prev.end < start ? start : prev.end }));
+                setRange("custom");
+              }}
+              className="rounded-lg border-0 bg-transparent px-2.5 py-1.5 text-xs font-medium text-foreground outline-none transition-colors hover:bg-muted focus:bg-muted"
+            />
+            <span className="text-xs text-muted-foreground">-</span>
+            <input
+              type="date"
+              value={customRange.end}
+              min={customRange.start}
+              onChange={(e) => {
+                const end = e.target.value;
+                setCustomRange((prev) => ({ start: prev.start > end ? end : prev.start, end }));
+                setRange("custom");
+              }}
+              className="rounded-lg border-0 bg-transparent px-2.5 py-1.5 text-xs font-medium text-foreground outline-none transition-colors hover:bg-muted focus:bg-muted"
+            />
+          </div>
         </div>
       </header>
 
