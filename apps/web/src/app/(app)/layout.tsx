@@ -14,6 +14,7 @@ import {
 import { useSidebarStore } from "@/lib/store/sidebar";
 import { useIsRouteModuleEnabled } from "@/lib/hooks/useRouteModuleAccess";
 import { AppSidebar } from "@/components/app-sidebar/app-sidebar";
+import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { RealtimeProvider } from "@/components/realtime/realtime-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { ForbiddenListener } from "@/components/forbidden-listener";
@@ -116,7 +117,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <main
           className={cn(
             "flex min-h-full flex-1 flex-col",
-            !shouldHideSidebar && (effectivelyExpanded ? "md:ml-60" : "md:ml-16")
+            !shouldHideSidebar && [
+              effectivelyExpanded ? "md:ml-60" : "md:ml-16",
+              "pb-16 md:pb-0",
+            ]
           )}
         >
           {!shouldHideSidebar && (
@@ -133,6 +137,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           )}
           {children}
         </main>
+
+        {!shouldHideSidebar && <MobileBottomNav onMenuClick={() => setMobileOpen(true)} />}
         <Toaster />
       </div>
     </RealtimeProvider>
