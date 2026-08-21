@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { motion, type Variants } from "framer-motion";
 import {
   Loader2,
   TrendingUp,
@@ -16,12 +17,23 @@ import {
   ShoppingBag,
   Wallet,
   Target,
+  type LucideIcon,
 } from "lucide-react";
 import { fetchModuleCounts, fetchDashboardSummary, type DateRange } from "@/lib/api/analytics";
 import { formatCLP, cn, paymentTypeLabel } from "@/lib/utils";
 import { useCurrentBranch } from "@/lib/store/session";
 import { useProducts } from "@/lib/hooks/useCatalog";
 import Link from "next/link";
+
+const container: Variants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.05 } },
+};
+
+const item: Variants = {
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 200, damping: 24 } },
+};
 
 function rangeDates(range: DateRange, singleDate?: string): { start: string; end: string; label: string } {
   const today = new Date();
@@ -143,15 +155,15 @@ export default function DashboardPage() {
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-lg border border-border bg-card p-1">
+          <div className="inline-flex rounded-xl border border-border bg-card p-1 shadow-sm">
             {(["today", "yesterday", "week", "month"] as DateRange[]).map((r) => (
               <button
                 key={r}
                 onClick={() => setRange(r)}
                 className={cn(
-                  "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                  "rounded-lg px-3 py-1.5 text-xs font-medium transition-all",
                   range === r
-                    ? "bg-primary text-white"
+                    ? "bg-primary text-white shadow-sm"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
@@ -169,13 +181,18 @@ export default function DashboardPage() {
               setSingleDate(e.target.value);
               setRange("single");
             }}
-            className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground outline-none transition-colors focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+            className="rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm outline-none transition-colors focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
           />
         </div>
       </header>
 
       {/* Stats principales */}
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <motion.section
+        variants={container}
+        initial="hidden"
+        animate="show"
+        className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+      >
         <StatCard
           label="Ventas del período"
           value={formatCLP(salesTotal)}
@@ -204,10 +221,15 @@ export default function DashboardPage() {
           tone="default"
           sub="registrados"
         />
-      </section>
+      </motion.section>
 
       {/* Stats secundarias */}
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <motion.section
+        variants={container}
+        initial="hidden"
+        animate="show"
+        className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+      >
         <StatCard
           label="Productos"
           value={productsCount}
@@ -236,11 +258,16 @@ export default function DashboardPage() {
           tone="rose"
           sub="del período"
         />
-      </section>
+      </motion.section>
 
       {/* Gráficos principales */}
-      <section className="grid gap-6 lg:grid-cols-3">
-        <div className="rounded-xl border border-border bg-card p-5 lg:col-span-2">
+      <motion.section
+        variants={container}
+        initial="hidden"
+        animate="show"
+        className="grid gap-6 lg:grid-cols-3"
+      >
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm lg:col-span-2">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-sm font-semibold">
               <TrendingUp className="h-4 w-4 text-primary" />
@@ -255,13 +282,13 @@ export default function DashboardPage() {
               endDate={dates.end}
             />
           ) : (
-            <div className="grid h-56 place-items-center rounded-lg border border-dashed border-border">
+            <div className="grid h-56 place-items-center rounded-xl border border-dashed border-border bg-muted/30">
               <p className="text-sm text-muted-foreground">Sin datos de ventas en el período.</p>
             </div>
           )}
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
           <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold">
             <Target className="h-4 w-4 text-primary" />
             Resumen del negocio
@@ -276,13 +303,13 @@ export default function DashboardPage() {
             ]}
           />
           <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-            <div className="rounded-lg bg-muted/50 p-2 text-center">
+            <div className="rounded-xl bg-muted/50 p-3 text-center">
               <p className="text-muted-foreground">Venta promedio por orden</p>
               <p className="font-semibold tabular-nums">
                 {salesCount > 0 ? formatCLP(salesTotal / salesCount) : "—"}
               </p>
             </div>
-            <div className="rounded-lg bg-muted/50 p-2 text-center">
+            <div className="rounded-xl bg-muted/50 p-3 text-center">
               <p className="text-muted-foreground">Margen estimado</p>
               <p className="font-semibold tabular-nums">
                 {salesTotal > 0 ? `${((profit / salesTotal) * 100).toFixed(1)}%` : "—"}
@@ -290,11 +317,16 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* Métodos de pago y productos */}
-      <section className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-xl border border-border bg-card p-5">
+      <motion.section
+        variants={container}
+        initial="hidden"
+        animate="show"
+        className="grid gap-6 lg:grid-cols-2"
+      >
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
           <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold">
             <ShoppingBag className="h-4 w-4 text-primary" />
             Métodos de pago
@@ -306,15 +338,17 @@ export default function DashboardPage() {
                 return summary.payments.map((p, i) => {
                   const pct = totalPayments > 0 ? (p.total / totalPayments) * 100 : 0;
                   return (
-                  <div key={i} className="flex flex-col gap-1">
+                  <div key={i} className="flex flex-col gap-1.5">
                     <div className="flex items-center justify-between text-sm">
                       <span className="font-medium">{paymentTypeLabel(p.type_payment__name)}</span>
                       <span className="tabular-nums font-semibold">{formatCLP(p.total)}</span>
                     </div>
-                    <div className="h-2 w-full rounded-full bg-muted">
-                      <div
-                        className="h-2 rounded-full bg-primary transition-all"
-                        style={{ width: `${pct}%` }}
+                    <div className="h-2.5 w-full rounded-full bg-muted">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${pct}%` }}
+                        transition={{ duration: 0.8, delay: i * 0.05 }}
+                        className="h-2.5 rounded-full bg-primary"
                       />
                     </div>
                   </div>
@@ -327,7 +361,7 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
           <h2 className="mb-4 text-sm font-semibold">Productos más vendidos</h2>
           {summary?.products?.best_selling && summary.products.best_selling.length > 0 ? (
             <div className="flex flex-col gap-3">
@@ -335,17 +369,19 @@ export default function DashboardPage() {
                 const maxQty = Math.max(...summary.products.best_selling.map((x) => x.quantity), 1);
                 const pct = (p.quantity / maxQty) * 100;
                 return (
-                  <div key={i} className="flex flex-col gap-1">
+                  <div key={i} className="flex flex-col gap-1.5">
                     <div className="flex items-center justify-between text-sm">
                       <span className="min-w-0 truncate font-medium">{p.product__name}</span>
                       <span className="shrink-0 tabular-nums font-semibold">
                         {p.quantity} · {formatCLP(p.total)}
                       </span>
                     </div>
-                    <div className="h-2 w-full rounded-full bg-muted">
-                      <div
-                        className="h-2 rounded-full bg-emerald-500 transition-all"
-                        style={{ width: `${pct}%` }}
+                    <div className="h-2.5 w-full rounded-full bg-muted">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${pct}%` }}
+                        transition={{ duration: 0.8, delay: i * 0.05 }}
+                        className="h-2.5 rounded-full bg-emerald-500"
                       />
                     </div>
                   </div>
@@ -356,11 +392,16 @@ export default function DashboardPage() {
             <p className="text-sm text-muted-foreground">Sin ventas en el período.</p>
           )}
         </div>
-      </section>
+      </motion.section>
 
       {/* Stock bajo */}
-      <section className="grid gap-6 lg:grid-cols-1">
-        <div className="rounded-xl border border-border bg-card p-5">
+      <motion.section
+        variants={container}
+        initial="hidden"
+        animate="show"
+        className="grid gap-6 lg:grid-cols-1"
+      >
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-sm font-semibold">
               <AlertTriangle className="h-4 w-4 text-amber-500" />
@@ -368,7 +409,7 @@ export default function DashboardPage() {
             </h2>
             <Link
               href="/inventory"
-              className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+              className="inline-flex items-center gap-1 text-xs font-medium text-primary transition-colors hover:text-primary/80"
             >
               Ver inventario
               <ChevronRight className="h-3 w-3" />
@@ -379,10 +420,10 @@ export default function DashboardPage() {
               {lowStockProducts.map((p) => (
                 <div
                   key={p.id}
-                  className="flex items-center justify-between rounded-lg border border-amber-500/20 bg-amber-500/5 p-3"
+                  className="flex items-center justify-between rounded-xl border border-amber-500/25 bg-amber-500/10 p-3 transition-colors hover:bg-amber-500/15"
                 >
                   <span className="min-w-0 truncate text-sm font-medium">{p.name}</span>
-                  <span className="shrink-0 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700">
+                  <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-700">
                     {p.quantity} / {p.minimum_stock}
                   </span>
                 </div>
@@ -392,7 +433,7 @@ export default function DashboardPage() {
             <p className="text-sm text-muted-foreground">No hay productos con stock bajo.</p>
           )}
         </div>
-      </section>
+      </motion.section>
     </div>
   );
 }
@@ -406,36 +447,43 @@ function StatCard({
 }: {
   label: string;
   value: string | number;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: LucideIcon;
   sub: string;
   tone?: "default" | "primary" | "emerald" | "amber" | "rose";
 }) {
   const tones = {
     default: "bg-card",
-    primary: "bg-primary/5 border-primary/20",
-    emerald: "bg-emerald-500/5 border-emerald-500/20",
-    amber: "bg-amber-500/5 border-amber-500/20",
-    rose: "bg-rose-500/5 border-rose-500/20",
+    primary: "bg-primary/[0.06] border-primary/15",
+    emerald: "bg-emerald-500/[0.06] border-emerald-500/15",
+    amber: "bg-amber-500/[0.06] border-amber-500/15",
+    rose: "bg-rose-500/[0.06] border-rose-500/15",
   };
-  const iconTones = {
-    default: "text-muted-foreground",
-    primary: "text-primary",
-    emerald: "text-emerald-600",
-    amber: "text-amber-600",
-    rose: "text-rose-600",
+  const iconBg = {
+    default: "bg-muted text-muted-foreground",
+    primary: "bg-primary/15 text-primary",
+    emerald: "bg-emerald-500/15 text-emerald-600",
+    amber: "bg-amber-500/15 text-amber-600",
+    rose: "bg-rose-500/15 text-rose-600",
   };
 
   return (
-    <div className={cn("rounded-xl border border-border p-4 transition-shadow hover:shadow-sm", tones[tone])}>
-      <div className="mb-2 flex items-center gap-2">
-        <div className={cn("flex h-8 w-8 items-center justify-center rounded-lg", iconTones[tone])}>
-          <Icon className="h-4 w-4" />
+    <motion.div
+      variants={item}
+      className={cn(
+        "rounded-2xl border border-border p-4 shadow-sm transition-all duration-200",
+        "hover:-translate-y-0.5 hover:shadow-md",
+        tones[tone]
+      )}
+    >
+      <div className="mb-3 flex items-center gap-2.5">
+        <div className={cn("flex h-9 w-9 items-center justify-center rounded-xl", iconBg[tone])}>
+          <Icon className="h-4.5 w-4.5" strokeWidth={2} />
         </div>
         <span className="text-xs font-medium text-muted-foreground">{label}</span>
       </div>
       <p className="text-2xl font-semibold tabular-nums tracking-tight">{value}</p>
-      <p className="text-xs text-muted-foreground">{sub}</p>
-    </div>
+      <p className="mt-1 text-xs text-muted-foreground">{sub}</p>
+    </motion.div>
   );
 }
 
@@ -488,7 +536,7 @@ function SalesChart({
   startDate: string;
   endDate: string;
 }) {
-  const [hover, setHover] = useState<{ idx: number; mx: number; my: number } | null>(null);
+  const [hover, setHover] = useState<number | null>(null);
   const isHourly = startDate === endDate;
 
   const filled = useMemo(() => {
@@ -518,8 +566,8 @@ function SalesChart({
   const values = filled.map((d) => d.sales);
   const max = Math.max(...values, 1);
   const width = 600;
-  const height = 200;
-  const padding = { top: 8, right: 8, bottom: 24, left: 8 };
+  const height = 220;
+  const padding = { top: 12, right: 12, bottom: 28, left: 12 };
   const chartW = width - padding.left - padding.right;
   const chartH = height - padding.top - padding.bottom;
 
@@ -537,65 +585,104 @@ function SalesChart({
     return `${acc} C ${cpX},${prevY} ${cpX},${py} ${px},${py}`;
   }, "");
 
+  const areaPath = `${path} L ${getX(filled.length - 1)},${padding.top + chartH} L ${getX(0)},${padding.top + chartH} Z`;
+
   const handleMove = (e: React.MouseEvent<SVGSVGElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
     const raw = ((mx - padding.left) / chartW) * xDivisor;
     const idx = Math.max(0, Math.min(filled.length - 1, Math.round(raw)));
-    setHover({ idx, mx, my });
+    setHover(idx);
   };
 
   const labelCount = Math.min(filled.length, 5);
   const labelInterval = Math.max(1, Math.floor(filled.length / labelCount));
 
+  const hoverPoint = hover !== null ? filled[hover] : null;
+  const hoverX = hover !== null ? getX(hover) : 0;
+  const hoverY = hover !== null ? getY(hoverPoint?.sales ?? 0) : 0;
+
   return (
-    <div className="relative">
+    <div className="relative select-none">
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        className="h-52 w-full"
+        className="h-56 w-full"
         onMouseMove={handleMove}
         onMouseLeave={() => setHover(null)}
       >
+        <defs>
+          <linearGradient id="sales-gradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="currentColor" stopOpacity="0.28" className="text-primary" />
+            <stop offset="100%" stopColor="currentColor" stopOpacity="0.03" className="text-primary" />
+          </linearGradient>
+        </defs>
+
+        {/* Área bajo la curva */}
         <path
-          d={path}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+          d={areaPath}
+          fill="url(#sales-gradient)"
           className="text-primary"
         />
 
-        {hover && (
+        {/* Línea principal */}
+        <motion.path
+          d={path}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="text-primary"
+          initial={{ pathLength: 0 }}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: 1.2, ease: "easeOut" }}
+        />
+
+        {/* Puntos en cada dato */}
+        {filled.map((d, i) => (
+          <circle
+            key={i}
+            cx={getX(i)}
+            cy={getY(d.sales)}
+            r={hover === i ? 5 : 2.5}
+            className={cn(
+              "fill-background stroke-primary stroke-2 transition-all duration-150",
+              hover === i && "fill-primary"
+            )}
+          />
+        ))}
+
+        {/* Línea vertical y punto activo en hover */}
+        {hover !== null && hoverPoint && (
           <g>
             <line
-              x1={getX(hover.idx)}
+              x1={hoverX}
               y1={padding.top}
-              x2={getX(hover.idx)}
+              x2={hoverX}
               y2={padding.top + chartH}
               stroke="currentColor"
-              strokeWidth="1"
-              strokeDasharray="3 3"
-              className="text-muted-foreground/30"
+              strokeWidth="1.5"
+              strokeDasharray="4 4"
+              className="text-muted-foreground/40"
             />
             <circle
-              cx={getX(hover.idx)}
-              cy={getY(filled[hover.idx].sales)}
-              r="3.5"
-              className="fill-primary stroke-background stroke-2"
+              cx={hoverX}
+              cy={hoverY}
+              r="6"
+              className="fill-primary stroke-background stroke-[2.5]"
             />
           </g>
         )}
 
+        {/* Labels del eje X */}
         {filled.map((d, i) =>
           i % labelInterval === 0 || i === filled.length - 1 ? (
             <text
               key={i}
               x={getX(i)}
-              y={height - 6}
+              y={height - 8}
               textAnchor="middle"
-              className="fill-muted-foreground/70 text-[10px]"
+              className="fill-muted-foreground/80 text-[11px] font-medium"
             >
               {isHourly ? formatHourLabel(d.date) : formatShortDate(d.date)}
             </text>
@@ -603,16 +690,21 @@ function SalesChart({
         )}
       </svg>
 
-      {hover && (
+      {/* Tooltip anclado al punto exacto */}
+      {hover !== null && hoverPoint && (
         <div
-          className="pointer-events-none absolute z-10 rounded-lg border border-border/60 bg-background/95 px-2 py-1 text-xs shadow-sm backdrop-blur"
-          style={{ left: hover.mx + 12, top: hover.my - 36 }}
+          className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-xl border border-border bg-card px-3 py-2 text-xs shadow-lg"
+          style={{
+            left: `${(hoverX / width) * 100}%`,
+            top: `${(hoverY / height) * 100}%`,
+          }}
         >
-          <p className="font-medium">
-            {isHourly ? formatFullHour(filled[hover.idx].date) : formatFullDate(filled[hover.idx].date)}
+          <div className="mb-1 h-1.5 w-1.5 rounded-full bg-primary" />
+          <p className="font-semibold">
+            {isHourly ? formatFullHour(hoverPoint.date) : formatFullDate(hoverPoint.date)}
           </p>
           <p className="text-muted-foreground">
-            {formatCLP(filled[hover.idx].sales)} · {filled[hover.idx].orders} órdenes
+            {formatCLP(hoverPoint.sales)} · {hoverPoint.orders} {hoverPoint.orders === 1 ? "orden" : "órdenes"}
           </p>
         </div>
       )}
@@ -621,9 +713,9 @@ function SalesChart({
 }
 
 function RadarChart({ metrics }: { metrics: { label: string; value: number }[] }) {
-  const size = 120;
+  const size = 140;
   const center = size / 2;
-  const radius = 45;
+  const radius = 52;
   const angleStep = (Math.PI * 2) / metrics.length;
 
   const points = metrics.map((m, i) => {
@@ -656,8 +748,8 @@ function RadarChart({ metrics }: { metrics: { label: string; value: number }[] }
               .join(" ")}
             fill="none"
             stroke="currentColor"
-            strokeWidth="0.5"
-            className="text-border"
+            strokeWidth="0.75"
+            className="text-border/80"
           />
         ))}
         {/* Axis */}
@@ -673,28 +765,40 @@ function RadarChart({ metrics }: { metrics: { label: string; value: number }[] }
               x2={x}
               y2={y}
               stroke="currentColor"
-              strokeWidth="0.5"
-              className="text-border"
+              strokeWidth="0.75"
+              className="text-border/80"
             />
           );
         })}
         {/* Data polygon */}
-        <polygon
+        <motion.polygon
           points={polygon}
           fill="currentColor"
-          fillOpacity="0.15"
+          fillOpacity="0.2"
           stroke="currentColor"
-          strokeWidth="1.5"
+          strokeWidth="2"
           className="text-primary"
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
         />
         {/* Data points */}
         {points.map((p, i) => (
-          <circle key={i} cx={p.x} cy={p.y} r="2" className="fill-primary" />
+          <motion.circle
+            key={i}
+            cx={p.x}
+            cy={p.y}
+            r="3"
+            className="fill-background stroke-primary stroke-2"
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.3 + i * 0.05 }}
+          />
         ))}
         {/* Labels */}
         {points.map((p, i) => {
-          const labelX = center + (radius + 18) * Math.cos(p.angle);
-          const labelY = center + (radius + 18) * Math.sin(p.angle);
+          const labelX = center + (radius + 22) * Math.cos(p.angle);
+          const labelY = center + (radius + 22) * Math.sin(p.angle);
           return (
             <text
               key={i}
@@ -702,7 +806,7 @@ function RadarChart({ metrics }: { metrics: { label: string; value: number }[] }
               y={labelY}
               textAnchor="middle"
               dominantBaseline="middle"
-              className="fill-muted-foreground text-[8px] font-medium"
+              className="fill-muted-foreground text-[9px] font-semibold"
             >
               {p.label}
             </text>
