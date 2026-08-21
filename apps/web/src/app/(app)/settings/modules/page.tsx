@@ -30,6 +30,16 @@ function isCore(moduleName: ModuleName): boolean {
   return FRIG_ALWAYS_ON_MODULES.includes(moduleName);
 }
 
+/** Labels claros en castellano chileno para los módulos configurables. */
+const MODULE_LABELS: Partial<Record<ModuleName, string>> = {
+  pos: "Terminal de ventas rápidas",
+  tables: "Mesas y mapa del local",
+  production: "Cocina / KDS",
+  inventory: "Bodegas y control de stock",
+  nutrition: "Nutrición, recetas e ingredientes",
+  public_catalog: "Menús digitales con QR",
+};
+
 /** Categoría en castellano por módulo visible en Frig. */
 const MODULE_CATEGORY: Partial<Record<ModuleName, string>> = {
   pos: "Operación",
@@ -44,12 +54,12 @@ const MODULE_CATEGORY: Partial<Record<ModuleName, string>> = {
 
 /** Descripción breve por módulo para la card. */
 const MODULE_DESCRIPTIONS: Partial<Record<ModuleName, string>> = {
-  pos: "Terminal de ventas y cobros rápidos",
-  tables: "Gestión de mesas y mapa del local",
-  production: "Cocina, KDS y producción de recetas",
-  inventory: "Bodegas, stock y movimientos",
-  nutrition: "Etiquetado nutricional y recetas",
-  public_catalog: "Menús digitales con QR para clientes",
+  pos: "Activa el punto de venta para cobros rápidos, boletas y ventas presenciales.",
+  tables: "Organiza el salón: mapa de mesas, asignación de garzones y cuentas por mesa.",
+  production: "Pantallas de cocina (KDS), estaciones y seguimiento de preparaciones.",
+  inventory: "Controla bodegas, stock disponible, movimientos y alertas de inventario.",
+  nutrition: "Etiquetado nutricional, recetas e ingredientes para tus productos.",
+  public_catalog: "Menús digitales con QR para que tus clientes vean y compartan.",
 };
 
 /** Orden de las secciones en la vista. */
@@ -91,7 +101,9 @@ export default function BranchModulesPage() {
 
   const { catalog, metadataByName, isLoading: catalogLoading } = useModuleCatalog();
 
-  const filtered = configs.filter((c) => FRIG_SETTINGS_MODULES.includes(c.module_name));
+  const filtered = configs.filter(
+    (c) => FRIG_SETTINGS_MODULES.includes(c.module_name) && !isCore(c.module_name),
+  );
   const configByName = useMemo(() => {
     const map = new Map<ModuleName, ModuleConfig>();
     filtered.forEach((c) => map.set(c.module_name, c));
@@ -137,7 +149,7 @@ export default function BranchModulesPage() {
     onError: (err: Error, vars) => {
       queryClient.invalidateQueries({ queryKey: ["branch-modules", branchId] });
       const meta = getModuleMetadata(vars.moduleName, metadataByName);
-      const moduleLabel = meta.label || vars.moduleName;
+      const moduleLabel = MODULE_LABELS[vars.moduleName] ?? meta.label ?? vars.moduleName;
 
       console.error("[modules] toggle error:", err);
 
@@ -278,6 +290,7 @@ function ModuleCard({
   const core = isCore(config.module_name);
   const meta = getModuleMetadata(config.module_name, metadataByName);
   const enabled = !!config.is_enabled;
+  const label = MODULE_LABELS[config.module_name] ?? meta.label;
   const description = MODULE_DESCRIPTIONS[config.module_name];
 
   return (
@@ -327,7 +340,7 @@ function ModuleCard({
             />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold leading-tight">{meta.label}</p>
+            <p className="text-sm font-semibold leading-tight">{label}</p>
             {description && (
               <p className="mt-1 text-xs leading-snug text-muted-foreground">
                 {description}

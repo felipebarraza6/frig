@@ -285,7 +285,7 @@ export default function SalesPage() {
 
       <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
         {/* Filtros rápidos */}
-        <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible">
+        <div className="flex flex-wrap gap-2 pb-1">
           <button
             onClick={() => {
               setStatus("");
@@ -369,41 +369,41 @@ export default function SalesPage() {
         </div>
 
         {/* Filtros avanzados */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          <div className="relative col-span-2 sm:col-span-3 lg:col-span-2">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+          <div className="relative col-span-2 sm:col-span-4 lg:col-span-2">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={search}
               onChange={(e) => updateFilter(setSearch, e.target.value)}
               placeholder="Buscar orden…"
-              className="pl-9"
+              className="h-8 pl-8 text-xs"
             />
           </div>
-          <div className="flex flex-col gap-1">
+          <div className="flex min-w-0 flex-col gap-1">
             <label htmlFor="filter-status" className="text-xs text-muted-foreground">Estado</label>
-            <Select id="filter-status" value={status} onChange={(e) => updateFilter(setStatus, e.target.value)}>
+            <Select id="filter-status" value={status} onChange={(e) => updateFilter(setStatus, e.target.value)} className="h-8 text-xs">
               {STATUS_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </Select>
           </div>
-          <div className="flex flex-col gap-1">
+          <div className="flex min-w-0 flex-col gap-1">
             <label htmlFor="filter-payment" className="text-xs text-muted-foreground">Pago</label>
-            <Select id="filter-payment" value={paymentStatus} onChange={(e) => updateFilter(setPaymentStatus, e.target.value)}>
+            <Select id="filter-payment" value={paymentStatus} onChange={(e) => updateFilter(setPaymentStatus, e.target.value)} className="h-8 text-xs">
               {PAYMENT_STATUS_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </Select>
           </div>
-          <div className="flex flex-col gap-1">
+          <div className="flex min-w-0 flex-col gap-1">
             <label htmlFor="filter-type" className="text-xs text-muted-foreground">Tipo</label>
-            <Select id="filter-type" value={orderType} onChange={(e) => updateFilter(setOrderType, e.target.value)}>
+            <Select id="filter-type" value={orderType} onChange={(e) => updateFilter(setOrderType, e.target.value)} className="h-8 text-xs">
               {ORDER_TYPE_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </Select>
           </div>
-          <div className="flex flex-col gap-1">
+          <div className="flex min-w-0 flex-col gap-1">
             <label htmlFor="filter-start" className="text-xs text-muted-foreground">Desde</label>
             <Input
               id="filter-start"
@@ -411,9 +411,10 @@ export default function SalesPage() {
               value={startDate}
               onChange={(e) => updateDateRange(e.target.value, endDate)}
               disabled={isCashier}
+              className="h-8 text-xs"
             />
           </div>
-          <div className="flex flex-col gap-1">
+          <div className="flex min-w-0 flex-col gap-1">
             <label htmlFor="filter-end" className="text-xs text-muted-foreground">Hasta</label>
             <Input
               id="filter-end"
@@ -421,6 +422,7 @@ export default function SalesPage() {
               value={endDate}
               onChange={(e) => updateDateRange(startDate, e.target.value)}
               disabled={isCashier}
+              className="h-8 text-xs"
             />
           </div>
         </div>
@@ -434,20 +436,38 @@ export default function SalesPage() {
         ) : (
           <>
             {/* Vista móvil: cards */}
-            <div className="grid gap-3 sm:hidden">
+            <div className="grid gap-2 sm:hidden">
               {orders.map((order) => (
                 <div
                   key={order.id}
-                  className="rounded-xl border border-border bg-card p-4"
+                  className="rounded-xl border border-border bg-card p-3"
                 >
-                  <div className="mb-2 flex items-start justify-between">
-                    <div className="flex items-center gap-2">
-                      <ShoppingBag className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-semibold">{order.order_number ?? order.id.slice(0, 8)}</span>
+                  <div className="mb-2 flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 text-sm font-semibold">
+                        <ShoppingBag className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        <span className="truncate">{order.order_number ?? order.id.slice(0, 8)}</span>
+                      </div>
+                      <div className="truncate text-xs text-muted-foreground">
+                        {order.client?.name ?? "Sin cliente"}
+                      </div>
                     </div>
+                    <div className="text-right">
+                      <div className="text-sm font-bold tabular-nums">{formatCLP(order.total_amount ?? "0")}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {new Date(order.date).toLocaleString("es-CL", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mb-2 flex flex-wrap items-center gap-1.5">
                     <span
                       className={cn(
-                        "rounded-full px-2 py-0.5 text-xs font-medium",
+                        "rounded-full px-2 py-0.5 text-[10px] font-medium leading-none",
                         order.status === "COMPLETED"
                           ? "bg-emerald-500/10 text-emerald-700"
                           : order.status === "CANCELLED"
@@ -457,37 +477,9 @@ export default function SalesPage() {
                     >
                       {statusLabel(order.status)}
                     </span>
-                  </div>
-                  <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-                    <span>{order.client?.name ?? "Sin cliente"}</span>
-                    <span>·</span>
-                    <span>{order.order_type === "SALE" ? "Venta" : order.order_type === "ORDER" ? "Pedido" : "Convenio"}</span>
-                    {showTables && order.table && (
-                      <>
-                        <span>·</span>
-                        <span className="rounded bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
-                          Mesa {tableById.get(order.table)?.number ?? order.table}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                  <div className="mb-3 flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      {new Date(order.date).toLocaleString("es-CL", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                    <span className="text-lg font-bold tabular-nums">
-                      {formatCLP(order.total_amount ?? "0")}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
                     <span
                       className={cn(
-                        "rounded-full px-2 py-0.5 text-xs font-medium",
+                        "rounded-full px-2 py-0.5 text-[10px] font-medium leading-none",
                         order.payment_status === "PAID"
                           ? "bg-emerald-500/10 text-emerald-700"
                           : order.payment_status === "PARTIAL"
@@ -499,49 +491,72 @@ export default function SalesPage() {
                     >
                       {paymentStatusLabel(order.payment_status)}
                     </span>
-                    <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="sm" onClick={() => setDetail(order)}>
-                        <Eye className="h-3.5 w-3.5" />
+                    <span className="text-xs text-muted-foreground">
+                      {order.order_type === "SALE" ? "Venta" : order.order_type === "ORDER" ? "Pedido" : "Convenio"}
+                    </span>
+                    {showTables && order.table && (
+                      <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                        Mesa {tableById.get(order.table)?.number ?? order.table}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-end gap-0.5">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => setDetail(order)}
+                      title="Ver"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                    </Button>
+                    {(order.payment_status === "PENDING" || order.payment_status === "PARTIAL") && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => openCollect(order)}
+                        title="Cobrar"
+                      >
+                        <Banknote className="h-3.5 w-3.5" />
                       </Button>
-                      {(order.payment_status === "PENDING" || order.payment_status === "PARTIAL") && (
-                        <Button variant="ghost" size="sm" onClick={() => openCollect(order)}>
-                          <Banknote className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                      {order.payment_status === "PAID" && (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDownloadThermalPdf(order)}
-                            disabled={isDownloading}
-                            title="Boleta 80 mm"
-                          >
-                            <Printer className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDownloadA4Pdf(order)}
-                            disabled={isDownloading}
-                            title="Boleta A4"
-                          >
-                            <FileDown className="h-3.5 w-3.5" />
-                          </Button>
-                        </>
-                      )}
-                      {order.status !== "CANCELLED" && canCancel(order.owner) && (
+                    )}
+                    {order.payment_status === "PAID" && (
+                      <>
                         <Button
                           variant="ghost"
-                          size="sm"
-                          className="text-danger hover:text-danger"
-                          onClick={() => cancel.mutate(order.id)}
-                          disabled={cancel.isPending}
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleDownloadThermalPdf(order)}
+                          disabled={isDownloading}
+                          title="Boleta 80 mm"
                         >
-                          <Ban className="h-3.5 w-3.5" />
+                          <Printer className="h-3.5 w-3.5" />
                         </Button>
-                      )}
-                    </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleDownloadA4Pdf(order)}
+                          disabled={isDownloading}
+                          title="Boleta A4"
+                        >
+                          <FileDown className="h-3.5 w-3.5" />
+                        </Button>
+                      </>
+                    )}
+                    {order.status !== "CANCELLED" && canCancel(order.owner) && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-danger hover:text-danger"
+                        onClick={() => cancel.mutate(order.id)}
+                        disabled={cancel.isPending}
+                        title="Anular"
+                      >
+                        <Ban className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}

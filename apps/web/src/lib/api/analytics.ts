@@ -28,7 +28,7 @@ export type DashboardSummary = {
   payments: { type_payment__name: string; total: number }[];
 }
 
-export type DateRange = "today" | "yesterday" | "week" | "month";
+export type DateRange = "today" | "yesterday" | "week" | "month" | "single";
 
 export async function fetchModuleCounts(): Promise<ModuleCounts> {
   return apiFetch<ModuleCounts>("/analytics/dashboard/module_counts/");

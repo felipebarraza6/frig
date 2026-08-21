@@ -1,12 +1,10 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   Banknote,
   BarChart3,
-  LayoutDashboard,
   Loader2,
   Lock,
   Monitor,
@@ -330,7 +328,11 @@ export default function PosZenPage() {
 
                   <Button
                     className="w-full"
-                    disabled={isBusy || !branch || (!isOpen && !amount)}
+                    disabled={
+                      (!isOpening && isBusy) ||
+                      !branch ||
+                      (!isOpen && parseFloat(toDecimal(amount)) <= 0)
+                    }
                     onClick={() => handleOpen(station)}
                   >
                     {isOpening ? (
@@ -360,29 +362,6 @@ export default function PosZenPage() {
           </div>
         )}
 
-        <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <Link
-            href="/sales"
-            className="inline-flex h-8 items-center justify-center rounded-lg border border-border bg-transparent px-3 text-xs font-medium transition-colors hover:bg-muted"
-          >
-            <ShoppingBag className="mr-2 h-4 w-4" />
-            Ver ventas
-          </Link>
-          <Link
-            href="/dashboard"
-            className="inline-flex h-8 items-center justify-center rounded-lg border border-border bg-transparent px-3 text-xs font-medium transition-colors hover:bg-muted"
-          >
-            <LayoutDashboard className="mr-2 h-4 w-4" />
-            Dashboard
-          </Link>
-          <Link
-            href="/cash-register"
-            className="inline-flex h-8 items-center justify-center rounded-lg border border-border bg-transparent px-3 text-xs font-medium transition-colors hover:bg-muted"
-          >
-            <Banknote className="mr-2 h-4 w-4" />
-            Caja
-          </Link>
-        </div>
       </motion.div>
     </div>
   );

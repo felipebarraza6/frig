@@ -23,12 +23,17 @@ import { useCurrentBranch } from "@/lib/store/session";
 import { useProducts } from "@/lib/hooks/useCatalog";
 import Link from "next/link";
 
-function rangeDates(range: DateRange): { start: string; end: string; label: string } {
+function rangeDates(range: DateRange, singleDate?: string): { start: string; end: string; label: string } {
   const today = new Date();
   const y = today.getFullYear();
   const m = String(today.getMonth() + 1).padStart(2, "0");
   const d = String(today.getDate()).padStart(2, "0");
   const end = `${y}-${m}-${d}`;
+
+  if (range === "single") {
+    const date = singleDate || end;
+    return { start: date, end: date, label: "Día específico" };
+  }
 
   const startDate = new Date(today);
   switch (range) {
@@ -56,6 +61,7 @@ function rangeDates(range: DateRange): { start: string; end: string; label: stri
     yesterday: "Ayer",
     week: "Últimos 7 días",
     month: "Últimos 30 días",
+    single: "Día específico",
   };
   return { start: `${sy}-${sm}-${sd}`, end, label: labels[range] };
 }
@@ -63,7 +69,14 @@ function rangeDates(range: DateRange): { start: string; end: string; label: stri
 export default function DashboardPage() {
   const branch = useCurrentBranch();
   const [range, setRange] = useState<DateRange>("today");
-  const dates = useMemo(() => rangeDates(range), [range]);
+  const [singleDate, setSingleDate] = useState<string>(() => {
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, "0");
+    const d = String(today.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  });
+  const dates = useMemo(() => rangeDates(range, singleDate), [range, singleDate]);
 
   const branchId = branch?.branch_id;
 
@@ -128,30 +141,36 @@ export default function DashboardPage() {
     <div className="flex min-h-full flex-col gap-6 p-4 sm:p-6">
       {/* Header */}
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
-          <p className="text-sm text-muted-foreground">
-            {branch ? branch.business_name : "Sin sucursal seleccionada"} · {dates.label}
-          </p>
-        </div>
-        <div className="inline-flex rounded-lg border border-border bg-card p-1">
-          {(["today", "yesterday", "week", "month"] as DateRange[]).map((r) => (
-            <button
-              key={r}
-              onClick={() => setRange(r)}
-              className={cn(
-                "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                range === r
-                  ? "bg-primary text-white"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
-              )}
-            >
-              {r === "today" && "Hoy"}
-              {r === "yesterday" && "Ayer"}
-              {r === "week" && "7 días"}
-              {r === "month" && "30 días"}
-            </button>
-          ))}
+        <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex rounded-lg border border-border bg-card p-1">
+            {(["today", "yesterday", "week", "month"] as DateRange[]).map((r) => (
+              <button
+                key={r}
+                onClick={() => setRange(r)}
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                  range === r
+                    ? "bg-primary text-white"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                )}
+              >
+                {r === "today" && "Hoy"}
+                {r === "yesterday" && "Ayer"}
+                {r === "week" && "7 días"}
+                {r === "month" && "30 días"}
+              </button>
+            ))}
+          </div>
+          <input
+            type="date"
+            value={range === "single" ? singleDate : dates.start}
+            onChange={(e) => {
+              setSingleDate(e.target.value);
+              setRange("single");
+            }}
+            className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground outline-none transition-colors focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+          />
         </div>
       </header>
 
@@ -258,13 +277,13 @@ export default function DashboardPage() {
           />
           <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
             <div className="rounded-lg bg-muted/50 p-2 text-center">
-              <p className="text-muted-foreground">Ticket promedio</p>
+              <p className="text-muted-foreground">Venta promedio por orden</p>
               <p className="font-semibold tabular-nums">
                 {salesCount > 0 ? formatCLP(salesTotal / salesCount) : "—"}
               </p>
             </div>
             <div className="rounded-lg bg-muted/50 p-2 text-center">
-              <p className="text-muted-foreground">Margen</p>
+              <p className="text-muted-foreground">Margen estimado</p>
               <p className="font-semibold tabular-nums">
                 {salesTotal > 0 ? `${((profit / salesTotal) * 100).toFixed(1)}%` : "—"}
               </p>
@@ -443,6 +462,23 @@ function formatFullDate(iso: string): string {
   });
 }
 
+function parseHourKey(hourKey: string): Date {
+  const [datePart, timePart] = hourKey.split(" ");
+  const [hours] = timePart.split(":").map(Number);
+  const date = parseLocalDate(datePart);
+  date.setHours(hours);
+  return date;
+}
+
+function formatHourLabel(hourKey: string): string {
+  const [, timePart] = hourKey.split(" ");
+  return timePart;
+}
+
+function formatFullHour(hourKey: string): string {
+  return parseHourKey(hourKey).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" });
+}
+
 function SalesChart({
   data,
   startDate,
@@ -453,9 +489,20 @@ function SalesChart({
   endDate: string;
 }) {
   const [hover, setHover] = useState<{ idx: number; mx: number; my: number } | null>(null);
+  const isHourly = startDate === endDate;
 
   const filled = useMemo(() => {
     const map = new Map(data.map((d) => [d.date, d]));
+
+    if (isHourly) {
+      const hours = [];
+      for (let h = 0; h < 24; h++) {
+        const hourKey = `${startDate} ${String(h).padStart(2, "0")}:00`;
+        hours.push(map.get(hourKey) ?? { date: hourKey, sales: 0, orders: 0 });
+      }
+      return hours;
+    }
+
     const start = parseLocalDate(startDate);
     const end = parseLocalDate(endDate);
     const days = [];
@@ -464,7 +511,7 @@ function SalesChart({
       days.push(map.get(iso) ?? { date: iso, sales: 0, orders: 0 });
     }
     return days;
-  }, [data, startDate, endDate]);
+  }, [data, startDate, endDate, isHourly]);
 
   if (filled.length === 0) return null;
 
@@ -476,7 +523,8 @@ function SalesChart({
   const chartW = width - padding.left - padding.right;
   const chartH = height - padding.top - padding.bottom;
 
-  const getX = (i: number) => padding.left + (i / (filled.length - 1 || 1)) * chartW;
+  const xDivisor = Math.max(filled.length - 1, 1);
+  const getX = (i: number) => padding.left + (i / xDivisor) * chartW;
   const getY = (v: number) => padding.top + chartH - (v / max) * chartH;
 
   const path = filled.reduce((acc, d, i) => {
@@ -493,7 +541,7 @@ function SalesChart({
     const rect = e.currentTarget.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
-    const raw = ((mx - padding.left) / chartW) * (filled.length - 1 || 1);
+    const raw = ((mx - padding.left) / chartW) * xDivisor;
     const idx = Math.max(0, Math.min(filled.length - 1, Math.round(raw)));
     setHover({ idx, mx, my });
   };
@@ -549,7 +597,7 @@ function SalesChart({
               textAnchor="middle"
               className="fill-muted-foreground/70 text-[10px]"
             >
-              {formatShortDate(d.date)}
+              {isHourly ? formatHourLabel(d.date) : formatShortDate(d.date)}
             </text>
           ) : null,
         )}
@@ -560,7 +608,9 @@ function SalesChart({
           className="pointer-events-none absolute z-10 rounded-lg border border-border/60 bg-background/95 px-2 py-1 text-xs shadow-sm backdrop-blur"
           style={{ left: hover.mx + 12, top: hover.my - 36 }}
         >
-          <p className="font-medium">{formatFullDate(filled[hover.idx].date)}</p>
+          <p className="font-medium">
+            {isHourly ? formatFullHour(filled[hover.idx].date) : formatFullDate(filled[hover.idx].date)}
+          </p>
           <p className="text-muted-foreground">
             {formatCLP(filled[hover.idx].sales)} · {filled[hover.idx].orders} órdenes
           </p>

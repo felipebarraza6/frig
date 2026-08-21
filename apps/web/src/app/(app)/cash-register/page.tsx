@@ -301,6 +301,18 @@ export default function CashRegisterPage() {
 
   const expected = cashRegister?.expected_amount ?? summary?.expected_amount ?? null;
 
+  const auditPaymentTotals = (() => {
+    if (!audit?.ordenes_pagadas_detalle) return [];
+    const totals = new Map<string, number>();
+    for (const order of audit.ordenes_pagadas_detalle) {
+      for (const pm of order.payment_methods ?? []) {
+        const key = paymentTypeLabel(pm.type) || pm.name || "Otro";
+        totals.set(key, (totals.get(key) ?? 0) + toNum(String(pm.amount)));
+      }
+    }
+    return Array.from(totals.entries()).sort((a, b) => b[1] - a[1]);
+  })();
+
   // Fallback income/outcome from movements if summary is not yet available.
   const { cashInTotal, cashOutTotal } = useMemo(() => {
     const fromSummary = {
@@ -564,10 +576,7 @@ export default function CashRegisterPage() {
                     )}
                   </div>
                   <div>
-                    <h2 className="text-sm font-semibold">
-                      {isOpen ? "Caja abierta" : "Caja cerrada"}
-                    </h2>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-sm font-semibold">
                       {cashRegister?.station_name || cashRegister?.station_code || activeStation?.name || "—"}
                     </p>
                     {isOpen && cashRegister?.opened_by_name && (
@@ -608,17 +617,8 @@ export default function CashRegisterPage() {
                 <MetricItem
                   icon={CreditCard}
                   label="Otros"
-                  value={
-                    summary
-                      ? formatCLP(
-                          parseFloat(summary.total_sales || "0") - parseFloat(summary.cash_sales || "0"),
-                        )
-                      : "—"
-                  }
-                  muted={
-                    !summary ||
-                    parseFloat(summary.total_sales || "0") - parseFloat(summary.cash_sales || "0") === 0
-                  }
+                  value={summary ? formatCLP(parseFloat(summary.other_sales || "0")) : "—"}
+                  muted={!summary || parseFloat(summary.other_sales || "0") === 0}
                   loading={loadingSummary}
                 />
                 <MetricItem
@@ -639,45 +639,53 @@ export default function CashRegisterPage() {
               {isOpen ? (
                 canManageMovements && (
                   <div className="flex flex-col gap-2 rounded-xl border border-border/60 bg-background/60 p-3 sm:flex-row sm:items-center">
-                    {isRegisterController ? (
-                      <>
-                        <Input
-                          value={closeAmount ? formatCLP(parseFloat(toDecimal(closeAmount))) : ""}
-                          onChange={(e) => setCloseAmount(numberValue(e.target.value))}
-                          placeholder="Monto contado"
-                          className="tabular-nums sm:max-w-[180px]"
-                        />
-                        <Button
-                          onClick={() => closeMutation.mutate(toDecimal(closeAmount))}
-                          disabled={!closeAmount || closeMutation.isPending}
-                          variant="outline"
-                          className="shrink-0"
-                        >
-                          {closeMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                          Cerrar caja
-                        </Button>
-                        {expected !== null && closeAmount && (
-                          <p className="text-xs sm:ml-auto">
-                            Diferencia:{" "}
-                            <span
-                              className={cn(
-                                "font-medium",
-                                parseFloat(toDecimal(closeAmount)) - parseFloat(expected || "0") === 0
-                                  ? "text-emerald-600"
-                                  : "text-amber-600",
-                              )}
-                            >
-                              {formatCLP(parseFloat(toDecimal(closeAmount)) - parseFloat(expected || "0"))}
-                            </span>
-                          </p>
-                        )}
-                      </>
-                    ) : (
-                      <p className="flex items-center gap-2 text-xs text-amber-700">
-                        <Lock className="h-4 w-4" />
-                        Caja abierta por <strong>{cashRegister?.opened_by_name}</strong>. Solo esa persona o un administrador pueden cerrarla.
-                      </p>
-                    )}
+                    <>
+                      <Input
+                        value={
+                          isRegisterController
+                            ? closeAmount
+                              ? formatCLP(parseFloat(toDecimal(closeAmount)))
+                              : ""
+                            : ""
+                        }
+                        onChange={(e) => {
+                          if (isRegisterController) setCloseAmount(numberValue(e.target.value));
+                        }}
+                        placeholder="Monto contado"
+                        disabled={!isRegisterController}
+                        className="tabular-nums sm:max-w-[180px]"
+                      />
+                      <Button
+                        onClick={() => closeMutation.mutate(toDecimal(closeAmount))}
+                        disabled={!isRegisterController || !closeAmount || closeMutation.isPending}
+                        variant="outline"
+                        className="shrink-0"
+                      >
+                        {closeMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Cerrar caja
+                      </Button>
+                      {expected !== null && closeAmount && isRegisterController && (
+                        <p className="text-xs sm:ml-auto">
+                          Diferencia:{" "}
+                          <span
+                            className={cn(
+                              "font-medium",
+                              parseFloat(toDecimal(closeAmount)) - parseFloat(expected || "0") === 0
+                                ? "text-emerald-600"
+                                : "text-amber-600",
+                            )}
+                          >
+                            {formatCLP(parseFloat(toDecimal(closeAmount)) - parseFloat(expected || "0"))}
+                          </span>
+                        </p>
+                      )}
+                      {!isRegisterController && (
+                        <p className="flex items-center gap-2 text-xs text-amber-700 sm:ml-auto">
+                          <Lock className="h-4 w-4" />
+                          Caja abierta por <strong>{cashRegister?.opened_by_name}</strong>. Solo esa persona o un administrador pueden operarla.
+                        </p>
+                      )}
+                    </>
                   </div>
                 )
               ) : (
@@ -720,70 +728,78 @@ export default function CashRegisterPage() {
                   <Coins className="h-4 w-4 text-primary" />
                   Movimientos de caja
                 </h2>
-                {isOpen && !isRegisterController ? (
-                  <p className="flex items-center gap-2 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
-                    <Lock className="h-4 w-4" />
-                    Solo <strong>{cashRegister?.opened_by_name}</strong> puede registrar movimientos de esta caja.
-                  </p>
-                ) : (
-                  <>
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant={movementType === "CASH_IN" ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setMovementType("CASH_IN")}
-                        className="flex-1"
-                      >
-                        <ArrowDownLeft className="mr-1.5 h-4 w-4" />
-                        Ingreso
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={movementType === "CASH_OUT" ? "danger" : "outline"}
-                        size="sm"
-                        onClick={() => setMovementType("CASH_OUT")}
-                        className="flex-1"
-                      >
-                        <ArrowUpRight className="mr-1.5 h-4 w-4" />
-                        Retiro
-                      </Button>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <Input
-                        value={movementAmount ? formatCLP(parseFloat(toDecimal(movementAmount))) : ""}
-                        onChange={(e) => setMovementAmount(numberValue(e.target.value))}
-                        placeholder="Monto"
-                        className="tabular-nums"
-                      />
-                      <Input
-                        value={movementReason}
-                        onChange={(e) => setMovementReason(e.target.value)}
-                        placeholder="Motivo"
-                      />
-                      <Button
-                        onClick={() =>
-                          movementMutation.mutate({
-                            type: movementType,
-                            amount: toDecimal(movementAmount),
-                            reason: movementReason,
-                          })
-                        }
-                        disabled={!movementAmount || !movementReason || movementMutation.isPending}
-                        variant={movementType === "CASH_OUT" ? "danger" : "default"}
-                      >
-                        {movementMutation.isPending ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : movementType === "CASH_IN" ? (
-                          <Plus className="mr-2 h-4 w-4" />
-                        ) : (
-                          <Minus className="mr-2 h-4 w-4" />
-                        )}
-                        Registrar {movementType === "CASH_IN" ? "ingreso" : "retiro"}
-                      </Button>
-                    </div>
-                  </>
-                )}
+                <>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant={movementType === "CASH_IN" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setMovementType("CASH_IN")}
+                      disabled={isOpen && !isRegisterController}
+                      className="flex-1"
+                    >
+                      <ArrowDownLeft className="mr-1.5 h-4 w-4" />
+                      Ingreso
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={movementType === "CASH_OUT" ? "danger" : "outline"}
+                      size="sm"
+                      onClick={() => setMovementType("CASH_OUT")}
+                      disabled={isOpen && !isRegisterController}
+                      className="flex-1"
+                    >
+                      <ArrowUpRight className="mr-1.5 h-4 w-4" />
+                      Retiro
+                    </Button>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Input
+                      value={movementAmount ? formatCLP(parseFloat(toDecimal(movementAmount))) : ""}
+                      onChange={(e) => setMovementAmount(numberValue(e.target.value))}
+                      placeholder="Monto"
+                      disabled={isOpen && !isRegisterController}
+                      className="tabular-nums"
+                    />
+                    <Input
+                      value={movementReason}
+                      onChange={(e) => setMovementReason(e.target.value)}
+                      placeholder="Motivo"
+                      disabled={isOpen && !isRegisterController}
+                    />
+                    <Button
+                      onClick={() =>
+                        movementMutation.mutate({
+                          type: movementType,
+                          amount: toDecimal(movementAmount),
+                          reason: movementReason,
+                        })
+                      }
+                      disabled={
+                        (isOpen && !isRegisterController) ||
+                        !movementAmount ||
+                        !movementReason ||
+                        movementMutation.isPending
+                      }
+                      variant={movementType === "CASH_OUT" ? "danger" : "default"}
+                    >
+                      {movementMutation.isPending ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : movementType === "CASH_IN" ? (
+                        <Plus className="mr-2 h-4 w-4" />
+                      ) : (
+                        <Minus className="mr-2 h-4 w-4" />
+                      )}
+                      Registrar {movementType === "CASH_IN" ? "ingreso" : "retiro"}
+                    </Button>
+                  </div>
+                  {isOpen && !isRegisterController && (
+                    <p className="flex items-center gap-2 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
+                      <Lock className="h-4 w-4" />
+                      Caja abierta por <strong>{cashRegister?.opened_by_name}</strong>. Solo esa persona o un administrador pueden operarla.
+                    </p>
+                  )}
+                </>
               </div>
             )}
           </section>
@@ -849,6 +865,12 @@ export default function CashRegisterPage() {
                   label="Tarjetas/Transf."
                   value={parseFloat(summary.card_sales || "0")}
                   icon={CreditCard}
+                  tone="default"
+                />
+                <SummaryCard
+                  label="Otros"
+                  value={parseFloat(summary.other_sales || "0")}
+                  icon={Coins}
                   tone="default"
                 />
                 <SummaryCard
@@ -957,7 +979,7 @@ export default function CashRegisterPage() {
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   {"total_ordenes_pagadas" in audit && (
                     <SummaryCard
-                      label="Órdenes pagadas"
+                      label="Pagos"
                       value={audit.total_ordenes_pagadas ?? null}
                       format="number"
                       icon={TrendingUp}
@@ -992,6 +1014,20 @@ export default function CashRegisterPage() {
                     />
                   )}
                 </div>
+
+                {auditPaymentTotals.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-background/60 p-3">
+                    <span className="text-xs font-medium text-muted-foreground">Métodos de pago:</span>
+                    {auditPaymentTotals.map(([name, amount]) => (
+                      <span
+                        key={name}
+                        className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary"
+                      >
+                        {name}: {formatCLP(amount)}
+                      </span>
+                    ))}
+                  </div>
+                )}
 
                 {/* Pagos del día */}
                 {(() => {
@@ -1456,14 +1492,7 @@ export default function CashRegisterPage() {
                         <div>
                           <p className="font-medium">{m.reason}</p>
                           <p className="text-xs text-muted-foreground">
-                            {m.created_by_name || "—"} ·{" "}
-                            {new Date(m.created).toLocaleString("es-CL", {
-                              day: "2-digit",
-                              month: "2-digit",
-                              year: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
+                            {m.created_by_name || "—"} · {new Date(m.created).toLocaleString("es-CL")}
                           </p>
                         </div>
                       </div>

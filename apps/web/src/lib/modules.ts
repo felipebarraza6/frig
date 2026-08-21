@@ -137,13 +137,12 @@ export const FRIG_ALWAYS_ON_MODULES: ModuleName[] = [
   "dashboard",
   "config",
   "sales",
-  "products",
+  "product_catalog",
   "customers",
   "finance",
   "payment_methods",
   "bank_accounts",
   "suppliers",
-  "product_catalog",
 ];
 
 /**
@@ -187,7 +186,7 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
     title: "Operaciones",
     items: [
       { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard", module: "dashboard" },
-      { href: "/pos", label: "POS", icon: "Receipt", module: "pos" },
+      { href: "/pos", label: "Punto de Venta (POS)", icon: "Receipt", module: "pos" },
       { href: "/cash-register", label: "Caja", icon: "Banknote", module: "cash_register" },
       { href: "/sales", label: "Ventas", icon: "ShoppingBag", module: "sales" },
       { href: "/kds", label: "Cocina", icon: "ChefHat", module: "production", badge: "kitchenReady" },
@@ -198,8 +197,12 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
     items: [
       { href: "/products", label: "Productos", icon: "Package", module: "product_catalog" },
       { href: "/products/combos", label: "Combos", icon: "Boxes", module: "product_catalog" },
-      { href: "/products/menus", label: "Menús digitales", icon: "QrCode", module: "public_catalog" },
       { href: "/categories", label: "Categorías", icon: "Tags", module: "product_catalog" },
+    ],
+  },
+  {
+    title: "Inventario",
+    items: [
       { href: "/warehouses", label: "Bodegas", icon: "Warehouse", module: "inventory" },
       { href: "/inventory", label: "Inventario", icon: "ClipboardList", module: "inventory" },
     ],
@@ -222,6 +225,7 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
     items: [
       { href: "/customers", label: "Clientes", icon: "UserCircle", module: "customers" },
       { href: "/promotions/discounts", label: "Promociones", icon: "Percent", module: "promotions" },
+      { href: "/products/menus", label: "Menús digitales", icon: "QrCode", module: "public_catalog" },
     ],
   },
   {
