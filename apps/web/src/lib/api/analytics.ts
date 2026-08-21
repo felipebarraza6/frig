@@ -30,8 +30,33 @@ export type DashboardSummary = {
 
 export type DateRange = "today" | "yesterday" | "week" | "month" | "single" | "custom";
 
+export type IngredientConsumptionItem = {
+  ingredient_id: string;
+  ingredient_name: string;
+  total_quantity: number;
+  unit: string;
+  cost: number;
+};
+
+export type IngredientConsumption = {
+  period: { start: string; end: string };
+  total_cost: number;
+  items: IngredientConsumptionItem[];
+};
+
 export async function fetchModuleCounts(): Promise<ModuleCounts> {
   return apiFetch<ModuleCounts>("/analytics/dashboard/module_counts/");
+}
+
+export async function fetchIngredientConsumption(
+  startDate?: string,
+  endDate?: string,
+): Promise<IngredientConsumption> {
+  const params = new URLSearchParams();
+  if (startDate) params.set("start_date", startDate);
+  if (endDate) params.set("end_date", endDate);
+  const qs = params.toString();
+  return apiFetch<IngredientConsumption>(`/analytics/dashboard/ingredient-consumption/${qs ? `?${qs}` : ""}`);
 }
 
 export async function fetchDashboardSummary(

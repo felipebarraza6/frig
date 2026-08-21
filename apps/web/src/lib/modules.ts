@@ -189,6 +189,7 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
       { href: "/pos", label: "Punto de Venta (POS)", icon: "Receipt", module: "pos" },
       { href: "/cash-register", label: "Caja", icon: "Banknote", module: "cash_register" },
       { href: "/sales", label: "Ventas", icon: "ShoppingBag", module: "sales" },
+      { href: "/reports", label: "Informes", icon: "FileText", module: "nutrition" },
       { href: "/kds", label: "Cocina", icon: "ChefHat", module: "production", badge: "kitchenReady" },
     ],
   },
