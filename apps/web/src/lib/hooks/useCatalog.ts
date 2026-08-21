@@ -3,6 +3,7 @@ import { apiFetch } from "@/lib/api/client";
 import { toPosProduct, type PosProduct, type YggdraCategory } from "@/lib/api/types";
 import type { YggdraPaginatedCategory, YggdraPaginatedProduct } from "@/lib/api/types";
 import { fetchProductModifierGroups, type ProductModifierGroup } from "@/lib/api/modifier-groups";
+import { useCurrentBranch } from "@/lib/store/session";
 import {
   fetchCombos,
   fetchAllCombos,
@@ -25,8 +26,10 @@ export const COMBO_KEYS = {
 };
 
 export function useProducts(enabled = true) {
+  const branch = useCurrentBranch();
+  const branchId = branch?.branch_id;
   return useQuery({
-    queryKey: [...PRODUCT_KEYS.all, "sale"],
+    queryKey: [...PRODUCT_KEYS.all, "sale", branchId],
     queryFn: async () => {
       const data = await apiFetch<YggdraPaginatedProduct>(
         "/inventory/products/?is_for_sale=true&is_active=true&page_size=1000",

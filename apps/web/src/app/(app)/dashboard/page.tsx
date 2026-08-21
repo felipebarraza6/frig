@@ -65,14 +65,16 @@ export default function DashboardPage() {
   const [range, setRange] = useState<DateRange>("today");
   const dates = useMemo(() => rangeDates(range), [range]);
 
+  const branchId = branch?.branch_id;
+
   const { data: counts, isLoading: loadingCounts, error: countsError } = useQuery({
-    queryKey: ["dashboard", "module-counts"],
+    queryKey: ["dashboard", "module-counts", branchId],
     queryFn: fetchModuleCounts,
     enabled: !!branch,
   });
 
   const { data: summary, isLoading: loadingSummary, error: summaryError } = useQuery({
-    queryKey: ["dashboard", "summary", dates.start, dates.end],
+    queryKey: ["dashboard", "summary", dates.start, dates.end, branchId],
     queryFn: () => fetchDashboardSummary(dates.start, dates.end),
     enabled: !!branch,
   });
@@ -115,8 +117,10 @@ export default function DashboardPage() {
   const completedOrders = summary?.orders?.completed ?? 0;
   const totalOrders = summary?.orders?.count ?? 0;
   const customers = counts?.customers?.total ?? 0;
-  const productsCount = counts?.inventory?.total_products ?? 0;
-  const lowStock = counts?.inventory?.low_stock ?? 0;
+  // El contador de productos del backend llega en 0 para esta sucursal a pesar de
+  // tener catálogo. Usamos la lista local que ya cargamos para stock bajo.
+  const productsCount = products.length;
+  const lowStockCount = lowStockProducts.length;
   const pendingOrders = counts?.sales?.pending_orders ?? 0;
   const expensesTotal = counts?.expenses_by_supplier?.reduce((sum, e) => sum + e.total, 0) ?? 0;
 
@@ -190,7 +194,7 @@ export default function DashboardPage() {
           value={productsCount}
           icon={Package}
           tone="default"
-          sub={`${lowStock} con stock bajo`}
+          sub={`${lowStockCount} con stock bajo`}
         />
         <StatCard
           label="Ingresos"
@@ -226,9 +230,15 @@ export default function DashboardPage() {
             <span className="text-xs text-muted-foreground">{dates.label}</span>
           </div>
           {summary?.time_series && summary.time_series.length > 0 ? (
-            <TimeSeriesChart data={summary.time_series} />
+            <SalesChart
+              data={summary.time_series}
+              startDate={dates.start}
+              endDate={dates.end}
+            />
           ) : (
-            <p className="text-sm text-muted-foreground">Sin datos de ventas en el período.</p>
+            <div className="grid h-56 place-items-center rounded-lg border border-dashed border-border">
+              <p className="text-sm text-muted-foreground">Sin datos de ventas en el período.</p>
+            </div>
           )}
         </div>
 
@@ -272,10 +282,11 @@ export default function DashboardPage() {
           </h2>
           {summary?.payments && summary.payments.length > 0 ? (
             <div className="flex flex-col gap-3">
-              {summary.payments.map((p, i) => {
+              {(() => {
                 const totalPayments = summary.payments.reduce((s, x) => s + x.total, 0);
-                const pct = totalPayments > 0 ? (p.total / totalPayments) * 100 : 0;
-                return (
+                return summary.payments.map((p, i) => {
+                  const pct = totalPayments > 0 ? (p.total / totalPayments) * 100 : 0;
+                  return (
                   <div key={i} className="flex flex-col gap-1">
                     <div className="flex items-center justify-between text-sm">
                       <span className="font-medium">{paymentTypeLabel(p.type_payment__name)}</span>
@@ -290,6 +301,7 @@ export default function DashboardPage() {
                   </div>
                 );
               })}
+            )()}
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">Sin pagos en el período.</p>
@@ -408,84 +420,152 @@ function StatCard({
   );
 }
 
-function TimeSeriesChart({ data }: { data: { date: string; sales: number; orders: number }[] }) {
-  const values = data.map((d) => d.sales);
+function parseLocalDate(iso: string): Date {
+  return new Date(`${iso}T00:00:00`);
+}
+
+function formatLocalISO(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function formatShortDate(iso: string): string {
+  return parseLocalDate(iso).toLocaleDateString("es-CL", { day: "numeric", month: "short" });
+}
+
+function formatFullDate(iso: string): string {
+  return parseLocalDate(iso).toLocaleDateString("es-CL", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+}
+
+function SalesChart({
+  data,
+  startDate,
+  endDate,
+}: {
+  data: { date: string; sales: number; orders: number }[];
+  startDate: string;
+  endDate: string;
+}) {
+  const [hover, setHover] = useState<{ idx: number; mx: number; my: number } | null>(null);
+
+  const filled = useMemo(() => {
+    const map = new Map(data.map((d) => [d.date, d]));
+    const start = parseLocalDate(startDate);
+    const end = parseLocalDate(endDate);
+    const days = [];
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const iso = formatLocalISO(d);
+      days.push(map.get(iso) ?? { date: iso, sales: 0, orders: 0 });
+    }
+    return days;
+  }, [data, startDate, endDate]);
+
+  if (filled.length === 0) return null;
+
+  const values = filled.map((d) => d.sales);
   const max = Math.max(...values, 1);
-  const width = 100;
-  const height = 40;
+  const width = 600;
+  const height = 200;
+  const padding = { top: 8, right: 8, bottom: 24, left: 8 };
+  const chartW = width - padding.left - padding.right;
+  const chartH = height - padding.top - padding.bottom;
 
-  const points = data
-    .map((d, i) => {
-      const x = (i / (data.length - 1 || 1)) * width;
-      const y = height - (d.sales / max) * height;
-      return { x, y, ...d };
-    });
+  const getX = (i: number) => padding.left + (i / (filled.length - 1 || 1)) * chartW;
+  const getY = (v: number) => padding.top + chartH - (v / max) * chartH;
 
-  // Curva suavizada con puntos de control
-  const path = points.reduce((acc, p, i) => {
-    if (i === 0) return `M ${p.x},${p.y}`;
-    const prev = points[i - 1];
-    const cpX = (prev.x + p.x) / 2;
-    return `${acc} C ${cpX},${prev.y} ${cpX},${p.y} ${p.x},${p.y}`;
+  const path = filled.reduce((acc, d, i) => {
+    const px = getX(i);
+    const py = getY(d.sales);
+    if (i === 0) return `M ${px},${py}`;
+    const prevX = getX(i - 1);
+    const prevY = getY(filled[i - 1].sales);
+    const cpX = prevX + (px - prevX) / 2;
+    return `${acc} C ${cpX},${prevY} ${cpX},${py} ${px},${py}`;
   }, "");
-  const areaPath = `${path} L ${points[points.length - 1]?.x ?? width},${height} L ${points[0]?.x ?? 0},${height} Z`;
+
+  const handleMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const raw = ((mx - padding.left) / chartW) * (filled.length - 1 || 1);
+    const idx = Math.max(0, Math.min(filled.length - 1, Math.round(raw)));
+    setHover({ idx, mx, my });
+  };
+
+  const labelCount = Math.min(filled.length, 5);
+  const labelInterval = Math.max(1, Math.floor(filled.length / labelCount));
 
   return (
-    <div className="w-full">
+    <div className="relative">
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        preserveAspectRatio="none"
-        className="h-40 w-full overflow-visible"
+        className="h-52 w-full"
+        onMouseMove={handleMove}
+        onMouseLeave={() => setHover(null)}
       >
-        <defs>
-          <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="currentColor" stopOpacity="0.3" />
-            <stop offset="100%" stopColor="currentColor" stopOpacity="0.02" />
-          </linearGradient>
-        </defs>
-
-        {/* Grid horizontal */}
-        {[0.25, 0.5, 0.75].map((ratio) => (
-          <line
-            key={ratio}
-            x1="0"
-            y1={height * (1 - ratio)}
-            x2={width}
-            y2={height * (1 - ratio)}
-            stroke="currentColor"
-            strokeWidth="0.3"
-            strokeDasharray="2 2"
-            className="text-border/50"
-          />
-        ))}
-
-        {/* Área bajo la curva */}
-        <path d={areaPath} fill="url(#salesGradient)" className="text-primary" />
-
-        {/* Línea principal */}
         <path
           d={path}
           fill="none"
           stroke="currentColor"
-          strokeWidth="0.8"
+          strokeWidth="1.5"
           strokeLinecap="round"
+          strokeLinejoin="round"
           className="text-primary"
         />
 
-        {/* Puntos con anillo */}
-        {points.map((p, i) => (
-          <g key={i}>
-            <circle cx={p.x} cy={p.y} r="2.2" className="fill-card stroke-primary" strokeWidth="1" />
-            <circle cx={p.x} cy={p.y} r="0.8" className="fill-primary" />
-            <title>{`${p.date}: ${formatCLP(p.sales)} (${p.orders} órdenes)`}</title>
+        {hover && (
+          <g>
+            <line
+              x1={getX(hover.idx)}
+              y1={padding.top}
+              x2={getX(hover.idx)}
+              y2={padding.top + chartH}
+              stroke="currentColor"
+              strokeWidth="1"
+              strokeDasharray="3 3"
+              className="text-muted-foreground/30"
+            />
+            <circle
+              cx={getX(hover.idx)}
+              cy={getY(filled[hover.idx].sales)}
+              r="3.5"
+              className="fill-primary stroke-background stroke-2"
+            />
           </g>
-        ))}
+        )}
+
+        {filled.map((d, i) =>
+          i % labelInterval === 0 || i === filled.length - 1 ? (
+            <text
+              key={i}
+              x={getX(i)}
+              y={height - 6}
+              textAnchor="middle"
+              className="fill-muted-foreground/70 text-[10px]"
+            >
+              {formatShortDate(d.date)}
+            </text>
+          ) : null,
+        )}
       </svg>
 
-      <div className="mt-2 flex justify-between text-xs text-muted-foreground">
-        <span>{data[0]?.date}</span>
-        <span>{data[data.length - 1]?.date}</span>
-      </div>
+      {hover && (
+        <div
+          className="pointer-events-none absolute z-10 rounded-lg border border-border/60 bg-background/95 px-2 py-1 text-xs shadow-sm backdrop-blur"
+          style={{ left: hover.mx + 12, top: hover.my - 36 }}
+        >
+          <p className="font-medium">{formatFullDate(filled[hover.idx].date)}</p>
+          <p className="text-muted-foreground">
+            {formatCLP(filled[hover.idx].sales)} · {filled[hover.idx].orders} órdenes
+          </p>
+        </div>
+      )}
     </div>
   );
 }
