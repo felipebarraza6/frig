@@ -169,11 +169,11 @@ export default function DashboardPage() {
   const expensesTotal = counts?.expenses_by_supplier?.reduce((sum, e) => sum + e.total, 0) ?? 0;
 
   return (
-    <div className="flex min-h-full flex-col gap-4 p-4">
+    <div className="flex min-h-full flex-col gap-6 p-4">
       {/* Header */}
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+      <header className="flex justify-end">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-xl border border-border bg-card p-1 shadow-sm">
+          <div className="inline-flex rounded-lg border border-border p-0.5">
             {(["today", "yesterday", "week", "month"] as DateRange[]).map((r) => (
               <button
                 key={r}
@@ -183,9 +183,9 @@ export default function DashboardPage() {
                   setCustomRange({ start: computed.start, end: computed.end });
                 }}
                 className={cn(
-                  "rounded-lg px-3 py-1.5 text-xs font-medium transition-all",
+                  "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
                   range === r
-                    ? "bg-primary text-white shadow-sm"
+                    ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
@@ -197,7 +197,7 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          <div className="inline-flex items-center gap-1 rounded-xl border border-border bg-card p-1 shadow-sm">
+          <div className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1">
             <input
               type="date"
               value={customRange.start}
@@ -207,7 +207,7 @@ export default function DashboardPage() {
                 setCustomRange((prev) => ({ start, end: prev.end < start ? start : prev.end }));
                 setRange("custom");
               }}
-              className="rounded-lg border-0 bg-transparent px-2.5 py-1.5 text-xs font-medium text-foreground outline-none transition-colors hover:bg-muted focus:bg-muted"
+              className="border-0 bg-transparent px-1 py-0.5 text-xs font-medium text-foreground outline-none"
             />
             <span className="text-xs text-muted-foreground">-</span>
             <input
@@ -219,7 +219,7 @@ export default function DashboardPage() {
                 setCustomRange((prev) => ({ start: prev.start > end ? end : prev.start, end }));
                 setRange("custom");
               }}
-              className="rounded-lg border-0 bg-transparent px-2.5 py-1.5 text-xs font-medium text-foreground outline-none transition-colors hover:bg-muted focus:bg-muted"
+              className="border-0 bg-transparent px-1 py-0.5 text-xs font-medium text-foreground outline-none"
             />
           </div>
         </div>
@@ -230,13 +230,12 @@ export default function DashboardPage() {
         variants={container}
         initial="hidden"
         animate="show"
-        className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4"
+        className="grid gap-1 sm:grid-cols-2 lg:grid-cols-4"
       >
         <StatCard
           label="Ventas del período"
           value={formatCLP(salesTotal)}
           icon={TrendingUp}
-          tone="primary"
           sub={`${salesCount} órdenes`}
           href="/sales"
           description="Suma total de ventas pagadas en el rango seleccionado. Click para ver el detalle de órdenes."
@@ -245,7 +244,6 @@ export default function DashboardPage() {
           label="Órdenes completadas"
           value={completedOrders}
           icon={Receipt}
-          tone="emerald"
           sub={`de ${totalOrders} totales`}
           href="/sales"
           description="Órdenes finalizadas y pagadas. Click para revisar el historial de ventas."
@@ -254,7 +252,6 @@ export default function DashboardPage() {
           label="Cuentas abiertas"
           value={pendingOrders}
           icon={Clock}
-          tone="amber"
           sub="pedidos sin pagar"
           href="/sales"
           description="Órdenes pendientes de pago o cierre. Click para gestionarlas."
@@ -263,7 +260,6 @@ export default function DashboardPage() {
           label="Clientes"
           value={customers}
           icon={Users}
-          tone="default"
           sub="registrados"
           href="/customers"
           description="Base de clientes registrados en la sucursal. Click para ver el listado."
@@ -276,7 +272,7 @@ export default function DashboardPage() {
         initial="hidden"
         animate="show"
         className={cn(
-          "grid gap-2 sm:grid-cols-2",
+          "grid gap-1 sm:grid-cols-2",
           nutritionEnabled ? "lg:grid-cols-5" : "lg:grid-cols-4"
         )}
       >
@@ -284,7 +280,6 @@ export default function DashboardPage() {
           label="Productos"
           value={productsCount}
           icon={Package}
-          tone="default"
           sub={`${lowStockCount} con stock bajo`}
           href="/products"
           description="Productos activos en el catálogo. Click para ver el inventario de productos."
@@ -293,7 +288,6 @@ export default function DashboardPage() {
           label="Ingresos"
           value={formatCLP(salesTotal)}
           icon={ArrowDownLeft}
-          tone="emerald"
           sub="ventas del período"
           href="/sales"
           description="Total de dinero ingresado por ventas en el período seleccionado."
@@ -302,7 +296,6 @@ export default function DashboardPage() {
           label="Ganancia estimada"
           value={formatCLP(profit)}
           icon={Wallet}
-          tone="primary"
           sub="aproximada"
           href="/sales"
           description="Margen aproximado calculado sobre las ventas del período."
@@ -312,7 +305,6 @@ export default function DashboardPage() {
             label="Costo de insumos"
             value={formatCLP(ingredientConsumption?.total_cost ?? 0)}
             icon={FlaskConical}
-            tone="rose"
             sub="según recetas vendidas"
             href="/reports"
             description="Costo estimado de los insumos consumidos según las recetas de los productos vendidos."
@@ -322,7 +314,6 @@ export default function DashboardPage() {
           label="Gastos"
           value={formatCLP(expensesTotal)}
           icon={ArrowUpRight}
-          tone="rose"
           sub="del período"
           href="/expenses"
           description="Total de gastos registrados. Click para ver el detalle de compras."
@@ -334,10 +325,10 @@ export default function DashboardPage() {
         variants={container}
         initial="hidden"
         animate="show"
-        className="grid gap-4 lg:grid-cols-3"
+        className="grid gap-6 lg:grid-cols-3"
       >
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm lg:col-span-2">
-          <div className="mb-4 flex items-center justify-between">
+        <div className="border-b border-border pb-4 lg:col-span-2">
+          <div className="mb-2 flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-sm font-semibold">
               <TrendingUp className="h-4 w-4 text-primary" />
               Evolución de ventas
@@ -351,14 +342,14 @@ export default function DashboardPage() {
               endDate={dates.end}
             />
           ) : (
-            <div className="grid h-44 place-items-center rounded-xl border border-dashed border-border bg-muted/30">
+            <div className="grid h-36 place-items-center rounded-lg border border-dashed border-border bg-muted/30">
               <p className="text-sm text-muted-foreground">Sin datos de ventas en el período.</p>
             </div>
           )}
         </div>
 
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+        <div className="border-b border-border pb-4">
+          <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
             <Target className="h-4 w-4 text-primary" />
             Resumen del negocio
           </h2>
@@ -371,14 +362,14 @@ export default function DashboardPage() {
               { label: "Ganancia", value: Math.min(profit / 50000, 1) },
             ]}
           />
-          <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-            <div className="rounded-xl bg-muted/50 p-3 text-center">
+          <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
+            <div>
               <p className="text-muted-foreground">Venta promedio</p>
               <p className="font-semibold tabular-nums">
                 {salesCount > 0 ? formatCLP(salesTotal / salesCount) : "—"}
               </p>
             </div>
-            <div className="rounded-xl bg-muted/50 p-3 text-center">
+            <div>
               <p className="text-muted-foreground">Margen estimado</p>
               <p className="font-semibold tabular-nums">
                 {salesTotal > 0 ? `${((profit / salesTotal) * 100).toFixed(1)}%` : "—"}
@@ -393,9 +384,9 @@ export default function DashboardPage() {
         variants={container}
         initial="hidden"
         animate="show"
-        className="grid gap-4 lg:grid-cols-2"
+        className="grid gap-6 lg:grid-cols-2"
       >
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+        <div>
           <div className="mb-3 flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-sm font-semibold">
               <ShoppingBag className="h-4 w-4 text-primary" />
@@ -409,7 +400,7 @@ export default function DashboardPage() {
             </Link>
           </div>
           {summary?.payments && summary.payments.length > 0 ? (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col">
               {(() => {
                 const totalPayments = summary.payments.reduce((s, x) => s + x.total, 0);
                 return summary.payments.map((p, i) => {
@@ -417,19 +408,19 @@ export default function DashboardPage() {
                   return (
                   <div
                     key={i}
-                    className="flex flex-col gap-1.5"
+                    className="flex flex-col gap-1 border-b border-border py-2.5 last:border-0"
                     title={`${paymentTypeLabel(p.type_payment__name)}: ${formatCLP(p.total)} en el período`}
                   >
                     <div className="flex items-center justify-between text-sm">
                       <span className="font-medium">{paymentTypeLabel(p.type_payment__name)}</span>
                       <span className="tabular-nums font-semibold">{formatCLP(p.total)}</span>
                     </div>
-                    <div className="h-2.5 w-full rounded-full bg-muted">
+                    <div className="h-1.5 w-full rounded-full bg-muted">
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${pct}%` }}
                         transition={{ duration: 0.8, delay: i * 0.05 }}
-                        className="h-2.5 rounded-full bg-primary"
+                        className="h-1.5 rounded-full bg-primary"
                       />
                     </div>
                   </div>
@@ -442,7 +433,7 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+        <div>
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold">Productos más vendidos</h2>
             <Link
@@ -453,14 +444,14 @@ export default function DashboardPage() {
             </Link>
           </div>
           {summary?.products?.best_selling && summary.products.best_selling.length > 0 ? (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col">
               {summary.products.best_selling.map((p, i) => {
                 const maxQty = Math.max(...summary.products.best_selling.map((x) => x.quantity), 1);
                 const pct = (p.quantity / maxQty) * 100;
                 return (
                   <div
                     key={i}
-                    className="flex flex-col gap-1.5"
+                    className="flex flex-col gap-1 border-b border-border py-2.5 last:border-0"
                     title={`${p.product__name}: ${p.quantity} vendidos por ${formatCLP(p.total)}`}
                   >
                     <div className="flex items-center justify-between text-sm">
@@ -469,12 +460,12 @@ export default function DashboardPage() {
                         {p.quantity} · {formatCLP(p.total)}
                       </span>
                     </div>
-                    <div className="h-2.5 w-full rounded-full bg-muted">
+                    <div className="h-1.5 w-full rounded-full bg-muted">
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${pct}%` }}
                         transition={{ duration: 0.8, delay: i * 0.05 }}
-                        className="h-2.5 rounded-full bg-emerald-500"
+                        className="h-1.5 rounded-full bg-emerald-500"
                       />
                     </div>
                   </div>
@@ -495,7 +486,7 @@ export default function DashboardPage() {
           animate="show"
           className="grid gap-4"
         >
-          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+          <div className="border-b border-border pb-4">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="flex items-center gap-2 text-sm font-semibold">
                 <FlaskConical className="h-4 w-4 text-primary" />
@@ -509,7 +500,7 @@ export default function DashboardPage() {
               </Link>
             </div>
             {ingredientConsumption?.items && ingredientConsumption.items.length > 0 ? (
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {(() => {
                   const maxCost = Math.max(...ingredientConsumption.items.map((i) => i.cost), 1);
                   return ingredientConsumption.items.map((item) => {
@@ -517,7 +508,7 @@ export default function DashboardPage() {
                     return (
                       <div
                         key={item.ingredient_id}
-                        className="flex flex-col gap-1.5 rounded-xl border border-border bg-background p-3"
+                        className="flex flex-col gap-1 border-b border-border pb-2.5 last:border-0"
                         title={`${item.ingredient_name}: ${item.total_quantity} ${item.unit} consumidos`}
                       >
                         <div className="flex items-center justify-between text-sm">
@@ -527,12 +518,12 @@ export default function DashboardPage() {
                         <p className="text-xs text-muted-foreground">
                           {item.total_quantity} {item.unit}
                         </p>
-                        <div className="h-2 w-full rounded-full bg-muted">
+                        <div className="h-1.5 w-full rounded-full bg-muted">
                           <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${pct}%` }}
                             transition={{ duration: 0.8 }}
-                            className="h-2 rounded-full bg-primary"
+                            className="h-1.5 rounded-full bg-primary"
                           />
                         </div>
                       </div>
@@ -555,7 +546,7 @@ export default function DashboardPage() {
           animate="show"
           className="grid gap-4"
         >
-          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+          <div>
             <div className="mb-3 flex items-center justify-between">
               <h2 className="flex items-center gap-2 text-sm font-semibold">
                 <AlertTriangle className="h-4 w-4 text-amber-500" />
@@ -595,7 +586,6 @@ function StatCard({
   value,
   icon: Icon,
   sub,
-  tone = "default",
   href,
   description,
 }: {
@@ -603,43 +593,21 @@ function StatCard({
   value: string | number;
   icon: LucideIcon;
   sub: string;
-  tone?: "default" | "primary" | "emerald" | "amber" | "rose";
   href?: string;
   description?: string;
 }) {
-  const tones = {
-    default: "bg-card",
-    primary: "bg-primary/[0.06] border-primary/15",
-    emerald: "bg-emerald-500/[0.06] border-emerald-500/15",
-    amber: "bg-amber-500/[0.06] border-amber-500/15",
-    rose: "bg-rose-500/[0.06] border-rose-500/15",
-  };
-  const iconBg = {
-    default: "bg-muted text-muted-foreground",
-    primary: "bg-primary/15 text-primary",
-    emerald: "bg-emerald-500/15 text-emerald-600",
-    amber: "bg-amber-500/15 text-amber-600",
-    rose: "bg-rose-500/15 text-rose-600",
-  };
-
   const content = (
     <>
-      <div className="mb-1.5 flex items-center gap-2">
-        <div className={cn("flex h-7 w-7 items-center justify-center rounded-lg", iconBg[tone])}>
-          <Icon className="h-3.5 w-3.5" strokeWidth={2} />
-        </div>
-        <span className="flex-1 text-[11px] font-medium text-muted-foreground">{label}</span>
+      <div className="mb-1 flex items-center gap-1.5">
+        <Icon className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={2} />
+        <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
       </div>
-      <p className="text-lg font-semibold tabular-nums tracking-tight">{value}</p>
+      <p className="text-xl font-bold tabular-nums tracking-tight">{value}</p>
       <p className="text-[11px] text-muted-foreground">{sub}</p>
     </>
   );
 
-  const baseClassName = cn(
-    "rounded-xl border border-border p-2.5 shadow-sm transition-all duration-200",
-    "hover:border-primary/20 hover:shadow-md",
-    tones[tone]
-  );
+  const baseClassName = "group flex flex-col gap-0.5 rounded-lg p-2 transition-colors hover:bg-muted/30";
 
   if (href) {
     return (
@@ -737,7 +705,7 @@ function SalesChart({
   const values = filled.map((d) => d.sales);
   const max = Math.max(...values, 1);
   const width = 600;
-  const height = 180;
+  const height = 150;
   const padding = { top: 10, right: 10, bottom: 24, left: 10 };
   const chartW = width - padding.left - padding.right;
   const chartH = height - padding.top - padding.bottom;
@@ -777,7 +745,7 @@ function SalesChart({
     <div className="relative select-none">
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        className="h-40 w-full"
+        className="h-36 w-full"
         onMouseMove={handleMove}
         onMouseLeave={() => setHover(null)}
       >
@@ -884,9 +852,9 @@ function SalesChart({
 }
 
 function RadarChart({ metrics }: { metrics: { label: string; value: number }[] }) {
-  const size = 100;
+  const size = 80;
   const center = size / 2;
-  const radius = 36;
+  const radius = 28;
   const angleStep = (Math.PI * 2) / metrics.length;
 
   const points = metrics.map((m, i) => {
@@ -959,7 +927,7 @@ function RadarChart({ metrics }: { metrics: { label: string; value: number }[] }
             key={i}
             cx={p.x}
             cy={p.y}
-            r="3"
+            r="2.5"
             className="fill-background stroke-primary stroke-2"
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
@@ -968,8 +936,8 @@ function RadarChart({ metrics }: { metrics: { label: string; value: number }[] }
         ))}
         {/* Labels */}
         {points.map((p, i) => {
-          const labelX = center + (radius + 14) * Math.cos(p.angle);
-          const labelY = center + (radius + 14) * Math.sin(p.angle);
+          const labelX = center + (radius + 12) * Math.cos(p.angle);
+          const labelY = center + (radius + 12) * Math.sin(p.angle);
           return (
             <text
               key={i}
@@ -977,7 +945,7 @@ function RadarChart({ metrics }: { metrics: { label: string; value: number }[] }
               y={labelY}
               textAnchor="middle"
               dominantBaseline="middle"
-              className="fill-muted-foreground text-[9px] font-semibold"
+              className="fill-muted-foreground text-[8px] font-semibold"
             >
               {p.label}
             </text>
@@ -994,9 +962,9 @@ function SkeletonPulse({ className }: { className?: string }) {
 
 function DashboardSkeleton() {
   return (
-    <div className="flex min-h-full flex-col gap-4 p-4">
+    <div className="flex min-h-full flex-col gap-6 p-4">
       {/* Header */}
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+      <header className="flex justify-end">
         <div className="flex flex-wrap items-center gap-2">
           <SkeletonPulse className="h-8 w-48" />
           <SkeletonPulse className="h-8 w-44" />
@@ -1004,83 +972,77 @@ function DashboardSkeleton() {
       </header>
 
       {/* Stats principales */}
-      <section className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid gap-1 sm:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div
-            key={i}
-            className="rounded-xl border border-border bg-card p-2.5 shadow-sm"
-          >
-            <div className="mb-1.5 flex items-center gap-2">
-              <SkeletonPulse className="h-7 w-7 rounded-lg" />
+          <div key={i} className="rounded-lg p-2">
+            <div className="mb-1 flex items-center gap-1.5">
+              <SkeletonPulse className="h-3.5 w-3.5 rounded-sm" />
               <SkeletonPulse className="h-3 w-20" />
             </div>
-            <SkeletonPulse className="mb-1 h-6 w-24" />
+            <SkeletonPulse className="mb-1 h-7 w-28" />
             <SkeletonPulse className="h-3 w-16" />
           </div>
         ))}
       </section>
 
       {/* Stats secundarias */}
-      <section className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid gap-1 sm:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div
-            key={i}
-            className="rounded-xl border border-border bg-card p-2.5 shadow-sm"
-          >
-            <div className="mb-1.5 flex items-center gap-2">
-              <SkeletonPulse className="h-7 w-7 rounded-lg" />
+          <div key={i} className="rounded-lg p-2">
+            <div className="mb-1 flex items-center gap-1.5">
+              <SkeletonPulse className="h-3.5 w-3.5 rounded-sm" />
               <SkeletonPulse className="h-3 w-20" />
             </div>
-            <SkeletonPulse className="mb-1 h-6 w-24" />
+            <SkeletonPulse className="mb-1 h-7 w-28" />
             <SkeletonPulse className="h-3 w-16" />
           </div>
         ))}
       </section>
 
       {/* Gráficos */}
-      <section className="grid gap-4 lg:grid-cols-3">
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm lg:col-span-2">
-          <SkeletonPulse className="mb-4 h-4 w-40" />
-          <SkeletonPulse className="h-40 w-full" />
+      <section className="grid gap-6 lg:grid-cols-3">
+        <div className="border-b border-border pb-4 lg:col-span-2">
+          <SkeletonPulse className="mb-2 h-4 w-40" />
+          <SkeletonPulse className="h-36 w-full" />
         </div>
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-          <SkeletonPulse className="mb-4 h-4 w-36" />
+        <div className="border-b border-border pb-4">
+          <SkeletonPulse className="mb-2 h-4 w-36" />
           <div className="flex flex-col items-center">
-            <SkeletonPulse className="h-24 w-24 rounded-full" />
+            <SkeletonPulse className="h-20 w-20 rounded-full" />
           </div>
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            <SkeletonPulse className="h-14 w-full" />
-            <SkeletonPulse className="h-14 w-full" />
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <SkeletonPulse className="h-8 w-full" />
+            <SkeletonPulse className="h-8 w-full" />
           </div>
         </div>
       </section>
 
       {/* Métodos de pago y productos */}
-      <section className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-          <SkeletonPulse className="mb-4 h-4 w-32" />
-          <div className="flex flex-col gap-3">
+      <section className="grid gap-6 lg:grid-cols-2">
+        <div>
+          <SkeletonPulse className="mb-3 h-4 w-32" />
+          <div className="flex flex-col">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="flex flex-col gap-1.5">
+              <div key={i} className="flex flex-col gap-1 border-b border-border py-2.5 last:border-0">
                 <div className="flex items-center justify-between">
                   <SkeletonPulse className="h-3 w-28" />
                   <SkeletonPulse className="h-3 w-16" />
                 </div>
-                <SkeletonPulse className="h-2.5 w-full" />
+                <SkeletonPulse className="h-1.5 w-full" />
               </div>
             ))}
           </div>
         </div>
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-          <SkeletonPulse className="mb-4 h-4 w-40" />
-          <div className="flex flex-col gap-3">
+        <div>
+          <SkeletonPulse className="mb-3 h-4 w-40" />
+          <div className="flex flex-col">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="flex flex-col gap-1.5">
+              <div key={i} className="flex flex-col gap-1 border-b border-border py-2.5 last:border-0">
                 <div className="flex items-center justify-between">
                   <SkeletonPulse className="h-3 w-32" />
                   <SkeletonPulse className="h-3 w-20" />
                 </div>
-                <SkeletonPulse className="h-2.5 w-full" />
+                <SkeletonPulse className="h-1.5 w-full" />
               </div>
             ))}
           </div>
