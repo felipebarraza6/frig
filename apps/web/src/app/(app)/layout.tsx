@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   useSessionStore,
@@ -15,10 +14,10 @@ import { useSidebarStore } from "@/lib/store/sidebar";
 import { useIsRouteModuleEnabled } from "@/lib/hooks/useRouteModuleAccess";
 import { AppSidebar } from "@/components/app-sidebar/app-sidebar";
 import { MobileBottomNav } from "@/components/mobile-bottom-nav";
+import { MobileMenuSheet } from "@/components/mobile-menu-sheet";
 import { RealtimeProvider } from "@/components/realtime/realtime-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { ForbiddenListener } from "@/components/forbidden-listener";
-import { useState } from "react";
 
 const HIDDEN_SIDEBAR_PATHS = ["/pos/terminal", "/kds/terminal", "/kds/monitor"];
 
@@ -99,32 +98,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <div className="hidden md:block">
               <AppSidebar />
             </div>
-            {mobileOpen && (
-              <div className="fixed inset-0 z-50 md:hidden">
-                <div
-                  className="absolute inset-0 bg-black/50"
-                  onClick={() => setMobileOpen(false)}
-                />
-                <div className="absolute left-0 top-0 h-full w-[85vw] max-w-sm bg-card shadow-2xl">
-                  <div className="flex items-center justify-between border-b border-border px-4 py-3">
-                    <p className="text-sm font-semibold">Menú</p>
-                    <button
-                      type="button"
-                      onClick={() => setMobileOpen(false)}
-                      className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                      aria-label="Cerrar menú"
-                    >
-                      <X className="h-5 w-5" />
-                    </button>
-                  </div>
-                  <AppSidebar
-                    onNavigate={() => setMobileOpen(false)}
-                    forceExpanded
-                    defaultOpenGroups="all"
-                  />
-                </div>
-              </div>
-            )}
+            <MobileMenuSheet open={mobileOpen} onClose={() => setMobileOpen(false)} />
           </>
         )}
 
@@ -133,7 +107,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             "flex min-h-full flex-1 flex-col",
             !shouldHideSidebar && [
               effectivelyExpanded ? "md:ml-60" : "md:ml-16",
-              "pb-20 md:pb-0",
+              "pb-24 md:pb-0",
             ]
           )}
         >

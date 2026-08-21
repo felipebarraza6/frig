@@ -2,7 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Receipt, Banknote, ShoppingBag, Menu } from "lucide-react";
+import { motion } from "framer-motion";
+import {
+  LayoutDashboard,
+  Receipt,
+  Banknote,
+  ShoppingBag,
+  Menu,
+  type LucideIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   useIsCashier,
@@ -15,7 +23,8 @@ import {
 interface NavItem {
   href?: string;
   label: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: LucideIcon;
+  badge?: number;
   onClick?: () => void;
 }
 
@@ -55,29 +64,62 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur-xl md:hidden pb-[env(safe-area-inset-bottom)]">
-      <div className="flex h-16 items-center justify-around px-1">
-        {items.map((item, idx) => {
-          const isActive = item.href && (pathname === item.href || pathname.startsWith(`${item.href}/`));
-          const className = cn(
-            "relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 py-2 transition-colors",
-            isActive ? "text-primary" : "text-muted-foreground hover:text-foreground",
-          );
+    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden pb-[env(safe-area-inset-bottom)]">
+      <div className="mx-3 mb-3 flex items-center justify-around rounded-2xl border border-border/60 bg-background/85 px-2 py-2 shadow-[0_8px_30px_rgb(0,0,0,0.12)] backdrop-blur-xl">
+        {items.map((item) => {
+          const isActive =
+            item.href && (pathname === item.href || pathname.startsWith(`${item.href}/`));
+          const isMenu = !item.href;
+
           const content = (
-            <>
-              <item.icon className={cn("h-[22px] w-[22px]", isActive && "stroke-[2.5px]")} />
-              <span className="max-w-full truncate px-1 text-[11px] font-medium leading-none">
+            <div
+              className={cn(
+                "relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 transition-colors",
+                isActive ? "text-primary" : "text-muted-foreground",
+                isMenu && "text-foreground"
+              )}
+            >
+              {isActive && (
+                <motion.div
+                  layoutId="active-nav-pill"
+                  className="absolute inset-0 rounded-xl bg-primary/10"
+                  transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                />
+              )}
+              <div className="relative">
+                <item.icon
+                  className="relative z-10 h-[22px] w-[22px]"
+                  strokeWidth={isActive ? 2.5 : 1.75}
+                />
+                {item.badge !== undefined && item.badge > 0 && (
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute -right-1.5 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[9px] font-bold text-white shadow-sm"
+                  >
+                    {item.badge > 9 ? "9+" : item.badge}
+                  </motion.span>
+                )}
+              </div>
+              <span
+                className={cn(
+                  "relative z-10 max-w-full truncate px-0.5 text-[11px] font-medium leading-none",
+                  isActive ? "text-primary" : "text-muted-foreground"
+                )}
+              >
                 {item.label}
               </span>
-              {isActive && (
-                <span className="absolute top-1 h-1 w-1 rounded-full bg-primary" />
-              )}
-            </>
+            </div>
           );
 
           if (item.href) {
             return (
-              <Link key={item.label + idx} href={item.href} className={className}>
+              <Link
+                key={item.label}
+                href={item.href}
+                className="relative flex min-w-0 flex-1 flex-col items-stretch justify-center"
+                aria-label={item.label}
+              >
                 {content}
               </Link>
             );
@@ -85,10 +127,11 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
 
           return (
             <button
-              key={item.label + idx}
+              key={item.label}
               type="button"
               onClick={item.onClick}
-              className={className}
+              className="relative flex min-w-0 flex-1 flex-col items-stretch justify-center"
+              aria-label={item.label}
             >
               {content}
             </button>
