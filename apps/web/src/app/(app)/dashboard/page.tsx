@@ -150,7 +150,7 @@ export default function DashboardPage() {
   const expensesTotal = counts?.expenses_by_supplier?.reduce((sum, e) => sum + e.total, 0) ?? 0;
 
   return (
-    <div className="flex min-h-full flex-col gap-6 p-4 sm:p-6">
+    <div className="flex min-h-full flex-col gap-4 p-4">
       {/* Header */}
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
         <div className="flex flex-wrap items-center gap-2">
@@ -190,7 +190,7 @@ export default function DashboardPage() {
         variants={container}
         initial="hidden"
         animate="show"
-        className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+        className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4"
       >
         <StatCard
           label="Ventas del período"
@@ -227,7 +227,7 @@ export default function DashboardPage() {
         variants={container}
         initial="hidden"
         animate="show"
-        className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+        className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4"
       >
         <StatCard
           label="Productos"
@@ -264,9 +264,9 @@ export default function DashboardPage() {
         variants={container}
         initial="hidden"
         animate="show"
-        className="grid gap-6 lg:grid-cols-3"
+        className="grid gap-4 lg:grid-cols-3"
       >
-        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm lg:col-span-2">
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm lg:col-span-2">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-sm font-semibold">
               <TrendingUp className="h-4 w-4 text-primary" />
@@ -281,14 +281,14 @@ export default function DashboardPage() {
               endDate={dates.end}
             />
           ) : (
-            <div className="grid h-56 place-items-center rounded-xl border border-dashed border-border bg-muted/30">
+            <div className="grid h-44 place-items-center rounded-xl border border-dashed border-border bg-muted/30">
               <p className="text-sm text-muted-foreground">Sin datos de ventas en el período.</p>
             </div>
           )}
         </div>
 
-        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold">
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
             <Target className="h-4 w-4 text-primary" />
             Resumen del negocio
           </h2>
@@ -303,7 +303,7 @@ export default function DashboardPage() {
           />
           <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
             <div className="rounded-xl bg-muted/50 p-3 text-center">
-              <p className="text-muted-foreground">Venta promedio por orden</p>
+              <p className="text-muted-foreground">Venta promedio</p>
               <p className="font-semibold tabular-nums">
                 {salesCount > 0 ? formatCLP(salesTotal / salesCount) : "—"}
               </p>
@@ -323,10 +323,10 @@ export default function DashboardPage() {
         variants={container}
         initial="hidden"
         animate="show"
-        className="grid gap-6 lg:grid-cols-2"
+        className="grid gap-4 lg:grid-cols-2"
       >
-        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold">
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
             <ShoppingBag className="h-4 w-4 text-primary" />
             Métodos de pago
           </h2>
@@ -360,8 +360,8 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <h2 className="mb-4 text-sm font-semibold">Productos más vendidos</h2>
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+          <h2 className="mb-3 text-sm font-semibold">Productos más vendidos</h2>
           {summary?.products?.best_selling && summary.products.best_selling.length > 0 ? (
             <div className="flex flex-col gap-3">
               {summary.products.best_selling.map((p, i) => {
@@ -394,45 +394,43 @@ export default function DashboardPage() {
       </motion.section>
 
       {/* Stock bajo */}
-      <motion.section
-        variants={container}
-        initial="hidden"
-        animate="show"
-        className="grid gap-6 lg:grid-cols-1"
-      >
-        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-sm font-semibold">
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
-              Stock bajo
-            </h2>
-            <Link
-              href="/inventory"
-              className="inline-flex items-center gap-1 text-xs font-medium text-primary transition-colors hover:text-primary/80"
-            >
-              Ver inventario
-              <ChevronRight className="h-3 w-3" />
-            </Link>
-          </div>
-          {lowStockProducts.length > 0 ? (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {lowStockProducts.length > 0 && (
+        <motion.section
+          variants={container}
+          initial="hidden"
+          animate="show"
+          className="grid gap-4"
+        >
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-sm font-semibold">
+                <AlertTriangle className="h-4 w-4 text-amber-500" />
+                Stock bajo
+              </h2>
+              <Link
+                href="/inventory"
+                className="inline-flex items-center gap-1 text-xs font-medium text-primary transition-colors hover:text-primary/80"
+              >
+                Ver inventario
+                <ChevronRight className="h-3 w-3" />
+              </Link>
+            </div>
+            <div className="flex flex-wrap gap-2">
               {lowStockProducts.map((p) => (
                 <div
                   key={p.id}
-                  className="flex items-center justify-between rounded-xl border border-amber-500/25 bg-amber-500/10 p-3 transition-colors hover:bg-amber-500/15"
+                  className="flex items-center gap-2 rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1.5 transition-colors hover:bg-amber-500/15"
                 >
-                  <span className="min-w-0 truncate text-sm font-medium">{p.name}</span>
+                  <span className="max-w-[160px] truncate text-sm font-medium">{p.name}</span>
                   <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-700">
                     {p.quantity} / {p.minimum_stock}
                   </span>
                 </div>
               ))}
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">No hay productos con stock bajo.</p>
-          )}
-        </div>
-      </motion.section>
+          </div>
+        </motion.section>
+      )}
     </div>
   );
 }
@@ -469,19 +467,19 @@ function StatCard({
     <motion.div
       variants={item}
       className={cn(
-        "rounded-2xl border border-border p-4 shadow-sm transition-all duration-200",
+        "rounded-xl border border-border p-2.5 shadow-sm transition-all duration-200",
         "hover:-translate-y-0.5 hover:shadow-md",
         tones[tone]
       )}
     >
-      <div className="mb-3 flex items-center gap-2.5">
-        <div className={cn("flex h-9 w-9 items-center justify-center rounded-xl", iconBg[tone])}>
-          <Icon className="h-4.5 w-4.5" strokeWidth={2} />
+      <div className="mb-1.5 flex items-center gap-2">
+        <div className={cn("flex h-7 w-7 items-center justify-center rounded-lg", iconBg[tone])}>
+          <Icon className="h-3.5 w-3.5" strokeWidth={2} />
         </div>
-        <span className="text-xs font-medium text-muted-foreground">{label}</span>
+        <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
       </div>
-      <p className="text-2xl font-semibold tabular-nums tracking-tight">{value}</p>
-      <p className="mt-1 text-xs text-muted-foreground">{sub}</p>
+      <p className="text-lg font-semibold tabular-nums tracking-tight">{value}</p>
+      <p className="text-[11px] text-muted-foreground">{sub}</p>
     </motion.div>
   );
 }
@@ -565,8 +563,8 @@ function SalesChart({
   const values = filled.map((d) => d.sales);
   const max = Math.max(...values, 1);
   const width = 600;
-  const height = 220;
-  const padding = { top: 12, right: 12, bottom: 28, left: 12 };
+  const height = 180;
+  const padding = { top: 10, right: 10, bottom: 24, left: 10 };
   const chartW = width - padding.left - padding.right;
   const chartH = height - padding.top - padding.bottom;
 
@@ -605,7 +603,7 @@ function SalesChart({
     <div className="relative select-none">
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        className="h-56 w-full"
+        className="h-40 w-full"
         onMouseMove={handleMove}
         onMouseLeave={() => setHover(null)}
       >
@@ -712,9 +710,9 @@ function SalesChart({
 }
 
 function RadarChart({ metrics }: { metrics: { label: string; value: number }[] }) {
-  const size = 140;
+  const size = 100;
   const center = size / 2;
-  const radius = 52;
+  const radius = 36;
   const angleStep = (Math.PI * 2) / metrics.length;
 
   const points = metrics.map((m, i) => {
@@ -796,8 +794,8 @@ function RadarChart({ metrics }: { metrics: { label: string; value: number }[] }
         ))}
         {/* Labels */}
         {points.map((p, i) => {
-          const labelX = center + (radius + 22) * Math.cos(p.angle);
-          const labelY = center + (radius + 22) * Math.sin(p.angle);
+          const labelX = center + (radius + 14) * Math.cos(p.angle);
+          const labelY = center + (radius + 14) * Math.sin(p.angle);
           return (
             <text
               key={i}
