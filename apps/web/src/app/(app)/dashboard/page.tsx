@@ -13,15 +13,10 @@ import {
   AlertTriangle,
   Clock,
   ChevronRight,
-  ShoppingBag,
   Wallet,
   Target,
   FlaskConical,
   ArrowRight,
-  Banknote,
-  CreditCard,
-  Landmark,
-  Smartphone,
   type LucideIcon,
 } from "lucide-react";
 
@@ -31,7 +26,7 @@ import {
   fetchIngredientConsumption,
   type DateRange,
 } from "@/lib/api/analytics";
-import { formatCLP, cn, paymentTypeLabel } from "@/lib/utils";
+import { formatCLP, cn } from "@/lib/utils";
 import { useCurrentBranch, useIsModuleEnabledFromConfig } from "@/lib/store/session";
 import { useProducts } from "@/lib/hooks/useCatalog";
 import { MetricDrawer, type MetricDrawerSection } from "@/components/metric-drawer";
@@ -59,16 +54,6 @@ type MetricConfig = {
   actions?: ReactNode;
   children?: ReactNode;
 };
-
-function paymentIcon(type?: string): LucideIcon {
-  const normalized = (type ?? "").toLowerCase();
-  if (normalized.includes("efectivo") || normalized.includes("cash")) return Banknote;
-  if (normalized.includes("transferencia") || normalized.includes("bank")) return Landmark;
-  if (normalized.includes("débito") || normalized.includes("debit")) return CreditCard;
-  if (normalized.includes("crédito") || normalized.includes("credit")) return CreditCard;
-  if (normalized.includes("billetera") || normalized.includes("digital")) return Smartphone;
-  return Wallet;
-}
 
 function formatDateInput(date: Date): string {
   const y = date.getFullYear();
@@ -285,15 +270,25 @@ export default function DashboardPage() {
                   </Link>
                 ),
                 children: (
-                  <OrdersMetricDetail
-                    filter={{
-                      start_date: dates.start,
-                      end_date: dates.end,
-                      order_type: "SALE",
-                      status: "COMPLETED",
-                    }}
-                    emptyMessage="No hay ventas completadas en el período seleccionado."
-                  />
+                  <>
+                    <OrdersMetricDetail
+                      filter={{
+                        start_date: dates.start,
+                        end_date: dates.end,
+                        order_type: "SALE",
+                        status: "COMPLETED",
+                      }}
+                      emptyMessage="No hay ventas completadas en el período seleccionado."
+                    />
+                    <div className="mt-5">
+                      <BestSellingProducts
+                        items={summary?.products?.best_selling_sales ?? []}
+                        title="Productos más vendidos en ventas"
+                        emptyMessage="Sin productos vendidos en el período."
+                        colorClass="bg-emerald-500"
+                      />
+                    </div>
+                  </>
                 ),
               },
             })
@@ -339,15 +334,25 @@ export default function DashboardPage() {
                   </Link>
                 ),
                 children: (
-                  <OrdersMetricDetail
-                    filter={{
-                      start_date: dates.start,
-                      end_date: dates.end,
-                      order_type: "ORDER",
-                      status: "COMPLETED",
-                    }}
-                    emptyMessage="No hay órdenes completadas en el período seleccionado."
-                  />
+                  <>
+                    <OrdersMetricDetail
+                      filter={{
+                        start_date: dates.start,
+                        end_date: dates.end,
+                        order_type: "ORDER",
+                        status: "COMPLETED",
+                      }}
+                      emptyMessage="No hay órdenes completadas en el período seleccionado."
+                    />
+                    <div className="mt-5">
+                      <BestSellingProducts
+                        items={summary?.products?.best_selling_orders ?? []}
+                        title="Productos más vendidos en órdenes"
+                        emptyMessage="Sin productos vendidos en órdenes del período."
+                        colorClass="bg-blue-500"
+                      />
+                    </div>
+                  </>
                 ),
               },
             })
@@ -775,114 +780,6 @@ export default function DashboardPage() {
               </p>
             </div>
           </div>
-        </div>
-      </motion.section>
-
-      {/* Métodos de pago y productos */}
-      <motion.section variants={container} initial="hidden" animate="show" className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl bg-muted/30 p-4">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-sm font-semibold">
-              <ShoppingBag className="h-4 w-4 text-primary" />
-              Métodos de pago
-            </h2>
-          </div>
-          {summary?.payments && summary.payments.length > 0 ? (
-            <div className="grid grid-cols-1 gap-3">
-              {(() => {
-                const totalPayments = summary.payments.reduce((s, x) => s + x.total, 0);
-                return summary.payments.map((p, i) => {
-                  const pct = totalPayments > 0 ? (p.total / totalPayments) * 100 : 0;
-                  const Icon = paymentIcon(paymentTypeLabel(p.type_payment__name));
-                  return (
-                    <div
-                      key={i}
-                      className="rounded-xl bg-card p-3 shadow-sm"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                          <Icon className="h-5 w-5" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between">
-                            <span className="truncate text-sm font-medium">
-                              {paymentTypeLabel(p.type_payment__name)}
-                            </span>
-                            <span className="ml-2 shrink-0 text-sm font-bold tabular-nums">
-                              {formatCLP(p.total)}
-                            </span>
-                          </div>
-                          <div className="mt-2 h-2 w-full rounded-full bg-muted">
-                            <motion.div
-                              initial={{ width: 0 }}
-                              animate={{ width: `${pct}%` }}
-                              transition={{ duration: 0.8, delay: i * 0.05 }}
-                              className="h-2 rounded-full bg-primary"
-                            />
-                          </div>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {pct.toFixed(1)}% del total
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                });
-              })()}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">Sin pagos en el período.</p>
-          )}
-        </div>
-
-        <div className="rounded-2xl bg-muted/30 p-4">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-sm font-semibold">
-              <Package className="h-4 w-4 text-primary" />
-              Productos más vendidos
-            </h2>
-          </div>
-          {summary?.products?.best_selling && summary.products.best_selling.length > 0 ? (
-            <div className="grid grid-cols-1 gap-3">
-              {summary.products.best_selling.map((p, i) => {
-                const maxQty = Math.max(...summary.products.best_selling.map((x) => x.quantity), 1);
-                const pct = (p.quantity / maxQty) * 100;
-                return (
-                  <div
-                    key={i}
-                    className="rounded-xl bg-card p-3 shadow-sm"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 text-xs font-bold">
-                        #{i + 1}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between">
-                          <span className="truncate text-sm font-medium">{p.product__name}</span>
-                          <span className="ml-2 shrink-0 text-sm font-bold tabular-nums">
-                            {formatCLP(p.total)}
-                          </span>
-                        </div>
-                        <div className="mt-2 h-2 w-full rounded-full bg-muted">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${pct}%` }}
-                            transition={{ duration: 0.8, delay: i * 0.05 }}
-                            className="h-2 rounded-full bg-emerald-500"
-                          />
-                        </div>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {p.quantity} unidades vendidas
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">Sin ventas en el período.</p>
-          )}
         </div>
       </motion.section>
 
@@ -1413,6 +1310,62 @@ function ProfitMiniReport({
   );
 }
 
+function BestSellingProducts({
+  items,
+  title,
+  emptyMessage,
+  colorClass = "bg-primary",
+}: {
+  items: { product__name: string; quantity: number; total: number }[];
+  title: string;
+  emptyMessage: string;
+  colorClass?: string;
+}) {
+  if (!items || items.length === 0) {
+    return (
+      <div className="rounded-xl border border-border bg-background p-4">
+        <h3 className="mb-2 text-xs font-semibold text-muted-foreground">{title}</h3>
+        <p className="text-sm text-muted-foreground">{emptyMessage}</p>
+      </div>
+    );
+  }
+
+  const maxQty = Math.max(...items.map((x) => x.quantity), 1);
+
+  return (
+    <div className="rounded-xl border border-border bg-background p-4">
+      <h3 className="mb-3 text-xs font-semibold text-muted-foreground">{title}</h3>
+      <div className="grid grid-cols-1 gap-3">
+        {items.map((p, i) => {
+          const pct = (p.quantity / maxQty) * 100;
+          return (
+            <div key={i} className="flex items-start gap-3">
+              <div className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white", colorClass)}>
+                #{i + 1}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between">
+                  <span className="truncate text-sm font-medium">{p.product__name}</span>
+                  <span className="ml-2 shrink-0 text-sm font-bold tabular-nums">{formatCLP(p.total)}</span>
+                </div>
+                <div className="mt-1.5 h-1.5 w-full rounded-full bg-muted">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${pct}%` }}
+                    transition={{ duration: 0.6, delay: i * 0.05 }}
+                    className={cn("h-1.5 rounded-full", colorClass)}
+                  />
+                </div>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">{p.quantity} unidades</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function RadarChart({ metrics }: { metrics: { label: string; value: number }[] }) {
   const size = 160;
   const center = size / 2;
@@ -1579,37 +1532,6 @@ function DashboardSkeleton() {
         </div>
       </section>
 
-      {/* Métodos de pago y productos */}
-      <section className="grid gap-3 lg:grid-cols-2">
-        <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
-          <SkeletonPulse className="mb-3 h-4 w-32" />
-          <div className="flex flex-col">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="flex flex-col gap-1 border-b border-border py-2.5 last:border-0">
-                <div className="flex items-center justify-between">
-                  <SkeletonPulse className="h-3 w-28" />
-                  <SkeletonPulse className="h-3 w-16" />
-                </div>
-                <SkeletonPulse className="h-1.5 w-full" />
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
-          <SkeletonPulse className="mb-3 h-4 w-40" />
-          <div className="flex flex-col">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="flex flex-col gap-1 border-b border-border py-2.5 last:border-0">
-                <div className="flex items-center justify-between">
-                  <SkeletonPulse className="h-3 w-32" />
-                  <SkeletonPulse className="h-3 w-20" />
-                </div>
-                <SkeletonPulse className="h-1.5 w-full" />
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
     </div>
   );
 }

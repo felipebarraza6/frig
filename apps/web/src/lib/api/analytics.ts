@@ -34,6 +34,8 @@ export type DashboardSummary = {
   };
   products: {
     best_selling: { product__name: string; quantity: number; total: number }[];
+    best_selling_sales: { product__name: string; quantity: number; total: number }[];
+    best_selling_orders: { product__name: string; quantity: number; total: number }[];
     most_profitable: unknown[];
     least_selling: unknown[];
     least_profitable: unknown[];
