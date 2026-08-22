@@ -186,7 +186,7 @@ export default function DashboardPage() {
     );
   }
 
-  // Ventas del período = ventas del POS completadas.
+  // Ventas del período = ventas completadas (order_type=SALE).
   const salesTotal = summary?.sales?.completed?.total_amount ?? 0;
   const salesCount = summary?.sales?.completed?.count ?? 0;
   const salesProfit = summary?.sales?.completed?.profit ?? 0;
@@ -247,7 +247,7 @@ export default function DashboardPage() {
           icon={TrendingUp}
           sub={`${salesCount} ventas`}
           href="/sales"
-          description="Ventas del POS completadas en el rango seleccionado."
+          description="Ventas completadas en el rango seleccionado."
           onClick={() =>
             setDrawer({
               open: true,
@@ -256,7 +256,7 @@ export default function DashboardPage() {
                 value: formatCLP(salesTotal),
                 icon: TrendingUp,
                 description:
-                  "Suma total de ventas realizadas en el punto de venta (POS) que ya están completadas y pagadas en el rango seleccionado.",
+                  "Suma total de ventas completadas y pagadas en el rango seleccionado. Incluye ventas creadas desde el POS o manualmente.",
                 sections: [
                   { label: "Ventas completadas", value: String(salesCount) },
                   {
@@ -357,7 +357,7 @@ export default function DashboardPage() {
           icon={Clock}
           sub="ventas sin pagar"
           href="/sales"
-          description="Ventas del POS pendientes de pago. Click para gestionarlas."
+          description="Ventas pendientes de pago. Click para gestionarlas."
           onClick={() =>
             setDrawer({
               open: true,
@@ -365,7 +365,7 @@ export default function DashboardPage() {
                 title: "Cuentas abiertas",
                 value: pendingOrders,
                 icon: Clock,
-                description: "Ventas del POS que todavía no se han pagado en el rango seleccionado. Requieren atención para cerrar la cuenta o completar el cobro.",
+                description: "Ventas que todavía no se han pagado en el rango seleccionado. Requieren atención para cerrar la cuenta o completar el cobro.",
                 sections: [
                   { label: "Monto pendiente", value: formatCLP(pendingSalesAmount) },
                   { label: "Ventas completadas", value: String(salesCount) },
@@ -493,7 +493,7 @@ export default function DashboardPage() {
                 value: formatCLP(totalRevenue),
                 icon: ArrowDownLeft,
                 description:
-                  "Suma total del dinero que ingresó por ventas del POS y pedidos de clientes completados en el rango seleccionado.",
+                  "Suma total del dinero que ingresó por ventas y pedidos de clientes completados en el rango seleccionado.",
                 sections: [
                   { label: "Ventas completadas", value: String(salesCount) },
                   { label: "Pedidos completados", value: String(ordersCount) },
@@ -531,7 +531,7 @@ export default function DashboardPage() {
                 value: formatCLP(totalProfit),
                 icon: Wallet,
                 description:
-                  "Margen aproximado calculado sobre ventas del POS y pedidos de clientes completados en el rango seleccionado. Se obtiene restando el costo estimado al total vendido.",
+                  "Margen aproximado calculado sobre ventas y pedidos de clientes completados en el rango seleccionado. Se obtiene restando el costo estimado al total vendido.",
                 sections: [
                   {
                     label: "Margen estimado",
