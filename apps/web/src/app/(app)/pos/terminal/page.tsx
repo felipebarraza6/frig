@@ -78,6 +78,7 @@ export default function PosPage() {
   const queryView = searchParams.get("view");
   const queryOrderId = searchParams.get("order_id");
   const queryReturnTo = searchParams.get("return_to");
+  const queryOrderType = searchParams.get("order_type") as "SALE" | "ORDER" | "AGREEMENT" | null;
   const isWaiterSimulation = queryView === "waiter";
   const isWaiter = realIsWaiter || isWaiterSimulation;
   const activeStationId = queryStationId
@@ -664,6 +665,7 @@ export default function PosPage() {
               existingOrder={existingOrder}
               existingOrderLoading={loadingExistingOrder}
               existingOrderError={existingOrderError}
+              defaultOrderType={queryOrderType ?? undefined}
               onOrderRegistered={() => {
                 if (isWaiter) goToWaiterTablesView();
                 else resetPosContext();
@@ -702,6 +704,7 @@ export default function PosPage() {
               existingOrder={existingOrder}
               existingOrderLoading={loadingExistingOrder}
               existingOrderError={existingOrderError}
+              defaultOrderType={queryOrderType ?? undefined}
               onOrderRegistered={() => {
                 if (isWaiter) goToWaiterTablesView();
                 else resetPosContext();

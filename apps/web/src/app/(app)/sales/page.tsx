@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Search, Loader2, ShoppingBag, X, Eye, Ban, Banknote, Plus, Trash2, FileDown, Printer } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
+import Link from "next/link";
 import { fetchOrders, cancelOrder, downloadOrderThermalPdf, downloadOrderA4Pdf, exportOrdersExcel, type OrdersFilter } from "@/lib/api/orders";
 import { fetchPaymentMethods, createPayment } from "@/lib/api/payments";
 import { getCurrentCashRegister } from "@/lib/api/cash-register";
@@ -15,11 +16,13 @@ import {
   useIsCashier,
   useSessionStore,
   useCurrentBranchRole,
+  useCurrentBranch,
   canCancelOrder,
   useCanViewTables,
   useIsModuleEnabledFromConfig,
 } from "@/lib/store/session";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
+import { useToast } from "@/lib/store/toast";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 type Order = YggdraSchemas["Order"] & { order_number?: string | null };
@@ -68,9 +71,14 @@ function paymentStatusLabel(value?: string | null): string {
   return PAYMENT_STATUS_OPTIONS.find((o) => o.value === value)?.label ?? (value ?? "—");
 }
 
+function orderTypeLabel(value?: string | null): string {
+  return ORDER_TYPE_OPTIONS.find((o) => o.value === value)?.label ?? (value ?? "—");
+}
+
 export default function SalesPage() {
   const queryClient = useQueryClient();
   const isCashier = useIsCashier();
+  const branch = useCurrentBranch();
   const user = useSessionStore((s) => s.user);
   const currentRole = useCurrentBranchRole();
   const canCancel = (ownerId?: string | number) => canCancelOrder(user, currentRole, ownerId);
@@ -78,14 +86,21 @@ export default function SalesPage() {
   const tablesEnabled = useIsModuleEnabledFromConfig("tables");
   const showTables = canViewTables && tablesEnabled;
   const { download: downloadFile, isLoading: isDownloading } = useDownloadFile();
+  const toast = useToast();
   const openView = useClientSearchParam("view") === "open";
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [status, setStatus] = useState("");
   const [paymentStatus, setPaymentStatus] = useState(openView ? "PENDING" : "");
   const [orderType, setOrderType] = useState("");
   const [startDate, setStartDate] = useState(isCashier ? todayStr() : "");
   const [endDate, setEndDate] = useState(isCashier ? todayStr() : "");
   const [pageUrl, setPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 350);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   const [detail, setDetail] = useState<Order | null>(null);
   const [collecting, setCollecting] = useState<Order | null>(null);
   const [paymentLines, setPaymentLines] = useState<{ id: string; payment_method_id: string; amount: string }[]>([]);
@@ -94,7 +109,7 @@ export default function SalesPage() {
 
   const filter = useMemo<OrdersFilter>(
     () => ({
-      search: search || undefined,
+      search: debouncedSearch || undefined,
       status: status || undefined,
       payment_status: paymentStatus || undefined,
       order_type: orderType || undefined,
@@ -102,7 +117,7 @@ export default function SalesPage() {
       end_date: endDate || undefined,
       ...pageUrl,
     }),
-    [search, status, paymentStatus, orderType, startDate, endDate, pageUrl],
+    [debouncedSearch, status, paymentStatus, orderType, startDate, endDate, pageUrl],
   );
 
   const { data: page, isLoading, error } = useQuery({
@@ -137,7 +152,17 @@ export default function SalesPage() {
     return map;
   }, [tablesPage]);
 
-  const orders = (page?.results ?? []) as Order[];
+  const orders = useMemo(() => {
+    const items = (page?.results ?? []) as Order[];
+    const term = debouncedSearch.trim().toLowerCase();
+    if (!term) return items;
+    return items.filter((order) => {
+      const number = (order.order_number ?? order.id).toLowerCase();
+      const client = (order.client?.name ?? "").toLowerCase();
+      const table = order.table ? String(tableById.get(order.table)?.number ?? order.table).toLowerCase() : "";
+      return number.includes(term) || client.includes(term) || table.includes(term);
+    });
+  }, [page?.results, debouncedSearch, tableById]) as Order[];
   const totalOrders = page?.count ?? 0;
 
   const cancel = useMutation({
@@ -219,6 +244,52 @@ export default function SalesPage() {
     });
   }
 
+  function handlePrintCommand(order: Order) {
+    const now = new Date(order.date).toLocaleString("es-CL", {
+      dateStyle: "short",
+      timeStyle: "short",
+    });
+    const lines: string[] = [];
+    lines.push(branch?.branch_name ?? "COMANDA");
+    lines.push("================");
+    lines.push(`${orderTypeLabel(order.order_type)}: ${order.order_number ?? order.id.slice(0, 8)}`);
+    lines.push(`Fecha: ${now}`);
+    if (order.client?.name) lines.push(`Cliente: ${order.client.name}`);
+    if (order.table) lines.push(`Mesa: ${tableById.get(order.table)?.number ?? order.table}`);
+    lines.push("");
+    lines.push("CONTENIDO:");
+    lines.push("----------------");
+    for (const p of order.products ?? []) {
+      lines.push(`${p.quantity ?? 1}x ${p.product_name}`);
+      if (p.notes?.trim()) lines.push(`   Nota: ${p.notes.trim()}`);
+    }
+    lines.push("");
+    lines.push("================");
+
+    const content = lines.join("\n");
+    const printWindow = window.open("", "_blank", "width=320,height=600");
+    if (!printWindow) {
+      toast.error("No se pudo abrir la ventana de impresión");
+      return;
+    }
+    printWindow.document.write(
+      `<html>
+        <head>
+          <title>Comanda ${order.order_number ?? order.id.slice(0, 8)}</title>
+          <style>
+            body { font-family: monospace; font-size: 14px; padding: 16px; margin: 0; }
+            pre { white-space: pre-wrap; word-break: break-word; }
+            @media print { body { padding: 0; } }
+          </style>
+        </head>
+        <body onload="window.print();">
+          <pre>${content.replace(/</g, "&lt;")}</pre>
+        </body>
+      </html>`
+    );
+    printWindow.document.close();
+  }
+
   function closeCollect() {
     setCollecting(null);
     setPaymentLines([]);
@@ -268,19 +339,33 @@ export default function SalesPage() {
             Historial de ventas, pedidos y convenios
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleExportExcel}
-          disabled={isDownloading}
-        >
-          {isDownloading ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <FileDown className="mr-2 h-4 w-4" />
-          )}
-          Exportar Excel
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/pos/terminal?order_type=SALE">
+            <Button variant="outline" size="sm">
+              <Plus className="mr-1.5 h-4 w-4" />
+              Venta
+            </Button>
+          </Link>
+          <Link href="/pos/terminal?order_type=ORDER">
+            <Button variant="outline" size="sm">
+              <Plus className="mr-1.5 h-4 w-4" />
+              Pedido
+            </Button>
+          </Link>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportExcel}
+            disabled={isDownloading}
+          >
+            {isDownloading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <FileDown className="mr-2 h-4 w-4" />
+            )}
+            Exportar Excel
+          </Button>
+        </div>
       </header>
 
       <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
@@ -375,7 +460,7 @@ export default function SalesPage() {
             <Input
               value={search}
               onChange={(e) => updateFilter(setSearch, e.target.value)}
-              placeholder="Buscar orden…"
+              placeholder="Buscar por N°, cliente o mesa…"
               className="h-8 pl-8 text-xs"
             />
           </div>
@@ -492,7 +577,7 @@ export default function SalesPage() {
                       {paymentStatusLabel(order.payment_status)}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      {order.order_type === "SALE" ? "Venta" : order.order_type === "ORDER" ? "Pedido" : "Convenio"}
+                      {orderTypeLabel(order.order_type)}
                     </span>
                     {showTables && order.table && (
                       <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
@@ -509,6 +594,15 @@ export default function SalesPage() {
                       title="Ver"
                     >
                       <Eye className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => handlePrintCommand(order)}
+                      title="Imprimir comanda"
+                    >
+                      <Printer className="h-3.5 w-3.5" />
                     </Button>
                     {(order.payment_status === "PENDING" || order.payment_status === "PARTIAL") && (
                       <Button
@@ -567,7 +661,7 @@ export default function SalesPage() {
               <table className="w-full min-w-[900px] text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                    <th className="px-4 py-3">N° Orden</th>
+                    <th className="px-4 py-3">N°</th>
                     <th className="px-4 py-3">Cliente</th>
                     {showTables && <th className="px-4 py-3">Mesa</th>}
                     <th className="px-4 py-3">Tipo</th>
@@ -602,7 +696,7 @@ export default function SalesPage() {
                         </td>
                       )}
                       <td className="px-4 py-3 text-muted-foreground">
-                        {order.order_type === "SALE" ? "Venta" : order.order_type === "ORDER" ? "Pedido" : "Convenio"}
+                        {orderTypeLabel(order.order_type)}
                       </td>
                       <td className="px-4 py-3">
                         <span
@@ -631,6 +725,10 @@ export default function SalesPage() {
                           <Button variant="ghost" size="sm" onClick={() => setDetail(order)}>
                             <Eye className="h-3.5 w-3.5" />
                             Ver
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => handlePrintCommand(order)} title="Imprimir comanda">
+                            <Printer className="h-3.5 w-3.5" />
+                            Comanda
                           </Button>
                           {(order.payment_status === "PENDING" || order.payment_status === "PARTIAL") && (
                             <Button variant="ghost" size="sm" onClick={() => openCollect(order)}>
@@ -713,13 +811,15 @@ export default function SalesPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
           <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-lg">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-base font-semibold">Orden {detail.id.slice(0, 8)}</h2>
+              <h2 className="text-base font-semibold">
+                {orderTypeLabel(detail.order_type)} {detail.order_number ?? detail.id.slice(0, 8)}
+              </h2>
               <button onClick={() => setDetail(null)} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
                 <X className="h-5 w-5" />
               </button>
             </div>
             <div className="flex flex-col gap-2 text-sm">
-              <p><span className="text-muted-foreground">N° Orden:</span> {detail.order_number ?? detail.id.slice(0, 8)}</p>
+              <p><span className="text-muted-foreground">N°:</span> {detail.order_number ?? detail.id.slice(0, 8)}</p>
               <p><span className="text-muted-foreground">Cliente:</span> {detail.client?.name ?? "—"}</p>
               {showTables && detail.table && (
                 <p>
@@ -727,7 +827,7 @@ export default function SalesPage() {
                   Mesa {tableById.get(detail.table)?.number ?? detail.table}
                 </p>
               )}
-              <p><span className="text-muted-foreground">Tipo:</span> {detail.order_type}</p>
+              <p><span className="text-muted-foreground">Tipo:</span> {orderTypeLabel(detail.order_type)}</p>
               <p><span className="text-muted-foreground">Estado:</span> {statusLabel(detail.status)}</p>
               <p><span className="text-muted-foreground">Pago:</span> {paymentStatusLabel(detail.payment_status)}</p>
               <p><span className="text-muted-foreground">Total:</span> {formatCLP(detail.total_amount ?? "0")}</p>
@@ -765,7 +865,7 @@ export default function SalesPage() {
           <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-lg">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-base font-semibold">
-                Cobrar orden {collecting.order_number ?? collecting.id.slice(0, 8)}
+                Cobrar {orderTypeLabel(collecting.order_type).toLowerCase()} {collecting.order_number ?? collecting.id.slice(0, 8)}
               </h2>
               <button onClick={closeCollect} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
                 <X className="h-5 w-5" />

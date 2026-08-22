@@ -65,9 +65,10 @@ interface CartPanelProps {
   onOrderRegistered?: () => void;
   onClose?: () => void;
   isWaiter?: boolean;
+  defaultOrderType?: "SALE" | "ORDER" | "AGREEMENT";
 }
 
-export default function CartPanel({ stationId, selectedTable, existingOrderId, existingOrder, existingOrderLoading, existingOrderError, onOrderRegistered, onClose, isWaiter: isWaiterProp }: CartPanelProps) {
+export default function CartPanel({ stationId, selectedTable, existingOrderId, existingOrder, existingOrderLoading, existingOrderError, onOrderRegistered, onClose, isWaiter: isWaiterProp, defaultOrderType }: CartPanelProps) {
   const queryClient = useQueryClient();
   const branch = useCurrentBranch();
   const branchId = branch?.branch_id ?? null;
@@ -266,7 +267,12 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
       }
 
       // Un mesero nunca cobra: siempre crea un pedido/cuenta abierta.
-      const orderType = isWaiter ? "ORDER" : payments.length > 0 ? "SALE" : "ORDER";
+      let orderType: "SALE" | "ORDER" | "AGREEMENT";
+      if (defaultOrderType) {
+        orderType = defaultOrderType === "ORDER" && payments.length > 0 ? "SALE" : defaultOrderType;
+      } else {
+        orderType = isWaiter ? "ORDER" : payments.length > 0 ? "SALE" : "ORDER";
+      }
       const order = await createOrder({
         items: cartToOrderItems(items),
         client_id: selectedClient?.id ?? null,
