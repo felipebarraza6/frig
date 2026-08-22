@@ -336,7 +336,7 @@ export default function SalesPage() {
         <div>
           <h1 className="text-lg font-semibold">Ventas y órdenes</h1>
           <p className="text-xs text-muted-foreground">
-            Historial de ventas, pedidos y convenios
+            Historial de ventas, pedidos y estadísticas
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
