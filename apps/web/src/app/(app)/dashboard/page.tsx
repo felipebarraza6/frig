@@ -32,6 +32,7 @@ import { useCurrentBranch, useIsModuleEnabledFromConfig } from "@/lib/store/sess
 import { useProducts } from "@/lib/hooks/useCatalog";
 import { MetricDrawer, type MetricDrawerSection } from "@/components/metric-drawer";
 import { Sparkline } from "@/components/sparkline";
+import { CustomersMetricDetail, OrdersMetricDetail } from "@/components/metric-drawer-detail";
 import Link from "next/link";
 
 const container: Variants = {
@@ -266,6 +267,17 @@ export default function DashboardPage() {
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 ),
+                children: (
+                  <OrdersMetricDetail
+                    filter={{
+                      start_date: dates.start,
+                      end_date: dates.end,
+                      order_type: "SALE",
+                      status: "COMPLETED",
+                    }}
+                    emptyMessage="No hay ventas completadas en el período seleccionado."
+                  />
+                ),
               },
             })
           }
@@ -306,6 +318,17 @@ export default function DashboardPage() {
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 ),
+                children: (
+                  <OrdersMetricDetail
+                    filter={{
+                      start_date: dates.start,
+                      end_date: dates.end,
+                      order_type: "ORDER",
+                      status: "COMPLETED",
+                    }}
+                    emptyMessage="No hay pedidos completados en el período seleccionado."
+                  />
+                ),
               },
             })
           }
@@ -339,6 +362,17 @@ export default function DashboardPage() {
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 ),
+                children: (
+                  <OrdersMetricDetail
+                    filter={{
+                      start_date: dates.start,
+                      end_date: dates.end,
+                      order_type: "SALE",
+                      status: "PENDING",
+                    }}
+                    emptyMessage="No hay cuentas abiertas en el período seleccionado."
+                  />
+                ),
               },
             })
           }
@@ -359,6 +393,12 @@ export default function DashboardPage() {
                 icon: Users,
                 description: "Base de clientes registrados en la sucursal. Click para ver el listado.",
                 sections: [{ label: "Total registrados", value: String(customers) }],
+                children: (
+                  <CustomersMetricDetail
+                    filter={{}}
+                    emptyMessage="No hay clientes registrados en la sucursal."
+                  />
+                ),
               },
             })
           }
