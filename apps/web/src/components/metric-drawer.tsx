@@ -55,7 +55,7 @@ export function MetricDrawer({
   return (
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-50">
+        <div className="fixed inset-0 z-[60]">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -77,27 +77,27 @@ export function MetricDrawer({
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", stiffness: 320, damping: 32 }}
-            className="absolute bottom-0 left-0 right-0 flex h-[85vh] flex-col rounded-t-3xl bg-card shadow-[0_-8px_40px_rgba(0,0,0,0.2)] md:left-auto md:right-4 md:top-4 md:h-auto md:max-h-[calc(100vh-2rem)] md:w-[480px] md:rounded-3xl md:shadow-2xl"
+            className="absolute bottom-0 left-0 right-0 flex h-[80vh] flex-col rounded-t-3xl bg-card shadow-[0_-8px_40px_rgba(0,0,0,0.2)] md:left-auto md:right-4 md:top-4 md:h-auto md:max-h-[calc(100vh-2rem)] md:w-[480px] md:rounded-3xl md:shadow-2xl"
             role="dialog"
             aria-modal="true"
             aria-label={title}
           >
             {/* Handle */}
             <div
-              className="flex w-full cursor-grab items-center justify-center pt-4 pb-2 active:cursor-grabbing md:hidden"
+              className="flex w-full cursor-grab items-center justify-center pt-3 pb-1 active:cursor-grabbing md:hidden"
               onPointerDown={(e) => dragControls.start(e)}
             >
               <div className="h-1.5 w-10 rounded-full bg-muted-foreground/30" />
             </div>
 
             {/* Header */}
-            <div className="flex items-start gap-3 border-b border-border px-5 pb-4 pt-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <Icon className="h-5 w-5" />
+            <div className="flex items-start gap-3 border-b border-border px-4 pb-3 pt-3 md:px-5 md:pb-4 md:pt-4">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary md:h-10 md:w-10">
+                <Icon className="h-4 w-4 md:h-5 md:w-5" />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-medium text-muted-foreground">{title}</p>
-                <p className="text-2xl font-bold tabular-nums tracking-tight">{value}</p>
+                <p className="text-xl font-bold tabular-nums tracking-tight md:text-2xl">{value}</p>
               </div>
               <button
                 type="button"
@@ -110,18 +110,18 @@ export function MetricDrawer({
             </div>
 
             {/* Body */}
-            <div className="scrollbar-hide flex-1 overflow-y-auto px-5 py-4">
-              <div className="rounded-2xl border border-border bg-muted/30 p-3">
+            <div className="scrollbar-hide flex-1 overflow-y-auto px-4 py-3 md:px-5 md:py-4">
+              <div className="rounded-2xl border border-border bg-muted/30 p-3 md:p-3">
                 <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
               </div>
 
               {sections && sections.length > 0 && (
-                <div className="mt-4 rounded-2xl border border-border bg-muted/30 p-3">
+                <div className="mt-3 rounded-2xl border border-border bg-muted/30 p-3 md:mt-4">
                   <div className="grid gap-2">
                     {sections.map((section, i) => (
                       <div
                         key={i}
-                        className="flex items-center justify-between rounded-xl border border-border bg-background px-3 py-2.5"
+                        className="flex items-center justify-between rounded-xl border border-border bg-background px-3 py-2"
                       >
                         <span className="text-xs font-medium text-muted-foreground">{section.label}</span>
                         <span className="text-sm font-semibold tabular-nums">{section.value}</span>
@@ -132,7 +132,7 @@ export function MetricDrawer({
               )}
 
               {chart && (
-                <div className="mt-4 rounded-2xl border border-border bg-muted/30 p-3">
+                <div className="mt-3 rounded-2xl border border-border bg-muted/30 p-3 md:mt-4">
                   <p className="mb-2 text-xs font-medium text-muted-foreground">Evolución en el período</p>
                   <div className="rounded-xl border border-border bg-background p-2">
                     {chart}
@@ -140,11 +140,11 @@ export function MetricDrawer({
                 </div>
               )}
 
-              {children && <div className="mt-4 flex flex-col gap-4">{children}</div>}
+              {children && <div className="mt-3 flex flex-col gap-3 md:mt-4 md:gap-4">{children}</div>}
             </div>
 
             {actions && (
-              <div className="border-t border-border p-4">
+              <div className="border-t border-border p-3 md:p-4">
                 {actions}
               </div>
             )}
