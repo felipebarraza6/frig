@@ -330,8 +330,7 @@ export default function PosZenPage() {
                     className="w-full"
                     disabled={
                       (!isOpening && isBusy) ||
-                      !branch ||
-                      (!isOpen && parseFloat(toDecimal(amount)) <= 0)
+                      !branch
                     }
                     onClick={() => handleOpen(station)}
                   >
