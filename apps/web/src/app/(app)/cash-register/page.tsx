@@ -23,7 +23,6 @@ import {
   CalendarDays,
   Unlock,
   Lock,
-  Printer,
   FileText,
   X,
   User as UserIcon,
@@ -48,7 +47,6 @@ import {
   type CashRegister as CashRegisterType,
 } from "@/lib/api/cash-register";
 import { fetchCashRegisterStations } from "@/lib/api/cash-register-stations";
-import { downloadOrderThermalPdf, downloadOrderA4Pdf } from "@/lib/api/orders";
 import { formatCLP, cn, paymentTypeLabel } from "@/lib/utils";
 import { useToast } from "@/lib/store/toast";
 import {
@@ -1069,7 +1067,6 @@ export default function CashRegisterPage() {
                                   <th className="px-4 py-2">Método</th>
                                   <th className="px-4 py-2">Estado pago</th>
                                   <th className="px-4 py-2 text-right">Total</th>
-                                  <th className="px-4 py-2 text-right">Acciones</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -1111,9 +1108,6 @@ export default function CashRegisterPage() {
                                     <td className="px-4 py-2 text-right tabular-nums font-semibold">
                                       {formatCLP(toNum(String(order.total_amount)))}
                                     </td>
-                                    <td className="px-4 py-2 text-right">
-                                      <PrintOrderActions orderId={order.id} />
-                                    </td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -1152,7 +1146,6 @@ export default function CashRegisterPage() {
                                     {formatCLP(toNum(String(order.total_amount)))}
                                   </p>
                                 </div>
-                                <PrintOrderActions orderId={order.id} />
                               </div>
                             ))}
                           </div>
@@ -1533,76 +1526,6 @@ function MetricItem({
       <p className={cn("text-base font-bold tabular-nums tracking-tight", muted && "text-muted-foreground")}>
         {loading ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : value}
       </p>
-    </div>
-  );
-}
-
-function PrintOrderActions({ orderId }: { orderId: string }) {
-  const [loading, setLoading] = useState<"thermal" | "a4" | null>(null);
-  const toast = useToast();
-
-  async function handleDownloadThermal() {
-    setLoading("thermal");
-    try {
-      const { blob, filename } = await downloadOrderThermalPdf(orderId);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename || `boleta_${orderId.slice(0, 8)}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "No se pudo descargar la boleta");
-    } finally {
-      setLoading(null);
-    }
-  }
-
-  async function handleDownloadA4() {
-    setLoading("a4");
-    try {
-      const { blob, filename } = await downloadOrderA4Pdf(orderId);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename || `boleta_${orderId.slice(0, 8)}_a4.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "No se pudo descargar la boleta A4");
-    } finally {
-      setLoading(null);
-    }
-  }
-
-  return (
-    <div className="flex items-center gap-1.5">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={handleDownloadThermal}
-        disabled={loading !== null}
-        title="Boleta 80 mm"
-        className="h-8 gap-1 text-xs"
-      >
-        {loading === "thermal" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Printer className="h-3.5 w-3.5" />}
-        80 mm
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={handleDownloadA4}
-        disabled={loading !== null}
-        title="Boleta A4"
-        className="h-8 gap-1 text-xs"
-      >
-        {loading === "a4" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />}
-        A4
-      </Button>
     </div>
   );
 }
