@@ -84,14 +84,14 @@ export function MetricDrawer({
           >
             {/* Handle */}
             <div
-              className="flex w-full cursor-grab items-center justify-center pt-3 pb-1 active:cursor-grabbing md:hidden"
+              className="flex w-full cursor-grab items-center justify-center pt-4 pb-2 active:cursor-grabbing md:hidden"
               onPointerDown={(e) => dragControls.start(e)}
             >
               <div className="h-1.5 w-10 rounded-full bg-muted-foreground/30" />
             </div>
 
             {/* Header */}
-            <div className="flex items-start gap-3 border-b border-border px-5 pb-4 pt-2">
+            <div className="flex items-start gap-3 border-b border-border px-5 pb-4 pt-4">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <Icon className="h-5 w-5" />
               </div>
