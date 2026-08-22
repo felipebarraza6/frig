@@ -134,6 +134,10 @@ export async function downloadOrderThermalPdf(id: string): Promise<ApiFileResult
   return apiFile(`/sales/orders/${id}/generate-boleta-pdf/`);
 }
 
+export async function downloadOrderTicketPdf(id: string): Promise<ApiFileResult> {
+  return apiFile(`/sales/orders/${id}/generate-ticket-pdf/`);
+}
+
 export async function downloadOrderA4Pdf(id: string): Promise<ApiFileResult> {
   return apiFile(`/sales/orders/${id}/generate-boleta-domiciliaria-pdf/`);
 }

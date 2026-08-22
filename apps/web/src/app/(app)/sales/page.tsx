@@ -6,7 +6,7 @@ import { Search, Loader2, ShoppingBag, X, Eye, Ban, Banknote, Plus, Trash2, File
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
-import { fetchOrders, cancelOrder, downloadOrderThermalPdf, downloadOrderA4Pdf, exportOrdersExcel, type OrdersFilter } from "@/lib/api/orders";
+import { fetchOrders, cancelOrder, downloadOrderThermalPdf, downloadOrderTicketPdf, downloadOrderA4Pdf, exportOrdersExcel, type OrdersFilter } from "@/lib/api/orders";
 import { fetchPaymentMethods, createPayment } from "@/lib/api/payments";
 import { getCurrentCashRegister } from "@/lib/api/cash-register";
 import { fetchTables } from "@/lib/api/tables";
@@ -15,13 +15,11 @@ import {
   useIsCashier,
   useSessionStore,
   useCurrentBranchRole,
-  useCurrentBranch,
   canCancelOrder,
   useCanViewTables,
   useIsModuleEnabledFromConfig,
 } from "@/lib/store/session";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
-import { useToast } from "@/lib/store/toast";
 import type { YggdraSchemas } from "@/lib/api/types";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -78,7 +76,6 @@ function orderTypeLabel(value?: string | null): string {
 export default function SalesPage() {
   const queryClient = useQueryClient();
   const isCashier = useIsCashier();
-  const branch = useCurrentBranch();
   const user = useSessionStore((s) => s.user);
   const currentRole = useCurrentBranchRole();
   const canCancel = (ownerId?: string | number) => canCancelOrder(user, currentRole, ownerId);
@@ -86,7 +83,6 @@ export default function SalesPage() {
   const tablesEnabled = useIsModuleEnabledFromConfig("tables");
   const showTables = canViewTables && tablesEnabled;
   const { download: downloadFile, isLoading: isDownloading } = useDownloadFile();
-  const toast = useToast();
   const openView = useClientSearchParam("view") === "open";
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -255,50 +251,10 @@ export default function SalesPage() {
     });
   }
 
-  function handlePrintCommand(order: Order) {
-    const now = new Date(order.date).toLocaleString("es-CL", {
-      dateStyle: "short",
-      timeStyle: "short",
+  async function handleDownloadTicketPdf(order: Order) {
+    await downloadFile(() => downloadOrderTicketPdf(order.id), {
+      filename: `comanda_${order.order_number ?? order.id.slice(0, 8)}.pdf`,
     });
-    const lines: string[] = [];
-    lines.push(branch?.branch_name ?? "COMANDA");
-    lines.push("================");
-    lines.push(`${orderTypeLabel(order.order_type)}: ${order.order_number ?? order.id.slice(0, 8)}`);
-    lines.push(`Fecha: ${now}`);
-    if (order.client?.name) lines.push(`Cliente: ${order.client.name}`);
-    if (order.table) lines.push(`Mesa: ${tableById.get(order.table)?.number ?? order.table}`);
-    lines.push("");
-    lines.push("CONTENIDO:");
-    lines.push("----------------");
-    for (const p of order.products ?? []) {
-      lines.push(`${p.quantity ?? 1}x ${p.product_name}`);
-      if (p.notes?.trim()) lines.push(`   Nota: ${p.notes.trim()}`);
-    }
-    lines.push("");
-    lines.push("================");
-
-    const content = lines.join("\n");
-    const printWindow = window.open("", "_blank", "width=320,height=600");
-    if (!printWindow) {
-      toast.error("No se pudo abrir la ventana de impresión");
-      return;
-    }
-    printWindow.document.write(
-      `<html>
-        <head>
-          <title>Comanda ${order.order_number ?? order.id.slice(0, 8)}</title>
-          <style>
-            body { font-family: monospace; font-size: 14px; padding: 16px; margin: 0; }
-            pre { white-space: pre-wrap; word-break: break-word; }
-            @media print { body { padding: 0; } }
-          </style>
-        </head>
-        <body onload="window.print();">
-          <pre>${content.replace(/</g, "&lt;")}</pre>
-        </body>
-      </html>`
-    );
-    printWindow.document.close();
   }
 
   function closeCollect() {
@@ -618,7 +574,7 @@ export default function SalesPage() {
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8"
-                      onClick={() => handlePrintCommand(order)}
+                      onClick={() => handleDownloadTicketPdf(order)}
                       title="Imprimir comanda"
                     >
                       <Printer className="h-3.5 w-3.5" />
@@ -750,7 +706,7 @@ export default function SalesPage() {
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDetail(order)} title="Ver detalle">
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handlePrintCommand(order)} title="Imprimir comanda">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownloadTicketPdf(order)} title="Imprimir comanda">
                             <Printer className="h-4 w-4" />
                           </Button>
                           {(order.payment_status === "PENDING" || order.payment_status === "PARTIAL") && (
