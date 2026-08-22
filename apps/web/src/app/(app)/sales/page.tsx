@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Loader2, ShoppingBag, X, Eye, Ban, Banknote, Plus, Trash2, FileDown, ClipboardList, Receipt, FileText, UserPlus } from "lucide-react";
+import { Search, Loader2, ShoppingBag, X, Eye, Ban, Banknote, Plus, Trash2, FileDown, ClipboardList, Receipt, FileText, UserPlus, SlidersHorizontal } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -103,6 +103,7 @@ export default function SalesPage() {
 
   const [detail, setDetail] = useState<Order | null>(null);
   const [collecting, setCollecting] = useState<Order | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [posModal, setPosModal] = useState<{ open: boolean; orderType: "SALE" | "ORDER" | null }>({
     open: false,
     orderType: null,
@@ -512,9 +513,9 @@ export default function SalesPage() {
           </button>
         </div>
 
-        {/* Filtros avanzados */}
-        <div className="grid grid-cols-1 gap-3 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 xl:grid-cols-7">
-          <div className="flex flex-col gap-1 xs:col-span-2 lg:col-span-2">
+        {/* Filtros avanzados: drawer en móvil, grid en desktop */}
+        <div className="flex flex-col gap-3 sm:grid sm:grid-cols-3 lg:grid-cols-6 xl:grid-cols-7">
+          <div className="flex flex-col gap-1 sm:col-span-1 lg:col-span-2">
             <label htmlFor="filter-search" className="text-xs text-muted-foreground">Buscar por N° de orden</label>
             <div className="relative">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -527,51 +528,71 @@ export default function SalesPage() {
               />
             </div>
           </div>
-          <div className="flex min-w-0 flex-col gap-1">
-            <label htmlFor="filter-status" className="text-xs text-muted-foreground">Estado</label>
-            <Select id="filter-status" value={status} onChange={(e) => updateFilter(setStatus, e.target.value)} className="h-8 text-xs">
-              {STATUS_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </Select>
+          <div className="flex items-end sm:hidden">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 w-full"
+              onClick={() => setFiltersOpen(true)}
+            >
+              <SlidersHorizontal className="mr-1.5 h-4 w-4" />
+              Filtros
+              {(status || paymentStatus || orderType || startDate || endDate) && (
+                <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-white">
+                  {[status, paymentStatus, orderType, startDate, endDate].filter(Boolean).length}
+                </span>
+              )}
+            </Button>
           </div>
-          <div className="flex min-w-0 flex-col gap-1">
-            <label htmlFor="filter-payment" className="text-xs text-muted-foreground">Pago</label>
-            <Select id="filter-payment" value={paymentStatus} onChange={(e) => updateFilter(setPaymentStatus, e.target.value)} className="h-8 text-xs">
-              {PAYMENT_STATUS_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </Select>
-          </div>
-          <div className="flex min-w-0 flex-col gap-1">
-            <label htmlFor="filter-type" className="text-xs text-muted-foreground">Tipo</label>
-            <Select id="filter-type" value={orderType} onChange={(e) => updateFilter(setOrderType, e.target.value)} className="h-8 text-xs">
-              {ORDER_TYPE_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </Select>
-          </div>
-          <div className="flex min-w-0 flex-col gap-1">
-            <label htmlFor="filter-start" className="text-xs text-muted-foreground">Desde</label>
-            <Input
-              id="filter-start"
-              type="date"
-              value={startDate}
-              onChange={(e) => updateDateRange(e.target.value, endDate)}
-              disabled={isCashier}
-              className="h-8 text-xs"
-            />
-          </div>
-          <div className="flex min-w-0 flex-col gap-1">
-            <label htmlFor="filter-end" className="text-xs text-muted-foreground">Hasta</label>
-            <Input
-              id="filter-end"
-              type="date"
-              value={endDate}
-              onChange={(e) => updateDateRange(startDate, e.target.value)}
-              disabled={isCashier}
-              className="h-8 text-xs"
-            />
+          <div className="hidden gap-3 sm:col-span-2 lg:col-span-4 xl:col-span-5 sm:grid sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+            <div className="flex min-w-0 flex-col gap-1">
+              <label htmlFor="filter-status" className="text-xs text-muted-foreground">Estado</label>
+              <Select id="filter-status" value={status} onChange={(e) => updateFilter(setStatus, e.target.value)} className="h-8 text-xs">
+                {STATUS_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </Select>
+            </div>
+            <div className="flex min-w-0 flex-col gap-1">
+              <label htmlFor="filter-payment" className="text-xs text-muted-foreground">Pago</label>
+              <Select id="filter-payment" value={paymentStatus} onChange={(e) => updateFilter(setPaymentStatus, e.target.value)} className="h-8 text-xs">
+                {PAYMENT_STATUS_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </Select>
+            </div>
+            <div className="flex min-w-0 flex-col gap-1">
+              <label htmlFor="filter-type" className="text-xs text-muted-foreground">Tipo</label>
+              <Select id="filter-type" value={orderType} onChange={(e) => updateFilter(setOrderType, e.target.value)} className="h-8 text-xs">
+                {ORDER_TYPE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex min-w-0 flex-col gap-1">
+                <label htmlFor="filter-start" className="text-xs text-muted-foreground">Desde</label>
+                <Input
+                  id="filter-start"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => updateDateRange(e.target.value, endDate)}
+                  disabled={isCashier}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div className="flex min-w-0 flex-col gap-1">
+                <label htmlFor="filter-end" className="text-xs text-muted-foreground">Hasta</label>
+                <Input
+                  id="filter-end"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => updateDateRange(startDate, e.target.value)}
+                  disabled={isCashier}
+                  className="h-8 text-xs"
+                />
+              </div>
+            </div>
           </div>
         </div>
 
@@ -650,71 +671,65 @@ export default function SalesPage() {
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center justify-end gap-0.5">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
+                  <div className="flex flex-wrap items-center justify-end gap-1 pt-1">
+                    <button
+                      type="button"
                       onClick={() => setDetail(order)}
-                      title="Ver"
+                      className="inline-flex min-w-[52px] flex-col items-center justify-center gap-0.5 rounded-lg p-1.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     >
                       <Eye className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
+                      Ver
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => handleDownloadTicketPdf(order)}
-                      title="Descargar orden"
+                      className="inline-flex min-w-[52px] flex-col items-center justify-center gap-0.5 rounded-lg p-1.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     >
                       <ClipboardList className="h-3.5 w-3.5" />
-                    </Button>
+                      Orden
+                    </button>
                     {(order.payment_status === "PENDING" || order.payment_status === "PARTIAL") && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
+                      <button
+                        type="button"
                         onClick={() => openCollect(order)}
-                        title="Cobrar"
+                        className="inline-flex min-w-[52px] flex-col items-center justify-center gap-0.5 rounded-lg p-1.5 text-[10px] font-medium text-emerald-700 transition-colors hover:bg-emerald-500/10"
                       >
                         <Banknote className="h-3.5 w-3.5" />
-                      </Button>
+                        Cobrar
+                      </button>
                     )}
                     {order.payment_status === "PAID" && (
                       <>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
+                        <button
+                          type="button"
                           onClick={() => handleDownloadThermalPdf(order)}
                           disabled={isDownloading}
-                          title="Boleta 80 mm"
+                          className="inline-flex min-w-[52px] flex-col items-center justify-center gap-0.5 rounded-lg p-1.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
                         >
                           <Receipt className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
+                          80 mm
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => handleDownloadA4Pdf(order)}
                           disabled={isDownloading}
-                          title="Boleta A4"
+                          className="inline-flex min-w-[52px] flex-col items-center justify-center gap-0.5 rounded-lg p-1.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
                         >
                           <FileText className="h-3.5 w-3.5" />
-                        </Button>
+                          A4
+                        </button>
                       </>
                     )}
                     {order.status !== "CANCELLED" && canCancel(order.owner) && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-danger hover:text-danger"
+                      <button
+                        type="button"
                         onClick={() => cancel.mutate(order.id)}
                         disabled={cancel.isPending}
-                        title="Anular"
+                        className="inline-flex min-w-[52px] flex-col items-center justify-center gap-0.5 rounded-lg p-1.5 text-[10px] font-medium text-danger transition-colors hover:bg-danger/10 disabled:opacity-50"
                       >
                         <Ban className="h-3.5 w-3.5" />
-                      </Button>
+                        Anular
+                      </button>
                     )}
                   </div>
                 </div>
@@ -793,52 +808,58 @@ export default function SalesPage() {
                         })}
                       </td>
                       <td className="px-3 py-3 text-right">
-                        <div className="flex items-center justify-end gap-0.5">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDetail(order)} title="Ver detalle">
-                            <Eye className="h-4 w-4" />
+                        <div className="flex flex-wrap items-center justify-end gap-1">
+                          <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs" onClick={() => setDetail(order)} title="Ver detalle">
+                            <Eye className="h-3.5 w-3.5" />
+                            <span className="hidden xl:inline">Ver</span>
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownloadTicketPdf(order)} title="Descargar orden">
-                            <ClipboardList className="h-4 w-4" />
+                          <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs" onClick={() => handleDownloadTicketPdf(order)} title="Descargar orden de elaboración">
+                            <ClipboardList className="h-3.5 w-3.5" />
+                            <span className="hidden xl:inline">Orden</span>
                           </Button>
                           {(order.payment_status === "PENDING" || order.payment_status === "PARTIAL") && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openCollect(order)} title="Cobrar">
-                              <Banknote className="h-4 w-4" />
+                            <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs text-emerald-700 hover:text-emerald-700 hover:bg-emerald-500/10" onClick={() => openCollect(order)} title="Cobrar">
+                              <Banknote className="h-3.5 w-3.5" />
+                              <span className="hidden xl:inline">Cobrar</span>
                             </Button>
                           )}
                           {order.payment_status === "PAID" && (
                             <>
                               <Button
                                 variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
+                                size="sm"
+                                className="h-7 gap-1 px-2 text-xs"
                                 onClick={() => handleDownloadThermalPdf(order)}
                                 disabled={isDownloading}
                                 title="Boleta 80 mm"
                               >
-                                <Receipt className="h-4 w-4" />
+                                <Receipt className="h-3.5 w-3.5" />
+                                <span className="hidden xl:inline">80 mm</span>
                               </Button>
                               <Button
                                 variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
+                                size="sm"
+                                className="h-7 gap-1 px-2 text-xs"
                                 onClick={() => handleDownloadA4Pdf(order)}
                                 disabled={isDownloading}
                                 title="Boleta A4"
                               >
-                                <FileText className="h-4 w-4" />
+                                <FileText className="h-3.5 w-3.5" />
+                                <span className="hidden xl:inline">A4</span>
                               </Button>
                             </>
                           )}
                           {order.status !== "CANCELLED" && canCancel(order.owner) && (
                             <Button
                               variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-danger hover:text-danger"
+                              size="sm"
+                              className="h-7 gap-1 px-2 text-xs text-danger hover:text-danger"
                               onClick={() => cancel.mutate(order.id)}
                               disabled={cancel.isPending}
                               title="Anular"
                             >
-                              <Ban className="h-4 w-4" />
+                              <Ban className="h-3.5 w-3.5" />
+                              <span className="hidden xl:inline">Anular</span>
                             </Button>
                           )}
                         </div>
@@ -1222,6 +1243,108 @@ export default function SalesPage() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Drawer de filtros avanzados en móvil */}
+      {filtersOpen && (
+        <div
+          className="fixed inset-0 z-50 flex justify-end bg-black/40 sm:hidden"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setFiltersOpen(false);
+          }}
+        >
+          <motion.div
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ duration: 0.2 }}
+            className="flex h-full w-full max-w-sm flex-col bg-card shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
+              <h2 className="text-base font-semibold">Filtros</h2>
+              <button
+                type="button"
+                onClick={() => setFiltersOpen(false)}
+                aria-label="Cerrar"
+                className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex flex-col gap-4 overflow-y-auto p-4">
+              <div className="flex flex-col gap-1">
+                <label htmlFor="mobile-filter-status" className="text-xs text-muted-foreground">Estado</label>
+                <Select id="mobile-filter-status" value={status} onChange={(e) => updateFilter(setStatus, e.target.value)} className="h-10 text-sm">
+                  {STATUS_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </Select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="mobile-filter-payment" className="text-xs text-muted-foreground">Pago</label>
+                <Select id="mobile-filter-payment" value={paymentStatus} onChange={(e) => updateFilter(setPaymentStatus, e.target.value)} className="h-10 text-sm">
+                  {PAYMENT_STATUS_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </Select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="mobile-filter-type" className="text-xs text-muted-foreground">Tipo</label>
+                <Select id="mobile-filter-type" value={orderType} onChange={(e) => updateFilter(setOrderType, e.target.value)} className="h-10 text-sm">
+                  {ORDER_TYPE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="mobile-filter-start" className="text-xs text-muted-foreground">Desde</label>
+                  <Input
+                    id="mobile-filter-start"
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => updateDateRange(e.target.value, endDate)}
+                    disabled={isCashier}
+                    className="h-10 text-sm"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="mobile-filter-end" className="text-xs text-muted-foreground">Hasta</label>
+                  <Input
+                    id="mobile-filter-end"
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => updateDateRange(startDate, e.target.value)}
+                    disabled={isCashier}
+                    className="h-10 text-sm"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center justify-between gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setStatus("");
+                    setPaymentStatus("");
+                    setOrderType("");
+                    setStartDate(isCashier ? todayStr() : "");
+                    setEndDate(isCashier ? todayStr() : "");
+                    setPageUrl({});
+                  }}
+                >
+                  Limpiar
+                </Button>
+                <Button className="flex-1" onClick={() => setFiltersOpen(false)}>
+                  Aplicar
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
