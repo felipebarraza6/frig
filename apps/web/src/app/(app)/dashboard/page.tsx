@@ -125,13 +125,13 @@ export default function DashboardPage() {
 
   const { data: counts, isLoading: loadingCounts, error: countsError } = useQuery({
     queryKey: ["dashboard", "module-counts", branchId],
-    queryFn: fetchModuleCounts,
+    queryFn: () => fetchModuleCounts(branchId),
     enabled: !!branch,
   });
 
   const { data: summary, isLoading: loadingSummary, error: summaryError } = useQuery({
     queryKey: ["dashboard", "summary", dates.start, dates.end, branchId],
-    queryFn: () => fetchDashboardSummary(dates.start, dates.end),
+    queryFn: () => fetchDashboardSummary(dates.start, dates.end, branchId),
     enabled: !!branch,
   });
 
@@ -139,7 +139,7 @@ export default function DashboardPage() {
 
   const { data: ingredientConsumption, isLoading: loadingIngredients } = useQuery({
     queryKey: ["dashboard", "ingredient-consumption", dates.start, dates.end, branchId],
-    queryFn: () => fetchIngredientConsumption(dates.start, dates.end),
+    queryFn: () => fetchIngredientConsumption(dates.start, dates.end, branchId),
     enabled: !!branch && nutritionEnabled,
   });
 

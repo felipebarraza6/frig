@@ -58,17 +58,22 @@ export type IngredientConsumption = {
   items: IngredientConsumptionItem[];
 };
 
-export async function fetchModuleCounts(): Promise<ModuleCounts> {
-  return apiFetch<ModuleCounts>("/analytics/dashboard/module_counts/");
+export async function fetchModuleCounts(branchId?: string | number): Promise<ModuleCounts> {
+  const params = new URLSearchParams();
+  if (branchId) params.set("branch", String(branchId));
+  const qs = params.toString();
+  return apiFetch<ModuleCounts>(`/analytics/dashboard/module_counts/${qs ? `?${qs}` : ""}`);
 }
 
 export async function fetchIngredientConsumption(
   startDate?: string,
   endDate?: string,
+  branchId?: string | number,
 ): Promise<IngredientConsumption> {
   const params = new URLSearchParams();
   if (startDate) params.set("start_date", startDate);
   if (endDate) params.set("end_date", endDate);
+  if (branchId) params.set("branch", String(branchId));
   const qs = params.toString();
   return apiFetch<IngredientConsumption>(`/analytics/dashboard/ingredient-consumption/${qs ? `?${qs}` : ""}`);
 }
@@ -76,10 +81,12 @@ export async function fetchIngredientConsumption(
 export async function fetchDashboardSummary(
   startDate?: string,
   endDate?: string,
+  branchId?: string | number,
 ): Promise<DashboardSummary> {
   const params = new URLSearchParams();
   if (startDate) params.set("start_date", startDate);
   if (endDate) params.set("end_date", endDate);
+  if (branchId) params.set("branch", String(branchId));
   const qs = params.toString();
   return apiFetch<DashboardSummary>(`/analytics/dashboard/summary/${qs ? `?${qs}` : ""}`);
 }
