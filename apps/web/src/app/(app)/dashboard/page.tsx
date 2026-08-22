@@ -270,23 +270,23 @@ export default function DashboardPage() {
                 ),
                 children: (
                   <>
-                    <OrdersMetricDetail
-                      filter={{
-                        start_date: dates.start,
-                        end_date: dates.end,
-                        order_type: "SALE",
-                        status: "COMPLETED",
-                      }}
-                      emptyMessage="No hay ventas completadas en el período seleccionado."
-                    />
-                    <div className="mt-5">
-                      <BestSellingProducts
-                        items={summary?.products?.best_selling_sales ?? []}
-                        title="Productos más vendidos en ventas"
-                        emptyMessage="Sin productos vendidos en el período."
-                        colorClass="bg-emerald-500"
+                    <div className="rounded-2xl border border-border bg-muted/30 p-3">
+                      <OrdersMetricDetail
+                        filter={{
+                          start_date: dates.start,
+                          end_date: dates.end,
+                          order_type: "SALE",
+                          status: "COMPLETED",
+                        }}
+                        emptyMessage="No hay ventas completadas en el período seleccionado."
                       />
                     </div>
+                    <BestSellingProducts
+                      items={summary?.products?.best_selling_sales ?? []}
+                      title="Productos más vendidos en ventas"
+                      emptyMessage="Sin productos vendidos en el período."
+                      colorClass="bg-emerald-500"
+                    />
                   </>
                 ),
               },
@@ -334,23 +334,23 @@ export default function DashboardPage() {
                 ),
                 children: (
                   <>
-                    <OrdersMetricDetail
-                      filter={{
-                        start_date: dates.start,
-                        end_date: dates.end,
-                        order_type: "ORDER",
-                        status: "COMPLETED",
-                      }}
-                      emptyMessage="No hay órdenes completadas en el período seleccionado."
-                    />
-                    <div className="mt-5">
-                      <BestSellingProducts
-                        items={summary?.products?.best_selling_orders ?? []}
-                        title="Productos más vendidos en órdenes"
-                        emptyMessage="Sin productos vendidos en órdenes del período."
-                        colorClass="bg-blue-500"
+                    <div className="rounded-2xl border border-border bg-muted/30 p-3">
+                      <OrdersMetricDetail
+                        filter={{
+                          start_date: dates.start,
+                          end_date: dates.end,
+                          order_type: "ORDER",
+                          status: "COMPLETED",
+                        }}
+                        emptyMessage="No hay órdenes completadas en el período seleccionado."
                       />
                     </div>
+                    <BestSellingProducts
+                      items={summary?.products?.best_selling_orders ?? []}
+                      title="Productos más vendidos en órdenes"
+                      emptyMessage="Sin productos vendidos en órdenes del período."
+                      colorClass="bg-blue-500"
+                    />
                   </>
                 ),
               },
@@ -390,15 +390,17 @@ export default function DashboardPage() {
                   </Link>
                 ),
                 children: (
-                  <OrdersMetricDetail
-                    filter={{
-                      start_date: dates.start,
-                      end_date: dates.end,
-                      order_type: "SALE",
-                      status: "PENDING",
-                    }}
-                    emptyMessage="No hay cuentas abiertas en el período seleccionado."
-                  />
+                  <div className="rounded-2xl border border-border bg-muted/30 p-3">
+                    <OrdersMetricDetail
+                      filter={{
+                        start_date: dates.start,
+                        end_date: dates.end,
+                        order_type: "SALE",
+                        status: "PENDING",
+                      }}
+                      emptyMessage="No hay cuentas abiertas en el período seleccionado."
+                    />
+                  </div>
                 ),
               },
             })
@@ -422,10 +424,12 @@ export default function DashboardPage() {
                 description: "Base de clientes registrados en la sucursal. Click para ver el listado.",
                 sections: [{ label: "Total registrados", value: String(customers) }],
                 children: (
-                  <CustomersMetricDetail
-                    filter={{}}
-                    emptyMessage="No hay clientes registrados en la sucursal."
-                  />
+                  <div className="rounded-2xl border border-border bg-muted/30 p-3">
+                    <CustomersMetricDetail
+                      filter={{}}
+                      emptyMessage="No hay clientes registrados en la sucursal."
+                    />
+                  </div>
                 ),
               },
             })
@@ -460,29 +464,32 @@ export default function DashboardPage() {
                   { label: "Con stock bajo", value: String(lowStockCount) },
                   { label: "Catálogo local", value: String(productsCount) },
                 ],
-                children:
-                  lowStockProducts.length > 0 ? (
-                    <div className="flex flex-col">
-                      {lowStockProducts.map((p) => (
-                        <div
-                          key={p.id}
-                          className="flex items-center justify-between border-b border-border py-2.5 last:border-0"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium">{p.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              Stock: {p.quantity ?? 0} / mín: {p.minimum_stock ?? 0}
-                            </p>
+                children: (
+                  <div className="rounded-2xl border border-border bg-muted/30 p-3">
+                    {lowStockProducts.length > 0 ? (
+                      <div className="flex flex-col">
+                        {lowStockProducts.map((p) => (
+                          <div
+                            key={p.id}
+                            className="flex items-center justify-between border-b border-border py-2.5 last:border-0"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium">{p.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                Stock: {p.quantity ?? 0} / mín: {p.minimum_stock ?? 0}
+                              </p>
+                            </div>
+                            <span className="shrink-0 text-sm font-semibold tabular-nums">
+                              {formatCLP(p.price)}
+                            </span>
                           </div>
-                          <span className="shrink-0 text-sm font-semibold tabular-nums">
-                            {formatCLP(p.price)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">Sin productos con stock bajo.</p>
-                  ),
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Sin productos con stock bajo.</p>
+                    )}
+                  </div>
+                ),
               },
             })
           }
@@ -521,7 +528,11 @@ export default function DashboardPage() {
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 ),
-                children: <IncomeMetricDetail startDate={dates.start} endDate={dates.end} />,
+                children: (
+                  <div className="rounded-2xl border border-border bg-muted/30 p-3">
+                    <IncomeMetricDetail startDate={dates.start} endDate={dates.end} />
+                  </div>
+                ),
               },
             })
           }
@@ -594,51 +605,54 @@ export default function DashboardPage() {
                       <ArrowRight className="h-4 w-4" />
                     </Link>
                   ),
-                  children:
-                    ingredientConsumption?.items && ingredientConsumption.items.length > 0 ? (
-                      <div className="flex flex-col">
-                        {(() => {
-                          const maxCost = Math.max(
-                            ...ingredientConsumption.items.map((i) => i.cost),
-                            1,
-                          );
-                          return ingredientConsumption.items.map((item) => {
-                            const pct = (item.cost / maxCost) * 100;
-                            return (
-                              <div
-                                key={item.ingredient_id}
-                                className="flex flex-col gap-1 border-b border-border py-2.5 last:border-0"
-                                title={`${item.ingredient_name}: ${item.total_quantity} ${item.unit} consumidos`}
-                              >
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="min-w-0 truncate font-medium">
-                                    {item.ingredient_name}
-                                  </span>
-                                  <span className="shrink-0 tabular-nums font-semibold">
-                                    {formatCLP(item.cost)}
-                                  </span>
-                                </div>
-                                <p className="text-xs text-muted-foreground">
-                                  {item.total_quantity} {item.unit}
-                                </p>
-                                <div className="h-1.5 w-full rounded-full bg-muted">
-                                  <motion.div
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${pct}%` }}
-                                    transition={{ duration: 0.8 }}
-                                    className="h-1.5 rounded-full bg-primary"
-                                  />
-                                </div>
-                              </div>
+                  children: (
+                    <div className="rounded-2xl border border-border bg-muted/30 p-3">
+                      {ingredientConsumption?.items && ingredientConsumption.items.length > 0 ? (
+                        <div className="flex flex-col">
+                          {(() => {
+                            const maxCost = Math.max(
+                              ...ingredientConsumption.items.map((i) => i.cost),
+                              1,
                             );
-                          });
-                        })()}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        Sin consumo de insumos en el período.
-                      </p>
-                    ),
+                            return ingredientConsumption.items.map((item) => {
+                              const pct = (item.cost / maxCost) * 100;
+                              return (
+                                <div
+                                  key={item.ingredient_id}
+                                  className="flex flex-col gap-1 border-b border-border py-2.5 last:border-0"
+                                  title={`${item.ingredient_name}: ${item.total_quantity} ${item.unit} consumidos`}
+                                >
+                                  <div className="flex items-center justify-between text-sm">
+                                    <span className="min-w-0 truncate font-medium">
+                                      {item.ingredient_name}
+                                    </span>
+                                    <span className="shrink-0 tabular-nums font-semibold">
+                                      {formatCLP(item.cost)}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground">
+                                    {item.total_quantity} {item.unit}
+                                  </p>
+                                  <div className="h-1.5 w-full rounded-full bg-muted">
+                                    <motion.div
+                                      initial={{ width: 0 }}
+                                      animate={{ width: `${pct}%` }}
+                                      transition={{ duration: 0.8 }}
+                                      className="h-1.5 rounded-full bg-primary"
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            });
+                          })()}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          Sin consumo de insumos en el período.
+                        </p>
+                      )}
+                    </div>
+                  ),
                 },
               })
             }
@@ -671,46 +685,49 @@ export default function DashboardPage() {
                     value: String(counts?.expenses_by_supplier?.length ?? 0),
                   },
                 ],
-                children:
-                  counts?.expenses_by_supplier && counts.expenses_by_supplier.length > 0 ? (
-                    <div className="flex flex-col">
-                      {(() => {
-                        const maxTotal = Math.max(
-                          ...counts.expenses_by_supplier.map((e) => e.total),
-                          1,
-                        );
-                        return counts.expenses_by_supplier.map((e) => {
-                          const pct = (e.total / maxTotal) * 100;
-                          return (
-                            <div
-                              key={e.supplier}
-                              className="flex flex-col gap-1 border-b border-border py-2.5 last:border-0"
-                            >
-                              <div className="flex items-center justify-between text-sm">
-                                <span className="min-w-0 truncate font-medium">{e.supplier}</span>
-                                <span className="shrink-0 tabular-nums font-semibold">
-                                  {formatCLP(e.total)}
-                                </span>
-                              </div>
-                              <p className="text-xs text-muted-foreground">
-                                {e.count} {e.count === 1 ? "registro" : "registros"}
-                              </p>
-                              <div className="h-1.5 w-full rounded-full bg-muted">
-                                <motion.div
-                                  initial={{ width: 0 }}
-                                  animate={{ width: `${pct}%` }}
-                                  transition={{ duration: 0.8 }}
-                                  className="h-1.5 rounded-full bg-rose-500"
-                                />
-                              </div>
-                            </div>
+                children: (
+                  <div className="rounded-2xl border border-border bg-muted/30 p-3">
+                    {counts?.expenses_by_supplier && counts.expenses_by_supplier.length > 0 ? (
+                      <div className="flex flex-col">
+                        {(() => {
+                          const maxTotal = Math.max(
+                            ...counts.expenses_by_supplier.map((e) => e.total),
+                            1,
                           );
-                        });
-                      })()}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">Sin gastos registrados.</p>
-                  ),
+                          return counts.expenses_by_supplier.map((e) => {
+                            const pct = (e.total / maxTotal) * 100;
+                            return (
+                              <div
+                                key={e.supplier}
+                                className="flex flex-col gap-1 border-b border-border py-2.5 last:border-0"
+                              >
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="min-w-0 truncate font-medium">{e.supplier}</span>
+                                  <span className="shrink-0 tabular-nums font-semibold">
+                                    {formatCLP(e.total)}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  {e.count} {e.count === 1 ? "registro" : "registros"}
+                                </p>
+                                <div className="h-1.5 w-full rounded-full bg-muted">
+                                  <motion.div
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${pct}%` }}
+                                    transition={{ duration: 0.8 }}
+                                    className="h-1.5 rounded-full bg-rose-500"
+                                  />
+                                </div>
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Sin gastos registrados.</p>
+                    )}
+                  </div>
+                ),
                 actions: (
                   <Link
                     href="/expenses"
