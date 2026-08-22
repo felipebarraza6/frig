@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Loader2, ShoppingBag, X, Eye, Ban, Banknote, Plus, Trash2, FileDown, Printer } from "lucide-react";
+import { Search, Loader2, ShoppingBag, X, Eye, Ban, Banknote, Plus, Trash2, FileDown, ChefHat, Receipt, FileText } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -306,25 +306,28 @@ export default function SalesPage() {
             Historial de ventas, pedidos y estadísticas
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8"
-            onClick={() => setPosModal({ open: true, orderType: "SALE" })}
-          >
-            <Plus className="mr-1.5 h-4 w-4" />
-            Venta
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8"
-            onClick={() => setPosModal({ open: true, orderType: "ORDER" })}
-          >
-            <Plus className="mr-1.5 h-4 w-4" />
-            Pedido
-          </Button>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={() => setPosModal({ open: true, orderType: "SALE" })}
+            >
+              <Plus className="mr-1.5 h-4 w-4" />
+              Venta
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={() => setPosModal({ open: true, orderType: "ORDER" })}
+            >
+              <Plus className="mr-1.5 h-4 w-4" />
+              Pedido
+            </Button>
+          </div>
+          <div className="hidden h-6 w-px bg-border sm:block" />
           <Button
             variant="outline"
             size="sm"
@@ -429,15 +432,19 @@ export default function SalesPage() {
         </div>
 
         {/* Filtros avanzados */}
-        <div className="grid grid-cols-1 gap-2 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 xl:grid-cols-7">
-          <div className="relative xs:col-span-2 lg:col-span-2">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => updateFilter(setSearch, e.target.value)}
-              placeholder="Buscar por N°…"
-              className="h-8 pl-8 text-xs"
-            />
+        <div className="grid grid-cols-1 gap-3 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 xl:grid-cols-7">
+          <div className="flex flex-col gap-1 xs:col-span-2 lg:col-span-2">
+            <label htmlFor="filter-search" className="text-xs text-muted-foreground">Buscar por N° de orden</label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="filter-search"
+                value={search}
+                onChange={(e) => updateFilter(setSearch, e.target.value)}
+                placeholder="Ej: B5-260821-0007"
+                className="h-8 pl-8 text-xs"
+              />
+            </div>
           </div>
           <div className="flex min-w-0 flex-col gap-1">
             <label htmlFor="filter-status" className="text-xs text-muted-foreground">Estado</label>
@@ -518,8 +525,10 @@ export default function SalesPage() {
                         {new Date(order.date).toLocaleString("es-CL", {
                           day: "2-digit",
                           month: "2-digit",
+                          year: "numeric",
                           hour: "2-digit",
                           minute: "2-digit",
+                          hour12: false,
                         })}
                       </div>
                     </div>
@@ -575,9 +584,9 @@ export default function SalesPage() {
                       size="icon"
                       className="h-8 w-8"
                       onClick={() => handleDownloadTicketPdf(order)}
-                      title="Imprimir comanda"
+                      title="Descargar comanda (cocina)"
                     >
-                      <Printer className="h-3.5 w-3.5" />
+                      <ChefHat className="h-3.5 w-3.5" />
                     </Button>
                     {(order.payment_status === "PENDING" || order.payment_status === "PARTIAL") && (
                       <Button
@@ -600,7 +609,7 @@ export default function SalesPage() {
                           disabled={isDownloading}
                           title="Boleta 80 mm"
                         >
-                          <Printer className="h-3.5 w-3.5" />
+                          <Receipt className="h-3.5 w-3.5" />
                         </Button>
                         <Button
                           variant="ghost"
@@ -610,7 +619,7 @@ export default function SalesPage() {
                           disabled={isDownloading}
                           title="Boleta A4"
                         >
-                          <FileDown className="h-3.5 w-3.5" />
+                          <FileText className="h-3.5 w-3.5" />
                         </Button>
                       </>
                     )}
@@ -699,6 +708,7 @@ export default function SalesPage() {
                           year: "numeric",
                           hour: "2-digit",
                           minute: "2-digit",
+                          hour12: false,
                         })}
                       </td>
                       <td className="px-3 py-3 text-right">
@@ -706,8 +716,8 @@ export default function SalesPage() {
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDetail(order)} title="Ver detalle">
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownloadTicketPdf(order)} title="Imprimir comanda">
-                            <Printer className="h-4 w-4" />
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownloadTicketPdf(order)} title="Descargar comanda (cocina)">
+                            <ChefHat className="h-4 w-4" />
                           </Button>
                           {(order.payment_status === "PENDING" || order.payment_status === "PARTIAL") && (
                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openCollect(order)} title="Cobrar">
@@ -724,7 +734,7 @@ export default function SalesPage() {
                                 disabled={isDownloading}
                                 title="Boleta 80 mm"
                               >
-                                <Printer className="h-4 w-4" />
+                                <Receipt className="h-4 w-4" />
                               </Button>
                               <Button
                                 variant="ghost"
@@ -734,7 +744,7 @@ export default function SalesPage() {
                                 disabled={isDownloading}
                                 title="Boleta A4"
                               >
-                                <FileDown className="h-4 w-4" />
+                                <FileText className="h-4 w-4" />
                               </Button>
                             </>
                           )}
@@ -809,7 +819,7 @@ export default function SalesPage() {
               <p><span className="text-muted-foreground">Estado:</span> {statusLabel(detail.status)}</p>
               <p><span className="text-muted-foreground">Pago:</span> {paymentStatusLabel(detail.payment_status)}</p>
               <p><span className="text-muted-foreground">Total:</span> {formatCLP(detail.total_amount ?? "0")}</p>
-              <p><span className="text-muted-foreground">Fecha:</span> {new Date(detail.date).toLocaleString()}</p>
+              <p><span className="text-muted-foreground">Fecha:</span> {new Date(detail.date).toLocaleString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })}</p>
               {detail.observation && (
                 <p><span className="text-muted-foreground">Observación:</span> {detail.observation}</p>
               )}
