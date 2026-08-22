@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Loader2, ShoppingBag, X, Eye, Ban, Banknote, Plus, Trash2, FileDown, ChefHat, Receipt, FileText } from "lucide-react";
+import { Search, Loader2, ShoppingBag, X, Eye, Ban, Banknote, Plus, Trash2, FileDown, ChefHat, Receipt, FileText, UserPlus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -390,6 +390,15 @@ export default function SalesPage() {
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <div className="flex items-center gap-2">
             <Button
+              variant="default"
+              size="sm"
+              className="h-8"
+              onClick={() => setAccountModal(true)}
+            >
+              <UserPlus className="mr-1.5 h-4 w-4" />
+              Nueva cuenta
+            </Button>
+            <Button
               variant="outline"
               size="sm"
               className="h-8"
@@ -397,15 +406,6 @@ export default function SalesPage() {
             >
               <Plus className="mr-1.5 h-4 w-4" />
               Venta
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8"
-              onClick={() => setAccountModal(true)}
-            >
-              <Plus className="mr-1.5 h-4 w-4" />
-              Nueva cuenta
             </Button>
           </div>
           <div className="hidden h-6 w-px bg-border sm:block" />
