@@ -73,7 +73,7 @@ export default function PosZenPage() {
   const dailySummaries = useQueries({
     queries: stationIds.map((id) => ({
       queryKey: ["cash-register", "daily-summary", id, today, "pos"],
-      queryFn: () => getDailySummary(id, { ignoreCashRegister: true }),
+      queryFn: () => getDailySummary(id),
       enabled: !!id,
       staleTime: 30_000,
       retry: false,
