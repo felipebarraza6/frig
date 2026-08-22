@@ -457,6 +457,7 @@ export function useCanCancelOrder(orderOwnerId?: string | number): boolean {
 }
 
 const CASHIER_ALLOWED_PATHS = [
+  "/pos",
   "/pos/terminal",
   "/cash-register",
   "/kds",
@@ -465,9 +466,20 @@ const CASHIER_ALLOWED_PATHS = [
 ];
 
 const WAITER_ALLOWED_PATHS = [
+  "/pos",
   "/pos/terminal",
-  "/tables/map",
+  "/cash-register",
   "/sales",
+  "/products",
+  "/products/combos",
+  "/categories",
+  "/warehouses",
+  "/inventory",
+  "/tables",
+  "/tables/map",
+  "/customers",
+  "/suppliers",
+  "/purchase-orders",
   "/profile",
 ];
 

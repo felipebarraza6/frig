@@ -82,12 +82,26 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
     []
   );
   const waiterAllowedPaths = useMemo(
-    () => ["/pos", "/tables", "/tables/map", "/sales", "/profile"],
+    () => [
+      "/pos",
+      "/cash-register",
+      "/sales",
+      "/products",
+      "/categories",
+      "/warehouses",
+      "/inventory",
+      "/tables",
+      "/tables/map",
+      "/customers",
+      "/suppliers",
+      "/purchase-orders",
+      "/profile",
+    ],
     []
   );
 
   function isAllowedPath(href: string, allowedPaths: string[]): boolean {
-    return allowedPaths.some((p) => href === p);
+    return allowedPaths.some((p) => href === p || href.startsWith(`${p}/`));
   }
 
   const visibleMenuGroups = menuGroups
