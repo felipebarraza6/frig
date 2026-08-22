@@ -16,8 +16,22 @@ export type ModuleCounts = {
 };
 
 export type DashboardSummary = {
-  sales: { count: number; total_amount: number; profit: number; paid_amount: number };
-  orders: { count: number; completed: number; in_progress: number; cancelled: number; total_amount: number; profit: number };
+  sales: {
+    count: number;
+    total_amount: number;
+    profit: number;
+    paid_amount: number;
+    completed: { count: number; total_amount: number; profit: number };
+  };
+  orders: {
+    count: number;
+    completed: number;
+    in_progress: number;
+    cancelled: number;
+    total_amount: number;
+    profit: number;
+    completed_summary: { count: number; total_amount: number; profit: number };
+  };
   products: {
     best_selling: { product__name: string; quantity: number; total: number }[];
     most_profitable: unknown[];

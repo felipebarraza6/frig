@@ -9,6 +9,7 @@ import {
   Wallet,
   FlaskConical,
   ArrowUpRight,
+  ArrowDownLeft,
   ShoppingBag,
   CreditCard,
   BarChart3,
@@ -106,15 +107,26 @@ function exportToExcel(
 ) {
   const wb = XLSX.utils.book_new();
 
+  const salesTotal = summary.sales.completed.total_amount;
+  const salesCount = summary.sales.completed.count;
+  const salesProfit = summary.sales.completed.profit;
+  const ordersTotal = summary.orders.completed_summary.total_amount;
+  const ordersCount = summary.orders.completed_summary.count;
+  const ordersProfit = summary.orders.completed_summary.profit;
+  const totalRevenue = salesTotal + ordersTotal;
+  const totalProfit = salesProfit + ordersProfit;
+
   const resumenRows = [
-    { Concepto: "Ventas del período", Valor: summary.sales.total_amount },
-    { Concepto: "Cantidad de órdenes", Valor: summary.orders.count },
-    { Concepto: "Órdenes completadas", Valor: summary.orders.completed },
-    { Concepto: "Ganancia estimada", Valor: summary.sales.profit },
+    { Concepto: "Ventas del período", Valor: salesTotal },
+    { Concepto: "Cantidad de ventas", Valor: salesCount },
+    { Concepto: "Órdenes del período", Valor: ordersTotal },
+    { Concepto: "Cantidad de pedidos", Valor: ordersCount },
+    { Concepto: "Ingresos totales", Valor: totalRevenue },
+    { Concepto: "Ganancia estimada", Valor: totalProfit },
     { Concepto: "Costo de insumos", Valor: ingredientConsumption?.total_cost ?? 0 },
     {
       Concepto: "Gastos estimados",
-      Valor: summary.sales.total_amount - summary.sales.profit - (ingredientConsumption?.total_cost ?? 0),
+      Valor: totalRevenue - totalProfit - (ingredientConsumption?.total_cost ?? 0),
     },
   ];
   const wsResumen = XLSX.utils.json_to_sheet(resumenRows);
@@ -186,13 +198,16 @@ export default function ReportsPage() {
     );
   }
 
-  const salesTotal = summary?.sales?.total_amount ?? 0;
-  const salesCount = summary?.sales?.count ?? 0;
-  const profit = summary?.sales?.profit ?? 0;
-  const completedOrders = summary?.orders?.completed ?? 0;
-  const totalOrders = summary?.orders?.count ?? 0;
+  const salesTotal = summary?.sales?.completed?.total_amount ?? 0;
+  const salesCount = summary?.sales?.completed?.count ?? 0;
+  const salesProfit = summary?.sales?.completed?.profit ?? 0;
+  const ordersTotal = summary?.orders?.completed_summary?.total_amount ?? 0;
+  const ordersCount = summary?.orders?.completed_summary?.count ?? 0;
+  const ordersProfit = summary?.orders?.completed_summary?.profit ?? 0;
+  const totalRevenue = salesTotal + ordersTotal;
+  const totalProfit = salesProfit + ordersProfit;
   const ingredientCost = ingredientConsumption?.total_cost ?? 0;
-  const expensesTotal = salesTotal - profit - ingredientCost;
+  const expensesTotal = totalRevenue - totalProfit - ingredientCost;
 
   const topIngredients = (ingredientConsumption?.items ?? [])
     .slice()
@@ -301,14 +316,28 @@ export default function ReportsPage() {
           value={formatCLP(salesTotal)}
           icon={TrendingUp}
           tone="primary"
-          sub={`${salesCount} órdenes`}
+          sub={`${salesCount} ventas`}
         />
         <StatCard
-          label="Órdenes"
-          value={totalOrders}
+          label="Órdenes del período"
+          value={formatCLP(ordersTotal)}
           icon={Receipt}
           tone="emerald"
-          sub={`${completedOrders} completadas`}
+          sub={`${ordersCount} pedidos`}
+        />
+        <StatCard
+          label="Ingresos totales"
+          value={formatCLP(totalRevenue)}
+          icon={ArrowDownLeft}
+          tone="primary"
+          sub="ventas + pedidos"
+        />
+        <StatCard
+          label="Ganancia estimada"
+          value={formatCLP(totalProfit)}
+          icon={Wallet}
+          tone="primary"
+          sub="aproximada"
         />
         <StatCard
           label="Costo de insumos"
@@ -316,13 +345,6 @@ export default function ReportsPage() {
           icon={FlaskConical}
           tone="rose"
           sub="según recetas vendidas"
-        />
-        <StatCard
-          label="Ganancia estimada"
-          value={formatCLP(profit)}
-          icon={Wallet}
-          tone="primary"
-          sub="aproximada"
         />
         <StatCard
           label="Gastos"

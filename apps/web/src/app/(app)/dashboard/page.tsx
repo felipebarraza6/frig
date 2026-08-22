@@ -171,9 +171,18 @@ export default function DashboardPage() {
     );
   }
 
-  const salesTotal = summary?.sales?.total_amount ?? 0;
-  const salesCount = summary?.sales?.count ?? 0;
-  const profit = summary?.sales?.profit ?? 0;
+  // Ventas del período = órdenes de tipo SALE con status COMPLETED.
+  const salesTotal = summary?.sales?.completed?.total_amount ?? 0;
+  const salesCount = summary?.sales?.completed?.count ?? 0;
+  const salesProfit = summary?.sales?.completed?.profit ?? 0;
+  // Órdenes del período = órdenes de tipo ORDER con status COMPLETED.
+  const ordersTotal = summary?.orders?.completed_summary?.total_amount ?? 0;
+  const ordersCount = summary?.orders?.completed_summary?.count ?? 0;
+  const ordersProfit = summary?.orders?.completed_summary?.profit ?? 0;
+  // Ingresos y ganancia = suma de ventas + órdenes completadas.
+  const totalRevenue = salesTotal + ordersTotal;
+  const totalProfit = salesProfit + ordersProfit;
+  // Métricas de contexto para estados y totales generales.
   const completedOrders = summary?.orders?.completed ?? 0;
   const totalOrders = summary?.orders?.count ?? 0;
   const customers = counts?.customers?.total ?? 0;
@@ -249,7 +258,7 @@ export default function DashboardPage() {
           icon={TrendingUp}
           sub={`${salesCount} ventas`}
           href="/sales"
-          description="Suma total de ventas pagadas en el rango seleccionado. Click para ver el detalle de órdenes."
+          description="Ventas directas (POS) completadas en el rango seleccionado."
           onClick={() =>
             setDrawer({
               open: true,
@@ -258,12 +267,16 @@ export default function DashboardPage() {
                 value: formatCLP(salesTotal),
                 icon: TrendingUp,
                 description:
-                  "Suma total de ventas efectivas en el rango seleccionado. Cada venta corresponde a una orden pagada o completada (excluye canceladas).",
+                  "Suma total de ventas directas (tipo SALE) con estado completado en el rango seleccionado.",
                 sections: [
-                  { label: "Cantidad de ventas", value: String(salesCount) },
+                  { label: "Ventas completadas", value: String(salesCount) },
                   {
                     label: "Venta promedio",
                     value: salesCount > 0 ? formatCLP(salesTotal / salesCount) : "—",
+                  },
+                  {
+                    label: "Ganancia estimada",
+                    value: formatCLP(salesProfit),
                   },
                 ],
                 chart:
@@ -284,23 +297,31 @@ export default function DashboardPage() {
           }
         />
         <StatCard
-          label="Órdenes completadas"
-          value={completedOrders}
+          label="Órdenes del período"
+          value={formatCLP(ordersTotal)}
           icon={Receipt}
-          sub={`de ${totalOrders} totales`}
+          sub={`${ordersCount} pedidos`}
           href="/sales"
-          description="Órdenes finalizadas y pagadas. Click para revisar el historial de ventas."
+          description="Pedidos de clientes (tipo ORDER) completados en el rango seleccionado."
           onClick={() =>
             setDrawer({
               open: true,
               metric: {
-                title: "Órdenes completadas",
-                value: completedOrders,
+                title: "Órdenes del período",
+                value: formatCLP(ordersTotal),
                 icon: Receipt,
-                description: "Órdenes finalizadas y pagadas. Representa el volumen de operaciones concretadas en el período.",
+                description:
+                  "Suma total de pedidos (tipo ORDER) con estado completado en el rango seleccionado.",
                 sections: [
-                  { label: "Total de órdenes", value: String(totalOrders) },
-                  { label: "Cuentas abiertas", value: String(pendingOrders) },
+                  { label: "Pedidos completados", value: String(ordersCount) },
+                  {
+                    label: "Promedio por pedido",
+                    value: ordersCount > 0 ? formatCLP(ordersTotal / ordersCount) : "—",
+                  },
+                  {
+                    label: "Ganancia estimada",
+                    value: formatCLP(ordersProfit),
+                  },
                 ],
                 actions: (
                   <Link
@@ -401,25 +422,25 @@ export default function DashboardPage() {
         />
         <StatCard
           label="Ingresos"
-          value={formatCLP(salesTotal)}
+          value={formatCLP(totalRevenue)}
           icon={ArrowDownLeft}
-          sub="ventas del período"
+          sub="ventas + pedidos"
           href="/sales"
-          description="Total de dinero ingresado por ventas en el período seleccionado."
+          description="Total de dinero ingresado por ventas y pedidos completados en el período."
           onClick={() =>
             setDrawer({
               open: true,
               metric: {
                 title: "Ingresos",
-                value: formatCLP(salesTotal),
+                value: formatCLP(totalRevenue),
                 icon: ArrowDownLeft,
-                description: "Total de dinero ingresado por ventas en el período seleccionado.",
+                description:
+                  "Suma total de ingresos por ventas directas (SALE) y pedidos (ORDER) completados en el rango seleccionado.",
                 sections: [
-                  { label: "Órdenes pagadas", value: String(salesCount) },
-                  {
-                    label: "Venta promedio",
-                    value: salesCount > 0 ? formatCLP(salesTotal / salesCount) : "—",
-                  },
+                  { label: "Ventas completadas", value: String(salesCount) },
+                  { label: "Pedidos completados", value: String(ordersCount) },
+                  { label: "Ventas del período", value: formatCLP(salesTotal) },
+                  { label: "Órdenes del período", value: formatCLP(ordersTotal) },
                 ],
               },
             })
@@ -427,25 +448,27 @@ export default function DashboardPage() {
         />
         <StatCard
           label="Ganancia estimada"
-          value={formatCLP(profit)}
+          value={formatCLP(totalProfit)}
           icon={Wallet}
           sub="aproximada"
           href="/sales"
-          description="Margen aproximado calculado sobre las ventas del período."
+          description="Margen aproximado calculado sobre ventas y pedidos completados."
           onClick={() =>
             setDrawer({
               open: true,
               metric: {
                 title: "Ganancia estimada",
-                value: formatCLP(profit),
+                value: formatCLP(totalProfit),
                 icon: Wallet,
-                description: "Margen aproximado calculado sobre las ventas del período.",
+                description:
+                  "Margen aproximado calculado sobre ventas directas y pedidos completados en el rango seleccionado.",
                 sections: [
                   {
                     label: "Margen estimado",
-                    value: salesTotal > 0 ? `${((profit / salesTotal) * 100).toFixed(1)}%` : "—",
+                    value: totalRevenue > 0 ? `${((totalProfit / totalRevenue) * 100).toFixed(1)}%` : "—",
                   },
                   { label: "Ventas del período", value: formatCLP(salesTotal) },
+                  { label: "Órdenes del período", value: formatCLP(ordersTotal) },
                 ],
               },
             })
@@ -596,10 +619,10 @@ export default function DashboardPage() {
           <RadarChart
             metrics={[
               { label: "Ventas", value: Math.min(salesTotal / 100000, 1) },
-              { label: "Órdenes", value: Math.min(totalOrders / 50, 1) },
+              { label: "Pedidos", value: Math.min(ordersCount / 50, 1) },
               { label: "Clientes", value: Math.min(customers / 100, 1) },
               { label: "Productos", value: Math.min(productsCount / 50, 1) },
-              { label: "Ganancia", value: Math.min(profit / 50000, 1) },
+              { label: "Ganancia", value: Math.min(totalProfit / 50000, 1) },
             ]}
           />
           <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
@@ -612,7 +635,7 @@ export default function DashboardPage() {
             <div>
               <p className="text-muted-foreground">Margen estimado</p>
               <p className="font-semibold tabular-nums">
-                {salesTotal > 0 ? `${((profit / salesTotal) * 100).toFixed(1)}%` : "—"}
+                {totalRevenue > 0 ? `${((totalProfit / totalRevenue) * 100).toFixed(1)}%` : "—"}
               </p>
             </div>
           </div>
