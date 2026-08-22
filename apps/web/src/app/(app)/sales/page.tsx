@@ -393,19 +393,19 @@ export default function SalesPage() {
               variant="default"
               size="sm"
               className="h-8"
-              onClick={() => setAccountModal(true)}
+              onClick={() => setPosModal({ open: true, orderType: "SALE" })}
             >
-              <UserPlus className="mr-1.5 h-4 w-4" />
-              Nueva cuenta
+              <Plus className="mr-1.5 h-4 w-4" />
+              Venta
             </Button>
             <Button
               variant="outline"
               size="sm"
               className="h-8"
-              onClick={() => setPosModal({ open: true, orderType: "SALE" })}
+              onClick={() => setAccountModal(true)}
             >
-              <Plus className="mr-1.5 h-4 w-4" />
-              Venta
+              <ClipboardList className="mr-1.5 h-4 w-4" />
+              Nuevo pedido
             </Button>
           </div>
           <div className="hidden h-6 w-px bg-border sm:block" />
@@ -1035,7 +1035,7 @@ export default function SalesPage() {
               className="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-lg"
             >
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-base font-semibold">Nueva cuenta</h2>
+                <h2 className="text-base font-semibold">Nuevo pedido</h2>
                 <button
                   type="button"
                   onClick={() => {
@@ -1173,7 +1173,7 @@ export default function SalesPage() {
                     disabled={creatingAccount}
                   >
                     {creatingAccount && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-                    Crear cuenta
+                    Crear pedido
                   </Button>
                 </div>
               </div>
