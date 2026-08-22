@@ -26,6 +26,9 @@ import {
   FileText,
   X,
   User as UserIcon,
+  Smartphone,
+  Bitcoin,
+  Landmark,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -310,6 +313,7 @@ export default function CashRegisterPage() {
     }
     return Array.from(totals.entries()).sort((a, b) => b[1] - a[1]);
   })();
+  const auditPaymentTotalAmount = auditPaymentTotals.reduce((sum, [, amount]) => sum + amount, 0);
 
   // Fallback income/outcome from movements if summary is not yet available.
   const { cashInTotal, cashOutTotal } = useMemo(() => {
@@ -1014,16 +1018,47 @@ export default function CashRegisterPage() {
                 </div>
 
                 {auditPaymentTotals.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-background/60 p-3">
-                    <span className="text-xs font-medium text-muted-foreground">Métodos de pago:</span>
-                    {auditPaymentTotals.map(([name, amount]) => (
-                      <span
-                        key={name}
-                        className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary"
-                      >
-                        {name}: {formatCLP(amount)}
+                  <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
+                    <div className="mb-3 flex items-center justify-between">
+                      <h3 className="flex items-center gap-2 text-sm font-semibold">
+                        <Wallet className="h-4 w-4 text-primary" />
+                        Pagos
+                      </h3>
+                      <span className="text-xs font-medium tabular-nums text-muted-foreground">
+                        Total {formatCLP(auditPaymentTotalAmount)}
                       </span>
-                    ))}
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                      {auditPaymentTotals.map(([name, amount]) => {
+                        const { icon: Icon, color, bg, bar } = paymentMethodMeta(name);
+                        const pct = auditPaymentTotalAmount > 0 ? (amount / auditPaymentTotalAmount) * 100 : 0;
+                        return (
+                          <div
+                            key={name}
+                            className="flex flex-col gap-2 rounded-xl border border-border/60 bg-background p-3 transition-colors hover:border-border"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-full", bg)}>
+                                <Icon className={cn("h-4 w-4", color)} />
+                              </div>
+                              <span className="text-[11px] font-medium tabular-nums text-muted-foreground">
+                                {pct.toFixed(0)}%
+                              </span>
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate text-xs font-medium text-muted-foreground">{name}</p>
+                              <p className="text-base font-bold tabular-nums">{formatCLP(amount)}</p>
+                            </div>
+                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                              <div
+                                className={cn("h-full rounded-full", bar)}
+                                style={{ width: `${Math.max(pct, 4)}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
 
@@ -1555,6 +1590,30 @@ function MovementsRegisterBadge({
       {isOpen ? "Caja abierta" : "Caja cerrada"} · {movementsDate}
     </span>
   );
+}
+
+function paymentMethodMeta(name: string): {
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
+  bg: string;
+  bar: string;
+} {
+  const n = name.toLowerCase();
+  if (n.includes("efectivo") || n.includes("cash"))
+    return { icon: Banknote, color: "text-emerald-600", bg: "bg-emerald-500/10", bar: "bg-emerald-500" };
+  if (n.includes("transferencia") || n.includes("bank"))
+    return { icon: Landmark, color: "text-blue-600", bg: "bg-blue-500/10", bar: "bg-blue-500" };
+  if (n.includes("débito") || n.includes("debit"))
+    return { icon: CreditCard, color: "text-indigo-600", bg: "bg-indigo-500/10", bar: "bg-indigo-500" };
+  if (n.includes("crédito") || n.includes("credit"))
+    return { icon: CreditCard, color: "text-violet-600", bg: "bg-violet-500/10", bar: "bg-violet-500" };
+  if (n.includes("billetera") || n.includes("digital") || n.includes("wallet"))
+    return { icon: Smartphone, color: "text-sky-600", bg: "bg-sky-500/10", bar: "bg-sky-500" };
+  if (n.includes("cripto") || n.includes("crypto"))
+    return { icon: Bitcoin, color: "text-amber-600", bg: "bg-amber-500/10", bar: "bg-amber-500" };
+  if (n.includes("cheque") || n.includes("check"))
+    return { icon: FileText, color: "text-rose-600", bg: "bg-rose-500/10", bar: "bg-rose-500" };
+  return { icon: Wallet, color: "text-muted-foreground", bg: "bg-muted", bar: "bg-primary" };
 }
 
 function SummaryCard({
