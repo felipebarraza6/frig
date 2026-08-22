@@ -748,14 +748,11 @@ export default function DashboardPage() {
       {/* Gráficos principales */}
       <motion.section variants={container} initial="hidden" animate="show" className="grid grid-cols-1 gap-3 lg:grid-cols-3">
         <div className="rounded-2xl border border-border bg-muted/30 p-5 shadow-sm lg:col-span-2">
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-4">
             <h2 className="flex items-center gap-2 text-sm font-semibold">
               <TrendingUp className="h-4 w-4 text-primary" />
               Evolución de ventas
             </h2>
-            <span className="rounded-full border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground">
-              {dates.label}
-            </span>
           </div>
           {summary?.time_series && summary.time_series.length > 0 ? (
             <SalesChart data={summary.time_series} startDate={dates.start} endDate={dates.end} />
