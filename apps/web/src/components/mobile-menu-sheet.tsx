@@ -1,14 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence, useDragControls, type PanInfo } from "framer-motion";
 import {
   X,
   LogOut,
-  ChevronDown,
-  ChevronRight,
   User as UserIcon,
   ArrowRightLeft,
   type LucideIcon,
@@ -51,8 +49,6 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
   const { favorites } = useNavFavorites();
   const isCashier = useIsCashier();
   const isWaiter = useIsWaiter();
-
-  const [openGroup, setOpenGroup] = useState<string | null>(null);
 
   // Cierra con Escape.
   useEffect(() => {
@@ -166,7 +162,7 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
             </div>
 
             {/* Header */}
-            <div className="relative overflow-hidden border-b border-border px-5 pb-5 pt-4">
+            <div className="relative overflow-hidden border-b border-border px-5 pb-7 pt-4">
               <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
               <button
                 type="button"
@@ -236,34 +232,26 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
                 </section>
               )}
 
-              {/* Grupos acordeón */}
-              <section className="flex flex-col gap-1.5">
-                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Módulos
-                </p>
+              {/* Grupos como cuadrículas de acceso rápido */}
+              <section className="flex flex-col gap-5">
                 {visibleGroups.map((group) => (
-                  <AccordionGroup
-                    key={group.title}
-                    title={group.title}
-                    isOpen={openGroup === group.title}
-                    onToggle={() =>
-                      setOpenGroup((prev) => (prev === group.title ? null : group.title))
-                    }
-                  >
-                    <div className="grid gap-1 py-1">
+                  <div key={group.title}>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {group.title}
+                    </p>
+                    <div className="grid grid-cols-4 gap-3">
                       {group.items.map((item) => (
-                        <MenuLink
+                        <QuickAccessButton
                           key={item.href}
                           href={item.href}
                           label={item.label}
                           icon={item.icon}
-                          description={item.description}
                           active={pathname === item.href || pathname.startsWith(`${item.href}/`)}
                           onClick={onClose}
                         />
                       ))}
                     </div>
-                  </AccordionGroup>
+                  </div>
                 ))}
               </section>
             </div>
@@ -341,81 +329,4 @@ function QuickAccessButton({
   );
 }
 
-function AccordionGroup({
-  title,
-  isOpen,
-  onToggle,
-  children,
-}: {
-  title: string;
-  isOpen: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="overflow-hidden rounded-xl border border-border bg-background">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="flex w-full items-center justify-between px-4 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-muted/50"
-        aria-expanded={isOpen}
-      >
-        {title}
-        <motion.span animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
-          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-        </motion.span>
-      </button>
-      <AnimatePresence initial={false}>
-        {isOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
-            {children}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
 
-function MenuLink({
-  href,
-  label,
-  icon: Icon,
-  active,
-  description,
-  onClick,
-}: {
-  href: string;
-  label: string;
-  icon: LucideIcon;
-  active: boolean;
-  description?: string;
-  onClick?: () => void;
-}) {
-  return (
-    <Link
-      href={href}
-      onClick={onClick}
-      className={cn(
-        "flex items-center gap-3 px-4 py-3 transition-colors",
-        active
-          ? "bg-primary/10 text-primary"
-          : "text-foreground hover:bg-muted"
-      )}
-    >
-      <Icon className="h-4 w-4 shrink-0" strokeWidth={active ? 2.5 : 1.75} />
-      <div className="min-w-0 flex-1">
-        <span className="block text-sm font-medium">{label}</span>
-        {description && (
-          <span className="block text-xs text-muted-foreground leading-tight">{description}</span>
-        )}
-      </div>
-      {active && <ChevronRight className="h-3.5 w-3.5 text-primary" />}
-    </Link>
-  );
-}
