@@ -184,7 +184,6 @@ export default function DashboardPage() {
   const totalProfit = salesProfit + ordersProfit;
   // Métricas de contexto para estados y totales generales.
   const completedOrders = summary?.orders?.completed ?? 0;
-  const totalOrders = summary?.orders?.count ?? 0;
   const customers = counts?.customers?.total ?? 0;
   // El contador de productos del backend llega en 0 para esta sucursal a pesar de
   // tener catálogo. Usamos la lista local que ya cargamos para stock bajo.
@@ -314,9 +313,9 @@ export default function DashboardPage() {
           label="Cuentas abiertas"
           value={pendingOrders}
           icon={Clock}
-          sub="pedidos sin pagar"
+          sub="ventas sin pagar"
           href="/sales"
-          description="Órdenes pendientes de pago o cierre. Click para gestionarlas."
+          description="Ventas directas (POS) pendientes de pago. Click para gestionarlas."
           onClick={() =>
             setDrawer({
               open: true,
@@ -324,10 +323,10 @@ export default function DashboardPage() {
                 title: "Cuentas abiertas",
                 value: pendingOrders,
                 icon: Clock,
-                description: "Órdenes pendientes de pago o cierre. Requiere atención para cerrar la cuenta o completar el cobro.",
+                description: "Ventas directas (tipo SALE) con estado pendiente de pago en el rango seleccionado. Requieren atención para cerrar la cuenta o completar el cobro.",
                 sections: [
+                  { label: "Ventas completadas", value: String(salesCount) },
                   { label: "Órdenes completadas", value: String(completedOrders) },
-                  { label: "Total de órdenes", value: String(totalOrders) },
                 ],
                 actions: (
                   <Link
