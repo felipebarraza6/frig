@@ -25,6 +25,7 @@ interface NavItem {
   label: string;
   icon: LucideIcon;
   badge?: number;
+  description?: string;
   onClick?: () => void;
 }
 
@@ -46,7 +47,7 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
 
   const routeItems: NavItem[] = [
     { href: "/dashboard", label: "Inicio", icon: LayoutDashboard },
-    { href: "/sales", label: "Ventas", icon: ShoppingBag },
+    { href: "/sales", label: "Ventas", icon: ShoppingBag, description: "Ventas y órdenes de cliente" },
     ...(posEnabled ? [{ href: "/pos", label: "POS", icon: Receipt }] : []),
     ...(posEnabled ? [{ href: "/cash-register", label: "Caja", icon: Banknote }] : []),
   ];

@@ -243,6 +243,7 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
                           href={item.href}
                           label={item.label}
                           icon={item.icon}
+                          description={item.description}
                           active={pathname === item.href || pathname.startsWith(`${item.href}/`)}
                           onClick={onClose}
                         />
@@ -372,12 +373,14 @@ function MenuLink({
   label,
   icon: Icon,
   active,
+  description,
   onClick,
 }: {
   href: string;
   label: string;
   icon: LucideIcon;
   active: boolean;
+  description?: string;
   onClick?: () => void;
 }) {
   return (
@@ -385,14 +388,19 @@ function MenuLink({
       href={href}
       onClick={onClick}
       className={cn(
-        "flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors",
+        "flex items-center gap-3 px-4 py-3 transition-colors",
         active
           ? "bg-primary/10 text-primary"
           : "text-foreground hover:bg-muted"
       )}
     >
       <Icon className="h-4 w-4 shrink-0" strokeWidth={active ? 2.5 : 1.75} />
-      <span className="flex-1 truncate">{label}</span>
+      <div className="min-w-0 flex-1">
+        <span className="block text-sm font-medium">{label}</span>
+        {description && (
+          <span className="block text-xs text-muted-foreground leading-tight">{description}</span>
+        )}
+      </div>
       {active && <ChevronRight className="h-3.5 w-3.5 text-primary" />}
     </Link>
   );

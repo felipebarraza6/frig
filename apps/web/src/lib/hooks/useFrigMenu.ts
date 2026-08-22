@@ -13,6 +13,7 @@ export interface FrigNavItem {
   icon: LucideIcon;
   module: string;
   badge?: "ordersPending" | "cashOpen" | "kitchenReady";
+  description?: string;
 }
 
 /** Grupo de navegación con ítems resueltos. */
@@ -59,6 +60,7 @@ export function useFrigMenu(): FrigNavGroup[] {
           icon: getIcon(item.icon as IconName),
           module: item.module,
           badge: item.badge,
+          description: item.description,
         });
       }
       if (items.length > 0) {

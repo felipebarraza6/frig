@@ -170,6 +170,8 @@ export interface FrigMenuItem {
   module: ModuleName;
   /** Badge opcional (pedidos pendientes, caja abierta, etc.). */
   badge?: "ordersPending" | "cashOpen" | "kitchenReady";
+  /** Descripción corta para tooltip o subtítulo en el menú. */
+  description?: string;
 }
 
 export interface FrigMenuGroup {
@@ -188,7 +190,7 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
       { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard", module: "dashboard" },
       { href: "/pos", label: "Punto de Venta (POS)", icon: "Receipt", module: "pos" },
       { href: "/cash-register", label: "Caja", icon: "Banknote", module: "cash_register" },
-      { href: "/sales", label: "Ventas", icon: "ShoppingBag", module: "sales" },
+      { href: "/sales", label: "Ventas/Órdenes", icon: "ShoppingBag", module: "sales", description: "Ventas: cobro inmediato. Órdenes: cuenta abierta que se cobra después." },
       { href: "/reports", label: "Informes", icon: "FileText", module: "nutrition" },
       { href: "/kds", label: "Cocina", icon: "ChefHat", module: "production", badge: "kitchenReady" },
     ],

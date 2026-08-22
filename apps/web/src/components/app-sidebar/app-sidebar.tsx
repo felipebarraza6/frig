@@ -130,6 +130,7 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
         href: `/kds/station/${station.id}`,
         label: station.name,
         icon: ChefHat,
+        description: undefined as string | undefined,
       })),
     [kitchenStations]
   );
@@ -318,6 +319,7 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
                     onToggleFavorite={() => toggleFavorite(item.href)}
                     favorited={isFavorite(item.href)}
                     onClick={onNavigate}
+                    description={item.description}
                   />
                 ))}
             </nav>
@@ -343,6 +345,7 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
                   onToggleFavorite={() => toggleFavorite(item.href)}
                   favorited={isFavorite(item.href)}
                   onClick={onNavigate}
+                  description={item.description}
                 />
               ))}
             </NavGroup>
@@ -373,6 +376,7 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
                       onToggleFavorite={() => toggleFavorite(item.href)}
                       favorited={isFavorite(item.href)}
                       onClick={onNavigate}
+                      description={item.description}
                     />
                   ))}
                 </NavGroup>
@@ -490,6 +494,7 @@ interface NavItemProps {
   favorited?: boolean;
   onToggleFavorite?: () => void;
   onClick?: () => void;
+  description?: string;
 }
 
 function NavItem({
@@ -502,6 +507,7 @@ function NavItem({
   favorited,
   onToggleFavorite,
   onClick,
+  description,
 }: NavItemProps) {
   return (
     <div className={cn("group relative", !expanded && "flex justify-center")}>
@@ -515,7 +521,7 @@ function NavItem({
             : "text-muted-foreground hover:bg-muted hover:text-foreground",
           !expanded && "h-9 w-9 justify-center p-0"
         )}
-        title={!expanded ? label : undefined}
+        title={description || (!expanded ? label : undefined)}
       >
         {active && (
           <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-white/80" />
