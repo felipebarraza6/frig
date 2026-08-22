@@ -261,6 +261,8 @@ export default function DashboardPage() {
                 actions: (
                   <Link
                     href="/sales"
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary/90"
                   >
                     Ver detalle de ventas
@@ -312,6 +314,8 @@ export default function DashboardPage() {
                 actions: (
                   <Link
                     href="/sales"
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary/90"
                   >
                     Ver historial de ventas
@@ -356,6 +360,8 @@ export default function DashboardPage() {
                 actions: (
                   <Link
                     href="/sales"
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="flex items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-amber-600/90"
                   >
                     Gestionar cuentas abiertas
@@ -538,6 +544,8 @@ export default function DashboardPage() {
                   actions: (
                     <Link
                       href="/reports"
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary/90"
                     >
                       Ver informe completo
@@ -663,6 +671,8 @@ export default function DashboardPage() {
                 actions: (
                   <Link
                     href="/expenses"
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-rose-600/90"
                   >
                     Ver detalle de gastos
