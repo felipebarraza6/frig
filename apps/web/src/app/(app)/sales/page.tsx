@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Loader2, ShoppingBag, X, Eye, Ban, Banknote, Plus, Trash2, FileDown, ChefHat, Receipt, FileText, UserPlus } from "lucide-react";
+import { Search, Loader2, ShoppingBag, X, Eye, Ban, Banknote, Plus, Trash2, FileDown, ClipboardList, Receipt, FileText, UserPlus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -124,10 +124,10 @@ export default function SalesPage() {
     return () => clearTimeout(timer);
   }, [clientQuery]);
 
-  const { data: clientResultsQuery } = useQuery({
+  const { data: clientResultsQuery, isLoading: searchingCustomers } = useQuery({
     queryKey: ["customers", "search", debouncedClientQuery, branch?.branch_id],
     queryFn: () => searchCustomers(debouncedClientQuery, branch?.branch_id ? Number(branch.branch_id) : undefined),
-    enabled: debouncedClientQuery.trim().length >= 2,
+    enabled: debouncedClientQuery.trim().length >= 1,
     staleTime: 30_000,
   });
 
@@ -665,9 +665,9 @@ export default function SalesPage() {
                       size="icon"
                       className="h-8 w-8"
                       onClick={() => handleDownloadTicketPdf(order)}
-                      title="Descargar comanda (cocina)"
+                      title="Descargar orden"
                     >
-                      <ChefHat className="h-3.5 w-3.5" />
+                      <ClipboardList className="h-3.5 w-3.5" />
                     </Button>
                     {(order.payment_status === "PENDING" || order.payment_status === "PARTIAL") && (
                       <Button
@@ -797,8 +797,8 @@ export default function SalesPage() {
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDetail(order)} title="Ver detalle">
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownloadTicketPdf(order)} title="Descargar comanda (cocina)">
-                            <ChefHat className="h-4 w-4" />
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownloadTicketPdf(order)} title="Descargar orden">
+                            <ClipboardList className="h-4 w-4" />
                           </Button>
                           {(order.payment_status === "PENDING" || order.payment_status === "PARTIAL") && (
                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openCollect(order)} title="Cobrar">
@@ -1068,7 +1068,17 @@ export default function SalesPage() {
                       placeholder="Buscar cliente..."
                       className="h-9 pl-8 text-sm"
                     />
-                    {showClientResults && clientResults.length > 0 && (
+                    {showClientResults && debouncedClientQuery.trim().length === 0 && !selectedClient && (
+                      <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs text-muted-foreground shadow-md">
+                        Escribe para buscar clientes…
+                      </div>
+                    )}
+                    {showClientResults && debouncedClientQuery.trim().length > 0 && searchingCustomers && (
+                      <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs text-muted-foreground shadow-md">
+                        Buscando…
+                      </div>
+                    )}
+                    {showClientResults && debouncedClientQuery.trim().length > 0 && !searchingCustomers && clientResults.length > 0 && (
                       <div className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-lg border border-border bg-background shadow-md">
                         {clientResults.map((client) => (
                           <button
@@ -1087,7 +1097,7 @@ export default function SalesPage() {
                         ))}
                       </div>
                     )}
-                    {showClientResults && debouncedClientQuery.trim().length >= 2 && clientResults.length === 0 && !selectedClient && (
+                    {showClientResults && debouncedClientQuery.trim().length > 0 && !searchingCustomers && clientResults.length === 0 && !selectedClient && (
                       <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs text-muted-foreground shadow-md">
                         Sin resultados
                       </div>
