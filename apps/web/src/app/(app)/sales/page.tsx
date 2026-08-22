@@ -57,7 +57,6 @@ const ORDER_TYPE_OPTIONS = [
   { value: "", label: "Todos" },
   { value: "SALE", label: "Venta" },
   { value: "ORDER", label: "Pedido" },
-  { value: "AGREEMENT", label: "Convenio" },
 ];
 
 function todayStr(): string {
@@ -429,114 +428,27 @@ export default function SalesPage() {
       </header>
 
       <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
-        {/* Filtros rápidos */}
-        <div className="flex flex-wrap gap-2 pb-1 sm:flex-nowrap sm:overflow-x-auto">
-          <button
-            onClick={() => {
-              setStatus("");
-              setPaymentStatus("");
-              setOrderType("");
-              setPageUrl({});
-            }}
-            className={cn(
-              "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
-              status === "" && paymentStatus === "" && orderType === ""
-                ? "bg-primary text-white"
-                : "bg-card text-muted-foreground ring-1 ring-border hover:bg-muted",
-            )}
-          >
-            Todas
-          </button>
-          <button
-            onClick={() => {
-              setStatus("");
-              setPaymentStatus("PENDING");
-              setOrderType("");
-              setPageUrl({});
-            }}
-            className={cn(
-              "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
-              paymentStatus === "PENDING" && status === "" && orderType === ""
-                ? "bg-amber-500 text-white"
-                : "bg-card text-muted-foreground ring-1 ring-border hover:bg-muted",
-            )}
-          >
-            Cuentas abiertas
-          </button>
-          <button
-            onClick={() => {
-              setStatus("");
-              setPaymentStatus("");
-              setOrderType("ORDER");
-              setPageUrl({});
-            }}
-            className={cn(
-              "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
-              orderType === "ORDER" && status === "" && paymentStatus === ""
-                ? "bg-blue-500 text-white"
-                : "bg-card text-muted-foreground ring-1 ring-border hover:bg-muted",
-            )}
-          >
-            Pedidos
-          </button>
-          <button
-            onClick={() => {
-              setStatus("");
-              setPaymentStatus("PAID");
-              setOrderType("");
-              setPageUrl({});
-            }}
-            className={cn(
-              "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
-              paymentStatus === "PAID" && status === "" && orderType === ""
-                ? "bg-emerald-500 text-white"
-                : "bg-card text-muted-foreground ring-1 ring-border hover:bg-muted",
-            )}
-          >
-            Pagadas
-          </button>
-          <button
-            onClick={() => {
-              setStatus("CANCELLED");
-              setPaymentStatus("");
-              setOrderType("");
-              setPageUrl({});
-            }}
-            className={cn(
-              "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
-              status === "CANCELLED" && paymentStatus === "" && orderType === ""
-                ? "bg-danger text-white"
-                : "bg-card text-muted-foreground ring-1 ring-border hover:bg-muted",
-            )}
-          >
-            Anuladas
-          </button>
-        </div>
-
-        {/* Filtros avanzados: drawer en móvil, grid en desktop */}
-        <div className="flex flex-col gap-3 sm:grid sm:grid-cols-3 lg:grid-cols-6 xl:grid-cols-7">
-          <div className="flex flex-col gap-1 sm:col-span-1 lg:col-span-2">
-            <label htmlFor="filter-search" className="text-xs text-muted-foreground">Buscar por N° de orden</label>
-            <div className="relative">
+        {/* Filtros */}
+        <div className="flex flex-col gap-3">
+          {/* Móvil: búsqueda + filtros en drawer */}
+          <div className="flex gap-2 sm:hidden">
+            <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
-                id="filter-search"
+                id="filter-search-mobile"
                 value={search}
                 onChange={(e) => updateFilter(setSearch, e.target.value)}
-                placeholder="Ej: B5-260821-0007"
-                className="h-8 pl-8 text-xs"
+                placeholder="N°, cliente o mesa…"
+                className="h-9 pl-8 text-sm"
               />
             </div>
-          </div>
-          <div className="flex items-end sm:hidden">
             <Button
               variant="outline"
               size="sm"
-              className="h-8 w-full"
+              className="h-9 px-3"
               onClick={() => setFiltersOpen(true)}
             >
-              <SlidersHorizontal className="mr-1.5 h-4 w-4" />
-              Filtros
+              <SlidersHorizontal className="h-4 w-4" />
               {(status || paymentStatus || orderType || startDate || endDate) && (
                 <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-white">
                   {[status, paymentStatus, orderType, startDate, endDate].filter(Boolean).length}
@@ -544,52 +456,64 @@ export default function SalesPage() {
               )}
             </Button>
           </div>
-          <div className="hidden gap-3 sm:col-span-2 lg:col-span-4 xl:col-span-5 sm:grid sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
-            <div className="flex min-w-0 flex-col gap-1">
-              <label htmlFor="filter-status" className="text-xs text-muted-foreground">Estado</label>
-              <Select id="filter-status" value={status} onChange={(e) => updateFilter(setStatus, e.target.value)} className="h-8 text-xs">
+
+          {/* Desktop: fila flex con todos los filtros */}
+          <div className="hidden flex-wrap items-end gap-2 sm:flex">
+            <div className="relative min-w-[180px] flex-1">
+              <label htmlFor="filter-search" className="mb-1 block text-xs text-muted-foreground">Buscar</label>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="filter-search"
+                  value={search}
+                  onChange={(e) => updateFilter(setSearch, e.target.value)}
+                  placeholder="N°, cliente o mesa…"
+                  className="h-9 pl-8 text-sm"
+                />
+              </div>
+            </div>
+            <div className="min-w-[130px] flex-1">
+              <label htmlFor="filter-status" className="mb-1 block text-xs text-muted-foreground">Estado</label>
+              <Select id="filter-status" value={status} onChange={(e) => updateFilter(setStatus, e.target.value)} className="h-9 text-sm">
                 {STATUS_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </Select>
             </div>
-            <div className="flex min-w-0 flex-col gap-1">
-              <label htmlFor="filter-payment" className="text-xs text-muted-foreground">Pago</label>
-              <Select id="filter-payment" value={paymentStatus} onChange={(e) => updateFilter(setPaymentStatus, e.target.value)} className="h-8 text-xs">
+            <div className="min-w-[130px] flex-1">
+              <label htmlFor="filter-payment" className="mb-1 block text-xs text-muted-foreground">Pago</label>
+              <Select id="filter-payment" value={paymentStatus} onChange={(e) => updateFilter(setPaymentStatus, e.target.value)} className="h-9 text-sm">
                 {PAYMENT_STATUS_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </Select>
             </div>
-            <div className="flex min-w-0 flex-col gap-1">
-              <label htmlFor="filter-type" className="text-xs text-muted-foreground">Tipo</label>
-              <Select id="filter-type" value={orderType} onChange={(e) => updateFilter(setOrderType, e.target.value)} className="h-8 text-xs">
+            <div className="min-w-[130px] flex-1">
+              <label htmlFor="filter-type" className="mb-1 block text-xs text-muted-foreground">Tipo</label>
+              <Select id="filter-type" value={orderType} onChange={(e) => updateFilter(setOrderType, e.target.value)} className="h-9 text-sm">
                 {ORDER_TYPE_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex min-w-0 flex-col gap-1">
-                <label htmlFor="filter-start" className="text-xs text-muted-foreground">Desde</label>
+            <div className="min-w-[220px] flex-[1.5]">
+              <label className="mb-1 block text-xs text-muted-foreground">Fecha</label>
+              <div className="flex gap-2">
                 <Input
                   id="filter-start"
                   type="date"
                   value={startDate}
                   onChange={(e) => updateDateRange(e.target.value, endDate)}
                   disabled={isCashier}
-                  className="h-8 text-xs"
+                  className="h-9 text-xs"
                 />
-              </div>
-              <div className="flex min-w-0 flex-col gap-1">
-                <label htmlFor="filter-end" className="text-xs text-muted-foreground">Hasta</label>
                 <Input
                   id="filter-end"
                   type="date"
                   value={endDate}
                   onChange={(e) => updateDateRange(startDate, e.target.value)}
                   disabled={isCashier}
-                  className="h-8 text-xs"
+                  className="h-9 text-xs"
                 />
               </div>
             </div>
