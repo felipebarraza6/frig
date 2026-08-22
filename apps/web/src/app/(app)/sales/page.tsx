@@ -6,19 +6,22 @@ import { Search, Loader2, ShoppingBag, X, Eye, Ban, Banknote, Plus, Trash2, File
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
-import { fetchOrders, cancelOrder, downloadOrderThermalPdf, downloadOrderTicketPdf, downloadOrderA4Pdf, exportOrdersExcel, type OrdersFilter } from "@/lib/api/orders";
+import { fetchOrders, cancelOrder, downloadOrderThermalPdf, downloadOrderTicketPdf, downloadOrderA4Pdf, exportOrdersExcel, createOrder, type OrdersFilter } from "@/lib/api/orders";
 import { fetchPaymentMethods, createPayment } from "@/lib/api/payments";
 import { getCurrentCashRegister } from "@/lib/api/cash-register";
 import { fetchTables } from "@/lib/api/tables";
+import { searchCustomers, createCustomer } from "@/lib/api/customers";
 import { formatCLP, paymentTypeLabel, cn } from "@/lib/utils";
 import {
   useIsCashier,
   useSessionStore,
   useCurrentBranchRole,
+  useCurrentBranch,
   canCancelOrder,
   useCanViewTables,
   useIsModuleEnabledFromConfig,
 } from "@/lib/store/session";
+
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
 import type { YggdraSchemas } from "@/lib/api/types";
 import { AnimatePresence, motion } from "framer-motion";
@@ -75,6 +78,7 @@ function orderTypeLabel(value?: string | null): string {
 
 export default function SalesPage() {
   const queryClient = useQueryClient();
+  const branch = useCurrentBranch();
   const isCashier = useIsCashier();
   const user = useSessionStore((s) => s.user);
   const currentRole = useCurrentBranchRole();
@@ -103,6 +107,37 @@ export default function SalesPage() {
     open: false,
     orderType: null,
   });
+
+  // Modal rápido para crear cuenta (ORDER) con cliente/mesa.
+  const [accountModal, setAccountModal] = useState(false);
+  const [clientQuery, setClientQuery] = useState("");
+  const [debouncedClientQuery, setDebouncedClientQuery] = useState("");
+  const [selectedClient, setSelectedClient] = useState<YggdraSchemas["Client"] | null>(null);
+  const [showClientResults, setShowClientResults] = useState(false);
+  const [selectedTableId, setSelectedTableId] = useState<string>("");
+  const [creatingAccount, setCreatingAccount] = useState(false);
+  const [createClientName, setCreateClientName] = useState("");
+  const [showCreateClient, setShowCreateClient] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedClientQuery(clientQuery), 300);
+    return () => clearTimeout(timer);
+  }, [clientQuery]);
+
+  const { data: clientResultsQuery } = useQuery({
+    queryKey: ["customers", "search", debouncedClientQuery, branch?.branch_id],
+    queryFn: () => searchCustomers(debouncedClientQuery, branch?.branch_id ? Number(branch.branch_id) : undefined),
+    enabled: debouncedClientQuery.trim().length >= 2,
+    staleTime: 30_000,
+  });
+
+  const clientResults = useMemo<YggdraSchemas["Client"][]>(() => {
+    const items = clientResultsQuery ?? [];
+    if (selectedClient && !items.some((c) => c.id === selectedClient.id)) {
+      return [selectedClient, ...items];
+    }
+    return items;
+  }, [clientResultsQuery, selectedClient]);
 
   // Refrescar lista de órdenes al cerrar el modal rápido de POS.
   useEffect(() => {
@@ -257,6 +292,52 @@ export default function SalesPage() {
     });
   }
 
+  async function handleCreateAccount() {
+    if (creatingAccount) return;
+    setCreatingAccount(true);
+    try {
+      let clientId = selectedClient?.id ?? null;
+      if (!clientId && createClientName.trim()) {
+        const newClient = await createCustomer({ name: createClientName.trim() });
+        clientId = newClient.id;
+      }
+      const tableId = selectedTableId ? Number(selectedTableId) : null;
+      const order = await createOrder({
+        items: [],
+        order_type: "ORDER",
+        client_id: clientId,
+        table_id: tableId,
+      });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      setAccountModal(false);
+      resetAccountForm();
+      // Abrir POS embebido con la nueva cuenta para agregar productos.
+      setPosModal({ open: true, orderType: "ORDER" });
+      // Navegar el iframe a la orden. Como el modal usa state, actualizamos src vía query param.
+      // Usamos un pequeño timeout para asegurar que el iframe exista.
+      setTimeout(() => {
+        const iframe = document.querySelector<HTMLIFrameElement>("iframe[title='Nuevo pedido']");
+        if (iframe) {
+          iframe.src = `/pos/terminal?order_id=${order.id}`;
+        }
+      }, 100);
+    } catch {
+      // ignore - error handled by api client
+    } finally {
+      setCreatingAccount(false);
+    }
+  }
+
+  function resetAccountForm() {
+    setClientQuery("");
+    setDebouncedClientQuery("");
+    setSelectedClient(null);
+    setShowClientResults(false);
+    setSelectedTableId("");
+    setCreateClientName("");
+    setShowCreateClient(false);
+  }
+
   function closeCollect() {
     setCollecting(null);
     setPaymentLines([]);
@@ -321,10 +402,10 @@ export default function SalesPage() {
               variant="outline"
               size="sm"
               className="h-8"
-              onClick={() => setPosModal({ open: true, orderType: "ORDER" })}
+              onClick={() => setAccountModal(true)}
             >
               <Plus className="mr-1.5 h-4 w-4" />
-              Pedido
+              Nueva cuenta
             </Button>
           </div>
           <div className="hidden h-6 w-px bg-border sm:block" />
@@ -941,6 +1022,155 @@ export default function SalesPage() {
           </div>
         </div>
       )}
+
+      {/* Modal rápido para crear cuenta (ORDER) con cliente/mesa */}
+      <AnimatePresence>
+        {accountModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 16 }}
+              transition={{ duration: 0.2 }}
+              className="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-lg"
+            >
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-base font-semibold">Nueva cuenta</h2>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAccountModal(false);
+                    resetAccountForm();
+                  }}
+                  className="text-muted-foreground hover:text-foreground"
+                  aria-label="Cerrar"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="account-client" className="text-xs font-medium text-muted-foreground">
+                    Cliente
+                  </label>
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      id="account-client"
+                      value={clientQuery}
+                      onChange={(e) => {
+                        setClientQuery(e.target.value);
+                        setSelectedClient(null);
+                        setShowClientResults(true);
+                      }}
+                      onFocus={() => setShowClientResults(true)}
+                      placeholder="Buscar cliente..."
+                      className="h-9 pl-8 text-sm"
+                    />
+                    {showClientResults && clientResults.length > 0 && (
+                      <div className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-lg border border-border bg-background shadow-md">
+                        {clientResults.map((client) => (
+                          <button
+                            key={client.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedClient(client);
+                              setClientQuery(client.name ?? "");
+                              setShowClientResults(false);
+                            }}
+                            className="w-full px-3 py-2 text-left text-sm hover:bg-muted"
+                          >
+                            {client.name}
+                            {client.email && <span className="ml-2 text-xs text-muted-foreground">{client.email}</span>}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {showClientResults && debouncedClientQuery.trim().length >= 2 && clientResults.length === 0 && !selectedClient && (
+                      <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs text-muted-foreground shadow-md">
+                        Sin resultados
+                      </div>
+                    )}
+                  </div>
+                  {!showCreateClient ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowCreateClient(true)}
+                      className="self-start text-xs text-primary hover:underline"
+                    >
+                      + Crear cliente rápido
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={createClientName}
+                        onChange={(e) => setCreateClientName(e.target.value)}
+                        placeholder="Nombre del nuevo cliente"
+                        className="h-8 flex-1 text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowCreateClient(false);
+                          setCreateClientName("");
+                        }}
+                        className="text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {showTables && (
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="account-table" className="text-xs font-medium text-muted-foreground">
+                      Mesa (opcional)
+                    </label>
+                    <Select
+                      id="account-table"
+                      value={selectedTableId}
+                      onChange={(e) => setSelectedTableId(e.target.value)}
+                      className="h-9 text-sm"
+                    >
+                      <option value="">Sin mesa</option>
+                      {(tablesPage?.results ?? []).map((table) => (
+                        <option key={table.id} value={String(table.id)}>
+                          Mesa {table.number}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-2 pt-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setAccountModal(false);
+                      resetAccountForm();
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleCreateAccount}
+                    disabled={creatingAccount}
+                  >
+                    {creatingAccount && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                    Crear cuenta
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Modal rápido de POS para crear venta/pedido sin salir de la página */}
       <AnimatePresence>
