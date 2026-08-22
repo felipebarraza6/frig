@@ -332,7 +332,7 @@ export default function SalesPage() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex items-center justify-between border-b border-border px-6 py-3">
+      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div>
           <h1 className="text-lg font-semibold">Ventas y órdenes</h1>
           <p className="text-xs text-muted-foreground">
@@ -341,13 +341,13 @@ export default function SalesPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Link href="/pos/terminal?order_type=SALE">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" className="h-8">
               <Plus className="mr-1.5 h-4 w-4" />
               Venta
             </Button>
           </Link>
           <Link href="/pos/terminal?order_type=ORDER">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" className="h-8">
               <Plus className="mr-1.5 h-4 w-4" />
               Pedido
             </Button>
@@ -355,22 +355,24 @@ export default function SalesPage() {
           <Button
             variant="outline"
             size="sm"
+            className="h-8"
             onClick={handleExportExcel}
             disabled={isDownloading}
           >
             {isDownloading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
             ) : (
-              <FileDown className="mr-2 h-4 w-4" />
+              <FileDown className="mr-1.5 h-4 w-4" />
             )}
-            Exportar Excel
+            <span className="hidden sm:inline">Exportar Excel</span>
+            <span className="sm:hidden">Excel</span>
           </Button>
         </div>
       </header>
 
       <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
         {/* Filtros rápidos */}
-        <div className="flex flex-wrap gap-2 pb-1">
+        <div className="flex flex-wrap gap-2 pb-1 sm:flex-nowrap sm:overflow-x-auto">
           <button
             onClick={() => {
               setStatus("");
@@ -454,13 +456,13 @@ export default function SalesPage() {
         </div>
 
         {/* Filtros avanzados */}
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
-          <div className="relative col-span-2 sm:col-span-4 lg:col-span-2">
+        <div className="grid grid-cols-1 gap-2 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 xl:grid-cols-7">
+          <div className="relative xs:col-span-2 lg:col-span-2">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={search}
               onChange={(e) => updateFilter(setSearch, e.target.value)}
-              placeholder="Buscar por N°, cliente o mesa…"
+              placeholder="Buscar por N°…"
               className="h-8 pl-8 text-xs"
             />
           </div>
@@ -658,47 +660,47 @@ export default function SalesPage() {
 
             {/* Vista desktop: tabla */}
             <div className="hidden overflow-x-auto rounded-xl border border-border sm:block">
-              <table className="w-full min-w-[900px] text-sm">
+              <table className="w-full min-w-[760px] text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                    <th className="px-4 py-3">N°</th>
-                    <th className="px-4 py-3">Cliente</th>
-                    {showTables && <th className="px-4 py-3">Mesa</th>}
-                    <th className="px-4 py-3">Tipo</th>
-                    <th className="px-4 py-3">Estado</th>
-                    <th className="px-4 py-3">Pago</th>
-                    <th className="px-4 py-3 text-right">Total</th>
-                    <th className="px-4 py-3">Fecha</th>
-                    <th className="px-4 py-3 text-right">Acciones</th>
+                    <th className="whitespace-nowrap px-3 py-3">N°</th>
+                    <th className="px-3 py-3">Cliente</th>
+                    {showTables && <th className="px-3 py-3">Mesa</th>}
+                    <th className="px-3 py-3">Tipo</th>
+                    <th className="px-3 py-3">Estado</th>
+                    <th className="px-3 py-3">Pago</th>
+                    <th className="whitespace-nowrap px-3 py-3 text-right">Total</th>
+                    <th className="whitespace-nowrap px-3 py-3">Fecha</th>
+                    <th className="whitespace-nowrap px-3 py-3 text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {orders.map((order) => (
                     <tr key={order.id} className="border-b border-border last:border-0">
-                      <td className="px-4 py-3">
+                      <td className="whitespace-nowrap px-3 py-3">
                         <div className="flex items-center gap-2">
                           <ShoppingBag className="h-3.5 w-3.5 text-muted-foreground" />
                           <span className="font-medium">{order.order_number ?? order.id.slice(0, 8)}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground">
+                      <td className="max-w-[140px] truncate px-3 py-3 text-muted-foreground">
                         {order.client?.name ?? "—"}
                       </td>
                       {showTables && (
-                        <td className="px-4 py-3 text-muted-foreground">
+                        <td className="px-3 py-3 text-muted-foreground">
                           {order.table ? (
                             <span className="rounded bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
-                              Mesa {tableById.get(order.table)?.number ?? order.table}
+                              {tableById.get(order.table)?.number ?? order.table}
                             </span>
                           ) : (
                             "—"
                           )}
                         </td>
                       )}
-                      <td className="px-4 py-3 text-muted-foreground">
+                      <td className="px-3 py-3 text-muted-foreground">
                         {orderTypeLabel(order.order_type)}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-3">
                         <span
                           className={
                             order.status === "COMPLETED"
@@ -711,65 +713,68 @@ export default function SalesPage() {
                           {statusLabel(order.status)}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground">
+                      <td className="px-3 py-3 text-muted-foreground">
                         {paymentStatusLabel(order.payment_status)}
                       </td>
-                      <td className="px-4 py-3 text-right tabular-nums font-medium">
+                      <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums font-medium">
                         {formatCLP(order.total_amount ?? "0")}
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {new Date(order.date).toLocaleString()}
+                      <td className="whitespace-nowrap px-3 py-3 text-muted-foreground">
+                        {new Date(order.date).toLocaleString("es-CL", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
                       </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="sm" onClick={() => setDetail(order)}>
-                            <Eye className="h-3.5 w-3.5" />
-                            Ver
+                      <td className="px-3 py-3 text-right">
+                        <div className="flex items-center justify-end gap-0.5">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDetail(order)} title="Ver detalle">
+                            <Eye className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="sm" onClick={() => handlePrintCommand(order)} title="Imprimir comanda">
-                            <Printer className="h-3.5 w-3.5" />
-                            Comanda
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handlePrintCommand(order)} title="Imprimir comanda">
+                            <Printer className="h-4 w-4" />
                           </Button>
                           {(order.payment_status === "PENDING" || order.payment_status === "PARTIAL") && (
-                            <Button variant="ghost" size="sm" onClick={() => openCollect(order)}>
-                              <Banknote className="h-3.5 w-3.5" />
-                              Cobrar
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openCollect(order)} title="Cobrar">
+                              <Banknote className="h-4 w-4" />
                             </Button>
                           )}
                           {order.payment_status === "PAID" && (
                             <>
                               <Button
                                 variant="ghost"
-                                size="sm"
+                                size="icon"
+                                className="h-8 w-8"
                                 onClick={() => handleDownloadThermalPdf(order)}
                                 disabled={isDownloading}
                                 title="Boleta 80 mm"
                               >
-                                <Printer className="h-3.5 w-3.5" />
-                                80 mm
+                                <Printer className="h-4 w-4" />
                               </Button>
                               <Button
                                 variant="ghost"
-                                size="sm"
+                                size="icon"
+                                className="h-8 w-8"
                                 onClick={() => handleDownloadA4Pdf(order)}
                                 disabled={isDownloading}
                                 title="Boleta A4"
                               >
-                                <FileDown className="h-3.5 w-3.5" />
-                                A4
+                                <FileDown className="h-4 w-4" />
                               </Button>
                             </>
                           )}
                           {order.status !== "CANCELLED" && canCancel(order.owner) && (
                             <Button
                               variant="ghost"
-                              size="sm"
-                              className="text-danger hover:text-danger"
+                              size="icon"
+                              className="h-8 w-8 text-danger hover:text-danger"
                               onClick={() => cancel.mutate(order.id)}
                               disabled={cancel.isPending}
+                              title="Anular"
                             >
-                              <Ban className="h-3.5 w-3.5" />
-                              Anular
+                              <Ban className="h-4 w-4" />
                             </Button>
                           )}
                         </div>
