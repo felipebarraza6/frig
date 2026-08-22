@@ -77,7 +77,7 @@ export function MetricDrawer({
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", stiffness: 320, damping: 32 }}
-            className="absolute bottom-0 left-0 right-0 flex max-h-[85vh] flex-col rounded-t-3xl bg-card shadow-[0_-8px_40px_rgba(0,0,0,0.2)] md:left-auto md:right-4 md:top-4 md:max-h-[calc(100vh-2rem)] md:w-96 md:rounded-3xl md:shadow-2xl"
+            className="absolute bottom-0 left-0 right-0 flex h-[85vh] flex-col rounded-t-3xl bg-card shadow-[0_-8px_40px_rgba(0,0,0,0.2)] md:left-auto md:right-4 md:top-4 md:h-auto md:max-h-[calc(100vh-2rem)] md:w-96 md:rounded-3xl md:shadow-2xl"
             role="dialog"
             aria-modal="true"
             aria-label={title}
@@ -91,7 +91,7 @@ export function MetricDrawer({
             </div>
 
             {/* Header */}
-            <div className="flex items-start gap-3 border-b border-border px-5 pb-4 pt-1">
+            <div className="flex items-start gap-3 border-b border-border px-5 pb-4 pt-2">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <Icon className="h-5 w-5" />
               </div>
