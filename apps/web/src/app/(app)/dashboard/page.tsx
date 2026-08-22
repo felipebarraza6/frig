@@ -12,7 +12,6 @@ import {
   ArrowUpRight,
   AlertTriangle,
   Clock,
-  ChevronRight,
   Wallet,
   Target,
   FlaskConical,
@@ -865,18 +864,11 @@ export default function DashboardPage() {
           className="grid gap-4"
         >
           <div>
-            <div className="mb-3 flex items-center justify-between">
+            <div className="mb-3">
               <h2 className="flex items-center gap-2 text-sm font-semibold">
                 <AlertTriangle className="h-4 w-4 text-amber-500" />
                 Stock bajo
               </h2>
-              <Link
-                href="/inventory"
-                className="inline-flex items-center gap-1 text-xs font-medium text-primary transition-colors hover:text-primary/80"
-              >
-                Ver inventario
-                <ChevronRight className="h-3 w-3" />
-              </Link>
             </div>
             <div className="flex flex-wrap gap-2">
               {lowStockProducts.map((p) => (
