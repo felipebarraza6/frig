@@ -18,6 +18,10 @@ import {
   Target,
   FlaskConical,
   ArrowRight,
+  Banknote,
+  CreditCard,
+  Landmark,
+  Smartphone,
   type LucideIcon,
 } from "lucide-react";
 
@@ -32,7 +36,7 @@ import { useCurrentBranch, useIsModuleEnabledFromConfig } from "@/lib/store/sess
 import { useProducts } from "@/lib/hooks/useCatalog";
 import { MetricDrawer, type MetricDrawerSection } from "@/components/metric-drawer";
 import { Sparkline } from "@/components/sparkline";
-import { CustomersMetricDetail, OrdersMetricDetail } from "@/components/metric-drawer-detail";
+import { CustomersMetricDetail, IncomeMetricDetail, OrdersMetricDetail } from "@/components/metric-drawer-detail";
 import Link from "next/link";
 
 const container: Variants = {
@@ -55,6 +59,16 @@ type MetricConfig = {
   actions?: ReactNode;
   children?: ReactNode;
 };
+
+function paymentIcon(type?: string): LucideIcon {
+  const normalized = (type ?? "").toLowerCase();
+  if (normalized.includes("efectivo") || normalized.includes("cash")) return Banknote;
+  if (normalized.includes("transferencia") || normalized.includes("bank")) return Landmark;
+  if (normalized.includes("débito") || normalized.includes("debit")) return CreditCard;
+  if (normalized.includes("crédito") || normalized.includes("credit")) return CreditCard;
+  if (normalized.includes("billetera") || normalized.includes("digital")) return Smartphone;
+  return Wallet;
+}
 
 function formatDateInput(date: Date): string {
   const y = date.getFullYear();
@@ -172,11 +186,11 @@ export default function DashboardPage() {
     );
   }
 
-  // Ventas del período = órdenes de tipo SALE con status COMPLETED.
+  // Ventas del período = ventas del POS completadas.
   const salesTotal = summary?.sales?.completed?.total_amount ?? 0;
   const salesCount = summary?.sales?.completed?.count ?? 0;
   const salesProfit = summary?.sales?.completed?.profit ?? 0;
-  // Órdenes del período = órdenes de tipo ORDER con status COMPLETED.
+  // Órdenes del período = pedidos de clientes completados.
   const ordersTotal = summary?.orders?.completed_summary?.total_amount ?? 0;
   const ordersCount = summary?.orders?.completed_summary?.count ?? 0;
   const ordersProfit = summary?.orders?.completed_summary?.profit ?? 0;
@@ -233,7 +247,7 @@ export default function DashboardPage() {
           icon={TrendingUp}
           sub={`${salesCount} ventas`}
           href="/sales"
-          description="Ventas directas (POS) completadas en el rango seleccionado."
+          description="Ventas del POS completadas en el rango seleccionado."
           onClick={() =>
             setDrawer({
               open: true,
@@ -242,7 +256,7 @@ export default function DashboardPage() {
                 value: formatCLP(salesTotal),
                 icon: TrendingUp,
                 description:
-                  "Suma total de ventas directas (tipo SALE) con estado completado en el rango seleccionado.",
+                  "Suma total de ventas realizadas en el punto de venta (POS) que ya están completadas y pagadas en el rango seleccionado.",
                 sections: [
                   { label: "Ventas completadas", value: String(salesCount) },
                   {
@@ -290,7 +304,7 @@ export default function DashboardPage() {
           icon={Receipt}
           sub={`${ordersCount} pedidos`}
           href="/sales"
-          description="Pedidos de clientes (tipo ORDER) completados en el rango seleccionado."
+          description="Pedidos de clientes completados en el rango seleccionado."
           onClick={() =>
             setDrawer({
               open: true,
@@ -299,7 +313,7 @@ export default function DashboardPage() {
                 value: formatCLP(ordersTotal),
                 icon: Receipt,
                 description:
-                  "Suma total de pedidos (tipo ORDER) con estado completado en el rango seleccionado.",
+                  "Suma total de pedidos de clientes (por ejemplo, mesas o delivery) que ya están completados y pagados en el rango seleccionado.",
                 sections: [
                   { label: "Pedidos completados", value: String(ordersCount) },
                   {
@@ -343,7 +357,7 @@ export default function DashboardPage() {
           icon={Clock}
           sub="ventas sin pagar"
           href="/sales"
-          description="Ventas directas (POS) pendientes de pago. Click para gestionarlas."
+          description="Ventas del POS pendientes de pago. Click para gestionarlas."
           onClick={() =>
             setDrawer({
               open: true,
@@ -351,7 +365,7 @@ export default function DashboardPage() {
                 title: "Cuentas abiertas",
                 value: pendingOrders,
                 icon: Clock,
-                description: "Ventas directas (tipo SALE) con estado pendiente de pago en el rango seleccionado. Requieren atención para cerrar la cuenta o completar el cobro.",
+                description: "Ventas del POS que todavía no se han pagado en el rango seleccionado. Requieren atención para cerrar la cuenta o completar el cobro.",
                 sections: [
                   { label: "Monto pendiente", value: formatCLP(pendingSalesAmount) },
                   { label: "Ventas completadas", value: String(salesCount) },
@@ -479,13 +493,25 @@ export default function DashboardPage() {
                 value: formatCLP(totalRevenue),
                 icon: ArrowDownLeft,
                 description:
-                  "Suma total de ingresos por ventas directas (SALE) y pedidos (ORDER) completados en el rango seleccionado.",
+                  "Suma total del dinero que ingresó por ventas del POS y pedidos de clientes completados en el rango seleccionado.",
                 sections: [
                   { label: "Ventas completadas", value: String(salesCount) },
                   { label: "Pedidos completados", value: String(ordersCount) },
                   { label: "Ventas del período", value: formatCLP(salesTotal) },
                   { label: "Órdenes del período", value: formatCLP(ordersTotal) },
                 ],
+                actions: (
+                  <Link
+                    href="/sales"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary/90"
+                  >
+                    Ver historial de ingresos
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                ),
+                children: <IncomeMetricDetail startDate={dates.start} endDate={dates.end} />,
               },
             })
           }
@@ -505,7 +531,7 @@ export default function DashboardPage() {
                 value: formatCLP(totalProfit),
                 icon: Wallet,
                 description:
-                  "Margen aproximado calculado sobre ventas directas y pedidos completados en el rango seleccionado.",
+                  "Margen aproximado calculado sobre ventas del POS y pedidos de clientes completados en el rango seleccionado. Se obtiene restando el costo estimado al total vendido.",
                 sections: [
                   {
                     label: "Margen estimado",
@@ -687,38 +713,42 @@ export default function DashboardPage() {
 
       {/* Gráficos principales */}
       <motion.section variants={container} initial="hidden" animate="show" className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm lg:col-span-2">
-          <div className="mb-2 flex items-center justify-between">
+        <div className="rounded-2xl border border-border bg-gradient-to-br from-card to-muted/20 p-5 shadow-sm lg:col-span-2">
+          <div className="mb-4 flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-sm font-semibold">
               <TrendingUp className="h-4 w-4 text-primary" />
               Evolución de ventas
             </h2>
-            <span className="text-xs text-muted-foreground">{dates.label}</span>
+            <span className="rounded-full border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground">
+              {dates.label}
+            </span>
           </div>
           {summary?.time_series && summary.time_series.length > 0 ? (
             <SalesChart data={summary.time_series} startDate={dates.start} endDate={dates.end} />
           ) : (
-            <div className="grid h-36 place-items-center rounded-lg border border-dashed border-border bg-muted/30">
+            <div className="grid h-52 place-items-center rounded-xl border border-dashed border-border bg-muted/30">
               <p className="text-sm text-muted-foreground">Sin datos de ventas en el período.</p>
             </div>
           )}
         </div>
 
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-          <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
+        <div className="rounded-2xl border border-border bg-gradient-to-br from-card to-muted/30 p-5 shadow-sm">
+          <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold">
             <Target className="h-4 w-4 text-primary" />
             Resumen del negocio
           </h2>
-          <RadarChart
-            metrics={[
-              { label: "Ventas", value: Math.min(salesTotal / 100000, 1) },
-              { label: "Pedidos", value: Math.min(ordersCount / 50, 1) },
-              { label: "Clientes", value: Math.min(customers / 100, 1) },
-              { label: "Productos", value: Math.min(productsCount / 50, 1) },
-              { label: "Ganancia", value: Math.min(totalProfit / 50000, 1) },
-            ]}
-          />
-          <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
+          <div className="flex flex-col items-center">
+            <RadarChart
+              metrics={[
+                { label: "Ventas", value: Math.min(salesTotal / 100000, 1) },
+                { label: "Pedidos", value: Math.min(ordersCount / 50, 1) },
+                { label: "Clientes", value: Math.min(customers / 100, 1) },
+                { label: "Productos", value: Math.min(productsCount / 50, 1) },
+                { label: "Ganancia", value: Math.min(totalProfit / 50000, 1) },
+              ]}
+            />
+          </div>
+          <div className="mt-5 grid grid-cols-2 gap-4 rounded-xl border border-border/60 bg-background/60 p-3 text-xs">
             <div>
               <p className="text-muted-foreground">Venta promedio</p>
               <p className="font-semibold tabular-nums">
@@ -736,9 +766,9 @@ export default function DashboardPage() {
       </motion.section>
 
       {/* Métodos de pago y productos */}
-      <motion.section variants={container} initial="hidden" animate="show" className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+      <motion.section variants={container} initial="hidden" animate="show" className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-          <div className="mb-3 flex items-center justify-between">
+          <div className="mb-4 flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-sm font-semibold">
               <ShoppingBag className="h-4 w-4 text-primary" />
               Métodos de pago
@@ -751,28 +781,42 @@ export default function DashboardPage() {
             </Link>
           </div>
           {summary?.payments && summary.payments.length > 0 ? (
-            <div className="flex flex-col">
+            <div className="grid grid-cols-1 gap-3">
               {(() => {
                 const totalPayments = summary.payments.reduce((s, x) => s + x.total, 0);
                 return summary.payments.map((p, i) => {
                   const pct = totalPayments > 0 ? (p.total / totalPayments) * 100 : 0;
+                  const Icon = paymentIcon(paymentTypeLabel(p.type_payment__name));
                   return (
                     <div
                       key={i}
-                      className="flex flex-col gap-1 border-b border-border py-2.5 last:border-0"
-                      title={`${paymentTypeLabel(p.type_payment__name)}: ${formatCLP(p.total)} en el período`}
+                      className="relative overflow-hidden rounded-xl border border-border bg-background p-3"
                     >
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="font-medium">{paymentTypeLabel(p.type_payment__name)}</span>
-                        <span className="tabular-nums font-semibold">{formatCLP(p.total)}</span>
-                      </div>
-                      <div className="h-1.5 w-full rounded-full bg-muted">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${pct}%` }}
-                          transition={{ duration: 0.8, delay: i * 0.05 }}
-                          className="h-1.5 rounded-full bg-primary"
-                        />
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                          <Icon className="h-5 w-5" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between">
+                            <span className="truncate text-sm font-medium">
+                              {paymentTypeLabel(p.type_payment__name)}
+                            </span>
+                            <span className="ml-2 shrink-0 text-sm font-bold tabular-nums">
+                              {formatCLP(p.total)}
+                            </span>
+                          </div>
+                          <div className="mt-2 h-2 w-full rounded-full bg-muted">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${pct}%` }}
+                              transition={{ duration: 0.8, delay: i * 0.05 }}
+                              className="h-2 rounded-full bg-primary"
+                            />
+                          </div>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {pct.toFixed(1)}% del total
+                          </p>
+                        </div>
                       </div>
                     </div>
                   );
@@ -785,8 +829,11 @@ export default function DashboardPage() {
         </div>
 
         <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold">Productos más vendidos</h2>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-sm font-semibold">
+              <Package className="h-4 w-4 text-primary" />
+              Productos más vendidos
+            </h2>
             <Link
               href="/products"
               className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
@@ -795,29 +842,38 @@ export default function DashboardPage() {
             </Link>
           </div>
           {summary?.products?.best_selling && summary.products.best_selling.length > 0 ? (
-            <div className="flex flex-col">
+            <div className="grid grid-cols-1 gap-3">
               {summary.products.best_selling.map((p, i) => {
                 const maxQty = Math.max(...summary.products.best_selling.map((x) => x.quantity), 1);
                 const pct = (p.quantity / maxQty) * 100;
                 return (
                   <div
                     key={i}
-                    className="flex flex-col gap-1 border-b border-border py-2.5 last:border-0"
-                    title={`${p.product__name}: ${p.quantity} vendidos por ${formatCLP(p.total)}`}
+                    className="relative overflow-hidden rounded-xl border border-border bg-background p-3"
                   >
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="min-w-0 truncate font-medium">{p.product__name}</span>
-                      <span className="shrink-0 tabular-nums font-semibold">
-                        {p.quantity} · {formatCLP(p.total)}
-                      </span>
-                    </div>
-                    <div className="h-1.5 w-full rounded-full bg-muted">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${pct}%` }}
-                        transition={{ duration: 0.8, delay: i * 0.05 }}
-                        className="h-1.5 rounded-full bg-emerald-500"
-                      />
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 text-xs font-bold">
+                        #{i + 1}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="truncate text-sm font-medium">{p.product__name}</span>
+                          <span className="ml-2 shrink-0 text-sm font-bold tabular-nums">
+                            {formatCLP(p.total)}
+                          </span>
+                        </div>
+                        <div className="mt-2 h-2 w-full rounded-full bg-muted">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${pct}%` }}
+                            transition={{ duration: 0.8, delay: i * 0.05 }}
+                            className="h-2 rounded-full bg-emerald-500"
+                          />
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {p.quantity} unidades vendidas
+                        </p>
+                      </div>
                     </div>
                   </div>
                 );
@@ -1095,8 +1151,8 @@ function SalesChart({
   const values = filled.map((d) => d.sales);
   const max = Math.max(...values, 1);
   const width = 600;
-  const height = 150;
-  const padding = { top: 10, right: 10, bottom: 24, left: 10 };
+  const height = 220;
+  const padding = { top: 16, right: 16, bottom: 32, left: 16 };
   const chartW = width - padding.left - padding.right;
   const chartH = height - padding.top - padding.bottom;
 
@@ -1135,7 +1191,7 @@ function SalesChart({
     <div className="relative select-none">
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        className="h-36 w-full"
+        className="h-52 w-full"
         onMouseMove={handleMove}
         onMouseLeave={() => setHover(null)}
       >
@@ -1222,18 +1278,21 @@ function SalesChart({
       {/* Tooltip anclado al punto exacto */}
       {hover !== null && hoverPoint && (
         <div
-          className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-xl border border-border bg-card px-3 py-2 text-xs shadow-lg"
+          className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-xl border border-border bg-card px-3 py-2 shadow-lg"
           style={{
             left: `${(hoverX / width) * 100}%`,
             top: `${(hoverY / height) * 100}%`,
           }}
         >
-          <div className="mb-1 h-1.5 w-1.5 rounded-full bg-primary" />
-          <p className="font-semibold">
-            {isHourly ? formatFullHour(hoverPoint.date) : formatFullDate(hoverPoint.date)}
-          </p>
-          <p className="text-muted-foreground">
-            {formatCLP(hoverPoint.sales)} · {hoverPoint.orders} {hoverPoint.orders === 1 ? "orden" : "órdenes"}
+          <div className="mb-1.5 flex items-center gap-1.5">
+            <div className="h-2 w-2 rounded-full bg-primary" />
+            <p className="text-xs font-semibold">
+              {isHourly ? formatFullHour(hoverPoint.date) : formatFullDate(hoverPoint.date)}
+            </p>
+          </div>
+          <p className="text-sm font-bold tabular-nums">{formatCLP(hoverPoint.sales)}</p>
+          <p className="text-xs text-muted-foreground">
+            {hoverPoint.orders} {hoverPoint.orders === 1 ? "venta" : "ventas"} en este período
           </p>
         </div>
       )}
@@ -1242,9 +1301,9 @@ function SalesChart({
 }
 
 function RadarChart({ metrics }: { metrics: { label: string; value: number }[] }) {
-  const size = 80;
+  const size = 160;
   const center = size / 2;
-  const radius = 28;
+  const radius = 56;
   const angleStep = (Math.PI * 2) / metrics.length;
 
   const points = metrics.map((m, i) => {
@@ -1317,7 +1376,7 @@ function RadarChart({ metrics }: { metrics: { label: string; value: number }[] }
             key={i}
             cx={p.x}
             cy={p.y}
-            r="2.5"
+            r="3"
             className="fill-background stroke-primary stroke-2"
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
@@ -1326,8 +1385,8 @@ function RadarChart({ metrics }: { metrics: { label: string; value: number }[] }
         ))}
         {/* Labels */}
         {points.map((p, i) => {
-          const labelX = center + (radius + 12) * Math.cos(p.angle);
-          const labelY = center + (radius + 12) * Math.sin(p.angle);
+          const labelX = center + (radius + 18) * Math.cos(p.angle);
+          const labelY = center + (radius + 18) * Math.sin(p.angle);
           return (
             <text
               key={i}
@@ -1335,7 +1394,7 @@ function RadarChart({ metrics }: { metrics: { label: string; value: number }[] }
               y={labelY}
               textAnchor="middle"
               dominantBaseline="middle"
-              className="fill-muted-foreground text-[8px] font-semibold"
+              className="fill-muted-foreground text-[10px] font-semibold"
             >
               {p.label}
             </text>
