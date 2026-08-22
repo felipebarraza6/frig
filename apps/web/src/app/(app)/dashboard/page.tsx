@@ -777,12 +777,6 @@ export default function DashboardPage() {
               <ShoppingBag className="h-4 w-4 text-primary" />
               Métodos de pago
             </h2>
-            <Link
-              href="/payment-methods"
-              className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
-            >
-              Ver métodos
-            </Link>
           </div>
           {summary?.payments && summary.payments.length > 0 ? (
             <div className="grid grid-cols-1 gap-3">
@@ -838,12 +832,6 @@ export default function DashboardPage() {
               <Package className="h-4 w-4 text-primary" />
               Productos más vendidos
             </h2>
-            <Link
-              href="/products"
-              className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
-            >
-              Ver productos
-            </Link>
           </div>
           {summary?.products?.best_selling && summary.products.best_selling.length > 0 ? (
             <div className="grid grid-cols-1 gap-3">
