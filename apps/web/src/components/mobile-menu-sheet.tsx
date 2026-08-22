@@ -10,7 +10,6 @@ import {
   ChevronDown,
   ChevronRight,
   User as UserIcon,
-  MapPin,
   ArrowRightLeft,
   type LucideIcon,
 } from "lucide-react";
@@ -185,15 +184,13 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
                     className="h-full w-full p-1.5"
                   />
                 </div>
-                <p className="mt-3 text-lg font-bold">{appName}</p>
-                {branch && (
-                  <div className="mt-1 flex items-center justify-center gap-1 text-xs text-muted-foreground">
-                    <MapPin className="h-3 w-3 shrink-0" />
-                    <span className="truncate">{branchName(branch)}</span>
-                  </div>
+                {branch ? (
+                  <p className="mt-3 text-lg font-bold">{branchName(branch)}</p>
+                ) : (
+                  <p className="mt-3 text-lg font-bold">{appName}</p>
                 )}
                 {user && (
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  <p className="mt-1 truncate text-xs text-muted-foreground">
                     {user.first_name ?? user.email}
                   </p>
                 )}
