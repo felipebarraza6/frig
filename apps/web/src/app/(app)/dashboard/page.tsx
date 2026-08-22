@@ -533,13 +533,17 @@ export default function DashboardPage() {
                 description:
                   "Margen aproximado calculado sobre ventas y órdenes de cliente completadas en el rango seleccionado. Se obtiene restando el costo estimado al total vendido.",
                 sections: [
+                  { label: "Ingresos totales", value: formatCLP(totalRevenue) },
+                  { label: "Costo estimado", value: formatCLP(totalRevenue - totalProfit) },
+                  { label: "Ganancia neta", value: formatCLP(totalProfit) },
                   {
                     label: "Margen estimado",
                     value: totalRevenue > 0 ? `${((totalProfit / totalRevenue) * 100).toFixed(1)}%` : "—",
                   },
-                  { label: "Ventas del período", value: formatCLP(salesTotal) },
-                  { label: "Órdenes del período", value: formatCLP(ordersTotal) },
                 ],
+                children: (
+                  <ProfitMiniReport revenue={totalRevenue} profit={totalProfit} salesProfit={salesProfit} ordersProfit={ordersProfit} />
+                ),
               },
             })
           }
@@ -1296,6 +1300,92 @@ function SalesChart({
           </p>
         </div>
       )}
+    </div>
+  );
+}
+
+function ProfitMiniReport({
+  revenue,
+  profit,
+  salesProfit,
+  ordersProfit,
+}: {
+  revenue: number;
+  profit: number;
+  salesProfit: number;
+  ordersProfit: number;
+}) {
+  const cost = Math.max(revenue - profit, 0);
+  const profitPct = revenue > 0 ? (profit / revenue) * 100 : 0;
+  const size = 120;
+  const stroke = 10;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const profitOffset = circumference * (1 - profitPct / 100);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-4 rounded-xl border border-border bg-background p-4">
+        <div className="relative flex h-[120px] w-[120px] shrink-0 items-center justify-center">
+          <svg width={size} height={size} className="-rotate-90">
+            <circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={stroke}
+              className="text-muted"
+              strokeLinecap="round"
+            />
+            <motion.circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={stroke}
+              className="text-primary"
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              initial={{ strokeDashoffset: circumference }}
+              animate={{ strokeDashoffset: profitOffset }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+            />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-xs text-muted-foreground">Margen</span>
+            <span className="text-lg font-bold tabular-nums">{profitPct.toFixed(1)}%</span>
+          </div>
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-full bg-primary" />
+              Ganancia
+            </span>
+            <span className="font-semibold tabular-nums">{formatCLP(profit)}</span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-full bg-muted" />
+              Costo estimado
+            </span>
+            <span className="font-semibold tabular-nums">{formatCLP(cost)}</span>
+          </div>
+          <div className="mt-1 border-t border-border pt-2 text-xs text-muted-foreground">
+            Por tipo de transacción:
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span>Ventas</span>
+            <span className="font-medium tabular-nums">{formatCLP(salesProfit)}</span>
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span>Órdenes</span>
+            <span className="font-medium tabular-nums">{formatCLP(ordersProfit)}</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
