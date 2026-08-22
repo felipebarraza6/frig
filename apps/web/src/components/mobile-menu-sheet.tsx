@@ -125,6 +125,8 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
     [menuGroups, isAllowed]
   );
 
+  const displayName = branch ? branchName(branch) : appName;
+
   return (
     <AnimatePresence>
       {open && (
@@ -164,15 +166,8 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
             </div>
 
             {/* Header */}
-            <div
-              className={cn(
-                "relative overflow-hidden px-5",
-                theme?.logo ? "border-b border-border pb-6 pt-4" : "pb-4 pt-3"
-              )}
-            >
-              {theme?.logo && (
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent" />
-              )}
+            <div className="relative overflow-hidden border-b border-border px-5 pb-5 pt-4">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
               <button
                 type="button"
                 onClick={onClose}
@@ -188,29 +183,25 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
                     <BrandLogo
                       src={theme.logo}
                       alt={appName}
+                      name={displayName}
                       containerClassName="h-20 w-20 rounded-xl bg-white"
                       className="h-full w-full p-1.5"
                     />
                   </div>
-                ) : null}
-                {branch ? (
-                  <p
-                    className={cn(
-                      "font-bold",
-                      theme?.logo ? "mt-3 text-lg" : "text-xl"
-                    )}
-                  >
-                    {branchName(branch)}
-                  </p>
                 ) : (
-                  <p
-                    className={cn(
-                      "font-bold",
-                      theme?.logo ? "mt-3 text-lg" : "text-xl"
-                    )}
-                  >
-                    {appName}
-                  </p>
+                  <div className="rounded-2xl bg-primary p-1 shadow-lg ring-4 ring-primary/10">
+                    <BrandLogo
+                      src={null}
+                      alt={appName}
+                      name={displayName}
+                      containerClassName="h-16 w-16 rounded-xl bg-primary text-lg text-white"
+                    />
+                  </div>
+                )}
+                {branch ? (
+                  <p className="mt-3 text-lg font-bold">{branchName(branch)}</p>
+                ) : (
+                  <p className="mt-3 text-lg font-bold">{appName}</p>
                 )}
                 {user && (
                   <p className="mt-1 truncate text-xs text-muted-foreground">
