@@ -457,9 +457,9 @@ export default function SalesPage() {
             </Button>
           </div>
 
-          {/* Desktop: fila flex con todos los filtros */}
-          <div className="hidden flex-wrap items-end gap-2 sm:flex">
-            <div className="relative min-w-[180px] flex-1">
+          {/* Desktop: dos filas limpias */}
+          <div className="hidden flex-col gap-3 sm:flex">
+            <div className="relative w-full max-w-md">
               <label htmlFor="filter-search" className="mb-1 block text-xs text-muted-foreground">Buscar</label>
               <div className="relative">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -472,49 +472,54 @@ export default function SalesPage() {
                 />
               </div>
             </div>
-            <div className="min-w-[130px] flex-1">
-              <label htmlFor="filter-status" className="mb-1 block text-xs text-muted-foreground">Estado</label>
-              <Select id="filter-status" value={status} onChange={(e) => updateFilter(setStatus, e.target.value)} className="h-9 text-sm">
-                {STATUS_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </Select>
-            </div>
-            <div className="min-w-[130px] flex-1">
-              <label htmlFor="filter-payment" className="mb-1 block text-xs text-muted-foreground">Pago</label>
-              <Select id="filter-payment" value={paymentStatus} onChange={(e) => updateFilter(setPaymentStatus, e.target.value)} className="h-9 text-sm">
-                {PAYMENT_STATUS_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </Select>
-            </div>
-            <div className="min-w-[130px] flex-1">
-              <label htmlFor="filter-type" className="mb-1 block text-xs text-muted-foreground">Tipo</label>
-              <Select id="filter-type" value={orderType} onChange={(e) => updateFilter(setOrderType, e.target.value)} className="h-9 text-sm">
-                {ORDER_TYPE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </Select>
-            </div>
-            <div className="min-w-[220px] flex-[1.5]">
-              <label className="mb-1 block text-xs text-muted-foreground">Fecha</label>
-              <div className="flex gap-2">
-                <Input
-                  id="filter-start"
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => updateDateRange(e.target.value, endDate)}
-                  disabled={isCashier}
-                  className="h-9 text-xs"
-                />
-                <Input
-                  id="filter-end"
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => updateDateRange(startDate, e.target.value)}
-                  disabled={isCashier}
-                  className="h-9 text-xs"
-                />
+            <div className="flex flex-wrap items-end gap-2">
+              <div className="w-[140px]">
+                <label htmlFor="filter-status" className="mb-1 block text-xs text-muted-foreground">Estado</label>
+                <Select id="filter-status" value={status} onChange={(e) => updateFilter(setStatus, e.target.value)} className="h-9 text-sm">
+                  {STATUS_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </Select>
+              </div>
+              <div className="w-[140px]">
+                <label htmlFor="filter-payment" className="mb-1 block text-xs text-muted-foreground">Pago</label>
+                <Select id="filter-payment" value={paymentStatus} onChange={(e) => updateFilter(setPaymentStatus, e.target.value)} className="h-9 text-sm">
+                  {PAYMENT_STATUS_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </Select>
+              </div>
+              <div className="w-[140px]">
+                <label htmlFor="filter-type" className="mb-1 block text-xs text-muted-foreground">Tipo</label>
+                <Select id="filter-type" value={orderType} onChange={(e) => updateFilter(setOrderType, e.target.value)} className="h-9 text-sm">
+                  {ORDER_TYPE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </Select>
+              </div>
+              <div className="flex min-w-[240px] flex-1 items-end gap-2">
+                <div className="flex-1">
+                  <label htmlFor="filter-start" className="mb-1 block text-xs text-muted-foreground">Desde</label>
+                  <Input
+                    id="filter-start"
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => updateDateRange(e.target.value, endDate)}
+                    disabled={isCashier}
+                    className="h-9 text-xs"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label htmlFor="filter-end" className="mb-1 block text-xs text-muted-foreground">Hasta</label>
+                  <Input
+                    id="filter-end"
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => updateDateRange(startDate, e.target.value)}
+                    disabled={isCashier}
+                    className="h-9 text-xs"
+                  />
+                </div>
               </div>
             </div>
           </div>
