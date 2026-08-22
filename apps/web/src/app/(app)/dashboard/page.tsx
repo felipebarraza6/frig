@@ -124,13 +124,13 @@ export default function DashboardPage() {
   const branchId = branch?.branch_id;
 
   const { data: counts, isLoading: loadingCounts, error: countsError } = useQuery({
-    queryKey: ["dashboard", "module-counts", branchId],
+    queryKey: ["dashboard", "module-counts", "v2", branchId],
     queryFn: () => fetchModuleCounts(branchId),
     enabled: !!branch,
   });
 
   const { data: summary, isLoading: loadingSummary, error: summaryError } = useQuery({
-    queryKey: ["dashboard", "summary", dates.start, dates.end, branchId],
+    queryKey: ["dashboard", "summary", "v2", dates.start, dates.end, branchId],
     queryFn: () => fetchDashboardSummary(dates.start, dates.end, branchId),
     enabled: !!branch,
   });
@@ -138,7 +138,7 @@ export default function DashboardPage() {
   const nutritionEnabled = useIsModuleEnabledFromConfig("nutrition");
 
   const { data: ingredientConsumption, isLoading: loadingIngredients } = useQuery({
-    queryKey: ["dashboard", "ingredient-consumption", dates.start, dates.end, branchId],
+    queryKey: ["dashboard", "ingredient-consumption", "v2", dates.start, dates.end, branchId],
     queryFn: () => fetchIngredientConsumption(dates.start, dates.end, branchId),
     enabled: !!branch && nutritionEnabled,
   });

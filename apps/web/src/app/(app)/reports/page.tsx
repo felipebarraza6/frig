@@ -172,13 +172,13 @@ export default function ReportsPage() {
   const branchId = branch?.branch_id;
 
   const { data: summary, isLoading: loadingSummary, error: summaryError } = useQuery({
-    queryKey: ["reports", "summary", dates.start, dates.end, branchId],
+    queryKey: ["reports", "summary", "v2", dates.start, dates.end, branchId],
     queryFn: () => fetchDashboardSummary(dates.start, dates.end, branchId),
     enabled: !!branch,
   });
 
   const { data: ingredientConsumption, isLoading: loadingIngredients } = useQuery({
-    queryKey: ["reports", "ingredient-consumption", dates.start, dates.end, branchId],
+    queryKey: ["reports", "ingredient-consumption", "v2", dates.start, dates.end, branchId],
     queryFn: () => fetchIngredientConsumption(dates.start, dates.end, branchId),
     enabled: !!branch,
   });
