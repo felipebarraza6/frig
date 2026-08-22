@@ -6,7 +6,6 @@ import { Search, Loader2, ShoppingBag, X, Eye, Ban, Banknote, Plus, Trash2, File
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
-import Link from "next/link";
 import { fetchOrders, cancelOrder, downloadOrderThermalPdf, downloadOrderA4Pdf, exportOrdersExcel, type OrdersFilter } from "@/lib/api/orders";
 import { fetchPaymentMethods, createPayment } from "@/lib/api/payments";
 import { getCurrentCashRegister } from "@/lib/api/cash-register";
@@ -24,6 +23,7 @@ import {
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
 import { useToast } from "@/lib/store/toast";
 import type { YggdraSchemas } from "@/lib/api/types";
+import { AnimatePresence, motion } from "framer-motion";
 
 type Order = YggdraSchemas["Order"] & { order_number?: string | null };
 type TableItem = YggdraSchemas["Table"];
@@ -103,6 +103,17 @@ export default function SalesPage() {
 
   const [detail, setDetail] = useState<Order | null>(null);
   const [collecting, setCollecting] = useState<Order | null>(null);
+  const [posModal, setPosModal] = useState<{ open: boolean; orderType: "SALE" | "ORDER" | null }>({
+    open: false,
+    orderType: null,
+  });
+
+  // Refrescar lista de órdenes al cerrar el modal rápido de POS.
+  useEffect(() => {
+    if (!posModal.open) {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    }
+  }, [posModal.open, queryClient]);
   const [paymentLines, setPaymentLines] = useState<{ id: string; payment_method_id: string; amount: string }[]>([]);
   const [collectError, setCollectError] = useState<string | null>(null);
   const [collectSuccess, setCollectSuccess] = useState<string | null>(null);
@@ -340,18 +351,24 @@ export default function SalesPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Link href="/pos/terminal?order_type=SALE">
-            <Button variant="outline" size="sm" className="h-8">
-              <Plus className="mr-1.5 h-4 w-4" />
-              Venta
-            </Button>
-          </Link>
-          <Link href="/pos/terminal?order_type=ORDER">
-            <Button variant="outline" size="sm" className="h-8">
-              <Plus className="mr-1.5 h-4 w-4" />
-              Pedido
-            </Button>
-          </Link>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8"
+            onClick={() => setPosModal({ open: true, orderType: "SALE" })}
+          >
+            <Plus className="mr-1.5 h-4 w-4" />
+            Venta
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8"
+            onClick={() => setPosModal({ open: true, orderType: "ORDER" })}
+          >
+            <Plus className="mr-1.5 h-4 w-4" />
+            Pedido
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -958,6 +975,47 @@ export default function SalesPage() {
           </div>
         </div>
       )}
+
+      {/* Modal rápido de POS para crear venta/pedido sin salir de la página */}
+      <AnimatePresence>
+        {posModal.open && posModal.orderType && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/50"
+              onClick={() => setPosModal({ open: false, orderType: null })}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 16 }}
+              transition={{ duration: 0.2 }}
+              className="relative flex h-full w-full flex-col overflow-hidden rounded-none bg-background shadow-2xl sm:h-[90vh] sm:max-h-[900px] sm:max-w-6xl sm:rounded-2xl"
+            >
+              <div className="flex items-center justify-between border-b border-border px-4 py-2">
+                <h2 className="text-sm font-semibold">
+                  {posModal.orderType === "SALE" ? "Nueva venta" : "Nuevo pedido / cuenta abierta"}
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setPosModal({ open: false, orderType: null })}
+                  className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  aria-label="Cerrar"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <iframe
+                src={`/pos/terminal?order_type=${posModal.orderType}`}
+                className="flex-1 border-0"
+                title={posModal.orderType === "SALE" ? "Nueva venta" : "Nuevo pedido"}
+              />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

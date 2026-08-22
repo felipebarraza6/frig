@@ -120,6 +120,17 @@ export default function PosPage() {
     router.replace(url.pathname + url.search);
   }
 
+  function startNewOrder(orderType: "SALE" | "ORDER") {
+    clearCart();
+    setSelectedTableState(undefined);
+    const url = new URL("/pos/terminal", window.location.origin);
+    url.searchParams.set("order_type", orderType);
+    if (isWaiterSimulation) url.searchParams.set("view", "waiter");
+    if (queryReturnTo) url.searchParams.set("return_to", queryReturnTo);
+    if (queryStationId) url.searchParams.set("station_id", queryStationId);
+    router.replace(url.pathname + url.search);
+  }
+
   function handleEditOrder(order: Order) {
     const url = new URL("/pos/terminal", window.location.origin);
     url.searchParams.set("order_id", order.id);
@@ -396,6 +407,7 @@ export default function PosPage() {
   }, [openAccountsPage, isWaiter, user, myTables, openAccountsQuery, tables]);
 
   const itemCount = useCartStore((s) => s.items.reduce((sum, i) => sum + i.quantity, 0));
+  const clearCart = useCartStore((s) => s.clear);
   const existingOrderTotal = existingOrder
     ? Math.max(0, parseFloat(existingOrder.total_amount ?? "0"))
     : 0;
@@ -449,17 +461,28 @@ export default function PosPage() {
           )}
 
           {!isWaiter && (
-            <button
-              type="button"
-              onClick={() => setShowOpenAccounts(true)}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border/60 bg-background px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
-            >
-              <ClipboardList className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Cuentas</span>
-              <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-semibold text-white">
-                {openAccountsPage?.count ?? 0}
-              </span>
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => startNewOrder("ORDER")}
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border/60 bg-background px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                title="Abrir una cuenta / pedido sin cobrar"
+              >
+                <ClipboardList className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Abrir cuenta</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowOpenAccounts(true)}
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border/60 bg-background px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+              >
+                <ClipboardList className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Cuentas</span>
+                <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-semibold text-white">
+                  {openAccountsPage?.count ?? 0}
+                </span>
+              </button>
+            </>
           )}
 
           {!(isWaiter && !selectedTable && !isEditingOrder) && (
