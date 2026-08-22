@@ -35,6 +35,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import {
   getCurrentCashRegister,
+  getLastClosedCashRegister,
   openCashRegister,
   closeCashRegister,
   getDailySummary,
@@ -155,6 +156,14 @@ export default function CashRegisterPage() {
     enabled: !!branch && !!activeStationId,
     refetchInterval: 30_000,
     staleTime: 10_000,
+  });
+
+  const { data: lastClosedRegister } = useQuery({
+    queryKey: ["cash-register", branch?.branch_id, "last-closed", activeStationId],
+    queryFn: () => getLastClosedCashRegister(activeStationId),
+    enabled: !cashRegister && !!branch && !!activeStationId,
+    retry: false,
+    staleTime: 60_000,
   });
 
   const { data: summary, isLoading: loadingSummary } = useQuery({
@@ -691,34 +700,53 @@ export default function CashRegisterPage() {
                   </div>
                 )
               ) : (
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  {canManageMovements ? (
-                    <>
-                      <Input
-                        value={openAmount ? formatCLP(parseFloat(toDecimal(openAmount))) : ""}
-                        onChange={(e) => setOpenAmount(numberValue(e.target.value))}
-                        placeholder="Monto de apertura"
-                        className="tabular-nums sm:max-w-[180px]"
-                      />
-                      <Button
-                        onClick={() =>
-                          openMutation.mutate({
-                            branch_id: Number(branch?.branch_id ?? 0),
-                            opening_amount: toDecimal(openAmount),
-                            station_id: Number(activeStationId),
-                          })
-                        }
-                        disabled={!branch || !openAmount || openMutation.isPending}
-                      >
-                        {openMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Abrir caja
-                      </Button>
-                    </>
-                  ) : (
-                    <p className="rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
-                      Solo el propietario o administrador pueden abrir/cerrar caja.
-                    </p>
+                <div className="flex flex-col gap-3">
+                  {lastClosedRegister && (
+                    <div className="flex items-center gap-2 rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+                      <History className="h-3.5 w-3.5" />
+                      <span>
+                        Último cierre:{" "}
+                        <strong className="text-foreground">
+                          {formatCLP(parseFloat(lastClosedRegister.closing_amount || "0"))}
+                        </strong>{" "}
+                        {lastClosedRegister.date && (
+                          <>el {new Date(lastClosedRegister.date).toLocaleDateString("es-CL")}</>
+                        )}
+                        {lastClosedRegister.closed_by_name && (
+                          <> por {lastClosedRegister.closed_by_name}</>
+                        )}
+                      </span>
+                    </div>
                   )}
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    {canManageMovements ? (
+                      <>
+                        <Input
+                          value={openAmount ? formatCLP(parseFloat(toDecimal(openAmount))) : ""}
+                          onChange={(e) => setOpenAmount(numberValue(e.target.value))}
+                          placeholder="Monto de apertura (0 si inicia vacía)"
+                          className="tabular-nums sm:max-w-[220px]"
+                        />
+                        <Button
+                          onClick={() =>
+                            openMutation.mutate({
+                              branch_id: Number(branch?.branch_id ?? 0),
+                              opening_amount: toDecimal(openAmount),
+                              station_id: Number(activeStationId),
+                            })
+                          }
+                          disabled={!branch || openMutation.isPending}
+                        >
+                          {openMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          Abrir caja
+                        </Button>
+                      </>
+                    ) : (
+                      <p className="rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
+                        Solo el propietario o administrador pueden abrir/cerrar caja.
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

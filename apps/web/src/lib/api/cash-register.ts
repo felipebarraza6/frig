@@ -44,6 +44,20 @@ export async function getCurrentCashRegister(
   }
 }
 
+export async function getLastClosedCashRegister(
+  stationId?: number | string | null,
+): Promise<CashRegister | null> {
+  try {
+    const qs = stationId ? `?station_id=${encodeURIComponent(stationId)}` : "";
+    return await apiFetch<CashRegister>(`/finance/cash-registers/last-closed/${qs}`);
+  } catch (err) {
+    if (err && typeof err === "object" && "status" in err && err.status === 404) {
+      return null;
+    }
+    throw err;
+  }
+}
+
 export async function openCashRegister(
   payload: CashRegisterOpenRequest,
 ): Promise<CashRegister> {
