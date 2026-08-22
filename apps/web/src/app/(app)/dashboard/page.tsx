@@ -195,32 +195,33 @@ export default function DashboardPage() {
   return (
     <div className="flex min-h-full flex-col gap-6 p-4">
       {/* Header */}
-      <header className="flex justify-end">
-        <div className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1">
-            <input
-              type="date"
-              value={customRange.start}
-              max={customRange.end}
-              onChange={(e) => {
-                const start = e.target.value;
-                setCustomRange((prev) => ({ start, end: prev.end < start ? start : prev.end }));
-                setRange("custom");
-              }}
-              className="border-0 bg-transparent px-1 py-0.5 text-xs font-medium text-foreground outline-none"
-            />
-            <span className="text-xs text-muted-foreground">-</span>
-            <input
-              type="date"
-              value={customRange.end}
-              min={customRange.start}
-              onChange={(e) => {
-                const end = e.target.value;
-                setCustomRange((prev) => ({ start: prev.start > end ? end : prev.start, end }));
-                setRange("custom");
-              }}
-              className="border-0 bg-transparent px-1 py-0.5 text-xs font-medium text-foreground outline-none"
-            />
-          </div>
+      <header className="flex items-center justify-between gap-3">
+        <h1 className="hidden text-lg font-semibold md:block">Dashboard</h1>
+        <div className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-background px-3 py-2 shadow-sm md:w-auto">
+          <input
+            type="date"
+            value={customRange.start}
+            max={customRange.end}
+            onChange={(e) => {
+              const start = e.target.value;
+              setCustomRange((prev) => ({ start, end: prev.end < start ? start : prev.end }));
+              setRange("custom");
+            }}
+            className="min-w-0 flex-1 border-0 bg-transparent px-1 py-0.5 text-xs font-medium text-foreground outline-none md:flex-none"
+          />
+          <span className="text-xs text-muted-foreground">-</span>
+          <input
+            type="date"
+            value={customRange.end}
+            min={customRange.start}
+            onChange={(e) => {
+              const end = e.target.value;
+              setCustomRange((prev) => ({ start: prev.start > end ? end : prev.start, end }));
+              setRange("custom");
+            }}
+            className="min-w-0 flex-1 border-0 bg-transparent px-1 py-0.5 text-xs font-medium text-foreground outline-none md:flex-none"
+          />
+        </div>
       </header>
 
       {/* Stats principales */}
