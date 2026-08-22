@@ -5,7 +5,7 @@ export type ModuleCounts = {
   suppliers?: { total: number };
   customers?: { total: number };
   inventory?: { total_products: number; low_stock: number };
-  sales?: { total_orders: number; pending_orders: number };
+  sales?: { total_orders: number; pending_orders: number; pending_sales_amount: number };
   finance?: { total_payments: number; total_expenses: number };
   scheduling?: { today_appointments: number };
   certificates?: { total: number; expiring_soon: number };

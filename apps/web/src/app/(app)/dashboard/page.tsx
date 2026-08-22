@@ -190,6 +190,7 @@ export default function DashboardPage() {
   const productsCount = products.length;
   const lowStockCount = lowStockProducts.length;
   const pendingOrders = counts?.sales?.pending_orders ?? 0;
+  const pendingSalesAmount = counts?.sales?.pending_sales_amount ?? 0;
   const expensesTotal = counts?.expenses_by_supplier?.reduce((sum, e) => sum + e.total, 0) ?? 0;
 
   return (
@@ -325,6 +326,7 @@ export default function DashboardPage() {
                 icon: Clock,
                 description: "Ventas directas (tipo SALE) con estado pendiente de pago en el rango seleccionado. Requieren atención para cerrar la cuenta o completar el cobro.",
                 sections: [
+                  { label: "Monto pendiente", value: formatCLP(pendingSalesAmount) },
                   { label: "Ventas completadas", value: String(salesCount) },
                   { label: "Órdenes completadas", value: String(completedOrders) },
                 ],
@@ -389,6 +391,29 @@ export default function DashboardPage() {
                   { label: "Con stock bajo", value: String(lowStockCount) },
                   { label: "Catálogo local", value: String(productsCount) },
                 ],
+                children:
+                  lowStockProducts.length > 0 ? (
+                    <div className="flex flex-col">
+                      {lowStockProducts.map((p) => (
+                        <div
+                          key={p.id}
+                          className="flex items-center justify-between border-b border-border py-2.5 last:border-0"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium">{p.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Stock: {p.quantity ?? 0} / mín: {p.minimum_stock ?? 0}
+                            </p>
+                          </div>
+                          <span className="shrink-0 text-sm font-semibold tabular-nums">
+                            {formatCLP(p.price)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Sin productos con stock bajo.</p>
+                  ),
               },
             })
           }
@@ -533,9 +558,9 @@ export default function DashboardPage() {
           label="Gastos"
           value={formatCLP(expensesTotal)}
           icon={ArrowUpRight}
-          sub="del período"
+          sub="activos"
           href="/expenses"
-          description="Total de gastos registrados. Click para ver el detalle de compras."
+          description="Gastos fijos activos de la sucursal. No dependen del rango de fechas."
           onClick={() =>
             setDrawer({
               open: true,
@@ -543,19 +568,64 @@ export default function DashboardPage() {
                 title: "Gastos",
                 value: formatCLP(expensesTotal),
                 icon: ArrowUpRight,
-                description: "Total de gastos registrados en compras a proveedores durante el período.",
+                description:
+                  "Suma de gastos fijos activos registrados para la sucursal. Estos registros no tienen fecha de ocurrencia, por lo que no se filtran por el rango seleccionado.",
                 sections: [
+                  {
+                    label: "Registros activos",
+                    value: String(counts?.finance?.total_expenses ?? 0),
+                  },
                   {
                     label: "Proveedores con gastos",
                     value: String(counts?.expenses_by_supplier?.length ?? 0),
                   },
                 ],
+                children:
+                  counts?.expenses_by_supplier && counts.expenses_by_supplier.length > 0 ? (
+                    <div className="flex flex-col">
+                      {(() => {
+                        const maxTotal = Math.max(
+                          ...counts.expenses_by_supplier.map((e) => e.total),
+                          1,
+                        );
+                        return counts.expenses_by_supplier.map((e) => {
+                          const pct = (e.total / maxTotal) * 100;
+                          return (
+                            <div
+                              key={e.supplier}
+                              className="flex flex-col gap-1 border-b border-border py-2.5 last:border-0"
+                            >
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="min-w-0 truncate font-medium">{e.supplier}</span>
+                                <span className="shrink-0 tabular-nums font-semibold">
+                                  {formatCLP(e.total)}
+                                </span>
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                {e.count} {e.count === 1 ? "registro" : "registros"}
+                              </p>
+                              <div className="h-1.5 w-full rounded-full bg-muted">
+                                <motion.div
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${pct}%` }}
+                                  transition={{ duration: 0.8 }}
+                                  className="h-1.5 rounded-full bg-rose-500"
+                                />
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Sin gastos registrados.</p>
+                  ),
                 actions: (
                   <Link
                     href="/expenses"
                     className="flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-rose-600/90"
                   >
-                    Ver detalle de compras
+                    Ver detalle de gastos
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 ),
