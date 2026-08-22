@@ -197,32 +197,7 @@ export default function DashboardPage() {
     <div className="flex min-h-full flex-col gap-6 p-4">
       {/* Header */}
       <header className="flex justify-end">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-lg border border-border p-0.5">
-            {(["today", "yesterday", "week", "month"] as DateRange[]).map((r) => (
-              <button
-                key={r}
-                onClick={() => {
-                  setRange(r);
-                  const computed = rangeDates(r, customRange);
-                  setCustomRange({ start: computed.start, end: computed.end });
-                }}
-                className={cn(
-                  "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                  range === r
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                )}
-              >
-                {r === "today" && "Hoy"}
-                {r === "yesterday" && "Ayer"}
-                {r === "week" && "7 días"}
-                {r === "month" && "30 días"}
-              </button>
-            ))}
-          </div>
-
-          <div className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1">
+        <div className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1">
             <input
               type="date"
               value={customRange.start}
@@ -247,7 +222,6 @@ export default function DashboardPage() {
               className="border-0 bg-transparent px-1 py-0.5 text-xs font-medium text-foreground outline-none"
             />
           </div>
-        </div>
       </header>
 
       {/* Stats principales */}
