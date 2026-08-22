@@ -767,7 +767,7 @@ export default function DashboardPage() {
 
       {/* Métodos de pago y productos */}
       <motion.section variants={container} initial="hidden" animate="show" className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+        <div className="rounded-2xl bg-muted/30 p-4">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-sm font-semibold">
               <ShoppingBag className="h-4 w-4 text-primary" />
@@ -790,10 +790,10 @@ export default function DashboardPage() {
                   return (
                     <div
                       key={i}
-                      className="relative overflow-hidden rounded-xl border border-border bg-background p-3"
+                      className="rounded-xl bg-card p-3 shadow-sm"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                           <Icon className="h-5 w-5" />
                         </div>
                         <div className="min-w-0 flex-1">
@@ -828,7 +828,7 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+        <div className="rounded-2xl bg-muted/30 p-4">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-sm font-semibold">
               <Package className="h-4 w-4 text-primary" />
@@ -849,7 +849,7 @@ export default function DashboardPage() {
                 return (
                   <div
                     key={i}
-                    className="relative overflow-hidden rounded-xl border border-border bg-background p-3"
+                    className="rounded-xl bg-card p-3 shadow-sm"
                   >
                     <div className="flex items-start gap-3">
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 text-xs font-bold">
