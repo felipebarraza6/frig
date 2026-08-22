@@ -246,6 +246,7 @@ export default function DashboardPage() {
           value={formatCLP(salesTotal)}
           icon={TrendingUp}
           sub={`${salesCount} ventas`}
+          tone="emerald"
           href="/sales"
           description="Ventas completadas en el rango seleccionado."
           onClick={() =>
@@ -303,6 +304,7 @@ export default function DashboardPage() {
           value={formatCLP(ordersTotal)}
           icon={Receipt}
           sub={`${ordersCount} órdenes`}
+          tone="blue"
           href="/sales"
           description="Órdenes de cliente completadas en el rango seleccionado."
           onClick={() =>
@@ -356,6 +358,7 @@ export default function DashboardPage() {
           value={pendingOrders}
           icon={Clock}
           sub="ventas sin pagar"
+          tone="amber"
           href="/sales"
           description="Ventas pendientes de pago. Click para gestionarlas."
           onClick={() =>
@@ -402,6 +405,7 @@ export default function DashboardPage() {
           value={customers}
           icon={Users}
           sub="registrados"
+          tone="violet"
           href="/customers"
           description="Base de clientes registrados en la sucursal. Click para ver el listado."
           onClick={() =>
@@ -437,6 +441,7 @@ export default function DashboardPage() {
           value={productsCount}
           icon={Package}
           sub={`${lowStockCount} con stock bajo`}
+          tone="orange"
           href="/products"
           description="Productos activos en el catálogo. Click para ver el inventario de productos."
           onClick={() =>
@@ -483,6 +488,7 @@ export default function DashboardPage() {
           value={formatCLP(totalRevenue)}
           icon={ArrowDownLeft}
           sub="ventas + órdenes"
+          tone="emerald"
           href="/sales"
           description="Total de dinero ingresado por ventas y órdenes completadas en el período."
           onClick={() =>
@@ -521,6 +527,7 @@ export default function DashboardPage() {
           value={formatCLP(totalProfit)}
           icon={Wallet}
           sub="aproximada"
+          tone="teal"
           href="/sales"
           description="Margen aproximado calculado sobre ventas y órdenes completadas."
           onClick={() =>
@@ -554,6 +561,7 @@ export default function DashboardPage() {
             value={formatCLP(ingredientConsumption?.total_cost ?? 0)}
             icon={FlaskConical}
             sub="según recetas vendidas"
+            tone="slate"
             href="/reports"
             description="Costo estimado de los insumos consumidos según las recetas de los productos vendidos."
             onClick={() =>
@@ -637,6 +645,7 @@ export default function DashboardPage() {
           value={formatCLP(expensesTotal)}
           icon={ArrowUpRight}
           sub="activos"
+          tone="rose"
           href="/expenses"
           description="Gastos fijos activos de la sucursal. No dependen del rango de fechas."
           onClick={() =>
@@ -717,7 +726,7 @@ export default function DashboardPage() {
 
       {/* Gráficos principales */}
       <motion.section variants={container} initial="hidden" animate="show" className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-        <div className="rounded-2xl border border-border bg-gradient-to-br from-card to-muted/20 p-5 shadow-sm lg:col-span-2">
+        <div className="rounded-2xl border border-border bg-muted/30 p-5 shadow-sm lg:col-span-2">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-sm font-semibold">
               <TrendingUp className="h-4 w-4 text-primary" />
@@ -736,7 +745,7 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <div className="rounded-2xl border border-border bg-gradient-to-br from-card to-muted/30 p-5 shadow-sm">
+        <div className="rounded-2xl border border-border bg-muted/30 p-5 shadow-sm">
           <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold">
             <Target className="h-4 w-4 text-primary" />
             Resumen del negocio
@@ -880,7 +889,7 @@ export default function DashboardPage() {
       {/* Insumos consumidos */}
       {nutritionEnabled && (
         <motion.section variants={container} initial="hidden" animate="show" className="grid gap-3">
-          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+          <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="flex items-center gap-2 text-sm font-semibold">
                 <FlaskConical className="h-4 w-4 text-primary" />
@@ -1001,6 +1010,7 @@ function StatCard({
   href,
   description,
   onClick,
+  tone = "slate",
 }: {
   label: string;
   value: string | number;
@@ -1009,20 +1019,45 @@ function StatCard({
   href?: string;
   description?: string;
   onClick?: () => void;
+  tone?: "emerald" | "blue" | "amber" | "violet" | "orange" | "teal" | "rose" | "slate";
 }) {
+  const toneStyles = {
+    emerald: "bg-emerald-50/70 border-emerald-200/60 hover:bg-emerald-100/60",
+    blue: "bg-blue-50/70 border-blue-200/60 hover:bg-blue-100/60",
+    amber: "bg-amber-50/70 border-amber-200/60 hover:bg-amber-100/60",
+    violet: "bg-violet-50/70 border-violet-200/60 hover:bg-violet-100/60",
+    orange: "bg-orange-50/70 border-orange-200/60 hover:bg-orange-100/60",
+    teal: "bg-teal-50/70 border-teal-200/60 hover:bg-teal-100/60",
+    rose: "bg-rose-50/70 border-rose-200/60 hover:bg-rose-100/60",
+    slate: "bg-card border-border hover:bg-muted/30",
+  };
+
+  const toneText = {
+    emerald: "text-emerald-700",
+    blue: "text-blue-700",
+    amber: "text-amber-700",
+    violet: "text-violet-700",
+    orange: "text-orange-700",
+    teal: "text-teal-700",
+    rose: "text-rose-700",
+    slate: "text-muted-foreground",
+  };
+
   const content = (
     <>
       <div className="mb-1 flex items-center gap-1.5">
-        <Icon className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={2} />
-        <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
+        <Icon className={cn("h-3.5 w-3.5", toneText[tone])} strokeWidth={2} />
+        <span className={cn("text-[11px] font-medium", toneText[tone])}>{label}</span>
       </div>
-      <p className="text-xl font-bold tabular-nums tracking-tight">{value}</p>
+      <p className="text-xl font-bold tabular-nums tracking-tight text-foreground">{value}</p>
       <p className="text-[11px] text-muted-foreground">{sub}</p>
     </>
   );
 
-  const baseClassName =
-    "group flex flex-col gap-0.5 rounded-2xl border border-border bg-card p-4 shadow-sm transition-colors hover:bg-muted/30";
+  const baseClassName = cn(
+    "group flex flex-col gap-0.5 rounded-2xl border p-4 shadow-sm transition-colors",
+    toneStyles[tone]
+  );
 
   if (href) {
     return (
@@ -1528,11 +1563,11 @@ function DashboardSkeleton() {
 
       {/* Gráficos */}
       <section className="grid gap-3 lg:grid-cols-3">
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm lg:col-span-2">
+        <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm lg:col-span-2">
           <SkeletonPulse className="mb-2 h-4 w-40" />
           <SkeletonPulse className="h-36 w-full" />
         </div>
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+        <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
           <SkeletonPulse className="mb-2 h-4 w-36" />
           <div className="flex flex-col items-center">
             <SkeletonPulse className="h-20 w-20 rounded-full" />
@@ -1546,7 +1581,7 @@ function DashboardSkeleton() {
 
       {/* Métodos de pago y productos */}
       <section className="grid gap-3 lg:grid-cols-2">
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+        <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
           <SkeletonPulse className="mb-3 h-4 w-32" />
           <div className="flex flex-col">
             {Array.from({ length: 3 }).map((_, i) => (
@@ -1560,7 +1595,7 @@ function DashboardSkeleton() {
             ))}
           </div>
         </div>
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+        <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
           <SkeletonPulse className="mb-3 h-4 w-40" />
           <div className="flex flex-col">
             {Array.from({ length: 3 }).map((_, i) => (
