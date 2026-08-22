@@ -165,30 +165,39 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
             </div>
 
             {/* Header */}
-            <div className="flex items-start gap-3 border-b border-border px-5 pb-4 pt-1">
-              <BrandLogo src={theme?.logo} alt={appName} containerClassName="h-11 w-11 shrink-0" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-base font-semibold">{appName}</p>
+            <div className="relative overflow-hidden border-b border-border px-5 pb-6 pt-4">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent" />
+              <button
+                type="button"
+                onClick={onClose}
+                className="absolute right-4 top-3 z-10 rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                aria-label="Cerrar menú"
+              >
+                <X className="h-5 w-5" />
+              </button>
+
+              <div className="relative flex flex-col items-center text-center">
+                <div className="rounded-2xl bg-gradient-to-br from-primary to-primary/80 p-1 shadow-lg ring-4 ring-primary/10">
+                  <BrandLogo
+                    src={theme?.logo}
+                    alt={appName}
+                    containerClassName="h-20 w-20 rounded-xl bg-white"
+                    className="h-full w-full p-1.5"
+                  />
+                </div>
+                <p className="mt-3 text-lg font-bold">{appName}</p>
                 {branch && (
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <div className="mt-1 flex items-center justify-center gap-1 text-xs text-muted-foreground">
                     <MapPin className="h-3 w-3 shrink-0" />
                     <span className="truncate">{branchName(branch)}</span>
                   </div>
                 )}
                 {user && (
-                  <p className="truncate text-xs text-muted-foreground">
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
                     {user.first_name ?? user.email}
                   </p>
                 )}
               </div>
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                aria-label="Cerrar menú"
-              >
-                <X className="h-5 w-5" />
-              </button>
             </div>
 
             {/* Contenido scrolleable */}
