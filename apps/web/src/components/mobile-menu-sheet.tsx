@@ -164,8 +164,15 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
             </div>
 
             {/* Header */}
-            <div className="relative overflow-hidden border-b border-border px-5 pb-6 pt-4">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent" />
+            <div
+              className={cn(
+                "relative overflow-hidden px-5",
+                theme?.logo ? "border-b border-border pb-6 pt-4" : "pb-4 pt-3"
+              )}
+            >
+              {theme?.logo && (
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent" />
+              )}
               <button
                 type="button"
                 onClick={onClose}
@@ -176,18 +183,34 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
               </button>
 
               <div className="relative flex flex-col items-center text-center">
-                <div className="rounded-2xl bg-gradient-to-br from-primary to-primary/80 p-1 shadow-lg ring-4 ring-primary/10">
-                  <BrandLogo
-                    src={theme?.logo}
-                    alt={appName}
-                    containerClassName="h-20 w-20 rounded-xl bg-white"
-                    className="h-full w-full p-1.5"
-                  />
-                </div>
+                {theme?.logo ? (
+                  <div className="rounded-2xl bg-gradient-to-br from-primary to-primary/80 p-1 shadow-lg ring-4 ring-primary/10">
+                    <BrandLogo
+                      src={theme.logo}
+                      alt={appName}
+                      containerClassName="h-20 w-20 rounded-xl bg-white"
+                      className="h-full w-full p-1.5"
+                    />
+                  </div>
+                ) : null}
                 {branch ? (
-                  <p className="mt-3 text-lg font-bold">{branchName(branch)}</p>
+                  <p
+                    className={cn(
+                      "font-bold",
+                      theme?.logo ? "mt-3 text-lg" : "text-xl"
+                    )}
+                  >
+                    {branchName(branch)}
+                  </p>
                 ) : (
-                  <p className="mt-3 text-lg font-bold">{appName}</p>
+                  <p
+                    className={cn(
+                      "font-bold",
+                      theme?.logo ? "mt-3 text-lg" : "text-xl"
+                    )}
+                  >
+                    {appName}
+                  </p>
                 )}
                 {user && (
                   <p className="mt-1 truncate text-xs text-muted-foreground">
@@ -223,7 +246,7 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
               )}
 
               {/* Grupos acordeón */}
-              <section className="flex flex-col gap-2">
+              <section className="flex flex-col gap-1.5">
                 <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Módulos
                 </p>
@@ -256,7 +279,7 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
 
             {/* Footer */}
             <div className="border-t border-border p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-              <div className="flex items-center gap-3 rounded-xl border border-border bg-background p-3">
+              <div className="flex items-center gap-3 rounded-xl bg-muted p-3">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary">
                   <UserIcon className="h-5 w-5 text-secondary-foreground" />
                 </div>
@@ -358,7 +381,7 @@ function AccordionGroup({
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="overflow-hidden border-t border-border bg-card"
+            className="overflow-hidden"
           >
             {children}
           </motion.div>
