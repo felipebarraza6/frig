@@ -247,7 +247,7 @@ export default function DashboardPage() {
           label="Ventas del período"
           value={formatCLP(salesTotal)}
           icon={TrendingUp}
-          sub={`${salesCount} órdenes`}
+          sub={`${salesCount} ventas`}
           href="/sales"
           description="Suma total de ventas pagadas en el rango seleccionado. Click para ver el detalle de órdenes."
           onClick={() =>
@@ -258,9 +258,9 @@ export default function DashboardPage() {
                 value: formatCLP(salesTotal),
                 icon: TrendingUp,
                 description:
-                  "Suma total de ventas pagadas en el rango seleccionado. Este monto considera solo órdenes pagadas y completadas dentro del período seleccionado.",
+                  "Suma total de ventas efectivas en el rango seleccionado. Cada venta corresponde a una orden pagada o completada (excluye canceladas).",
                 sections: [
-                  { label: "Órdenes pagadas", value: String(salesCount) },
+                  { label: "Cantidad de ventas", value: String(salesCount) },
                   {
                     label: "Venta promedio",
                     value: salesCount > 0 ? formatCLP(salesTotal / salesCount) : "—",
