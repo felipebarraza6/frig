@@ -190,7 +190,7 @@ export default function DashboardPage() {
   const salesTotal = summary?.sales?.completed?.total_amount ?? 0;
   const salesCount = summary?.sales?.completed?.count ?? 0;
   const salesProfit = summary?.sales?.completed?.profit ?? 0;
-  // Órdenes del período = pedidos de clientes completados.
+  // Órdenes del período = órdenes de cliente completadas.
   const ordersTotal = summary?.orders?.completed_summary?.total_amount ?? 0;
   const ordersCount = summary?.orders?.completed_summary?.count ?? 0;
   const ordersProfit = summary?.orders?.completed_summary?.profit ?? 0;
@@ -302,9 +302,9 @@ export default function DashboardPage() {
           label="Órdenes del período"
           value={formatCLP(ordersTotal)}
           icon={Receipt}
-          sub={`${ordersCount} pedidos`}
+          sub={`${ordersCount} órdenes`}
           href="/sales"
-          description="Pedidos de clientes completados en el rango seleccionado."
+          description="Órdenes de cliente completadas en el rango seleccionado."
           onClick={() =>
             setDrawer({
               open: true,
@@ -313,11 +313,11 @@ export default function DashboardPage() {
                 value: formatCLP(ordersTotal),
                 icon: Receipt,
                 description:
-                  "Suma total de pedidos de clientes (por ejemplo, mesas o delivery) que ya están completados y pagados en el rango seleccionado.",
+                  "Suma total de órdenes de cliente completadas y pagadas en el rango seleccionado. Pueden ser pedidos, cotizaciones convertidas o cualquier transacción tipo orden según tu negocio.",
                 sections: [
-                  { label: "Pedidos completados", value: String(ordersCount) },
+                  { label: "Órdenes completadas", value: String(ordersCount) },
                   {
-                    label: "Promedio por pedido",
+                    label: "Promedio por orden",
                     value: ordersCount > 0 ? formatCLP(ordersTotal / ordersCount) : "—",
                   },
                   {
@@ -344,7 +344,7 @@ export default function DashboardPage() {
                       order_type: "ORDER",
                       status: "COMPLETED",
                     }}
-                    emptyMessage="No hay pedidos completados en el período seleccionado."
+                    emptyMessage="No hay órdenes completadas en el período seleccionado."
                   />
                 ),
               },
@@ -365,7 +365,7 @@ export default function DashboardPage() {
                 title: "Cuentas abiertas",
                 value: pendingOrders,
                 icon: Clock,
-                description: "Ventas que todavía no se han pagado en el rango seleccionado. Requieren atención para cerrar la cuenta o completar el cobro.",
+                description: "Ventas que todavía no se han pagado en el rango seleccionado. Requieren atención para completar el cobro.",
                 sections: [
                   { label: "Monto pendiente", value: formatCLP(pendingSalesAmount) },
                   { label: "Ventas completadas", value: String(salesCount) },
@@ -482,9 +482,9 @@ export default function DashboardPage() {
           label="Ingresos"
           value={formatCLP(totalRevenue)}
           icon={ArrowDownLeft}
-          sub="ventas + pedidos"
+          sub="ventas + órdenes"
           href="/sales"
-          description="Total de dinero ingresado por ventas y pedidos completados en el período."
+          description="Total de dinero ingresado por ventas y órdenes completadas en el período."
           onClick={() =>
             setDrawer({
               open: true,
@@ -493,10 +493,10 @@ export default function DashboardPage() {
                 value: formatCLP(totalRevenue),
                 icon: ArrowDownLeft,
                 description:
-                  "Suma total del dinero que ingresó por ventas y pedidos de clientes completados en el rango seleccionado.",
+                  "Suma total del dinero que ingresó por ventas y órdenes de cliente completadas en el rango seleccionado.",
                 sections: [
                   { label: "Ventas completadas", value: String(salesCount) },
-                  { label: "Pedidos completados", value: String(ordersCount) },
+                  { label: "Órdenes completadas", value: String(ordersCount) },
                   { label: "Ventas del período", value: formatCLP(salesTotal) },
                   { label: "Órdenes del período", value: formatCLP(ordersTotal) },
                 ],
@@ -522,7 +522,7 @@ export default function DashboardPage() {
           icon={Wallet}
           sub="aproximada"
           href="/sales"
-          description="Margen aproximado calculado sobre ventas y pedidos completados."
+          description="Margen aproximado calculado sobre ventas y órdenes completadas."
           onClick={() =>
             setDrawer({
               open: true,
@@ -531,7 +531,7 @@ export default function DashboardPage() {
                 value: formatCLP(totalProfit),
                 icon: Wallet,
                 description:
-                  "Margen aproximado calculado sobre ventas y pedidos de clientes completados en el rango seleccionado. Se obtiene restando el costo estimado al total vendido.",
+                  "Margen aproximado calculado sobre ventas y órdenes de cliente completadas en el rango seleccionado. Se obtiene restando el costo estimado al total vendido.",
                 sections: [
                   {
                     label: "Margen estimado",
@@ -741,7 +741,7 @@ export default function DashboardPage() {
             <RadarChart
               metrics={[
                 { label: "Ventas", value: Math.min(salesTotal / 100000, 1) },
-                { label: "Pedidos", value: Math.min(ordersCount / 50, 1) },
+                { label: "Órdenes", value: Math.min(ordersCount / 50, 1) },
                 { label: "Clientes", value: Math.min(customers / 100, 1) },
                 { label: "Productos", value: Math.min(productsCount / 50, 1) },
                 { label: "Ganancia", value: Math.min(totalProfit / 50000, 1) },
