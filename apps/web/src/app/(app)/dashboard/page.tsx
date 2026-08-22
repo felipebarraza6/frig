@@ -911,40 +911,62 @@ function StatCard({
   tone?: "emerald" | "blue" | "amber" | "violet" | "orange" | "teal" | "rose" | "slate";
 }) {
   const toneStyles = {
-    emerald: "bg-emerald-50/70 border-emerald-200/60 hover:bg-emerald-100/60",
-    blue: "bg-blue-50/70 border-blue-200/60 hover:bg-blue-100/60",
-    amber: "bg-amber-50/70 border-amber-200/60 hover:bg-amber-100/60",
-    violet: "bg-violet-50/70 border-violet-200/60 hover:bg-violet-100/60",
-    orange: "bg-orange-50/70 border-orange-200/60 hover:bg-orange-100/60",
-    teal: "bg-teal-50/70 border-teal-200/60 hover:bg-teal-100/60",
-    rose: "bg-rose-50/70 border-rose-200/60 hover:bg-rose-100/60",
-    slate: "bg-card border-border hover:bg-muted/30",
+    emerald: "from-emerald-50/50 via-white/80 to-white/80 shadow-emerald-500/5",
+    blue: "from-blue-50/50 via-white/80 to-white/80 shadow-blue-500/5",
+    amber: "from-amber-50/50 via-white/80 to-white/80 shadow-amber-500/5",
+    violet: "from-violet-50/50 via-white/80 to-white/80 shadow-violet-500/5",
+    orange: "from-orange-50/50 via-white/80 to-white/80 shadow-orange-500/5",
+    teal: "from-teal-50/50 via-white/80 to-white/80 shadow-teal-500/5",
+    rose: "from-rose-50/50 via-white/80 to-white/80 shadow-rose-500/5",
+    slate: "from-muted/40 via-white/80 to-white/80",
   };
 
   const toneText = {
-    emerald: "text-emerald-700",
-    blue: "text-blue-700",
-    amber: "text-amber-700",
-    violet: "text-violet-700",
-    orange: "text-orange-700",
-    teal: "text-teal-700",
-    rose: "text-rose-700",
+    emerald: "text-emerald-700/90",
+    blue: "text-blue-700/90",
+    amber: "text-amber-700/90",
+    violet: "text-violet-700/90",
+    orange: "text-orange-700/90",
+    teal: "text-teal-700/90",
+    rose: "text-rose-700/90",
     slate: "text-muted-foreground",
+  };
+
+  const toneIcon = {
+    emerald: "bg-emerald-500/12 text-emerald-600",
+    blue: "bg-blue-500/12 text-blue-600",
+    amber: "bg-amber-500/12 text-amber-600",
+    violet: "bg-violet-500/12 text-violet-600",
+    orange: "bg-orange-500/12 text-orange-600",
+    teal: "bg-teal-500/12 text-teal-600",
+    rose: "bg-rose-500/12 text-rose-600",
+    slate: "bg-muted text-muted-foreground",
   };
 
   const content = (
     <>
-      <div className="mb-1 flex items-center gap-1.5">
-        <Icon className={cn("h-3.5 w-3.5", toneText[tone])} strokeWidth={2} />
-        <span className={cn("text-[11px] font-medium", toneText[tone])}>{label}</span>
+      <div className="mb-2 flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <span className={cn("block text-[11px] font-medium tracking-wide", toneText[tone])}>
+            {label}
+          </span>
+          <p className="text-xl font-bold tabular-nums tracking-tight text-foreground">{value}</p>
+        </div>
+        <div
+          className={cn(
+            "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-transform group-hover:scale-110",
+            toneIcon[tone]
+          )}
+        >
+          <Icon className="h-4 w-4" strokeWidth={2} />
+        </div>
       </div>
-      <p className="text-xl font-bold tabular-nums tracking-tight text-foreground">{value}</p>
       <p className="text-[11px] text-muted-foreground">{sub}</p>
     </>
   );
 
   const baseClassName = cn(
-    "group flex flex-col gap-0.5 rounded-2xl border p-4 shadow-sm transition-colors",
+    "group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br p-4 shadow-sm backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-border hover:shadow-md",
     toneStyles[tone]
   );
 
