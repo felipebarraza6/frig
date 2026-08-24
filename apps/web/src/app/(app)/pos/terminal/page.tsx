@@ -263,6 +263,7 @@ export default function PosPage() {
     queryFn: () =>
       fetchOrders({
         delivery_status: "PENDING",
+        status: ["PENDING", "IN_PROGRESS", "COMPLETED"],
       }),
     staleTime: 15_000,
     refetchInterval: 30_000,
