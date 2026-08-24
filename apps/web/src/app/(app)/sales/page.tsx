@@ -3581,7 +3581,7 @@ export default function SalesPage() {
       {/* Drawer de detalle de stats */}
       {statDetail && (
         <div
-          className="fixed inset-0 z-50 flex justify-end bg-black/40"
+          className="fixed inset-0 z-[60] flex justify-end bg-black/40"
           role="dialog"
           aria-modal="true"
           onClick={(e) => {
@@ -3617,7 +3617,7 @@ export default function SalesPage() {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-4">
+            <div className="flex-1 overflow-y-auto p-4 pb-24 md:pb-4">
               {statDetailOrders.length === 0 ? (
                 <div className="grid place-items-center rounded-2xl border border-dashed border-border py-16 text-center">
                   <div>
