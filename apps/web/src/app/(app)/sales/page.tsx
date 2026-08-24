@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Loader2, ShoppingBag, X, Eye, Ban, Banknote, Plus, Trash2, FileDown, ClipboardList, Receipt, FileText, SlidersHorizontal, Zap, Pencil, CalendarDays, Wallet, Clock, UtensilsCrossed, Store, Package, MoreHorizontal, LayoutGrid, List, HandHelping } from "lucide-react";
+import { Search, Loader2, ShoppingBag, X, Eye, Ban, Banknote, Plus, Trash2, FileDown, ClipboardList, Receipt, FileText, SlidersHorizontal, Zap, Pencil, CalendarDays, Wallet, Clock, UtensilsCrossed, Store, Package, MoreHorizontal, LayoutGrid, List, HandHelping, MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -120,12 +120,13 @@ function orderTypeLabel(value?: string | null): string {
   return ORDER_TYPE_OPTIONS.find((o) => o.value === value)?.label ?? (value ?? "—");
 }
 
-type QuickFilter = "ALL" | "PENDING" | "OPEN_ACCOUNTS" | "DELIVERED" | "PAID" | "CANCELLED";
+type QuickFilter = "ALL" | "PENDING" | "OPEN_ACCOUNTS" | "POR_DELIVER" | "DELIVERED" | "PAID" | "CANCELLED";
 
 const QUICK_FILTERS: { value: QuickFilter; label: string }[] = [
   { value: "ALL", label: "Todos" },
   { value: "PENDING", label: "Pendientes" },
   { value: "OPEN_ACCOUNTS", label: "Cuentas abiertas" },
+  { value: "POR_DELIVER", label: "Por entregar" },
   { value: "DELIVERED", label: "Entregados" },
   { value: "PAID", label: "Cobradas" },
   { value: "CANCELLED", label: "Anuladas" },
@@ -345,6 +346,7 @@ function OrderListRow({
   onA4,
   onCancel,
 }: Omit<OrderCardProps, "index">) {
+  const branch = useCurrentBranch();
   const shortDate = new Date(order.date).toLocaleString("es-CL", {
     day: "2-digit",
     month: "short",
@@ -385,6 +387,12 @@ function OrderListRow({
           <p className="mt-0.5 truncate text-xs text-muted-foreground">
             {typeMeta.label} · {shortDate}
             {order.client?.name ? ` · ${order.client.name}` : " · Sin cliente"}
+          </p>
+          <p className="mt-0.5 flex items-center gap-1 truncate text-[11px] text-muted-foreground">
+            <MapPin className="h-3 w-3 shrink-0 text-primary" />
+            {order.delivery_address
+              ? `Delivery · ${order.delivery_address}`
+              : `Retiro en tienda · ${branch?.address ?? "Pickup"}`}
           </p>
         </div>
       </div>
@@ -554,6 +562,7 @@ function OrderCard({
   onA4,
   onCancel,
 }: OrderCardProps) {
+  const branch = useCurrentBranch();
   const shortDate = new Date(order.date).toLocaleString("es-CL", {
     day: "2-digit",
     month: "short",
@@ -620,6 +629,12 @@ function OrderCard({
 
       <p className="mt-3 truncate text-xs text-muted-foreground">
         {order.client?.name ?? "Sin cliente"}
+      </p>
+      <p className="mt-1 flex items-center gap-1 truncate text-[11px] text-muted-foreground">
+        <MapPin className="h-3 w-3 shrink-0 text-primary" />
+        {order.delivery_address
+          ? `Delivery · ${order.delivery_address}`
+          : `Retiro en tienda · ${branch?.address ?? "Pickup"}`}
       </p>
 
       {order.order_type === "ORDER" && order.installments && order.installments.length > 0 && (
@@ -988,6 +1003,8 @@ export default function SalesPage() {
   const [clientFilterQuery, setClientFilterQuery] = useState(clientFilterName);
   const [clientFilterDebounced, setClientFilterDebounced] = useState(clientFilterName);
   const [clientFilterOpen, setClientFilterOpen] = useState(false);
+  const [pendingDeliveryType, setPendingDeliveryType] = useState<"ALL" | "SALE" | "ORDER">("ALL");
+  const [pendingDeliveryPayment, setPendingDeliveryPayment] = useState<"ALL" | "PENDING" | "PARTIAL" | "PAID">("ALL");
   const [pageUrl, setPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
 
   // Persistir en localStorage
@@ -1207,11 +1224,21 @@ export default function SalesPage() {
     if (quickFilter === "PENDING") return orders.filter((o) => o.status === "PENDING");
     if (quickFilter === "OPEN_ACCOUNTS")
       return orders.filter((o) => o.order_type === "SALE" && o.status === "PENDING");
+    if (quickFilter === "POR_DELIVER") {
+      let pending = orders.filter((o) => o.status !== "CANCELLED" && o.delivery_status !== "DELIVERED");
+      if (pendingDeliveryType !== "ALL") {
+        pending = pending.filter((o) => o.order_type === pendingDeliveryType);
+      }
+      if (pendingDeliveryPayment !== "ALL") {
+        pending = pending.filter((o) => o.payment_status === pendingDeliveryPayment);
+      }
+      return pending;
+    }
     if (quickFilter === "DELIVERED") return orders.filter((o) => o.delivery_status === "DELIVERED");
     if (quickFilter === "PAID") return orders.filter((o) => o.payment_status === "PAID");
     if (quickFilter === "CANCELLED") return orders.filter((o) => o.status === "CANCELLED");
     return orders;
-  }, [orders, quickFilter]);
+  }, [orders, quickFilter, pendingDeliveryType, pendingDeliveryPayment]);
 
   // Stats rápidas calculadas sobre las órdenes cargadas.
   const stats = useMemo(() => {
@@ -1825,6 +1852,55 @@ export default function SalesPage() {
             </button>
           ))}
         </div>
+
+        {/* Filtros específicos para entregas pendientes */}
+        {quickFilter === "POR_DELIVER" && (
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-2 shadow-sm">
+            <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-0.5">
+              {([
+                { key: "ALL", label: "Todos" },
+                { key: "SALE", label: "Venta" },
+                { key: "ORDER", label: "Orden" },
+              ] as const).map((opt) => (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => setPendingDeliveryType(opt.key)}
+                  className={cn(
+                    "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                    pendingDeliveryType === opt.key
+                      ? "bg-primary text-white"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-0.5">
+              {([
+                { key: "ALL", label: "Todos" },
+                { key: "PENDING", label: "Pendiente" },
+                { key: "PARTIAL", label: "Parcial" },
+                { key: "PAID", label: "Pagada" },
+              ] as const).map((opt) => (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => setPendingDeliveryPayment(opt.key)}
+                  className={cn(
+                    "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                    pendingDeliveryPayment === opt.key
+                      ? "bg-primary text-white"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Filtros avanzados (desktop, colapsables) */}
         {advancedOpen && (
