@@ -14,7 +14,7 @@ import {
   ArrowLeft,
   ArrowLeftRight,
   Table,
-  Pencil,
+  Eye,
   Trash2,
   Banknote,
   Wallet,
@@ -46,9 +46,10 @@ import {
   fetchPublicMenuBySlug,
 } from "@/lib/api/public-catalog";
 import { fetchCashRegisterStations } from "@/lib/api/cash-register-stations";
-import { fetchOrders, fetchOrder, cancelOrder, deliverOrder, createOrder } from "@/lib/api/orders";
+import { fetchOrders, fetchOrder, cancelOrder, deliverOrder, createOrder, downloadOrderTicketPdf } from "@/lib/api/orders";
 import { searchCustomers, createCustomer } from "@/lib/api/customers";
 import { useElapsedTime } from "@/lib/hooks/useElapsedTime";
+import { useDownloadFile } from "@/lib/hooks/useDownloadFile";
 import { fetchPaymentMethods } from "@/lib/api/payments";
 import { getCurrentCashRegister, openCashRegister, closeCashRegister, getDailySummary } from "@/lib/api/cash-register";
 import { fetchTables } from "@/lib/api/tables";
@@ -289,6 +290,13 @@ export default function PosPage() {
     [productTypeOptions]
   );
   const toast = useToast();
+  const { download: downloadFile, isLoading: isDownloadingTicket } = useDownloadFile();
+
+  async function handleDownloadTicket(order: Order) {
+    await downloadFile(() => downloadOrderTicketPdf(order.id), {
+      filename: `comanda_${order.order_number ?? order.id.slice(0, 8)}.pdf`,
+    });
+  }
 
   const addItem = useCartStore((s) => s.addItem);
   const cartItems = useCartStore((s) => s.items);
@@ -1390,8 +1398,17 @@ export default function PosPage() {
                             onClick={() => handleEditOrder(order)}
                             className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
                           >
-                            <Pencil className="h-3 w-3" />
-                            Editar
+                            <Eye className="h-3 w-3" />
+                            Ver
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isDownloadingTicket}
+                            onClick={() => handleDownloadTicket(order)}
+                            className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                          >
+                            <Receipt className="h-3 w-3" />
+                            Comprobante
                           </button>
                           {!isWaiter && (
                             <>
@@ -1714,7 +1731,7 @@ export default function PosPage() {
                             onClick={() => handleEditOrder(order)}
                             className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
                           >
-                            <Pencil className="h-3 w-3" />
+                            <Eye className="h-3 w-3" />
                             Ver
                           </button>
                           <button
