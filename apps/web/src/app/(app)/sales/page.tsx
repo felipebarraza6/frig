@@ -456,11 +456,11 @@ function OrderListRow({
             <AnimatePresence>
               {menuOpen && (
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.96, y: -4 }}
+                  initial={{ opacity: 0, scale: 0.96, y: 4 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.96, y: -4 }}
+                  exit={{ opacity: 0, scale: 0.96, y: 4 }}
                   transition={{ duration: 0.12 }}
-                  className="absolute bottom-full right-0 z-10 mb-2 w-44 overflow-hidden rounded-xl border border-border bg-card shadow-lg"
+                  className="absolute right-0 top-full z-20 mt-2 w-44 overflow-hidden rounded-xl border border-border bg-card shadow-lg"
                 >
                   <div className="flex flex-col py-1">
                     <ActionMenuItem
