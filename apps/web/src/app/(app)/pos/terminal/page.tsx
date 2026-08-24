@@ -24,6 +24,7 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Calculator,
+  MapPin,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -1714,11 +1715,16 @@ export default function PosPage() {
                           </p>
                           <p className="truncate text-xs text-muted-foreground">
                             {order.client?.name ?? "Sin cliente"}
-                            {order.delivery_address ? ` · ${order.delivery_address}` : ""}
                           </p>
                         </div>
                         <span className="shrink-0 text-sm font-semibold tabular-nums">
                           {formatCLP(order.total_amount ?? "0")}
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-1.5 text-xs text-foreground">
+                        <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                        <span className="min-w-0 leading-relaxed">
+                          {order.delivery_address ?? "Sin dirección registrada"}
                         </span>
                       </div>
                       <div className="flex items-center justify-between gap-2">
