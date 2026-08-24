@@ -2169,7 +2169,12 @@ export default function SalesPage() {
       </div>
 
       {detail && (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 sm:items-center sm:p-4" role="dialog" aria-modal="true">
+        <div
+          className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40 sm:items-center sm:p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="flex h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-card shadow-2xl sm:h-auto sm:max-h-[90vh] sm:rounded-2xl sm:border sm:border-border">
             {/* Header */}
             <div className="flex shrink-0 items-center justify-between border-b border-border bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-4">
