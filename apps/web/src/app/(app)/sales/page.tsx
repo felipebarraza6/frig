@@ -99,7 +99,7 @@ const PAYMENT_STATUS_OPTIONS = [
 const ORDER_TYPE_OPTIONS = [
   { value: "", label: "Todos" },
   { value: "SALE", label: "Venta" },
-  { value: "ORDER", label: "Pedido" },
+  { value: "ORDER", label: "Orden" },
 ];
 
 function todayStr(): string {
@@ -206,7 +206,7 @@ function StatusBadge({ order }: { order: Order }) {
 function orderTypeMeta(order: Order) {
   if (order.order_type === "ORDER") {
     return {
-      label: "Pedido",
+      label: "Orden",
       icon: ClipboardList,
       bg: "bg-blue-500/10 text-blue-600",
     };
@@ -3099,7 +3099,7 @@ export default function SalesPage() {
                     disabled={creatingAccount || (!selectedClient && !createClientName.trim())}
                   >
                     {creatingAccount && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-                    Crear pedido
+                    Crear orden
                   </Button>
                 </div>
               </div>
@@ -3128,7 +3128,7 @@ export default function SalesPage() {
             >
               <div className="flex items-center justify-between border-b border-border px-4 py-2">
                 <h2 className="text-sm font-semibold">
-                  {posModal.orderType === "SALE" ? "Nueva venta" : "Nueva orden / cuenta abierta"}
+                  {posModal.orderType === "SALE" ? "Nueva venta" : "Nueva orden"}
                 </h2>
                 <button
                   type="button"
