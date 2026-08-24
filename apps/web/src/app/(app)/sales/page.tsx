@@ -1377,21 +1377,21 @@ export default function SalesPage() {
       const tableId = selectedTableId ? Number(selectedTableId) : null;
       const order = await createOrder({
         items: [],
-        order_type: "ORDER",
+        order_type: "SALE",
         client_id: clientId,
         table_id: tableId,
       });
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       setAccountModal(false);
       resetAccountForm();
-      // Abrir POS embebido con la nueva cuenta para agregar productos.
-      setPosModal({ open: true, orderType: "ORDER" });
+      // Abrir POS embebido con la nueva cuenta abierta (SALE pending) para agregar productos.
+      setPosModal({ open: true, orderType: "SALE" });
       // Navegar el iframe a la orden. Como el modal usa state, actualizamos src vía query param.
       // Usamos un pequeño timeout para asegurar que el iframe exista.
       setTimeout(() => {
-        const iframe = document.querySelector<HTMLIFrameElement>("iframe[title='Nueva orden']");
+        const iframe = document.querySelector<HTMLIFrameElement>("iframe[title='Nueva cuenta']");
         if (iframe) {
-          iframe.src = `/pos/terminal?order_id=${order.id}`;
+          iframe.src = `/pos/terminal?order_id=${order.id}&open_account=1`;
         }
       }, 100);
     } catch {
@@ -1673,7 +1673,7 @@ export default function SalesPage() {
               </Button>
               <Button variant="outline" onClick={() => setAccountModal(true)}>
                 <ClipboardList className="mr-1.5 h-4 w-4" />
-                Nueva orden
+                Nueva cuenta
               </Button>
             </div>
             <Button variant="ghost" size="sm" onClick={handleExportExcel} disabled={isDownloading}>
@@ -3128,7 +3128,7 @@ export default function SalesPage() {
             >
               <div className="flex items-center justify-between border-b border-border px-4 py-2">
                 <h2 className="text-sm font-semibold">
-                  {posModal.orderType === "SALE" ? "Nueva venta" : "Nueva orden"}
+                  {posModal.orderType === "SALE" ? "Nueva cuenta" : "Nueva venta"}
                 </h2>
                 <button
                   type="button"
@@ -3140,9 +3140,9 @@ export default function SalesPage() {
                 </button>
               </div>
               <iframe
-                src={`/pos/terminal?order_type=${posModal.orderType}`}
+                src={`/pos/terminal?order_type=${posModal.orderType}&open_account=1`}
                 className="flex-1 border-0"
-                title={posModal.orderType === "SALE" ? "Nueva venta" : "Nueva orden"}
+                title={posModal.orderType === "SALE" ? "Nueva cuenta" : "Nueva venta"}
               />
             </motion.div>
           </div>

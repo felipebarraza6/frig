@@ -92,6 +92,7 @@ export default function PosPage() {
   const queryOrderId = searchParams.get("order_id");
   const queryReturnTo = searchParams.get("return_to");
   const queryOrderType = searchParams.get("order_type") as "SALE" | "ORDER" | "AGREEMENT" | null;
+  const openAccountParam = searchParams.get("open_account") === "1";
   const isWaiterSimulation = queryView === "waiter";
   const isWaiter = realIsWaiter || isWaiterSimulation;
 
@@ -132,6 +133,13 @@ export default function PosPage() {
   const [showModeSelector, setShowModeSelector] = useState(false);
   const [postSaleOrder, setPostSaleOrder] = useState<Order | null>(null);
   const [postSaleItems, setPostSaleItems] = useState<CartItem[]>([]);
+
+  // Una cuenta abierta puede venir como SALE + open_account=1 (nuevo flujo) o como
+  // ORDER (flujo legacy). Se usa para mostrar labels consistentes en el POS.
+  const isOpenAccountMode = useMemo(
+    () => openAccountParam || queryOrderType === "ORDER",
+    [openAccountParam, queryOrderType],
+  );
 
   function handlePostSaleOrder(order: Order, items: CartItem[]) {
     setPostSaleOrder(order);
@@ -175,7 +183,7 @@ export default function PosPage() {
   }
 
   function openNewAccount() {
-    startNewOrder("ORDER");
+    startNewOrder("SALE");
     setCartOpen(true);
   }
 
@@ -251,7 +259,7 @@ export default function PosPage() {
     queryKey: ["orders", "open-accounts", "pos-terminal"],
     queryFn: () =>
       fetchOrders({
-        order_type: "ORDER",
+        order_type: "SALE",
         payment_status: "PENDING",
       }),
     staleTime: 15_000,
@@ -637,32 +645,32 @@ export default function PosPage() {
               "inline-flex min-w-0 max-w-[140px] items-center gap-1 truncate rounded-md px-1.5 py-1 text-[11px] sm:max-w-[220px] sm:px-2",
               effectiveOrderId && existingOrder
                 ? "bg-primary/10 text-primary"
-                : queryOrderType === "ORDER"
+                : isOpenAccountMode
                   ? "bg-blue-500/10 text-blue-700"
                   : "bg-emerald-500/10 text-emerald-700"
             )}
             title={
               effectiveOrderId && existingOrder
-                ? `Editando ${existingOrder.order_type === "SALE" ? "venta" : "cuenta"} #${existingOrder.order_number ?? ""}`
-                : queryOrderType === "ORDER"
-                  ? "Abriendo una orden sin cobrar"
+                ? `Editando ${existingOrder.order_type === "SALE" && !existingOrder.payment_status?.startsWith("PENDING") ? "venta" : "cuenta"} #${existingOrder.order_number ?? ""}`
+                : isOpenAccountMode
+                  ? "Abriendo una cuenta sin cobrar"
                   : "Nueva venta al contado"
             }
           >
             {effectiveOrderId && existingOrder ? (
               <>
                 <span className="hidden shrink-0 font-medium sm:inline">
-                  {existingOrder.order_type === "SALE" ? "Editando venta" : "Editando cuenta"}
+                  {existingOrder.order_type === "SALE" && !existingOrder.payment_status?.startsWith("PENDING") ? "Editando venta" : "Editando cuenta"}
                 </span>
                 <span className="hidden text-primary/60 sm:inline">·</span>
                 <span className="truncate font-semibold tabular-nums">
                   #{existingOrder.order_number ?? ""}
                 </span>
               </>
-            ) : queryOrderType === "ORDER" ? (
+            ) : isOpenAccountMode ? (
               <>
                 <ClipboardList className="h-3 w-3 shrink-0" />
-                <span className="truncate font-medium">Nueva orden</span>
+                <span className="truncate font-medium">Nueva cuenta</span>
               </>
             ) : (
               <>
