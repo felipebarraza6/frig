@@ -977,6 +977,17 @@ export default function SalesPage() {
     if (typeof window === "undefined") return isCashier ? todayStr() : "";
     return window.localStorage.getItem("frig.sales.endDate") || (isCashier ? todayStr() : "");
   });
+  const [clientFilterId, setClientFilterId] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    return window.localStorage.getItem("frig.sales.clientFilterId") || "";
+  });
+  const [clientFilterName, setClientFilterName] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    return window.localStorage.getItem("frig.sales.clientFilterName") || "";
+  });
+  const [clientFilterQuery, setClientFilterQuery] = useState(clientFilterName);
+  const [clientFilterDebounced, setClientFilterDebounced] = useState(clientFilterName);
+  const [clientFilterOpen, setClientFilterOpen] = useState(false);
   const [pageUrl, setPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
 
   // Persistir en localStorage
@@ -1004,11 +1015,37 @@ export default function SalesPage() {
   useEffect(() => {
     window.localStorage.setItem("frig.sales.endDate", endDate);
   }, [endDate]);
+  useEffect(() => {
+    window.localStorage.setItem("frig.sales.clientFilterId", clientFilterId);
+  }, [clientFilterId]);
+  useEffect(() => {
+    window.localStorage.setItem("frig.sales.clientFilterName", clientFilterName);
+  }, [clientFilterName]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 350);
     return () => clearTimeout(timer);
   }, [search]);
+  useEffect(() => {
+    const timer = setTimeout(() => setClientFilterDebounced(clientFilterQuery), 300);
+    return () => clearTimeout(timer);
+  }, [clientFilterQuery]);
+
+  const { data: clientFilterResultsQuery, isLoading: searchingClientFilter } = useQuery({
+    queryKey: ["customers", "search", clientFilterDebounced, branch?.branch_id],
+    queryFn: () =>
+      searchCustomers(clientFilterDebounced, branch?.branch_id ? Number(branch.branch_id) : undefined),
+    enabled: clientFilterDebounced.trim().length >= 1,
+    staleTime: 30_000,
+  });
+
+  const clientFilterResults = useMemo<ClientOption[]>(() => {
+    const items = (clientFilterResultsQuery ?? []) as ClientOption[];
+    if (clientFilterId && clientFilterName && !items.some((c) => String(c.id) === clientFilterId)) {
+      return [{ id: Number(clientFilterId), name: clientFilterName }, ...items];
+    }
+    return items;
+  }, [clientFilterResultsQuery, clientFilterId, clientFilterName]);
 
   const [detail, setDetail] = useState<Order | null>(null);
   const [collecting, setCollecting] = useState<Order | null>(null);
@@ -1115,9 +1152,10 @@ export default function SalesPage() {
       order_type: orderType || undefined,
       start_date: startDate || undefined,
       end_date: endDate || undefined,
+      client: clientFilterId || undefined,
       ...pageUrl,
     }),
-    [debouncedSearch, status, paymentStatus, orderType, startDate, endDate, pageUrl],
+    [debouncedSearch, status, paymentStatus, orderType, startDate, endDate, clientFilterId, pageUrl],
   );
 
   const { data: page, isLoading, error } = useQuery({
@@ -1162,7 +1200,7 @@ export default function SalesPage() {
     });
   }, [page?.results, debouncedSearch]) as Order[];
   const totalOrders = page?.count ?? 0;
-  const activeFilterCount = [status, paymentStatus, orderType, startDate, endDate].filter(Boolean).length;
+  const activeFilterCount = [status, paymentStatus, orderType, startDate, endDate, clientFilterId].filter(Boolean).length;
 
   // Filtro rápido por chips (aplicado en cliente sobre la página cargada).
   const visibleOrders = useMemo(() => {
@@ -1790,7 +1828,7 @@ export default function SalesPage() {
 
         {/* Filtros avanzados (desktop, colapsables) */}
         {advancedOpen && (
-            <div className="hidden grid-cols-2 gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm sm:grid md:grid-cols-5">
+            <div className="hidden grid-cols-2 gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm sm:grid md:grid-cols-3 lg:grid-cols-6">
               <div className="flex flex-col gap-1">
                 <label htmlFor="filter-status" className="text-xs text-muted-foreground">Estado</label>
                 <Select id="filter-status" value={status} onChange={(e) => updateFilter(setStatus, e.target.value)} className="h-10 text-sm sm:h-9">
@@ -1814,6 +1852,79 @@ export default function SalesPage() {
                     <option key={o.value} value={o.value}>{o.label}</option>
                   ))}
                 </Select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="filter-client" className="text-xs text-muted-foreground">Cliente</label>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="filter-client"
+                    value={clientFilterQuery}
+                    onChange={(e) => {
+                      setClientFilterQuery(e.target.value);
+                      if (clientFilterId) {
+                        setClientFilterId("");
+                        setClientFilterName("");
+                      }
+                      setClientFilterOpen(true);
+                    }}
+                    onFocus={() => setClientFilterOpen(true)}
+                    placeholder="Buscar cliente…"
+                    className="h-10 pl-8 text-sm sm:h-9"
+                  />
+                  {clientFilterId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setClientFilterId("");
+                        setClientFilterName("");
+                        setClientFilterQuery("");
+                        setClientFilterOpen(false);
+                        setPageUrl({});
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground"
+                      aria-label="Limpiar cliente"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                  {clientFilterOpen && clientFilterQuery.trim().length === 0 && !clientFilterId && (
+                    <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs text-muted-foreground shadow-md">
+                      Escribe para buscar clientes…
+                    </div>
+                  )}
+                  {clientFilterOpen && clientFilterDebounced.trim().length > 0 && searchingClientFilter && (
+                    <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs text-muted-foreground shadow-md">
+                      Buscando…
+                    </div>
+                  )}
+                  {clientFilterOpen && clientFilterDebounced.trim().length > 0 && !searchingClientFilter && clientFilterResults.length > 0 && (
+                    <div className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-lg border border-border bg-background shadow-md">
+                      {clientFilterResults.map((client) => (
+                        <button
+                          key={client.id}
+                          type="button"
+                          onClick={() => {
+                            setClientFilterId(String(client.id));
+                            setClientFilterName(client.name ?? "");
+                            setClientFilterQuery(client.name ?? "");
+                            setClientFilterOpen(false);
+                            setPageUrl({});
+                          }}
+                          className="w-full px-3 py-2 text-left text-sm hover:bg-muted"
+                        >
+                          {client.name}
+                          {client.email && <span className="ml-2 text-xs text-muted-foreground">{client.email}</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {clientFilterOpen && clientFilterDebounced.trim().length > 0 && !searchingClientFilter && clientFilterResults.length === 0 && !clientFilterId && (
+                    <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs text-muted-foreground shadow-md">
+                      Sin resultados
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="flex flex-col gap-1">
                 <label htmlFor="filter-start" className="text-xs text-muted-foreground">Desde</label>
@@ -3226,6 +3337,79 @@ export default function SalesPage() {
                   ))}
                 </Select>
               </div>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="mobile-filter-client" className="text-xs text-muted-foreground">Cliente</label>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="mobile-filter-client"
+                    value={clientFilterQuery}
+                    onChange={(e) => {
+                      setClientFilterQuery(e.target.value);
+                      if (clientFilterId) {
+                        setClientFilterId("");
+                        setClientFilterName("");
+                      }
+                      setClientFilterOpen(true);
+                    }}
+                    onFocus={() => setClientFilterOpen(true)}
+                    placeholder="Buscar cliente…"
+                    className="h-10 pl-8 text-sm"
+                  />
+                  {clientFilterId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setClientFilterId("");
+                        setClientFilterName("");
+                        setClientFilterQuery("");
+                        setClientFilterOpen(false);
+                        setPageUrl({});
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground"
+                      aria-label="Limpiar cliente"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                  {clientFilterOpen && clientFilterQuery.trim().length === 0 && !clientFilterId && (
+                    <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs text-muted-foreground shadow-md">
+                      Escribe para buscar clientes…
+                    </div>
+                  )}
+                  {clientFilterOpen && clientFilterDebounced.trim().length > 0 && searchingClientFilter && (
+                    <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs text-muted-foreground shadow-md">
+                      Buscando…
+                    </div>
+                  )}
+                  {clientFilterOpen && clientFilterDebounced.trim().length > 0 && !searchingClientFilter && clientFilterResults.length > 0 && (
+                    <div className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-lg border border-border bg-background shadow-md">
+                      {clientFilterResults.map((client) => (
+                        <button
+                          key={client.id}
+                          type="button"
+                          onClick={() => {
+                            setClientFilterId(String(client.id));
+                            setClientFilterName(client.name ?? "");
+                            setClientFilterQuery(client.name ?? "");
+                            setClientFilterOpen(false);
+                            setPageUrl({});
+                          }}
+                          className="w-full px-3 py-2 text-left text-sm hover:bg-muted"
+                        >
+                          {client.name}
+                          {client.email && <span className="ml-2 text-xs text-muted-foreground">{client.email}</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {clientFilterOpen && clientFilterDebounced.trim().length > 0 && !searchingClientFilter && clientFilterResults.length === 0 && !clientFilterId && (
+                    <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs text-muted-foreground shadow-md">
+                      Sin resultados
+                    </div>
+                  )}
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1">
                   <label htmlFor="mobile-filter-start" className="text-xs text-muted-foreground">Desde</label>
@@ -3258,6 +3442,10 @@ export default function SalesPage() {
                     setStatus("");
                     setPaymentStatus("");
                     setOrderType("");
+                    setClientFilterId("");
+                    setClientFilterName("");
+                    setClientFilterQuery("");
+                    setClientFilterOpen(false);
                     setStartDate(isCashier ? todayStr() : "");
                     setEndDate(isCashier ? todayStr() : "");
                     setPageUrl({});
