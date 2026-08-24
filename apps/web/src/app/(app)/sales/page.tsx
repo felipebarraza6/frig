@@ -1152,7 +1152,7 @@ export default function SalesPage() {
       order_type: orderType || undefined,
       start_date: startDate || undefined,
       end_date: endDate || undefined,
-      client: clientFilterId || undefined,
+      client__in: clientFilterId || undefined,
       ...pageUrl,
     }),
     [debouncedSearch, status, paymentStatus, orderType, startDate, endDate, clientFilterId, pageUrl],

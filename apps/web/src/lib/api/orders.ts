@@ -11,7 +11,7 @@ export interface OrdersFilter {
   status?: string | string[];
   payment_status?: string | string[];
   delivery_status?: string | string[];
-  client?: string | string[];
+  client__in?: string | string[];
   start_date?: string;
   end_date?: string;
   page_size?: number;
@@ -116,9 +116,9 @@ export async function fetchOrders(filter: OrdersFilter = {}): Promise<PaginatedO
     const values = Array.isArray(filter.delivery_status) ? filter.delivery_status : [filter.delivery_status];
     values.forEach((v) => qs.append("delivery_status", v));
   }
-  if (filter.client) {
-    const values = Array.isArray(filter.client) ? filter.client : [filter.client];
-    values.forEach((v) => qs.append("client", v));
+  if (filter.client__in) {
+    const values = Array.isArray(filter.client__in) ? filter.client__in : [filter.client__in];
+    values.forEach((v) => qs.append("client__in", v));
   }
   if (filter.start_date) qs.set("start_date", filter.start_date);
   if (filter.end_date) qs.set("end_date", filter.end_date);
