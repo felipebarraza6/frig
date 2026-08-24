@@ -1724,7 +1724,9 @@ export default function PosPage() {
                       <div className="flex items-start gap-1.5 text-xs text-foreground">
                         <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
                         <span className="min-w-0 leading-relaxed">
-                          {order.delivery_address ? `Delivery · ${order.delivery_address}` : "Retiro en tienda · Pickup"}
+                          {order.delivery_address
+                            ? `Delivery · ${order.delivery_address}`
+                            : `Retiro en tienda · ${branch?.address ?? "Pickup"}`}
                         </span>
                       </div>
                       <div className="flex items-center justify-between gap-2">
