@@ -1393,11 +1393,11 @@ export default function PosPage() {
                         <p className="text-xs text-muted-foreground">
                           {new Date(order.date).toLocaleString()}
                         </p>
-                        <div className="flex items-center gap-2">
+                        <div className="grid grid-cols-2 gap-2">
                           <button
                             type="button"
                             onClick={() => handleEditOrder(order)}
-                            className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                            className="inline-flex w-full items-center justify-center gap-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
                           >
                             <Eye className="h-3 w-3" />
                             Ver
@@ -1406,7 +1406,7 @@ export default function PosPage() {
                             type="button"
                             disabled={isDownloadingTicket}
                             onClick={() => handleDownloadTicket(order)}
-                            className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                            className="inline-flex w-full items-center justify-center gap-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
                           >
                             <Receipt className="h-3 w-3" />
                             Comprobante
@@ -1419,7 +1419,7 @@ export default function PosPage() {
                                   setCancelingOrder(order);
                                   setShowOpenAccounts(false);
                                 }}
-                                className="inline-flex items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-medium text-rose-700 transition-colors hover:bg-rose-100"
+                                className="inline-flex w-full items-center justify-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-medium text-rose-700 transition-colors hover:bg-rose-100"
                               >
                                 <Trash2 className="h-3 w-3" />
                                 Anular
@@ -1430,7 +1430,7 @@ export default function PosPage() {
                                   setCollectingOrder(order);
                                   setShowOpenAccounts(false);
                                 }}
-                                className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-primary/90"
+                                className="inline-flex w-full items-center justify-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-primary/90"
                               >
                                 Cobrar
                                 <ArrowRight className="h-3 w-3" />
