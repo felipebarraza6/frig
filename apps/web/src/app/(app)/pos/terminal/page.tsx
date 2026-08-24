@@ -315,7 +315,6 @@ export default function PosPage() {
       deliverOrder(id, items),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
-      setShowPendingDeliveries(false);
       toast.success("Entrega registrada");
     },
     onError: (err: Error) => {
