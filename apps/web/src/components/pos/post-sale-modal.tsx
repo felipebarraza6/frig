@@ -12,16 +12,40 @@ type Order = YggdraSchemas["Order"] & { order_number?: string | null };
 
 interface PostSaleModalProps {
   order: Order;
-  items: CartItem[];
+  items?: CartItem[];
   branchName?: string;
   onClose: () => void;
 }
 
-function buildSimpleTicket(order: Order, items: CartItem[], branchName?: string): string {
+type TicketLineItem = {
+  quantity: number;
+  name: string;
+  modifiers?: { name: string }[];
+  notes?: string | null;
+};
+
+function buildSimpleTicket(order: Order, items: CartItem[] | undefined, branchName?: string): string {
   const now = new Date().toLocaleString("es-CL", {
     dateStyle: "short",
     timeStyle: "short",
   });
+
+  // Si no vienen items del carrito, armamos líneas desde los productos de la orden.
+  const lineItems: TicketLineItem[] =
+    items && items.length > 0
+      ? items.map((item) => ({
+          quantity: item.quantity,
+          name: item.product.name,
+          modifiers: item.modifiers.map((m) => ({ name: m.name })),
+          notes: item.notes,
+        }))
+      : (order.products ?? []).map((p) => ({
+          quantity: p.quantity ?? 1,
+          name: p.product_name ?? p.product__name ?? "Producto",
+          modifiers: [],
+          notes: null,
+        }));
+
   const lines: string[] = [];
   lines.push(branchName || "TICKET");
   lines.push("================");
@@ -30,9 +54,9 @@ function buildSimpleTicket(order: Order, items: CartItem[], branchName?: string)
   lines.push("");
   lines.push("CONTENIDO:");
   lines.push("----------------");
-  for (const item of items) {
-    lines.push(`${item.quantity}x ${item.product.name}`);
-    for (const modifier of item.modifiers) {
+  for (const item of lineItems) {
+    lines.push(`${item.quantity}x ${item.name}`);
+    for (const modifier of item.modifiers ?? []) {
       lines.push(`   - ${modifier.name}`);
     }
     if (item.notes?.trim()) {
@@ -143,7 +167,7 @@ export function PostSaleModal({ order, items, branchName, onClose }: PostSaleMod
       <div className="flex w-full max-w-sm flex-col rounded-2xl border border-border/60 bg-card p-5 shadow-xl">
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <h2 className="text-base font-semibold">Venta registrada</h2>
+            <h2 className="text-base font-semibold">Pago registrado</h2>
             <p className="text-xs text-muted-foreground">Orden {orderLabel}</p>
           </div>
           <button

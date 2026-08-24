@@ -153,9 +153,9 @@ export default function PosPage() {
     [openAccountParam, queryOrderType],
   );
 
-  function handlePostSaleOrder(order: Order, items: CartItem[]) {
+  function handlePostSaleOrder(order: Order, items?: CartItem[]) {
     setPostSaleOrder(order);
-    setPostSaleItems(items);
+    setPostSaleItems(items ?? []);
   }
 
   function handleClosePostSale() {
@@ -1810,9 +1810,18 @@ export default function PosPage() {
           paymentMethods={paymentMethods}
           currentCashRegister={currentCashRegister}
           onClose={() => setCollectingOrder(null)}
-          onSuccess={() => {
+          onSuccess={async () => {
             setCollectingOrder(null);
             queryClient.invalidateQueries({ queryKey: ["orders", "open-accounts", "pos-terminal"] });
+            // Mostrar el mismo modal de comprobante que tras una venta al contado.
+            if (collectingOrder) {
+              try {
+                const updated = await fetchOrder(collectingOrder.id);
+                handlePostSaleOrder(updated);
+              } catch {
+                handlePostSaleOrder(collectingOrder);
+              }
+            }
           }}
         />
       )}
