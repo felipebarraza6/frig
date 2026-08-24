@@ -208,6 +208,7 @@ export default function PosPage() {
     if (queryStationId) url.searchParams.set("station_id", queryStationId);
     router.push(url.pathname + url.search);
     setShowOpenAccounts(false);
+    setShowPendingDeliveries(false);
   }
 
   async function handleCancelOrder(order: Order) {
@@ -314,6 +315,7 @@ export default function PosPage() {
       deliverOrder(id, items),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
+      setShowPendingDeliveries(false);
       toast.success("Entrega registrada");
     },
     onError: (err: Error) => {
