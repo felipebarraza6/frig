@@ -108,6 +108,19 @@ function todayStr(): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+function monthStartStr(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-01`;
+}
+
+function monthEndStr(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(lastDay)}`;
+}
+
 function statusLabel(value?: string | null): string {
   return STATUS_OPTIONS.find((o) => o.value === value)?.label ?? (value ?? "—");
 }
@@ -144,14 +157,23 @@ function StatCard({
   label,
   value,
   tone,
+  onClick,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: string;
   tone: keyof typeof STAT_TONES;
+  onClick?: () => void;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left shadow-sm transition-colors",
+        onClick && "hover:border-primary/50 hover:bg-muted/30",
+      )}
+    >
       <div
         className={cn(
           "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br",
@@ -164,7 +186,7 @@ function StatCard({
         <p className="text-xs font-medium text-muted-foreground">{label}</p>
         <p className="truncate text-xl font-bold tabular-nums">{value}</p>
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -985,12 +1007,12 @@ export default function SalesPage() {
   });
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [startDate, setStartDate] = useState(() => {
-    if (typeof window === "undefined") return isCashier ? todayStr() : "";
-    return window.localStorage.getItem("frig.sales.startDate") || (isCashier ? todayStr() : "");
+    if (typeof window === "undefined") return monthStartStr();
+    return window.localStorage.getItem("frig.sales.startDate") || monthStartStr();
   });
   const [endDate, setEndDate] = useState(() => {
-    if (typeof window === "undefined") return isCashier ? todayStr() : "";
-    return window.localStorage.getItem("frig.sales.endDate") || (isCashier ? todayStr() : "");
+    if (typeof window === "undefined") return monthEndStr();
+    return window.localStorage.getItem("frig.sales.endDate") || monthEndStr();
   });
   const [clientFilterId, setClientFilterId] = useState<string>(() => {
     if (typeof window === "undefined") return "";
@@ -1005,6 +1027,7 @@ export default function SalesPage() {
   const [clientFilterOpen, setClientFilterOpen] = useState(false);
   const [pendingDeliveryType, setPendingDeliveryType] = useState<"ALL" | "SALE" | "ORDER">("ALL");
   const [pendingDeliveryPayment, setPendingDeliveryPayment] = useState<"ALL" | "PENDING" | "PARTIAL" | "PAID">("ALL");
+  const [statDetail, setStatDetail] = useState<"todayTotal" | "pendingPayment" | "pendingDelivery" | "deliveredCount" | null>(null);
   const [pageUrl, setPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
 
   // Persistir en localStorage
@@ -1264,6 +1287,25 @@ export default function SalesPage() {
     }
     return { todayTotal, pendingPayment, pendingDelivery, deliveredCount };
   }, [orders]);
+
+  const statDetailOrders = useMemo(() => {
+    if (!statDetail) return [];
+    const today = todayStr();
+    return orders.filter((o) => {
+      if (o.status === "CANCELLED") return false;
+      if (statDetail === "todayTotal") {
+        const orderDate = o.date ? new Date(o.date) : null;
+        if (!orderDate) return false;
+        const pad = (n: number) => String(n).padStart(2, "0");
+        const localDate = `${orderDate.getFullYear()}-${pad(orderDate.getMonth() + 1)}-${pad(orderDate.getDate())}`;
+        return localDate === today;
+      }
+      if (statDetail === "pendingPayment") return o.payment_status === "PENDING" || o.payment_status === "PARTIAL";
+      if (statDetail === "pendingDelivery") return o.payment_status === "PAID" && o.delivery_status !== "DELIVERED";
+      if (statDetail === "deliveredCount") return o.delivery_status === "DELIVERED";
+      return false;
+    });
+  }, [orders, statDetail]);
 
   const cancel = useMutation({
     mutationFn: (id: string) => cancelOrder(id),
@@ -1760,10 +1802,10 @@ export default function SalesPage() {
             </Button>
           </div>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <StatCard icon={Wallet} label="Total del día" value={formatCLP(stats.todayTotal)} tone="primary" />
-            <StatCard icon={Clock} label="Pendientes de cobro" value={String(stats.pendingPayment)} tone="amber" />
-            <StatCard icon={Package} label="Por entregar" value={String(stats.pendingDelivery)} tone="blue" />
-            <StatCard icon={ShoppingBag} label="Entregadas" value={String(stats.deliveredCount)} tone="emerald" />
+            <StatCard icon={Wallet} label="Total del día" value={formatCLP(stats.todayTotal)} tone="primary" onClick={() => setStatDetail("todayTotal")} />
+            <StatCard icon={Clock} label="Pendientes de cobro" value={String(stats.pendingPayment)} tone="amber" onClick={() => setStatDetail("pendingPayment")} />
+            <StatCard icon={Package} label="Por entregar" value={String(stats.pendingDelivery)} tone="blue" onClick={() => setStatDetail("pendingDelivery")} />
+            <StatCard icon={ShoppingBag} label="Entregadas" value={String(stats.deliveredCount)} tone="emerald" onClick={() => setStatDetail("deliveredCount")} />
           </div>
         </div>
       </header>
@@ -3522,8 +3564,8 @@ export default function SalesPage() {
                     setClientFilterName("");
                     setClientFilterQuery("");
                     setClientFilterOpen(false);
-                    setStartDate(isCashier ? todayStr() : "");
-                    setEndDate(isCashier ? todayStr() : "");
+                    setStartDate(monthStartStr());
+                    setEndDate(monthEndStr());
                     setPageUrl({});
                   }}
                 >
@@ -3533,6 +3575,85 @@ export default function SalesPage() {
                   Aplicar
                 </Button>
               </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Drawer de detalle de stats */}
+      {statDetail && (
+        <div
+          className="fixed inset-0 z-50 flex justify-end bg-black/40"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setStatDetail(null);
+          }}
+        >
+          <motion.div
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ duration: 0.2 }}
+            className="flex h-full w-full max-w-lg flex-col bg-card shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
+              <div>
+                <h2 className="text-base font-semibold">
+                  {statDetail === "todayTotal" && "Total del día"}
+                  {statDetail === "pendingPayment" && "Pendientes de cobro"}
+                  {statDetail === "pendingDelivery" && "Por entregar"}
+                  {statDetail === "deliveredCount" && "Entregadas"}
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  {statDetailOrders.length} orden{statDetailOrders.length === 1 ? "" : "es"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setStatDetail(null)}
+                aria-label="Cerrar"
+                className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {statDetailOrders.length === 0 ? (
+                <div className="grid place-items-center rounded-2xl border border-dashed border-border py-16 text-center">
+                  <div>
+                    <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
+                      <ShoppingBag className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                    <p className="text-sm font-semibold">No hay órdenes para mostrar</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {statDetailOrders.map((order) => (
+                    <OrderListRow
+                      key={order.id}
+                      order={order}
+                      showTables={showTables}
+                      tableById={tableById}
+                      canCancel={canCancel(order.owner)}
+                      isDownloading={isDownloading}
+                      deliverPending={deliver.isPending}
+                      cancelPending={cancel.isPending}
+                      onView={setDetail}
+                      onTicket={handleDownloadTicketPdf}
+                      onDeliver={setDelivering}
+                      onEdit={openEditModal}
+                      onInstallments={openInstallments}
+                      onCollect={openCollect}
+                      onThermal={handleDownloadThermalPdf}
+                      onA4={handleDownloadA4Pdf}
+                      onCancel={(o) => cancel.mutate(o.id)}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           </motion.div>
         </div>
