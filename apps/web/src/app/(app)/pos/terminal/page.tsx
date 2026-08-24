@@ -652,7 +652,9 @@ export default function PosPage() {
             )}
             title={
               effectiveOrderId && existingOrder
-                ? `Editando ${existingOrder.order_type === "SALE" && !existingOrder.payment_status?.startsWith("PENDING") ? "venta" : "cuenta"} #${existingOrder.order_number ?? ""}`
+                ? existingOrder.order_type === "SALE" && !existingOrder.payment_status?.startsWith("PENDING")
+                  ? `Editando venta #${existingOrder.order_number ?? ""}`
+                  : `Cuenta de ${existingOrder.client?.name ?? "sin cliente"} #${existingOrder.order_number ?? ""}`
                 : isOpenAccountMode
                   ? "Abriendo una cuenta sin cobrar"
                   : "Nueva venta al contado"
@@ -661,9 +663,15 @@ export default function PosPage() {
             {effectiveOrderId && existingOrder ? (
               <>
                 <span className="hidden shrink-0 font-medium sm:inline">
-                  {existingOrder.order_type === "SALE" && !existingOrder.payment_status?.startsWith("PENDING") ? "Editando venta" : "Editando cuenta"}
+                  {existingOrder.order_type === "SALE" && !existingOrder.payment_status?.startsWith("PENDING") ? "Editando venta" : "Cuenta"}
                 </span>
-                <span className="hidden text-primary/60 sm:inline">·</span>
+                {existingOrder.order_type === "ORDER" || existingOrder.payment_status?.startsWith("PENDING") ? (
+                  <span className="truncate font-normal opacity-90">
+                    · {existingOrder.client?.name ?? "sin cliente"}
+                  </span>
+                ) : (
+                  <span className="hidden text-primary/60 sm:inline">·</span>
+                )}
                 <span className="truncate font-semibold tabular-nums">
                   #{existingOrder.order_number ?? ""}
                 </span>
@@ -1410,7 +1418,7 @@ export default function PosPage() {
                   {([
                     { key: "ALL", label: "Todos" },
                     { key: "SALE", label: "Venta" },
-                    { key: "ORDER", label: "Pedido" },
+                    { key: "ORDER", label: "Orden" },
                   ] as const).map((opt) => (
                     <button
                       key={opt.key}
