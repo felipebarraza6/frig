@@ -171,11 +171,12 @@ export default function PosPage() {
     router.replace(url.pathname + url.search);
   }
 
-  function startNewOrder(orderType: "SALE" | "ORDER") {
+  function startNewOrder(orderType: "SALE" | "ORDER", isAccount = false) {
     clearCart();
     setSelectedTableState(undefined);
     const url = new URL("/pos/terminal", window.location.origin);
     url.searchParams.set("order_type", orderType);
+    if (isAccount) url.searchParams.set("open_account", "1");
     if (isWaiterSimulation) url.searchParams.set("view", "waiter");
     if (queryReturnTo) url.searchParams.set("return_to", queryReturnTo);
     if (queryStationId) url.searchParams.set("station_id", queryStationId);
@@ -183,7 +184,7 @@ export default function PosPage() {
   }
 
   function openNewAccount() {
-    startNewOrder("SALE");
+    startNewOrder("SALE", true);
     setCartOpen(true);
   }
 
