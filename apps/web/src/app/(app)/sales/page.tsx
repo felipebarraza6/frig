@@ -1027,7 +1027,7 @@ export default function SalesPage() {
   const [clientFilterOpen, setClientFilterOpen] = useState(false);
   const [pendingDeliveryType, setPendingDeliveryType] = useState<"ALL" | "SALE" | "ORDER">("ALL");
   const [pendingDeliveryPayment, setPendingDeliveryPayment] = useState<"ALL" | "PENDING" | "PARTIAL" | "PAID">("ALL");
-  const [statDetail, setStatDetail] = useState<"todayTotal" | "pendingPayment" | "pendingDelivery" | "deliveredCount" | null>(null);
+  const [statDetail, setStatDetail] = useState<"totalAmount" | "pendingPayment" | "pendingDelivery" | "deliveredCount" | null>(null);
   const [pageUrl, setPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
 
   // Persistir en localStorage
@@ -1263,49 +1263,47 @@ export default function SalesPage() {
     return orders;
   }, [orders, quickFilter, pendingDeliveryType, pendingDeliveryPayment]);
 
-  // Stats rápidas calculadas sobre las órdenes cargadas.
+  // Stats rápidas calculadas sobre las órdenes cargadas, respetando el rango de fechas seleccionado.
   const stats = useMemo(() => {
-    const today = todayStr();
-    let todayTotal = 0;
+    let totalAmount = 0;
     let pendingPayment = 0;
     let pendingDelivery = 0;
     let deliveredCount = 0;
+    const start = startDate ? new Date(startDate + "T00:00:00") : null;
+    const end = endDate ? new Date(endDate + "T23:59:59") : null;
     for (const o of orders) {
-      const orderDate = o.date ? new Date(o.date) : null;
-      if (orderDate && o.status !== "CANCELLED") {
-        const pad = (n: number) => String(n).padStart(2, "0");
-        const localDate = `${orderDate.getFullYear()}-${pad(orderDate.getMonth() + 1)}-${pad(orderDate.getDate())}`;
-        if (localDate === today) {
-          todayTotal += parseFloat(o.total_amount ?? "0") || 0;
-        }
-      }
       if (o.status === "CANCELLED") continue;
+      const orderDate = o.date ? new Date(o.date) : null;
+      const inRange =
+        !orderDate ||
+        (!start || orderDate >= start) && (!end || orderDate <= end);
+      if (inRange) {
+        totalAmount += parseFloat(o.total_amount ?? "0") || 0;
+      }
       if (o.payment_status === "PENDING" || o.payment_status === "PARTIAL") pendingPayment += 1;
       // Por entregar = ya pagada pero aún no entregada.
       if (o.payment_status === "PAID" && o.delivery_status !== "DELIVERED") pendingDelivery += 1;
       if (o.delivery_status === "DELIVERED") deliveredCount += 1;
     }
-    return { todayTotal, pendingPayment, pendingDelivery, deliveredCount };
-  }, [orders]);
+    return { totalAmount, pendingPayment, pendingDelivery, deliveredCount };
+  }, [orders, startDate, endDate]);
 
   const statDetailOrders = useMemo(() => {
     if (!statDetail) return [];
-    const today = todayStr();
+    const start = startDate ? new Date(startDate + "T00:00:00") : null;
+    const end = endDate ? new Date(endDate + "T23:59:59") : null;
     return orders.filter((o) => {
       if (o.status === "CANCELLED") return false;
-      if (statDetail === "todayTotal") {
+      if (statDetail === "totalAmount") {
         const orderDate = o.date ? new Date(o.date) : null;
-        if (!orderDate) return false;
-        const pad = (n: number) => String(n).padStart(2, "0");
-        const localDate = `${orderDate.getFullYear()}-${pad(orderDate.getMonth() + 1)}-${pad(orderDate.getDate())}`;
-        return localDate === today;
+        return !orderDate || ((!start || orderDate >= start) && (!end || orderDate <= end));
       }
       if (statDetail === "pendingPayment") return o.payment_status === "PENDING" || o.payment_status === "PARTIAL";
       if (statDetail === "pendingDelivery") return o.payment_status === "PAID" && o.delivery_status !== "DELIVERED";
       if (statDetail === "deliveredCount") return o.delivery_status === "DELIVERED";
       return false;
     });
-  }, [orders, statDetail]);
+  }, [orders, statDetail, startDate, endDate]);
 
   const cancel = useMutation({
     mutationFn: (id: string) => cancelOrder(id),
@@ -1802,7 +1800,7 @@ export default function SalesPage() {
             </Button>
           </div>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <StatCard icon={Wallet} label="Total del día" value={formatCLP(stats.todayTotal)} tone="primary" onClick={() => setStatDetail("todayTotal")} />
+            <StatCard icon={Wallet} label="Total" value={formatCLP(stats.totalAmount)} tone="primary" onClick={() => setStatDetail("totalAmount")} />
             <StatCard icon={Clock} label="Pendientes de cobro" value={String(stats.pendingPayment)} tone="amber" onClick={() => setStatDetail("pendingPayment")} />
             <StatCard icon={Package} label="Por entregar" value={String(stats.pendingDelivery)} tone="blue" onClick={() => setStatDetail("pendingDelivery")} />
             <StatCard icon={ShoppingBag} label="Entregadas" value={String(stats.deliveredCount)} tone="emerald" onClick={() => setStatDetail("deliveredCount")} />
@@ -3601,7 +3599,7 @@ export default function SalesPage() {
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
               <div>
                 <h2 className="text-base font-semibold">
-                  {statDetail === "todayTotal" && "Total del día"}
+                  {statDetail === "totalAmount" && `Total (${startDate && endDate ? `${startDate} al ${endDate}` : "todo"})`}
                   {statDetail === "pendingPayment" && "Pendientes de cobro"}
                   {statDetail === "pendingDelivery" && "Por entregar"}
                   {statDetail === "deliveredCount" && "Entregadas"}
