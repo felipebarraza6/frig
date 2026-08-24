@@ -46,7 +46,8 @@ import {
   fetchPublicMenuBySlug,
 } from "@/lib/api/public-catalog";
 import { fetchCashRegisterStations } from "@/lib/api/cash-register-stations";
-import { fetchOrders, fetchOrder, cancelOrder, deliverOrder } from "@/lib/api/orders";
+import { fetchOrders, fetchOrder, cancelOrder, deliverOrder, createOrder } from "@/lib/api/orders";
+import { searchCustomers, createCustomer } from "@/lib/api/customers";
 import { useElapsedTime } from "@/lib/hooks/useElapsedTime";
 import { fetchPaymentMethods } from "@/lib/api/payments";
 import { getCurrentCashRegister, openCashRegister, closeCashRegister, getDailySummary } from "@/lib/api/cash-register";
@@ -134,6 +135,15 @@ export default function PosPage() {
   const [postSaleOrder, setPostSaleOrder] = useState<Order | null>(null);
   const [postSaleItems, setPostSaleItems] = useState<CartItem[]>([]);
 
+  // Modal rápido para abrir cuenta con cliente en el POS.
+  const [showAccountClientModal, setShowAccountClientModal] = useState(false);
+  const [accountClientQuery, setAccountClientQuery] = useState("");
+  const [accountDebouncedQuery, setAccountDebouncedQuery] = useState("");
+  const [accountSelectedClient, setAccountSelectedClient] = useState<{ id: number; name: string; email?: string | null } | null>(null);
+  const [accountShowResults, setAccountShowResults] = useState(false);
+  const [accountCreateName, setAccountCreateName] = useState("");
+  const [accountCreating, setAccountCreating] = useState(false);
+
   // Una cuenta abierta puede venir como SALE + open_account=1 (nuevo flujo) o como
   // ORDER (flujo legacy). Se usa para mostrar labels consistentes en el POS.
   const isOpenAccountMode = useMemo(
@@ -184,8 +194,46 @@ export default function PosPage() {
   }
 
   function openNewAccount() {
-    startNewOrder("SALE", true);
-    setCartOpen(true);
+    setShowAccountClientModal(true);
+  }
+
+  async function handleCreateAccountFromPos() {
+    if (accountCreating) return;
+    let clientId = accountSelectedClient?.id ?? null;
+    if (!clientId && accountCreateName.trim()) {
+      try {
+        const newClient = await createCustomer({ name: accountCreateName.trim() });
+        clientId = newClient.id;
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "No se pudo crear el cliente.");
+        return;
+      }
+    }
+    if (!clientId) {
+      toast.error("Debes seleccionar o crear un cliente para abrir una cuenta.");
+      return;
+    }
+    setAccountCreating(true);
+    try {
+      const order = await createOrder({
+        items: [],
+        order_type: "SALE",
+        client_id: clientId,
+      });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      setShowAccountClientModal(false);
+      setAccountClientQuery("");
+      setAccountDebouncedQuery("");
+      setAccountSelectedClient(null);
+      setAccountCreateName("");
+      setAccountShowResults(false);
+      router.replace(`/pos/terminal?order_id=${order.id}&open_account=1`);
+      setCartOpen(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo abrir la cuenta.");
+    } finally {
+      setAccountCreating(false);
+    }
   }
 
   function selectPosMode(mode: "SALE" | "ORDER", remember = false) {
@@ -278,6 +326,22 @@ export default function PosPage() {
     staleTime: 15_000,
     refetchInterval: 30_000,
   });
+
+  useEffect(() => {
+    const t = setTimeout(() => setAccountDebouncedQuery(accountClientQuery), 250);
+    return () => clearTimeout(t);
+  }, [accountClientQuery]);
+
+  const { data: accountClientResultsQuery, isLoading: searchingAccountCustomers } = useQuery({
+    queryKey: ["customers", "search", accountDebouncedQuery, branch?.branch_id, "pos-terminal"],
+    queryFn: () => searchCustomers(accountDebouncedQuery, branch?.branch_id ? Number(branch.branch_id) : undefined),
+    enabled: accountDebouncedQuery.trim().length >= 1 && showAccountClientModal,
+  });
+
+  const accountClientResults = useMemo(() => {
+    const items = (accountClientResultsQuery ?? []) as { id: number; name: string; email?: string | null }[];
+    return items.filter((c) => !accountSelectedClient || c.id !== accountSelectedClient.id);
+  }, [accountClientResultsQuery, accountSelectedClient]);
 
   const { data: paymentMethods } = useQuery({
     queryKey: ["payment-methods", "pos-terminal"],
@@ -1361,6 +1425,155 @@ export default function PosPage() {
                   ))}
                 </div>
               )}
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Modal para abrir cuenta con cliente en el POS */}
+      {showAccountClientModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.96, y: 16 }}
+            transition={{ duration: 0.2 }}
+            className="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-xl"
+          >
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-base font-semibold">Abrir cuenta</h2>
+                <p className="text-xs text-muted-foreground">
+                  Selecciona o crea un cliente para abrir una cuenta nueva.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAccountClientModal(false);
+                  setAccountClientQuery("");
+                  setAccountDebouncedQuery("");
+                  setAccountSelectedClient(null);
+                  setAccountCreateName("");
+                  setAccountShowResults(false);
+                }}
+                className="text-muted-foreground hover:text-foreground"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="pos-account-client" className="text-xs font-medium text-muted-foreground">
+                  Cliente <span className="text-danger">*</span>
+                </label>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="pos-account-client"
+                    value={accountClientQuery}
+                    onChange={(e) => {
+                      setAccountClientQuery(e.target.value);
+                      setAccountSelectedClient(null);
+                      setAccountShowResults(true);
+                    }}
+                    onFocus={() => setAccountShowResults(true)}
+                    placeholder="Buscar cliente..."
+                    className="h-10 pl-8 text-sm"
+                  />
+                  {accountShowResults && accountDebouncedQuery.trim().length === 0 && !accountSelectedClient && (
+                    <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs text-muted-foreground shadow-md">
+                      Escribe para buscar clientes…
+                    </div>
+                  )}
+                  {accountShowResults && accountDebouncedQuery.trim().length > 0 && searchingAccountCustomers && (
+                    <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs text-muted-foreground shadow-md">
+                      Buscando…
+                    </div>
+                  )}
+                  {accountShowResults && accountDebouncedQuery.trim().length > 0 && !searchingAccountCustomers && accountClientResults.length > 0 && (
+                    <div className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-lg border border-border bg-background shadow-md">
+                      {accountClientResults.map((client) => (
+                        <button
+                          key={client.id}
+                          type="button"
+                          onClick={() => {
+                            setAccountSelectedClient(client);
+                            setAccountClientQuery(client.name ?? "");
+                            setAccountShowResults(false);
+                          }}
+                          className="w-full px-3 py-2 text-left text-sm hover:bg-muted"
+                        >
+                          {client.name}
+                          {client.email && <span className="ml-2 text-xs text-muted-foreground">{client.email}</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {accountShowResults && accountDebouncedQuery.trim().length > 0 && !searchingAccountCustomers && accountClientResults.length === 0 && !accountSelectedClient && (
+                    <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs text-muted-foreground shadow-md">
+                      Sin resultados
+                    </div>
+                  )}
+                </div>
+                {!accountCreateName && !accountSelectedClient ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAccountCreateName(accountClientQuery);
+                      setAccountShowResults(false);
+                    }}
+                    className="self-start text-xs text-primary hover:underline"
+                  >
+                    + Crear cliente rápido
+                  </button>
+                ) : accountCreateName ? (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={accountCreateName}
+                      onChange={(e) => setAccountCreateName(e.target.value)}
+                      placeholder="Nombre del nuevo cliente"
+                      className="h-9 flex-1 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setAccountCreateName("")}
+                      className="text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="flex justify-end gap-2 pt-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setShowAccountClientModal(false);
+                    setAccountClientQuery("");
+                    setAccountDebouncedQuery("");
+                    setAccountSelectedClient(null);
+                    setAccountCreateName("");
+                    setAccountShowResults(false);
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleCreateAccountFromPos}
+                  disabled={accountCreating || (!accountSelectedClient && !accountCreateName.trim())}
+                >
+                  {accountCreating && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                  Abrir cuenta
+                </Button>
+              </div>
             </div>
           </motion.div>
         </div>
