@@ -47,7 +47,7 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
 
   const routeItems: NavItem[] = [
     { href: "/dashboard", label: "Inicio", icon: LayoutDashboard },
-    { href: "/sales", label: "Ventas", icon: ShoppingBag, description: "Ventas y órdenes de cliente" },
+    { href: "/sales", label: "Ventas", icon: ShoppingBag, description: "Ventas y cuentas abiertas" },
     ...(posEnabled ? [{ href: "/pos", label: "POS", icon: Receipt }] : []),
     ...(posEnabled ? [{ href: "/cash-register", label: "Caja", icon: Banknote }] : []),
   ];

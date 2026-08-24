@@ -535,15 +535,12 @@ export default function CashRegisterPage() {
                     <Select
                       value={activeStationId ?? ""}
                       onChange={(e) => setSelectedStationId(e.target.value ? Number(e.target.value) : null)}
-                      className="h-8 text-xs"
-                    >
-                      <option value="">Seleccionar estación</option>
-                      {stations.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name} ({s.code})
-                        </option>
-                      ))}
-                    </Select>
+                      className="h-8 min-w-[180px] text-xs"
+                      options={[
+                        { value: "", label: "Seleccionar estación" },
+                        ...stations.map((s) => ({ value: String(s.id), label: `${s.name} (${s.code})` })),
+                      ]}
+                    />
                   )}
                 </div>
               ) : activeStation ? (

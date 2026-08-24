@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -12,14 +12,24 @@ import {
   RefreshCcw,
   ArrowRight,
   ArrowLeft,
+  ArrowLeftRight,
   Table,
   Pencil,
   Trash2,
+  Banknote,
+  Wallet,
+  ShoppingBag,
+  Zap,
+  TrendingUp,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Calculator,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import CartPanel from "@/components/pos/cart-panel";
 import { ProductCard } from "@/components/pos/product-card";
+import { PostSaleModal } from "@/components/pos/post-sale-modal";
 import OrderCollectModal from "@/components/orders/order-collect-modal";
 import {
   useProducts,
@@ -28,6 +38,7 @@ import {
   useCombos,
   getModifierGroupsForProduct,
   type ComboList,
+  type ProductModifierGroup,
 } from "@/lib/hooks/useCatalog";
 import { fetchCombo } from "@/lib/api/combos";
 import {
@@ -35,18 +46,23 @@ import {
   fetchPublicMenuBySlug,
 } from "@/lib/api/public-catalog";
 import { fetchCashRegisterStations } from "@/lib/api/cash-register-stations";
-import { fetchOrders, fetchOrder, cancelOrder } from "@/lib/api/orders";
+import { fetchOrders, fetchOrder, cancelOrder, deliverOrder } from "@/lib/api/orders";
 import { useElapsedTime } from "@/lib/hooks/useElapsedTime";
 import { fetchPaymentMethods } from "@/lib/api/payments";
-import { getCurrentCashRegister } from "@/lib/api/cash-register";
+import { getCurrentCashRegister, openCashRegister, closeCashRegister, getDailySummary } from "@/lib/api/cash-register";
 import { fetchTables } from "@/lib/api/tables";
-import { useCartStore, type CartItemModifier, cartSubtotal, cartDiscountTotal } from "@/lib/store/cart";
+import { useCartStore, type CartItemModifier, type CartItem, cartSubtotal, cartDiscountTotal } from "@/lib/store/cart";
 import type { PosProduct, YggdraSchemas } from "@/lib/api/types";
 import { formatCLP, cn } from "@/lib/utils";
 import { useToast } from "@/lib/store/toast";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 
-type Order = YggdraSchemas["Order"] & { order_number?: string | null };
+type Order = YggdraSchemas["Order"] & {
+  order_number?: string | null;
+  delivery_address?: string | null;
+  delivery_status?: string | null;
+};
 type TableItem = YggdraSchemas["Table"];
 import {
   useCurrentBranch,
@@ -62,9 +78,6 @@ import ModifierModal from "@/components/pos/modifier-modal";
 import { WaiterTablesView } from "@/components/pos/waiter-tables-view";
 import { ComboPickerModal } from "@/components/pos/combo-picker-modal";
 import { TablesCanvas } from "@/components/tables/tables-canvas";
-import type { ProductModifierGroup } from "@/lib/hooks/useCatalog";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "next/navigation";
 
 export default function PosPage() {
   const branch = useCurrentBranch();
@@ -81,17 +94,28 @@ export default function PosPage() {
   const queryOrderType = searchParams.get("order_type") as "SALE" | "ORDER" | "AGREEMENT" | null;
   const isWaiterSimulation = queryView === "waiter";
   const isWaiter = realIsWaiter || isWaiterSimulation;
-  const activeStationId = queryStationId
-    ? Number(queryStationId)
-    : userStation?.station_id
-      ? Number(userStation.station_id)
-      : null;
+
+  const { data: stations = [] } = useQuery({
+    queryKey: ["cash-register-stations", "pos-terminal"],
+    queryFn: fetchCashRegisterStations,
+    staleTime: 60_000,
+  });
+
+  const activeStationId = useMemo(() => {
+    if (queryStationId) return Number(queryStationId);
+    if (userStation?.station_id) return Number(userStation.station_id);
+    return stations[0]?.id ?? null;
+  }, [queryStationId, userStation, stations]);
 
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<number | null>(null);
   const [modifierProduct, setModifierProduct] = useState<PosProduct | null>(null);
   const [modifierGroups, setModifierGroups] = useState<ProductModifierGroup[]>([]);
   const [showOpenAccounts, setShowOpenAccounts] = useState(false);
+  const [showPendingDeliveries, setShowPendingDeliveries] = useState(false);
+  const [pendingDeliveryType, setPendingDeliveryType] = useState<"ALL" | "SALE" | "ORDER">("ALL");
+  const [pendingDeliveryPayment, setPendingDeliveryPayment] = useState<"ALL" | "PENDING" | "PARTIAL" | "PAID">("ALL");
+  const [pendingDeliveriesQuery, setPendingDeliveriesQuery] = useState("");
   const [showTableMap, setShowTableMap] = useState(false);
   const [showComboPicker, setShowComboPicker] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
@@ -101,6 +125,25 @@ export default function PosPage() {
   const [isCanceling, setIsCanceling] = useState(false);
   // undefined = sin interacción (usa table_id del query param), null = sin mesa, TableItem = mesa elegida
   const [selectedTableState, setSelectedTableState] = useState<TableItem | null | undefined>(undefined);
+  const [showCashRegisterModal, setShowCashRegisterModal] = useState(false);
+  const [cashRegisterAmount, setCashRegisterAmount] = useState("");
+  const [posMode, setPosMode] = useState<"SALE" | "ORDER" | null>(null);
+  const [rememberPosMode, setRememberPosMode] = useState(false);
+  const [showModeSelector, setShowModeSelector] = useState(false);
+  const [postSaleOrder, setPostSaleOrder] = useState<Order | null>(null);
+  const [postSaleItems, setPostSaleItems] = useState<CartItem[]>([]);
+
+  function handlePostSaleOrder(order: Order, items: CartItem[]) {
+    setPostSaleOrder(order);
+    setPostSaleItems(items);
+  }
+
+  function handleClosePostSale() {
+    setPostSaleOrder(null);
+    setPostSaleItems([]);
+    clearCart();
+    resetPosContext();
+  }
 
   function goToWaiterTablesView() {
     setSelectedTableState(undefined);
@@ -129,6 +172,25 @@ export default function PosPage() {
     if (queryReturnTo) url.searchParams.set("return_to", queryReturnTo);
     if (queryStationId) url.searchParams.set("station_id", queryStationId);
     router.replace(url.pathname + url.search);
+  }
+
+  function openNewAccount() {
+    startNewOrder("ORDER");
+    setCartOpen(true);
+  }
+
+  function selectPosMode(mode: "SALE" | "ORDER", remember = false) {
+    setPosMode(mode);
+    if (remember) {
+      localStorage.setItem("frig.pos.mode", mode);
+    }
+    setShowModeSelector(false);
+  }
+
+  function clearPosMode() {
+    setPosMode(null);
+    localStorage.removeItem("frig.pos.mode");
+    resetPosContext();
   }
 
   function handleEditOrder(order: Order) {
@@ -172,6 +234,7 @@ export default function PosPage() {
 
   const addItem = useCartStore((s) => s.addItem);
   const cartItems = useCartStore((s) => s.items);
+  const clearCart = useCartStore((s) => s.clear);
   const cartTotal = useMemo(() => {
     const subtotal = cartSubtotal(cartItems);
     const discounts = cartDiscountTotal(cartItems);
@@ -188,7 +251,18 @@ export default function PosPage() {
     queryKey: ["orders", "open-accounts", "pos-terminal"],
     queryFn: () =>
       fetchOrders({
+        order_type: "ORDER",
         payment_status: "PENDING",
+      }),
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+  });
+
+  const { data: pendingDeliveriesPage, isLoading: loadingPendingDeliveries } = useQuery({
+    queryKey: ["orders", "pending-deliveries", "pos-terminal"],
+    queryFn: () =>
+      fetchOrders({
+        delivery_status: "PENDING",
       }),
     staleTime: 15_000,
     refetchInterval: 30_000,
@@ -208,10 +282,60 @@ export default function PosPage() {
     refetchInterval: 30_000,
   });
 
-  const { data: stations = [] } = useQuery({
-    queryKey: ["cash-register-stations", "pos-terminal"],
-    queryFn: fetchCashRegisterStations,
-    staleTime: 60_000,
+  const openCashRegisterMutation = useMutation({
+    mutationFn: () =>
+      openCashRegister({
+        branch_id: Number(branch?.branch_id ?? 0),
+        station_id: activeStationId ? Number(activeStationId) : undefined,
+        opening_amount: Number(cashRegisterAmount || "0").toFixed(2),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cash-register"] });
+      setCashRegisterAmount("");
+      setShowCashRegisterModal(false);
+      toast.success("Caja abierta correctamente");
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "No se pudo abrir la caja");
+    },
+  });
+
+  const deliverMutation = useMutation({
+    mutationFn: ({ id, items }: { id: string; items?: { order_product_id: string; actual_quantity: number }[] }) =>
+      deliverOrder(id, items),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      toast.success("Entrega registrada");
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "No se pudo registrar la entrega");
+    },
+  });
+
+  const { data: dailySummary } = useQuery({
+    queryKey: ["cash-register", "daily-summary", activeStationId],
+    queryFn: () => getDailySummary(activeStationId),
+    enabled: !!currentCashRegister && !!activeStationId,
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+  });
+
+  const closeCashRegisterMutation = useMutation({
+    mutationFn: () => {
+      if (!currentCashRegister) throw new Error("No hay caja abierta");
+      return closeCashRegister(currentCashRegister.id, {
+        closing_amount: Number(cashRegisterAmount || "0").toFixed(2),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cash-register"] });
+      setCashRegisterAmount("");
+      setShowCashRegisterModal(false);
+      toast.success("Caja cerrada correctamente");
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "No se pudo cerrar la caja");
+    },
   });
 
   const { data: tablesPage } = useQuery({
@@ -249,9 +373,9 @@ export default function PosPage() {
     data: existingOrder,
     isLoading: loadingExistingOrder,
     error: existingOrderError,
-  } = useQuery({
+  } = useQuery<Order>({
     queryKey: ["order", "pos-terminal", effectiveOrderId],
-    queryFn: () => fetchOrder(effectiveOrderId as string),
+    queryFn: () => fetchOrder(effectiveOrderId as string) as Promise<Order>,
     enabled: Boolean(effectiveOrderId),
     staleTime: 30_000,
   });
@@ -261,6 +385,36 @@ export default function PosPage() {
   });
 
   const isEditingOrder = Boolean(effectiveOrderId);
+
+  useEffect(() => {
+    const saved = typeof window !== "undefined" ? window.localStorage.getItem("frig.pos.mode") : null;
+    if (queryOrderType === "SALE" || queryOrderType === "ORDER") {
+      setPosMode(queryOrderType);
+      return;
+    }
+    if (isEditingOrder) {
+      return;
+    }
+    if (saved === "SALE" || saved === "ORDER") {
+      setPosMode(saved);
+    } else {
+      setShowModeSelector(true);
+    }
+  }, []);
+
+  const startNewOrderRef = useRef(startNewOrder);
+  startNewOrderRef.current = startNewOrder;
+  const openNewAccountRef = useRef(openNewAccount);
+  openNewAccountRef.current = openNewAccount;
+
+  useEffect(() => {
+    if (!posMode || queryOrderType || isEditingOrder) return;
+    if (posMode === "ORDER") {
+      openNewAccountRef.current();
+    } else {
+      startNewOrderRef.current("SALE");
+    }
+  }, [posMode, queryOrderType, isEditingOrder]);
 
   const existingTable = useMemo(() => {
     if (!existingOrder?.table || tables.length === 0) return null;
@@ -330,19 +484,14 @@ export default function PosPage() {
       setModifierGroups(groups);
     } else {
       addItem(product);
-      // En móvil abrir el carrito para que el usuario vea el ítem agregado.
-      if (typeof window !== "undefined" && window.innerWidth < 768) {
-        setCartOpen(true);
-      }
+      // El carrito se mantiene cerrado; el usuario lo abre con el botón de cuenta.
     }
   }
 
   function handleConfirmModifiers(modifiers: CartItemModifier[]) {
     if (modifierProduct) {
       addItem(modifierProduct, { modifiers });
-      if (typeof window !== "undefined" && window.innerWidth < 768) {
-        setCartOpen(true);
-      }
+      // El carrito se mantiene cerrado; el usuario lo abre con el botón de cuenta.
     }
     setModifierProduct(null);
     setModifierGroups([]);
@@ -406,8 +555,34 @@ export default function PosPage() {
     return accounts;
   }, [openAccountsPage, isWaiter, user, myTables, openAccountsQuery, tables]);
 
+  const pendingDeliveriesCount = useMemo(
+    () => (pendingDeliveriesPage?.count ?? (pendingDeliveriesPage?.results ?? []).length),
+    [pendingDeliveriesPage],
+  );
+
+  const filteredPendingDeliveries = useMemo(() => {
+    let orders: Order[] = (pendingDeliveriesPage?.results ?? []) as Order[];
+    if (pendingDeliveryType !== "ALL") {
+      orders = orders.filter((o) => o.order_type === pendingDeliveryType);
+    }
+    if (pendingDeliveryPayment !== "ALL") {
+      orders = orders.filter((o) => o.payment_status === pendingDeliveryPayment);
+    }
+    const q = pendingDeliveriesQuery.trim().toLowerCase();
+    if (q) {
+      orders = orders.filter(
+        (o) =>
+          (o.order_number ?? "").toLowerCase().includes(q) ||
+          (o.client?.name ?? "").toLowerCase().includes(q) ||
+          (o.client?.dni ?? "").toLowerCase().includes(q) ||
+          (o.delivery_address ?? "").toLowerCase().includes(q) ||
+          o.id.slice(0, 8).toLowerCase().includes(q)
+      );
+    }
+    return orders;
+  }, [pendingDeliveriesPage, pendingDeliveryType, pendingDeliveryPayment, pendingDeliveriesQuery]);
+
   const itemCount = useCartStore((s) => s.items.reduce((sum, i) => sum + i.quantity, 0));
-  const clearCart = useCartStore((s) => s.clear);
   const existingOrderTotal = existingOrder
     ? Math.max(0, parseFloat(existingOrder.total_amount ?? "0"))
     : 0;
@@ -425,8 +600,8 @@ export default function PosPage() {
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-muted/30">
       {/* Header */}
-      <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border/60 bg-background/95 px-4 backdrop-blur">
-        <div className="flex min-w-0 items-center gap-3">
+      <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border/60 bg-background/95 px-3 backdrop-blur sm:h-12 sm:px-4">
+        <div className="flex flex-1 min-w-0 items-center gap-2">
           {queryReturnTo && (
             <Link
               href={decodeURIComponent(queryReturnTo)}
@@ -448,70 +623,203 @@ export default function PosPage() {
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex shrink-0 items-center justify-end gap-1.5 sm:gap-2">
           {!activeStationId && !isWaiter && (
             <span className="hidden rounded-md bg-amber-500/10 px-2.5 py-1 text-[11px] text-amber-700 lg:inline-block">
               Sin estación asignada
             </span>
           )}
-          {effectiveOrderId && existingOrder && (
-            <span className="hidden rounded-md bg-primary/10 px-2.5 py-1 text-[11px] text-primary sm:inline-block">
-              Orden #{existingOrder.id.slice(0, 8)} · {existingOrderElapsed.text} · {formatCLP(parseFloat(existingOrder.total_amount ?? "0"))}
-            </span>
+
+          {/* Tipo de operación actual */}
+          <span
+            className={cn(
+              "inline-flex min-w-0 max-w-[140px] items-center gap-1 truncate rounded-md px-1.5 py-1 text-[11px] sm:max-w-[220px] sm:px-2",
+              effectiveOrderId && existingOrder
+                ? "bg-primary/10 text-primary"
+                : queryOrderType === "ORDER"
+                  ? "bg-blue-500/10 text-blue-700"
+                  : "bg-emerald-500/10 text-emerald-700"
+            )}
+            title={
+              effectiveOrderId && existingOrder
+                ? `Editando ${existingOrder.order_type === "SALE" ? "venta" : "cuenta"} #${existingOrder.order_number ?? ""}`
+                : queryOrderType === "ORDER"
+                  ? "Abriendo una orden sin cobrar"
+                  : "Nueva venta al contado"
+            }
+          >
+            {effectiveOrderId && existingOrder ? (
+              <>
+                <span className="hidden shrink-0 font-medium sm:inline">
+                  {existingOrder.order_type === "SALE" ? "Editando venta" : "Editando cuenta"}
+                </span>
+                <span className="hidden text-primary/60 sm:inline">·</span>
+                <span className="truncate font-semibold tabular-nums">
+                  #{existingOrder.order_number ?? ""}
+                </span>
+              </>
+            ) : queryOrderType === "ORDER" ? (
+              <>
+                <ClipboardList className="h-3 w-3 shrink-0" />
+                <span className="truncate font-medium">Nueva orden</span>
+              </>
+            ) : (
+              <>
+                <Receipt className="h-3 w-3 shrink-0" />
+                <span className="truncate font-medium">Nueva venta</span>
+              </>
+            )}
+          </span>
+
+          {/* Cambiar modo */}
+          {posMode && !isEditingOrder && (
+            <button
+              type="button"
+              onClick={() => {
+                setShowModeSelector(true);
+                clearPosMode();
+              }}
+              className="inline-flex h-8 items-center gap-1 rounded-md border border-border/60 bg-background px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              title="Cambiar entre venta y orden"
+            >
+              <ArrowLeftRight className="h-3 w-3" />
+              <span className="hidden sm:inline">Cambiar</span>
+            </button>
+          )}
+
+          {/* Estado de caja */}
+          {!isWaiter && (
+            <button
+              type="button"
+              disabled={openCashRegisterMutation.isPending || closeCashRegisterMutation.isPending}
+              onClick={() => setShowCashRegisterModal(true)}
+              className={cn(
+                "inline-flex h-8 items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
+                currentCashRegister
+                  ? "bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20"
+                  : "bg-amber-500/10 text-amber-700 hover:bg-amber-500/20"
+              )}
+              title={currentCashRegister ? "Caja abierta - click para ver resumen o cerrar" : "Caja cerrada - click para abrir"}
+            >
+              {openCashRegisterMutation.isPending || closeCashRegisterMutation.isPending ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : currentCashRegister ? (
+                <>
+                  <Banknote className="h-3 w-3" />
+                  <span className="hidden sm:inline">Caja abierta</span>
+                  <span className="hidden text-[10px] text-emerald-600/80 sm:inline">· Cerrar</span>
+                </>
+              ) : (
+                <>
+                  <Wallet className="h-3 w-3" />
+                  <span className="hidden sm:inline">Abrir caja</span>
+                </>
+              )}
+            </button>
           )}
 
           {!isWaiter && (
             <>
               <button
                 type="button"
-                onClick={() => startNewOrder("ORDER")}
-                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border/60 bg-background px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
-                title="Abrir una cuenta / pedido sin cobrar"
+                onClick={() => setShowOpenAccounts(true)}
+                className="relative hidden h-8 items-center gap-1.5 rounded-lg border border-border/60 bg-background px-2 text-xs font-medium text-foreground transition-colors hover:bg-muted sm:inline-flex sm:px-2.5"
               >
                 <ClipboardList className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Abrir cuenta</span>
+                <span>Cuentas</span>
+                {(openAccountsPage?.count ?? 0) > 0 && (
+                  <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-semibold text-white">
+                    {openAccountsPage?.count ?? 0}
+                  </span>
+                )}
               </button>
               <button
                 type="button"
-                onClick={() => setShowOpenAccounts(true)}
-                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border/60 bg-background px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                onClick={() => setShowPendingDeliveries(true)}
+                className="relative hidden h-8 items-center gap-1.5 rounded-lg border border-border/60 bg-background px-2 text-xs font-medium text-foreground transition-colors hover:bg-muted sm:inline-flex sm:px-2.5"
               >
-                <ClipboardList className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Cuentas</span>
-                <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-semibold text-white">
-                  {openAccountsPage?.count ?? 0}
-                </span>
+                <Zap className="h-3.5 w-3.5" />
+                <span>Entregas</span>
+                {pendingDeliveriesCount > 0 && (
+                  <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-500 px-1 text-[10px] font-semibold text-white">
+                    {pendingDeliveriesCount}
+                  </span>
+                )}
               </button>
             </>
           )}
 
-          {!(isWaiter && !selectedTable && !isEditingOrder) && (
-            <button
-              type="button"
-              onClick={() => setCartOpen(true)}
-              className="relative inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-medium text-white transition-colors hover:bg-primary/90 md:hidden"
-            >
-              Cuenta
-              {displayItemCount > 0 && (
-                <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-white px-1 text-[10px] font-semibold text-primary">
-                  {displayItemCount}
-                </span>
-              )}
-            </button>
-          )}
-
-          <div className="relative hidden w-44 sm:block sm:w-56">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar…"
-              className="h-8 rounded-lg border-border/60 bg-background pl-8 text-xs"
-              aria-label="Buscar producto"
-            />
-          </div>
         </div>
       </header>
+
+      {/* Selector inicial de modo Venta / Orden */}
+      {showModeSelector && !queryOrderType && !isEditingOrder && !isWaiter && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
+            <div className="mb-5 text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+                <Receipt className="h-6 w-6 text-primary" />
+              </div>
+              <h2 className="mt-3 text-lg font-semibold">¿Qué quieres registrar?</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Elige el tipo de operación para comenzar.
+              </p>
+            </div>
+
+            <div className="grid gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  selectPosMode("SALE", rememberPosMode);
+                  setShowModeSelector(false);
+                }}
+                className="flex items-center gap-4 rounded-xl border border-border bg-background p-4 text-left transition-colors hover:border-emerald-300 hover:bg-emerald-50/30"
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10">
+                  <Receipt className="h-5 w-5 text-emerald-600" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">Venta</p>
+                  <p className="text-xs text-muted-foreground">
+                    Venta inmediata al contado. El cliente paga ahora y se entrega el producto.
+                  </p>
+                </div>
+                <ArrowRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  selectPosMode("ORDER", rememberPosMode);
+                  setShowModeSelector(false);
+                }}
+                className="flex items-center gap-4 rounded-xl border border-border bg-background p-4 text-left transition-colors hover:border-blue-300 hover:bg-blue-50/30"
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-500/10">
+                  <ClipboardList className="h-5 w-5 text-blue-600" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">Orden</p>
+                  <p className="text-xs text-muted-foreground">
+                    Pedido sin cobrar. Requiere cliente y permite pagos parciales o cuotas.
+                  </p>
+                </div>
+                <ArrowRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground" />
+              </button>
+            </div>
+
+            <label className="mt-5 flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={rememberPosMode}
+                onChange={(e) => setRememberPosMode(e.target.checked)}
+                className="h-3.5 w-3.5 rounded border-border text-primary focus:ring-primary"
+              />
+              Recordar selección y no volver a preguntar
+            </label>
+          </div>
+        </div>
+      )}
 
       {/* Área de trabajo */}
       <div className="flex min-h-0 flex-1 pb-16 md:pb-0">
@@ -612,20 +920,34 @@ export default function PosPage() {
                 </button>
               ))}
             </div>
-            {combos && combos.length > 0 && (
-              <div className="flex items-center gap-1.5 border-t border-border/40 pt-1.5">
-                <button
-                  type="button"
-                  onClick={() => setShowComboPicker(true)}
-                  className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-2.5 text-[11px] font-medium text-primary transition-colors hover:bg-primary/20"
-                >
-                  Combos
-                </button>
-                <span className="text-[10px] text-muted-foreground">
-                  {combos.length} disponible{combos.length === 1 ? "" : "s"}
-                </span>
+            <div className="flex flex-wrap items-center gap-2 border-t border-border/40 pt-1.5">
+              <div className="relative min-w-0 flex-1 sm:flex-none sm:w-56">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="pos-catalog-search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onFocus={(e) => e.currentTarget.select()}
+                  placeholder="Buscar producto…"
+                  className="h-8 w-full rounded-lg border-border/60 bg-background pl-8 text-xs"
+                  aria-label="Buscar producto"
+                />
               </div>
-            )}
+              {combos && combos.length > 0 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setShowComboPicker(true)}
+                    className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-2.5 text-[11px] font-medium text-primary transition-colors hover:bg-primary/20"
+                  >
+                    Combos
+                  </button>
+                  <span className="text-[10px] text-muted-foreground">
+                    {combos.length} disponible{combos.length === 1 ? "" : "s"}
+                  </span>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Productos */}
@@ -645,7 +967,7 @@ export default function PosPage() {
                 <p className="text-sm text-muted-foreground">No hay productos que coincidan.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
                 {filtered.map((product) => (
                   <ProductCard
                     key={product.id}
@@ -693,6 +1015,7 @@ export default function PosPage() {
                 if (isWaiter) goToWaiterTablesView();
                 else resetPosContext();
               }}
+              onPostSaleOrder={handlePostSaleOrder}
               isWaiter={isWaiter}
             />
           )}
@@ -733,6 +1056,7 @@ export default function PosPage() {
                 else resetPosContext();
                 setCartOpen(false);
               }}
+              onPostSaleOrder={handlePostSaleOrder}
               onClose={() => setCartOpen(false)}
               isWaiter={isWaiter}
             />
@@ -742,19 +1066,75 @@ export default function PosPage() {
 
       {/* Bottom bar móvil */}
       {!cartOpen && !(isWaiter && !selectedTable && !isEditingOrder) && (
-        <button
-          type="button"
-          onClick={() => setCartOpen(true)}
-          className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-between border-t border-border/60 bg-background px-4 py-3 shadow-lg md:hidden"
-        >
-          <div className="flex items-center gap-2">
-            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-white">
-              {displayItemCount}
+        <div className="fixed bottom-0 left-0 right-0 z-40 flex items-center gap-2 border-t border-border/60 bg-background px-2 py-2 shadow-lg md:hidden">
+          <button
+            type="button"
+            onClick={() => {
+              const el = document.getElementById("pos-catalog-search");
+              el?.focus();
+            }}
+            className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <Search className="h-[18px] w-[18px]" />
+            <span className="text-[10px] font-medium">Buscar</span>
+          </button>
+
+          {!isWaiter && (
+            <>
+              <button
+                type="button"
+                onClick={() => setShowCashRegisterModal(true)}
+                className={cn(
+                  "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[10px] font-medium transition-colors",
+                  currentCashRegister
+                    ? "text-emerald-700 hover:bg-emerald-500/10"
+                    : "text-amber-700 hover:bg-amber-500/10"
+                )}
+              >
+                <Banknote className="h-[18px] w-[18px]" />
+                <span>{currentCashRegister ? "Caja" : "Abrir caja"}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowOpenAccounts(true)}
+                className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <ClipboardList className="h-[18px] w-[18px]" />
+                <span>Cuentas</span>
+                {(openAccountsPage?.count ?? 0) > 0 && (
+                  <span className="absolute right-2 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-semibold text-white">
+                    {openAccountsPage?.count}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowPendingDeliveries(true)}
+                className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <Zap className="h-[18px] w-[18px]" />
+                <span>Entregas</span>
+                {pendingDeliveriesCount > 0 && (
+                  <span className="absolute right-2 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-500 px-1 text-[9px] font-semibold text-white">
+                    {pendingDeliveriesCount}
+                  </span>
+                )}
+              </button>
+            </>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setCartOpen(true)}
+            className="relative flex min-w-0 flex-[1.5] flex-col items-center justify-center gap-0.5 rounded-lg bg-primary py-1.5 text-[10px] font-medium text-white transition-colors hover:bg-primary/90"
+          >
+            <span className="inline-flex items-center gap-1">
+              <ShoppingBag className="h-[18px] w-[18px]" />
+              <span className="font-bold tabular-nums">{formatCLP(displayCartTotal)}</span>
             </span>
-            <span className="text-sm font-medium">{isWaiter ? "Ver pedido" : "Ver cuenta"}</span>
-          </div>
-          <span className="text-base font-bold tabular-nums">{formatCLP(displayCartTotal)}</span>
-        </button>
+            <span>{displayItemCount} ítem{displayItemCount === 1 ? "" : "s"} · {isWaiter ? "Pedido" : "Cuenta"}</span>
+          </button>
+        </div>
       )}
 
       {modifierProduct && (
@@ -840,6 +1220,19 @@ export default function PosPage() {
                 </p>
               </div>
               <div className="flex items-center gap-1">
+                {!isWaiter && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowOpenAccounts(false);
+                      openNewAccount();
+                    }}
+                    className="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-primary/90"
+                  >
+                    <ClipboardList className="h-3.5 w-3.5" />
+                    Abrir cuenta
+                  </button>
+                )}
                 <button
                   onClick={() => queryClient.invalidateQueries({ queryKey: ["orders", "open-accounts", "pos-terminal"] })}
                   aria-label="Actualizar"
@@ -921,7 +1314,10 @@ export default function PosPage() {
                             <>
                               <button
                                 type="button"
-                                onClick={() => setCancelingOrder(order)}
+                                onClick={() => {
+                                  setCancelingOrder(order);
+                                  setShowOpenAccounts(false);
+                                }}
                                 className="inline-flex items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-medium text-rose-700 transition-colors hover:bg-rose-100"
                               >
                                 <Trash2 className="h-3 w-3" />
@@ -929,7 +1325,10 @@ export default function PosPage() {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => setCollectingOrder(order)}
+                                onClick={() => {
+                                  setCollectingOrder(order);
+                                  setShowOpenAccounts(false);
+                                }}
                                 className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-primary/90"
                               >
                                 Cobrar
@@ -937,6 +1336,168 @@ export default function PosPage() {
                               </button>
                             </>
                           )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {showPendingDeliveries && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/40" role="dialog" aria-modal="true">
+          <motion.div
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ duration: 0.2 }}
+            className="flex h-full w-full max-w-md flex-col bg-card shadow-xl"
+          >
+            <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
+              <div>
+                <h2 className="text-base font-semibold">Entregas pendientes</h2>
+                <p className="text-xs text-muted-foreground">
+                  {filteredPendingDeliveries.length} por entregar
+                  {filteredPendingDeliveries.length !== (pendingDeliveriesPage?.results ?? []).length && (
+                    <span className="ml-1 text-muted-foreground/70">
+                      ({(pendingDeliveriesPage?.results ?? []).length} total)
+                    </span>
+                  )}
+                </p>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => queryClient.invalidateQueries({ queryKey: ["orders", "pending-deliveries", "pos-terminal"] })}
+                  aria-label="Actualizar"
+                  className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  <RefreshCcw className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setShowPendingDeliveries(false)}
+                  aria-label="Cerrar"
+                  className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+            <div className="flex shrink-0 flex-col gap-3 border-b border-border p-3">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={pendingDeliveriesQuery}
+                  onChange={(e) => setPendingDeliveriesQuery(e.target.value)}
+                  placeholder="Buscar por cliente, n° orden o dirección…"
+                  className="h-9 pl-8 text-xs"
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-1">
+                  {([
+                    { key: "ALL", label: "Todos" },
+                    { key: "SALE", label: "Venta" },
+                    { key: "ORDER", label: "Pedido" },
+                  ] as const).map((opt) => (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() => setPendingDeliveryType(opt.key)}
+                      className={cn(
+                        "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                        pendingDeliveryType === opt.key
+                          ? "bg-primary text-white"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-1">
+                  {([
+                    { key: "ALL", label: "Todos" },
+                    { key: "PENDING", label: "Pendiente" },
+                    { key: "PARTIAL", label: "Parcial" },
+                    { key: "PAID", label: "Pagada" },
+                  ] as const).map((opt) => (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() => setPendingDeliveryPayment(opt.key)}
+                      className={cn(
+                        "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                        pendingDeliveryPayment === opt.key
+                          ? "bg-primary text-white"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {loadingPendingDeliveries ? (
+                <div className="grid place-items-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : filteredPendingDeliveries.length === 0 ? (
+                <div className="flex flex-col items-center gap-3 py-12 text-center">
+                  <Zap className="h-8 w-8 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">No hay entregas pendientes.</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {(filteredPendingDeliveries as Order[]).map((order) => (
+                    <div
+                      key={order.id}
+                      className="group flex flex-col gap-2 rounded-xl border border-border bg-background p-3 transition-colors hover:border-blue-300 hover:bg-blue-50/30"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium">
+                            {order.order_number ?? order.id.slice(0, 8)}
+                          </p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {order.client?.name ?? "Sin cliente"}
+                            {order.delivery_address ? ` · ${order.delivery_address}` : ""}
+                          </p>
+                        </div>
+                        <span className="shrink-0 text-sm font-semibold tabular-nums">
+                          {formatCLP(order.total_amount ?? "0")}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs text-muted-foreground">
+                          {order.payment_status === "PAID" ? "Pagada" : "Pendiente pago"}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleEditOrder(order)}
+                            className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                          >
+                            <Pencil className="h-3 w-3" />
+                            Ver
+                          </button>
+                          <button
+                            type="button"
+                            disabled={deliverMutation.isPending}
+                            onClick={() => deliverMutation.mutate({ id: order.id })}
+                            className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+                          >
+                            {deliverMutation.isPending && deliverMutation.variables?.id === order.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Zap className="h-3 w-3" />
+                            )}
+                            Entregado
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -1010,6 +1571,149 @@ export default function PosPage() {
         />
       )}
 
+      {showCashRegisterModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowCashRegisterModal(false);
+          }}
+        >
+          <div className="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-lg">
+            <h3 className="text-base font-semibold">
+              {currentCashRegister ? "Resumen de caja" : "Abrir caja"}
+            </h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Estación {activeStation?.name ?? "actual"}
+            </p>
+
+            {currentCashRegister && dailySummary && (
+              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <div className="rounded-lg border border-border/60 bg-muted/40 p-2.5">
+                  <div className="mb-1 flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <TrendingUp className="h-3 w-3" />
+                    Ventas
+                  </div>
+                  <p className="text-sm font-semibold tabular-nums">
+                    {formatCLP(parseFloat(String(dailySummary.total_sales || "0")))}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border/60 bg-muted/40 p-2.5">
+                  <div className="mb-1 flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <Banknote className="h-3 w-3" />
+                    Efectivo
+                  </div>
+                  <p className="text-sm font-semibold tabular-nums">
+                    {formatCLP(parseFloat(String(dailySummary.cash_sales || "0")))}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border/60 bg-muted/40 p-2.5">
+                  <div className="mb-1 flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <Wallet className="h-3 w-3" />
+                    Otros
+                  </div>
+                  <p className="text-sm font-semibold tabular-nums">
+                    {formatCLP(parseFloat(String(dailySummary.other_sales || "0")))}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border/60 bg-muted/40 p-2.5">
+                  <div className="mb-1 flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <ArrowDownLeft className="h-3 w-3" />
+                    Ingresos
+                  </div>
+                  <p className="text-sm font-semibold tabular-nums">
+                    {formatCLP(parseFloat(String(dailySummary.cash_in || "0")))}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border/60 bg-muted/40 p-2.5">
+                  <div className="mb-1 flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <ArrowUpRight className="h-3 w-3" />
+                    Retiros
+                  </div>
+                  <p className="text-sm font-semibold tabular-nums">
+                    {formatCLP(parseFloat(String(dailySummary.cash_out || "0")))}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border/60 bg-emerald-500/10 p-2.5">
+                  <div className="mb-1 flex items-center gap-1 text-[10px] text-emerald-700">
+                    <Calculator className="h-3 w-3" />
+                    Esperado
+                  </div>
+                  <p className="text-sm font-semibold tabular-nums text-emerald-700">
+                    {formatCLP(parseFloat(String(dailySummary.expected_amount ?? "0")))}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-4">
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                {currentCashRegister ? "Monto final en caja" : "Monto inicial en caja"}
+              </label>
+              <Input
+                type="number"
+                min={0}
+                step="1"
+                value={cashRegisterAmount}
+                onChange={(e) => setCashRegisterAmount(e.target.value)}
+                placeholder="Ej: 10000"
+                className="h-10 text-sm tabular-nums"
+                autoFocus
+              />
+              {currentCashRegister && cashRegisterAmount && dailySummary?.expected_amount !== undefined && (
+                <p className="mt-2 text-xs">
+                  Diferencia:{" "}
+                  <span
+                    className={cn(
+                      "font-medium tabular-nums",
+                      parseFloat(cashRegisterAmount || "0") - parseFloat(String(dailySummary.expected_amount)) === 0
+                        ? "text-emerald-600"
+                        : "text-amber-600"
+                    )}
+                  >
+                    {formatCLP(
+                      parseFloat(cashRegisterAmount || "0") -
+                        parseFloat(String(dailySummary.expected_amount))
+                    )}
+                  </span>
+                </p>
+              )}
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowCashRegisterModal(false)}
+                disabled={openCashRegisterMutation.isPending || closeCashRegisterMutation.isPending}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={() =>
+                  currentCashRegister
+                    ? closeCashRegisterMutation.mutate()
+                    : openCashRegisterMutation.mutate()
+                }
+                disabled={openCashRegisterMutation.isPending || closeCashRegisterMutation.isPending}
+              >
+                {(openCashRegisterMutation.isPending || closeCashRegisterMutation.isPending) && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                {currentCashRegister ? "Cerrar caja" : "Abrir caja"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {postSaleOrder && (
+        <PostSaleModal
+          order={postSaleOrder}
+          items={postSaleItems}
+          branchName={branch?.business_name}
+          onClose={handleClosePostSale}
+        />
+      )}
     </div>
   );
 }

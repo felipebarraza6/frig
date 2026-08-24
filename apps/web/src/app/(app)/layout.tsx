@@ -65,6 +65,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Cajero/mesero no necesitan ver el hub de estaciones; entran directo al terminal.
+    if ((isCashier || isWaiter) && pathname === "/pos") {
+      router.replace("/pos/terminal");
+      return;
+    }
+
     if (!isRouteModuleEnabled && pathname !== "/dashboard") {
       router.replace("/dashboard");
     }

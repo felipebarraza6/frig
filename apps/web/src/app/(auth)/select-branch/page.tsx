@@ -6,6 +6,7 @@ import { Store, Building2 } from "lucide-react";
 import {
   useSessionStore,
   useIsPosFirstRole,
+  useCurrentBranchRole,
   normalizeDashboardRoute,
 } from "@/lib/store/session";
 import { fetchFrontendConfig } from "@/lib/api/frontend-config";
@@ -24,6 +25,7 @@ export default function SelectBranchPage() {
   const setFrontendConfig = useSessionStore((s) => s.setFrontendConfig);
   const setTheme = useSessionStore((s) => s.setTheme);
   const isPosFirst = useIsPosFirstRole();
+  const currentRole = useCurrentBranchRole();
 
   async function handleSelect(branchId: string) {
     try {
@@ -41,12 +43,21 @@ export default function SelectBranchPage() {
       const dashboard = normalizeDashboardRoute(config.dashboard);
       if (dashboard) {
         router.replace(dashboard);
+        return;
+      }
+      // Cajero y mesero van directo al terminal; admin local/owner al hub de POS.
+      if (currentRole === "CAJERO" || currentRole === "WAITER") {
+        router.replace("/pos/terminal");
+        return;
+      }
+      router.replace(isPosFirst ? "/pos" : "/dashboard");
+    } catch {
+      // Si frontend-config falla, mantener comportamiento anterior como fallback.
+      if (currentRole === "CAJERO" || currentRole === "WAITER") {
+        router.replace("/pos/terminal");
       } else {
         router.replace(isPosFirst ? "/pos" : "/dashboard");
       }
-    } catch {
-      // Si frontend-config falla, mantener comportamiento anterior como fallback.
-      router.replace(isPosFirst ? "/pos" : "/dashboard");
     }
   }
 

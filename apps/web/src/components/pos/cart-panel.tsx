@@ -14,6 +14,7 @@ import {
   X,
   Search,
   Table,
+  ClipboardList,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,10 +42,8 @@ import {
   type ValidatedDiscount,
 } from "@/lib/api/discounts";
 import type { YggdraSchemas } from "@/lib/api/types";
-import { PostSaleModal } from "./post-sale-modal";
-
 type Customer = YggdraSchemas["Client"];
-type Order = YggdraSchemas["Order"];
+type Order = YggdraSchemas["Order"] & { order_number?: string | null };
 
 function useDebounce(value: string, delay = 300) {
   const [debounced, setDebounced] = useState(value);
@@ -63,12 +62,13 @@ interface CartPanelProps {
   existingOrderLoading?: boolean;
   existingOrderError?: Error | null;
   onOrderRegistered?: () => void;
+  onPostSaleOrder?: (order: Order, items: CartItem[]) => void;
   onClose?: () => void;
   isWaiter?: boolean;
   defaultOrderType?: "SALE" | "ORDER" | "AGREEMENT";
 }
 
-export default function CartPanel({ stationId, selectedTable, existingOrderId, existingOrder, existingOrderLoading, existingOrderError, onOrderRegistered, onClose, isWaiter: isWaiterProp, defaultOrderType }: CartPanelProps) {
+export default function CartPanel({ stationId, selectedTable, existingOrderId, existingOrder, existingOrderLoading, existingOrderError, onOrderRegistered, onPostSaleOrder, onClose, isWaiter: isWaiterProp, defaultOrderType }: CartPanelProps) {
   const queryClient = useQueryClient();
   const branch = useCurrentBranch();
   const branchId = branch?.branch_id ?? null;
@@ -97,8 +97,6 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
   const clientSearchRef = useRef<HTMLDivElement>(null);
   const [discountCode, setDiscountCode] = useState("");
   const [validatedDiscount, setValidatedDiscount] = useState<ValidatedDiscount | null>(null);
-  const [postSaleOrder, setPostSaleOrder] = useState<Order | null>(null);
-  const [postSaleItems, setPostSaleItems] = useState<CartItem[]>([]);
 
   const debouncedClientQuery = useDebounce(clientQuery, 300);
 
@@ -260,6 +258,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
         );
         queryClient.invalidateQueries({ queryKey: ["tables"] });
         queryClient.invalidateQueries({ queryKey: ["orders"] });
+        queryClient.invalidateQueries({ queryKey: ["products"], refetchType: "all" });
         clear();
         toast.success(`Productos agregados a orden ${order.id.slice(0, 8)}`);
         onOrderRegistered?.();
@@ -267,11 +266,20 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
       }
 
       // Un mesero nunca cobra: siempre crea un pedido/cuenta abierta.
+      // Si se entró explicitamente como "Abrir cuenta" (defaultOrderType ORDER),
+      // se mantiene como ORDER aunque se registren pagos parciales.
       let orderType: "SALE" | "ORDER" | "AGREEMENT";
-      if (defaultOrderType) {
-        orderType = defaultOrderType === "ORDER" && payments.length > 0 ? "SALE" : defaultOrderType;
+      if (defaultOrderType === "ORDER") {
+        orderType = "ORDER";
+      } else if (defaultOrderType) {
+        orderType = defaultOrderType;
       } else {
         orderType = isWaiter ? "ORDER" : payments.length > 0 ? "SALE" : "ORDER";
+      }
+      if (orderType === "ORDER" && !selectedClient) {
+        toast.error("Debes seleccionar un cliente para guardar el pedido / cuenta.");
+        setSaving(false);
+        return;
       }
       const order = await createOrder({
         items: cartToOrderItems(items),
@@ -344,13 +352,19 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
       }
 
       if (orderType === "SALE" && payments.length > 0) {
-        // Venta pagada: mostrar modal de comprobantes en lugar de toast.
-        setPostSaleOrder(order);
-        setPostSaleItems([...items]);
+        // Venta pagada: delegar al padre el modal de comprobantes para que
+        // sobreviva al cierre del drawer en móvil.
+        onPostSaleOrder?.(order, [...items]);
+        clear();
+        resetPayments();
+        setSelectedClient(null);
+        setDiscountCode("");
+        setValidatedDiscount(null);
         onOrderRegistered?.();
         return;
       }
 
+      queryClient.invalidateQueries({ queryKey: ["products"], refetchType: "all" });
       clear();
       resetPayments();
       setSelectedClient(null);
@@ -364,16 +378,6 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
     } finally {
       setSaving(false);
     }
-  }
-
-  function handleClosePostSale() {
-    setPostSaleOrder(null);
-    setPostSaleItems([]);
-    clear();
-    resetPayments();
-    setSelectedClient(null);
-    setDiscountCode("");
-    setValidatedDiscount(null);
   }
 
   async function handleApplyDiscount() {
@@ -396,21 +400,152 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
     }
   }
 
+  const willBeOrder = !existingOrderId && (defaultOrderType === "ORDER"
+    ? true
+    : isWaiter || payments.length === 0);
+
   const canRegister = existingOrderId
     ? items.length > 0 && !saving
     : items.length > 0 &&
       !saving &&
       !cashRegisterMissing &&
-      (payments.length === 0 || paidAmount >= total);
+      (payments.length === 0 || paidAmount >= total) &&
+      (!willBeOrder || selectedClient != null);
 
   const hasPendingPayment = payments.length > 0 && paidAmount < total;
+
+  function renderClientField() {
+    return (
+      <div className="flex flex-col gap-1.5">
+        <label className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+          <User className="h-3 w-3" />
+          Cliente <span className="text-danger">*</span>
+        </label>
+        {selectedClient ? (
+          <div className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-2">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium leading-tight">{selectedClient.name}</p>
+              <p className="truncate text-[11px] text-muted-foreground">
+                {selectedClient.dni ?? selectedClient.phone_number ?? selectedClient.email ?? "Sin datos adicionales"}
+              </p>
+              {(selectedClient as unknown as { tags?: string[] }).tags && (
+                <span className="mt-1 flex flex-wrap gap-1">
+                  {(selectedClient as unknown as { tags?: string[] }).tags?.map((tag) => (
+                    <span
+                      key={tag}
+                      className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </span>
+              )}
+            </div>
+            <button
+              onClick={() => setSelectedClient(null)}
+              aria-label="Quitar cliente"
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        ) : (
+          <div ref={clientSearchRef} className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={clientQuery}
+              onChange={(e) => {
+                setClientQuery(e.target.value);
+                setShowClientResults(true);
+              }}
+              onFocus={() => setShowClientResults(true)}
+              placeholder="Nombre, RUT, teléfono, email o tag…"
+              className="h-9 pl-8 pr-14 text-xs"
+              aria-label="Buscar cliente"
+            />
+            <button
+              type="button"
+              onClick={() => setCreateModalOpen(true)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] font-medium text-primary hover:underline"
+            >
+              + Nuevo
+            </button>
+            <AnimatePresence>
+              {showClientResults && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-border bg-card shadow-lg"
+                >
+                  {clientQuery.trim().length === 0 ? (
+                    <p className="px-3 py-2 text-xs text-muted-foreground">
+                      Escribe nombre, RUT, teléfono, email o tag…
+                    </p>
+                  ) : searchingCustomers ? (
+                    <p className="px-3 py-2 text-xs text-muted-foreground">Buscando…</p>
+                  ) : customerResults.length === 0 ? (
+                    <p className="px-3 py-2 text-xs text-muted-foreground">No se encontraron clientes.</p>
+                  ) : (
+                    <>
+                      {customerResults.map((c) => {
+                        const clientTags = (c as unknown as { tags?: string[] }).tags ?? [];
+                        const secondary = [c.dni, c.phone_number, c.email].filter(Boolean).join(" · ") || "—";
+                        return (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedClient(c);
+                              setClientQuery("");
+                              setShowClientResults(false);
+                            }}
+                            className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left hover:bg-muted"
+                          >
+                            <span className="text-sm font-medium">{c.name}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {secondary}
+                            </span>
+                            {clientTags.length > 0 && (
+                              <span className="flex flex-wrap gap-1">
+                                {clientTags.map((tag) => (
+                                  <span
+                                    key={tag}
+                                    className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary"
+                                  >
+                                    {tag}
+                                  </span>
+                                ))}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-background">
       <div className="flex shrink-0 items-center justify-between border-b border-border/60 px-4 py-3">
         <div className="flex items-center gap-2">
           <ShoppingCart className="h-4 w-4 text-primary" />
-          <h2 className="text-sm font-semibold">Cuenta</h2>
+          <h2 className="text-sm font-semibold">
+            {existingOrderId && existingOrder
+              ? `Editando ${existingOrder.order_type === "SALE" ? "venta" : "cuenta"} #${existingOrder.order_number ?? ""}`
+              : defaultOrderType === "ORDER"
+                ? "Nueva orden"
+                : defaultOrderType === "SALE"
+                  ? "Nueva venta"
+                  : "Cuenta"}
+          </h2>
         </div>
         <div className="flex items-center gap-2">
           <span
@@ -448,15 +583,30 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-3">
             {!existingOrderId && (
               <div className="grid flex-1 place-items-center p-6">
-                <div className="flex flex-col items-center gap-3 text-center">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-                    <ShoppingCart className="h-5 w-5 text-muted-foreground" />
+                {defaultOrderType === "ORDER" ? (
+                  <div className="flex w-full max-w-xs flex-col gap-4">
+                    <div className="flex flex-col items-center gap-2 text-center">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/10">
+                        <ClipboardList className="h-5 w-5 text-blue-600" />
+                      </div>
+                      <p className="text-sm font-medium">Nueva orden</p>
+                      <p className="text-xs text-muted-foreground">
+                        Selecciona un cliente obligatorio y luego agrega productos.
+                      </p>
+                    </div>
+                    {renderClientField()}
                   </div>
-                  <p className="text-sm font-medium">Carrito vacío</p>
-                  <p className="max-w-56 text-xs text-muted-foreground">
-                    Toca productos en el catálogo para armar la cuenta.
-                  </p>
-                </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-3 text-center">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                      <ShoppingCart className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <p className="text-sm font-medium">Carrito vacío</p>
+                    <p className="max-w-56 text-xs text-muted-foreground">
+                      Toca productos en el catálogo para armar la cuenta.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -555,119 +705,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
 
               {!existingOrderId && (
                 <>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-                      <User className="h-3 w-3" />
-                      Cliente
-                    </label>
-                {selectedClient ? (
-                  <div className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-2">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium leading-tight">{selectedClient.name}</p>
-                      <p className="truncate text-[11px] text-muted-foreground">
-                        {selectedClient.dni ?? selectedClient.phone_number ?? selectedClient.email ?? "Sin datos adicionales"}
-                      </p>
-                      {(selectedClient as unknown as { tags?: string[] }).tags && (
-                        <span className="mt-1 flex flex-wrap gap-1">
-                          {(selectedClient as unknown as { tags?: string[] }).tags?.map((tag) => (
-                            <span
-                              key={tag}
-                              className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </span>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => setSelectedClient(null)}
-                      aria-label="Quitar cliente"
-                      className="text-muted-foreground hover:text-foreground"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <div ref={clientSearchRef} className="relative">
-                    <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      value={clientQuery}
-                      onChange={(e) => {
-                        setClientQuery(e.target.value);
-                        setShowClientResults(true);
-                      }}
-                      onFocus={() => setShowClientResults(true)}
-                      placeholder="Nombre, RUT, teléfono, email o tag…"
-                      className="h-9 pl-8 pr-14 text-xs"
-                      aria-label="Buscar cliente"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setCreateModalOpen(true)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] font-medium text-primary hover:underline"
-                    >
-                      + Nuevo
-                    </button>
-                    <AnimatePresence>
-                      {showClientResults && (
-                        <motion.div
-                          initial={{ opacity: 0, y: -4 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -4 }}
-                          className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-border bg-card shadow-lg"
-                        >
-                          {clientQuery.trim().length === 0 ? (
-                            <p className="px-3 py-2 text-xs text-muted-foreground">
-                              Escribe nombre, RUT, teléfono, email o tag…
-                            </p>
-                          ) : searchingCustomers ? (
-                            <p className="px-3 py-2 text-xs text-muted-foreground">Buscando…</p>
-                          ) : customerResults.length === 0 ? (
-                            <p className="px-3 py-2 text-xs text-muted-foreground">No se encontraron clientes.</p>
-                          ) : (
-                            <>
-                              {customerResults.map((c) => {
-                                const clientTags = (c as unknown as { tags?: string[] }).tags ?? [];
-                                const secondary = [c.dni, c.phone_number, c.email].filter(Boolean).join(" · ") || "—";
-                                return (
-                                  <button
-                                    key={c.id}
-                                    type="button"
-                                    onClick={() => {
-                                      setSelectedClient(c);
-                                      setClientQuery("");
-                                      setShowClientResults(false);
-                                    }}
-                                    className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left hover:bg-muted"
-                                  >
-                                    <span className="text-sm font-medium">{c.name}</span>
-                                    <span className="text-xs text-muted-foreground">
-                                      {secondary}
-                                    </span>
-                                    {clientTags.length > 0 && (
-                                      <span className="flex flex-wrap gap-1">
-                                        {clientTags.map((tag) => (
-                                          <span
-                                            key={tag}
-                                            className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary"
-                                          >
-                                            {tag}
-                                          </span>
-                                        ))}
-                                      </span>
-                                    )}
-                                  </button>
-                                );
-                              })}
-                            </>
-                          )}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                )}
-              </div>
+                  {renderClientField()}
 
               {!isWaiter && (
                 <div className="flex flex-col gap-2">
@@ -881,6 +919,8 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
             </>
           ) : existingOrderId ? (
             "Agregar a la orden"
+          ) : defaultOrderType === "ORDER" ? (
+            "Guardar orden"
           ) : isWaiter ? (
             "Guardar pedido"
           ) : payments.length > 0 ? (
@@ -900,14 +940,6 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
         />
       )}
 
-      {postSaleOrder && (
-        <PostSaleModal
-          order={postSaleOrder}
-          items={postSaleItems}
-          branchName={branch?.business_name}
-          onClose={handleClosePostSale}
-        />
-      )}
     </div>
   );
 }

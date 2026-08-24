@@ -6,6 +6,8 @@ export type YggdraPayment = YggdraSchemas["Payment"];
 export type YggdraPaymentCreate = YggdraSchemas["PaymentCreateRequest"] & {
   /** ID de la caja abierta a la que se asocia el pago (efectivo). */
   cash_register_id?: number | null;
+  /** Si es true, no se exige caja abierta para pagos en efectivo (registro manual desde Ventas). */
+  skip_cash_register_validation?: boolean;
 };
 
 type PaginatedPaymentMethod = YggdraSchemas["PaginatedPaymentMethodListList"];

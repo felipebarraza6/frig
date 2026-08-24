@@ -18,12 +18,20 @@ export interface PosProduct {
   is_for_sale?: boolean;
   is_active?: boolean;
   quantity?: number;
+  stock_available?: number | null;
   minimum_stock?: number;
 }
 
 export function toPosProduct(p: YggdraProduct): PosProduct {
   const cat = p.category && typeof p.category === "object" ? p.category : null;
   const rawPrice = parseFloat(p.sale_price ?? p.price ?? "0") || 0;
+  // stock_available viene anotado desde el endpoint de listado; puede no estar
+  // presente en otros endpoints o en versiones anteriores del schema.
+  const rawStockAvailable = (p as { stock_available?: number | null }).stock_available;
+  const effectiveQuantity =
+    rawStockAvailable !== undefined && rawStockAvailable !== null
+      ? rawStockAvailable
+      : p.quantity;
   return {
     id: p.id,
     name: p.name,
@@ -35,7 +43,8 @@ export function toPosProduct(p: YggdraProduct): PosProduct {
     categoryName: cat?.name ?? null,
     is_for_sale: p.is_for_sale,
     is_active: p.is_active,
-    quantity: p.quantity,
+    quantity: effectiveQuantity,
+    stock_available: rawStockAvailable,
     minimum_stock: p.minimum_stock,
   };
 }
