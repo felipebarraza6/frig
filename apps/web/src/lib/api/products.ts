@@ -69,6 +69,15 @@ export async function fetchProducts(filter: ProductsFilter = {}): Promise<Yggdra
   return apiFetch<YggdraPaginated>(`/inventory/products/${q ? `?${q}` : ""}`);
 }
 
+/**
+ * Obtiene el detalle completo de un producto. El listado (`ProductList`) no
+ * expone `is_public` ni los campos nutricionales, así que al editar hay que
+ * usar el retrieve o se pierden esos datos al re-guardar.
+ */
+export async function fetchProduct(id: number): Promise<YggdraSchemas["Product"]> {
+  return apiFetch<YggdraSchemas["Product"]>(`/inventory/products/${id}/`);
+}
+
 export async function createProduct(payload: ProductPayload): Promise<YggdraProduct> {
   return apiFetch<YggdraProduct>("/inventory/products/", {
     method: "POST",

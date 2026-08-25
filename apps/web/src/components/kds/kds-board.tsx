@@ -32,7 +32,7 @@ import {
   updateKitchenStation,
   type KitchenStation,
 } from "@/lib/api/kitchen-stations";
-import { fetchCategoryList } from "@/lib/api/categories";
+import { useCategoryOptions } from "@/lib/hooks/useCategoryOptions";
 import { useCurrentBranch } from "@/lib/store/session";
 import { cn } from "@/lib/utils";
 
@@ -402,10 +402,7 @@ export function StationsModal({
   const [name, setName] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
 
-  const { data: categories = [] } = useQuery({
-    queryKey: ["categories-simple"],
-    queryFn: fetchCategoryList,
-  });
+  const { options: categoryOptions = [] } = useCategoryOptions();
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["kitchen-stations"] });
@@ -495,7 +492,7 @@ export function StationsModal({
             <div>
               <label className="mb-1 block text-xs font-medium">Categorías asignadas</label>
               <div className="flex flex-wrap gap-2">
-                {categories.map((category) => (
+                {categoryOptions.map((category) => (
                   <button
                     key={category.id}
                     type="button"
@@ -510,7 +507,7 @@ export function StationsModal({
                     {category.name}
                   </button>
                 ))}
-                {categories.length === 0 && (
+                {categoryOptions.length === 0 && (
                   <p className="text-xs text-muted-foreground">No hay categorías disponibles.</p>
                 )}
               </div>

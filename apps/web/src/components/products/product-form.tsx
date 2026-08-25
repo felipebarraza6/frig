@@ -3,15 +3,16 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { X, Loader2, Plus, Trash2, Search } from "lucide-react";
+import { X, Loader2, Plus, Trash2, Search, FileDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { fetchCategoryList } from "@/lib/api/categories";
+import { useCategoryOptions } from "@/lib/hooks/useCategoryOptions";
 import { fetchProducts } from "@/lib/api/products";
 import type { ProductPayload } from "@/lib/api/products";
 import type { YggdraProduct } from "@/lib/api/types";
 import { NutritionLabelPreview } from "@/components/products/nutrition-label-preview";
+import { ProductTypeHelp } from "@/components/products/product-type-help";
 import {
   fetchRecipesByProduct,
   createRecipe,
@@ -20,12 +21,14 @@ import {
   updateRecipeIngredient,
   deleteRecipeIngredient,
   calculateRecipeNutrition,
-  nutritionLabelPdfUrl,
+  downloadRecipeNutritionLabel,
   type RecipePayload,
   type RecipeIngredientPayload,
 } from "@/lib/api/recipes";
 import { fetchWarehouses, addProductToWarehouse } from "@/lib/api/warehouses";
 import { useBranchProductTypes } from "@/lib/hooks/useBranchProductTypes";
+import { useDownloadFile } from "@/lib/hooks/useDownloadFile";
+import { useIsNutritionEnabled } from "@/lib/store/session";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 const RECIPE_TYPES = [
@@ -33,6 +36,25 @@ const RECIPE_TYPES = [
   { value: "PREPARATION", label: "Preparación" },
   { value: "COOKING", label: "Cocción" },
   { value: "ASSEMBLY", label: "Ensamblaje" },
+] as const;
+
+/** Unidades de medida normalizadas. Evita que "Kg" y "kg" sean distintos. */
+const MEASUREMENT_UNITS = [
+  { value: "unidad", label: "Unidad" },
+  { value: "kg", label: "Kilogramo (kg)" },
+  { value: "g", label: "Gramo (g)" },
+  { value: "litro", label: "Litro" },
+  { value: "ml", label: "Mililitro (ml)" },
+  { value: "porcion", label: "Porción" },
+  { value: "docena", label: "Docena" },
+  { value: "metro", label: "Metro" },
+  { value: "cm", label: "Centímetro" },
+  { value: "m2", label: "Metro cuadrado (m²)" },
+  { value: "caja", label: "Caja" },
+  { value: "botella", label: "Botella" },
+  { value: "lata", label: "Lata" },
+  { value: "bolsa", label: "Bolsa" },
+  { value: "otro", label: "Otro…" },
 ] as const;
 
 type IngredientProduct = YggdraSchemas["ProductList"];
@@ -47,7 +69,9 @@ interface IngredientDraft {
   preparation_notes?: string;
 }
 
-interface YggdraProductDetail extends YggdraProduct {
+interface YggdraProductDetail extends Omit<YggdraProduct, "category" | "branch" | "history_product"> {
+  /** El listado trae la categoría expandida; el retrieve trae el id numérico. */
+  category?: number | null | { id: number; name?: string };
   is_nutritional_ingredient?: boolean;
   is_public?: boolean;
   energy_kcal?: string | null;
@@ -76,10 +100,9 @@ function generateId() {
 export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
   const queryClient = useQueryClient();
   const { options: productTypeOptions, defaultType } = useBranchProductTypes();
-  const { data: categories = [], isLoading: loadingCategories } = useQuery({
-    queryKey: ["categories", "list"],
-    queryFn: fetchCategoryList,
-  });
+  const nutritionEnabled = useIsNutritionEnabled();
+  const { download: downloadNutritionPdf, isLoading: downloadingNutritionPdf } = useDownloadFile();
+  const { options: categories, isLoading: loadingCategories } = useCategoryOptions();
 
   const [form, setForm] = useState<{
     name: string;
@@ -121,13 +144,21 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
     stock: product?.quantity !== undefined ? String(product.quantity) : "",
     minimumStock: product?.minimum_stock !== undefined ? String(product.minimum_stock) : "",
     measurementUnit: product?.measurement_unit ?? "",
-    category: product?.category && typeof product.category === "object" ? String(product.category.id) : "",
-    productType: product?.product_type ?? defaultType ?? productTypeOptions[0]?.value ?? "DIRECT_SALE",
+    category:
+      product?.category && typeof product.category === "object"
+        ? String(product.category.id)
+        : typeof product?.category === "number"
+          ? String(product.category)
+          : "",
+    // El default se resuelve acá sin `productTypeOptions[0]`: al abrir el form la
+    // query de tipos puede estar en vuelo y ese array estar vacío. Un efecto
+    // corrige el valor cuando las opciones llegan (ver abajo).
+    productType: product?.product_type ?? defaultType ?? "DIRECT_SALE",
     isForSale: product?.is_for_sale ?? true,
     isForInternalUse: product?.is_for_internal_use ?? false,
-    isPublic: (product as YggdraProduct & { is_public?: boolean })?.is_public ?? false,
+    isPublic: product?.is_public ?? false,
     isActive: product?.is_active ?? true,
-    isNutritionalIngredient: (product as YggdraProduct & { is_nutritional_ingredient?: boolean })?.is_nutritional_ingredient ?? false,
+    isNutritionalIngredient: product?.is_nutritional_ingredient ?? false,
     energyKcal: product?.energy_kcal ?? "",
     proteinsG: product?.proteins_g ?? "",
     totalFatsG: product?.total_fats_g ?? "",
@@ -151,10 +182,22 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
 
   const [tracksWarehouseStock, setTracksWarehouseStock] = useState(false);
   const [warehouseAssignments, setWarehouseAssignments] = useState<
-    { localId: string; warehouseId: string; initialQuantity: string }[]
+    {
+      localId: string;
+      warehouseId: string;
+      initialQuantity: string;
+      minimumQuantity: string;
+      maximumQuantity: string;
+      reorderPoint: string;
+      location: string;
+    }[]
   >([]);
   const [selectedWarehouse, setSelectedWarehouse] = useState("");
   const [selectedInitialQty, setSelectedInitialQty] = useState("");
+  const [selectedMinimumQty, setSelectedMinimumQty] = useState("");
+  const [selectedMaximumQty, setSelectedMaximumQty] = useState("");
+  const [selectedReorderPoint, setSelectedReorderPoint] = useState("");
+  const [selectedLocation, setSelectedLocation] = useState("");
 
   const [recipe, setRecipe] = useState<{
     id?: string;
@@ -184,6 +227,63 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
   const [removedIngredientIds, setRemovedIngredientIds] = useState<number[]>([]);
 
   const isCompound = form.productType === "RECIPE_BASED";
+  const isRawMaterial = form.productType === "RAW_MATERIAL";
+  const isSellable = !isRawMaterial;
+  /** Receta existente que quedaría huérfana si se guarda con otro tipo. */
+  const orphanRecipe = Boolean(recipe.id) && !isCompound;
+  /** True si la unidad de medida no está en el catálogo normalizado. */
+  const isCustomUnit = form.measurementUnit
+    ? !MEASUREMENT_UNITS.some((u) => u.value === form.measurementUnit)
+    : false;
+
+  type FormTab = "basic" | "pricing" | "recipe" | "warehouses" | "nutrition";
+  const [activeTab, setActiveTab] = useState<FormTab>("basic");
+
+  const tabs = useMemo<{ id: FormTab; label: string; enabled: boolean }[]>(() => {
+    const list: { id: FormTab; label: string; enabled: boolean }[] = [
+      { id: "basic", label: "Datos básicos", enabled: true },
+      { id: "pricing", label: "Precios y venta", enabled: true },
+      { id: "recipe", label: "Receta", enabled: isCompound },
+      { id: "warehouses", label: "Bodegas", enabled: !product?.id },
+    ];
+    if (nutritionEnabled) {
+      list.push({ id: "nutrition", label: "Nutrición", enabled: true });
+    }
+    return list;
+  }, [isCompound, product?.id, nutritionEnabled]);
+
+  // Al cargar las opciones de tipo (la query puede llegar después de abrir el
+  // form), corrige el valor actual si no está entre las disponibles.
+  useEffect(() => {
+    if (productTypeOptions.length === 0) return;
+    if (productTypeOptions.some((o) => o.value === form.productType)) return;
+    const next =
+      defaultType && productTypeOptions.some((o) => o.value === defaultType)
+        ? defaultType
+        : productTypeOptions[0]?.value;
+    if (next) setForm((prev) => ({ ...prev, productType: next }));
+  }, [productTypeOptions, defaultType, form.productType]);
+
+  // Las materias primas no se venden por defecto (solo se usan en recetas).
+  useEffect(() => {
+    if (isRawMaterial && !product && (form.isForSale || form.isPublic)) {
+      setForm((prev) => ({ ...prev, isForSale: false, isPublic: false }));
+    }
+  }, [isRawMaterial, product, form.isForSale, form.isPublic]);
+
+  // Si se desmarca la gestión por bodega, limpiar las asignaciones pendientes.
+  useEffect(() => {
+    if (!tracksWarehouseStock && warehouseAssignments.length > 0) {
+      setWarehouseAssignments([]);
+    }
+  }, [tracksWarehouseStock, warehouseAssignments.length]);
+
+  // Al entrar al tab Bodegas se activa la gestión de stock por bodega.
+  useEffect(() => {
+    if (activeTab === "warehouses" && !product?.id && !tracksWarehouseStock) {
+      setTracksWarehouseStock(true);
+    }
+  }, [activeTab, product?.id, tracksWarehouseStock]);
 
   const { data: existingRecipes = [], isLoading: loadingRecipes } = useQuery({
     queryKey: ["recipes", "by-product", product?.id],
@@ -311,10 +411,18 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
         localId: generateId(),
         warehouseId: selectedWarehouse,
         initialQuantity: selectedInitialQty || "0",
+        minimumQuantity: selectedMinimumQty,
+        maximumQuantity: selectedMaximumQty,
+        reorderPoint: selectedReorderPoint,
+        location: selectedLocation,
       },
     ]);
     setSelectedWarehouse("");
     setSelectedInitialQty("");
+    setSelectedMinimumQty("");
+    setSelectedMaximumQty("");
+    setSelectedReorderPoint("");
+    setSelectedLocation("");
   }
 
   function removeWarehouseAssignment(localId: string) {
@@ -328,6 +436,10 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
           warehouse_id: Number(a.warehouseId),
           product_id: productId,
           initial_quantity: Number(a.initialQuantity) || 0,
+          minimum_quantity: a.minimumQuantity ? Number(a.minimumQuantity) : undefined,
+          maximum_quantity: a.maximumQuantity ? Number(a.maximumQuantity) : undefined,
+          reorder_point: a.reorderPoint ? Number(a.reorderPoint) : undefined,
+          location_in_warehouse: a.location || undefined,
         }),
       ),
     );
@@ -379,10 +491,34 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+
+    if (!form.name.trim()) {
+      setError("El nombre es obligatorio.");
+      return;
+    }
+    if (isSellable) {
+      const price = Number(form.price);
+      if (!form.price || Number.isNaN(price) || price <= 0) {
+        setError("Ingresa un precio de venta mayor a 0.");
+        return;
+      }
+    }
+    if (isCompound) {
+      if (ingredients.length === 0) {
+        setError("Agrega al menos una materia prima a la receta.");
+        return;
+      }
+      const emptyIngredient = ingredients.find((i) => !i.quantity || Number(i.quantity) <= 0);
+      if (emptyIngredient) {
+        setError("Todas las materias primas deben tener una cantidad mayor a 0.");
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       const payload: ProductPayload = {
-        name: form.name,
+        name: form.name.trim(),
         code: form.code || null,
         description: form.description || null,
         price: form.price || undefined,
@@ -390,12 +526,14 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
         cost_price: form.costPrice || undefined,
         price_internal: form.priceInternal || undefined,
         wholesale_price: form.wholesalePrice || undefined,
-        quantity: form.stock ? Number(form.stock) : undefined,
-        minimum_stock: form.minimumStock ? Number(form.minimumStock) : undefined,
+        // En creación no enviamos stock general: si se gestiona por bodega se
+        // asigna abajo; si no, el producto se crea sin stock inicial.
+        quantity: product?.id ? (form.stock ? Number(form.stock) : undefined) : undefined,
+        minimum_stock: product?.id ? (form.minimumStock ? Number(form.minimumStock) : undefined) : undefined,
         measurement_unit: form.measurementUnit || null,
         category: form.category ? Number(form.category) : null,
         product_type: form.productType as unknown as ProductPayload["product_type"],
-        is_for_sale: form.isForSale,
+        is_for_sale: isRawMaterial ? false : form.isForSale,
         is_for_internal_use: form.isForInternalUse,
         is_public: form.isPublic,
         is_active: form.isActive,
@@ -438,30 +576,51 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
-      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-xl border border-border bg-card p-6 shadow-lg">
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 sm:items-center sm:p-4" role="dialog" aria-modal="true">
+      <div className="h-[92dvh] w-full overflow-y-auto rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg sm:h-auto sm:max-h-[90vh] sm:max-w-3xl sm:rounded-xl sm:border sm:p-6">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-base font-semibold">
             {product ? "Editar producto" : "Nuevo producto"}
           </h2>
-          <button onClick={onClose} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
+          <button onClick={onClose} aria-label="Cerrar" className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground">
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <label htmlFor="product-name" className="text-sm font-medium">Nombre</label>
-            <Input
-              id="product-name"
-              value={form.name}
-              onChange={(e) => updateField("name", e.target.value)}
-              required
-              placeholder="Ej: Cono artesanal"
-            />
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4 pb-safe">
+          <div className="overflow-x-auto rounded-lg bg-muted p-1">
+            <div className="flex min-w-max gap-1 sm:min-w-0 sm:flex-wrap">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  disabled={!tab.enabled}
+                  className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap ${
+                    activeTab === tab.id
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  } ${!tab.enabled ? "opacity-40 cursor-not-allowed" : ""}`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          {activeTab === "basic" && (
+          <>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <label htmlFor="product-name" className="text-sm font-medium">Nombre</label>
+              <Input
+                id="product-name"
+                value={form.name}
+                onChange={(e) => updateField("name", e.target.value)}
+                required
+                placeholder="Ej: Cono artesanal"
+              />
+            </div>
             <div className="flex flex-col gap-2">
               <label htmlFor="product-code" className="text-sm font-medium">Código</label>
               <Input
@@ -471,6 +630,36 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
                 placeholder="Opcional"
               />
             </div>
+          </div>
+
+          <div className={`grid grid-cols-1 gap-3 ${isCompound ? "" : "sm:grid-cols-2"}`}>
+            <div className="flex flex-col gap-2">
+              <label htmlFor="product-type" className="text-sm font-medium">Tipo</label>
+              <Select
+                id="product-type"
+                value={form.productType}
+                onChange={(e) => updateField("productType", e.target.value)}
+              >
+                {productTypeOptions.map((t) => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </Select>
+              <ProductTypeHelp productType={form.productType} />
+            </div>
+            {!isCompound && (
+              <div className="flex flex-col gap-2">
+                <label htmlFor="product-description" className="text-sm font-medium">Descripción</label>
+                <Input
+                  id="product-description"
+                  value={form.description}
+                  onChange={(e) => updateField("description", e.target.value)}
+                  placeholder="Opcional"
+                />
+              </div>
+            )}
+          </div>
+
+          <div className={`grid grid-cols-1 gap-3 ${isCompound ? "" : "sm:grid-cols-2"}`}>
             <div className="flex flex-col gap-2">
               <label htmlFor="product-category" className="text-sm font-medium">Categoría</label>
               <Select
@@ -485,21 +674,64 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
                 ))}
               </Select>
             </div>
+            {!isCompound && (
+              <div className="flex flex-col gap-2">
+                <label htmlFor="product-unit" className="text-sm font-medium">Unidad de medida</label>
+                <Select
+                  id="product-unit"
+                  value={isCustomUnit ? "otro" : form.measurementUnit}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    updateField("measurementUnit", value === "otro" ? "" : value);
+                  }}
+                >
+                  <option value="">Selecciona</option>
+                  {MEASUREMENT_UNITS.map((u) => (
+                    <option key={u.value} value={u.value}>{u.label}</option>
+                  ))}
+                </Select>
+                {isCustomUnit && (
+                  <Input
+                    value={form.measurementUnit}
+                    onChange={(e) => updateField("measurementUnit", e.target.value.toLowerCase().trim())}
+                    placeholder="Escribe la unidad (ej: galón)"
+                  />
+                )}
+              </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          {isCompound && (
             <div className="flex flex-col gap-2">
-              <label htmlFor="product-price" className="text-sm font-medium">Precio venta</label>
+              <label htmlFor="product-description" className="text-sm font-medium">Descripción</label>
               <Input
-                id="product-price"
-                type="number"
-                step="0.01"
-                min="0"
-                value={form.price}
-                onChange={(e) => updateField("price", e.target.value)}
-                placeholder="0"
+                id="product-description"
+                value={form.description}
+                onChange={(e) => updateField("description", e.target.value)}
+                placeholder="Opcional"
               />
             </div>
+          )}
+          </>
+          )}
+
+          {activeTab === "pricing" && (
+          <>
+          <div className={`grid grid-cols-1 gap-3 ${isSellable ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+            {isSellable && (
+              <div className="flex flex-col gap-2">
+                <label htmlFor="product-price" className="text-sm font-medium">Precio venta</label>
+                <Input
+                  id="product-price"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={form.price}
+                  onChange={(e) => updateField("price", e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+            )}
             <div className="flex flex-col gap-2">
               <label htmlFor="product-cost" className="text-sm font-medium">Costo</label>
               <Input
@@ -526,7 +758,7 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
               <label htmlFor="product-internal" className="text-sm font-medium">Precio interno</label>
               <Input
@@ -539,74 +771,23 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
                 placeholder="Opcional"
               />
             </div>
-            <div className="flex flex-col gap-2">
-              <label htmlFor="product-stock" className="text-sm font-medium">Cantidad inicial</label>
-              <Input
-                id="product-stock"
-                type="number"
-                min="0"
-                value={form.stock}
-                onChange={(e) => updateField("stock", e.target.value)}
-                placeholder="0"
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label htmlFor="product-min-stock" className="text-sm font-medium">Stock mínimo</label>
-              <Input
-                id="product-min-stock"
-                type="number"
-                min="0"
-                value={form.minimumStock}
-                onChange={(e) => updateField("minimumStock", e.target.value)}
-                placeholder="0"
-              />
-            </div>
           </div>
+          </>
+          )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-2">
-              <label htmlFor="product-type" className="text-sm font-medium">Tipo</label>
-              <Select
-                id="product-type"
-                value={form.productType}
-                onChange={(e) => updateField("productType", e.target.value)}
-              >
-                {productTypeOptions.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
-                ))}
-              </Select>
-            </div>
-            <div className="flex flex-col gap-2">
-              <label htmlFor="product-unit" className="text-sm font-medium">Unidad de medida</label>
-              <Input
-                id="product-unit"
-                value={form.measurementUnit}
-                onChange={(e) => updateField("measurementUnit", e.target.value)}
-                placeholder="Ej: unidad, kg, litro"
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label htmlFor="product-description" className="text-sm font-medium">Descripción</label>
-            <Input
-              id="product-description"
-              value={form.description}
-              onChange={(e) => updateField("description", e.target.value)}
-              placeholder="Opcional"
-            />
-          </div>
-
+          {activeTab === "pricing" && (
           <div className="flex flex-wrap items-center gap-6">
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={form.isForSale}
-                onChange={(e) => updateField("isForSale", e.target.checked)}
-                className="h-4 w-4 accent-primary"
-              />
-              Disponible para venta
-            </label>
+            {isSellable && (
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={form.isForSale}
+                  onChange={(e) => updateField("isForSale", e.target.checked)}
+                  className="h-4 w-4 accent-primary"
+                />
+                Disponible para venta
+              </label>
+            )}
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
@@ -625,35 +806,38 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
               />
               Activo
             </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={form.isPublic}
-                onChange={(e) => updateField("isPublic", e.target.checked)}
-                className="h-4 w-4 accent-primary"
-              />
-              Público en menú QR
-            </label>
+            {isSellable && (
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={form.isPublic}
+                  onChange={(e) => updateField("isPublic", e.target.checked)}
+                  className="h-4 w-4 accent-primary"
+                />
+                Público en menú QR
+              </label>
+            )}
           </div>
-
-          {!product?.id && (
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={tracksWarehouseStock}
-                onChange={(e) => setTracksWarehouseStock(e.target.checked)}
-                className="h-4 w-4 accent-primary"
-              />
-              Gestiona stock por bodega
-            </label>
           )}
 
-          {!product?.id && tracksWarehouseStock && (
+          {activeTab === "basic" && orphanRecipe && (
+            <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
+              El producto ya no es del tipo <strong>Producto compuesto</strong>, pero su receta
+              asociada se mantendrá en el catálogo de recetas.
+            </p>
+          )}
+
+          {activeTab === "warehouses" && !product?.id && (
             <div className="rounded-xl border border-border bg-muted/40 p-4">
-              <h3 className="mb-3 text-sm font-semibold">Asignación a bodegas</h3>
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold">Asignación a bodegas</h3>
+                <p className="text-xs text-muted-foreground">
+                  Entraste a Bodegas: el stock de este producto se gestionará por bodega.
+                </p>
+              </div>
 
               <div className="flex flex-col gap-3">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="flex flex-col gap-2">
                     <label className="text-xs font-medium text-muted-foreground">Bodega</label>
                     <Select
@@ -676,6 +860,44 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
                       value={selectedInitialQty}
                       onChange={(e) => setSelectedInitialQty(e.target.value)}
                       placeholder="0"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-medium text-muted-foreground">Stock mínimo</label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={selectedMinimumQty}
+                      onChange={(e) => setSelectedMinimumQty(e.target.value)}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-medium text-muted-foreground">Stock máximo</label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={selectedMaximumQty}
+                      onChange={(e) => setSelectedMaximumQty(e.target.value)}
+                      placeholder="Opcional"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-medium text-muted-foreground">Alerta / reorden</label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={selectedReorderPoint}
+                      onChange={(e) => setSelectedReorderPoint(e.target.value)}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-medium text-muted-foreground">Ubicación</label>
+                    <Input
+                      value={selectedLocation}
+                      onChange={(e) => setSelectedLocation(e.target.value)}
+                      placeholder="Ej: estante 3"
                     />
                   </div>
                 </div>
@@ -704,7 +926,13 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
                       >
                         <div className="min-w-0">
                           <p className="truncate text-sm font-medium">{warehouse?.name ?? "Bodega"}</p>
-                          <p className="text-xs text-muted-foreground">Cantidad inicial: {a.initialQuantity}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Inicial: {a.initialQuantity}
+                            {a.minimumQuantity ? ` · Mín: ${a.minimumQuantity}` : ""}
+                            {a.maximumQuantity ? ` · Máx: ${a.maximumQuantity}` : ""}
+                            {a.reorderPoint ? ` · Alerta: ${a.reorderPoint}` : ""}
+                            {a.location ? ` · ${a.location}` : ""}
+                          </p>
                         </div>
                         <button
                           type="button"
@@ -722,7 +950,7 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
             </div>
           )}
 
-          {isCompound && (
+          {activeTab === "recipe" && isCompound && (
             <div className="rounded-xl border border-border bg-muted/40 p-4">
               <h3 className="mb-3 text-sm font-semibold">Receta / materias primas</h3>
 
@@ -733,7 +961,7 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="flex flex-col gap-2">
                   <label htmlFor="recipe-name" className="text-xs font-medium text-muted-foreground">Nombre de la receta</label>
                   <Input
@@ -757,7 +985,7 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
                 </div>
               </div>
 
-              <div className="mt-3 grid grid-cols-4 gap-3">
+              <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <div className="flex flex-col gap-2">
                   <label htmlFor="recipe-prep-time" className="text-xs font-medium text-muted-foreground">Prep. (min)</label>
                   <Input
@@ -857,12 +1085,12 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
                       const product = ingredientProducts.find((p) => p.id === ing.ingredient);
                       return (
                         <div key={ing.localId} className="grid grid-cols-12 items-end gap-2 rounded-lg border border-border bg-background p-2">
-                          <div className="col-span-4">
+                          <div className="col-span-12 sm:col-span-4">
                             <span className="block truncate text-sm font-medium">
                               {product?.name ?? `Producto #${ing.ingredient}`}
                             </span>
                           </div>
-                          <div className="col-span-2">
+                          <div className="col-span-4 sm:col-span-2">
                             <Input
                               type="number"
                               step="0.01"
@@ -873,7 +1101,7 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
                               className="h-8"
                             />
                           </div>
-                          <div className="col-span-3">
+                          <div className="col-span-4 sm:col-span-3">
                             <Input
                               value={ing.unit}
                               onChange={(e) => updateIngredient(ing.localId, { unit: e.target.value })}
@@ -881,7 +1109,7 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
                               className="h-8"
                             />
                           </div>
-                          <div className="col-span-2">
+                          <div className="col-span-3 sm:col-span-2">
                             <Input
                               value={ing.preparation_notes ?? ""}
                               onChange={(e) => updateIngredient(ing.localId, { preparation_notes: e.target.value })}
@@ -908,114 +1136,163 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
             </div>
           )}
 
-          <div className="rounded-xl border border-border bg-muted/40 p-4">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold">Etiquetado nutricional (por 100 g)</h3>
-              <div className="flex items-center gap-2">
-                {isCompound && recipe.id && (
-                  <>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleCalculateNutrition}
-                      disabled={calculatingNutrition}
-                    >
-                      {calculatingNutrition ? (
-                        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Plus className="mr-2 h-3.5 w-3.5" />
-                      )}
-                      Calcular desde receta
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        if (!recipe.id) return;
-                        window.open(nutritionLabelPdfUrl(recipe.id), "_blank", "noopener,noreferrer");
-                      }}
-                    >
-                      Descargar PDF
-                    </Button>
-                  </>
-                )}
+          {activeTab === "nutrition" && nutritionEnabled && (
+            <div className="rounded-xl border border-border bg-muted/40 p-4">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold">Etiquetado nutricional (por 100 g)</h3>
+                <div className="flex items-center gap-2">
+                  {isCompound && (
+                    <>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCalculateNutrition}
+                        disabled={calculatingNutrition || !recipe.id}
+                        title={
+                          recipe.id
+                            ? undefined
+                            : "Guarda el producto primero para calcular la nutrición desde la receta."
+                        }
+                      >
+                        {calculatingNutrition ? (
+                          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Plus className="mr-2 h-3.5 w-3.5" />
+                        )}
+                        Calcular desde receta
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (!recipe.id) return;
+                          // Descarga con auth (apiFile); window.open con ruta
+                          // relativa pega contra Next.js y sin token → 404.
+                          downloadNutritionPdf(
+                            () => downloadRecipeNutritionLabel(recipe.id!),
+                            {
+                              filename: `etiqueta-nutricional_${(form.name.trim() || "producto").replace(/[^a-z0-9]+/gi, "_").toLowerCase()}`,
+                              extension: "pdf",
+                            },
+                          ).catch(() => {
+                            setError("No se pudo descargar el PDF de la etiqueta nutricional.");
+                          });
+                        }}
+                        disabled={!recipe.id || downloadingNutritionPdf}
+                      >
+                        {downloadingNutritionPdf ? (
+                          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <FileDown className="mr-2 h-3.5 w-3.5" />
+                        )}
+                        Descargar PDF
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
-            <label className="mb-4 flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={form.isNutritionalIngredient}
-                onChange={(e) => updateField("isNutritionalIngredient", e.target.checked)}
-                className="h-4 w-4 accent-primary"
-              />
-              Este producto tiene información nutricional
-            </label>
+              <label className="mb-4 flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={form.isNutritionalIngredient}
+                  onChange={(e) => updateField("isNutritionalIngredient", e.target.checked)}
+                  className="h-4 w-4 accent-primary"
+                />
+                Este producto tiene información nutricional
+              </label>
 
-            {form.isNutritionalIngredient && (
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-                {[
-                  { key: "energyKcal", label: "Energía (kcal)" },
-                  { key: "proteinsG", label: "Proteínas (g)" },
-                  { key: "totalFatsG", label: "Grasas totales (g)" },
-                  { key: "saturatedFatsG", label: "Grasas saturadas (g)" },
-                  { key: "monounsaturatedFatsG", label: "Grasas monoinsaturadas (g)" },
-                  { key: "polyunsaturatedFatsG", label: "Grasas poliinsaturadas (g)" },
-                  { key: "transFatsG", label: "Grasas trans (g)" },
-                  { key: "cholesterolMg", label: "Colesterol (mg)" },
-                  { key: "carbohydratesG", label: "Carbohidratos (g)" },
-                  { key: "totalSugarsG", label: "Azúcares totales (g)" },
-                  { key: "sodiumMg", label: "Sodio (mg)" },
-                ].map((field) => (
-                  <div key={field.key} className="flex flex-col gap-2">
-                    <label htmlFor={`nutrition-${field.key}`} className="text-xs font-medium text-muted-foreground">
-                      {field.label}
-                    </label>
-                    <Input
-                      id={`nutrition-${field.key}`}
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={form[field.key as keyof typeof form] as string}
-                      onChange={(e) => updateField(field.key as keyof typeof form, e.target.value)}
-                      placeholder="0"
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-            {form.isNutritionalIngredient && (
-              <NutritionLabelPreview
-                values={{
-                  energyKcal: form.energyKcal,
-                  proteinsG: form.proteinsG,
-                  totalFatsG: form.totalFatsG,
-                  saturatedFatsG: form.saturatedFatsG,
-                  monounsaturatedFatsG: form.monounsaturatedFatsG,
-                  polyunsaturatedFatsG: form.polyunsaturatedFatsG,
-                  transFatsG: form.transFatsG,
-                  cholesterolMg: form.cholesterolMg,
-                  carbohydratesG: form.carbohydratesG,
-                  totalSugarsG: form.totalSugarsG,
-                  sodiumMg: form.sodiumMg,
-                }}
-              />
-            )}
-          </div>
+              {form.isNutritionalIngredient && (
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+                  {[
+                    { key: "energyKcal", label: "Energía (kcal)" },
+                    { key: "proteinsG", label: "Proteínas (g)" },
+                    { key: "totalFatsG", label: "Grasas totales (g)" },
+                    { key: "saturatedFatsG", label: "Grasas saturadas (g)" },
+                    { key: "monounsaturatedFatsG", label: "Grasas monoinsaturadas (g)" },
+                    { key: "polyunsaturatedFatsG", label: "Grasas poliinsaturadas (g)" },
+                    { key: "transFatsG", label: "Grasas trans (g)" },
+                    { key: "cholesterolMg", label: "Colesterol (mg)" },
+                    { key: "carbohydratesG", label: "Carbohidratos (g)" },
+                    { key: "totalSugarsG", label: "Azúcares totales (g)" },
+                    { key: "sodiumMg", label: "Sodio (mg)" },
+                  ].map((field) => (
+                    <div key={field.key} className="flex flex-col gap-2">
+                      <label htmlFor={`nutrition-${field.key}`} className="text-xs font-medium text-muted-foreground">
+                        {field.label}
+                      </label>
+                      <Input
+                        id={`nutrition-${field.key}`}
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={form[field.key as keyof typeof form] as string}
+                        onChange={(e) => updateField(field.key as keyof typeof form, e.target.value)}
+                        placeholder="0"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+              {form.isNutritionalIngredient && (
+                <NutritionLabelPreview
+                  values={{
+                    energyKcal: form.energyKcal,
+                    proteinsG: form.proteinsG,
+                    totalFatsG: form.totalFatsG,
+                    saturatedFatsG: form.saturatedFatsG,
+                    monounsaturatedFatsG: form.monounsaturatedFatsG,
+                    polyunsaturatedFatsG: form.polyunsaturatedFatsG,
+                    transFatsG: form.transFatsG,
+                    cholesterolMg: form.cholesterolMg,
+                    carbohydratesG: form.carbohydratesG,
+                    totalSugarsG: form.totalSugarsG,
+                    sodiumMg: form.sodiumMg,
+                  }}
+                />
+              )}
+            </div>
+          )}
 
           {error && (
             <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>
           )}
 
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={onClose} disabled={loading}>
-              Cancelar
+          <div className="flex items-center justify-between gap-2 pt-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                const idx = tabs.findIndex((t) => t.id === activeTab);
+                const prev = tabs.slice(0, idx).reverse().find((t) => t.enabled);
+                if (prev) setActiveTab(prev.id);
+              }}
+              disabled={tabs.findIndex((t) => t.id === activeTab) === 0}
+            >
+              Anterior
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              {product ? "Guardar cambios" : "Crear producto"}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={onClose} disabled={loading}>
+                Cancelar
+              </Button>
+              {activeTab !== tabs.filter((t) => t.enabled).at(-1)?.id ? (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    const idx = tabs.findIndex((t) => t.id === activeTab);
+                    const next = tabs.slice(idx + 1).find((t) => t.enabled);
+                    if (next) setActiveTab(next.id);
+                  }}
+                >
+                  Siguiente
+                </Button>
+              ) : (
+                <Button type="submit" disabled={loading}>
+                  {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {product ? "Guardar cambios" : "Crear producto"}
+                </Button>
+              )}
+            </div>
           </div>
         </form>
       </div>

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, forwardRef, type SelectHTMLAttributes } from "react";
+import { useState, useRef, useEffect, forwardRef, type SelectHTMLAttributes, Children, isValidElement } from "react";
 import { ChevronDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -15,14 +15,12 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
 
     const opts: SelectOption[] =
       props.options ??
-      (Array.isArray(children)
-        ? children
-            .filter(
-              (c): c is React.ReactElement<{ value?: string | number; children?: React.ReactNode }> =>
-                Boolean(c && typeof c === "object" && "props" in c),
-            )
-            .map((c) => ({ value: String(c.props.value ?? ""), label: String(c.props.children ?? "") }))
-        : []);
+      Children.toArray(children)
+        .filter(
+          (c): c is React.ReactElement<{ value?: string | number; children?: React.ReactNode }> =>
+            isValidElement(c),
+        )
+        .map((c) => ({ value: String(c.props.value ?? ""), label: String(c.props.children ?? "") }));
 
     const selected = opts.find((o) => o.value === value) ?? opts[0];
 

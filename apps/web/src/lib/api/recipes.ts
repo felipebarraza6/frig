@@ -1,4 +1,6 @@
-import { apiFetch } from "./client";
+import { apiFetch, apiFile, API_BASE } from "./client";
+import type { ApiFileResult } from "./client";
+import { getBranchId } from "@/lib/api/session-storage";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 type Recipe = YggdraSchemas["Recipe"];
@@ -43,16 +45,32 @@ export interface RecipeIngredientPayload {
 }
 
 export async function fetchRecipesByProduct(productId: number): Promise<Recipe[]> {
-  const data = await apiFetch<PaginatedRecipeList>("/recipes/recipes/");
-  return data.results.filter((r) => r.resulting_product === productId);
+  const recipes: Recipe[] = [];
+  // El listado solo acepta page/page_size y no permite filtrar por
+  // resulting_product, así que recorremos las páginas en bloques de 500.
+  let url: string = "/recipes/recipes/?page_size=500";
+  for (;;) {
+    const data: PaginatedRecipeList = await apiFetch<PaginatedRecipeList>(url);
+    recipes.push(...data.results);
+    if (!data.next) break;
+    const nextUrl = new URL(data.next, API_BASE);
+    url = `${nextUrl.pathname}${nextUrl.search}`;
+  }
+  return recipes.filter((r) => r.resulting_product === productId);
 }
 
 export async function createRecipe(payload: RecipePayload): Promise<Recipe> {
+  const branchId = Number(getBranchId());
+  if (!branchId) {
+    throw new Error("No hay una sucursal seleccionada. Selecciona una sucursal e inténtalo de nuevo.");
+  }
   return apiFetch<Recipe>("/recipes/recipes/", {
     method: "POST",
     body: {
       ...payload,
-      branch: 0,
+      // Yggdra exige branch y code en el body al crear recetas (400 si faltan).
+      branch: branchId,
+      code: payload.code ?? `RCP-${Date.now().toString(36).toUpperCase()}`,
       recipe_type: payload.recipe_type ?? "SIMPLE",
       status: payload.status ?? "ACTIVE",
     } as RecipeRequest,
@@ -94,8 +112,12 @@ export async function calculateRecipeNutrition(id: string): Promise<Recipe> {
   });
 }
 
-export function nutritionLabelPdfUrl(id: string): string {
-  return `/recipes/recipes/${id}/download-nutrition-label-pdf/`;
+/**
+ * Descarga el PDF de etiqueta nutricional con autenticación (la ruta relativa
+ * abierta con window.open pega contra Next.js y sin token → 404).
+ */
+export function downloadRecipeNutritionLabel(id: string): Promise<ApiFileResult> {
+  return apiFile(`/recipes/recipes/${id}/download-nutrition-label-pdf/`);
 }
 
 export async function fetchRecipeNutritionLabel(id: string): Promise<Record<string, unknown>> {

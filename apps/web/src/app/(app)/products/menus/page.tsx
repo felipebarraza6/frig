@@ -20,7 +20,7 @@ import { Select } from "@/components/ui/select";
 import { QRCodeSVG } from "qrcode.react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/lib/store/toast";
-import { fetchCategoryList } from "@/lib/api/categories";
+import { useCategoryOptions } from "@/lib/hooks/useCategoryOptions";
 import { fetchProducts } from "@/lib/api/products";
 import type { YggdraProduct } from "@/lib/api/types";
 
@@ -161,19 +161,16 @@ export default function MenusPage() {
 
   const { data: productsPage } = useQuery({
     queryKey: ["products", "all", "menus"],
-    queryFn: () => fetchProducts({ is_for_sale: true, is_active: true }),
+    queryFn: () => fetchProducts({ is_for_sale: true, is_active: true, page_size: 1000 }),
   });
 
+  // El servidor ya filtra is_for_sale/is_active (el refiltrado en cliente era
+  // redundante y ocultaba productos si el listado paginaba).
   const products = useMemo<MenuProduct[]>(() => {
-    return (productsPage?.results ?? []).filter(
-      (p) => p.is_for_sale && p.is_active,
-    ) as MenuProduct[];
+    return (productsPage?.results ?? []) as MenuProduct[];
   }, [productsPage]);
 
-  const { data: categories = [] } = useQuery({
-    queryKey: ["categories", "list"],
-    queryFn: fetchCategoryList,
-  });
+  const { options: categoryOptions = [] } = useCategoryOptions();
 
   const { data: stations = [] } = useQuery({
     queryKey: ["cash-register-stations", "list"],
@@ -296,20 +293,21 @@ export default function MenusPage() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex items-center justify-between border-b border-border px-6 py-3">
+      <header className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6">
         <div>
           <h1 className="text-lg font-semibold">Menús y vitrinas</h1>
           <p className="text-xs text-muted-foreground">
             Gestiona catálogos QR, pantallas y menús de sucursal
           </p>
         </div>
-        <Button onClick={() => openModal()}>
+        <Button onClick={() => openModal()} className="px-2 sm:px-3">
           <Plus className="h-4 w-4" />
-          Nuevo menú
+          <span className="hidden sm:inline">Nuevo menú</span>
+          <span className="sm:hidden">Nuevo</span>
         </Button>
       </header>
 
-      <div className="flex flex-1 flex-col gap-4 p-6">
+      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
         <div className="relative max-w-sm">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -345,24 +343,27 @@ export default function MenusPage() {
           </div>
         ) : (
           <>
+            <p className="text-xs text-muted-foreground sm:hidden">
+              Desliza la tabla horizontalmente para ver todas las columnas.
+            </p>
             <div className="overflow-x-auto rounded-xl border border-border">
               <table className="w-full min-w-[720px] text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                    <th className="px-4 py-3">Menú</th>
-                    <th className="px-4 py-3">Modo</th>
-                    <th className="px-4 py-3">Estación</th>
-                    <th className="px-4 py-3 text-center">Productos</th>
-                    <th className="px-4 py-3 text-center">Estado</th>
-                    <th className="px-4 py-3 text-right">Acciones</th>
+                    <th className="px-3 py-2 sm:px-4 sm:py-3">Menú</th>
+                    <th className="px-3 py-2 sm:px-4 sm:py-3">Modo</th>
+                    <th className="px-3 py-2 sm:px-4 sm:py-3">Estación</th>
+                    <th className="px-3 py-2 sm:px-4 sm:py-3 text-center">Productos</th>
+                    <th className="px-3 py-2 sm:px-4 sm:py-3 text-center">Estado</th>
+                    <th className="px-3 py-2 sm:px-4 sm:py-3 text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.map((catalog) => (
                     <tr key={catalog.id} className="border-b border-border last:border-0">
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-2 sm:px-4 sm:py-3">
                         <div className="flex items-center gap-2">
-                          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-secondary">
+                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-secondary">
                             <LayoutTemplate className="h-3.5 w-3.5 text-muted-foreground" />
                           </div>
                           <div className="min-w-0">
@@ -371,16 +372,16 @@ export default function MenusPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground">
+                      <td className="px-3 py-2 sm:px-4 sm:py-3 text-muted-foreground">
                         {catalog.mode_display}
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground">
+                      <td className="px-3 py-2 sm:px-4 sm:py-3 text-muted-foreground">
                         {catalog.station_type_display}
                       </td>
-                      <td className="px-4 py-3 text-center tabular-nums">
+                      <td className="px-3 py-2 sm:px-4 sm:py-3 text-center tabular-nums">
                         {catalog.product_count}
                       </td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-3 py-2 sm:px-4 sm:py-3 text-center">
                         <span
                           className={cn(
                             "inline-flex rounded px-2 py-0.5 text-xs font-medium",
@@ -392,11 +393,12 @@ export default function MenusPage() {
                           {catalog.is_active ? "Activo" : "Inactivo"}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-3 py-2 sm:px-4 sm:py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Button
                             variant="ghost"
                             size="sm"
+                            className="h-8 w-8 p-0"
                             onClick={() => copyLink(catalog.slug)}
                             title="Copiar link"
                           >
@@ -405,6 +407,7 @@ export default function MenusPage() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            className="h-8 w-8 p-0"
                             onClick={() => setQrCatalog(catalog)}
                             title="Generar QR"
                           >
@@ -414,22 +417,24 @@ export default function MenusPage() {
                             href={publicMenuUrl(catalog.slug)}
                             target="_blank"
                             rel="noreferrer"
-                            className="inline-flex items-center justify-center rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
                             title="Ver público"
                           >
                             <ExternalLink className="h-3.5 w-3.5" />
                           </a>
-                          <Button variant="ghost" size="sm" onClick={() => openModal(catalog)}>
+                          <Button variant="ghost" size="sm" className="h-8 px-1.5 sm:px-2" onClick={() => openModal(catalog)} title="Editar">
                             <Pencil className="h-3.5 w-3.5" />
-                            Editar
+                            <span className="hidden sm:inline">Editar</span>
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-danger hover:text-danger"
+                            className="h-8 px-1.5 text-danger hover:text-danger sm:px-2"
                             onClick={() => setConfirmDelete(catalog)}
+                            title="Eliminar"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
+                            <span className="hidden sm:inline">Eliminar</span>
                           </Button>
                         </div>
                       </td>
@@ -741,10 +746,10 @@ export default function MenusPage() {
                   <div className="flex flex-col gap-2 sm:col-span-2">
                     <label className="text-sm font-medium">Categorías incluidas</label>
                     <div className="max-h-40 overflow-y-auto rounded-lg border border-border p-2">
-                      {categories.length === 0 ? (
+                      {categoryOptions.length === 0 ? (
                         <p className="text-sm text-muted-foreground">No hay categorías.</p>
                       ) : (
-                        categories.map((c) => (
+                        categoryOptions.map((c) => (
                           <label
                             key={c.id}
                             className="flex items-center gap-2 rounded px-2 py-1.5 hover:bg-muted"

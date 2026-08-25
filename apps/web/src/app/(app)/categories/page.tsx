@@ -2,9 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Pencil, Trash2, Loader2, Tag, X } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Loader2, Tag, X, Copy, FolderOpen, Boxes, Folder } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ActionsMenu } from "@/components/ui/actions-menu";
+import { useToast } from "@/lib/store/toast";
+import { useCurrentBranch } from "@/lib/store/session";
 import {
   fetchCategories,
   createCategory,
@@ -14,8 +17,27 @@ import {
 } from "@/lib/api/categories";
 import type { YggdraCategory } from "@/lib/api/types";
 
+function categoryTypeLabel(type?: string | null) {
+  switch (type) {
+    case "FOOD":
+      return "Alimentos";
+    case "DRINK":
+      return "Bebidas";
+    case "RETAIL":
+      return "Retail";
+    case "SERVICE":
+      return "Servicio";
+    case "OTHER":
+      return "General";
+    default:
+      return type ?? "General";
+  }
+}
+
 export default function CategoriesPage() {
   const queryClient = useQueryClient();
+  const toast = useToast();
+  const branch = useCurrentBranch();
   const [search, setSearch] = useState("");
   const [pageUrl, setPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
   const [modalOpen, setModalOpen] = useState(false);
@@ -36,15 +58,24 @@ export default function CategoriesPage() {
     queryFn: () => fetchCategories(filter),
   });
 
-  const categories = page?.results ?? [];
+  const categories = useMemo(() => page?.results ?? [], [page]);
   const totalCategories = page?.count ?? 0;
+  const totalProducts = useMemo(
+    () => categories.reduce((sum, c) => sum + Number(c.product_count ?? 0), 0),
+    [categories],
+  );
 
   const save = useMutation({
     mutationFn: async () => {
+      const branchId = branch?.branch_id;
+      if (!branchId) {
+        throw new Error("No se detectó la sucursal activa. Selecciona una sucursal e intenta de nuevo.");
+      }
+      const payload = { name, branch_id: Number(branchId) };
       if (editing) {
-        await updateCategory(editing.id, { name });
+        await updateCategory(editing.id, payload);
       } else {
-        await createCategory({ name });
+        await createCategory(payload);
       }
     },
     onSuccess: () => {
@@ -61,6 +92,31 @@ export default function CategoriesPage() {
     },
   });
 
+  const duplicate = useMutation({
+    mutationFn: (category: YggdraCategory) => {
+      const branchId = branch?.branch_id;
+      if (!branchId) {
+        throw new Error("No se detectó la sucursal activa.");
+      }
+      return createCategory({ name: `${category.name} (copia)`, branch_id: Number(branchId) });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      toast.success("Categoría duplicada");
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "No se pudo duplicar la categoría.");
+    },
+  });
+
+  function categoryActions(c: YggdraCategory) {
+    return [
+      { label: "Editar", icon: Pencil, onClick: () => openModal(c) },
+      { label: "Duplicar", icon: Copy, onClick: () => duplicate.mutate(c) },
+      { label: "Eliminar", icon: Trash2, danger: true, onClick: () => setConfirmDelete(c) },
+    ];
+  }
+
   function openModal(category?: YggdraCategory) {
     setEditing(category ?? null);
     setName(category?.name ?? "");
@@ -73,22 +129,25 @@ export default function CategoriesPage() {
     setName("");
   }
 
+  const hasData = categories.length > 0;
+
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex items-center justify-between border-b border-border px-6 py-3">
+      <header className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6">
         <div>
           <h1 className="text-lg font-semibold">Categorías</h1>
           <p className="text-xs text-muted-foreground">
-            Gestiona las categorías de productos
+            Agrupa y organiza tus productos
           </p>
         </div>
-        <Button onClick={() => openModal()}>
+        <Button onClick={() => openModal()} className="h-9 px-2 sm:px-3">
           <Plus className="h-4 w-4" />
-          Nueva categoría
+          <span className="hidden sm:inline">Nueva categoría</span>
+          <span className="sm:hidden">Nueva</span>
         </Button>
       </header>
 
-      <div className="flex flex-1 flex-col gap-4 p-6">
+      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
         <div className="relative max-w-sm">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -97,7 +156,7 @@ export default function CategoriesPage() {
               setSearch(e.target.value);
               setPageUrl({});
             }}
-            placeholder="Buscar por nombre…"
+            placeholder="Buscar categoría…"
             className="pl-9"
             aria-label="Buscar categoría"
           />
@@ -109,74 +168,167 @@ export default function CategoriesPage() {
           <div className="grid flex-1 place-items-center">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
+        ) : !hasData ? (
+          <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-border bg-muted/20 p-8">
+            <div className="flex max-w-xs flex-col items-center gap-3 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+                <FolderOpen className="h-7 w-7 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="font-medium">
+                  {search ? "Sin resultados" : "Aún no hay categorías"}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {search
+                    ? "Prueba con otro término de búsqueda."
+                    : "Crea la primera categoría para organizar tu catálogo."}
+                </p>
+              </div>
+              {!search && (
+                <Button onClick={() => openModal()}>
+                  <Plus className="mr-1 h-4 w-4" />
+                  Crear categoría
+                </Button>
+              )}
+            </div>
+          </div>
         ) : (
           <>
-            <div className="overflow-x-auto rounded-xl border border-border">
-              <table className="w-full min-w-[480px] text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+            {/* Resumen */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+              <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-sm">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary">
+                  <Folder className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground">Categorías</p>
+                  <p className="text-lg font-semibold leading-none">{totalCategories}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-sm">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary">
+                  <Boxes className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground">Productos asignados</p>
+                  <p className="text-lg font-semibold leading-none">{totalProducts}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Vista tabla para desktop */}
+            <div className="hidden overflow-x-auto rounded-xl border border-border shadow-sm sm:block">
+              <table className="w-full min-w-[520px] text-sm">
+                <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                  <tr>
                     <th className="px-4 py-3">Categoría</th>
+                    <th className="px-4 py-3 text-center">Tipo</th>
                     <th className="px-4 py-3 text-center">Productos</th>
                     <th className="px-4 py-3 text-right">Acciones</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {categories.map((c) => (
-                    <tr key={c.id} className="border-b border-border last:border-0">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-secondary">
-                            <Tag className="h-3.5 w-3.5 text-muted-foreground" />
+                <tbody className="divide-y divide-border">
+                  {categories.map((c) => {
+                    const count = Number(c.product_count ?? 0);
+                    return (
+                      <tr
+                        key={c.id}
+                        className="transition-colors hover:bg-muted/30"
+                      >
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary">
+                              <Tag className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                            <span className="font-medium">{c.name}</span>
                           </div>
-                          <span className="font-medium">{c.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-center text-muted-foreground">
-                        {c.product_count ?? "—"}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="sm" onClick={() => openModal(c)}>
-                            <Pencil className="h-3.5 w-3.5" />
-                            Editar
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-danger hover:text-danger"
-                            onClick={() => setConfirmDelete(c)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                            Eliminar
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="inline-flex rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                            {categoryTypeLabel(c.category_type)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                            <Boxes className="h-3 w-3" />
+                            {count} producto{count === 1 ? "" : "s"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <ActionsMenu
+                            ariaLabel={`Acciones de ${c.name}`}
+                            items={categoryActions(c)}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
 
-            <div className="flex items-center justify-between text-sm">
+            {/* Vista de cards — solo móvil */}
+            <div className="grid grid-cols-1 gap-4 sm:hidden">
+              {categories.map((c) => {
+                const count = Number(c.product_count ?? 0);
+                return (
+                  <div
+                    key={c.id}
+                    className="flex min-w-0 flex-col rounded-xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md"
+                  >
+                    <div className="mb-3 flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-secondary">
+                          <Tag className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold">{c.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {categoryTypeLabel(c.category_type)}
+                          </p>
+                        </div>
+                      </div>
+                      <ActionsMenu
+                        ariaLabel={`Acciones de ${c.name}`}
+                        items={categoryActions(c)}
+                      />
+                    </div>
+
+                    <div className="mt-auto flex items-center justify-between gap-2 border-t border-border pt-3">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                        <Boxes className="h-3.5 w-3.5" />
+                        {count} producto{count === 1 ? "" : "s"}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
               <p className="text-muted-foreground">
                 {totalCategories} categoría{totalCategories === 1 ? "" : "s"} en total
               </p>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-end gap-2">
                 <Button
                   variant="outline"
                   size="sm"
+                  className="h-10 flex-1 sm:h-9 sm:flex-none"
                   onClick={() => setPageUrl({ previous: page?.previous })}
                   disabled={!page?.previous}
                 >
-                  Anterior
+                  <span className="sm:hidden">Ant.</span>
+                  <span className="hidden sm:inline">Anterior</span>
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
+                  className="h-10 flex-1 sm:h-9 sm:flex-none"
                   onClick={() => setPageUrl({ next: page?.next })}
                   disabled={!page?.next}
                 >
-                  Siguiente
+                  <span className="sm:hidden">Sig.</span>
+                  <span className="hidden sm:inline">Siguiente</span>
                 </Button>
               </div>
             </div>
@@ -185,8 +337,12 @@ export default function CategoriesPage() {
       </div>
 
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
-          <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-lg">
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg sm:max-w-md sm:rounded-xl sm:border sm:p-6">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-base font-semibold">
                 {editing ? "Editar categoría" : "Nueva categoría"}

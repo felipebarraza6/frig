@@ -3,9 +3,8 @@ import type { YggdraSchemas } from "@/lib/api/types";
 
 export type Combo = YggdraSchemas["Combo"];
 export type ComboList = YggdraSchemas["ComboList"];
-export type ComboWriteRequest = YggdraSchemas["ComboWriteRequest"] & {
-  branch?: number;
-};
+/** El backend no acepta `branch` en el write de combos (no está en el serializer). */
+export type ComboWriteRequest = YggdraSchemas["ComboWriteRequest"];
 
 export type PaginatedComboList = YggdraSchemas["PaginatedComboListList"];
 

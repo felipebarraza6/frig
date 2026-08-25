@@ -16,18 +16,25 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { fetchProducts, updateProduct, type ProductPayload } from "@/lib/api/products";
+import {
+  fetchProducts,
+  fetchProduct,
+  updateProduct,
+  type ProductPayload,
+} from "@/lib/api/products";
 import {
   fetchRecipesByProduct,
   calculateRecipeNutrition,
-  nutritionLabelPdfUrl,
+  downloadRecipeNutritionLabel,
   fetchRecipeNutritionLabel,
 } from "@/lib/api/recipes";
 import { ProductForm } from "@/components/products/product-form";
 import { ProductNutritionLabel } from "@/components/products/product-nutrition-label";
+import { useDownloadFile } from "@/lib/hooks/useDownloadFile";
 import { formatCLP } from "@/lib/utils";
 import type { YggdraProduct } from "@/lib/api/types";
 import { useToast } from "@/lib/store/toast";
+import { useIsNutritionEnabled } from "@/lib/store/session";
 
 type ProductDetail = YggdraProduct & {
   is_nutritional_ingredient?: boolean;
@@ -72,6 +79,8 @@ function isRecipeBased(product: ProductDetail): boolean {
 
 export default function ProductNutritionPage() {
   const queryClient = useQueryClient();
+  const toast = useToast();
+  const nutritionEnabled = useIsNutritionEnabled();
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<ProductDetail | null>(null);
   const [editing, setEditing] = useState<ProductDetail | null>(null);
@@ -81,24 +90,57 @@ export default function ProductNutritionPage() {
     queryFn: () => fetchProducts({ search, page_size: 200 }),
   });
 
-  const filtered = useMemo(() => {
-    const products = (page?.results ?? []) as ProductDetail[];
-    const term = search.trim().toLowerCase();
-    if (!term) return products;
-    return products.filter((p) => p.name.toLowerCase().includes(term));
-  }, [page, search]);
+  // El listado no trae nutrición/is_public (limitación del serializer de lista);
+  // el search ya se aplica server-side con name__icontains.
+  const filtered = useMemo(() => (page?.results ?? []) as ProductDetail[], [page]);
 
   const onSubmit = async (payload: ProductPayload, id?: number): Promise<YggdraProduct> => {
-    const product = id
-      ? await updateProduct(id, payload)
-      : await updateProduct(0, payload);
+    if (!id) {
+      throw new Error("No se puede guardar sin un producto seleccionado.");
+    }
+    const product = await updateProduct(id, payload);
     queryClient.invalidateQueries({ queryKey: ["products"] });
     return product;
   };
 
+  function handleEditDetail(product: ProductDetail) {
+    // El listado no trae nutrición ni is_public: al editar hay que cargar el
+    // detalle o se borran esos datos al re-guardar.
+    fetchProduct(product.id)
+      .then((detail) => setEditing(detail as unknown as ProductDetail))
+      .catch((err) => {
+        toast.error(err instanceof Error ? err.message : "No se pudo cargar el producto.");
+      });
+  }
+
+  if (!nutritionEnabled) {
+    return (
+      <div className="flex min-h-full flex-col">
+        <header className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6">
+          <div>
+            <h1 className="text-lg font-semibold">Etiquetado nutricional</h1>
+            <p className="text-xs text-muted-foreground">
+              Revisa y gestiona la información nutricional de los productos
+            </p>
+          </div>
+        </header>
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
+          <Apple className="h-10 w-10 text-muted-foreground" />
+          <div className="max-w-sm">
+            <p className="text-sm font-medium">Módulo Recetas no activo</p>
+            <p className="text-xs text-muted-foreground">
+              El etiquetado nutricional requiere el módulo Recetas. Actívalo en
+              Configuración → Módulos para usar esta función.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex items-center justify-between border-b border-border px-6 py-3">
+      <header className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6">
         <div>
           <h1 className="text-lg font-semibold">Etiquetado nutricional</h1>
           <p className="text-xs text-muted-foreground">
@@ -107,7 +149,7 @@ export default function ProductNutritionPage() {
         </div>
       </header>
 
-      <div className="flex flex-1 flex-col gap-4 p-6">
+      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
         <div className="relative w-full max-w-xs">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -189,7 +231,7 @@ export default function ProductNutritionPage() {
         <NutritionDetailModal
           product={selected}
           onClose={() => setSelected(null)}
-          onEdit={() => setEditing(selected)}
+          onEdit={() => handleEditDetail(selected)}
         />
       )}
 
@@ -215,6 +257,7 @@ function NutritionDetailModal({
 }) {
   const toast = useToast();
   const queryClient = useQueryClient();
+  const { download: downloadNutritionPdf, isLoading: downloadingNutritionPdf } = useDownloadFile();
   const isCompound = isRecipeBased(product);
 
   const { data: recipes = [], isLoading: loadingRecipes } = useQuery({
@@ -306,12 +349,24 @@ function NutritionDetailModal({
                         type="button"
                         variant="outline"
                         size="sm"
-                        disabled={!recipe.has_nutritional_calculation}
-                        onClick={() =>
-                          window.open(nutritionLabelPdfUrl(recipe.id), "_blank", "noopener,noreferrer")
-                        }
+                        disabled={!recipe.has_nutritional_calculation || downloadingNutritionPdf}
+                        onClick={() => {
+                          // Descarga autenticada via apiFile (window.open pega
+                          // contra Next.js y sin token → 404).
+                          downloadNutritionPdf(
+                            () => downloadRecipeNutritionLabel(recipe.id),
+                            {
+                              filename: `etiqueta-nutricional_${product.name.replace(/[^a-z0-9]+/gi, "_").toLowerCase()}`,
+                              extension: "pdf",
+                            },
+                          ).catch(() => toast.error("No se pudo descargar el PDF de la etiqueta."));
+                        }}
                       >
-                        <FileDown className="mr-2 h-3.5 w-3.5" />
+                        {downloadingNutritionPdf ? (
+                          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <FileDown className="mr-2 h-3.5 w-3.5" />
+                        )}
                         Descargar PDF
                       </Button>
                     </div>

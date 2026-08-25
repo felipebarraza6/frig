@@ -2,6 +2,11 @@
 
 import { useMemo, useState } from "react";
 import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
+import {
   Plus,
   Search,
   Pencil,
@@ -10,10 +15,18 @@ import {
   Boxes,
   X,
   Calendar,
+  Copy,
+  Power,
+  AlertTriangle,
+  FolderOpen,
+  TrendingUp,
+  Zap,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
+import { ActionsMenu } from "@/components/ui/actions-menu";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { formatCLP, cn } from "@/lib/utils";
 import { useToast } from "@/lib/store/toast";
 import {
@@ -26,8 +39,6 @@ import {
 import { useProducts } from "@/lib/hooks/useCatalog";
 import { fetchCombo, fetchCombosPage } from "@/lib/api/combos";
 import type { Combo } from "@/lib/api/combos";
-import { useCurrentBranch } from "@/lib/store/session";
-import { useQuery } from "@tanstack/react-query";
 
 interface ComboFormItem {
   product: number;
@@ -77,6 +88,23 @@ function comboToForm(combo: Combo): ComboFormState {
   };
 }
 
+function comboToPayload(combo: Combo): ComboWriteRequest {
+  return {
+    name: combo.name,
+    description: combo.description ?? null,
+    combo_price: combo.combo_price ?? "0",
+    is_active: combo.is_active ?? true,
+    start_date: combo.start_date ?? null,
+    end_date: combo.end_date ?? null,
+    notes: combo.notes ?? null,
+    items:
+      combo.items?.map((it) => ({
+        product: it.product,
+        quantity: it.quantity ?? 1,
+      })) ?? [],
+  };
+}
+
 function formatDate(value?: string | null): string {
   if (!value) return "";
   const d = new Date(value);
@@ -84,8 +112,59 @@ function formatDate(value?: string | null): string {
   return d.toISOString().slice(0, 10);
 }
 
+function isExpired(endDate?: string | null): boolean {
+  if (!endDate) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return new Date(endDate) < today;
+}
+
+function isExpiringSoon(endDate?: string | null): boolean {
+  if (!endDate) return false;
+  const end = new Date(endDate).getTime();
+  const now = Date.now();
+  const oneWeek = 7 * 24 * 60 * 60 * 1000;
+  return end >= now && end - now <= oneWeek;
+}
+
+type ComboStatus = {
+  label: string;
+  badgeBg: string;
+  badgeText: string;
+};
+
+function comboStatus(combo: ComboList): ComboStatus {
+  if (!combo.is_active) {
+    return {
+      label: "Inactivo",
+      badgeBg: "bg-muted",
+      badgeText: "text-muted-foreground",
+    };
+  }
+  if (isExpired(combo.end_date)) {
+    return {
+      label: "Vencido",
+      badgeBg: "bg-rose-50",
+      badgeText: "text-rose-700",
+    };
+  }
+  if (isExpiringSoon(combo.end_date)) {
+    return {
+      label: "Por vencer",
+      badgeBg: "bg-amber-50",
+      badgeText: "text-amber-700",
+    };
+  }
+  return {
+    label: "Activo",
+    badgeBg: "bg-emerald-50",
+    badgeText: "text-emerald-700",
+  };
+}
+
 export default function CombosPage() {
-  const branch = useCurrentBranch();
+  const queryClient = useQueryClient();
+  const toast = useToast();
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<ComboList | null>(null);
@@ -93,15 +172,23 @@ export default function CombosPage() {
   const [form, setForm] = useState<ComboFormState>(emptyForm());
   const [formError, setFormError] = useState<string | null>(null);
   const [loadingCombo, setLoadingCombo] = useState(false);
-  const toast = useToast();
   const [pageUrl, setPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
 
   const { data: page, isLoading, error } = useQuery({
     queryKey: ["combos", "page", search, pageUrl],
     queryFn: () => fetchCombosPage(search || undefined, pageUrl.next || pageUrl.previous || undefined),
   });
-  const combos = (page?.results ?? []) as ComboList[];
+  const combos = useMemo(() => (page?.results ?? []) as ComboList[], [page]);
   const totalCombos = page?.count ?? 0;
+
+  const stats = useMemo(() => {
+    const active = combos.filter((c) => c.is_active).length;
+    const inactive = combos.length - active;
+    const expired = combos.filter((c) => c.is_active && isExpired(c.end_date)).length;
+    const soon = combos.filter((c) => c.is_active && !isExpired(c.end_date) && isExpiringSoon(c.end_date)).length;
+    return { active, inactive, expired, soon };
+  }, [combos]);
+
   const { data: products = [] } = useProducts();
   const productOptions = useMemo(() => {
     const map = new Map(products.map((p) => [p.id, p]));
@@ -115,6 +202,7 @@ export default function CombosPage() {
     });
     return Array.from(map.values());
   }, [products, form.items]);
+
   const createMutation = useCreateComboMutation();
   const updateMutation = useUpdateComboMutation();
   const deleteMutation = useDeleteComboMutation();
@@ -150,10 +238,7 @@ export default function CombosPage() {
     const firstProduct = products[0];
     setForm((prev) => ({
       ...prev,
-      items: [
-        ...prev.items,
-        { product: firstProduct?.id ?? 0, quantity: 1 },
-      ],
+      items: [...prev.items, { product: firstProduct?.id ?? 0, quantity: 1 }],
     }));
   }
 
@@ -183,12 +268,19 @@ export default function CombosPage() {
       setFormError("El precio del combo debe ser un número positivo.");
       return;
     }
+    if (form.start_date && form.end_date && form.end_date < form.start_date) {
+      setFormError("La fecha de fin no puede ser anterior a la fecha de inicio.");
+      return;
+    }
     const items = form.items
       .filter((it) => it.product && it.quantity > 0)
       .map((it) => ({ product: it.product, quantity: it.quantity }));
+    if (items.length === 0) {
+      setFormError("Agrega al menos un producto al combo.");
+      return;
+    }
 
     const payload: ComboWriteRequest = {
-      branch: Number(branch?.branch_id ?? 0),
       name: form.name.trim(),
       description: form.description.trim() || null,
       combo_price: price.toFixed(2),
@@ -224,24 +316,72 @@ export default function CombosPage() {
     }
   }
 
+  async function handleDuplicate(combo: ComboList) {
+    try {
+      const full = await fetchCombo(combo.id);
+      const payload: ComboWriteRequest = {
+        name: `${full.name} (copia)`,
+        description: full.description ?? null,
+        combo_price: full.combo_price ?? "0",
+        is_active: full.is_active ?? true,
+        start_date: full.start_date ?? null,
+        end_date: full.end_date ?? null,
+        notes: full.notes ?? null,
+        items: full.items?.map((it) => ({ product: it.product, quantity: it.quantity ?? 1 })) ?? [],
+      };
+      await createMutation.mutateAsync(payload);
+      toast.success("Combo duplicado");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo duplicar el combo.");
+    }
+  }
+
+  const toggleActive = useMutation({
+    mutationFn: async (combo: ComboList) => {
+      const full = await fetchCombo(combo.id);
+      await updateMutation.mutateAsync({
+        id: combo.id,
+        payload: { ...comboToPayload(full), is_active: !combo.is_active },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["combos"] });
+      toast.success("Estado actualizado");
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "No se pudo actualizar el estado.");
+    },
+  });
+
+  function comboActions(combo: ComboList) {
+    return [
+      { label: "Editar", icon: Pencil, onClick: () => openModal(combo) },
+      { label: "Duplicar", icon: Copy, onClick: () => handleDuplicate(combo) },
+      { label: "Eliminar", icon: Trash2, danger: true, onClick: () => setConfirmDelete(combo) },
+    ];
+  }
+
   const isSaving = createMutation.isPending || updateMutation.isPending;
+
+  const hasData = combos.length > 0;
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex items-center justify-between border-b border-border px-6 py-3">
+      <header className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6">
         <div>
           <h1 className="text-lg font-semibold">Combos</h1>
           <p className="text-xs text-muted-foreground">
-            Gestiona combos y promociones de productos
+            Promociones y packs de productos
           </p>
         </div>
-        <Button onClick={() => openModal()}>
+        <Button onClick={() => openModal()} className="h-9 px-2 sm:px-3">
           <Plus className="h-4 w-4" />
-          Nuevo combo
+          <span className="hidden sm:inline">Nuevo combo</span>
+          <span className="sm:hidden">Nuevo</span>
         </Button>
       </header>
 
-      <div className="flex flex-1 flex-col gap-4 p-6">
+      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
         <div className="relative max-w-sm">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -262,117 +402,285 @@ export default function CombosPage() {
           <div className="grid flex-1 place-items-center">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
-        ) : combos.length === 0 ? (
-          <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border">
-            <p className="text-sm text-muted-foreground">
-              {search ? "No se encontraron combos." : "Aún no hay combos creados."}
-            </p>
+        ) : !hasData ? (
+          <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-border bg-muted/20 p-8">
+            <div className="flex max-w-xs flex-col items-center gap-3 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+                <FolderOpen className="h-7 w-7 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="font-medium">{search ? "Sin resultados" : "Aún no hay combos"}</p>
+                <p className="text-sm text-muted-foreground">
+                  {search
+                    ? "Prueba con otro término de búsqueda."
+                    : "Crea tu primera promoción para vender productos agrupados."}
+                </p>
+              </div>
+              {!search && (
+                <Button onClick={() => openModal()}>
+                  <Plus className="mr-1 h-4 w-4" />
+                  Crear combo
+                </Button>
+              )}
+            </div>
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto rounded-xl border border-border">
+            {/* Resumen */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
+              <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-sm">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary">
+                  <Boxes className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground">Total combos</p>
+                  <p className="text-lg font-semibold leading-none">{totalCombos}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-sm">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary">
+                  <Zap className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground">Activos</p>
+                  <p className="text-lg font-semibold leading-none">{stats.active}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-sm">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary">
+                  <TrendingUp className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground">Inactivos</p>
+                  <p className="text-lg font-semibold leading-none">{stats.inactive}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-sm">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary">
+                  <AlertTriangle className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground">Por vencer / vencidos</p>
+                  <p className="text-lg font-semibold leading-none">{stats.soon + stats.expired}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Vista tabla para desktop */}
+            <div className="hidden overflow-x-auto rounded-xl border border-border shadow-sm sm:block">
               <table className="w-full min-w-[640px] text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                  <tr>
                     <th className="px-4 py-3">Combo</th>
-                    <th className="px-4 py-3">Precio</th>
+                    <th className="px-4 py-3 text-right">Precio</th>
                     <th className="px-4 py-3 text-center">Productos</th>
                     <th className="px-4 py-3">Vigencia</th>
                     <th className="px-4 py-3 text-center">Estado</th>
                     <th className="px-4 py-3 text-right">Acciones</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {combos.map((combo) => (
-                    <tr key={combo.id} className="border-b border-border last:border-0">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-secondary">
-                            <Boxes className="h-3.5 w-3.5 text-muted-foreground" />
+                <tbody className="divide-y divide-border">
+                  {combos.map((combo) => {
+                    const status = comboStatus(combo);
+                    return (
+                      <tr
+                        key={combo.id}
+                        className="transition-colors hover:bg-muted/30"
+                      >
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary">
+                              <Boxes className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate font-medium">{combo.name}</p>
+                              {combo.description && (
+                                <p className="truncate text-xs text-muted-foreground">
+                                  {combo.description}
+                                </p>
+                              )}
+                            </div>
                           </div>
-                          <div className="min-w-0">
-                            <p className="font-medium">{combo.name}</p>
-                            {combo.description && (
-                              <p className="truncate text-xs text-muted-foreground">
-                                {combo.description}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 tabular-nums">
-                        {formatCLP(parseFloat(combo.combo_price || "0"))}
-                      </td>
-                      <td className="px-4 py-3 text-center text-muted-foreground">
-                        {combo.items_count ?? 0}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground">
-                        {combo.start_date || combo.end_date ? (
-                          <span className="inline-flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            {combo.start_date ? formatDate(combo.start_date) : "—"}
-                            {" "}→{" "}
-                            {combo.end_date ? formatDate(combo.end_date) : "—"}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <span className="font-semibold tabular-nums">
+                            {formatCLP(parseFloat(combo.combo_price || "0"))}
                           </span>
-                        ) : (
-                          "Sin vigencia"
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <span
-                          className={cn(
-                            "inline-flex rounded px-2 py-0.5 text-xs font-medium",
-                            combo.is_active
-                              ? "bg-emerald-500/10 text-emerald-700"
-                              : "bg-muted text-muted-foreground",
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                            {combo.items_count ?? 0} producto{(combo.items_count ?? 0) === 1 ? "" : "s"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground">
+                          {combo.start_date || combo.end_date ? (
+                            <span className="inline-flex items-center gap-1">
+                              <Calendar className="h-3 w-3 shrink-0" />
+                              {combo.start_date ? formatDate(combo.start_date) : "—"}
+                              {" → "}
+                              {combo.end_date ? formatDate(combo.end_date) : "—"}
+                            </span>
+                          ) : (
+                            "Sin vigencia"
                           )}
-                        >
-                          {combo.is_active ? "Activo" : "Inactivo"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="sm" onClick={() => openModal(combo)}>
-                            <Pencil className="h-3.5 w-3.5" />
-                            Editar
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-danger hover:text-danger"
-                            onClick={() => setConfirmDelete(combo)}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span
+                            className={cn(
+                              "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium",
+                              status.badgeBg,
+                              status.badgeText,
+                            )}
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
-                            Eliminar
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                            {status.label}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => toggleActive.mutate(combo)}
+                              aria-label={`${combo.is_active ? "Desactivar" : "Activar"} ${combo.name}`}
+                              className={cn(
+                                "rounded-full p-2 transition-colors",
+                                combo.is_active
+                                  ? "text-emerald-600 hover:bg-emerald-500/10"
+                                  : "text-muted-foreground hover:bg-muted hover:text-danger",
+                              )}
+                            >
+                              <Power className="h-4 w-4" />
+                            </button>
+                            <ActionsMenu
+                              ariaLabel={`Acciones de ${combo.name}`}
+                              items={comboActions(combo)}
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
 
-            <div className="flex items-center justify-between text-sm">
+            {/* Vista de cards — solo móvil */}
+            <div className="grid grid-cols-1 gap-4 sm:hidden">
+              {combos.map((combo) => {
+                const status = comboStatus(combo);
+                const expired = isExpired(combo.end_date);
+                const soon = !expired && isExpiringSoon(combo.end_date);
+                return (
+                  <div
+                    key={combo.id}
+                    className="flex min-w-0 flex-col rounded-xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md"
+                  >
+                    <div className="mb-3 flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-secondary">
+                          <Boxes className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold">{combo.name}</p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {combo.description || status.label}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => toggleActive.mutate(combo)}
+                        aria-label={`${combo.is_active ? "Desactivar" : "Activar"} ${combo.name}`}
+                        className={cn(
+                          "shrink-0 rounded-full p-2 transition-colors",
+                          combo.is_active
+                            ? "text-emerald-600 hover:bg-emerald-500/10"
+                            : "text-muted-foreground hover:bg-muted hover:text-danger",
+                        )}
+                      >
+                        <Power className="h-5 w-5" />
+                      </button>
+                    </div>
+
+                    <div className="mb-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                      <div className="min-w-0">
+                        <p className="text-xs text-muted-foreground">Precio combo</p>
+                        <p className="text-lg font-semibold tabular-nums">
+                          {formatCLP(parseFloat(combo.combo_price || "0"))}
+                        </p>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs text-muted-foreground">Productos</p>
+                        <p className="truncate font-medium">
+                          {combo.items_count ?? 0} incluido{(combo.items_count ?? 0) === 1 ? "" : "s"}
+                        </p>
+                      </div>
+                      <div className="col-span-2 min-w-0">
+                        <p className="text-xs text-muted-foreground">Vigencia</p>
+                        <p className="flex flex-wrap items-center gap-1 text-xs">
+                          <Calendar className="h-3 w-3 shrink-0" />
+                          <span className="truncate">
+                            {combo.start_date ? formatDate(combo.start_date) : "Sin inicio"}
+                            {" → "}
+                            {combo.end_date ? formatDate(combo.end_date) : "Sin fin"}
+                          </span>
+                          {expired && (
+                            <span className="inline-flex items-center gap-0.5 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-medium text-rose-700">
+                              <AlertTriangle className="h-3 w-3" />
+                              Vencido
+                            </span>
+                          )}
+                          {soon && (
+                            <span className="inline-flex items-center gap-0.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+                              <AlertTriangle className="h-3 w-3" />
+                              Pronto
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-auto flex items-center justify-between gap-2 border-t border-border pt-3">
+                      <span
+                        className={cn(
+                          "inline-flex rounded-full px-2.5 py-1 text-xs font-medium",
+                          status.badgeBg,
+                          status.badgeText,
+                        )}
+                      >
+                        {status.label}
+                      </span>
+                      <ActionsMenu
+                        ariaLabel={`Acciones de ${combo.name}`}
+                        items={comboActions(combo)}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
               <p className="text-muted-foreground">
                 {totalCombos} combo{totalCombos === 1 ? "" : "s"} en total
               </p>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-end gap-2">
                 <Button
                   variant="outline"
                   size="sm"
+                  className="h-10 flex-1 sm:h-9 sm:flex-none"
                   onClick={() => setPageUrl({ previous: page?.previous })}
                   disabled={!page?.previous}
                 >
-                  Anterior
+                  <span className="sm:hidden">Ant.</span>
+                  <span className="hidden sm:inline">Anterior</span>
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
+                  className="h-10 flex-1 sm:h-9 sm:flex-none"
                   onClick={() => setPageUrl({ next: page?.next })}
                   disabled={!page?.next}
                 >
-                  Siguiente
+                  <span className="sm:hidden">Sig.</span>
+                  <span className="hidden sm:inline">Siguiente</span>
                 </Button>
               </div>
             </div>
@@ -382,12 +690,12 @@ export default function CombosPage() {
 
       {modalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4"
           role="dialog"
           aria-modal="true"
         >
-          <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-xl border border-border bg-card shadow-lg">
-            <div className="flex shrink-0 items-center justify-between border-b border-border px-6 py-4">
+          <div className="flex h-[92dvh] w-full flex-col rounded-t-xl border-x border-t border-border bg-card shadow-lg sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-xl sm:border">
+            <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-4 sm:px-6">
               <h2 className="text-base font-semibold">
                 {editing ? "Editar combo" : "Nuevo combo"}
               </h2>
@@ -401,7 +709,7 @@ export default function CombosPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-              <div className="relative flex-1 overflow-y-auto p-6">
+              <div className="relative flex-1 overflow-y-auto p-4 sm:p-6">
                 {loadingCombo && (
                   <div className="absolute inset-0 z-10 grid place-items-center bg-card/80">
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -524,18 +832,14 @@ export default function CombosPage() {
                           >
                             <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                               <label className="text-xs text-muted-foreground">Producto</label>
-                              <Select
+                              <SearchableSelect
                                 value={String(item.product)}
-                                onChange={(e) =>
-                                  updateItem(index, { product: Number(e.target.value) })
-                                }
-                              >
-                                {productOptions.map((p) => (
-                                  <option key={p.id} value={String(p.id)}>
-                                    {p.name}
-                                  </option>
-                                ))}
-                              </Select>
+                                onChange={(value) => updateItem(index, { product: Number(value) })}
+                                options={productOptions.map((p) => ({ value: String(p.id), label: p.name }))}
+                                placeholder="Selecciona un producto…"
+                                searchPlaceholder="Buscar producto…"
+                                emptyMessage="No se encontraron productos"
+                              />
                             </div>
                             <div className="flex w-28 flex-col gap-1.5">
                               <label className="text-xs text-muted-foreground">Cantidad</label>
@@ -570,7 +874,7 @@ export default function CombosPage() {
                 )}
               </div>
 
-              <div className="flex shrink-0 justify-end gap-2 border-t border-border px-6 py-4">
+              <div className="flex shrink-0 justify-end gap-2 border-t border-border px-4 py-4 sm:px-6">
                 <Button type="button" variant="outline" onClick={closeModal} disabled={isSaving}>
                   Cancelar
                 </Button>

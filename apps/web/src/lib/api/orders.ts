@@ -89,18 +89,8 @@ export interface PaymentInstallment {
   modified?: string;
 }
 
-/**
- * Crear una orden de venta (SALE) con sus líneas en un solo POST.
- * El backend asigna branch/owner automáticamente desde el request
- * (X-Branch-ID + token). La fecha se envía en hora local ISO.
- */
-export async function fetchOrders(filter: OrdersFilter = {}): Promise<PaginatedOrder> {
-  if (filter.next) {
-    return apiFetch<PaginatedOrder>(filter.next);
-  }
-  if (filter.previous) {
-    return apiFetch<PaginatedOrder>(filter.previous);
-  }
+/** Parámetros comunes del listado de órdenes (usados por fetchOrders y exports). */
+function buildOrdersQueryString(filter: OrdersFilter): string {
   const qs = new URLSearchParams();
   if (filter.search) qs.set("search", filter.search);
   if (filter.order_type) qs.set("order_type", filter.order_type);
@@ -122,7 +112,23 @@ export async function fetchOrders(filter: OrdersFilter = {}): Promise<PaginatedO
   }
   if (filter.start_date) qs.set("start_date", filter.start_date);
   if (filter.end_date) qs.set("end_date", filter.end_date);
-  const q = qs.toString();
+  if (filter.page_size) qs.set("page_size", String(filter.page_size));
+  return qs.toString();
+}
+
+/**
+ * Crear una orden de venta (SALE) con sus líneas en un solo POST.
+ * El backend asigna branch/owner automáticamente desde el request
+ * (X-Branch-ID + token). La fecha se envía en hora local ISO.
+ */
+export async function fetchOrders(filter: OrdersFilter = {}): Promise<PaginatedOrder> {
+  if (filter.next) {
+    return apiFetch<PaginatedOrder>(filter.next);
+  }
+  if (filter.previous) {
+    return apiFetch<PaginatedOrder>(filter.previous);
+  }
+  const q = buildOrdersQueryString(filter);
   return apiFetch<PaginatedOrder>(`/sales/orders/${q ? `?${q}` : ""}`);
 }
 
@@ -249,25 +255,7 @@ export function cartToOrderItems(items: CartItem[]): OrderItemInput[] {
 }
 
 function ordersQueryString(filter: OrdersFilter): string {
-  const qs = new URLSearchParams();
-  if (filter.search) qs.set("search", filter.search);
-  if (filter.order_type) qs.set("order_type", filter.order_type);
-  if (filter.status) {
-    const values = Array.isArray(filter.status) ? filter.status : [filter.status];
-    values.forEach((v) => qs.append("status", v));
-  }
-  if (filter.payment_status) {
-    const values = Array.isArray(filter.payment_status) ? filter.payment_status : [filter.payment_status];
-    values.forEach((v) => qs.append("payment_status", v));
-  }
-  if (filter.delivery_status) {
-    const values = Array.isArray(filter.delivery_status) ? filter.delivery_status : [filter.delivery_status];
-    values.forEach((v) => qs.append("delivery_status", v));
-  }
-  if (filter.start_date) qs.set("start_date", filter.start_date);
-  if (filter.end_date) qs.set("end_date", filter.end_date);
-  if (filter.page_size) qs.set("page_size", String(filter.page_size));
-  const q = qs.toString();
+  const q = buildOrdersQueryString(filter);
   return q ? `?${q}` : "";
 }
 

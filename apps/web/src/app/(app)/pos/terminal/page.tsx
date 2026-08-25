@@ -353,7 +353,7 @@ export default function PosPage() {
   }, [accountClientResultsQuery, accountSelectedClient]);
 
   const { data: paymentMethods } = useQuery({
-    queryKey: ["payment-methods", "pos-terminal"],
+    queryKey: ["payment-methods"],
     queryFn: fetchPaymentMethods,
     staleTime: 60_000,
   });

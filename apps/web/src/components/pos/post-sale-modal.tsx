@@ -41,7 +41,7 @@ function buildSimpleTicket(order: Order, items: CartItem[] | undefined, branchNa
         }))
       : (order.products ?? []).map((p) => ({
           quantity: p.quantity ?? 1,
-          name: p.product_name ?? p.product__name ?? "Producto",
+          name: p.product_name ?? "Producto",
           modifiers: [],
           notes: null,
         }));
