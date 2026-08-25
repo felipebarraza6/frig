@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Pencil, Power, Loader2, Store, Users, CreditCard } from "lucide-react";
+import { Plus, Search, Pencil, Power, Loader2, Store, Users, Palette } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,7 +14,7 @@ import { branchName } from "@/lib/types";
 import { fetchBranches, updateBranch } from "@/lib/api/branches";
 import { BranchForm } from "@/components/branches/branch-form";
 import { BranchUsersDialog } from "@/components/branches/branch-users-dialog";
-import { ApplyPlanDialog } from "@/components/branches/apply-plan-dialog";
+import { BranchThemeDialog } from "@/components/branches/branch-theme-dialog";
 import type { Branch } from "@/lib/types";
 import type { BranchesFilter } from "@/lib/api/branches";
 
@@ -30,7 +30,7 @@ export default function BranchesPage() {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Branch | null>(null);
   const [viewingUsers, setViewingUsers] = useState<Branch | null>(null);
-  const [applyingPlan, setApplyingPlan] = useState<Branch | null>(null);
+  const [editingTheme, setEditingTheme] = useState<Branch | null>(null);
 
   const filter = useMemo<BranchesFilter>(() => {
     const base: BranchesFilter = {};
@@ -120,10 +120,11 @@ export default function BranchesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {branches.map((b) => {
+                  {branches.map((b, index) => {
                     const manageable = isSuperAdmin || b.can_manage;
+                    const rowKey = String(b.branch_id ?? b.id ?? index);
                     return (
-                      <tr key={String(b.branch_id)} className="border-b border-border last:border-0">
+                      <tr key={rowKey} className="border-b border-border last:border-0">
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             <div className="flex h-7 w-7 items-center justify-center rounded-md bg-secondary text-foreground">
@@ -190,14 +191,14 @@ export default function BranchesPage() {
                                 Editar
                               </Button>
                             )}
-                            {isSuperAdmin && (
+                            {manageable && (
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => setApplyingPlan(b)}
+                                onClick={() => setEditingTheme(b)}
                               >
-                                <CreditCard className="h-3.5 w-3.5" />
-                                Plan
+                                <Palette className="h-3.5 w-3.5" />
+                                Tema
                               </Button>
                             )}
                           </div>
@@ -258,11 +259,10 @@ export default function BranchesPage() {
         />
       )}
 
-      {applyingPlan && (
-        <ApplyPlanDialog
-          branch={applyingPlan}
-          onClose={() => setApplyingPlan(null)}
-          onApplied={() => queryClient.invalidateQueries({ queryKey: ["branches"] })}
+      {editingTheme && (
+        <BranchThemeDialog
+          branch={editingTheme}
+          onClose={() => setEditingTheme(null)}
         />
       )}
     </div>

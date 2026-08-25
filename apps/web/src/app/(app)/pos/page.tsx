@@ -12,7 +12,11 @@ import {
   ShoppingBag,
   Unlock,
 } from "lucide-react";
-import { useCurrentBranch, useCurrentBranchStation } from "@/lib/store/session";
+import {
+  useCurrentBranch,
+  useCurrentBranchStation,
+  useCanViewCashRegisterHistory,
+} from "@/lib/store/session";
 import { formatCLP, cn } from "@/lib/utils";
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import {
@@ -68,13 +72,15 @@ export default function PosZenPage() {
     stations[0]?.id ??
     null;
 
+  const canViewHistory = useCanViewCashRegisterHistory();
+
   const stationIds = useMemo(() => stations.map((s) => s.id), [stations]);
 
   const dailySummaries = useQueries({
     queries: stationIds.map((id) => ({
       queryKey: ["cash-register", "daily-summary", id, today, "pos"],
       queryFn: () => getDailySummary(id),
-      enabled: !!id,
+      enabled: !!id && canViewHistory,
       staleTime: 30_000,
       retry: false,
     })),

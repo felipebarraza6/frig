@@ -57,7 +57,7 @@ export default function LoginPage() {
         const config = await fetchFrontendConfig(branchId);
         setFrontendConfig(config, String(branchId));
         try {
-          const branchTheme = await fetchBranchTheme();
+          const branchTheme = await fetchBranchTheme(String(branchId));
           if (branchTheme) {
             setTheme(branchTheme);
             applyThemeConfig(branchTheme);

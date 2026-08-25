@@ -3,7 +3,24 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Pencil, Trash2, Loader2, Warehouse, X, FileSpreadsheet, FileText } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Pencil,
+  Trash2,
+  Loader2,
+  Warehouse,
+  X,
+  FileSpreadsheet,
+  FileText,
+  Package,
+  Boxes,
+  TrendingUp,
+  AlertTriangle,
+  Layers,
+  Coins,
+  ArrowRight,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -16,20 +33,54 @@ import {
   type WarehousesFilter,
 } from "@/lib/api/warehouses";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
+import { formatCLP, cn } from "@/lib/utils";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 type Warehouse = YggdraSchemas["Warehouse"];
 
-const WAREHOUSE_TYPES = [
+const WAREHOUSE_TYPE_LABELS: Record<string, string> = {
+  GENERAL: "General",
+  TOOLS: "Herramientas",
+  RAW_MATERIAL: "Materias primas",
+  WASTE: "Residuos",
+  CUSTOM: "Personalizada",
+};
+
+const WAREHOUSE_TYPES_UI = [
   { value: "GENERAL", label: "General" },
-  { value: "TOOLS", label: "Herramientas" },
   { value: "RAW_MATERIAL", label: "Materias primas" },
-  { value: "WASTE", label: "Residuos" },
   { value: "CUSTOM", label: "Personalizada" },
-] as const;
+];
 
 function typeLabel(value?: string | null): string {
-  return WAREHOUSE_TYPES.find((t) => t.value === value)?.label ?? (value ?? "—");
+  if (!value) return "—";
+  return WAREHOUSE_TYPE_LABELS[value] ?? value;
+}
+
+function typeIcon(value?: string | null) {
+  switch (value) {
+    case "RAW_MATERIAL":
+      return Boxes;
+    case "GENERAL":
+      return Warehouse;
+    default:
+      return Layers;
+  }
+}
+
+function typeAccent(value?: string | null): string {
+  switch (value) {
+    case "RAW_MATERIAL":
+      return "bg-amber-500/10 text-amber-700 border-amber-500/20";
+    case "GENERAL":
+      return "bg-primary/10 text-primary border-primary/20";
+    default:
+      return "bg-muted text-muted-foreground border-border";
+  }
+}
+
+function numValue(v: string | null | undefined): number {
+  return parseFloat(v || "0") || 0;
 }
 
 export default function WarehousesPage() {
@@ -67,6 +118,28 @@ export default function WarehousesPage() {
 
   const warehouses = page?.results ?? [];
   const totalWarehouses = page?.count ?? 0;
+
+  const summary = useMemo(() => {
+    const num = (v: string | null | undefined) => parseFloat(v || "0") || 0;
+    return (page?.results ?? []).reduce(
+      (acc, w) => ({
+        totalProducts: acc.totalProducts + num(w.total_products),
+        totalQuantity: acc.totalQuantity + num(w.total_quantity),
+        totalCost: acc.totalCost + num(w.total_value),
+        totalSale: acc.totalSale + num(w.total_sale_value),
+        lowStock: acc.lowStock + num(w.low_stock_products),
+        outOfStock: acc.outOfStock + num(w.out_of_stock_products),
+      }),
+      {
+        totalProducts: 0,
+        totalQuantity: 0,
+        totalCost: 0,
+        totalSale: 0,
+        lowStock: 0,
+        outOfStock: 0,
+      },
+    );
+  }, [page?.results]);
 
   const save = useMutation({
     mutationFn: async () => {
@@ -136,14 +209,14 @@ export default function WarehousesPage() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex items-center justify-between border-b border-border px-6 py-3">
+      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div>
           <h1 className="text-lg font-semibold">Bodegas</h1>
           <p className="text-xs text-muted-foreground">
             Gestiona las bodegas de la sucursal
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -151,7 +224,7 @@ export default function WarehousesPage() {
             disabled={isExporting}
           >
             <FileSpreadsheet className="h-4 w-4" />
-            Excel
+            <span className="hidden sm:inline">Excel</span>
           </Button>
           <Button
             variant="outline"
@@ -160,16 +233,16 @@ export default function WarehousesPage() {
             disabled={isExporting}
           >
             <FileText className="h-4 w-4" />
-            PDF
+            <span className="hidden sm:inline">PDF</span>
           </Button>
           <Button onClick={() => openModal()}>
             <Plus className="h-4 w-4" />
-            Nueva bodega
+            <span className="hidden sm:inline">Nueva bodega</span>
           </Button>
         </div>
       </header>
 
-      <div className="flex flex-1 flex-col gap-4 p-6">
+      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
         <div className="flex flex-wrap items-end gap-3">
           <div className="relative w-full max-w-xs">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -183,10 +256,11 @@ export default function WarehousesPage() {
               className="pl-9"
             />
           </div>
-          <div className="flex flex-col gap-1">
+          <div className="flex w-full flex-col gap-1 sm:w-auto">
             <label htmlFor="filter-type" className="text-xs text-muted-foreground">Tipo</label>
             <Select
               id="filter-type"
+              className="w-full sm:w-auto"
               value={type}
               onChange={(e) => {
                 setType(e.target.value);
@@ -194,7 +268,7 @@ export default function WarehousesPage() {
               }}
             >
               <option value="">Todos</option>
-              {WAREHOUSE_TYPES.map((t) => (
+              {WAREHOUSE_TYPES_UI.map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
               ))}
             </Select>
@@ -209,63 +283,196 @@ export default function WarehousesPage() {
           </div>
         ) : (
           <>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {warehouses.map((w) => (
-                <div
-                  key={w.id}
-                  onClick={() => router.push(`/warehouses/${w.id}`)}
-                  className="cursor-pointer rounded-xl border border-border bg-card p-4 transition hover:border-primary"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-secondary">
-                        <Warehouse className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                      <div>
-                        <p className="font-medium">{w.name}</p>
-                        <p className="text-xs text-muted-foreground">{typeLabel(w.warehouse_type)}</p>
-                      </div>
-                    </div>
-                    {w.is_default && (
-                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                        Principal
-                      </span>
-                    )}
+            {/* Resumen global */}
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                    <Warehouse className="h-5 w-5 text-primary" />
                   </div>
-                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                    <span>Productos: {w.total_products ?? 0}</span>
-                    <span>Cantidad: {w.total_quantity ?? 0}</span>
-                  </div>
-                  <div className="mt-3 flex justify-end gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openModal(w);
-                      }}
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                      Editar
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-danger hover:text-danger"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setConfirmDelete(w);
-                      }}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      Eliminar
-                    </Button>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Bodegas</p>
+                    <p className="text-lg font-semibold tabular-nums">{totalWarehouses}</p>
                   </div>
                 </div>
-              ))}
+              </div>
+              <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10">
+                    <Package className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Productos</p>
+                    <p className="text-lg font-semibold tabular-nums">{summary.totalProducts}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10">
+                    <Coins className="h-5 w-5 text-emerald-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Valor costo</p>
+                    <p className="text-lg font-semibold tabular-nums">{formatCLP(summary.totalCost)}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/10">
+                    <TrendingUp className="h-5 w-5 text-violet-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Valor venta</p>
+                    <p className="text-lg font-semibold tabular-nums">{formatCLP(summary.totalSale)}</p>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="flex items-center justify-between text-sm">
+            {(summary.lowStock > 0 || summary.outOfStock > 0) && (
+              <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-amber-600" />
+                    <p className="text-sm font-medium text-amber-800">Alertas de stock</p>
+                  </div>
+                  {summary.lowStock > 0 && (
+                    <span className="text-sm text-amber-700">
+                      {summary.lowStock} producto{summary.lowStock === 1 ? "" : "s"} con stock bajo
+                    </span>
+                  )}
+                  {summary.outOfStock > 0 && (
+                    <span className="text-sm text-amber-700">
+                      {summary.outOfStock} producto{summary.outOfStock === 1 ? "" : "s"} sin stock
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Cards de bodegas */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {warehouses.map((w) => {
+                const Icon = typeIcon(w.warehouse_type);
+                const accent = typeAccent(w.warehouse_type);
+                const totalProducts = numValue(w.total_products);
+                const totalQuantity = numValue(w.total_quantity);
+                const totalCost = numValue(w.total_value);
+                const totalSale = numValue(w.total_sale_value);
+                const lowStock = numValue(w.low_stock_products);
+                const outOfStock = numValue(w.out_of_stock_products);
+                const hasAlerts = lowStock > 0 || outOfStock > 0;
+
+                return (
+                  <div
+                    key={w.id}
+                    onClick={() => router.push(`/warehouses/${w.id}`)}
+                    className={cn(
+                      "group cursor-pointer rounded-2xl border border-border bg-card p-4 shadow-sm transition sm:p-5",
+                      "hover:border-primary hover:shadow-md",
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={cn(
+                            "flex h-11 w-11 items-center justify-center rounded-xl border",
+                            accent,
+                          )}
+                        >
+                          <Icon className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="font-semibold leading-tight">{w.name}</p>
+                          <p className="text-xs text-muted-foreground">{typeLabel(w.warehouse_type)}</p>
+                        </div>
+                      </div>
+                      {w.is_default && (
+                        <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                          Principal
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-3">
+                      <div className="rounded-xl bg-muted/50 p-3">
+                        <p className="text-xs text-muted-foreground">Productos</p>
+                        <p className="text-base font-semibold tabular-nums">{totalProducts}</p>
+                      </div>
+                      <div className="rounded-xl bg-muted/50 p-3">
+                        <p className="text-xs text-muted-foreground">Unidades</p>
+                        <p className="text-base font-semibold tabular-nums">{totalQuantity}</p>
+                      </div>
+                      <div className="rounded-xl bg-muted/50 p-3">
+                        <p className="text-xs text-muted-foreground">Costo</p>
+                        <p className="text-base font-semibold tabular-nums text-emerald-700">
+                          {formatCLP(totalCost)}
+                        </p>
+                      </div>
+                      <div className="rounded-xl bg-muted/50 p-3">
+                        <p className="text-xs text-muted-foreground">Venta</p>
+                        <p className="text-base font-semibold tabular-nums text-primary">
+                          {formatCLP(totalSale)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {hasAlerts && (
+                      <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2">
+                        <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                        <p className="text-xs text-amber-700">
+                          {lowStock > 0 && `${lowStock} bajo stock`}
+                          {lowStock > 0 && outOfStock > 0 && " · "}
+                          {outOfStock > 0 && `${outOfStock} sin stock`}
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="justify-start gap-2 text-danger hover:text-danger sm:justify-center"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setConfirmDelete(w);
+                        }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span className="sm:hidden">Eliminar</span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="justify-start gap-2 sm:justify-center"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openModal(w);
+                        }}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        <span className="sm:hidden">Editar</span>
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="justify-between gap-2 sm:justify-center"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/warehouses/${w.id}`);
+                        }}
+                      >
+                        <span>Entrar</span>
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
               <p className="text-muted-foreground">
                 {totalWarehouses} bodega{totalWarehouses === 1 ? "" : "s"} en total
               </p>
@@ -327,7 +534,7 @@ export default function WarehousesPage() {
                     value={form.warehouse_type}
                     onChange={(e) => setForm({ ...form, warehouse_type: e.target.value })}
                   >
-                    {WAREHOUSE_TYPES.map((t) => (
+                    {WAREHOUSE_TYPES_UI.map((t) => (
                       <option key={t.value} value={t.value}>{t.label}</option>
                     ))}
                   </Select>

@@ -1,6 +1,13 @@
+import * as XLSX from "xlsx-js-style";
 import { apiFetch, apiFile, ApiError, type ApiFileResult } from "@/lib/api/client";
 import type { YggdraSchemas } from "@/lib/api/types";
 import type { CartItem } from "@/lib/store/cart";
+import {
+  orderTypeLabel,
+  orderStatusLabel,
+  paymentStatusLabel,
+  formatCLP,
+} from "@/lib/utils";
 
 type YggdraOrder = YggdraSchemas["Order"];
 type PaginatedOrder = YggdraSchemas["PaginatedOrderList"];
@@ -254,11 +261,6 @@ export function cartToOrderItems(items: CartItem[]): OrderItemInput[] {
   }));
 }
 
-function ordersQueryString(filter: OrdersFilter): string {
-  const q = buildOrdersQueryString(filter);
-  return q ? `?${q}` : "";
-}
-
 export async function downloadOrderThermalPdf(id: string): Promise<ApiFileResult> {
   return apiFile(`/sales/orders/${id}/generate-boleta-pdf/`);
 }
@@ -271,8 +273,106 @@ export async function downloadOrderA4Pdf(id: string): Promise<ApiFileResult> {
   return apiFile(`/sales/orders/${id}/generate-boleta-domiciliaria-pdf/`);
 }
 
-export async function exportOrdersExcel(filter: OrdersFilter): Promise<ApiFileResult> {
-  return apiFile(`/sales/orders/export/${ordersQueryString(filter)}`);
+function formatOrderDate(value?: string | null): string {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  const hours = String(d.getHours()).padStart(2, "0");
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
+}
+
+/**
+ * Normaliza un color HEX a 8 dígitos ARGB (con alfa FF) mayúsculas sin `#`,
+ * formato que xlsx-js-style aplica de forma confiable en `fgColor.rgb`.
+ * Soporta 3, 6 y 8 dígitos, con o sin alfa, y devuelve un fallback si el
+ * formato no es válido.
+ */
+function normalizeHexForXlsx(color: string, fallback = "FF2F6B3C"): string {
+  const hex = color.replace("#", "").trim().toUpperCase();
+  // 3 dígitos → 6 dígitos.
+  if (/^[0-9A-F]{3}$/.test(hex)) {
+    const expanded = hex
+      .split("")
+      .map((c) => c + c)
+      .join("");
+    return `FF${expanded}`;
+  }
+  // 6 dígitos: agregar alfa FF.
+  if (/^[0-9A-F]{6}$/.test(hex)) return `FF${hex}`;
+  // 8 dígitos (ARGB): ya está listo.
+  if (/^[0-9A-F]{8}$/.test(hex)) return hex;
+  return fallback;
+}
+
+/**
+ * Genera un archivo Excel de órdenes en el navegador, traduciendo estados y
+ * tipos al español y aplicando el color primario de la marca en el encabezado.
+ * El color debe estar en formato HEX (ej: #2f6b3c).
+ *
+ * Se usa `aoa_to_sheet` en lugar de `json_to_sheet` para garantizar que las
+ * celdas del encabezado existan y acepten estilos de forma confiable.
+ */
+export function generateOrdersExcel(
+  orders: YggdraOrder[],
+  primaryColor = "#2f6b3c",
+): Blob {
+  const headers = [
+    "ID",
+    "Tipo",
+    "Estado",
+    "Pago",
+    "Fecha",
+    "Cliente",
+    "Sucursal",
+    "Monto Total",
+    "Costo Total",
+    "Observaciones",
+    "Creado",
+  ];
+
+  const rows = orders.map((o) => [
+    o.id,
+    orderTypeLabel(o.order_type),
+    orderStatusLabel(o.status),
+    paymentStatusLabel(o.payment_status),
+    formatOrderDate(o.date),
+    o.client?.name ?? "Sin cliente",
+    o.branch?.business_name ?? "—",
+    o.total_amount ? formatCLP(o.total_amount) : "$0",
+    o.total_cost ? formatCLP(o.total_cost) : "$0",
+    o.observation ?? "",
+    formatOrderDate(o.created),
+  ]);
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+
+  // Aplicar color de marca al encabezado.
+  const fill = {
+    patternType: "solid",
+    fgColor: { rgb: normalizeHexForXlsx(primaryColor) },
+  };
+  const font = { bold: true, color: { rgb: "FFFFFF" } };
+  for (let c = 0; c < headers.length; c++) {
+    const cellRef = XLSX.utils.encode_cell({ r: 0, c });
+    if (!ws[cellRef]) {
+      ws[cellRef] = { t: "s", v: headers[c] };
+    }
+    ws[cellRef].s = { fill, font };
+  }
+
+  // Auto-ajustar anchos de columna aproximados.
+  ws["!cols"] = headers.map((key) => ({
+    wch: Math.max(key.length, 12),
+  }));
+
+  XLSX.utils.book_append_sheet(wb, ws, "Datos");
+  const buffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+  return new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
 }
 
 export { ApiError };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -11,6 +11,15 @@ import {
   ArrowRightLeft,
   Pencil,
   X,
+  Warehouse,
+  ShieldCheck,
+  Coins,
+  TrendingUp,
+  Layers,
+  Search,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,9 +33,108 @@ import {
   transferStock,
 } from "@/lib/api/warehouses";
 import { fetchProducts } from "@/lib/api/products";
+import { formatCLP, cn, stockStatusLabel } from "@/lib/utils";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 type WarehouseProduct = YggdraSchemas["WarehouseProduct"];
+
+const SORT_OPTIONS = [
+  { value: "product_name", label: "Producto" },
+  { value: "current_quantity", label: "Cantidad" },
+  { value: "minimum_quantity", label: "Mínima" },
+  { value: "product_cost", label: "C/Unitario" },
+  { value: "total_value", label: "Costo" },
+  { value: "sale_price", label: "V/Unitario" },
+  { value: "total_sale_value", label: "Venta" },
+  { value: "stock_status", label: "Estado" },
+];
+
+function numValue(v: string | null | undefined): number {
+  return parseFloat(v || "0") || 0;
+}
+
+function typeLabel(value?: string | null): string {
+  const labels: Record<string, string> = {
+    GENERAL: "General",
+    TOOLS: "Herramientas",
+    RAW_MATERIAL: "Materias primas",
+    WASTE: "Residuos",
+    CUSTOM: "Personalizada",
+  };
+  if (!value) return "Bodega";
+  return labels[value] ?? value;
+}
+
+function formatDateTime(v: string | null | undefined): string {
+  if (!v) return "—";
+  const date = new Date(v);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleString("es-CL", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function SortIcon({
+  field,
+  sort,
+}: {
+  field: string;
+  sort: { field: string; desc: boolean } | null;
+}) {
+  if (sort?.field !== field) {
+    return (
+      <ArrowUpDown className="ml-1 inline h-3 w-3 text-muted-foreground" />
+    );
+  }
+  return sort.desc ? (
+    <ArrowDown className="ml-1 inline h-3 w-3 text-primary" />
+  ) : (
+    <ArrowUp className="ml-1 inline h-3 w-3 text-primary" />
+  );
+}
+
+function SkeletonBlock({ className }: { className?: string }) {
+  return (
+    <div className={cn("animate-pulse rounded-xl bg-muted", className)} />
+  );
+}
+
+function MetricCard({
+  icon: Icon,
+  label,
+  value,
+  tone = "default",
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: string | number;
+  tone?: "default" | "primary" | "emerald" | "violet" | "amber";
+}) {
+  const tones = {
+    default: "bg-muted text-foreground",
+    primary: "bg-primary/10 text-primary",
+    emerald: "bg-emerald-500/10 text-emerald-700",
+    violet: "bg-violet-500/10 text-violet-700",
+    amber: "bg-amber-500/10 text-amber-700",
+  };
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+      <div className="flex items-center gap-3">
+        <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", tones[tone])}>
+          <Icon className="h-5 w-5" />
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">{label}</p>
+          <p className="text-lg font-semibold tabular-nums">{value}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function WarehouseDetailPage() {
   const params = useParams();
@@ -45,17 +153,32 @@ export default function WarehouseDetailPage() {
   const [transferProduct, setTransferProduct] = useState<WarehouseProduct | null>(null);
   const [transferQuantity, setTransferQuantity] = useState("");
 
+  const [productSearch, setProductSearch] = useState("");
+  const [productPageUrl, setProductPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
+  const [productSort, setProductSort] = useState<{ field: string; desc: boolean } | null>(null);
+
   const { data: warehouse, isLoading: loadingWarehouse } = useQuery({
     queryKey: ["warehouses", warehouseId],
     queryFn: () => fetchWarehouse(warehouseId),
     enabled: Boolean(warehouseId),
   });
 
-  const { data: products = [], isLoading: loadingProducts } = useQuery({
-    queryKey: ["warehouses", warehouseId, "products"],
-    queryFn: () => fetchWarehouseProducts(warehouseId),
+  const productFilter = useMemo(
+    () => ({
+      search: productSearch || undefined,
+      ordering: productSort ? `${productSort.desc ? "-" : ""}${productSort.field}` : undefined,
+      ...productPageUrl,
+    }),
+    [productSearch, productSort, productPageUrl],
+  );
+
+  const { data: productsPage, isLoading: loadingProducts } = useQuery({
+    queryKey: ["warehouses", warehouseId, "products", productFilter],
+    queryFn: () => fetchWarehouseProducts(warehouseId, productFilter),
     enabled: Boolean(warehouseId),
   });
+  const products = productsPage?.results ?? [];
+  const totalProductsCount = productsPage?.count ?? 0;
 
   const { data: catalogPage } = useQuery({
     queryKey: ["products", "catalog"],
@@ -63,11 +186,29 @@ export default function WarehouseDetailPage() {
   });
   const catalog = catalogPage?.results ?? [];
 
+  const productSalePriceMap = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const p of catalogPage?.results ?? []) {
+      map.set(p.id, numValue(p.sale_price));
+    }
+    return map;
+  }, [catalogPage?.results]);
+
   const { data: warehousesPage } = useQuery({
     queryKey: ["warehouses", "all"],
     queryFn: () => fetchWarehouses({}),
   });
   const targetWarehouses = (warehousesPage?.results ?? []).filter((w) => w.id !== warehouseId);
+
+  const handleSort = (field: string) => {
+    setProductSort((prev) => {
+      if (prev?.field === field) {
+        return { field, desc: !prev.desc };
+      }
+      return { field, desc: false };
+    });
+    setProductPageUrl({});
+  };
 
   const add = useMutation({
     mutationFn: () =>
@@ -123,8 +264,28 @@ export default function WarehouseDetailPage() {
 
   if (loadingWarehouse) {
     return (
-      <div className="flex min-h-full flex-1 items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="flex min-h-full flex-col">
+        <header className="flex items-center gap-3 border-b border-border px-4 py-3 sm:px-6">
+          <Button variant="ghost" size="sm" onClick={() => router.push("/warehouses")}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div className="flex-1">
+            <SkeletonBlock className="h-6 w-48" />
+            <SkeletonBlock className="mt-2 h-4 w-32" />
+          </div>
+        </header>
+        <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <SkeletonBlock key={i} className="h-24" />
+            ))}
+          </div>
+          <div className="flex items-center justify-between">
+            <SkeletonBlock className="h-5 w-40" />
+            <SkeletonBlock className="h-9 w-48" />
+          </div>
+          <SkeletonBlock className="h-64 w-full" />
+        </div>
       </div>
     );
   }
@@ -140,131 +301,462 @@ export default function WarehouseDetailPage() {
     );
   }
 
+  const totalProducts = numValue(warehouse.total_products);
+  const totalQuantity = numValue(warehouse.total_quantity);
+  const totalCost = numValue(warehouse.total_value);
+  const totalSale = numValue(warehouse.total_sale_value);
+  const lowStock = numValue(warehouse.low_stock_products);
+  const outOfStock = numValue(warehouse.out_of_stock_products);
+  const hasAlerts = lowStock > 0 || outOfStock > 0;
+
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex items-center gap-3 border-b border-border px-6 py-3">
+      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:px-6">
         <Button variant="ghost" size="sm" onClick={() => router.push("/warehouses")}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <div>
-          <h1 className="text-lg font-semibold">{warehouse.name}</h1>
-          <p className="text-xs text-muted-foreground">
-            {warehouse.warehouse_type ?? "Bodega"} · {warehouse.location ?? "Sin ubicación"}
-          </p>
+        <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-lg font-semibold">{warehouse.name}</h1>
+              {warehouse.is_default && (
+                <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                  Principal
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {typeLabel(warehouse.warehouse_type)} · {warehouse.location ?? "Sin ubicación"}
+            </p>
+          </div>
+          <div className="flex items-center gap-1.5 self-start rounded-full border border-emerald-500/20 bg-emerald-500/5 px-2.5 py-1">
+            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+            <span className="hidden text-[10px] font-medium uppercase tracking-wide text-emerald-700 sm:inline">
+              Verificado
+            </span>
+            <span className="text-[10px] text-emerald-600">
+              {formatDateTime(warehouse.modified)}
+            </span>
+          </div>
         </div>
       </header>
 
-      <div className="flex flex-1 flex-col gap-6 p-6">
-        <div className="grid gap-4 sm:grid-cols-4">
-          <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs text-muted-foreground">Productos</p>
-            <p className="text-xl font-semibold">{warehouse.total_products ?? 0}</p>
-          </div>
-          <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs text-muted-foreground">Cantidad total</p>
-            <p className="text-xl font-semibold">{warehouse.total_quantity ?? 0}</p>
-          </div>
-          <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs text-muted-foreground">Stock bajo</p>
-            <p className="text-xl font-semibold">{warehouse.low_stock_products ?? 0}</p>
-          </div>
-          <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs text-muted-foreground">Sin stock</p>
-            <p className="text-xl font-semibold">{warehouse.out_of_stock_products ?? 0}</p>
-          </div>
+      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
+        {/* Métricas principales */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <MetricCard icon={Package} label="Productos" value={totalProducts} />
+          <MetricCard icon={Layers} label="Unidades" value={totalQuantity} tone="default" />
+          <MetricCard icon={Coins} label="Valor costo" value={formatCLP(totalCost)} tone="emerald" />
+          <MetricCard icon={TrendingUp} label="Valor venta" value={formatCLP(totalSale)} tone="violet" />
         </div>
 
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Productos en bodega</h2>
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={() => setTransferOpen(true)}>
-              <ArrowRightLeft className="mr-1 h-3.5 w-3.5" />
-              Transferir
-            </Button>
-            <Button size="sm" onClick={() => setAddOpen(true)}>
-              <Plus className="mr-1 h-3.5 w-3.5" />
-              Agregar producto
-            </Button>
+        {hasAlerts && (
+          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
+            <div className="flex flex-wrap items-center gap-4">
+              <p className="text-sm font-medium text-amber-800">Alertas de stock</p>
+              {lowStock > 0 && (
+                <span className="text-sm text-amber-700">
+                  {lowStock} producto{lowStock === 1 ? "" : "s"} con stock bajo
+                </span>
+              )}
+              {outOfStock > 0 && (
+                <span className="text-sm text-amber-700">
+                  {outOfStock} producto{outOfStock === 1 ? "" : "s"} sin stock
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center justify-between gap-2 sm:block">
+            <h2 className="text-sm font-semibold">Productos en bodega</h2>
+            <span className="text-xs text-muted-foreground sm:hidden">
+              {totalProductsCount} producto{totalProductsCount === 1 ? "" : "s"}
+            </span>
+          </div>
+          <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+            <div className="flex items-center gap-2 sm:hidden">
+              <Select
+                value={productSort?.field ?? ""}
+                onChange={(e) => {
+                  const field = e.target.value;
+                  if (!field) {
+                    setProductSort(null);
+                  } else {
+                    setProductSort((prev) => ({
+                      field,
+                      desc: prev?.field === field ? !prev.desc : false,
+                    }));
+                  }
+                  setProductPageUrl({});
+                }}
+                className="flex-1"
+              >
+                <option value="">Ordenar por…</option>
+                {SORT_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </Select>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="px-2"
+                disabled={!productSort}
+                onClick={() =>
+                  setProductSort((prev) =>
+                    prev ? { ...prev, desc: !prev.desc } : null
+                  )
+                }
+                aria-label="Cambiar dirección"
+              >
+                {productSort?.desc ? (
+                  <ArrowDown className="h-4 w-4" />
+                ) : (
+                  <ArrowUp className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+            <div className="relative w-full sm:max-w-xs">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={productSearch}
+                onChange={(e) => {
+                  setProductSearch(e.target.value);
+                  setProductPageUrl({});
+                }}
+                placeholder="Buscar producto…"
+                className="pl-9"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => setTransferOpen(true)} className="flex-1 sm:flex-none">
+                <ArrowRightLeft className="mr-1 h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Transferir</span>
+              </Button>
+              <Button size="sm" onClick={() => setAddOpen(true)} className="flex-1 sm:flex-none">
+                <Plus className="mr-1 h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Agregar producto</span>
+              </Button>
+            </div>
           </div>
         </div>
 
         {loadingProducts ? (
-          <div className="grid flex-1 place-items-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <div className="overflow-hidden rounded-2xl border border-border">
+            <div className="border-b border-border bg-muted/50 p-4">
+              <SkeletonBlock className="h-4 w-48" />
+            </div>
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex items-center justify-between border-b border-border p-4 last:border-0">
+                <div className="flex items-center gap-3">
+                  <SkeletonBlock className="h-8 w-8" />
+                  <div>
+                    <SkeletonBlock className="h-4 w-32" />
+                    <SkeletonBlock className="mt-1 h-3 w-20" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-8">
+                  <SkeletonBlock className="h-4 w-12" />
+                  <SkeletonBlock className="h-4 w-12" />
+                  <SkeletonBlock className="h-6 w-16" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : products.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No hay productos en esta bodega.</p>
+          <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-border p-12">
+            <div className="text-center">
+              <Warehouse className="mx-auto h-10 w-10 text-muted-foreground" />
+              <p className="mt-2 text-sm font-medium">No hay productos en esta bodega</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Agrega productos para comenzar a gestionar su stock.
+              </p>
+              <Button className="mt-4" size="sm" onClick={() => setAddOpen(true)}>
+                <Plus className="mr-1 h-3.5 w-3.5" />
+                Agregar producto
+              </Button>
+            </div>
+          </div>
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-border">
-            <table className="w-full min-w-[640px] text-sm">
+          <>
+          <div className="hidden sm:block overflow-x-auto rounded-2xl border border-border">
+            <table className="w-full table-fixed min-w-[720px] text-sm">
               <thead>
-                <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                  <th className="px-4 py-3">Producto</th>
-                  <th className="px-4 py-3 text-right">Cantidad</th>
-                  <th className="px-4 py-3 text-right">Mínima</th>
-                  <th className="px-4 py-3 text-center">Estado</th>
-                  <th className="px-4 py-3 text-right">Acciones</th>
+                <tr className="border-b border-border text-left text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                  <th
+                    className="group w-auto min-w-[160px] cursor-pointer select-none px-3 py-2 text-left hover:bg-muted/50"
+                    onClick={() => handleSort("product_name")}
+                  >
+                    <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                      Producto <SortIcon sort={productSort} field="product_name" />
+                    </span>
+                  </th>
+                  <th
+                    className="group w-20 cursor-pointer select-none px-3 py-2 text-right hover:bg-muted/50"
+                    onClick={() => handleSort("current_quantity")}
+                  >
+                    <span className="inline-flex items-center justify-end gap-1 whitespace-nowrap">
+                      Cantidad <SortIcon sort={productSort} field="current_quantity" />
+                    </span>
+                  </th>
+                  <th
+                    className="group w-20 cursor-pointer select-none px-3 py-2 text-right hover:bg-muted/50"
+                    onClick={() => handleSort("minimum_quantity")}
+                  >
+                    <span className="inline-flex items-center justify-end gap-1 whitespace-nowrap">
+                      Mínima <SortIcon sort={productSort} field="minimum_quantity" />
+                    </span>
+                  </th>
+                  <th
+                    className="group w-28 cursor-pointer select-none px-3 py-2 text-right hover:bg-muted/50"
+                    onClick={() => handleSort("total_value")}
+                  >
+                    <span className="inline-flex items-center justify-end gap-1 whitespace-nowrap">
+                      Costo <SortIcon sort={productSort} field="total_value" />
+                    </span>
+                  </th>
+                  <th
+                    className="group w-28 cursor-pointer select-none px-3 py-2 text-right hover:bg-muted/50"
+                    onClick={() => handleSort("total_sale_value")}
+                  >
+                    <span className="inline-flex items-center justify-end gap-1 whitespace-nowrap">
+                      Venta <SortIcon sort={productSort} field="total_sale_value" />
+                    </span>
+                  </th>
+                  <th
+                    className="group w-24 cursor-pointer select-none px-3 py-2 text-center hover:bg-muted/50"
+                    onClick={() => handleSort("stock_status")}
+                  >
+                    <span className="inline-flex items-center justify-center gap-1 whitespace-nowrap">
+                      Estado <SortIcon sort={productSort} field="stock_status" />
+                    </span>
+                  </th>
+                  <th className="w-20 px-3 py-2 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {products.map((wp) => (
-                  <tr key={wp.id} className="border-b border-border last:border-0">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="flex h-7 w-7 items-center justify-center rounded-md bg-secondary">
-                          <Package className="h-3.5 w-3.5 text-muted-foreground" />
+                {products.map((wp) => {
+                  const unitCost = numValue(wp.product_cost);
+                  const totalValue = numValue(wp.total_value);
+                  const salePrice = productSalePriceMap.get(wp.product ?? 0) ?? 0;
+                  const totalSale = salePrice * wp.current_quantity;
+                  const status = wp.stock_status ?? "";
+                  const isOk = status === "IN_STOCK";
+                  const isLow = status === "LOW_STOCK";
+                  const isOut = status === "OUT_OF_STOCK";
+
+                  return (
+                    <tr key={wp.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-2.5">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary">
+                            <Package className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate font-medium leading-tight">{wp.product_name}</p>
+                            <p className="truncate text-xs text-muted-foreground leading-tight">
+                              {wp.product_code} · {wp.product_measurement_unit}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium">{wp.product_name}</p>
-                          <p className="text-xs text-muted-foreground">{wp.product_code}</p>
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums font-medium">
+                        {wp.current_quantity}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                        {wp.minimum_quantity ?? "—"}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums">
+                        <div className="leading-tight">
+                          <p className="font-medium text-emerald-700">{formatCLP(totalValue)}</p>
+                          <p className="text-xs text-muted-foreground">{formatCLP(unitCost)} c/u</p>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums">{wp.current_quantity}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{wp.minimum_quantity ?? "—"}</td>
-                    <td className="px-4 py-3 text-center">
-                      <span
-                        className={
-                          wp.stock_status === "OK"
-                            ? "rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-700"
-                            : "rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700"
-                        }
-                      >
-                        {wp.stock_status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setAdjustingProduct(wp);
-                            setNewQuantity(String(wp.current_quantity));
-                            setAdjustOpen(true);
-                          }}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums">
+                        <div className="leading-tight">
+                          <p className="font-medium text-primary">{formatCLP(totalSale)}</p>
+                          <p className="text-xs text-muted-foreground">{formatCLP(salePrice)} c/u</p>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <span
+                          className={cn(
+                            "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
+                            isOk && "bg-emerald-500/10 text-emerald-700",
+                            isLow && "bg-amber-500/10 text-amber-700",
+                            isOut && "bg-rose-500/10 text-rose-700",
+                            !isOk && !isLow && !isOut && "bg-muted text-muted-foreground",
+                          )}
                         >
-                          <Pencil className="h-3.5 w-3.5" />
-                          Ajustar
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setTransferProduct(wp);
-                            setTransferOpen(true);
-                          }}
-                        >
-                          <ArrowRightLeft className="h-3.5 w-3.5" />
-                          Mover
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          {stockStatusLabel(status)}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            title="Ajustar cantidad"
+                            onClick={() => {
+                              setAdjustingProduct(wp);
+                              setNewQuantity(String(wp.current_quantity));
+                              setAdjustOpen(true);
+                            }}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                            <span className="sr-only">Ajustar</span>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            title="Transferir a otra bodega"
+                            onClick={() => {
+                              setTransferProduct(wp);
+                              setTransferOpen(true);
+                            }}
+                          >
+                            <ArrowRightLeft className="h-3.5 w-3.5" />
+                            <span className="sr-only">Mover</span>
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
+
+          {/* Vista móvil de productos */}
+          <div className="grid gap-3 sm:hidden">
+            {products.map((wp) => {
+              const unitCost = numValue(wp.product_cost);
+              const totalValue = numValue(wp.total_value);
+              const salePrice = productSalePriceMap.get(wp.product ?? 0) ?? 0;
+              const totalSale = salePrice * wp.current_quantity;
+              const status = wp.stock_status ?? "";
+              const isOk = status === "IN_STOCK";
+              const isLow = status === "LOW_STOCK";
+              const isOut = status === "OUT_OF_STOCK";
+
+              return (
+                <div
+                  key={wp.id}
+                  className="rounded-2xl border border-border bg-card p-4 shadow-sm"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary">
+                        <Package className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate font-medium leading-tight">{wp.product_name}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {wp.product_code} · {wp.product_measurement_unit}
+                        </p>
+                      </div>
+                    </div>
+                    <span
+                      className={cn(
+                        "inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
+                        isOk && "bg-emerald-500/10 text-emerald-700",
+                        isLow && "bg-amber-500/10 text-amber-700",
+                        isOut && "bg-rose-500/10 text-rose-700",
+                        !isOk && !isLow && !isOut && "bg-muted text-muted-foreground",
+                      )}
+                    >
+                      {stockStatusLabel(status)}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <div className="rounded-xl bg-muted/50 p-2 text-center">
+                      <p className="text-[10px] text-muted-foreground">Cantidad</p>
+                      <p className="text-sm font-semibold tabular-nums">{wp.current_quantity}</p>
+                    </div>
+                    <div className="rounded-xl bg-muted/50 p-2 text-center">
+                      <p className="text-[10px] text-muted-foreground">Mínima</p>
+                      <p className="text-sm font-semibold tabular-nums">{wp.minimum_quantity ?? "—"}</p>
+                    </div>
+                    <div className="rounded-xl bg-muted/50 p-2 text-center">
+                      <p className="text-[10px] text-muted-foreground">C/Unitario</p>
+                      <p className="text-sm font-semibold tabular-nums">{formatCLP(unitCost)}</p>
+                    </div>
+                    <div className="rounded-xl bg-muted/50 p-2 text-center">
+                      <p className="text-[10px] text-muted-foreground">Costo</p>
+                      <p className="text-sm font-semibold tabular-nums text-emerald-700">{formatCLP(totalValue)}</p>
+                    </div>
+                    <div className="rounded-xl bg-muted/50 p-2 text-center">
+                      <p className="text-[10px] text-muted-foreground">V/Unitario</p>
+                      <p className="text-sm font-semibold tabular-nums">{formatCLP(salePrice)}</p>
+                    </div>
+                    <div className="rounded-xl bg-muted/50 p-2 text-center">
+                      <p className="text-[10px] text-muted-foreground">Venta</p>
+                      <p className="text-sm font-semibold tabular-nums text-primary">{formatCLP(totalSale)}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex justify-end gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      title="Ajustar cantidad"
+                      onClick={() => {
+                        setAdjustingProduct(wp);
+                        setNewQuantity(String(wp.current_quantity));
+                        setAdjustOpen(true);
+                      }}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      <span className="sr-only">Ajustar</span>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      title="Transferir a otra bodega"
+                      onClick={() => {
+                        setTransferProduct(wp);
+                        setTransferOpen(true);
+                      }}
+                    >
+                      <ArrowRightLeft className="h-3.5 w-3.5" />
+                      <span className="sr-only">Mover</span>
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+            <p className="text-muted-foreground">
+              {totalProductsCount} producto{totalProductsCount === 1 ? "" : "s"} en total
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setProductPageUrl({ previous: productsPage?.previous })}
+                disabled={!productsPage?.previous}
+              >
+                Anterior
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setProductPageUrl({ next: productsPage?.next })}
+                disabled={!productsPage?.next}
+              >
+                Siguiente
+              </Button>
+            </div>
+          </div>
+          </>
         )}
       </div>
 

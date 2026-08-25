@@ -36,8 +36,15 @@ export async function getCurrentCashRegister(
     const qs = stationId ? `?station_id=${encodeURIComponent(stationId)}` : "";
     return await apiFetch<CashRegister>(`/finance/cash-registers/current/${qs}`);
   } catch (err) {
-    // 404 significa que no hay caja abierta; lo tratamos como null.
-    if (err && typeof err === "object" && "status" in err && err.status === 404) {
+    // 404 = no hay caja abierta.
+    // 403 = usuario sin permiso para consultar caja en esta sucursal/estación.
+    // En ambos casos devolvemos null para no bloquear la operación del POS.
+    if (
+      err &&
+      typeof err === "object" &&
+      "status" in err &&
+      (err.status === 404 || err.status === 403)
+    ) {
       return null;
     }
     throw err;
@@ -80,12 +87,23 @@ export async function closeCashRegister(
 export async function getDailySummary(
   stationId?: number | string | null,
   options?: { ignoreCashRegister?: boolean },
-): Promise<CashRegisterSummary> {
-  const qs = new URLSearchParams();
-  if (stationId) qs.set("station_id", String(stationId));
-  if (options?.ignoreCashRegister) qs.set("ignore_cash_register", "true");
-  const q = qs.toString();
-  return apiFetch<CashRegisterSummary>(`/finance/cash-registers/daily_summary/${q ? `?${q}` : ""}`);
+): Promise<CashRegisterSummary | null> {
+  try {
+    const qs = new URLSearchParams();
+    if (stationId) qs.set("station_id", String(stationId));
+    if (options?.ignoreCashRegister) qs.set("ignore_cash_register", "true");
+    const q = qs.toString();
+    return await apiFetch<CashRegisterSummary>(
+      `/finance/cash-registers/daily_summary/${q ? `?${q}` : ""}`,
+    );
+  } catch (err) {
+    // 403 = sin permiso para consultar resumen de caja.
+    // Devolvemos null para no bloquear la operación del POS/caja.
+    if (err && typeof err === "object" && "status" in err && err.status === 403) {
+      return null;
+    }
+    throw err;
+  }
 }
 
 export async function cashIn(

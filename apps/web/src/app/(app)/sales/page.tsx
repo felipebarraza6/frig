@@ -13,7 +13,7 @@ import {
   downloadOrderThermalPdf,
   downloadOrderTicketPdf,
   downloadOrderA4Pdf,
-  exportOrdersExcel,
+  generateOrdersExcel,
   createOrder,
   fetchInstallments,
   createInstallments,
@@ -969,6 +969,7 @@ function OrderCard({
 export default function SalesPage() {
   const queryClient = useQueryClient();
   const branch = useCurrentBranch();
+  const theme = useSessionStore((s) => s.theme);
   const isCashier = useIsCashier();
   const user = useSessionStore((s) => s.user);
   const currentRole = useCurrentBranchRole();
@@ -1440,10 +1441,27 @@ export default function SalesPage() {
   }
 
   async function handleExportExcel() {
-    await downloadFile(() => exportOrdersExcel(filter), {
-      filename: exportFilename("ordenes", "xlsx"),
-      extension: "xlsx",
-    });
+    // Exportar todos los resultados filtrados (no solo la página actual)
+    // generando el Excel en el navegador con estados traducidos al español.
+    const exportFilter: OrdersFilter = { ...filter };
+    delete exportFilter.next;
+    delete exportFilter.previous;
+    exportFilter.page_size = 10000;
+
+    await downloadFile(
+      async () => {
+        const data = await fetchOrders(exportFilter);
+        const blob = generateOrdersExcel(
+          data.results,
+          theme?.primary_color ?? "#2f6b3c",
+        );
+        return { blob, filename: exportFilename("ordenes", "xlsx") };
+      },
+      {
+        filename: exportFilename("ordenes", "xlsx"),
+        extension: "xlsx",
+      },
+    );
   }
 
   async function handleDownloadThermalPdf(order: Order) {

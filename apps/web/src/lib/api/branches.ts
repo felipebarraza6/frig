@@ -1,9 +1,11 @@
+import { API_BASE, ApiError } from "./client";
 import { apiFetch } from "./client";
-import { getBranchId } from "./session-storage";
+import { getBranchId, getToken } from "./session-storage";
 import type {
   Branch,
   BranchPayload,
   BranchThemeConfig,
+  BranchThemeConfigInline,
   ID,
   RoleDefinition,
   UserResponse,
@@ -17,6 +19,11 @@ export interface BranchesFilter {
 }
 
 /** GET /api/branches/ — lista sucursales a las que el usuario tiene acceso. */
+function normalizeBranchId(branch: Branch): Branch {
+  const realId = branch.branch_id ?? branch.id;
+  return { ...branch, branch_id: realId } as Branch;
+}
+
 export async function fetchBranches(filter: BranchesFilter = {}): Promise<{
   results: Branch[];
   count: number;
@@ -28,16 +35,16 @@ export async function fetchBranches(filter: BranchesFilter = {}): Promise<{
       filter.next,
       { branch: "none" },
     );
-    if (Array.isArray(data)) return { results: data, count: data.length };
-    return { results: data.results ?? [], count: data.count ?? 0, next: data.next, previous: data.previous };
+    if (Array.isArray(data)) return { results: data.map(normalizeBranchId), count: data.length };
+    return { results: (data.results ?? []).map(normalizeBranchId), count: data.count ?? 0, next: data.next, previous: data.previous };
   }
   if (filter.previous) {
     const data = await apiFetch<{ results?: Branch[]; count?: number; next?: string | null; previous?: string | null } | Branch[]>(
       filter.previous,
       { branch: "none" },
     );
-    if (Array.isArray(data)) return { results: data, count: data.length };
-    return { results: data.results ?? [], count: data.count ?? 0, next: data.next, previous: data.previous };
+    if (Array.isArray(data)) return { results: data.map(normalizeBranchId), count: data.length };
+    return { results: (data.results ?? []).map(normalizeBranchId), count: data.count ?? 0, next: data.next, previous: data.previous };
   }
   const qs = new URLSearchParams();
   if (filter.search) qs.set("search", filter.search);
@@ -46,29 +53,32 @@ export async function fetchBranches(filter: BranchesFilter = {}): Promise<{
   const data = await apiFetch<{ results?: Branch[]; count?: number; next?: string | null; previous?: string | null } | Branch[]>(
     `/branches/${query ? `?${query}` : ""}`,
   );
-  if (Array.isArray(data)) return { results: data, count: data.length };
-  return { results: data.results ?? [], count: data.count ?? 0, next: data.next, previous: data.previous };
+  if (Array.isArray(data)) return { results: data.map(normalizeBranchId), count: data.length };
+  return { results: (data.results ?? []).map(normalizeBranchId), count: data.count ?? 0, next: data.next, previous: data.previous };
 }
 
 /** GET /api/branches/{id}/ — detalle de una sucursal. */
 export async function fetchBranch(id: ID): Promise<Branch> {
-  return apiFetch<Branch>(`/branches/${id}/`);
+  const branch = await apiFetch<Branch>(`/branches/${id}/`);
+  return normalizeBranchId(branch);
 }
 
 /** POST /api/branches/ — crear sucursal. */
 export async function createBranch(payload: BranchPayload): Promise<Branch> {
-  return apiFetch<Branch>("/branches/", {
+  const branch = await apiFetch<Branch>("/branches/", {
     method: "POST",
     body: payload,
   });
+  return normalizeBranchId(branch);
 }
 
 /** PATCH /api/branches/{id}/ — editar sucursal. */
 export async function updateBranch(id: ID, payload: Partial<BranchPayload>): Promise<Branch> {
-  return apiFetch<Branch>(`/branches/${id}/`, {
+  const branch = await apiFetch<Branch>(`/branches/${id}/`, {
     method: "PATCH",
     body: payload,
   });
+  return normalizeBranchId(branch);
 }
 
 /** GET /api/branches/{id}/users/ — usuarios de la sucursal. */
@@ -100,22 +110,74 @@ export async function fetchBranchRoles(branchId: ID): Promise<RoleDefinition[]> 
 }
 
 /**
- * GET /api/branches/themes/ — tema de la sucursal activa (X-Branch-ID).
- * Nota: el endpoint devuelve TODOS los temas; se filtra por sucursal aquí.
+ * GET /api/branches/themes/ — tema de la sucursal.
+ * El backend puede devolver un objeto paginado { results: [...] } o el tema
+ * directamente. Se normaliza a un único BranchThemeConfig de la sucursal.
+ *
+ * Si se pasa `branchId` se filtra por esa sucursal; de lo contrario se usa
+ * la sucursal activa desde localStorage.
+ *
+ * Fallback: si `/branches/themes/` no está implementado (404), intenta con
+ * `/branches/{id}/theme-config/` para no dejar la marca sin tema.
  */
-export async function fetchBranchTheme(): Promise<BranchThemeConfig | null> {
-  const data = await apiFetch<{ results?: BranchThemeConfig[] } | BranchThemeConfig>(
-    "/branches/themes/",
-    { auth: "auto" },
-  );
-  if (Array.isArray(data)) {
-    const branchId = getBranchId();
-    if (branchId) {
-      return data.find((t) => String(t.branch) === branchId) ?? data[0] ?? null;
+export async function fetchBranchTheme(branchId?: string): Promise<BranchThemeConfig | null> {
+  const targetId = branchId ?? getBranchId();
+  try {
+    const data = await apiFetch<{ results?: BranchThemeConfig[] } | BranchThemeConfig>(
+      "/branches/themes/",
+      { auth: "auto" },
+    );
+    const themes = Array.isArray(data)
+      ? data
+      : ((data as { results?: BranchThemeConfig[] }).results ?? []);
+    if (targetId) {
+      return themes.find((t) => String(t.branch) === targetId) ?? themes[0] ?? null;
     }
-    return data[0] ?? null;
+    return themes[0] ?? null;
+  } catch (err) {
+    if (
+      targetId &&
+      err &&
+      typeof err === "object" &&
+      "status" in err &&
+      (err.status === 404 || err.status === 410)
+    ) {
+      return fetchBranchThemeById(targetId);
+    }
+    return null;
   }
-  return data ?? null;
+}
+
+/**
+ * GET /api/branches/{id}/theme-config/ — configuración de tema de una sucursal.
+ * El endpoint devuelve un Branch con `theme_config` anidado; se extrae y se
+ * normaliza a BranchThemeConfig.
+ */
+export async function fetchBranchThemeById(id: ID): Promise<BranchThemeConfig | null> {
+  try {
+    type BranchWithTheme = Branch & { theme_config?: BranchThemeConfigInline | null };
+    const data = await apiFetch<BranchWithTheme | BranchThemeConfig>(
+      `/branches/${id}/theme-config/`,
+    );
+    if (data && "theme_config" in data) {
+      const cfg = (data as BranchWithTheme).theme_config;
+      if (!cfg) return null;
+      const inline = cfg as BranchThemeConfigInline;
+      return {
+        branch: id,
+        app_name: inline.app_name,
+        logo: inline.logo,
+        favicon: inline.favicon,
+        banner: inline.banner_image,
+        primary_color: inline.primary_color,
+        secondary_color: inline.secondary_color,
+        algorithm: inline.algorithm,
+      } as BranchThemeConfig;
+    }
+    return (data as BranchThemeConfig) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /** GET /api/branches/public-login-theme/{slug}/ — login pre-auth por slug de sucursal. */
@@ -151,4 +213,91 @@ export function applyThemeConfig(theme: BranchThemeConfig | null): void {
   } else if (theme?.algorithm === "light") {
     root.classList.remove("dark");
   }
+}
+
+export interface BranchThemeConfigPayload {
+  app_name?: string;
+  login_welcome_message?: string;
+  tagline?: string;
+  primary_color?: string;
+  secondary_color?: string;
+  algorithm?: "light" | "dark" | "auto";
+  borderRadius?: number;
+  motion?: boolean;
+  compact?: boolean;
+  font_size?: string;
+  social_links?: Record<string, string>;
+  website_url?: string;
+  brand_description?: string;
+  login_subtitle?: string;
+  logo?: File | null | undefined;
+  favicon?: File | null | undefined;
+  banner_image?: File | null | undefined;
+}
+
+/**
+ * PATCH /api/branches/{id}/theme-config/ — actualiza branding y theme de la sucursal.
+ * Soporta subida de archivos (logo, favicon, banner) vía multipart/form-data.
+ */
+export async function updateBranchTheme(
+  id: ID,
+  payload: BranchThemeConfigPayload,
+): Promise<BranchThemeConfig> {
+  if (!id) throw new Error("ID de sucursal no válido para guardar el tema");
+  const formData = new FormData();
+
+  const append = (key: string, value: unknown) => {
+    if (value === undefined || value === null) return;
+    if (value instanceof File) {
+      formData.append(key, value);
+      return;
+    }
+    if (typeof value === "boolean" || typeof value === "number") {
+      formData.append(key, String(value));
+      return;
+    }
+    if (typeof value === "object") {
+      formData.append(key, JSON.stringify(value));
+      return;
+    }
+    formData.append(key, String(value));
+  };
+
+  for (const [key, value] of Object.entries(payload)) {
+    append(key, value);
+  }
+
+  const token = getToken();
+  const branchId = getBranchId();
+  const headers: Record<string, string> = {};
+  if (token) headers["Authorization"] = `Token ${token}`;
+  if (branchId) headers["X-Branch-ID"] = branchId;
+
+  const res = await fetch(`${API_BASE}/branches/${id}/theme-config/`, {
+    method: "PATCH",
+    headers,
+    body: formData,
+    credentials: "include",
+  });
+
+  const text = await res.text();
+  let data: unknown = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      // respuesta no JSON
+    }
+  }
+
+  if (!res.ok) {
+    let message = `Error ${res.status} al guardar el tema`;
+    if (data && typeof data === "object" && "detail" in data) {
+      const detail = (data as { detail?: unknown }).detail;
+      if (detail) message = String(detail);
+    }
+    throw new ApiError(res.status, message, data);
+  }
+
+  return data as BranchThemeConfig;
 }

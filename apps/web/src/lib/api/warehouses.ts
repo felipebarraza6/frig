@@ -52,9 +52,28 @@ export async function deleteWarehouse(id: number): Promise<void> {
   await apiFetch(`/inventory/warehouses/${id}/`, { method: "DELETE" });
 }
 
-export async function fetchWarehouseProducts(warehouseId: number): Promise<WarehouseProduct[]> {
-  const data = await apiFetch<PaginatedWarehouseProduct>(`/inventory/warehouses/${warehouseId}/products/`);
-  return data.results ?? [];
+export interface WarehouseProductsFilter {
+  search?: string;
+  ordering?: string;
+  next?: string | null;
+  previous?: string | null;
+}
+
+export async function fetchWarehouseProducts(
+  warehouseId: number,
+  filter: WarehouseProductsFilter = {},
+): Promise<PaginatedWarehouseProduct> {
+  if (filter.next) {
+    return apiFetch<PaginatedWarehouseProduct>(filter.next);
+  }
+  if (filter.previous) {
+    return apiFetch<PaginatedWarehouseProduct>(filter.previous);
+  }
+  const qs = new URLSearchParams();
+  if (filter.search) qs.set("search", filter.search);
+  if (filter.ordering) qs.set("ordering", filter.ordering);
+  const q = qs.toString();
+  return apiFetch<PaginatedWarehouseProduct>(`/inventory/warehouses/${warehouseId}/products/${q ? `?${q}` : ""}`);
 }
 
 export async function fetchProductWarehouses(productId: number): Promise<WarehouseProduct[]> {

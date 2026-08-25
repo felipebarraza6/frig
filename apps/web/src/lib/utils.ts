@@ -32,6 +32,56 @@ export function paymentTypeLabel(value?: string | null): string {
   return PAYMENT_TYPE_LABELS[value] ?? value;
 }
 
+const ORDER_TYPE_LABELS: Record<string, string> = {
+  SALE: "Venta",
+  ORDER: "Orden",
+  AGREEMENT: "Convenio",
+};
+
+export function orderTypeLabel(value?: string | null): string {
+  if (!value) return "—";
+  return ORDER_TYPE_LABELS[value] ?? value;
+}
+
+const ORDER_STATUS_LABELS: Record<string, string> = {
+  DRAFT: "Borrador",
+  PENDING: "Pendiente",
+  IN_PROGRESS: "En progreso",
+  COMPLETED: "Completada",
+  CANCELLED: "Cancelada",
+  RETURNED: "Devuelta",
+  REFUNDED: "Reembolsada",
+};
+
+export function orderStatusLabel(value?: string | null): string {
+  if (!value) return "—";
+  return ORDER_STATUS_LABELS[value] ?? value;
+}
+
+const PAYMENT_STATUS_LABELS: Record<string, string> = {
+  PENDING: "Pendiente",
+  PARTIAL: "Parcial",
+  INVOICED: "Facturada",
+  PAID: "Pagada",
+  REFUNDED: "Reembolsada",
+};
+
+const STOCK_STATUS_LABELS: Record<string, string> = {
+  IN_STOCK: "En stock",
+  LOW_STOCK: "Stock bajo",
+  OUT_OF_STOCK: "Sin stock",
+};
+
+export function stockStatusLabel(value?: string | null): string {
+  if (!value) return "—";
+  return STOCK_STATUS_LABELS[value] ?? value;
+}
+
+export function paymentStatusLabel(value?: string | null): string {
+  if (!value) return "—";
+  return PAYMENT_STATUS_LABELS[value] ?? value;
+}
+
 /**
  * Fuerza la descarga de un Blob en el navegador.
  */

@@ -130,6 +130,13 @@ export function isModuleEnabled(
 }
 
 /**
+ * Nombre del plan fijo de FRIG. Se busca insensible a mayúsculas/minúsculas
+ * entre los planes disponibles y se aplica automáticamente al crear una
+ * sucursal. Las demás apps (Smart Hydro, etc.) usan otros frontends.
+ */
+export const FRIG_PLAN_NAME = "Gestión gastronómica/comercial";
+
+/**
  * Módulos que en Frig siempre están activos: no aparecen en /settings/modules
  * y el menú las muestra sin consultar el estado del backend.
  */

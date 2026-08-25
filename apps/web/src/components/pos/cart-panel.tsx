@@ -265,18 +265,16 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
         return;
       }
 
-      // Un mesero nunca cobra: siempre crea un pedido/cuenta abierta.
-      // Si se entró explicitamente como "Abrir cuenta" (defaultOrderType ORDER),
-      // se mantiene como ORDER aunque se registren pagos parciales.
+      // Respetar el tipo explícito del POS. Si no hay tipo definido (mesero o
+      // flujo legacy), el mesero siempre genera un pedido/cuenta abierta.
+      // Una venta sin pagos se guarda como SALE pending (nueva cuenta), no ORDER.
       let orderType: "SALE" | "ORDER" | "AGREEMENT";
-      if (defaultOrderType === "ORDER") {
-        orderType = "ORDER";
-      } else if (defaultOrderType) {
+      if (defaultOrderType) {
         orderType = defaultOrderType;
       } else {
-        orderType = isWaiter ? "ORDER" : payments.length > 0 ? "SALE" : "ORDER";
+        orderType = isWaiter ? "ORDER" : "SALE";
       }
-      if (orderType === "ORDER" && !selectedClient) {
+      if ((orderType === "ORDER" || payments.length === 0) && !selectedClient) {
         toast.error("Debes seleccionar un cliente para guardar el pedido / cuenta.");
         setSaving(false);
         return;
@@ -340,9 +338,9 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
         });
       }
 
-      // Solo liberar la mesa si la venta quedó cobrada (SALE).
-      // Una cuenta abierta (ORDER) mantiene la mesa ocupada con la orden enlazada.
-      if (orderType === "SALE" && order.table) {
+      // Solo liberar la mesa si la venta quedó cobrada (SALE con pagos).
+      // Una cuenta abierta (SALE pending u ORDER) mantiene la mesa ocupada.
+      if (orderType === "SALE" && payments.length > 0 && order.table) {
         try {
           await freeTable(order.table);
           queryClient.invalidateQueries({ queryKey: ["tables"] });
@@ -400,9 +398,8 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
     }
   }
 
-  const willBeOrder = !existingOrderId && (defaultOrderType === "ORDER"
-    ? true
-    : isWaiter || payments.length === 0);
+  const willBeOrder = !existingOrderId && defaultOrderType === "ORDER";
+  const willBeOpenAccount = !existingOrderId && payments.length === 0;
 
   const canRegister = existingOrderId
     ? items.length > 0 && !saving
@@ -410,7 +407,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
       !saving &&
       !cashRegisterMissing &&
       (payments.length === 0 || paidAmount >= total) &&
-      (!willBeOrder || selectedClient != null);
+      ((!willBeOrder && !willBeOpenAccount) || selectedClient != null);
 
   const hasPendingPayment = payments.length > 0 && paidAmount < total;
 
@@ -538,13 +535,18 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
         <div className="flex items-center gap-2">
           <ShoppingCart className="h-4 w-4 text-primary" />
           <h2 className="text-sm font-semibold">
-            {existingOrderId && existingOrder
-              ? `Editando ${existingOrder.order_type === "SALE" ? "venta" : "cuenta"} #${existingOrder.order_number ?? ""}`
-              : defaultOrderType === "ORDER"
-                ? "Nueva orden"
-                : defaultOrderType === "SALE"
-                  ? "Nueva venta"
-                  : "Cuenta"}
+            {(() => {
+              if (existingOrderId && existingOrder) {
+                if (existingOrder.order_type === "ORDER") return `Editando orden #${existingOrder.order_number ?? ""}`;
+                if (existingOrder.order_type === "SALE" && !existingOrder.payment_status?.startsWith("PENDING")) {
+                  return `Editando venta #${existingOrder.order_number ?? ""}`;
+                }
+                return `Editando cuenta #${existingOrder.order_number ?? ""}`;
+              }
+              if (defaultOrderType === "ORDER") return "Nueva orden";
+              if (defaultOrderType === "SALE") return "Nueva venta";
+              return "Cuenta";
+            })()}
           </h2>
         </div>
         <div className="flex items-center gap-2">
@@ -926,7 +928,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
           ) : payments.length > 0 ? (
             `Cobrar ${formatCLP(total)}`
           ) : (
-            "Guardar pedido"
+            "Guardar cuenta"
           )}
         </Button>
       </div>

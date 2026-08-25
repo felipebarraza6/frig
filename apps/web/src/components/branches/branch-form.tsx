@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSessionStore } from "@/lib/store/session";
 import { createBranch, updateBranch } from "@/lib/api/branches";
+import { fetchModulePlans, applyBranchPlan } from "@/lib/api/module-plans";
+import { FRIG_PLAN_NAME } from "@/lib/modules";
 import { branchName } from "@/lib/types";
 import type { Branch, BranchPayload } from "@/lib/types";
 
@@ -35,6 +37,17 @@ export function BranchForm({ branch, onClose, onSuccess }: BranchFormProps) {
   const [ownerId, setOwnerId] = useState<string>(branch?.owner_id ? String(branch.owner_id) : "");
   const [error, setError] = useState<string | null>(null);
 
+  const { data: plans = [] } = useQuery({
+    queryKey: ["module-plans"],
+    queryFn: fetchModulePlans,
+    enabled: !isEditing,
+  });
+
+  const frigPlan = plans.find(
+    (p) => p.name.toLowerCase().includes(FRIG_PLAN_NAME.toLowerCase()) ||
+      p.name.toLowerCase().includes("frig"),
+  );
+
   const save = useMutation({
     mutationFn: async () => {
       const payload: BranchPayload = {
@@ -57,7 +70,14 @@ export function BranchForm({ branch, onClose, onSuccess }: BranchFormProps) {
       if (isEditing && branch) {
         return updateBranch(branch.branch_id, payload);
       }
-      return createBranch(payload);
+
+      const created = await createBranch(payload);
+      // FRIG usa un plan fijo de gestión gastronómica/comercial; se aplica
+      // automáticamente al crear la sucursal.
+      if (frigPlan) {
+        await applyBranchPlan(Number(created.branch_id), Number(frigPlan.id));
+      }
+      return created;
     },
     onSuccess: () => onSuccess(),
     onError: (err: Error) => setError(err.message || "No se pudo guardar la sucursal."),

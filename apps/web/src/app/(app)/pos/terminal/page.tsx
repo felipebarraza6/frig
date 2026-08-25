@@ -25,6 +25,10 @@ import {
   ArrowUpRight,
   Calculator,
   MapPin,
+  Plus,
+  Minus,
+  Coins,
+  Lock,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -52,7 +56,15 @@ import { searchCustomers, createCustomer } from "@/lib/api/customers";
 import { useElapsedTime } from "@/lib/hooks/useElapsedTime";
 import { useDownloadFile } from "@/lib/hooks/useDownloadFile";
 import { fetchPaymentMethods } from "@/lib/api/payments";
-import { getCurrentCashRegister, openCashRegister, closeCashRegister, getDailySummary } from "@/lib/api/cash-register";
+import {
+  getCurrentCashRegister,
+  openCashRegister,
+  closeCashRegister,
+  getDailySummary,
+  cashIn,
+  cashOut,
+  getMovements,
+} from "@/lib/api/cash-register";
 import { fetchTables } from "@/lib/api/tables";
 import { useCartStore, type CartItemModifier, type CartItem, cartSubtotal, cartDiscountTotal } from "@/lib/store/cart";
 import type { PosProduct, YggdraSchemas } from "@/lib/api/types";
@@ -73,6 +85,9 @@ import {
   useCanViewTables,
   useIsWaiter,
   useSessionStore,
+  useIsOwner,
+  useIsSuperAdmin,
+  useCanViewCashRegisterHistory,
 } from "@/lib/store/session";
 import { useBranchModules } from "@/lib/hooks/useBranchModules";
 import { useBranchProductTypes } from "@/lib/hooks/useBranchProductTypes";
@@ -82,11 +97,23 @@ import { WaiterTablesView } from "@/components/pos/waiter-tables-view";
 import { ComboPickerModal } from "@/components/pos/combo-picker-modal";
 import { TablesCanvas } from "@/components/tables/tables-canvas";
 
+function numberValue(v: string): string {
+  const cleaned = v.replace(/[^0-9]/g, "");
+  return cleaned ? (parseInt(cleaned, 10) || 0).toString() : "";
+}
+
+function toDecimal(v: string): string {
+  return (parseInt(v || "0", 10) || 0).toFixed(2);
+}
+
 export default function PosPage() {
   const branch = useCurrentBranch();
   const userStation = useCurrentBranchStation();
   const user = useSessionStore((s) => s.user);
   const realIsWaiter = useIsWaiter();
+  const isOwner = useIsOwner();
+  const isSuperAdmin = useIsSuperAdmin();
+  const canViewHistory = useCanViewCashRegisterHistory();
   const router = useRouter();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
@@ -131,6 +158,9 @@ export default function PosPage() {
   const [selectedTableState, setSelectedTableState] = useState<TableItem | null | undefined>(undefined);
   const [showCashRegisterModal, setShowCashRegisterModal] = useState(false);
   const [cashRegisterAmount, setCashRegisterAmount] = useState("");
+  const [movementType, setMovementType] = useState<"CASH_IN" | "CASH_OUT">("CASH_IN");
+  const [movementAmount, setMovementAmount] = useState("");
+  const [movementReason, setMovementReason] = useState("");
   const [posMode, setPosMode] = useState<"SALE" | "ORDER" | null>(null);
   const [rememberPosMode, setRememberPosMode] = useState(false);
   const [showModeSelector, setShowModeSelector] = useState(false);
@@ -146,12 +176,10 @@ export default function PosPage() {
   const [accountCreateName, setAccountCreateName] = useState("");
   const [accountCreating, setAccountCreating] = useState(false);
 
-  // Una cuenta abierta puede venir como SALE + open_account=1 (nuevo flujo) o como
-  // ORDER (flujo legacy). Se usa para mostrar labels consistentes en el POS.
-  const isOpenAccountMode = useMemo(
-    () => openAccountParam || queryOrderType === "ORDER",
-    [openAccountParam, queryOrderType],
-  );
+  // Modo cuenta abierta: SALE creada desde "Abrir cuenta" (pending, sin pagos).
+  // Modo orden explícita: ORDER. Se mantienen separados para no confundir casos.
+  const isOpenAccountMode = useMemo(() => openAccountParam, [openAccountParam]);
+  const isOrderMode = useMemo(() => queryOrderType === "ORDER", [queryOrderType]);
 
   function handlePostSaleOrder(order: Order, items?: CartItem[]) {
     setPostSaleOrder(order);
@@ -318,7 +346,7 @@ export default function PosPage() {
     queryKey: ["orders", "open-accounts", "pos-terminal"],
     queryFn: () =>
       fetchOrders({
-        order_type: "SALE",
+        // Incluir tanto cuentas abiertas (SALE pending) como órdenes pendientes.
         payment_status: "PENDING",
       }),
     staleTime: 15_000,
@@ -399,7 +427,7 @@ export default function PosPage() {
   const { data: dailySummary } = useQuery({
     queryKey: ["cash-register", "daily-summary", activeStationId],
     queryFn: () => getDailySummary(activeStationId),
-    enabled: !!currentCashRegister && !!activeStationId,
+    enabled: !!currentCashRegister && !!activeStationId && canViewHistory,
     staleTime: 30_000,
     refetchInterval: 30_000,
   });
@@ -419,6 +447,42 @@ export default function PosPage() {
     },
     onError: (err: Error) => {
       toast.error(err.message || "No se pudo cerrar la caja");
+    },
+  });
+
+  const { data: cashMovements = [] } = useQuery({
+    queryKey: ["cash-register", currentCashRegister?.id, "movements"],
+    queryFn: () => getMovements(currentCashRegister!.id),
+    enabled: !!currentCashRegister,
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+  });
+
+  const isRegisterController = useMemo(
+    () =>
+      !currentCashRegister ||
+      currentCashRegister.status !== "OPEN" ||
+      isSuperAdmin ||
+      isOwner ||
+      currentCashRegister.opened_by === user?.id ||
+      currentCashRegister.opened_by == null,
+    [currentCashRegister, isSuperAdmin, isOwner, user?.id],
+  );
+
+  const movementMutation = useMutation({
+    mutationFn: (payload: { type: "CASH_IN" | "CASH_OUT"; amount: string; reason: string }) => {
+      if (!currentCashRegister) throw new Error("No hay caja abierta");
+      const base = { amount: payload.amount, reason: payload.reason };
+      return payload.type === "CASH_IN" ? cashIn(currentCashRegister.id, base) : cashOut(currentCashRegister.id, base);
+    },
+    onSuccess: (_, payload) => {
+      queryClient.invalidateQueries({ queryKey: ["cash-register"] });
+      setMovementAmount("");
+      setMovementReason("");
+      toast.success(payload.type === "CASH_IN" ? "Ingreso registrado" : "Retiro registrado");
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "No se pudo registrar el movimiento");
     },
   });
 
@@ -488,16 +552,12 @@ export default function PosPage() {
 
   const startNewOrderRef = useRef(startNewOrder);
   startNewOrderRef.current = startNewOrder;
-  const openNewAccountRef = useRef(openNewAccount);
-  openNewAccountRef.current = openNewAccount;
 
   useEffect(() => {
     if (!posMode || queryOrderType || isEditingOrder) return;
-    if (posMode === "ORDER") {
-      openNewAccountRef.current();
-    } else {
-      startNewOrderRef.current("SALE");
-    }
+    // El selector interno ahora navega directamente al tipo elegido.
+    // "Abrir cuenta" sigue disponible desde el drawer de cuentas abiertas.
+    startNewOrderRef.current(posMode);
   }, [posMode, queryOrderType, isEditingOrder]);
 
   const existingTable = useMemo(() => {
@@ -720,24 +780,34 @@ export default function PosPage() {
               "inline-flex min-w-0 max-w-[140px] items-center gap-1 truncate rounded-md px-1.5 py-1 text-[11px] sm:max-w-[220px] sm:px-2",
               effectiveOrderId && existingOrder
                 ? "bg-primary/10 text-primary"
-                : isOpenAccountMode
-                  ? "bg-blue-500/10 text-blue-700"
-                  : "bg-emerald-500/10 text-emerald-700"
+                : isOrderMode
+                  ? "bg-violet-500/10 text-violet-700"
+                  : isOpenAccountMode
+                    ? "bg-blue-500/10 text-blue-700"
+                    : "bg-emerald-500/10 text-emerald-700"
             )}
             title={
               effectiveOrderId && existingOrder
-                ? existingOrder.order_type === "SALE" && !existingOrder.payment_status?.startsWith("PENDING")
-                  ? `Editando venta #${existingOrder.order_number ?? ""}`
-                  : `Cuenta de ${existingOrder.client?.name ?? "sin cliente"} #${existingOrder.order_number ?? ""}`
-                : isOpenAccountMode
-                  ? "Abriendo una cuenta sin cobrar"
-                  : "Nueva venta al contado"
+                ? existingOrder.order_type === "ORDER"
+                  ? `Orden de ${existingOrder.client?.name ?? "sin cliente"} #${existingOrder.order_number ?? ""}`
+                  : existingOrder.order_type === "SALE" && !existingOrder.payment_status?.startsWith("PENDING")
+                    ? `Editando venta #${existingOrder.order_number ?? ""}`
+                    : `Cuenta de ${existingOrder.client?.name ?? "sin cliente"} #${existingOrder.order_number ?? ""}`
+                : isOrderMode
+                  ? "Nueva orden"
+                  : isOpenAccountMode
+                    ? "Abriendo una cuenta sin cobrar"
+                    : "Nueva venta al contado"
             }
           >
             {effectiveOrderId && existingOrder ? (
               <>
                 <span className="hidden shrink-0 font-medium sm:inline">
-                  {existingOrder.order_type === "SALE" && !existingOrder.payment_status?.startsWith("PENDING") ? "Editando venta" : "Cuenta"}
+                  {existingOrder.order_type === "ORDER"
+                    ? "Orden"
+                    : existingOrder.order_type === "SALE" && !existingOrder.payment_status?.startsWith("PENDING")
+                      ? "Editando venta"
+                      : "Cuenta"}
                 </span>
                 {existingOrder.order_type === "ORDER" || existingOrder.payment_status?.startsWith("PENDING") ? (
                   <span className="truncate font-normal opacity-90">
@@ -749,6 +819,11 @@ export default function PosPage() {
                 <span className="truncate font-semibold tabular-nums">
                   #{existingOrder.order_number ?? ""}
                 </span>
+              </>
+            ) : isOrderMode ? (
+              <>
+                <ClipboardList className="h-3 w-3 shrink-0" />
+                <span className="truncate font-medium">Nueva orden</span>
               </>
             ) : isOpenAccountMode ? (
               <>
@@ -1846,7 +1921,7 @@ export default function PosPage() {
             if (e.target === e.currentTarget) setShowCashRegisterModal(false);
           }}
         >
-          <div className="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-lg">
+          <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-xl border border-border bg-card p-5 shadow-lg">
             <h3 className="text-base font-semibold">
               {currentCashRegister ? "Resumen de caja" : "Abrir caja"}
             </h3>
@@ -1910,6 +1985,112 @@ export default function PosPage() {
                     {formatCLP(parseFloat(String(dailySummary.expected_amount ?? "0")))}
                   </p>
                 </div>
+              </div>
+            )}
+
+            {currentCashRegister && (
+              <div className="mt-4 flex flex-col gap-3 rounded-xl border border-border/60 bg-card p-4">
+                <h4 className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                  <Coins className="h-3.5 w-3.5 text-primary" />
+                  Movimientos de caja
+                </h4>
+
+                {!isRegisterController && (
+                  <p className="flex items-center gap-2 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
+                    <Lock className="h-3.5 w-3.5" />
+                    Caja abierta por <strong>{currentCashRegister.opened_by_name}</strong>. Solo esa persona o un administrador pueden operarla.
+                  </p>
+                )}
+
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={movementType === "CASH_IN" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setMovementType("CASH_IN")}
+                    disabled={!isRegisterController}
+                    className="h-8 flex-1 text-xs"
+                  >
+                    <ArrowDownLeft className="mr-1 h-3.5 w-3.5" />
+                    Ingreso
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={movementType === "CASH_OUT" ? "danger" : "outline"}
+                    size="sm"
+                    onClick={() => setMovementType("CASH_OUT")}
+                    disabled={!isRegisterController}
+                    className="h-8 flex-1 text-xs"
+                  >
+                    <ArrowUpRight className="mr-1 h-3.5 w-3.5" />
+                    Retiro
+                  </Button>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <Input
+                    value={movementAmount ? formatCLP(parseFloat(toDecimal(movementAmount))) : ""}
+                    onChange={(e) => setMovementAmount(numberValue(e.target.value))}
+                    placeholder="Monto"
+                    disabled={!isRegisterController}
+                    className="h-9 text-xs tabular-nums"
+                  />
+                  <Input
+                    value={movementReason}
+                    onChange={(e) => setMovementReason(e.target.value)}
+                    placeholder="Motivo"
+                    disabled={!isRegisterController}
+                    className="h-9 text-xs"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={() =>
+                      movementMutation.mutate({
+                        type: movementType,
+                        amount: toDecimal(movementAmount),
+                        reason: movementReason,
+                      })
+                    }
+                    disabled={!isRegisterController || !movementAmount || !movementReason || movementMutation.isPending}
+                    variant={movementType === "CASH_OUT" ? "danger" : "default"}
+                    className="h-9 text-xs"
+                  >
+                    {movementMutation.isPending ? (
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    ) : movementType === "CASH_IN" ? (
+                      <Plus className="mr-1.5 h-3.5 w-3.5" />
+                    ) : (
+                      <Minus className="mr-1.5 h-3.5 w-3.5" />
+                    )}
+                    Registrar {movementType === "CASH_IN" ? "ingreso" : "retiro"}
+                  </Button>
+                </div>
+
+                {cashMovements.length > 0 && (
+                  <div className="flex max-h-32 flex-col gap-1.5 overflow-y-auto rounded-lg border border-border/60 bg-muted/30 p-2">
+                    {cashMovements.map((m) => (
+                      <div key={m.id} className="flex items-center justify-between gap-2 text-xs">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          {m.movement_type === "CASH_IN" ? (
+                            <ArrowDownLeft className="h-3 w-3 shrink-0 text-emerald-600" />
+                          ) : (
+                            <ArrowUpRight className="h-3 w-3 shrink-0 text-rose-600" />
+                          )}
+                          <span className="truncate text-muted-foreground">{m.reason}</span>
+                        </div>
+                        <span
+                          className={cn(
+                            "shrink-0 tabular-nums font-medium",
+                            m.movement_type === "CASH_IN" ? "text-emerald-700" : "text-rose-700",
+                          )}
+                        >
+                          {m.movement_type === "CASH_IN" ? "+" : "-"}
+                          {formatCLP(parseFloat(m.amount))}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 

@@ -32,7 +32,7 @@ export default function SelectBranchPage() {
       const config = await fetchFrontendConfig(Number(branchId));
       setFrontendConfig(config, branchId);
       try {
-        const theme = await fetchBranchTheme();
+        const theme = await fetchBranchTheme(branchId);
         if (theme) {
           setTheme(theme);
           applyThemeConfig(theme);
