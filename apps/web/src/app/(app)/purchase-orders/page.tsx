@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Loader2, X, Eye, Ban, CheckCircle2, FileText, SlidersHorizontal, Banknote, Trash2 } from "lucide-react";
+import { Plus, Search, Loader2, X, Eye, Ban, CheckCircle2, FileText, SlidersHorizontal, Banknote, Trash2, FileDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -13,6 +13,8 @@ import {
   cancelPurchaseOrder,
   markPurchaseOrderCompleted,
   payPurchaseOrder,
+  downloadPurchaseOrderPdf,
+  downloadPurchaseOrderVoucher,
   type PurchaseOrderList,
   type PurchaseOrderCreatePayload,
   type PurchaseOrderRequest,
@@ -21,6 +23,7 @@ import {
 import { useCurrentBranch } from "@/lib/store/session";
 import { useToast } from "@/lib/store/toast";
 import { formatCLP } from "@/lib/utils";
+import { useDownloadFile } from "@/lib/hooks/useDownloadFile";
 
 const STATUS_OPTIONS = [
   { value: "", label: "Todos" },
@@ -79,6 +82,7 @@ export default function PurchaseOrdersPage() {
   const queryClient = useQueryClient();
   const toast = useToast();
   const branch = useCurrentBranch();
+  const { download: downloadFile, isLoading: isDownloading } = useDownloadFile();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [supplier, setSupplier] = useState("");
@@ -227,6 +231,20 @@ export default function PurchaseOrdersPage() {
 
   function closeDetail() {
     setDetail(null);
+  }
+
+  function handleDownloadPdf(order: PurchaseOrderList) {
+    downloadFile(() => downloadPurchaseOrderPdf(order.id), {
+      filename: `orden_compra_${order.order_number ?? order.id.slice(0, 8)}.pdf`,
+      onError: (error) => toast.error(error.message || "Error al descargar el PDF"),
+    });
+  }
+
+  function handleDownloadVoucher(order: PurchaseOrderList) {
+    downloadFile(() => downloadPurchaseOrderVoucher(order.id), {
+      filename: `comprobante_${order.order_number ?? order.id.slice(0, 8)}.pdf`,
+      onError: (error) => toast.error(error.message || "Error al descargar el comprobante"),
+    });
   }
 
   function openPayModal(order: PurchaseOrderList) {
@@ -501,6 +519,16 @@ export default function PurchaseOrdersPage() {
                             <Eye className="mr-1.5 h-3.5 w-3.5" />
                             Ver
                           </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDownloadVoucher(order)}
+                            disabled={isDownloading}
+                            title="Descargar comprobante PDF"
+                          >
+                            <FileDown className="mr-1.5 h-3.5 w-3.5" />
+                            PDF
+                          </Button>
                           {canPay(order) && (
                             <Button
                               variant="ghost"
@@ -584,6 +612,18 @@ export default function PurchaseOrdersPage() {
                     >
                       <Eye className="h-3.5 w-3.5" />
                       <span className="sr-only">Ver</span>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      title="Descargar comprobante PDF"
+                      aria-label="Descargar comprobante PDF"
+                      onClick={() => handleDownloadVoucher(order)}
+                      disabled={isDownloading}
+                    >
+                      <FileDown className="h-3.5 w-3.5" />
+                      <span className="sr-only">Descargar comprobante PDF</span>
                     </Button>
                     {canPay(order) && (
                       <Button
@@ -850,7 +890,25 @@ export default function PurchaseOrdersPage() {
                 <p><span className="text-muted-foreground">Ítems:</span> {detail.items_count}</p>
               </div>
             </div>
-            <div className="flex shrink-0 justify-end gap-2 border-t border-border px-4 py-3">
+            <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-border px-4 py-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleDownloadPdf(detail)}
+                disabled={isDownloading}
+              >
+                <FileDown className="mr-2 h-4 w-4" />
+                PDF interno
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleDownloadVoucher(detail)}
+                disabled={isDownloading}
+              >
+                <FileDown className="mr-2 h-4 w-4" />
+                Comprobante PDF
+              </Button>
               {canPay(detail) && (
                 <Button size="sm" onClick={() => openPayModal(detail)}>
                   <Banknote className="mr-2 h-4 w-4" />

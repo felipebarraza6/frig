@@ -1,4 +1,5 @@
-import { apiFetch } from "./client";
+import { apiFetch, apiFile } from "./client";
+import type { ApiFileResult } from "./client";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 export type Supplier = YggdraSchemas["Supplier"];
@@ -126,4 +127,12 @@ export async function payPurchaseOrder(
     method: "POST",
     body: payload as unknown as PurchaseOrderRequest,
   });
+}
+
+export async function downloadPurchaseOrderPdf(id: string): Promise<ApiFileResult> {
+  return apiFile(`/suppliers/purchase-orders/${id}/generate_pdf/`);
+}
+
+export async function downloadPurchaseOrderVoucher(id: string): Promise<ApiFileResult> {
+  return apiFile(`/suppliers/purchase-orders/${id}/download-voucher/`);
 }
