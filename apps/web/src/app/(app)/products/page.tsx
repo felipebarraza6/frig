@@ -18,6 +18,10 @@ import {
   type ProductPayload,
   type ProductsFilter,
 } from "@/lib/api/products";
+import {
+  fetchBranchWarehouseProducts,
+  type WarehouseProduct,
+} from "@/lib/api/warehouses";
 import { ProductForm } from "@/components/products/product-form";
 import { ProductWarehousesModal } from "@/components/products/product-warehouses-modal";
 import { ProductActionsMenu } from "@/components/products/product-actions-menu";
@@ -28,9 +32,13 @@ import { useToast } from "@/lib/store/toast";
 import { useCurrentBranch } from "@/lib/store/session";
 import type { YggdraProduct } from "@/lib/api/types";
 
-function isLowStock(p: YggdraProduct): boolean {
+function productStock(p: YggdraProduct, stockByProduct: Map<number, number>): number {
+  return stockByProduct.get(p.id) ?? p.quantity ?? 0;
+}
+
+function isLowStock(p: YggdraProduct, stockByProduct: Map<number, number>): boolean {
   if (p.minimum_stock === undefined || p.minimum_stock === null) return false;
-  return (p.quantity ?? 0) <= p.minimum_stock;
+  return productStock(p, stockByProduct) <= p.minimum_stock;
 }
 
 export default function ProductsPage() {
@@ -79,6 +87,33 @@ export default function ProductsPage() {
 
   const products = page?.results ?? [];
   const totalProducts = page?.count ?? 0;
+
+  const { data: warehouseProducts = [] } = useQuery({
+    queryKey: ["warehouse-products", "branch", branch?.branch_id],
+    queryFn: async () => {
+      const all: WarehouseProduct[] = [];
+      let next: string | null | undefined;
+      let first = true;
+      while (first || next) {
+        const data = await fetchBranchWarehouseProducts(first ? { page_size: 1000 } : { next });
+        all.push(...(data.results ?? []));
+        next = data.next;
+        first = false;
+      }
+      return all;
+    },
+    enabled: !!branch?.branch_id,
+    staleTime: 30_000,
+  });
+
+  const stockByProduct = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const wp of warehouseProducts) {
+      if (wp.product == null) continue;
+      map.set(wp.product, (map.get(wp.product) ?? 0) + (wp.current_quantity ?? 0));
+    }
+    return map;
+  }, [warehouseProducts]);
 
   const toggleActive = useMutation({
     mutationFn: ({ id, isActive }: { id: number; isActive: boolean }) =>
@@ -461,8 +496,8 @@ export default function ProductsPage() {
                           </td>
                           <td className="px-4 py-3 text-center">
                             <div className="flex items-center justify-center gap-1">
-                              <span className="tabular-nums">{p.quantity ?? 0}</span>
-                              {isLowStock(p) && (
+                              <span className="tabular-nums">{productStock(p, stockByProduct)}</span>
+                              {isLowStock(p, stockByProduct) && (
                                 <span title="Stock bajo">
                                   <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
                                 </span>
@@ -556,8 +591,8 @@ export default function ProductsPage() {
                         <div>
                           <p className="text-xs text-muted-foreground">Stock</p>
                           <div className="flex items-center gap-1">
-                            <span className="tabular-nums">{p.quantity ?? 0}</span>
-                            {isLowStock(p) && (
+                            <span className="tabular-nums">{productStock(p, stockByProduct)}</span>
+                            {isLowStock(p, stockByProduct) && (
                               <span title="Stock bajo">
                                 <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
                               </span>

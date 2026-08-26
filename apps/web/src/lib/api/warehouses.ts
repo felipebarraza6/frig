@@ -3,7 +3,7 @@ import type { ApiFileResult } from "./client";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 type Warehouse = YggdraSchemas["Warehouse"];
-type WarehouseProduct = YggdraSchemas["WarehouseProduct"];
+export type WarehouseProduct = YggdraSchemas["WarehouseProduct"];
 type WarehouseRequest = YggdraSchemas["WarehouseRequest"];
 type WarehouseProductRequest = YggdraSchemas["WarehouseProductRequest"];
 type PaginatedWarehouse = YggdraSchemas["PaginatedWarehouseList"];
@@ -81,6 +81,29 @@ export async function fetchWarehouseProducts(
 export async function fetchProductWarehouses(productId: number): Promise<WarehouseProduct[]> {
   const data = await apiFetch<PaginatedWarehouseProduct>(`/inventory/warehouse-products/?product=${productId}`);
   return data.results ?? [];
+}
+
+export interface BranchWarehouseProductsFilter {
+  search?: string;
+  page_size?: number;
+  next?: string | null;
+  previous?: string | null;
+}
+
+export async function fetchBranchWarehouseProducts(
+  filter: BranchWarehouseProductsFilter = {},
+): Promise<PaginatedWarehouseProduct> {
+  if (filter.next) {
+    return apiFetch<PaginatedWarehouseProduct>(filter.next);
+  }
+  if (filter.previous) {
+    return apiFetch<PaginatedWarehouseProduct>(filter.previous);
+  }
+  const qs = new URLSearchParams();
+  if (filter.search) qs.set("search", filter.search);
+  if (filter.page_size) qs.set("page_size", String(filter.page_size));
+  const q = qs.toString();
+  return apiFetch<PaginatedWarehouseProduct>(`/inventory/warehouse-products/${q ? `?${q}` : ""}`);
 }
 
 export async function addProductToWarehouse(
