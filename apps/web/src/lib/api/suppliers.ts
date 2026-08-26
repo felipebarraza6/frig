@@ -6,6 +6,7 @@ export type Supplier = YggdraSchemas["Supplier"];
 export type SupplierList = YggdraSchemas["SupplierList"];
 export type SupplierRequest = YggdraSchemas["SupplierRequest"];
 export type SupplierProduct = YggdraSchemas["SupplierProduct"];
+export type SupplierProductRequest = YggdraSchemas["SupplierProductRequest"];
 export type PurchaseOrder = YggdraSchemas["PurchaseOrder"];
 export type PurchaseOrderList = YggdraSchemas["PurchaseOrderList"];
 export type PurchaseOrderCreate = YggdraSchemas["PurchaseOrderCreate"];
@@ -69,6 +70,38 @@ export async function deleteSupplier(id: string): Promise<void> {
 export async function fetchSupplierProducts(supplierId: string): Promise<SupplierProduct[]> {
   const data = await apiFetch<PaginatedSupplierProduct>(`/suppliers/supplier-products/?supplier=${supplierId}`);
   return data.results ?? [];
+}
+
+export async function fetchSupplierProductsByProduct(productId: number): Promise<SupplierProduct[]> {
+  const data = await apiFetch<PaginatedSupplierProduct>(`/suppliers/supplier-products/?product=${productId}`);
+  return data.results ?? [];
+}
+
+async function fetchAllSupplierProducts(url: string): Promise<SupplierProduct[]> {
+  const data = await apiFetch<PaginatedSupplierProduct>(url);
+  const next = data.next ? await fetchAllSupplierProducts(data.next) : [];
+  return [...(data.results ?? []), ...next];
+}
+
+export async function fetchSupplierProductsByBranch(branchId: number): Promise<SupplierProduct[]> {
+  return fetchAllSupplierProducts(`/suppliers/supplier-products/?branch=${branchId}`);
+}
+
+export async function createSupplierProduct(payload: SupplierProductRequest): Promise<SupplierProduct> {
+  return apiFetch<SupplierProduct>("/suppliers/supplier-products/", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export async function updateSupplierProduct(
+  id: number,
+  payload: Partial<SupplierProductRequest>,
+): Promise<SupplierProduct> {
+  return apiFetch<SupplierProduct>(`/suppliers/supplier-products/${id}/`, {
+    method: "PATCH",
+    body: payload,
+  });
 }
 
 export interface PurchaseOrdersFilter {

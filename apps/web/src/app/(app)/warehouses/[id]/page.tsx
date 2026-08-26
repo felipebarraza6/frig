@@ -36,7 +36,9 @@ import {
   transferStock,
 } from "@/lib/api/warehouses";
 import { fetchProducts } from "@/lib/api/products";
+import { fetchSupplierProductsByBranch } from "@/lib/api/suppliers";
 import { formatCLP, cn, stockStatusLabel } from "@/lib/utils";
+import { useCurrentBranch } from "@/lib/store/session";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 type WarehouseProduct = YggdraSchemas["WarehouseProduct"];
@@ -242,6 +244,26 @@ export default function WarehouseDetailPage() {
     queryFn: () => fetchWarehouses({}),
   });
   const targetWarehouses = (warehousesPage?.results ?? []).filter((w) => w.id !== warehouseId);
+
+  const branch = useCurrentBranch();
+  const branchId = branch?.branch_id ? Number(branch.branch_id) : undefined;
+
+  const { data: supplierProducts = [] } = useQuery({
+    queryKey: ["supplier-products", "by-branch", branchId],
+    queryFn: () => fetchSupplierProductsByBranch(branchId!),
+    enabled: Boolean(branchId),
+    staleTime: 60_000,
+  });
+
+  const supplierNameByProduct = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const sp of supplierProducts) {
+      if (sp.product && !map.has(sp.product)) {
+        map.set(sp.product, sp.supplier_name);
+      }
+    }
+    return map;
+  }, [supplierProducts]);
 
   const handleSort = (field: string) => {
     setProductSort((prev) => {
@@ -625,7 +647,7 @@ export default function WarehouseDetailPage() {
         ) : (
           <>
           <div className="hidden sm:block overflow-x-auto rounded-2xl border border-border">
-            <table className="w-full table-fixed min-w-[840px] text-sm">
+            <table className="w-full table-fixed min-w-[940px] text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                   <th
@@ -642,6 +664,11 @@ export default function WarehouseDetailPage() {
                   >
                     <span className="inline-flex items-center gap-1 whitespace-nowrap">
                       Categoría <SortIcon sort={productSort} field="product_category" />
+                    </span>
+                  </th>
+                  <th className="group w-32 px-3 py-2 text-left">
+                    <span className="inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                      Proveedor
                     </span>
                   </th>
                   <th
@@ -724,6 +751,21 @@ export default function WarehouseDetailPage() {
                         ) : (
                           <span className="text-xs text-muted-foreground">—</span>
                         )}
+                      </td>
+                      <td className="px-3 py-2">
+                        {(() => {
+                          const name = supplierNameByProduct.get(wp.product ?? 0);
+                          return name ? (
+                            <span
+                              className="inline-flex max-w-full items-center truncate rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary"
+                              title={name}
+                            >
+                              {name}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          );
+                        })()}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums font-medium">
                         {wp.current_quantity}

@@ -11,6 +11,15 @@ import { useCategoryOptions } from "@/lib/hooks/useCategoryOptions";
 import { fetchProducts } from "@/lib/api/products";
 import type { ProductPayload } from "@/lib/api/products";
 import type { YggdraProduct } from "@/lib/api/types";
+import {
+  fetchSuppliers,
+  fetchSupplierProductsByProduct,
+  createSupplierProduct,
+  updateSupplierProduct,
+  type SupplierProduct,
+} from "@/lib/api/suppliers";
+import { useToast } from "@/lib/store/toast";
+import { useCurrentBranch } from "@/lib/store/session";
 import { NutritionLabelPreview } from "@/components/products/nutrition-label-preview";
 import { ProductTypeHelp } from "@/components/products/product-type-help";
 import {
@@ -116,6 +125,7 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
     minimumStock: string;
     measurementUnit: string;
     category: string;
+    supplier: string;
     productType: string;
     isForSale: boolean;
     isForInternalUse: boolean;
@@ -150,6 +160,7 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
         : typeof product?.category === "number"
           ? String(product.category)
           : "",
+    supplier: "",
     // El default se resuelve acá sin `productTypeOptions[0]`: al abrir el form la
     // query de tipos puede estar en vuelo y ese array estar vacío. Un efecto
     // corrige el valor cuando las opciones llegan (ver abajo).
@@ -172,6 +183,8 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
     sodiumMg: product?.sodium_mg ?? "",
   });
 
+  const [existingSupplierProduct, setExistingSupplierProduct] = useState<SupplierProduct | null>(null);
+
   const { data: warehouses = [] } = useQuery({
     queryKey: ["warehouses", "all"],
     queryFn: async () => {
@@ -179,6 +192,41 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
       return data.results;
     },
   });
+
+  const branch = useCurrentBranch();
+  const toast = useToast();
+
+  const { data: suppliers = [], isLoading: loadingSuppliers } = useQuery({
+    queryKey: ["suppliers", "all"],
+    queryFn: async () => {
+      const all: { id: string; name: string }[] = [];
+      let url: string | null = "/suppliers/suppliers/";
+      while (url) {
+        const data = await fetchSuppliers({ next: url });
+        for (const s of data.results ?? []) {
+          all.push({ id: s.id, name: s.name ?? "Sin nombre" });
+        }
+        url = data.next ?? null;
+      }
+      return all;
+    },
+    staleTime: 60_000,
+  });
+
+  const { data: supplierProductsForProduct = [], isLoading: loadingSupplierProduct } = useQuery({
+    queryKey: ["supplier-products", "by-product", product?.id],
+    queryFn: () => fetchSupplierProductsByProduct(product!.id),
+    enabled: !!product?.id,
+    staleTime: 30_000,
+  });
+
+  useEffect(() => {
+    if (supplierProductsForProduct.length > 0) {
+      const first = supplierProductsForProduct[0];
+      setExistingSupplierProduct(first);
+      setForm((prev) => ({ ...prev, supplier: first.supplier }));
+    }
+  }, [supplierProductsForProduct]);
 
   const [tracksWarehouseStock, setTracksWarehouseStock] = useState(false);
   const [warehouseAssignments, setWarehouseAssignments] = useState<
@@ -449,6 +497,41 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
     );
   }
 
+  async function saveSupplierRelation(productId: number) {
+    const supplierId = form.supplier;
+    const branchId = branch?.branch_id;
+    if (!supplierId || !branchId) return;
+
+    const costPrice = form.costPrice || "0";
+    const supplierName = form.name.trim() || product?.name || "Producto";
+
+    try {
+      if (existingSupplierProduct && existingSupplierProduct.supplier !== supplierId) {
+        await updateSupplierProduct(existingSupplierProduct.id, {
+          supplier: supplierId,
+          cost_price: costPrice,
+          supplier_product_name: supplierName,
+          is_active: true,
+          branch: Number(branchId),
+        });
+      } else if (!existingSupplierProduct) {
+        await createSupplierProduct({
+          supplier: supplierId,
+          product: productId,
+          cost_price: costPrice,
+          supplier_product_name: supplierName,
+          is_active: true,
+          branch: Number(branchId),
+          create_inventory_product: false,
+          measurement_unit: form.measurementUnit || "UN",
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["supplier-products"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo guardar el proveedor del producto.");
+    }
+  }
+
   async function saveRecipeAndIngredients(productId: number) {
     let recipeId = recipe.id;
     const recipePayload: RecipePayload = {
@@ -555,6 +638,8 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
         sodium_mg: form.sodiumMg || null,
       };
       const savedProduct = await onSubmit(payload, product?.id);
+
+      await saveSupplierRelation(savedProduct.id);
 
       if (isCompound) {
         await saveRecipeAndIngredients(savedProduct.id);
@@ -704,6 +789,23 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
                 )}
               </div>
             )}
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <label htmlFor="product-supplier" className="text-sm font-medium">Proveedor principal</label>
+              <Select
+                id="product-supplier"
+                value={form.supplier}
+                disabled={loadingSuppliers || loadingSupplierProduct}
+                onChange={(e) => updateField("supplier", e.target.value)}
+              >
+                <option value="">Sin proveedor</option>
+                {suppliers.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </Select>
+            </div>
           </div>
 
           {isCompound && (
