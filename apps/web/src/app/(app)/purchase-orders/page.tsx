@@ -326,18 +326,18 @@ export default function PurchaseOrdersPage() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
-        <div>
+      <header className="flex items-start justify-between gap-3 border-b border-border px-4 py-3 sm:px-6">
+        <div className="min-w-0">
           <h1 className="text-lg font-semibold">Órdenes de compra</h1>
           <p className="text-xs text-muted-foreground">
             Gestiona compras a proveedores
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <Button
             size="icon"
             onClick={openModal}
-            className="sm:hidden"
+            className="h-9 w-9 sm:hidden"
             title="Nueva orden"
             aria-label="Nueva orden"
           >
@@ -549,72 +549,16 @@ export default function PurchaseOrdersPage() {
                   key={order.id}
                   className="rounded-xl border border-border bg-card p-4 shadow-sm"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary">
-                        <FileText className="h-5 w-5 text-muted-foreground" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="truncate font-medium">{order.order_number}</p>
-                        <p className="text-xs text-muted-foreground">{order.supplier_name ?? "Sin proveedor"}</p>
-                        <span className={`mt-1 inline-flex ${statusBadgeClass(order.status)}`}>
-                          {statusLabel(order.status)}
-                        </span>
-                      </div>
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary">
+                      <FileText className="h-5 w-5 text-muted-foreground" />
                     </div>
-                    <div className="flex shrink-0 items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        title="Ver"
-                        aria-label="Ver"
-                        onClick={() => setDetail(order)}
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                        <span className="sr-only">Ver</span>
-                      </Button>
-                      {canPay(order) && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0"
-                          title="Registrar pago"
-                          aria-label="Registrar pago"
-                          onClick={() => openPayModal(order)}
-                        >
-                          <Banknote className="h-3.5 w-3.5" />
-                          <span className="sr-only">Registrar pago</span>
-                        </Button>
-                      )}
-                      {order.status !== "CANCELLED" && order.status !== "COMPLETED" && (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0"
-                            title="Completar"
-                            aria-label="Completar"
-                            onClick={() => handleComplete(order)}
-                            disabled={complete.isPending}
-                          >
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                            <span className="sr-only">Completar</span>
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 text-danger hover:text-danger"
-                            title="Anular"
-                            aria-label="Anular"
-                            onClick={() => handleCancel(order)}
-                            disabled={cancel.isPending}
-                          >
-                            <Ban className="h-3.5 w-3.5" />
-                            <span className="sr-only">Anular</span>
-                          </Button>
-                        </>
-                      )}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">{order.order_number}</p>
+                      <p className="text-xs text-muted-foreground">{order.supplier_name ?? "Sin proveedor"}</p>
+                      <span className={`mt-1 inline-flex ${statusBadgeClass(order.status)}`}>
+                        {statusLabel(order.status)}
+                      </span>
                     </div>
                   </div>
 
@@ -627,6 +571,61 @@ export default function PurchaseOrdersPage() {
                       <span className="block text-[10px] uppercase tracking-wide">Entrega esperada</span>
                       <span className="font-medium text-foreground">{order.expected_delivery_date}</span>
                     </div>
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap items-center justify-end gap-1 border-t border-border pt-3">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      title="Ver"
+                      aria-label="Ver"
+                      onClick={() => setDetail(order)}
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                      <span className="sr-only">Ver</span>
+                    </Button>
+                    {canPay(order) && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        title="Registrar pago"
+                        aria-label="Registrar pago"
+                        onClick={() => openPayModal(order)}
+                      >
+                        <Banknote className="h-3.5 w-3.5" />
+                        <span className="sr-only">Registrar pago</span>
+                      </Button>
+                    )}
+                    {order.status !== "CANCELLED" && order.status !== "COMPLETED" && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          title="Completar"
+                          aria-label="Completar"
+                          onClick={() => handleComplete(order)}
+                          disabled={complete.isPending}
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          <span className="sr-only">Completar</span>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-danger hover:text-danger"
+                          title="Anular"
+                          aria-label="Anular"
+                          onClick={() => handleCancel(order)}
+                          disabled={cancel.isPending}
+                        >
+                          <Ban className="h-3.5 w-3.5" />
+                          <span className="sr-only">Anular</span>
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
