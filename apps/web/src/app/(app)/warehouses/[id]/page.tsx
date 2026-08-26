@@ -36,7 +36,6 @@ import {
   transferStock,
 } from "@/lib/api/warehouses";
 import { fetchProducts } from "@/lib/api/products";
-import { apiFetch } from "@/lib/api/client";
 import { formatCLP, cn, stockStatusLabel } from "@/lib/utils";
 import type { YggdraSchemas } from "@/lib/api/types";
 
@@ -85,11 +84,16 @@ function formatDateTime(v: string | null | undefined): string {
 
 async function exportWarehouseProductsToExcel(warehouseName: string, warehouseId: number) {
   const allResults: WarehouseProduct[] = [];
-  let nextUrl: string | null = `/inventory/warehouses/${warehouseId}/products/`;
-  while (nextUrl) {
-    const data: { results?: WarehouseProduct[]; next?: string | null } = await apiFetch(nextUrl);
+  let next: string | null | undefined = undefined;
+  let first = true;
+  while (first || next) {
+    const data = await fetchWarehouseProducts(
+      warehouseId,
+      first ? { page_size: 1000 } : { next },
+    );
     allResults.push(...(data.results ?? []));
-    nextUrl = data.next ?? null;
+    next = data.next;
+    first = false;
   }
 
   const rows = allResults.map((wp) => ({
@@ -743,9 +747,9 @@ export default function WarehouseDetailPage() {
                         <span
                           className={cn(
                             "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
-                            isOk && "bg-emerald-500/10 text-emerald-700",
-                            isLow && "bg-amber-500/10 text-amber-700",
-                            isOut && "bg-rose-500/10 text-rose-700",
+                            isOk && "bg-success/10 text-success",
+                            isLow && "bg-warning/10 text-warning",
+                            isOut && "bg-danger/10 text-danger",
                             !isOk && !isLow && !isOut && "bg-muted text-muted-foreground",
                           )}
                         >
@@ -830,9 +834,9 @@ export default function WarehouseDetailPage() {
                     <span
                       className={cn(
                         "inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
-                        isOk && "bg-emerald-500/10 text-emerald-700",
-                        isLow && "bg-amber-500/10 text-amber-700",
-                        isOut && "bg-rose-500/10 text-rose-700",
+                        isOk && "bg-success/10 text-success",
+                        isLow && "bg-warning/10 text-warning",
+                        isOut && "bg-danger/10 text-danger",
                         !isOk && !isLow && !isOut && "bg-muted text-muted-foreground",
                       )}
                     >

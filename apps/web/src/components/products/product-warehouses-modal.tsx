@@ -67,6 +67,70 @@ function formatNumber(value?: number | null): string {
   return Number(value).toLocaleString("es-CL");
 }
 
+function groupWarehousesByWarehouse(items: WarehouseProduct[]): WarehouseProduct[] {
+  const groups = new Map<string, WarehouseProduct[]>();
+  for (const item of items) {
+    const key = String(item.warehouse.id);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(item);
+  }
+
+  return Array.from(groups.values()).map((group) => {
+    const first = group[0];
+    let currentQuantity = 0;
+    let totalValue = 0;
+    let minimumQuantity: number | undefined;
+    let maximumQuantity: number | null = null;
+    let reorderPoint: number | undefined;
+    let location = first.location_in_warehouse ?? null;
+    let earliestCreated = first.created;
+
+    for (const w of group) {
+      currentQuantity += w.current_quantity ?? 0;
+      totalValue += parseFloat(w.total_value ?? "0") || 0;
+
+      if (w.minimum_quantity != null) {
+        minimumQuantity =
+          minimumQuantity === undefined ? w.minimum_quantity : Math.min(minimumQuantity, w.minimum_quantity);
+      }
+      if (w.maximum_quantity != null) {
+        maximumQuantity =
+          maximumQuantity === null ? w.maximum_quantity : Math.max(maximumQuantity, w.maximum_quantity);
+      }
+      if (w.reorder_point != null) {
+        reorderPoint =
+          reorderPoint === undefined ? w.reorder_point : Math.min(reorderPoint, w.reorder_point);
+      }
+      if (!location && w.location_in_warehouse) {
+        location = w.location_in_warehouse;
+      }
+      if (w.created < earliestCreated) {
+        earliestCreated = w.created;
+      }
+    }
+
+    let stockStatus = "IN_STOCK";
+    if (currentQuantity <= 0) {
+      stockStatus = "OUT_OF_STOCK";
+    } else if (minimumQuantity != null && currentQuantity <= minimumQuantity) {
+      stockStatus = "LOW_STOCK";
+    }
+
+    return {
+      ...first,
+      id: first.id,
+      current_quantity: currentQuantity,
+      total_value: String(totalValue),
+      minimum_quantity: minimumQuantity,
+      maximum_quantity: maximumQuantity,
+      reorder_point: reorderPoint,
+      location_in_warehouse: location,
+      stock_status: stockStatus,
+      created: earliestCreated,
+    } as WarehouseProduct;
+  });
+}
+
 function stockStatusColor(status?: string): string {
   const s = (status ?? "").toLowerCase();
   if (s.includes("out") || s.includes("agotado")) return "bg-red-500/10 text-red-700";
@@ -92,17 +156,9 @@ export function ProductWarehousesModal({ product, onClose }: ProductWarehousesMo
       }),
     enabled: !!selectedWarehouse,
   });
-  const totalStock = warehouses.reduce((sum, w) => sum + (w.current_quantity ?? 0), 0);
+  const groupedWarehouses = useMemo(() => groupWarehousesByWarehouse(warehouses), [warehouses]);
 
-  const duplicateWarehouseNames = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const w of warehouses) {
-      counts.set(w.warehouse.name, (counts.get(w.warehouse.name) ?? 0) + 1);
-    }
-    return Array.from(counts.entries())
-      .filter(([, count]) => count > 1)
-      .map(([name]) => name);
-  }, [warehouses]);
+  const totalStock = groupedWarehouses.reduce((sum, w) => sum + (w.current_quantity ?? 0), 0);
 
   return (
     <div
@@ -133,7 +189,7 @@ export function ProductWarehousesModal({ product, onClose }: ProductWarehousesMo
             </h2>
             {!selectedWarehouse && (
               <p className="text-xs text-muted-foreground">
-                {warehouses.length} bodega{warehouses.length === 1 ? "" : "s"} · Stock total: {formatNumber(totalStock)}
+                {groupedWarehouses.length} bodega{groupedWarehouses.length === 1 ? "" : "s"} · Stock total: {formatNumber(totalStock)}
               </p>
             )}
           </div>
@@ -232,7 +288,7 @@ export function ProductWarehousesModal({ product, onClose }: ProductWarehousesMo
                 )}
               </div>
             </div>
-          ) : warehouses.length === 0 ? (
+          ) : groupedWarehouses.length === 0 ? (
             <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border py-12">
               <div className="text-center">
                 <Package className="mx-auto h-10 w-10 text-muted-foreground" />
@@ -244,16 +300,7 @@ export function ProductWarehousesModal({ product, onClose }: ProductWarehousesMo
             </div>
           ) : (
             <div className="flex flex-col gap-3">
-              {duplicateWarehouseNames.length > 0 && (
-                <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-800">
-                  <p className="font-medium">Bodegas duplicadas detectadas</p>
-                  <p className="mt-0.5 text-amber-700">
-                    El producto tiene registros repetidos en: {duplicateWarehouseNames.join(", ")}.
-                    El stock total ({formatNumber(totalStock)}) suma todos los registros. Contacta soporte para limpiar duplicados en la base de datos.
-                  </p>
-                </div>
-              )}
-              {warehouses.map((w) => (
+              {groupedWarehouses.map((w) => (
                 <button
                   key={w.id}
                   type="button"
@@ -271,7 +318,7 @@ export function ProductWarehousesModal({ product, onClose }: ProductWarehousesMo
                         {w.location_in_warehouse ? ` · ${w.location_in_warehouse}` : ""}
                       </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
-                        Agregado el {formatDate(w.created)} · ID {w.id}
+                        Agregado el {formatDate(w.created)}
                       </p>
                     </div>
                   </div>
@@ -281,7 +328,7 @@ export function ProductWarehousesModal({ product, onClose }: ProductWarehousesMo
                         w.stock_status,
                       )}`}
                     >
-                      {w.current_quantity}
+                      {w.current_quantity} {w.product_measurement_unit}
                     </span>
                     {w.minimum_quantity !== undefined && w.minimum_quantity !== null && w.current_quantity <= w.minimum_quantity && (
                       <span className="flex items-center gap-1 text-xs text-amber-600">

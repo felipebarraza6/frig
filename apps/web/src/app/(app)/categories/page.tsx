@@ -245,12 +245,12 @@ export default function CategoriesPage() {
                           </div>
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <span className="inline-flex rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                          <span className="inline-flex rounded-md border border-border/60 bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                             {categoryTypeLabel(c.category_type)}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                          <span className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                             <Boxes className="h-3 w-3" />
                             {count} producto{count === 1 ? "" : "s"}
                           </span>
@@ -352,7 +352,7 @@ export default function CategoriesPage() {
                     </div>
 
                     <div className="mt-auto flex items-center justify-between gap-2 border-t border-border pt-3">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                      <span className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                         <Boxes className="h-3.5 w-3.5" />
                         {count} producto{count === 1 ? "" : "s"}
                       </span>
@@ -395,9 +395,12 @@ export default function CategoriesPage() {
 
       {modalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
+          className="fixed inset-0 z-[60] flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
           role="dialog"
           aria-modal="true"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) closeModal();
+          }}
         >
           <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
@@ -451,9 +454,12 @@ export default function CategoriesPage() {
 
       {confirmDelete && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
+          className="fixed inset-0 z-[60] flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
           role="dialog"
           aria-modal="true"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setConfirmDelete(null);
+          }}
         >
           <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">¿Eliminar categoría?</h2>

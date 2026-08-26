@@ -145,13 +145,6 @@ export default function DashboardPage() {
 
   const { data: products = [] } = useProducts(!!branch);
 
-  const lowStockProducts = useMemo(() => {
-    return products
-      .filter((p) => (p.quantity ?? 0) > 0 && (p.minimum_stock ?? 0) > 0 && (p.quantity ?? 0) <= (p.minimum_stock ?? 0))
-      .sort((a, b) => (a.quantity ?? 0) - (b.quantity ?? 0))
-      .slice(0, 5);
-  }, [products]);
-
   const loading = loadingCounts || loadingSummary || (nutritionEnabled && loadingIngredients);
   const error = countsError || summaryError;
 
@@ -188,7 +181,6 @@ export default function DashboardPage() {
   // El contador de productos del backend llega en 0 para esta sucursal a pesar de
   // tener catálogo. Usamos la lista local que ya cargamos para stock bajo.
   const productsCount = products.length;
-  const lowStockCount = lowStockProducts.length;
   const pendingOrders = counts?.sales?.pending_orders ?? 0;
   const pendingSalesAmount = counts?.sales?.pending_sales_amount ?? 0;
   const expensesTotal = counts?.expenses_by_supplier?.reduce((sum, e) => sum + e.total, 0) ?? 0;
@@ -456,10 +448,10 @@ export default function DashboardPage() {
           label="Productos"
           value={productsCount}
           icon={Package}
-          sub={`${lowStockCount} con stock bajo`}
+          sub="activos en catálogo"
           tone="orange"
           href="/products"
-          description="Productos activos en el catálogo. Click para ver el inventario de productos."
+          description="Productos activos en el catálogo. El stock bajo se gestiona desde la página de Productos."
           onClick={() =>
             setDrawer({
               open: true,
@@ -467,40 +459,20 @@ export default function DashboardPage() {
                 title: "Productos",
                 value: productsCount,
                 icon: Package,
-                description: "Productos activos en el catálogo. Click para ver el inventario de productos.",
+                description: "Productos activos en el catálogo. El detalle de stock bajo se gestiona desde la página de Productos.",
                 sections: [
-                  { label: "Con stock bajo", value: String(lowStockCount) },
                   { label: "Catálogo local", value: String(productsCount) },
                 ],
-                children: (
-                  <div className="rounded-2xl border border-border bg-muted/30 p-3">
-                    {lowStockProducts.length > 0 ? (
-                      <div className="flex flex-col">
-                        {lowStockProducts.map((p) => (
-                          <div
-                            key={p.id}
-                            className="flex items-center justify-between border-b border-border py-2.5 last:border-0"
-                          >
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-medium">{p.name}</p>
-                              <p className="text-xs text-muted-foreground">
-                                Stock: {p.quantity ?? 0} / mín: {p.minimum_stock ?? 0}
-                              </p>
-                            </div>
-                            <span className="shrink-0 text-sm font-semibold tabular-nums">
-                              {formatCLP(p.price)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="py-6 text-center">
-                        <Package className="mx-auto h-8 w-8 text-muted-foreground" />
-                        <p className="mt-2 text-sm font-medium">Sin productos con stock bajo</p>
-                        <p className="text-xs text-muted-foreground">Todos los productos tienen stock suficiente.</p>
-                      </div>
-                    )}
-                  </div>
+                actions: (
+                  <Link
+                    href="/products"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary/90"
+                  >
+                    Ir a productos
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
                 ),
               },
             })

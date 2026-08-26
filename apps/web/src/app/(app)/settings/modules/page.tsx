@@ -101,9 +101,30 @@ export default function BranchModulesPage() {
 
   const { catalog, metadataByName, isLoading: catalogLoading } = useModuleCatalog();
 
-  const filtered = configs.filter(
-    (c) => FRIG_SETTINGS_MODULES.includes(c.module_name) && !isCore(c.module_name),
-  );
+  const filtered = useMemo(() => {
+    const existing = new Map<ModuleName, ModuleConfig>();
+    for (const c of configs) {
+      if (FRIG_SETTINGS_MODULES.includes(c.module_name) && !isCore(c.module_name)) {
+        existing.set(c.module_name, c);
+      }
+    }
+    // Si el backend no devolvió un módulo configurable, lo mostramos como inactivo
+    // para que el usuario pueda activarlo desde aquí.
+    return FRIG_SETTINGS_MODULES.filter((name) => !isCore(name)).map(
+      (name) =>
+        existing.get(name) ??
+        ({
+          id: 0,
+          branch: branchId ?? 0,
+          module_name: name,
+          is_enabled: false,
+          submodule_config: {},
+          created: "",
+          modified: "",
+        } as ModuleConfig),
+    );
+  }, [configs, branchId]);
+
   const configByName = useMemo(() => {
     const map = new Map<ModuleName, ModuleConfig>();
     filtered.forEach((c) => map.set(c.module_name, c));

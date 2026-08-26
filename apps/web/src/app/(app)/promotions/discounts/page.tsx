@@ -142,11 +142,11 @@ function statusBadgeClass(status: PromotionDiscountList["status"]) {
   return cn(
     "inline-flex rounded px-2 py-0.5 text-xs font-medium",
     status === "ACTIVE"
-      ? "bg-emerald-500/10 text-emerald-700"
+      ? "bg-success/10 text-success"
       : status === "SCHEDULED"
-      ? "bg-blue-500/10 text-blue-700"
+      ? "bg-primary/10 text-primary"
       : status === "EXPIRED"
-      ? "bg-amber-500/10 text-amber-700"
+      ? "bg-warning/10 text-warning"
       : "bg-muted text-muted-foreground",
   );
 }
@@ -569,7 +569,7 @@ export default function DiscountsPage() {
           <>
             {/* Desktop table */}
             <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
-              <table className="w-full min-w-[640px] text-sm">
+              <table className="w-full min-w-full whitespace-nowrap text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
                     <th className="px-4 py-3">Nombre / Código</th>
@@ -619,7 +619,7 @@ export default function DiscountsPage() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
+                        <div className="flex flex-wrap items-center justify-end gap-1">
                           <Button variant="ghost" size="sm" onClick={() => openModal(d)}>
                             <Pencil className="mr-1.5 h-3.5 w-3.5" />
                             Editar
@@ -727,9 +727,12 @@ export default function DiscountsPage() {
 
       {modalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
+          className="fixed inset-0 z-[60] flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
           role="dialog"
           aria-modal="true"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) closeModal();
+          }}
         >
           <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-2xl md:rounded-xl md:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 md:px-6 md:py-4">
@@ -1085,9 +1088,12 @@ export default function DiscountsPage() {
 
       {confirmDelete && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
+          className="fixed inset-0 z-[60] flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
           role="dialog"
           aria-modal="true"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setConfirmDelete(null);
+          }}
         >
           <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">¿Eliminar descuento?</h2>
@@ -1132,12 +1138,12 @@ function StatCard({
   sub: string;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
-      <div className="mb-2 flex items-center gap-2 text-muted-foreground">
+    <div className="rounded-xl border border-border bg-card p-3 sm:p-4">
+      <div className="mb-1.5 flex items-center gap-2 text-muted-foreground sm:mb-2">
         <Icon className="h-4 w-4" />
         <span className="text-xs font-medium">{label}</span>
       </div>
-      <p className="text-xl font-semibold tabular-nums">{value}</p>
+      <p className="text-lg font-semibold tabular-nums sm:text-xl">{value}</p>
       <p className="text-xs text-muted-foreground">{sub}</p>
     </div>
   );

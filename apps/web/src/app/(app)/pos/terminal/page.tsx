@@ -845,20 +845,9 @@ export default function PosPage() {
   }, [openAccountsPage, isWaiter, user, myTables, openAccountsQuery, tables]);
 
   const pendingDeliveriesBase = useMemo(() => {
-    const orders = (pendingDeliveriesPage?.results ?? []) as Order[];
-    return orders.filter((o) => {
-      // Si el backend envía delivery_status, usamos ese criterio.
-      if (o.delivery_status) return o.delivery_status === "PENDING";
-      // Fallback: dirección de entrega definida y orden aún no completada/entregada.
-      const terminalStatus = o.status?.toUpperCase();
-      return (
-        !!o.delivery_address &&
-        terminalStatus !== "COMPLETED" &&
-        terminalStatus !== "CANCELLED" &&
-        terminalStatus !== "REFUNDED" &&
-        terminalStatus !== "RETURNED"
-      );
-    });
+    // Mostramos todas las cuentas/órdenes pendientes o en progreso.
+    // El backend ya filtra por status PENDING/IN_PROGRESS y tipos SALE/ORDER.
+    return (pendingDeliveriesPage?.results ?? []) as Order[];
   }, [pendingDeliveriesPage]);
 
   const pendingDeliveriesCount = useMemo(() => pendingDeliveriesBase.length, [pendingDeliveriesBase]);
@@ -1074,7 +1063,7 @@ export default function PosPage() {
                 className="relative hidden h-8 items-center gap-1.5 rounded-lg border border-border/60 bg-background px-2 text-xs font-medium text-foreground transition-colors hover:bg-muted sm:inline-flex sm:px-2.5"
               >
                 <Zap className="h-3.5 w-3.5" />
-                <span>Entregas</span>
+                <span>Pendientes</span>
                 {pendingDeliveriesCount > 0 && (
                   <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-500 px-1 text-[10px] font-semibold text-white">
                     {pendingDeliveriesCount}
@@ -1464,7 +1453,7 @@ export default function PosPage() {
                 className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
                 <Zap className="h-[18px] w-[18px]" />
-                <span className="truncate px-0.5">Entregas</span>
+                <span className="truncate px-0.5">Pendientes</span>
                 {pendingDeliveriesCount > 0 && (
                   <span className="absolute right-2 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-500 px-1 text-[9px] font-semibold text-white">
                     {pendingDeliveriesCount}
@@ -1864,7 +1853,7 @@ export default function PosPage() {
       )}
 
       {showPendingDeliveries && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/40" role="dialog" aria-modal="true">
+        <div className="fixed inset-0 z-[60] flex justify-end bg-black/40" role="dialog" aria-modal="true">
           <motion.div
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
@@ -1874,9 +1863,9 @@ export default function PosPage() {
           >
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
               <div>
-                <h2 className="text-base font-semibold">Entregas pendientes</h2>
+                <h2 className="text-base font-semibold">Cuentas y órdenes pendientes</h2>
                 <p className="text-xs text-muted-foreground">
-                  {filteredPendingDeliveries.length} por entregar
+                  {filteredPendingDeliveries.length} pendiente{filteredPendingDeliveries.length === 1 ? "" : "s"}
                   {filteredPendingDeliveries.length !== pendingDeliveriesBase.length && (
                     <span className="ml-1 text-muted-foreground/70">
                       ({pendingDeliveriesBase.length} total)
@@ -1965,7 +1954,7 @@ export default function PosPage() {
               ) : filteredPendingDeliveries.length === 0 ? (
                 <div className="flex flex-col items-center gap-3 py-12 text-center">
                   <Zap className="h-8 w-8 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">No hay entregas pendientes.</p>
+                  <p className="text-sm text-muted-foreground">No hay cuentas ni órdenes pendientes.</p>
                 </div>
               ) : (
                 <div className="flex flex-col gap-2">
