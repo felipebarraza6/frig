@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { X, Loader2, Plus, Trash2, Search, FileDown } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -34,7 +35,7 @@ import {
   type RecipePayload,
   type RecipeIngredientPayload,
 } from "@/lib/api/recipes";
-import { fetchWarehouses, addProductToWarehouse } from "@/lib/api/warehouses";
+import { fetchWarehouses, fetchProductWarehouses, addProductToWarehouse } from "@/lib/api/warehouses";
 import { useBranchProductTypes } from "@/lib/hooks/useBranchProductTypes";
 import { useDownloadFile } from "@/lib/hooks/useDownloadFile";
 import { useIsNutritionEnabled } from "@/lib/store/session";
@@ -193,6 +194,12 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
     },
   });
 
+  const { data: productWarehouses = [], isLoading: loadingProductWarehouses } = useQuery({
+    queryKey: ["warehouse-products", "product", product?.id],
+    queryFn: () => fetchProductWarehouses(product!.id),
+    enabled: !!product?.id,
+  });
+
   const branch = useCurrentBranch();
   const toast = useToast();
 
@@ -292,13 +299,13 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
       { id: "basic", label: "Datos básicos", enabled: true },
       { id: "pricing", label: "Precios y venta", enabled: true },
       { id: "recipe", label: "Receta", enabled: isCompound },
-      { id: "warehouses", label: "Bodegas", enabled: !product?.id },
+      { id: "warehouses", label: "Bodegas", enabled: true },
     ];
     if (nutritionEnabled) {
       list.push({ id: "nutrition", label: "Nutrición", enabled: true });
     }
     return list;
-  }, [isCompound, product?.id, nutritionEnabled]);
+  }, [isCompound, nutritionEnabled]);
 
   // Al cargar las opciones de tipo (la query puede llegar después de abrir el
   // form), corrige el valor actual si no está entre las disponibles.
@@ -328,10 +335,10 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
 
   // Al entrar al tab Bodegas se activa la gestión de stock por bodega.
   useEffect(() => {
-    if (activeTab === "warehouses" && !product?.id && !tracksWarehouseStock) {
+    if (activeTab === "warehouses" && !tracksWarehouseStock) {
       setTracksWarehouseStock(true);
     }
-  }, [activeTab, product?.id, tracksWarehouseStock]);
+  }, [activeTab, tracksWarehouseStock]);
 
   const {
     data: existingRecipes = [],
@@ -646,9 +653,10 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
         queryClient.invalidateQueries({ queryKey: ["recipes"] });
       }
 
-      if (!product?.id && tracksWarehouseStock && warehouseAssignments.length > 0) {
+      if (tracksWarehouseStock && warehouseAssignments.length > 0) {
         await saveWarehouseAssignments(savedProduct.id);
         queryClient.invalidateQueries({ queryKey: ["warehouses"] });
+        queryClient.invalidateQueries({ queryKey: ["warehouse-products", "product", product?.id] });
       }
 
       onClose();
@@ -934,126 +942,175 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
             </p>
           )}
 
-          {activeTab === "warehouses" && !product?.id && (
-            <div className="rounded-xl border border-border bg-muted/40 p-4">
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold">Asignación a bodegas</h3>
-                <p className="text-xs text-muted-foreground">
-                  Entraste a Bodegas: el stock de este producto se gestionará por bodega.
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-3">
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs font-medium text-muted-foreground">Bodega</label>
-                    <Select
-                      value={selectedWarehouse}
-                      onChange={(e) => setSelectedWarehouse(e.target.value)}
-                    >
-                      <option value="">Selecciona</option>
-                      {warehouses
-                        .filter((w) => !warehouseAssignments.some((a) => a.warehouseId === String(w.id)))
-                        .map((w) => (
-                          <option key={w.id} value={String(w.id)}>{w.name}</option>
-                        ))}
-                    </Select>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs font-medium text-muted-foreground">Cantidad inicial</label>
-                    <Input
-                      type="number"
-                      min="0"
-                      value={selectedInitialQty}
-                      onChange={(e) => setSelectedInitialQty(e.target.value)}
-                      placeholder="0"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs font-medium text-muted-foreground">Stock mínimo</label>
-                    <Input
-                      type="number"
-                      min="0"
-                      value={selectedMinimumQty}
-                      onChange={(e) => setSelectedMinimumQty(e.target.value)}
-                      placeholder="0"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs font-medium text-muted-foreground">Stock máximo</label>
-                    <Input
-                      type="number"
-                      min="0"
-                      value={selectedMaximumQty}
-                      onChange={(e) => setSelectedMaximumQty(e.target.value)}
-                      placeholder="Opcional"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs font-medium text-muted-foreground">Alerta / reorden</label>
-                    <Input
-                      type="number"
-                      min="0"
-                      value={selectedReorderPoint}
-                      onChange={(e) => setSelectedReorderPoint(e.target.value)}
-                      placeholder="0"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs font-medium text-muted-foreground">Ubicación</label>
-                    <Input
-                      value={selectedLocation}
-                      onChange={(e) => setSelectedLocation(e.target.value)}
-                      placeholder="Ej: estante 3"
-                    />
-                  </div>
-                </div>
-                <div className="flex justify-end">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={addWarehouseAssignment}
-                    disabled={!selectedWarehouse}
-                  >
-                    <Plus className="mr-1 h-3.5 w-3.5" />
-                    Agregar bodega
-                  </Button>
-                </div>
-              </div>
-
-              {warehouseAssignments.length > 0 && (
-                <div className="mt-3 flex flex-col gap-2">
-                  {warehouseAssignments.map((a) => {
-                    const warehouse = warehouses.find((w) => String(w.id) === a.warehouseId);
-                    return (
-                      <div
-                        key={a.localId}
-                        className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2"
-                      >
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">{warehouse?.name ?? "Bodega"}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Inicial: {a.initialQuantity}
-                            {a.minimumQuantity ? ` · Mín: ${a.minimumQuantity}` : ""}
-                            {a.maximumQuantity ? ` · Máx: ${a.maximumQuantity}` : ""}
-                            {a.reorderPoint ? ` · Alerta: ${a.reorderPoint}` : ""}
-                            {a.location ? ` · ${a.location}` : ""}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => removeWarehouseAssignment(a.localId)}
-                          className="text-danger hover:text-danger/80"
-                          aria-label="Quitar bodega"
+          {activeTab === "warehouses" && (
+            <div className="flex flex-col gap-4">
+              {product?.id && (
+                <div className="rounded-xl border border-border bg-muted/40 p-4">
+                  <h3 className="mb-3 text-sm font-semibold">Bodegas actuales</h3>
+                  {loadingProductWarehouses ? (
+                    <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Cargando bodegas…
+                    </div>
+                  ) : productWarehouses.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      Este producto no está asignado a ninguna bodega.
+                    </p>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      {productWarehouses.map((wp) => (
+                        <div
+                          key={wp.id}
+                          className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2"
                         >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    );
-                  })}
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium">{wp.warehouse.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Cantidad: {wp.current_quantity ?? 0}
+                              {wp.minimum_quantity != null ? ` · Mín: ${wp.minimum_quantity}` : ""}
+                              {wp.maximum_quantity != null ? ` · Máx: ${wp.maximum_quantity}` : ""}
+                              {wp.location_in_warehouse ? ` · Ubicación: ${wp.location_in_warehouse}` : ""}
+                            </p>
+                          </div>
+                          <Link
+                            href={`/warehouses/${wp.warehouse.id}`}
+                            className="shrink-0 text-xs font-medium text-primary hover:underline"
+                          >
+                            Ver bodega
+                          </Link>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
+
+              <div className="rounded-xl border border-border bg-muted/40 p-4">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <h3 className="text-sm font-semibold">
+                    {product ? "Agregar a nueva bodega" : "Asignación a bodegas"}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Entraste a Bodegas: el stock de este producto se gestionará por bodega.
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-medium text-muted-foreground">Bodega</label>
+                      <Select
+                        value={selectedWarehouse}
+                        onChange={(e) => setSelectedWarehouse(e.target.value)}
+                      >
+                        <option value="">Selecciona</option>
+                        {warehouses
+                          .filter(
+                            (w) =>
+                              !warehouseAssignments.some((a) => a.warehouseId === String(w.id)) &&
+                              !productWarehouses.some((wp) => String(wp.warehouse.id) === String(w.id)),
+                          )
+                          .map((w) => (
+                            <option key={w.id} value={String(w.id)}>{w.name}</option>
+                          ))}
+                      </Select>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-medium text-muted-foreground">Cantidad inicial</label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={selectedInitialQty}
+                        onChange={(e) => setSelectedInitialQty(e.target.value)}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-medium text-muted-foreground">Stock mínimo</label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={selectedMinimumQty}
+                        onChange={(e) => setSelectedMinimumQty(e.target.value)}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-medium text-muted-foreground">Stock máximo</label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={selectedMaximumQty}
+                        onChange={(e) => setSelectedMaximumQty(e.target.value)}
+                        placeholder="Opcional"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-medium text-muted-foreground">Alerta / reorden</label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={selectedReorderPoint}
+                        onChange={(e) => setSelectedReorderPoint(e.target.value)}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-medium text-muted-foreground">Ubicación</label>
+                      <Input
+                        value={selectedLocation}
+                        onChange={(e) => setSelectedLocation(e.target.value)}
+                        placeholder="Ej: estante 3"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={addWarehouseAssignment}
+                      disabled={!selectedWarehouse}
+                    >
+                      <Plus className="mr-1 h-3.5 w-3.5" />
+                      Agregar bodega
+                    </Button>
+                  </div>
+                </div>
+
+                {warehouseAssignments.length > 0 && (
+                  <div className="mt-3 flex flex-col gap-2">
+                    {warehouseAssignments.map((a) => {
+                      const warehouse = warehouses.find((w) => String(w.id) === a.warehouseId);
+                      return (
+                        <div
+                          key={a.localId}
+                          className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium">{warehouse?.name ?? "Bodega"}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Inicial: {a.initialQuantity}
+                              {a.minimumQuantity ? ` · Mín: ${a.minimumQuantity}` : ""}
+                              {a.maximumQuantity ? ` · Máx: ${a.maximumQuantity}` : ""}
+                              {a.reorderPoint ? ` · Alerta: ${a.reorderPoint}` : ""}
+                              {a.location ? ` · ${a.location}` : ""}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeWarehouseAssignment(a.localId)}
+                            className="text-danger hover:text-danger/80"
+                            aria-label="Quitar bodega"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
