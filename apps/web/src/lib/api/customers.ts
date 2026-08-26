@@ -14,6 +14,7 @@ export interface CustomersFilter {
   startDate?: string;
   endDate?: string;
   status?: CustomerStatusFilter;
+  page_size?: number;
   next?: string | null;
   previous?: string | null;
 }
@@ -25,8 +26,12 @@ function buildCustomersQueryString(filter: CustomersFilter): URLSearchParams {
   if (filter.phone) qs.set("phone_number__icontains", filter.phone);
   if (filter.startDate) qs.set("created__gte", filter.startDate);
   if (filter.endDate) qs.set("created__lte", filter.endDate);
-  if (filter.status === "active") qs.set("is_active", "true");
-  if (filter.status === "inactive") qs.set("is_active", "false");
+  if (filter.status === "active") {
+    qs.set("is_active", "true");
+  } else if (filter.status === "inactive") {
+    qs.set("is_active", "false");
+  }
+  if (filter.page_size) qs.set("page_size", String(filter.page_size));
   return qs;
 }
 
@@ -39,6 +44,21 @@ function buildCustomersUrl(filter: CustomersFilter): string {
 }
 
 export async function fetchCustomers(filter: CustomersFilter = {}): Promise<PaginatedClientList> {
+  // El backend filtra por activos por defecto. Para mostrar todos, combinamos
+  // dos listados: activos e inactivos.
+  if (filter.status === "" && !filter.next && !filter.previous) {
+    const base: CustomersFilter = { ...filter, status: undefined, page_size: 1000 };
+    const [activeData, inactiveData] = await Promise.all([
+      apiFetch<PaginatedClientList>(buildCustomersUrl({ ...base, status: "active" })),
+      apiFetch<PaginatedClientList>(buildCustomersUrl({ ...base, status: "inactive" })),
+    ]);
+    return {
+      count: (activeData.count ?? 0) + (inactiveData.count ?? 0),
+      next: null,
+      previous: null,
+      results: [...(activeData.results ?? []), ...(inactiveData.results ?? [])],
+    };
+  }
   return apiFetch<PaginatedClientList>(buildCustomersUrl(filter));
 }
 

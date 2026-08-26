@@ -40,6 +40,10 @@ export async function fetchSuppliers(filter: SuppliersFilter = {}): Promise<Pagi
   return apiFetch<PaginatedSupplier>(`/suppliers/suppliers/${q ? `?${q}` : ""}`);
 }
 
+export async function fetchSupplier(id: string): Promise<Supplier> {
+  return apiFetch<Supplier>(`/suppliers/suppliers/${id}/`);
+}
+
 export async function createSupplier(payload: SupplierRequest): Promise<Supplier> {
   return apiFetch<Supplier>("/suppliers/suppliers/", {
     method: "POST",

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Loader2, X, Eye, Ban, CheckCircle2, FileText, SlidersHorizontal } from "lucide-react";
+import { Plus, Search, Loader2, X, Eye, Ban, CheckCircle2, FileText, SlidersHorizontal, Banknote, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -12,10 +12,14 @@ import {
   createPurchaseOrder,
   cancelPurchaseOrder,
   markPurchaseOrderCompleted,
+  payPurchaseOrder,
   type PurchaseOrderList,
   type PurchaseOrderCreatePayload,
+  type PurchaseOrderRequest,
   type SupplierList,
 } from "@/lib/api/suppliers";
+import { useCurrentBranch } from "@/lib/store/session";
+import { useToast } from "@/lib/store/toast";
 import { formatCLP } from "@/lib/utils";
 
 const STATUS_OPTIONS = [
@@ -35,65 +39,101 @@ function statusLabel(value?: string | null): string {
 
 function statusBadgeClass(status?: string | null) {
   if (status === "COMPLETED") {
-    return "rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-700";
+    return "rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success";
   }
   if (status === "CANCELLED") {
     return "rounded-full bg-danger/10 px-2 py-0.5 text-xs font-medium text-danger";
   }
-  return "rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700";
+  return "rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning";
 }
 
-const TODAY = new Date().toISOString().slice(0, 10);
-const NEXT_WEEK = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+interface FormItem {
+  description: string;
+  quantity: string;
+  unit_price: string;
+}
+
+function initialFormState() {
+  const today = new Date().toISOString().slice(0, 10);
+  const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  return {
+    supplier: "",
+    order_date: today,
+    expected_delivery_date: nextWeek,
+    notes: "",
+    items: [{ description: "", quantity: "1", unit_price: "" }],
+  };
+}
+
+interface PayTarget {
+  order: PurchaseOrderList;
+  amount: string;
+  notes: string;
+}
+
+function canPay(order: PurchaseOrderList): boolean {
+  return order.status !== "CANCELLED" && !order.is_fully_paid;
+}
 
 export default function PurchaseOrdersPage() {
   const queryClient = useQueryClient();
+  const toast = useToast();
+  const branch = useCurrentBranch();
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [supplier, setSupplier] = useState("");
   const [status, setStatus] = useState("");
   const [pageUrl, setPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
   const [modalOpen, setModalOpen] = useState(false);
   const [detail, setDetail] = useState<PurchaseOrderList | null>(null);
+  const [payTarget, setPayTarget] = useState<PayTarget | null>(null);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
-  const [form, setForm] = useState({
-    supplier: "",
-    order_date: TODAY,
-    expected_delivery_date: NEXT_WEEK,
-    notes: "",
-    description: "",
-    quantity: "1",
-    unit_price: "",
-  });
+  const [formError, setFormError] = useState<string | null>(null);
+  const [form, setForm] = useState(initialFormState);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
 
   const { data: page, isLoading } = useQuery({
-    queryKey: ["purchase-orders", { search, supplier, status, pageUrl }],
-    queryFn: () => fetchPurchaseOrders({ search, supplier, status, ...pageUrl }),
+    queryKey: ["purchase-orders", { search: debouncedSearch, supplier, status, pageUrl }],
+    queryFn: () => fetchPurchaseOrders({ search: debouncedSearch, supplier, status, ...pageUrl }),
   });
 
-  const { data: suppliersPage } = useQuery({
+  const { data: suppliers = [] } = useQuery({
     queryKey: ["suppliers", "select"],
-    queryFn: () => fetchSuppliers({}),
+    queryFn: async () => {
+      // El listado está paginado: recorre todas las páginas para no cortar el selector.
+      const all: SupplierList[] = [];
+      let next: string | null | undefined;
+      let first = true;
+      while (first || next) {
+        const data = await fetchSuppliers(first ? {} : { next });
+        all.push(...(data.results ?? []));
+        next = data.next;
+        first = false;
+      }
+      return all;
+    },
   });
-  const suppliers: SupplierList[] = suppliersPage?.results ?? [];
 
   const orders: PurchaseOrderList[] = page?.results ?? [];
   const totalOrders = page?.count ?? 0;
 
   const create = useMutation({
     mutationFn: () => {
-      const items: PurchaseOrderCreatePayload["items"] = [
-        {
-          description: form.description,
-          quantity_ordered: Number(form.quantity) || 1,
-          unit_price: form.unit_price || "0",
-          notes: form.notes || null,
-          create_product_if_not_exists: false,
-          measurement_unit: "UN",
-        },
-      ];
+      const items: PurchaseOrderCreatePayload["items"] = form.items.map((item) => ({
+        description: item.description,
+        quantity_ordered: Number(item.quantity),
+        unit_price: item.unit_price || "0",
+        notes: null,
+        create_product_if_not_exists: false,
+        measurement_unit: "UN",
+      }));
       return createPurchaseOrder({
         supplier: form.supplier || null,
-        branch: 0,
+        branch: Number(branch?.branch_id ?? 0),
         order_date: form.order_date,
         expected_delivery_date: form.expected_delivery_date,
         notes: form.notes || null,
@@ -102,27 +142,69 @@ export default function PurchaseOrdersPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
-      setModalOpen(false);
-      setForm({
-        supplier: "",
-        order_date: TODAY,
-        expected_delivery_date: NEXT_WEEK,
-        notes: "",
-        description: "",
-        quantity: "1",
-        unit_price: "",
-      });
+      closeModal();
     },
   });
 
+  const estimatedTotal = form.items.reduce(
+    (sum, item) => sum + Math.max(0, Number(item.quantity) || 0) * Math.max(0, Number(item.unit_price) || 0),
+    0,
+  );
+
   const cancel = useMutation({
     mutationFn: (id: string) => cancelPurchaseOrder(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["purchase-orders"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+      toast.success("Orden anulada");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Error al anular la orden");
+    },
   });
 
   const complete = useMutation({
     mutationFn: (id: string) => markPurchaseOrderCompleted(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["purchase-orders"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+      toast.success("Orden completada");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Error al completar la orden");
+    },
+  });
+
+  const pay = useMutation({
+    mutationFn: async (target: PayTarget) => {
+      const { order, amount, notes } = target;
+      try {
+        return await payPurchaseOrder(order.id, {
+          paid_amount: amount,
+          notes: notes || null,
+        });
+      } catch {
+        // Si el backend rechaza el payload parcial, reintenta con los campos
+        // requeridos de PurchaseOrderRequest usando los valores actuales de la orden.
+        const full: Partial<PurchaseOrderRequest> = {
+          supplier: order.supplier ?? null,
+          branch: order.branch,
+          status: order.status,
+          order_date: order.order_date,
+          expected_delivery_date: order.expected_delivery_date,
+          paid_amount: amount,
+          notes: notes || null,
+        };
+        return payPurchaseOrder(order.id, full);
+      }
+    },
+    onSuccess: (updated) => {
+      queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+      setDetail((prev) => (prev && prev.id === updated.id ? { ...prev, ...updated } : prev));
+      setPayTarget(null);
+      toast.success("Pago registrado");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Error al registrar el pago");
+    },
   });
 
   function updateFilter<T extends string>(setter: (v: T) => void, value: T) {
@@ -130,9 +212,117 @@ export default function PurchaseOrdersPage() {
     setPageUrl({});
   }
 
+  function openModal() {
+    create.reset();
+    setFormError(null);
+    setForm(initialFormState());
+    setModalOpen(true);
+  }
+
   function closeModal() {
     setModalOpen(false);
+    create.reset();
+    setFormError(null);
   }
+
+  function closeDetail() {
+    setDetail(null);
+  }
+
+  function openPayModal(order: PurchaseOrderList) {
+    pay.reset();
+    setPayTarget({ order, amount: order.remaining_amount ?? "", notes: "" });
+  }
+
+  function closePayModal() {
+    setPayTarget(null);
+    pay.reset();
+  }
+
+  function handleCancel(order: PurchaseOrderList) {
+    if (window.confirm(`¿Anular la orden ${order.order_number}? Esta acción no se puede deshacer.`)) {
+      cancel.mutate(order.id);
+    }
+  }
+
+  function handleComplete(order: PurchaseOrderList) {
+    if (window.confirm(`¿Marcar la orden ${order.order_number} como completada?`)) {
+      complete.mutate(order.id);
+    }
+  }
+
+  function handleCreateSubmit(e: FormEvent) {
+    e.preventDefault();
+    setFormError(null);
+    if (!branch?.branch_id) {
+      setFormError("No hay una sucursal seleccionada.");
+      return;
+    }
+    if (form.items.length === 0) {
+      setFormError("Agrega al menos un ítem.");
+      return;
+    }
+    for (const item of form.items) {
+      if (!item.description.trim()) {
+        setFormError("Todos los ítems deben tener descripción.");
+        return;
+      }
+      const qty = Number(item.quantity);
+      if (!Number.isFinite(qty) || qty <= 0) {
+        setFormError("La cantidad de cada ítem debe ser mayor que 0.");
+        return;
+      }
+      const price = Number(item.unit_price);
+      if (!Number.isFinite(price) || price < 0) {
+        setFormError("El precio unitario no puede ser negativo.");
+        return;
+      }
+    }
+    create.mutate();
+  }
+
+  function addItem() {
+    setForm((prev) => ({
+      ...prev,
+      items: [...prev.items, { description: "", quantity: "1", unit_price: "" }],
+    }));
+  }
+
+  function removeItem(index: number) {
+    setForm((prev) => ({
+      ...prev,
+      items: prev.items.filter((_, i) => i !== index),
+    }));
+  }
+
+  function updateItem(index: number, field: keyof FormItem, value: string) {
+    setForm((prev) => {
+      const next = [...prev.items];
+      next[index] = { ...next[index], [field]: value };
+      return { ...prev, items: next };
+    });
+  }
+
+  function handlePaySubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!payTarget) return;
+    const amount = Number(payTarget.amount);
+    if (!Number.isFinite(amount) || amount <= 0) return;
+    pay.mutate(payTarget);
+  }
+
+  // Cierra los modales abiertos con la tecla Escape.
+  useEffect(() => {
+    if (!modalOpen && !detail && !payTarget) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      closePayModal();
+      closeModal();
+      closeDetail();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  });
 
   return (
     <div className="flex min-h-full flex-col">
@@ -146,7 +336,7 @@ export default function PurchaseOrdersPage() {
         <div className="flex items-center gap-2">
           <Button
             size="icon"
-            onClick={() => setModalOpen(true)}
+            onClick={openModal}
             className="sm:hidden"
             title="Nueva orden"
             aria-label="Nueva orden"
@@ -155,7 +345,7 @@ export default function PurchaseOrdersPage() {
           </Button>
           <Button
             size="sm"
-            onClick={() => setModalOpen(true)}
+            onClick={openModal}
             className="hidden sm:flex"
           >
             <Plus className="mr-2 h-4 w-4" />
@@ -277,7 +467,7 @@ export default function PurchaseOrdersPage() {
           <>
             {/* Desktop table */}
             <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
-              <table className="w-full min-w-[900px] text-sm">
+              <table className="w-full min-w-full whitespace-nowrap text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
                     <th className="px-4 py-3">Número</th>
@@ -306,17 +496,27 @@ export default function PurchaseOrdersPage() {
                       <td className="px-4 py-3 text-right tabular-nums font-medium">{formatCLP(order.total_amount ?? "0")}</td>
                       <td className="px-4 py-3 text-muted-foreground">{order.expected_delivery_date}</td>
                       <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
+                        <div className="flex flex-wrap items-center justify-end gap-1">
                           <Button variant="ghost" size="sm" onClick={() => setDetail(order)}>
                             <Eye className="mr-1.5 h-3.5 w-3.5" />
                             Ver
                           </Button>
+                          {canPay(order) && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openPayModal(order)}
+                            >
+                              <Banknote className="mr-1.5 h-3.5 w-3.5" />
+                              Pagar
+                            </Button>
+                          )}
                           {order.status !== "CANCELLED" && order.status !== "COMPLETED" && (
                             <>
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => complete.mutate(order.id)}
+                                onClick={() => handleComplete(order)}
                                 disabled={complete.isPending}
                               >
                                 <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
@@ -326,7 +526,7 @@ export default function PurchaseOrdersPage() {
                                 variant="ghost"
                                 size="sm"
                                 className="text-danger hover:text-danger"
-                                onClick={() => cancel.mutate(order.id)}
+                                onClick={() => handleCancel(order)}
                                 disabled={cancel.isPending}
                               >
                                 <Ban className="mr-1.5 h-3.5 w-3.5" />
@@ -347,7 +547,7 @@ export default function PurchaseOrdersPage() {
               {orders.map((order) => (
                 <div
                   key={order.id}
-                  className="rounded-2xl border border-border bg-card p-4 shadow-sm"
+                  className="rounded-xl border border-border bg-card p-4 shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
@@ -374,6 +574,19 @@ export default function PurchaseOrdersPage() {
                         <Eye className="h-3.5 w-3.5" />
                         <span className="sr-only">Ver</span>
                       </Button>
+                      {canPay(order) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          title="Registrar pago"
+                          aria-label="Registrar pago"
+                          onClick={() => openPayModal(order)}
+                        >
+                          <Banknote className="h-3.5 w-3.5" />
+                          <span className="sr-only">Registrar pago</span>
+                        </Button>
+                      )}
                       {order.status !== "CANCELLED" && order.status !== "COMPLETED" && (
                         <>
                           <Button
@@ -382,7 +595,7 @@ export default function PurchaseOrdersPage() {
                             className="h-8 w-8 p-0"
                             title="Completar"
                             aria-label="Completar"
-                            onClick={() => complete.mutate(order.id)}
+                            onClick={() => handleComplete(order)}
                             disabled={complete.isPending}
                           >
                             <CheckCircle2 className="h-3.5 w-3.5" />
@@ -394,7 +607,7 @@ export default function PurchaseOrdersPage() {
                             className="h-8 w-8 p-0 text-danger hover:text-danger"
                             title="Anular"
                             aria-label="Anular"
-                            onClick={() => cancel.mutate(order.id)}
+                            onClick={() => handleCancel(order)}
                             disabled={cancel.isPending}
                           >
                             <Ban className="h-3.5 w-3.5" />
@@ -450,11 +663,14 @@ export default function PurchaseOrdersPage() {
 
       {modalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
+          className="fixed inset-0 z-[60] flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
           role="dialog"
           aria-modal="true"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) closeModal();
+          }}
         >
-          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
+          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-2xl md:rounded-xl md:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-base font-semibold">Nueva orden de compra</h2>
               <button onClick={closeModal} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
@@ -462,10 +678,7 @@ export default function PurchaseOrdersPage() {
               </button>
             </div>
             <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                create.mutate();
-              }}
+              onSubmit={handleCreateSubmit}
               className="flex flex-1 flex-col overflow-hidden"
               id="po-form"
             >
@@ -486,7 +699,7 @@ export default function PurchaseOrdersPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="flex flex-col gap-2">
-                      <label htmlFor="po-date" className="text-sm font-medium">Fecha</label>
+                      <label htmlFor="po-date" className="text-sm font-medium">Fecha <span className="text-danger">*</span></label>
                       <Input
                         id="po-date"
                         type="date"
@@ -496,7 +709,7 @@ export default function PurchaseOrdersPage() {
                       />
                     </div>
                     <div className="flex flex-col gap-2">
-                      <label htmlFor="po-delivery" className="text-sm font-medium">Entrega esperada</label>
+                      <label htmlFor="po-delivery" className="text-sm font-medium">Entrega esperada <span className="text-danger">*</span></label>
                       <Input
                         id="po-delivery"
                         type="date"
@@ -506,43 +719,80 @@ export default function PurchaseOrdersPage() {
                       />
                     </div>
                   </div>
-                  <div className="flex flex-col gap-2">
-                    <label htmlFor="po-description" className="text-sm font-medium">Descripción del ítem</label>
-                    <Input
-                      id="po-description"
-                      value={form.description}
-                      onChange={(e) => setForm({ ...form, description: e.target.value })}
-                      required
-                      placeholder="Ej: Caja de vasos 250cc"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="flex flex-col gap-2">
-                      <label htmlFor="po-qty" className="text-sm font-medium">Cantidad</label>
-                      <Input
-                        id="po-qty"
-                        type="number"
-                        min="1"
-                        value={form.quantity}
-                        onChange={(e) => setForm({ ...form, quantity: e.target.value })}
-                        required
-                      />
+
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium">Ítems <span className="text-danger">*</span></label>
+                      <span className="text-xs text-muted-foreground">{form.items.length} ítem{form.items.length === 1 ? "" : "s"}</span>
                     </div>
-                    <div className="flex flex-col gap-2">
-                      <label htmlFor="po-price" className="text-sm font-medium">Precio unitario</label>
-                      <Input
-                        id="po-price"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={form.unit_price}
-                        onChange={(e) => setForm({ ...form, unit_price: e.target.value })}
-                        required
-                      />
+                    <div className="flex flex-col gap-3">
+                      {form.items.map((item, index) => (
+                        <div
+                          key={index}
+                          className="rounded-xl border border-border/60 bg-muted/30 p-3"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="text-xs font-medium text-muted-foreground">Ítem {index + 1}</span>
+                            {form.items.length > 1 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 text-danger hover:text-danger"
+                                onClick={() => removeItem(index)}
+                                aria-label="Eliminar ítem"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                          <div className="mt-2 flex flex-col gap-3">
+                            <Input
+                              value={item.description}
+                              onChange={(e) => updateItem(index, "description", e.target.value)}
+                              placeholder="Descripción del ítem"
+                              required
+                            />
+                            <div className="grid grid-cols-2 gap-3">
+                              <Input
+                                type="number"
+                                min="1"
+                                value={item.quantity}
+                                onChange={(e) => updateItem(index, "quantity", e.target.value)}
+                                placeholder="Cantidad"
+                                required
+                              />
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={item.unit_price}
+                                onChange={(e) => updateItem(index, "unit_price", e.target.value)}
+                                placeholder="Precio unitario"
+                                required
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={addItem}
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Agregar ítem
+                    </Button>
+                    <div className="flex justify-end text-sm">
+                      <span className="text-muted-foreground">Total estimado:</span>
+                      <span className="ml-2 font-semibold tabular-nums">{formatCLP(String(estimatedTotal))}</span>
                     </div>
                   </div>
+
                   <div className="flex flex-col gap-2">
-                    <label htmlFor="po-notes" className="text-sm font-medium">Notas</label>
+                    <label htmlFor="po-notes" className="text-sm font-medium">Notas de la orden</label>
                     <Input
                       id="po-notes"
                       value={form.notes}
@@ -550,6 +800,9 @@ export default function PurchaseOrdersPage() {
                       placeholder="Opcional"
                     />
                   </div>
+                  {formError && (
+                    <p className="text-sm text-danger">{formError}</p>
+                  )}
                   {create.isError && (
                     <p className="text-sm text-danger">
                       {create.error instanceof Error ? create.error.message : "Error al crear"}
@@ -573,14 +826,17 @@ export default function PurchaseOrdersPage() {
 
       {detail && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
+          className="fixed inset-0 z-[60] flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
           role="dialog"
           aria-modal="true"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) closeDetail();
+          }}
         >
           <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-lg md:rounded-xl md:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-base font-semibold">Orden {detail.order_number}</h2>
-              <button onClick={() => setDetail(null)} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
+              <button onClick={closeDetail} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -595,11 +851,81 @@ export default function PurchaseOrdersPage() {
                 <p><span className="text-muted-foreground">Ítems:</span> {detail.items_count}</p>
               </div>
             </div>
-            <div className="flex shrink-0 justify-end border-t border-border px-4 py-3">
-              <Button variant="outline" size="sm" onClick={() => setDetail(null)}>
+            <div className="flex shrink-0 justify-end gap-2 border-t border-border px-4 py-3">
+              {canPay(detail) && (
+                <Button size="sm" onClick={() => openPayModal(detail)}>
+                  <Banknote className="mr-2 h-4 w-4" />
+                  Registrar pago
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={closeDetail}>
                 Cerrar
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {payTarget && (
+        <div
+          className="fixed inset-0 z-[60] flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
+          role="dialog"
+          aria-modal="true"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) closePayModal();
+          }}
+        >
+          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-sm md:rounded-xl md:border">
+            <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
+              <h2 className="text-base font-semibold">Registrar pago — {payTarget.order.order_number}</h2>
+              <button onClick={closePayModal} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <form onSubmit={handlePaySubmit} className="flex flex-1 flex-col overflow-hidden">
+              <div className="flex-1 overflow-y-auto p-4">
+                <div className="flex flex-col gap-4">
+                  <p className="text-sm text-muted-foreground">
+                    Pendiente: <span className="font-medium tabular-nums text-foreground">{formatCLP(payTarget.order.remaining_amount ?? "0")}</span>
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="pay-amount" className="text-sm font-medium">Monto</label>
+                    <Input
+                      id="pay-amount"
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      value={payTarget.amount}
+                      onChange={(e) => setPayTarget({ ...payTarget, amount: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="pay-notes" className="text-sm font-medium">Referencia / nota</label>
+                    <Input
+                      id="pay-notes"
+                      value={payTarget.notes}
+                      onChange={(e) => setPayTarget({ ...payTarget, notes: e.target.value })}
+                      placeholder="Opcional"
+                    />
+                  </div>
+                  {pay.isError && (
+                    <p className="text-sm text-danger">
+                      {pay.error instanceof Error ? pay.error.message : "Error al registrar el pago"}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="flex shrink-0 justify-end gap-2 border-t border-border px-4 py-3">
+                <Button type="button" variant="outline" onClick={closePayModal} disabled={pay.isPending}>
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={pay.isPending}>
+                  {pay.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Registrar pago
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}

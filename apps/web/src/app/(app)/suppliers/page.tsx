@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, Pencil, Trash2, Loader2, Truck, X, SlidersHorizontal } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import {
+  fetchSupplier,
   fetchSuppliers,
   createSupplier,
   updateSupplier,
@@ -42,12 +43,12 @@ function statusLabel(value?: string | null): string {
 
 function statusBadgeClass(status?: string | null) {
   if (status === "ACTIVE") {
-    return "rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-700";
+    return "rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success";
   }
   if (status === "BLACKLISTED") {
     return "rounded-full bg-danger/10 px-2 py-0.5 text-xs font-medium text-danger";
   }
-  return "rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700";
+  return "rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning";
 }
 
 const EMPTY_FORM: SupplierRequest = {
@@ -60,19 +61,30 @@ const EMPTY_FORM: SupplierRequest = {
   city: "",
   state: "",
   country: "",
-  postal_code: "",
   supplier_type: "WHOLESALE",
-  commercial_business: "",
   status: "ACTIVE",
-  credit_limit: "",
-  payment_terms: 0,
-  discount_percentage: "",
   website: "",
   notes: "",
 };
 
+/**
+ * Construye el payload de creación/edición omitiendo strings vacíos en
+ * campos opcionales (el backend rechaza "" en email, website, etc.).
+ */
+function buildPayload(form: SupplierRequest): Partial<SupplierRequest> {
+  const payload: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(form)) {
+    if (typeof value === "string" && value.trim() === "" && key !== "name" && key !== "tax_id") {
+      continue;
+    }
+    payload[key] = value;
+  }
+  return payload as Partial<SupplierRequest>;
+}
+
 export default function SuppliersPage() {
   const queryClient = useQueryClient();
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [pageUrl, setPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
@@ -81,6 +93,17 @@ export default function SuppliersPage() {
   const [confirmDelete, setConfirmDelete] = useState<SupplierList | null>(null);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [form, setForm] = useState<SupplierRequest>(EMPTY_FORM);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+
+  // Debounce de búsqueda para no disparar una request por tecla.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput);
+      setPageUrl({});
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   const { data: page, isLoading } = useQuery({
     queryKey: ["suppliers", { search, status, pageUrl }],
@@ -92,10 +115,11 @@ export default function SuppliersPage() {
 
   const save = useMutation({
     mutationFn: async () => {
+      const payload = buildPayload(form);
       if (editing) {
-        await updateSupplier(editing.id, form);
+        await updateSupplier(editing.id, payload);
       } else {
-        await createSupplier(form);
+        await createSupplier(payload as SupplierRequest);
       }
     },
     onSuccess: () => {
@@ -112,38 +136,51 @@ export default function SuppliersPage() {
     },
   });
 
-  function openModal(supplier?: SupplierList) {
+  async function openModal(supplier?: SupplierList) {
+    save.reset();
     setEditing(supplier ?? null);
-    if (supplier) {
-      setForm({
-        name: supplier.name,
-        business_name: supplier.business_name ?? "",
-        tax_id: supplier.tax_id,
-        email: supplier.email ?? "",
-        phone: supplier.phone ?? "",
-        address: supplier.address ?? "",
-        city: supplier.city ?? "",
-        state: supplier.state ?? "",
-        country: supplier.country ?? "",
-        postal_code: supplier.postal_code ?? "",
-        supplier_type: supplier.supplier_type ?? "WHOLESALE",
-        commercial_business: supplier.commercial_business ?? "",
-        status: supplier.status ?? "ACTIVE",
-        credit_limit: supplier.credit_limit ?? "",
-        payment_terms: supplier.payment_terms ?? 0,
-        discount_percentage: "",
-        website: null,
-        notes: null,
-      });
-    } else {
-      setForm(EMPTY_FORM);
-    }
+    setDetailError(null);
+    setForm(EMPTY_FORM);
     setModalOpen(true);
+    if (!supplier) return;
+    // El listado no incluye website/notes: se carga el detalle para no
+    // pisar esos campos al guardar.
+    setDetailLoading(true);
+    try {
+      const detail = await fetchSupplier(supplier.id);
+      setForm({
+        name: detail.name,
+        business_name: detail.business_name ?? "",
+        tax_id: detail.tax_id,
+        email: detail.email ?? "",
+        phone: detail.phone ?? "",
+        address: detail.address ?? "",
+        city: detail.city ?? "",
+        state: detail.state ?? "",
+        country: detail.country ?? "",
+        supplier_type: detail.supplier_type ?? "WHOLESALE",
+        status: detail.status ?? "ACTIVE",
+        website: detail.website ?? "",
+        notes: detail.notes ?? "",
+      });
+    } catch (err) {
+      setDetailError(err instanceof Error ? err.message : "Error al cargar el proveedor");
+    } finally {
+      setDetailLoading(false);
+    }
   }
 
   function closeModal() {
+    save.reset();
     setModalOpen(false);
     setEditing(null);
+    setDetailLoading(false);
+    setDetailError(null);
+  }
+
+  function openConfirmDelete(supplier: SupplierList) {
+    remove.reset();
+    setConfirmDelete(supplier);
   }
 
   function updateFilter<T extends string>(setter: (v: T) => void, value: T) {
@@ -153,7 +190,7 @@ export default function SuppliersPage() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
+      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 md:flex-row md:items-start md:justify-between md:px-6">
         <div>
           <h1 className="text-lg font-semibold">Proveedores</h1>
           <p className="text-xs text-muted-foreground">
@@ -164,7 +201,7 @@ export default function SuppliersPage() {
           <Button
             size="icon"
             onClick={() => openModal()}
-            className="sm:hidden"
+            className="md:hidden"
             title="Nuevo proveedor"
             aria-label="Nuevo proveedor"
           >
@@ -173,7 +210,7 @@ export default function SuppliersPage() {
           <Button
             size="sm"
             onClick={() => openModal()}
-            className="hidden sm:flex"
+            className="hidden md:flex"
           >
             <Plus className="mr-2 h-4 w-4" />
             Nuevo proveedor
@@ -188,8 +225,8 @@ export default function SuppliersPage() {
             <div className="relative w-full max-w-xs">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                value={search}
-                onChange={(e) => updateFilter(setSearch, e.target.value)}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Buscar proveedor…"
                 className="pl-9"
                 aria-label="Buscar proveedor"
@@ -215,8 +252,8 @@ export default function SuppliersPage() {
               <div className="relative flex-1">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  value={search}
-                  onChange={(e) => updateFilter(setSearch, e.target.value)}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
                   placeholder="Buscar proveedor…"
                   className="pl-9"
                   aria-label="Buscar proveedor"
@@ -268,7 +305,7 @@ export default function SuppliersPage() {
           <>
             {/* Desktop table */}
             <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
-              <table className="w-full min-w-[900px] text-sm">
+              <table className="w-full min-w-full whitespace-nowrap text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
                     <th className="px-4 py-3">Proveedor</th>
@@ -308,7 +345,7 @@ export default function SuppliersPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
+                        <div className="flex flex-wrap items-center justify-end gap-1">
                           <Button variant="ghost" size="sm" onClick={() => openModal(s)}>
                             <Pencil className="mr-1.5 h-3.5 w-3.5" />
                             Editar
@@ -317,7 +354,7 @@ export default function SuppliersPage() {
                             variant="ghost"
                             size="sm"
                             className="text-danger hover:text-danger"
-                            onClick={() => setConfirmDelete(s)}
+                            onClick={() => openConfirmDelete(s)}
                           >
                             <Trash2 className="mr-1.5 h-3.5 w-3.5" />
                             Eliminar
@@ -335,7 +372,7 @@ export default function SuppliersPage() {
               {suppliers.map((s) => (
                 <div
                   key={s.id}
-                  className="rounded-2xl border border-border bg-card p-4 shadow-sm"
+                  className="rounded-xl border border-border bg-card p-4 shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
@@ -370,7 +407,7 @@ export default function SuppliersPage() {
                         className="h-8 w-8 p-0 text-danger hover:text-danger"
                         title="Eliminar"
                         aria-label="Eliminar"
-                        onClick={() => setConfirmDelete(s)}
+                        onClick={() => openConfirmDelete(s)}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                         <span className="sr-only">Eliminar</span>
@@ -431,9 +468,12 @@ export default function SuppliersPage() {
 
       {modalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
+          className="fixed inset-0 z-[60] flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
           role="dialog"
           aria-modal="true"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) closeModal();
+          }}
         >
           <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-lg md:rounded-xl md:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
@@ -451,6 +491,13 @@ export default function SuppliersPage() {
               id="supplier-form"
             >
               <div className="flex-1 overflow-y-auto p-4">
+                {detailLoading ? (
+                  <div className="grid h-full place-items-center">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : detailError ? (
+                  <p className="text-sm text-danger">{detailError}</p>
+                ) : (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="flex flex-col gap-2">
                     <label htmlFor="supplier-name" className="text-sm font-medium">Nombre</label>
@@ -582,12 +629,13 @@ export default function SuppliersPage() {
                     </p>
                   )}
                 </div>
+                )}
               </div>
               <div className="flex shrink-0 justify-end gap-2 border-t border-border px-4 py-3">
                 <Button type="button" variant="outline" onClick={closeModal} disabled={save.isPending}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={save.isPending}>
+                <Button type="submit" disabled={save.isPending || detailLoading}>
                   {save.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Guardar
                 </Button>
@@ -608,6 +656,11 @@ export default function SuppliersPage() {
             <p className="mt-1 text-sm text-muted-foreground">
               Se eliminará <span className="font-medium text-foreground">{confirmDelete.name}</span>.
             </p>
+            {remove.isError && (
+              <p className="mt-2 text-sm text-danger">
+                {remove.error instanceof Error ? remove.error.message : "Error al eliminar"}
+              </p>
+            )}
             <div className="mt-4 flex justify-end gap-2">
               <Button variant="outline" onClick={() => setConfirmDelete(null)} disabled={remove.isPending}>
                 Cancelar
