@@ -32,6 +32,7 @@ import {
   fetchWarehouse,
   fetchWarehouseProducts,
   addProductToWarehouse,
+  updateWarehouseProduct,
   updateWarehouseProductQuantity,
   transferStock,
 } from "@/lib/api/warehouses";
@@ -48,6 +49,7 @@ const SORT_OPTIONS = [
   { value: "product_category", label: "Categoría" },
   { value: "current_quantity", label: "Cantidad" },
   { value: "minimum_quantity", label: "Mínima" },
+  { value: "maximum_quantity", label: "Máxima" },
   { value: "product_cost", label: "C/Unitario" },
   { value: "total_value", label: "Costo" },
   { value: "sale_price", label: "V/Unitario" },
@@ -188,9 +190,17 @@ export default function WarehouseDetailPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState("");
   const [initialQuantity, setInitialQuantity] = useState("");
-  const [adjustOpen, setAdjustOpen] = useState(false);
-  const [adjustingProduct, setAdjustingProduct] = useState<WarehouseProduct | null>(null);
-  const [newQuantity, setNewQuantity] = useState("");
+  const [configOpen, setConfigOpen] = useState(false);
+  const [configProduct, setConfigProduct] = useState<WarehouseProduct | null>(null);
+  const [configForm, setConfigForm] = useState({
+    current_quantity: "",
+    minimum_quantity: "",
+    maximum_quantity: "",
+    reorder_point: "",
+    location_in_warehouse: "",
+    is_active: true,
+    is_preferred_location: false,
+  });
   const [transferOpen, setTransferOpen] = useState(false);
   const [transferTarget, setTransferTarget] = useState("");
   const [transferProduct, setTransferProduct] = useState<WarehouseProduct | null>(null);
@@ -291,17 +301,40 @@ export default function WarehouseDetailPage() {
     },
   });
 
-  const adjust = useMutation({
-    mutationFn: () =>
-      updateWarehouseProductQuantity(Number(adjustingProduct?.id), {
-        initial_quantity: Number(newQuantity),
-      }),
+  const config = useMutation({
+    mutationFn: async () => {
+      if (!configProduct) throw new Error("No hay producto seleccionado");
+      const currentQuantity = Number(configForm.current_quantity);
+      const configPayload: Partial<YggdraSchemas["PatchedWarehouseProductRequest"]> = {
+        minimum_quantity:
+          configForm.minimum_quantity === "" ? undefined : Number(configForm.minimum_quantity),
+        maximum_quantity:
+          configForm.maximum_quantity === "" ? null : Number(configForm.maximum_quantity),
+        reorder_point:
+          configForm.reorder_point === "" ? undefined : Number(configForm.reorder_point),
+        location_in_warehouse: configForm.location_in_warehouse.trim() || null,
+        is_active: configForm.is_active,
+        is_preferred_location: configForm.is_preferred_location,
+      };
+      await Promise.all([
+        updateWarehouseProductQuantity(Number(configProduct.id), { initial_quantity: currentQuantity }),
+        updateWarehouseProduct(Number(configProduct.id), configPayload),
+      ]);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["warehouses", warehouseId, "products"] });
       queryClient.invalidateQueries({ queryKey: ["warehouses", warehouseId] });
-      setAdjustOpen(false);
-      setAdjustingProduct(null);
-      setNewQuantity("");
+      setConfigOpen(false);
+      setConfigProduct(null);
+      setConfigForm({
+        current_quantity: "",
+        minimum_quantity: "",
+        maximum_quantity: "",
+        reorder_point: "",
+        location_in_warehouse: "",
+        is_active: true,
+        is_preferred_location: false,
+      });
     },
   });
 
@@ -647,7 +680,7 @@ export default function WarehouseDetailPage() {
         ) : (
           <>
           <div className="hidden sm:block overflow-x-auto rounded-2xl border border-border">
-            <table className="w-full table-fixed min-w-[940px] text-sm">
+            <table className="w-full table-fixed min-w-[1080px] text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                   <th
@@ -671,6 +704,11 @@ export default function WarehouseDetailPage() {
                       Proveedor
                     </span>
                   </th>
+                  <th className="group w-28 px-3 py-2 text-left">
+                    <span className="inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                      Ubicación
+                    </span>
+                  </th>
                   <th
                     className="group w-20 cursor-pointer select-none px-3 py-2 text-right hover:bg-muted/50"
                     onClick={() => handleSort("current_quantity")}
@@ -685,6 +723,14 @@ export default function WarehouseDetailPage() {
                   >
                     <span className="inline-flex items-center justify-end gap-1 whitespace-nowrap">
                       Mínima <SortIcon sort={productSort} field="minimum_quantity" />
+                    </span>
+                  </th>
+                  <th
+                    className="group w-20 cursor-pointer select-none px-3 py-2 text-right hover:bg-muted/50"
+                    onClick={() => handleSort("maximum_quantity")}
+                  >
+                    <span className="inline-flex items-center justify-end gap-1 whitespace-nowrap">
+                      Máxima <SortIcon sort={productSort} field="maximum_quantity" />
                     </span>
                   </th>
                   <th
@@ -767,11 +813,26 @@ export default function WarehouseDetailPage() {
                           );
                         })()}
                       </td>
+                      <td className="px-3 py-2">
+                        {wp.location_in_warehouse ? (
+                          <span
+                            className="inline-flex max-w-full items-center truncate rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
+                            title={wp.location_in_warehouse}
+                          >
+                            {wp.location_in_warehouse}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </td>
                       <td className="px-3 py-2 text-right tabular-nums font-medium">
                         {wp.current_quantity}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
                         {wp.minimum_quantity ?? "—"}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                        {wp.maximum_quantity ?? "—"}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums">
                         <div className="leading-tight">
@@ -804,15 +865,32 @@ export default function WarehouseDetailPage() {
                             variant="ghost"
                             size="sm"
                             className="h-8 w-8 p-0"
-                            title="Ajustar cantidad"
+                            title="Configurar"
                             onClick={() => {
-                              setAdjustingProduct(wp);
-                              setNewQuantity(String(wp.current_quantity));
-                              setAdjustOpen(true);
+                              setConfigProduct(wp);
+                              setConfigForm({
+                                current_quantity: String(wp.current_quantity ?? 0),
+                                minimum_quantity:
+                                  wp.minimum_quantity === null || wp.minimum_quantity === undefined
+                                    ? ""
+                                    : String(wp.minimum_quantity),
+                                maximum_quantity:
+                                  wp.maximum_quantity === null || wp.maximum_quantity === undefined
+                                    ? ""
+                                    : String(wp.maximum_quantity),
+                                reorder_point:
+                                  wp.reorder_point === null || wp.reorder_point === undefined
+                                    ? ""
+                                    : String(wp.reorder_point),
+                                location_in_warehouse: wp.location_in_warehouse ?? "",
+                                is_active: wp.is_active ?? true,
+                                is_preferred_location: wp.is_preferred_location ?? false,
+                              });
+                              setConfigOpen(true);
                             }}
                           >
                             <Pencil className="h-3.5 w-3.5" />
-                            <span className="sr-only">Ajustar</span>
+                            <span className="sr-only">Configurar</span>
                           </Button>
                           <Button
                             variant="ghost"
@@ -913,20 +991,52 @@ export default function WarehouseDetailPage() {
                     </div>
                   </div>
 
+                  {(wp.location_in_warehouse || wp.maximum_quantity !== null && wp.maximum_quantity !== undefined) && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {wp.location_in_warehouse && (
+                        <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          Ubicación: {wp.location_in_warehouse}
+                        </span>
+                      )}
+                      {wp.maximum_quantity !== null && wp.maximum_quantity !== undefined && (
+                        <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          Máx: {wp.maximum_quantity}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
                   <div className="mt-3 flex justify-end gap-1">
                     <Button
                       variant="ghost"
                       size="sm"
                       className="h-8 w-8 p-0"
-                      title="Ajustar cantidad"
+                      title="Configurar"
                       onClick={() => {
-                        setAdjustingProduct(wp);
-                        setNewQuantity(String(wp.current_quantity));
-                        setAdjustOpen(true);
+                        setConfigProduct(wp);
+                        setConfigForm({
+                          current_quantity: String(wp.current_quantity ?? 0),
+                          minimum_quantity:
+                            wp.minimum_quantity === null || wp.minimum_quantity === undefined
+                              ? ""
+                              : String(wp.minimum_quantity),
+                          maximum_quantity:
+                            wp.maximum_quantity === null || wp.maximum_quantity === undefined
+                              ? ""
+                              : String(wp.maximum_quantity),
+                          reorder_point:
+                            wp.reorder_point === null || wp.reorder_point === undefined
+                              ? ""
+                              : String(wp.reorder_point),
+                          location_in_warehouse: wp.location_in_warehouse ?? "",
+                          is_active: wp.is_active ?? true,
+                          is_preferred_location: wp.is_preferred_location ?? false,
+                        });
+                        setConfigOpen(true);
                       }}
                     >
                       <Pencil className="h-3.5 w-3.5" />
-                      <span className="sr-only">Ajustar</span>
+                      <span className="sr-only">Configurar</span>
                     </Button>
                     <Button
                       variant="ghost"
@@ -1019,30 +1129,150 @@ export default function WarehouseDetailPage() {
         </Modal>
       )}
 
-      {adjustOpen && adjustingProduct && (
-        <Modal title="Ajustar cantidad" onClose={() => setAdjustOpen(false)}>
-          <div className="flex flex-col gap-4">
-            <p className="text-sm text-muted-foreground">{adjustingProduct.product_name}</p>
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Nueva cantidad</label>
-              <Input
-                type="number"
-                min="0"
-                value={newQuantity}
-                onChange={(e) => setNewQuantity(e.target.value)}
-              />
+      {configOpen && configProduct && (
+        <Modal
+          title="Configuración de producto en bodega"
+          onClose={() => setConfigOpen(false)}
+        >
+          <div className="flex flex-col gap-5">
+            <p className="text-sm text-muted-foreground">{configProduct.product_name}</p>
+
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold">Cantidades</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-medium" htmlFor="current_quantity">
+                    Cantidad <span className="text-danger">*</span>
+                  </label>
+                  <Input
+                    id="current_quantity"
+                    type="number"
+                    min="0"
+                    value={configForm.current_quantity}
+                    onChange={(e) =>
+                      setConfigForm((prev) => ({ ...prev, current_quantity: e.target.value }))
+                    }
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-medium" htmlFor="minimum_quantity">
+                    Cantidad mínima
+                  </label>
+                  <Input
+                    id="minimum_quantity"
+                    type="number"
+                    min="0"
+                    value={configForm.minimum_quantity}
+                    onChange={(e) =>
+                      setConfigForm((prev) => ({ ...prev, minimum_quantity: e.target.value }))
+                    }
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-medium" htmlFor="maximum_quantity">
+                    Cantidad máxima
+                  </label>
+                  <Input
+                    id="maximum_quantity"
+                    type="number"
+                    min="0"
+                    value={configForm.maximum_quantity}
+                    onChange={(e) =>
+                      setConfigForm((prev) => ({ ...prev, maximum_quantity: e.target.value }))
+                    }
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-medium" htmlFor="reorder_point">
+                    Punto de reorden
+                  </label>
+                  <Input
+                    id="reorder_point"
+                    type="number"
+                    min="0"
+                    value={configForm.reorder_point}
+                    onChange={(e) =>
+                      setConfigForm((prev) => ({ ...prev, reorder_point: e.target.value }))
+                    }
+                  />
+                </div>
+              </div>
+              {Number(configForm.current_quantity) < 0 && (
+                <p className="text-sm text-danger">La cantidad no puede ser negativa.</p>
+              )}
             </div>
-            {adjust.isError && (
+
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold">Ubicación</h3>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium" htmlFor="location_in_warehouse">
+                  Ubicación en bodega
+                </label>
+                <Input
+                  id="location_in_warehouse"
+                  value={configForm.location_in_warehouse}
+                  onChange={(e) =>
+                    setConfigForm((prev) => ({ ...prev, location_in_warehouse: e.target.value }))
+                  }
+                  placeholder="Estante, pasillo, etc."
+                />
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold">Estado</h3>
+              <div className="flex flex-col gap-2">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={configForm.is_active}
+                    onChange={(e) =>
+                      setConfigForm((prev) => ({ ...prev, is_active: e.target.checked }))
+                    }
+                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                  />
+                  Activo en bodega
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={configForm.is_preferred_location}
+                    onChange={(e) =>
+                      setConfigForm((prev) => ({
+                        ...prev,
+                        is_preferred_location: e.target.checked,
+                      }))
+                    }
+                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                  />
+                  Ubicación preferida
+                </label>
+              </div>
+            </div>
+
+            {config.isError && (
               <p className="text-sm text-danger">
-                {adjust.error instanceof Error ? adjust.error.message : "Error al ajustar"}
+                {config.error instanceof Error ? config.error.message : "Error al guardar"}
               </p>
             )}
+
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setAdjustOpen(false)} disabled={adjust.isPending}>
+              <Button
+                variant="outline"
+                onClick={() => setConfigOpen(false)}
+                disabled={config.isPending}
+              >
                 Cancelar
               </Button>
-              <Button onClick={() => adjust.mutate()} disabled={adjust.isPending || !newQuantity}>
-                {adjust.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button
+                onClick={() => config.mutate()}
+                disabled={
+                  config.isPending ||
+                  configForm.current_quantity === "" ||
+                  Number(configForm.current_quantity) < 0
+                }
+              >
+                {config.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Guardar
               </Button>
             </div>

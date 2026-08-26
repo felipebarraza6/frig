@@ -6,6 +6,7 @@ type Warehouse = YggdraSchemas["Warehouse"];
 export type WarehouseProduct = YggdraSchemas["WarehouseProduct"];
 type WarehouseRequest = YggdraSchemas["WarehouseRequest"];
 type WarehouseProductRequest = YggdraSchemas["WarehouseProductRequest"];
+type PatchedWarehouseProductRequest = YggdraSchemas["PatchedWarehouseProductRequest"];
 type PaginatedWarehouse = YggdraSchemas["PaginatedWarehouseList"];
 type PaginatedWarehouseProduct = YggdraSchemas["PaginatedWarehouseProductList"];
 
@@ -121,6 +122,16 @@ export async function updateWarehouseProductQuantity(
 ): Promise<WarehouseProduct> {
   return apiFetch<WarehouseProduct>(`/inventory/warehouse-products/${id}/update_quantity/`, {
     method: "POST",
+    body: payload,
+  });
+}
+
+export async function updateWarehouseProduct(
+  id: number,
+  payload: Partial<PatchedWarehouseProductRequest>,
+): Promise<WarehouseProduct> {
+  return apiFetch<WarehouseProduct>(`/inventory/warehouse-products/${id}/`, {
+    method: "PATCH",
     body: payload,
   });
 }
