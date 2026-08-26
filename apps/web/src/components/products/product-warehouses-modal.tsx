@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { X, Warehouse, History, Package, AlertTriangle, ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { fetchProductWarehouses } from "@/lib/api/warehouses";
-import { fetchInventoryMovements } from "@/lib/api/inventory";
+import { fetchAllInventoryMovements } from "@/lib/api/inventory";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 type WarehouseProduct = YggdraSchemas["WarehouseProduct"];
@@ -83,22 +83,30 @@ export function ProductWarehousesModal({ product, onClose }: ProductWarehousesMo
     queryFn: () => fetchProductWarehouses(product.id),
   });
 
-  const { data: movementsPage, isLoading: loadingMovements } = useQuery({
+  const { data: movements = [], isLoading: loadingMovements } = useQuery({
     queryKey: ["inventory", "movements", product.id, selectedWarehouse?.warehouse.id],
     queryFn: () =>
-      fetchInventoryMovements({
+      fetchAllInventoryMovements({
         product: product.id,
         warehouse: selectedWarehouse?.warehouse.id,
       }),
     enabled: !!selectedWarehouse,
   });
-
-  const movements = movementsPage?.results ?? [];
   const totalStock = warehouses.reduce((sum, w) => sum + (w.current_quantity ?? 0), 0);
+
+  const duplicateWarehouseNames = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const w of warehouses) {
+      counts.set(w.warehouse.name, (counts.get(w.warehouse.name) ?? 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .filter(([, count]) => count > 1)
+      .map(([name]) => name);
+  }, [warehouses]);
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 sm:items-center sm:p-4"
+      className="fixed inset-0 z-[60] flex items-end justify-center overflow-hidden bg-black/40 p-0 sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
     >
@@ -162,13 +170,16 @@ export function ProductWarehousesModal({ product, onClose }: ProductWarehousesMo
                       </p>
                     </div>
                   </div>
-                  <span
-                    className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${stockStatusColor(
-                      selectedWarehouse.stock_status,
-                    )}`}
-                  >
-                    {selectedWarehouse.current_quantity}
-                  </span>
+                  <div className="flex shrink-0 flex-col items-end gap-0.5">
+                    <span className="text-[10px] text-muted-foreground">Stock actual</span>
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${stockStatusColor(
+                        selectedWarehouse.stock_status,
+                      )}`}
+                    >
+                      {formatNumber(selectedWarehouse.current_quantity)} {selectedWarehouse.product_measurement_unit}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
@@ -233,6 +244,15 @@ export function ProductWarehousesModal({ product, onClose }: ProductWarehousesMo
             </div>
           ) : (
             <div className="flex flex-col gap-3">
+              {duplicateWarehouseNames.length > 0 && (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-800">
+                  <p className="font-medium">Bodegas duplicadas detectadas</p>
+                  <p className="mt-0.5 text-amber-700">
+                    El producto tiene registros repetidos en: {duplicateWarehouseNames.join(", ")}.
+                    El stock total ({formatNumber(totalStock)}) suma todos los registros. Contacta soporte para limpiar duplicados en la base de datos.
+                  </p>
+                </div>
+              )}
               {warehouses.map((w) => (
                 <button
                   key={w.id}
@@ -251,7 +271,7 @@ export function ProductWarehousesModal({ product, onClose }: ProductWarehousesMo
                         {w.location_in_warehouse ? ` · ${w.location_in_warehouse}` : ""}
                       </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
-                        Agregado el {formatDate(w.created)}
+                        Agregado el {formatDate(w.created)} · ID {w.id}
                       </p>
                     </div>
                   </div>

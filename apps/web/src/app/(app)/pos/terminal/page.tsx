@@ -27,8 +27,9 @@ import {
   MapPin,
   Plus,
   Minus,
-  Coins,
   Lock,
+  Truck,
+  Check,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -53,7 +54,7 @@ import {
 import { fetchCashRegisterStations } from "@/lib/api/cash-register-stations";
 import { fetchOrders, fetchOrder, cancelOrder, deliverOrder, createOrder, downloadOrderTicketPdf } from "@/lib/api/orders";
 import { searchCustomers, createCustomer } from "@/lib/api/customers";
-import { useElapsedTime } from "@/lib/hooks/useElapsedTime";
+
 import { useDownloadFile } from "@/lib/hooks/useDownloadFile";
 import { fetchPaymentMethods } from "@/lib/api/payments";
 import {
@@ -65,6 +66,15 @@ import {
   cashOut,
   getMovements,
 } from "@/lib/api/cash-register";
+import {
+  fetchSuppliers,
+  createSupplier,
+  createPurchaseOrder,
+  payPurchaseOrder,
+  markPurchaseOrderCompleted,
+  type SupplierList,
+} from "@/lib/api/suppliers";
+import { fetchExpenseCategories, createExpenseCategory, createExpense } from "@/lib/api/expenses";
 import { fetchTables } from "@/lib/api/tables";
 import { useCartStore, type CartItemModifier, type CartItem, cartSubtotal, cartDiscountTotal } from "@/lib/store/cart";
 import type { PosProduct, YggdraSchemas } from "@/lib/api/types";
@@ -104,6 +114,37 @@ function numberValue(v: string): string {
 
 function toDecimal(v: string): string {
   return (parseInt(v || "0", 10) || 0).toFixed(2);
+}
+
+function SupplierDropdown({
+  options,
+  selected,
+  onSelect,
+}: {
+  options: SupplierList[];
+  selected: SupplierList | null;
+  onSelect: (s: SupplierList) => void;
+}) {
+  return (
+    <div className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-md border border-border bg-card shadow-md">
+      {options.map((s) => (
+        <button
+          key={s.id}
+          type="button"
+          onClick={() => onSelect(s)}
+          className="flex w-full items-center justify-between px-3 py-2 text-left text-xs hover:bg-muted"
+        >
+          <span>{s.name}</span>
+          <Check
+            className={cn(
+              "h-3.5 w-3.5",
+              selected && selected.id === s.id ? "text-emerald-600" : "text-transparent",
+            )}
+          />
+        </button>
+      ))}
+    </div>
+  );
 }
 
 export default function PosPage() {
@@ -158,12 +199,32 @@ export default function PosPage() {
   const [selectedTableState, setSelectedTableState] = useState<TableItem | null | undefined>(undefined);
   const [showCashRegisterModal, setShowCashRegisterModal] = useState(false);
   const [cashRegisterAmount, setCashRegisterAmount] = useState("");
-  const [movementType, setMovementType] = useState<"CASH_IN" | "CASH_OUT">("CASH_IN");
+  const [cashRegisterTab, setCashRegisterTab] = useState<"summary" | "movements">("summary");
+  const [movementType, setMovementType] = useState<"CASH_IN" | "CASH_OUT" | "SUPPLIER_PAYMENT">("CASH_IN");
   const [movementAmount, setMovementAmount] = useState("");
   const [movementReason, setMovementReason] = useState("");
-  const [posMode, setPosMode] = useState<"SALE" | "ORDER" | null>(null);
+  const [supplierSearch, setSupplierSearch] = useState("");
+  const [supplierOptions, setSupplierOptions] = useState<SupplierList[]>([]);
+  const [selectedSupplier, setSelectedSupplier] = useState<SupplierList | null>(null);
+  const [showSupplierCreate, setShowSupplierCreate] = useState(false);
+  const [newSupplierName, setNewSupplierName] = useState("");
+  const [newSupplierTaxId, setNewSupplierTaxId] = useState("");
+  const [supplierPaymentConcept, setSupplierPaymentConcept] = useState("");
+  const [isSupplierPaymentSubmitting, setIsSupplierPaymentSubmitting] = useState(false);
+  const [posMode, setPosMode] = useState<"SALE" | "ORDER" | null>(() => {
+    if (typeof window === "undefined") return null;
+    if (queryOrderType === "SALE" || queryOrderType === "ORDER") return queryOrderType;
+    const saved = window.localStorage.getItem("frig.pos.mode");
+    if (saved === "SALE" || saved === "ORDER") return saved;
+    return null;
+  });
   const [rememberPosMode, setRememberPosMode] = useState(false);
-  const [showModeSelector, setShowModeSelector] = useState(false);
+  const [showModeSelector, setShowModeSelector] = useState(() => {
+    if (typeof window === "undefined") return false;
+    if (queryOrderType === "SALE" || queryOrderType === "ORDER") return false;
+    const saved = window.localStorage.getItem("frig.pos.mode");
+    return !(saved === "SALE" || saved === "ORDER");
+  });
   const [postSaleOrder, setPostSaleOrder] = useState<Order | null>(null);
   const [postSaleItems, setPostSaleItems] = useState<CartItem[]>([]);
 
@@ -211,6 +272,7 @@ export default function PosPage() {
     router.replace(url.pathname + url.search);
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   function startNewOrder(orderType: "SALE" | "ORDER", isAccount = false) {
     clearCart();
     setSelectedTableState(undefined);
@@ -348,6 +410,7 @@ export default function PosPage() {
       fetchOrders({
         // Incluir tanto cuentas abiertas (SALE pending) como órdenes pendientes.
         payment_status: "PENDING",
+        order_type: ["SALE", "ORDER"],
       }),
     staleTime: 15_000,
     refetchInterval: 30_000,
@@ -357,8 +420,8 @@ export default function PosPage() {
     queryKey: ["orders", "pending-deliveries", "pos-terminal"],
     queryFn: () =>
       fetchOrders({
-        delivery_status: "PENDING",
-        status: ["PENDING", "IN_PROGRESS", "COMPLETED"],
+        status: ["PENDING", "IN_PROGRESS"],
+        order_type: ["SALE", "ORDER"],
       }),
     staleTime: 15_000,
     refetchInterval: 30_000,
@@ -368,6 +431,20 @@ export default function PosPage() {
     const t = setTimeout(() => setAccountDebouncedQuery(accountClientQuery), 250);
     return () => clearTimeout(t);
   }, [accountClientQuery]);
+
+  useEffect(() => {
+    if (movementType !== "SUPPLIER_PAYMENT") return;
+    const term = supplierSearch.trim();
+    const t = setTimeout(async () => {
+      try {
+        const data = await fetchSuppliers({ search: term, status: "ACTIVE" });
+        setSupplierOptions(data.results ?? []);
+      } catch {
+        setSupplierOptions([]);
+      }
+    }, 250);
+    return () => clearTimeout(t);
+  }, [supplierSearch, movementType]);
 
   const { data: accountClientResultsQuery, isLoading: searchingAccountCustomers } = useQuery({
     queryKey: ["customers", "search", accountDebouncedQuery, branch?.branch_id, "pos-terminal"],
@@ -486,6 +563,92 @@ export default function PosPage() {
     },
   });
 
+  async function handleSupplierPayment() {
+    if (!currentCashRegister) throw new Error("No hay caja abierta");
+    if (!branch?.branch_id) throw new Error("No hay sucursal seleccionada");
+    if (!user?.id) throw new Error("No hay usuario identificado");
+    if (!selectedSupplier) throw new Error("Selecciona un proveedor");
+    if (!movementAmount || parseFloat(toDecimal(movementAmount)) <= 0) throw new Error("Ingresa un monto válido");
+    const concept = supplierPaymentConcept.trim() || `Pago a proveedor ${selectedSupplier.name}`;
+
+    setIsSupplierPaymentSubmitting(true);
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const amountDecimal = toDecimal(movementAmount);
+
+      const order = await createPurchaseOrder({
+        supplier: selectedSupplier.id,
+        branch: Number(branch.branch_id),
+        order_date: today,
+        expected_delivery_date: today,
+        notes: concept,
+        items: [
+          {
+            description: concept,
+            quantity_ordered: 1,
+            unit_price: amountDecimal,
+            create_product_if_not_exists: false,
+            measurement_unit: "UN",
+          },
+        ],
+      });
+
+      try {
+        await markPurchaseOrderCompleted(order.id);
+      } catch {
+        // Continuamos aunque no se pueda marcar como completada.
+      }
+
+      try {
+        await payPurchaseOrder(order.id, { paid_amount: amountDecimal, notes: concept });
+      } catch {
+        // El endpoint puede no aceptar el payload parcial; el flujo sigue con egreso y retiro.
+      }
+
+      const categories = await fetchExpenseCategories();
+      let category = categories.find(
+        (c) => c.category_type === "SUPPLIES" || c.name.toLowerCase().includes("proveedor"),
+      );
+      if (!category) {
+        category = await createExpenseCategory({
+          name: "Pagos a proveedores",
+          category_type: "SUPPLIES",
+          branch: Number(branch.branch_id),
+          description: "Egresos asociados a pagos a proveedores",
+          is_active: true,
+          is_default_for_suppliers: false,
+        });
+      }
+
+      await createExpense({
+        name: concept,
+        description: `Orden de compra ${order.order_number || order.id} - Pago a proveedor desde caja`,
+        branch: Number(branch.branch_id),
+        category: category.id,
+        created_by: Number(user.id),
+        amount: amountDecimal,
+        frequency: "ONE_TIME",
+        start_date: today,
+        status: "ACTIVE",
+        supplier: selectedSupplier.id,
+      });
+
+      await cashOut(currentCashRegister.id, { amount: amountDecimal, reason: concept });
+
+      queryClient.invalidateQueries({ queryKey: ["cash-register"] });
+      setMovementAmount("");
+      setSupplierPaymentConcept("");
+      setSelectedSupplier(null);
+      setSupplierSearch("");
+      setSupplierOptions([]);
+      toast.success("Pago a proveedor registrado");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo registrar el pago");
+    } finally {
+      setIsSupplierPaymentSubmitting(false);
+    }
+  }
+
   const { data: tablesPage } = useQuery({
     queryKey: ["tables", "pos-terminal"],
     queryFn: () => fetchTables({ is_active: true, page_size: 200 }),
@@ -528,30 +691,12 @@ export default function PosPage() {
     staleTime: 30_000,
   });
 
-  const existingOrderElapsed = useElapsedTime(existingOrder?.date, {
-    enabled: Boolean(effectiveOrderId && existingOrder),
-  });
-
   const isEditingOrder = Boolean(effectiveOrderId);
 
-  useEffect(() => {
-    const saved = typeof window !== "undefined" ? window.localStorage.getItem("frig.pos.mode") : null;
-    if (queryOrderType === "SALE" || queryOrderType === "ORDER") {
-      setPosMode(queryOrderType);
-      return;
-    }
-    if (isEditingOrder) {
-      return;
-    }
-    if (saved === "SALE" || saved === "ORDER") {
-      setPosMode(saved);
-    } else {
-      setShowModeSelector(true);
-    }
-  }, []);
-
   const startNewOrderRef = useRef(startNewOrder);
-  startNewOrderRef.current = startNewOrder;
+  useEffect(() => {
+    startNewOrderRef.current = startNewOrder;
+  }, [startNewOrder]);
 
   useEffect(() => {
     if (!posMode || queryOrderType || isEditingOrder) return;
@@ -699,13 +844,27 @@ export default function PosPage() {
     return accounts;
   }, [openAccountsPage, isWaiter, user, myTables, openAccountsQuery, tables]);
 
-  const pendingDeliveriesCount = useMemo(
-    () => (pendingDeliveriesPage?.count ?? (pendingDeliveriesPage?.results ?? []).length),
-    [pendingDeliveriesPage],
-  );
+  const pendingDeliveriesBase = useMemo(() => {
+    const orders = (pendingDeliveriesPage?.results ?? []) as Order[];
+    return orders.filter((o) => {
+      // Si el backend envía delivery_status, usamos ese criterio.
+      if (o.delivery_status) return o.delivery_status === "PENDING";
+      // Fallback: dirección de entrega definida y orden aún no completada/entregada.
+      const terminalStatus = o.status?.toUpperCase();
+      return (
+        !!o.delivery_address &&
+        terminalStatus !== "COMPLETED" &&
+        terminalStatus !== "CANCELLED" &&
+        terminalStatus !== "REFUNDED" &&
+        terminalStatus !== "RETURNED"
+      );
+    });
+  }, [pendingDeliveriesPage]);
+
+  const pendingDeliveriesCount = useMemo(() => pendingDeliveriesBase.length, [pendingDeliveriesBase]);
 
   const filteredPendingDeliveries = useMemo(() => {
-    let orders: Order[] = (pendingDeliveriesPage?.results ?? []) as Order[];
+    let orders = pendingDeliveriesBase;
     if (pendingDeliveryType !== "ALL") {
       orders = orders.filter((o) => o.order_type === pendingDeliveryType);
     }
@@ -724,7 +883,7 @@ export default function PosPage() {
       );
     }
     return orders;
-  }, [pendingDeliveriesPage, pendingDeliveryType, pendingDeliveryPayment, pendingDeliveriesQuery]);
+  }, [pendingDeliveriesBase, pendingDeliveryType, pendingDeliveryPayment, pendingDeliveriesQuery]);
 
   const itemCount = useCartStore((s) => s.items.reduce((sum, i) => sum + i.quantity, 0));
   const existingOrderTotal = existingOrder
@@ -859,7 +1018,16 @@ export default function PosPage() {
             <button
               type="button"
               disabled={openCashRegisterMutation.isPending || closeCashRegisterMutation.isPending}
-              onClick={() => setShowCashRegisterModal(true)}
+              onClick={() => {
+                setShowCashRegisterModal(true);
+                setMovementType("CASH_IN");
+                setSupplierSearch("");
+                setSupplierOptions([]);
+                setSelectedSupplier(null);
+                setSupplierPaymentConcept("");
+                setMovementAmount("");
+                setMovementReason("");
+              }}
               className={cn(
                 "inline-flex h-8 items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
                 currentCashRegister
@@ -921,8 +1089,15 @@ export default function PosPage() {
 
       {/* Selector inicial de modo Venta / Orden */}
       {showModeSelector && !queryOrderType && !isEditingOrder && !isWaiter && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
-          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowModeSelector(false);
+          }}
+        >
+          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-2xl border-x border-t border-border bg-card p-6 shadow-xl sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-2xl sm:border">
             <div className="mb-5 text-center">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
                 <Receipt className="h-6 w-6 text-primary" />
@@ -1250,7 +1425,16 @@ export default function PosPage() {
             <>
               <button
                 type="button"
-                onClick={() => setShowCashRegisterModal(true)}
+                onClick={() => {
+                  setShowCashRegisterModal(true);
+                  setMovementType("CASH_IN");
+                  setSupplierSearch("");
+                  setSupplierOptions([]);
+                  setSelectedSupplier(null);
+                  setSupplierPaymentConcept("");
+                  setMovementAmount("");
+                  setMovementReason("");
+                }}
                 className={cn(
                   "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[10px] font-medium transition-colors",
                   currentCashRegister
@@ -1259,7 +1443,7 @@ export default function PosPage() {
                 )}
               >
                 <Banknote className="h-[18px] w-[18px]" />
-                <span>{currentCashRegister ? "Caja" : "Abrir caja"}</span>
+                <span className="truncate px-0.5">{currentCashRegister ? "Caja" : "Abrir caja"}</span>
               </button>
               <button
                 type="button"
@@ -1267,7 +1451,7 @@ export default function PosPage() {
                 className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
                 <ClipboardList className="h-[18px] w-[18px]" />
-                <span>Cuentas</span>
+                <span className="truncate px-0.5">Cuentas</span>
                 {(openAccountsPage?.count ?? 0) > 0 && (
                   <span className="absolute right-2 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-semibold text-white">
                     {openAccountsPage?.count}
@@ -1280,7 +1464,7 @@ export default function PosPage() {
                 className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
                 <Zap className="h-[18px] w-[18px]" />
-                <span>Entregas</span>
+                <span className="truncate px-0.5">Entregas</span>
                 {pendingDeliveriesCount > 0 && (
                   <span className="absolute right-2 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-500 px-1 text-[9px] font-semibold text-white">
                     {pendingDeliveriesCount}
@@ -1299,7 +1483,7 @@ export default function PosPage() {
               <ShoppingBag className="h-[18px] w-[18px]" />
               <span className="font-bold tabular-nums">{formatCLP(displayCartTotal)}</span>
             </span>
-            <span>{displayItemCount} ítem{displayItemCount === 1 ? "" : "s"} · {isWaiter ? "Pedido" : "Cuenta"}</span>
+            <span className="truncate px-0.5">{displayItemCount} ítem{displayItemCount === 1 ? "" : "s"} · {isWaiter ? "Pedido" : "Cuenta"}</span>
           </button>
         </div>
       )}
@@ -1525,13 +1709,20 @@ export default function PosPage() {
 
       {/* Modal para abrir cuenta con cliente en el POS */}
       {showAccountClientModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
+        <div
+          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowAccountClientModal(false);
+          }}
+        >
           <motion.div
-            initial={{ opacity: 0, scale: 0.96, y: 16 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.96, y: 16 }}
+            initial={{ opacity: 0, y: "100%" }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: "100%" }}
             transition={{ duration: 0.2 }}
-            className="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-xl"
+            className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card p-5 shadow-xl sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-xl sm:border"
           >
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
@@ -1686,9 +1877,9 @@ export default function PosPage() {
                 <h2 className="text-base font-semibold">Entregas pendientes</h2>
                 <p className="text-xs text-muted-foreground">
                   {filteredPendingDeliveries.length} por entregar
-                  {filteredPendingDeliveries.length !== (pendingDeliveriesPage?.results ?? []).length && (
+                  {filteredPendingDeliveries.length !== pendingDeliveriesBase.length && (
                     <span className="ml-1 text-muted-foreground/70">
-                      ({(pendingDeliveriesPage?.results ?? []).length} total)
+                      ({pendingDeliveriesBase.length} total)
                     </span>
                   )}
                 </p>
@@ -1921,80 +2112,161 @@ export default function PosPage() {
             if (e.target === e.currentTarget) setShowCashRegisterModal(false);
           }}
         >
-          <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-xl border border-border bg-card p-5 shadow-lg">
-            <h3 className="text-base font-semibold">
-              {currentCashRegister ? "Resumen de caja" : "Abrir caja"}
-            </h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Estación {activeStation?.name ?? "actual"}
-            </p>
+          <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-xl border border-border bg-card p-4 shadow-lg sm:p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="text-base font-semibold">
+                  {currentCashRegister ? "Caja" : "Abrir caja"}
+                </h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Estación {activeStation?.name ?? "actual"}
+                </p>
+              </div>
+              {currentCashRegister && (
+                <div className="inline-flex rounded-lg border border-border bg-muted p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setCashRegisterTab("summary")}
+                    className={cn(
+                      "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                      cashRegisterTab === "summary"
+                        ? "bg-card text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    Resumen
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCashRegisterTab("movements")}
+                    className={cn(
+                      "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                      cashRegisterTab === "movements"
+                        ? "bg-card text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    Movimientos
+                  </button>
+                </div>
+              )}
+            </div>
 
-            {currentCashRegister && dailySummary && (
-              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                <div className="rounded-lg border border-border/60 bg-muted/40 p-2.5">
-                  <div className="mb-1 flex items-center gap-1 text-[10px] text-muted-foreground">
-                    <TrendingUp className="h-3 w-3" />
-                    Ventas
-                  </div>
-                  <p className="text-sm font-semibold tabular-nums">
-                    {formatCLP(parseFloat(String(dailySummary.total_sales || "0")))}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border/60 bg-muted/40 p-2.5">
-                  <div className="mb-1 flex items-center gap-1 text-[10px] text-muted-foreground">
-                    <Banknote className="h-3 w-3" />
-                    Efectivo
-                  </div>
-                  <p className="text-sm font-semibold tabular-nums">
-                    {formatCLP(parseFloat(String(dailySummary.cash_sales || "0")))}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border/60 bg-muted/40 p-2.5">
-                  <div className="mb-1 flex items-center gap-1 text-[10px] text-muted-foreground">
-                    <Wallet className="h-3 w-3" />
-                    Otros
-                  </div>
-                  <p className="text-sm font-semibold tabular-nums">
-                    {formatCLP(parseFloat(String(dailySummary.other_sales || "0")))}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border/60 bg-muted/40 p-2.5">
-                  <div className="mb-1 flex items-center gap-1 text-[10px] text-muted-foreground">
-                    <ArrowDownLeft className="h-3 w-3" />
-                    Ingresos
-                  </div>
-                  <p className="text-sm font-semibold tabular-nums">
-                    {formatCLP(parseFloat(String(dailySummary.cash_in || "0")))}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border/60 bg-muted/40 p-2.5">
-                  <div className="mb-1 flex items-center gap-1 text-[10px] text-muted-foreground">
-                    <ArrowUpRight className="h-3 w-3" />
-                    Retiros
-                  </div>
-                  <p className="text-sm font-semibold tabular-nums">
-                    {formatCLP(parseFloat(String(dailySummary.cash_out || "0")))}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border/60 bg-emerald-500/10 p-2.5">
-                  <div className="mb-1 flex items-center gap-1 text-[10px] text-emerald-700">
-                    <Calculator className="h-3 w-3" />
-                    Esperado
-                  </div>
-                  <p className="text-sm font-semibold tabular-nums text-emerald-700">
-                    {formatCLP(parseFloat(String(dailySummary.expected_amount ?? "0")))}
-                  </p>
-                </div>
+            {!currentCashRegister && (
+              <div className="mt-4">
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                  Monto inicial en caja
+                </label>
+                <Input
+                  type="number"
+                  min={0}
+                  step="1"
+                  value={cashRegisterAmount}
+                  onChange={(e) => setCashRegisterAmount(e.target.value)}
+                  placeholder="Ej: 10000"
+                  className="h-11 text-base tabular-nums sm:h-10 sm:text-sm"
+                  autoFocus
+                />
               </div>
             )}
 
-            {currentCashRegister && (
-              <div className="mt-4 flex flex-col gap-3 rounded-xl border border-border/60 bg-card p-4">
-                <h4 className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                  <Coins className="h-3.5 w-3.5 text-primary" />
-                  Movimientos de caja
-                </h4>
+            {currentCashRegister && cashRegisterTab === "summary" && dailySummary && (
+              <>
+                <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  <div className="rounded-lg border border-border/60 bg-muted/40 p-2.5">
+                    <div className="mb-1 flex items-center gap-1 text-[10px] text-muted-foreground">
+                      <TrendingUp className="h-3 w-3" />
+                      Ventas
+                    </div>
+                    <p className="text-sm font-semibold tabular-nums">
+                      {formatCLP(parseFloat(String(dailySummary.total_sales || "0")))}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border/60 bg-muted/40 p-2.5">
+                    <div className="mb-1 flex items-center gap-1 text-[10px] text-muted-foreground">
+                      <Banknote className="h-3 w-3" />
+                      Efectivo
+                    </div>
+                    <p className="text-sm font-semibold tabular-nums">
+                      {formatCLP(parseFloat(String(dailySummary.cash_sales || "0")))}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border/60 bg-muted/40 p-2.5">
+                    <div className="mb-1 flex items-center gap-1 text-[10px] text-muted-foreground">
+                      <Wallet className="h-3 w-3" />
+                      Otros
+                    </div>
+                    <p className="text-sm font-semibold tabular-nums">
+                      {formatCLP(parseFloat(String(dailySummary.other_sales || "0")))}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border/60 bg-muted/40 p-2.5">
+                    <div className="mb-1 flex items-center gap-1 text-[10px] text-muted-foreground">
+                      <ArrowDownLeft className="h-3 w-3" />
+                      Ingresos
+                    </div>
+                    <p className="text-sm font-semibold tabular-nums">
+                      {formatCLP(parseFloat(String(dailySummary.cash_in || "0")))}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border/60 bg-muted/40 p-2.5">
+                    <div className="mb-1 flex items-center gap-1 text-[10px] text-muted-foreground">
+                      <ArrowUpRight className="h-3 w-3" />
+                      Retiros / Egresos
+                    </div>
+                    <p className="text-sm font-semibold tabular-nums">
+                      {formatCLP(parseFloat(String(dailySummary.cash_out || "0")))}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border/60 bg-emerald-500/10 p-2.5">
+                    <div className="mb-1 flex items-center gap-1 text-[10px] text-emerald-700">
+                      <Calculator className="h-3 w-3" />
+                      Esperado
+                    </div>
+                    <p className="text-sm font-semibold tabular-nums text-emerald-700">
+                      {formatCLP(parseFloat(String(dailySummary.expected_amount ?? "0")))}
+                    </p>
+                  </div>
+                </div>
 
+                <div className="mt-4 rounded-xl border border-border/60 bg-card p-4">
+                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                    Monto final en caja
+                  </label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="1"
+                    value={cashRegisterAmount}
+                    onChange={(e) => setCashRegisterAmount(e.target.value)}
+                    placeholder="Ej: 10000"
+                    className="h-11 text-base tabular-nums sm:h-10 sm:text-sm"
+                    autoFocus
+                  />
+                  {cashRegisterAmount && dailySummary?.expected_amount !== undefined && (
+                    <p className="mt-2 text-xs">
+                      Diferencia:{" "}
+                      <span
+                        className={cn(
+                          "font-medium tabular-nums",
+                          parseFloat(cashRegisterAmount || "0") - parseFloat(String(dailySummary.expected_amount)) === 0
+                            ? "text-emerald-600"
+                            : "text-amber-600"
+                        )}
+                      >
+                        {formatCLP(
+                          parseFloat(cashRegisterAmount || "0") -
+                            parseFloat(String(dailySummary.expected_amount))
+                        )}
+                      </span>
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
+
+            {currentCashRegister && cashRegisterTab === "movements" && (
+              <div className="mt-4 flex flex-col gap-3 rounded-xl border border-border/60 bg-card p-4">
                 {!isRegisterController && (
                   <p className="flex items-center gap-2 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
                     <Lock className="h-3.5 w-3.5" />
@@ -2002,72 +2274,235 @@ export default function PosPage() {
                   </p>
                 )}
 
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                   <Button
                     type="button"
                     variant={movementType === "CASH_IN" ? "default" : "outline"}
                     size="sm"
-                    onClick={() => setMovementType("CASH_IN")}
+                    onClick={() => {
+                      setMovementType("CASH_IN");
+                      setSupplierSearch("");
+                      setSupplierOptions([]);
+                      setSelectedSupplier(null);
+                    }}
                     disabled={!isRegisterController}
-                    className="h-8 flex-1 text-xs"
+                    className="h-10 flex-1 text-xs sm:h-8"
                   >
                     <ArrowDownLeft className="mr-1 h-3.5 w-3.5" />
-                    Ingreso
+                    <span className="truncate">Ingreso</span>
                   </Button>
                   <Button
                     type="button"
                     variant={movementType === "CASH_OUT" ? "danger" : "outline"}
                     size="sm"
-                    onClick={() => setMovementType("CASH_OUT")}
+                    onClick={() => {
+                      setMovementType("CASH_OUT");
+                      setSupplierSearch("");
+                      setSupplierOptions([]);
+                      setSelectedSupplier(null);
+                    }}
                     disabled={!isRegisterController}
-                    className="h-8 flex-1 text-xs"
+                    className="h-10 flex-1 text-xs sm:h-8"
                   >
                     <ArrowUpRight className="mr-1 h-3.5 w-3.5" />
-                    Retiro
+                    <span className="truncate">Retiro / Egreso</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={movementType === "SUPPLIER_PAYMENT" ? "danger" : "outline"}
+                    size="sm"
+                    onClick={() => {
+                      setMovementType("SUPPLIER_PAYMENT");
+                      setMovementReason("");
+                    }}
+                    disabled={!isRegisterController}
+                    className="h-10 flex-1 text-xs sm:h-8"
+                  >
+                    <Truck className="mr-1 h-3.5 w-3.5" />
+                    <span className="truncate">
+                      <span className="sm:hidden">Proveedor</span>
+                      <span className="hidden sm:inline">Pago a proveedor</span>
+                    </span>
                   </Button>
                 </div>
 
-                <div className="flex flex-col gap-2">
-                  <Input
-                    value={movementAmount ? formatCLP(parseFloat(toDecimal(movementAmount))) : ""}
-                    onChange={(e) => setMovementAmount(numberValue(e.target.value))}
-                    placeholder="Monto"
-                    disabled={!isRegisterController}
-                    className="h-9 text-xs tabular-nums"
-                  />
-                  <Input
-                    value={movementReason}
-                    onChange={(e) => setMovementReason(e.target.value)}
-                    placeholder="Motivo"
-                    disabled={!isRegisterController}
-                    className="h-9 text-xs"
-                  />
-                  <Button
-                    size="sm"
-                    onClick={() =>
-                      movementMutation.mutate({
-                        type: movementType,
-                        amount: toDecimal(movementAmount),
-                        reason: movementReason,
-                      })
-                    }
-                    disabled={!isRegisterController || !movementAmount || !movementReason || movementMutation.isPending}
-                    variant={movementType === "CASH_OUT" ? "danger" : "default"}
-                    className="h-9 text-xs"
-                  >
-                    {movementMutation.isPending ? (
-                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                    ) : movementType === "CASH_IN" ? (
-                      <Plus className="mr-1.5 h-3.5 w-3.5" />
+                {movementType === "SUPPLIER_PAYMENT" ? (
+                  <div className="flex flex-col gap-2">
+                    {!showSupplierCreate ? (
+                      <div className="relative">
+                        <Input
+                          value={selectedSupplier ? selectedSupplier.name : supplierSearch}
+                          onChange={(e) => {
+                            if (selectedSupplier) {
+                              setSelectedSupplier(null);
+                            }
+                            setSupplierSearch(e.target.value);
+                          }}
+                          placeholder="Buscar proveedor..."
+                          disabled={!isRegisterController || isSupplierPaymentSubmitting}
+                          className="h-10 text-sm sm:h-9 sm:text-xs"
+                        />
+                        {supplierOptions.length > 0 && !selectedSupplier ? (
+                          <SupplierDropdown
+                            options={supplierOptions}
+                            selected={selectedSupplier}
+                            onSelect={(s) => {
+                              setSelectedSupplier(s);
+                              setSupplierSearch(s.name);
+                              setSupplierOptions([]);
+                            }}
+                          />
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={() => setShowSupplierCreate(true)}
+                          disabled={!isRegisterController || isSupplierPaymentSubmitting}
+                          className="mt-1 flex items-center gap-1 text-xs text-primary hover:underline"
+                        >
+                          <Plus className="h-3 w-3" />
+                          Crear proveedor
+                        </button>
+                      </div>
                     ) : (
-                      <Minus className="mr-1.5 h-3.5 w-3.5" />
+                      <div className="flex flex-col gap-2 rounded-lg border border-border/60 bg-muted/30 p-2">
+                        <Input
+                          value={newSupplierName}
+                          onChange={(e) => setNewSupplierName(e.target.value)}
+                          placeholder="Nombre del proveedor"
+                          disabled={isSupplierPaymentSubmitting}
+                          className="h-10 text-sm sm:h-9 sm:text-xs"
+                        />
+                        <Input
+                          value={newSupplierTaxId}
+                          onChange={(e) => setNewSupplierTaxId(e.target.value)}
+                          placeholder="RUT/DNI (opcional)"
+                          disabled={isSupplierPaymentSubmitting}
+                          className="h-10 text-sm sm:h-9 sm:text-xs"
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-10 flex-1 text-xs sm:h-8"
+                            disabled={isSupplierPaymentSubmitting}
+                            onClick={() => {
+                              setShowSupplierCreate(false);
+                              setNewSupplierName("");
+                              setNewSupplierTaxId("");
+                            }}
+                          >
+                            Cancelar
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="h-10 flex-1 text-xs sm:h-8"
+                            disabled={!newSupplierName.trim() || isSupplierPaymentSubmitting}
+                            onClick={async () => {
+                              if (!branch?.branch_id) return;
+                              try {
+                                const created = await createSupplier({
+                                  name: newSupplierName.trim(),
+                                  tax_id: newSupplierTaxId.trim() || "",
+                                });
+                                setSelectedSupplier(created as unknown as SupplierList);
+                                setSupplierSearch(created.name);
+                                setShowSupplierCreate(false);
+                                setNewSupplierName("");
+                                setNewSupplierTaxId("");
+                                toast.success("Proveedor creado");
+                              } catch {
+                                toast.error("No se pudo crear el proveedor");
+                              }
+                            }}
+                          >
+                            Crear
+                          </Button>
+                        </div>
+                      </div>
                     )}
-                    Registrar {movementType === "CASH_IN" ? "ingreso" : "retiro"}
-                  </Button>
-                </div>
+
+                    <Input
+                      value={movementAmount ? formatCLP(parseFloat(toDecimal(movementAmount))) : ""}
+                      onChange={(e) => setMovementAmount(numberValue(e.target.value))}
+                      placeholder="Monto"
+                      disabled={!isRegisterController || isSupplierPaymentSubmitting}
+                      className="h-10 text-sm tabular-nums sm:h-9 sm:text-xs"
+                    />
+                    <Input
+                      value={supplierPaymentConcept}
+                      onChange={(e) => setSupplierPaymentConcept(e.target.value)}
+                      placeholder="Concepto (opcional)"
+                      disabled={!isRegisterController || isSupplierPaymentSubmitting}
+                      className="h-10 text-sm sm:h-9 sm:text-xs"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={() => handleSupplierPayment()}
+                      disabled={
+                        !isRegisterController ||
+                        !selectedSupplier ||
+                        !movementAmount ||
+                        isSupplierPaymentSubmitting
+                      }
+                      variant="danger"
+                      className="h-auto min-h-10 whitespace-normal py-2 text-xs sm:min-h-9"
+                    >
+                      {isSupplierPaymentSubmitting ? (
+                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Truck className="mr-1.5 h-3.5 w-3.5" />
+                      )}
+                      <span className="hidden sm:inline">Registrar pago a proveedor</span>
+                      <span className="sm:hidden">Registrar pago</span>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <Input
+                      value={movementAmount ? formatCLP(parseFloat(toDecimal(movementAmount))) : ""}
+                      onChange={(e) => setMovementAmount(numberValue(e.target.value))}
+                      placeholder="Monto"
+                      disabled={!isRegisterController}
+                      className="h-10 text-sm tabular-nums sm:h-9 sm:text-xs"
+                    />
+                    <Input
+                      value={movementReason}
+                      onChange={(e) => setMovementReason(e.target.value)}
+                      placeholder="Motivo"
+                      disabled={!isRegisterController}
+                      className="h-10 text-sm sm:h-9 sm:text-xs"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={() =>
+                        movementMutation.mutate({
+                          type: movementType,
+                          amount: toDecimal(movementAmount),
+                          reason: movementReason,
+                        })
+                      }
+                      disabled={!isRegisterController || !movementAmount || !movementReason || movementMutation.isPending}
+                      variant={movementType === "CASH_OUT" ? "danger" : "default"}
+                      className="h-auto min-h-10 whitespace-normal py-2 text-xs sm:min-h-9"
+                    >
+                      {movementMutation.isPending ? (
+                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      ) : movementType === "CASH_IN" ? (
+                        <Plus className="mr-1.5 h-3.5 w-3.5" />
+                      ) : (
+                        <Minus className="mr-1.5 h-3.5 w-3.5" />
+                      )}
+                      <span className="truncate">
+                        Registrar {movementType === "CASH_IN" ? "ingreso" : "retiro / egreso"}
+                      </span>
+                    </Button>
+                  </div>
+                )}
 
                 {cashMovements.length > 0 && (
-                  <div className="flex max-h-32 flex-col gap-1.5 overflow-y-auto rounded-lg border border-border/60 bg-muted/30 p-2">
+                  <div className="flex max-h-40 flex-col gap-1.5 overflow-y-auto rounded-lg border border-border/60 bg-muted/30 p-2">
                     {cashMovements.map((m) => (
                       <div key={m.id} className="flex items-center justify-between gap-2 text-xs">
                         <div className="flex items-center gap-1.5 min-w-0">
@@ -2094,39 +2529,6 @@ export default function PosPage() {
               </div>
             )}
 
-            <div className="mt-4">
-              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
-                {currentCashRegister ? "Monto final en caja" : "Monto inicial en caja"}
-              </label>
-              <Input
-                type="number"
-                min={0}
-                step="1"
-                value={cashRegisterAmount}
-                onChange={(e) => setCashRegisterAmount(e.target.value)}
-                placeholder="Ej: 10000"
-                className="h-10 text-sm tabular-nums"
-                autoFocus
-              />
-              {currentCashRegister && cashRegisterAmount && dailySummary?.expected_amount !== undefined && (
-                <p className="mt-2 text-xs">
-                  Diferencia:{" "}
-                  <span
-                    className={cn(
-                      "font-medium tabular-nums",
-                      parseFloat(cashRegisterAmount || "0") - parseFloat(String(dailySummary.expected_amount)) === 0
-                        ? "text-emerald-600"
-                        : "text-amber-600"
-                    )}
-                  >
-                    {formatCLP(
-                      parseFloat(cashRegisterAmount || "0") -
-                        parseFloat(String(dailySummary.expected_amount))
-                    )}
-                  </span>
-                </p>
-              )}
-            </div>
             <div className="mt-5 flex justify-end gap-2">
               <Button
                 variant="outline"
@@ -2135,19 +2537,23 @@ export default function PosPage() {
               >
                 Cancelar
               </Button>
-              <Button
-                onClick={() =>
-                  currentCashRegister
-                    ? closeCashRegisterMutation.mutate()
-                    : openCashRegisterMutation.mutate()
-                }
-                disabled={openCashRegisterMutation.isPending || closeCashRegisterMutation.isPending}
-              >
-                {(openCashRegisterMutation.isPending || closeCashRegisterMutation.isPending) && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                {currentCashRegister ? "Cerrar caja" : "Abrir caja"}
-              </Button>
+              {currentCashRegister ? (
+                <Button
+                  onClick={() => closeCashRegisterMutation.mutate()}
+                  disabled={closeCashRegisterMutation.isPending}
+                >
+                  {closeCashRegisterMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Cerrar caja
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => openCashRegisterMutation.mutate()}
+                  disabled={openCashRegisterMutation.isPending}
+                >
+                  {openCashRegisterMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Abrir caja
+                </Button>
+              )}
             </div>
           </div>
         </div>

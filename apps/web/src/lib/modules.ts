@@ -150,6 +150,7 @@ export const FRIG_ALWAYS_ON_MODULES: ModuleName[] = [
   "payment_methods",
   "bank_accounts",
   "suppliers",
+  "recipes",
 ];
 
 /**
@@ -198,16 +199,8 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
       { href: "/pos", label: "Punto de Venta (POS)", icon: "Receipt", module: "pos" },
       { href: "/cash-register", label: "Caja", icon: "Banknote", module: "cash_register" },
       { href: "/sales", label: "Ventas", icon: "ShoppingBag", module: "sales", description: "Historial de ventas y cuentas abiertas" },
-      { href: "/reports", label: "Informes", icon: "FileText", module: "nutrition" },
+      { href: "/reports", label: "Informes", icon: "FileText", module: "recipes" },
       { href: "/kds", label: "Cocina", icon: "ChefHat", module: "production", badge: "kitchenReady" },
-    ],
-  },
-  {
-    title: "Productos",
-    items: [
-      { href: "/products", label: "Productos", icon: "Package", module: "product_catalog" },
-      { href: "/products/combos", label: "Combos", icon: "Boxes", module: "product_catalog" },
-      { href: "/categories", label: "Categorías", icon: "Tags", module: "product_catalog" },
     ],
   },
   {
@@ -231,15 +224,23 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
     ],
   },
   {
-    title: "Clientes",
+    title: "Productos",
     items: [
-      { href: "/customers", label: "Clientes", icon: "UserCircle", module: "customers" },
-      { href: "/promotions/discounts", label: "Promociones", icon: "Percent", module: "promotions" },
+      { href: "/products", label: "Productos", icon: "Package", module: "product_catalog" },
+      { href: "/products/combos", label: "Combos", icon: "Boxes", module: "product_catalog" },
       { href: "/products/menus", label: "Menús digitales", icon: "QrCode", module: "public_catalog" },
+      { href: "/categories", label: "Categorías", icon: "Tags", module: "product_catalog" },
     ],
   },
   {
-    title: "Proveedores",
+    title: "CRM",
+    items: [
+      { href: "/customers", label: "Clientes", icon: "UserCircle", module: "customers" },
+      { href: "/promotions/discounts", label: "Promociones", icon: "Percent", module: "promotions" },
+    ],
+  },
+  {
+    title: "Logística",
     items: [
       { href: "/suppliers", label: "Proveedores", icon: "Truck", module: "suppliers" },
       { href: "/purchase-orders", label: "Órdenes de compra", icon: "ShoppingCart", module: "suppliers" },

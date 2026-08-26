@@ -576,9 +576,9 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
   );
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 sm:items-center sm:p-4" role="dialog" aria-modal="true">
-      <div className="h-[92dvh] w-full overflow-y-auto rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg sm:h-auto sm:max-h-[90vh] sm:max-w-3xl sm:rounded-xl sm:border sm:p-6">
-        <div className="mb-4 flex items-center justify-between">
+    <div className="fixed inset-0 z-[60] flex items-end justify-center overflow-hidden bg-black/40 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true">
+      <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg sm:h-auto sm:max-h-[90vh] sm:max-w-3xl sm:rounded-xl sm:border">
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 sm:px-6">
           <h2 className="text-base font-semibold">
             {product ? "Editar producto" : "Nuevo producto"}
           </h2>
@@ -587,7 +587,8 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4 pb-safe">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6">
           <div className="overflow-x-auto rounded-lg bg-muted p-1">
             <div className="flex min-w-max gap-1 sm:min-w-0 sm:flex-wrap">
               {tabs.map((tab) => (
@@ -1259,7 +1260,9 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
             <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>
           )}
 
-          <div className="flex items-center justify-between gap-2 pt-2">
+          </div>
+
+          <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border px-4 py-3 sm:px-6">
             <Button
               variant="outline"
               onClick={() => {

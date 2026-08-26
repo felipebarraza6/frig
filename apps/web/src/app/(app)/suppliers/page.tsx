@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Pencil, Trash2, Loader2, Truck, X } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Loader2, Truck, X, SlidersHorizontal } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -40,6 +40,16 @@ function statusLabel(value?: string | null): string {
   return STATUS_OPTIONS.find((o) => o.value === value)?.label ?? (value ?? "—");
 }
 
+function statusBadgeClass(status?: string | null) {
+  if (status === "ACTIVE") {
+    return "rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-700";
+  }
+  if (status === "BLACKLISTED") {
+    return "rounded-full bg-danger/10 px-2 py-0.5 text-xs font-medium text-danger";
+  }
+  return "rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700";
+}
+
 const EMPTY_FORM: SupplierRequest = {
   name: "",
   business_name: "",
@@ -69,6 +79,7 @@ export default function SuppliersPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<SupplierList | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<SupplierList | null>(null);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [form, setForm] = useState<SupplierRequest>(EMPTY_FORM);
 
   const { data: page, isLoading } = useQuery({
@@ -142,41 +153,100 @@ export default function SuppliersPage() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex items-center justify-between border-b border-border px-6 py-3">
+      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
         <div>
           <h1 className="text-lg font-semibold">Proveedores</h1>
           <p className="text-xs text-muted-foreground">
             Gestiona proveedores y sus datos de contacto
           </p>
         </div>
-        <Button onClick={() => openModal()}>
-          <Plus className="h-4 w-4" />
-          Nuevo proveedor
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="icon"
+            onClick={() => openModal()}
+            className="sm:hidden"
+            title="Nuevo proveedor"
+            aria-label="Nuevo proveedor"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => openModal()}
+            className="hidden sm:flex"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Nuevo proveedor
+          </Button>
+        </div>
       </header>
 
-      <div className="flex flex-1 flex-col gap-4 p-6">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="relative w-full max-w-xs">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => updateFilter(setSearch, e.target.value)}
-              placeholder="Buscar proveedor…"
-              className="pl-9"
-            />
+      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
+        <div className="flex flex-col gap-3">
+          {/* Desktop filters */}
+          <div className="hidden flex-wrap items-end gap-3 md:flex">
+            <div className="relative w-full max-w-xs">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => updateFilter(setSearch, e.target.value)}
+                placeholder="Buscar proveedor…"
+                className="pl-9"
+                aria-label="Buscar proveedor"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="filter-status" className="text-xs text-muted-foreground">Estado</label>
+              <Select
+                id="filter-status"
+                value={status}
+                onChange={(e) => updateFilter(setStatus, e.target.value)}
+              >
+                {STATUS_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </Select>
+            </div>
           </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor="filter-status" className="text-xs text-muted-foreground">Estado</label>
-            <Select
-              id="filter-status"
-              value={status}
-              onChange={(e) => updateFilter(setStatus, e.target.value)}
-            >
-              {STATUS_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </Select>
+
+          {/* Mobile filters */}
+          <div className="flex flex-col gap-3 md:hidden">
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => updateFilter(setSearch, e.target.value)}
+                  placeholder="Buscar proveedor…"
+                  className="pl-9"
+                  aria-label="Buscar proveedor"
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-10 px-3"
+                onClick={() => setShowMobileFilters((v) => !v)}
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+                <span className="ml-2">Filtros</span>
+              </Button>
+            </div>
+
+            <div className={`flex flex-col gap-3 ${showMobileFilters ? "" : "hidden"}`}>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="filter-status-mobile" className="text-xs text-muted-foreground">Estado</label>
+                <Select
+                  id="filter-status-mobile"
+                  value={status}
+                  onChange={(e) => updateFilter(setStatus, e.target.value)}
+                >
+                  {STATUS_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </Select>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -184,9 +254,20 @@ export default function SuppliersPage() {
           <div className="grid flex-1 place-items-center">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
+        ) : suppliers.length === 0 ? (
+          <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">
+            <div>
+              <Truck className="mx-auto h-10 w-10 text-muted-foreground" />
+              <p className="mt-3 text-sm font-medium">No se encontraron proveedores</p>
+              <p className="text-xs text-muted-foreground">
+                Prueba con otros filtros o agrega un nuevo proveedor.
+              </p>
+            </div>
+          </div>
         ) : (
           <>
-            <div className="overflow-x-auto rounded-xl border border-border">
+            {/* Desktop table */}
+            <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
               <table className="w-full min-w-[900px] text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -222,22 +303,14 @@ export default function SuppliersPage() {
                         {!s.email && !s.phone && "—"}
                       </td>
                       <td className="px-4 py-3">
-                        <span
-                          className={
-                            s.status === "ACTIVE"
-                              ? "rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-700"
-                              : s.status === "BLACKLISTED"
-                                ? "rounded-full bg-danger/10 px-2 py-0.5 text-xs font-medium text-danger"
-                                : "rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700"
-                          }
-                        >
+                        <span className={statusBadgeClass(s.status)}>
                           {statusLabel(s.status)}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Button variant="ghost" size="sm" onClick={() => openModal(s)}>
-                            <Pencil className="h-3.5 w-3.5" />
+                            <Pencil className="mr-1.5 h-3.5 w-3.5" />
                             Editar
                           </Button>
                           <Button
@@ -246,7 +319,8 @@ export default function SuppliersPage() {
                             className="text-danger hover:text-danger"
                             onClick={() => setConfirmDelete(s)}
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                            Eliminar
                           </Button>
                         </div>
                       </td>
@@ -256,7 +330,77 @@ export default function SuppliersPage() {
               </table>
             </div>
 
-            <div className="flex items-center justify-between text-sm">
+            {/* Mobile cards */}
+            <div className="grid gap-3 md:hidden">
+              {suppliers.map((s) => (
+                <div
+                  key={s.id}
+                  className="rounded-2xl border border-border bg-card p-4 shadow-sm"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary">
+                        <Truck className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{s.name}</p>
+                        {s.business_name && s.business_name !== s.name && (
+                          <p className="text-xs text-muted-foreground">{s.business_name}</p>
+                        )}
+                        <span className={`mt-1 inline-flex ${statusBadgeClass(s.status)}`}>
+                          {statusLabel(s.status)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        title="Editar"
+                        aria-label="Editar"
+                        onClick={() => openModal(s)}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        <span className="sr-only">Editar</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-danger hover:text-danger"
+                        title="Eliminar"
+                        aria-label="Eliminar"
+                        onClick={() => setConfirmDelete(s)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span className="sr-only">Eliminar</span>
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div className="text-muted-foreground">
+                      <span className="block text-[10px] uppercase tracking-wide">Tipo</span>
+                      <span className="font-medium text-foreground">{supplierTypeLabel(s.supplier_type)}</span>
+                    </div>
+                    <div className="text-muted-foreground">
+                      <span className="block text-[10px] uppercase tracking-wide">RUT</span>
+                      <span className="font-medium text-foreground">{s.tax_id}</span>
+                    </div>
+                    {(s.email || s.phone) && (
+                      <div className="col-span-2 text-muted-foreground">
+                        <span className="block text-[10px] uppercase tracking-wide">Contacto</span>
+                        <span className="font-medium text-foreground">
+                          {[s.email, s.phone].filter(Boolean).join(" · ")}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-col items-center justify-between gap-3 text-sm sm:flex-row">
               <p className="text-muted-foreground">
                 {totalSuppliers} proveedor{totalSuppliers === 1 ? "" : "es"} en total
               </p>
@@ -267,7 +411,8 @@ export default function SuppliersPage() {
                   onClick={() => setPageUrl({ previous: page?.previous })}
                   disabled={!page?.previous}
                 >
-                  Anterior
+                  <span className="sm:hidden">Ant.</span>
+                  <span className="hidden sm:inline">Anterior</span>
                 </Button>
                 <Button
                   variant="outline"
@@ -275,7 +420,8 @@ export default function SuppliersPage() {
                   onClick={() => setPageUrl({ next: page?.next })}
                   disabled={!page?.next}
                 >
-                  Siguiente
+                  <span className="sm:hidden">Sig.</span>
+                  <span className="hidden sm:inline">Siguiente</span>
                 </Button>
               </div>
             </div>
@@ -284,9 +430,13 @@ export default function SuppliersPage() {
       </div>
 
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
-          <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-lg">
-            <div className="mb-4 flex items-center justify-between">
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-lg md:rounded-xl md:border">
+            <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-base font-semibold">{editing ? "Editar proveedor" : "Nuevo proveedor"}</h2>
               <button onClick={closeModal} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
                 <X className="h-5 w-5" />
@@ -297,148 +447,143 @@ export default function SuppliersPage() {
                 e.preventDefault();
                 save.mutate();
               }}
-              className="flex flex-col gap-4"
+              className="flex flex-1 flex-col overflow-hidden"
+              id="supplier-form"
             >
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="supplier-name" className="text-sm font-medium">Nombre</label>
-                  <Input
-                    id="supplier-name"
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="supplier-business" className="text-sm font-medium">Razón social</label>
-                  <Input
-                    id="supplier-business"
-                    value={form.business_name}
-                    onChange={(e) => setForm({ ...form, business_name: e.target.value })}
-                    placeholder="Opcional"
-                  />
+              <div className="flex-1 overflow-y-auto p-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="supplier-name" className="text-sm font-medium">Nombre</label>
+                    <Input
+                      id="supplier-name"
+                      value={form.name}
+                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="supplier-business" className="text-sm font-medium">Razón social</label>
+                    <Input
+                      id="supplier-business"
+                      value={form.business_name}
+                      onChange={(e) => setForm({ ...form, business_name: e.target.value })}
+                      placeholder="Opcional"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="supplier-tax" className="text-sm font-medium">RUT</label>
+                    <Input
+                      id="supplier-tax"
+                      value={form.tax_id}
+                      onChange={(e) => setForm({ ...form, tax_id: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="supplier-type" className="text-sm font-medium">Tipo</label>
+                    <Select
+                      id="supplier-type"
+                      value={form.supplier_type}
+                      onChange={(e) => setForm({ ...form, supplier_type: e.target.value as SupplierRequest["supplier_type"] })}
+                    >
+                      {SUPPLIER_TYPES.map((t) => (
+                        <option key={t.value} value={t.value}>{t.label}</option>
+                      ))}
+                    </Select>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="supplier-email" className="text-sm font-medium">Email</label>
+                    <Input
+                      id="supplier-email"
+                      type="email"
+                      value={form.email}
+                      onChange={(e) => setForm({ ...form, email: e.target.value })}
+                      placeholder="Opcional"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="supplier-phone" className="text-sm font-medium">Teléfono</label>
+                    <Input
+                      id="supplier-phone"
+                      value={form.phone}
+                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                      placeholder="Opcional"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2 sm:col-span-2">
+                    <label htmlFor="supplier-address" className="text-sm font-medium">Dirección</label>
+                    <Input
+                      id="supplier-address"
+                      value={form.address}
+                      onChange={(e) => setForm({ ...form, address: e.target.value })}
+                      placeholder="Opcional"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="supplier-city" className="text-sm font-medium">Ciudad</label>
+                    <Input
+                      id="supplier-city"
+                      value={form.city}
+                      onChange={(e) => setForm({ ...form, city: e.target.value })}
+                      placeholder="Opcional"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="supplier-state" className="text-sm font-medium">Región</label>
+                    <Input
+                      id="supplier-state"
+                      value={form.state}
+                      onChange={(e) => setForm({ ...form, state: e.target.value })}
+                      placeholder="Opcional"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="supplier-country" className="text-sm font-medium">País</label>
+                    <Input
+                      id="supplier-country"
+                      value={form.country}
+                      onChange={(e) => setForm({ ...form, country: e.target.value })}
+                      placeholder="Opcional"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="supplier-website" className="text-sm font-medium">Sitio web</label>
+                    <Input
+                      id="supplier-website"
+                      value={form.website ?? ""}
+                      onChange={(e) => setForm({ ...form, website: e.target.value || null })}
+                      placeholder="Opcional"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="supplier-status" className="text-sm font-medium">Estado</label>
+                    <Select
+                      id="supplier-status"
+                      value={form.status}
+                      onChange={(e) => setForm({ ...form, status: e.target.value as SupplierRequest["status"] })}
+                    >
+                      {STATUS_OPTIONS.filter((o) => o.value !== "").map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </Select>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:col-span-2">
+                    <label htmlFor="supplier-notes" className="text-sm font-medium">Notas</label>
+                    <Input
+                      id="supplier-notes"
+                      value={form.notes ?? ""}
+                      onChange={(e) => setForm({ ...form, notes: e.target.value || null })}
+                      placeholder="Opcional"
+                    />
+                  </div>
+                  {save.isError && (
+                    <p className="text-sm text-danger sm:col-span-2">
+                      {save.error instanceof Error ? save.error.message : "Error al guardar"}
+                    </p>
+                  )}
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="supplier-tax" className="text-sm font-medium">RUT</label>
-                  <Input
-                    id="supplier-tax"
-                    value={form.tax_id}
-                    onChange={(e) => setForm({ ...form, tax_id: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="supplier-type" className="text-sm font-medium">Tipo</label>
-                  <Select
-                    id="supplier-type"
-                    value={form.supplier_type}
-                    onChange={(e) => setForm({ ...form, supplier_type: e.target.value as SupplierRequest["supplier_type"] })}
-                  >
-                    {SUPPLIER_TYPES.map((t) => (
-                      <option key={t.value} value={t.value}>{t.label}</option>
-                    ))}
-                  </Select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="supplier-email" className="text-sm font-medium">Email</label>
-                  <Input
-                    id="supplier-email"
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    placeholder="Opcional"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="supplier-phone" className="text-sm font-medium">Teléfono</label>
-                  <Input
-                    id="supplier-phone"
-                    value={form.phone}
-                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                    placeholder="Opcional"
-                  />
-                </div>
-              </div>
-              <div className="flex flex-col gap-2">
-                <label htmlFor="supplier-address" className="text-sm font-medium">Dirección</label>
-                <Input
-                  id="supplier-address"
-                  value={form.address}
-                  onChange={(e) => setForm({ ...form, address: e.target.value })}
-                  placeholder="Opcional"
-                />
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="supplier-city" className="text-sm font-medium">Ciudad</label>
-                  <Input
-                    id="supplier-city"
-                    value={form.city}
-                    onChange={(e) => setForm({ ...form, city: e.target.value })}
-                    placeholder="Opcional"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="supplier-state" className="text-sm font-medium">Región</label>
-                  <Input
-                    id="supplier-state"
-                    value={form.state}
-                    onChange={(e) => setForm({ ...form, state: e.target.value })}
-                    placeholder="Opcional"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="supplier-country" className="text-sm font-medium">País</label>
-                  <Input
-                    id="supplier-country"
-                    value={form.country}
-                    onChange={(e) => setForm({ ...form, country: e.target.value })}
-                    placeholder="Opcional"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="supplier-website" className="text-sm font-medium">Sitio web</label>
-                  <Input
-                    id="supplier-website"
-                    value={form.website ?? ""}
-                    onChange={(e) => setForm({ ...form, website: e.target.value || null })}
-                    placeholder="Opcional"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="supplier-status" className="text-sm font-medium">Estado</label>
-                  <Select
-                    id="supplier-status"
-                    value={form.status}
-                    onChange={(e) => setForm({ ...form, status: e.target.value as SupplierRequest["status"] })}
-                  >
-                    {STATUS_OPTIONS.filter((o) => o.value !== "").map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
-                    ))}
-                  </Select>
-                </div>
-              </div>
-              <div className="flex flex-col gap-2">
-                <label htmlFor="supplier-notes" className="text-sm font-medium">Notas</label>
-                <Input
-                  id="supplier-notes"
-                  value={form.notes ?? ""}
-                  onChange={(e) => setForm({ ...form, notes: e.target.value || null })}
-                  placeholder="Opcional"
-                />
-              </div>
-              {save.isError && (
-                <p className="text-sm text-danger">
-                  {save.error instanceof Error ? save.error.message : "Error al guardar"}
-                </p>
-              )}
-              <div className="flex justify-end gap-2">
+              <div className="flex shrink-0 justify-end gap-2 border-t border-border px-4 py-3">
                 <Button type="button" variant="outline" onClick={closeModal} disabled={save.isPending}>
                   Cancelar
                 </Button>
@@ -453,8 +598,12 @@ export default function SuppliersPage() {
       )}
 
       {confirmDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
-          <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-lg">
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">¿Eliminar proveedor?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Se eliminará <span className="font-medium text-foreground">{confirmDelete.name}</span>.

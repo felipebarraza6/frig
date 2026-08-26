@@ -930,7 +930,13 @@ export default function CashRegisterPage() {
                 />
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">No hay resumen disponible.</p>
+              <div className="grid place-items-center rounded-2xl border border-dashed border-border bg-muted/20 py-10 text-center">
+                <div>
+                  <TrendingUp className="mx-auto h-8 w-8 text-muted-foreground" />
+                  <p className="mt-2 text-sm font-medium">No hay resumen disponible</p>
+                  <p className="text-xs text-muted-foreground">Abre la caja para comenzar a registrar ventas.</p>
+                </div>
+              </div>
             )
           ) : tab === "audit" ? (
             loadingAudit ? (
@@ -1113,7 +1119,13 @@ export default function CashRegisterPage() {
                       {loadingAudit ? (
                         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                       ) : paidOrders.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">Sin pagos para esta fecha.</p>
+                        <div className="grid place-items-center rounded-xl border border-dashed border-border bg-muted/20 py-8 text-center">
+                          <div>
+                            <Banknote className="mx-auto h-8 w-8 text-muted-foreground" />
+                            <p className="mt-2 text-sm font-medium">Sin pagos</p>
+                            <p className="text-xs text-muted-foreground">No hay pagos para esta fecha.</p>
+                          </div>
+                        </div>
                       ) : (
                         <>
                           {/* Vista desktop */}
@@ -1264,7 +1276,13 @@ export default function CashRegisterPage() {
                 )}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">No hay arqueo disponible.</p>
+              <div className="grid place-items-center rounded-2xl border border-dashed border-border bg-muted/20 py-10 text-center">
+                <div>
+                  <Calculator className="mx-auto h-8 w-8 text-muted-foreground" />
+                  <p className="mt-2 text-sm font-medium">No hay arqueo disponible</p>
+                  <p className="text-xs text-muted-foreground">Selecciona una fecha con actividad para ver el arqueo.</p>
+                </div>
+              </div>
             )
           ) : tab === "history" ? (
             <div className="flex flex-col gap-4">
@@ -1331,9 +1349,13 @@ export default function CashRegisterPage() {
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
               ) : !history || history.results.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No hay registros de caja para los filtros seleccionados.
-                </p>
+                <div className="grid place-items-center rounded-2xl border border-dashed border-border bg-muted/20 py-10 text-center">
+                  <div>
+                    <History className="mx-auto h-8 w-8 text-muted-foreground" />
+                    <p className="mt-2 text-sm font-medium">Sin registros</p>
+                    <p className="text-xs text-muted-foreground">No hay registros de caja para los filtros seleccionados.</p>
+                  </div>
+                </div>
               ) : (
                 <>
                   {/* Vista desktop */}
@@ -1513,14 +1535,20 @@ export default function CashRegisterPage() {
               </div>
 
               {!movementsCashRegisterId ? (
-                <div className="rounded-xl border border-dashed border-border bg-muted/20 p-6 text-center">
-                  <p className="text-sm text-muted-foreground">No hay caja registrada para esta fecha.</p>
+                <div className="grid place-items-center rounded-xl border border-dashed border-border bg-muted/20 p-6 text-center">
+                  <div>
+                    <Coins className="mx-auto h-8 w-8 text-muted-foreground" />
+                    <p className="mt-2 text-sm font-medium">Sin caja registrada</p>
+                    <p className="text-xs text-muted-foreground">No hay caja registrada para esta fecha.</p>
+                  </div>
                 </div>
               ) : movements.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-border bg-muted/20 p-6 text-center">
-                  <p className="text-sm text-muted-foreground">
-                    Sin movimientos registrados para esta fecha.
-                  </p>
+                <div className="grid place-items-center rounded-xl border border-dashed border-border bg-muted/20 p-6 text-center">
+                  <div>
+                    <ArrowDownLeft className="mx-auto h-8 w-8 text-muted-foreground" />
+                    <p className="mt-2 text-sm font-medium">Sin movimientos</p>
+                    <p className="text-xs text-muted-foreground">No hay movimientos registrados para esta fecha.</p>
+                  </div>
                 </div>
               ) : (
                 <ul className="flex flex-col gap-2">

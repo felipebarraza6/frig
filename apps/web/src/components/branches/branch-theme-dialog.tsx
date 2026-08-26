@@ -130,253 +130,265 @@ export function BranchThemeDialog({ branch, onClose }: BranchThemeDialogProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="flex w-full max-w-2xl max-h-[90vh] flex-col rounded-xl border border-border bg-card shadow-lg">
-        <div className="flex items-center justify-between border-b border-border px-6 py-4">
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-2xl md:rounded-xl md:border">
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 md:px-6">
           <div className="flex items-center gap-2">
             <Palette className="h-5 w-5 text-primary" />
             <div>
-              <h2 className="text-lg font-semibold">Tema de {branchName(branch)}</h2>
+              <h2 className="text-base font-semibold">Tema de {branchName(branch)}</h2>
               <p className="text-xs text-muted-foreground">Personaliza colores, logo y mensajes.</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="rounded-md p-1 text-muted-foreground hover:bg-muted"
+            className="text-muted-foreground hover:text-foreground"
             aria-label="Cerrar"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
-        {isLoading ? (
-          <div className="grid flex-1 place-items-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="flex flex-1 flex-col gap-5 overflow-y-auto p-6">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="app_name" className="text-sm font-medium">
-                  Nombre de la app
-                </label>
-                <Input
-                  id="app_name"
-                  value={appName}
-                  onChange={(e) => setAppName(e.target.value)}
-                  placeholder="Ej: Macanuo Bowl"
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="login_welcome" className="text-sm font-medium">
-                  Mensaje de bienvenida (login)
-                </label>
-                <Input
-                  id="login_welcome"
-                  value={loginWelcome}
-                  onChange={(e) => setLoginWelcome(e.target.value)}
-                  placeholder="Ej: Bienvenido a tu punto de venta"
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="tagline" className="text-sm font-medium">
-                  Slogan
-                </label>
-                <Input
-                  id="tagline"
-                  value={tagline}
-                  onChange={(e) => setTagline(e.target.value)}
-                  placeholder="Ej: Comida bowl saludable"
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="algorithm" className="text-sm font-medium">
-                  Modo de color
-                </label>
-                <Select
-                  id="algorithm"
-                  value={algorithm}
-                  onChange={(e) => setAlgorithm(e.target.value as "light" | "dark" | "auto")}
-                >
-                  <option value="light">Claro</option>
-                  <option value="dark">Oscuro</option>
-                  <option value="auto">Auto</option>
-                </Select>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="primary_color" className="text-sm font-medium">
-                  Color primario
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    id="primary_color"
-                    type="color"
-                    value={primaryColor}
-                    onChange={(e) => setPrimaryColor(e.target.value)}
-                    className="h-10 w-14 cursor-pointer rounded-md border border-border bg-transparent p-1"
-                  />
-                  <Input
-                    value={primaryColor}
-                    onChange={(e) => setPrimaryColor(e.target.value)}
-                    placeholder="#FF6B35"
-                    className="flex-1"
-                  />
-                </div>
-                <div
-                  className="mt-1 h-2 w-full rounded-full"
-                  style={{ backgroundColor: primaryColor }}
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="secondary_color" className="text-sm font-medium">
-                  Color secundario
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    id="secondary_color"
-                    type="color"
-                    value={secondaryColor}
-                    onChange={(e) => setSecondaryColor(e.target.value)}
-                    className="h-10 w-14 cursor-pointer rounded-md border border-border bg-transparent p-1"
-                  />
-                  <Input
-                    value={secondaryColor}
-                    onChange={(e) => setSecondaryColor(e.target.value)}
-                    placeholder="#f2e8cf"
-                    className="flex-1"
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="borderRadius" className="text-sm font-medium">
-                  Radio de bordes (px)
-                </label>
-                <Input
-                  id="borderRadius"
-                  type="number"
-                  min={0}
-                  max={32}
-                  value={borderRadius}
-                  onChange={(e) => setBorderRadius(e.target.value)}
-                />
-              </div>
+        <form
+          id="theme-form"
+          onSubmit={handleSubmit}
+          className="flex flex-1 flex-col overflow-hidden"
+        >
+          {isLoading ? (
+            <div className="grid flex-1 place-items-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-
-            <div className="flex flex-wrap items-center gap-6 rounded-xl border border-border bg-muted/50 p-4">
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={motion}
-                  onChange={(e) => setMotion(e.target.checked)}
-                  className="h-4 w-4 rounded border-border text-primary"
-                />
-                Animaciones
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={compact}
-                  onChange={(e) => setCompact(e.target.checked)}
-                  className="h-4 w-4 rounded border-border text-primary"
-                />
-                Modo compacto
-              </label>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="logo" className="text-sm font-medium">
-                  Logo
-                </label>
-                <Input
-                  id="logo"
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleFileChange(e, setLogoFile, setLogoPreview)}
-                />
-                {logoPreview && (
-                  <div className="mt-2 flex items-center gap-2 rounded-lg border border-border bg-muted/30 p-2">
-                    <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                    <img
-                      src={logoPreview}
-                      alt="Vista previa del logo"
-                      className="h-10 w-10 rounded-md object-contain"
+          ) : (
+            <>
+              <div className="flex-1 overflow-y-auto p-4 md:p-6">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="app_name" className="text-sm font-medium">
+                      Nombre de la app
+                    </label>
+                    <Input
+                      id="app_name"
+                      value={appName}
+                      onChange={(e) => setAppName(e.target.value)}
+                      placeholder="Ej: Macanuo Bowl"
                     />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLogoFile(null);
-                        setLogoPreview(null);
-                      }}
-                      className="ml-auto text-xs text-danger hover:underline"
-                    >
-                      Quitar
-                    </button>
                   </div>
-                )}
-              </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="favicon" className="text-sm font-medium">
-                  Favicon
-                </label>
-                <Input
-                  id="favicon"
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleFileChange(e, setFaviconFile)}
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5 sm:col-span-2">
-                <label htmlFor="banner" className="text-sm font-medium">
-                  Banner de login
-                </label>
-                <Input
-                  id="banner"
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleFileChange(e, setBannerFile, setBannerPreview)}
-                />
-                {bannerPreview && (
-                  <div className="mt-2 overflow-hidden rounded-lg border border-border">
-                    <img
-                      src={bannerPreview}
-                      alt="Vista previa del banner"
-                      className="h-32 w-full object-cover"
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="login_welcome" className="text-sm font-medium">
+                      Mensaje de bienvenida (login)
+                    </label>
+                    <Input
+                      id="login_welcome"
+                      value={loginWelcome}
+                      onChange={(e) => setLoginWelcome(e.target.value)}
+                      placeholder="Ej: Bienvenido a tu punto de venta"
                     />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setBannerFile(null);
-                        setBannerPreview(null);
-                      }}
-                      className="w-full bg-muted py-1 text-xs text-danger hover:underline"
-                    >
-                      Quitar banner
-                    </button>
                   </div>
-                )}
-              </div>
-            </div>
 
-            <div className="mt-2 flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={onClose} disabled={save.isPending}>
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={save.isPending}>
-                {save.isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-                Guardar tema
-              </Button>
-            </div>
-          </form>
-        )}
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="tagline" className="text-sm font-medium">
+                      Slogan
+                    </label>
+                    <Input
+                      id="tagline"
+                      value={tagline}
+                      onChange={(e) => setTagline(e.target.value)}
+                      placeholder="Ej: Comida bowl saludable"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="algorithm" className="text-sm font-medium">
+                      Modo de color
+                    </label>
+                    <Select
+                      id="algorithm"
+                      value={algorithm}
+                      onChange={(e) => setAlgorithm(e.target.value as "light" | "dark" | "auto")}
+                    >
+                      <option value="light">Claro</option>
+                      <option value="dark">Oscuro</option>
+                      <option value="auto">Auto</option>
+                    </Select>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="primary_color" className="text-sm font-medium">
+                      Color primario
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        id="primary_color"
+                        type="color"
+                        value={primaryColor}
+                        onChange={(e) => setPrimaryColor(e.target.value)}
+                        className="h-10 w-14 cursor-pointer rounded-md border border-border bg-transparent p-1"
+                      />
+                      <Input
+                        value={primaryColor}
+                        onChange={(e) => setPrimaryColor(e.target.value)}
+                        placeholder="#FF6B35"
+                        className="flex-1"
+                      />
+                    </div>
+                    <div
+                      className="mt-1 h-2 w-full rounded-full"
+                      style={{ backgroundColor: primaryColor }}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="secondary_color" className="text-sm font-medium">
+                      Color secundario
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        id="secondary_color"
+                        type="color"
+                        value={secondaryColor}
+                        onChange={(e) => setSecondaryColor(e.target.value)}
+                        className="h-10 w-14 cursor-pointer rounded-md border border-border bg-transparent p-1"
+                      />
+                      <Input
+                        value={secondaryColor}
+                        onChange={(e) => setSecondaryColor(e.target.value)}
+                        placeholder="#f2e8cf"
+                        className="flex-1"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="borderRadius" className="text-sm font-medium">
+                      Radio de bordes (px)
+                    </label>
+                    <Input
+                      id="borderRadius"
+                      type="number"
+                      min={0}
+                      max={32}
+                      value={borderRadius}
+                      onChange={(e) => setBorderRadius(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-center gap-6 rounded-xl border border-border bg-muted/50 p-4">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={motion}
+                      onChange={(e) => setMotion(e.target.checked)}
+                      className="h-4 w-4 rounded border-border text-primary"
+                    />
+                    Animaciones
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={compact}
+                      onChange={(e) => setCompact(e.target.checked)}
+                      className="h-4 w-4 rounded border-border text-primary"
+                    />
+                    Modo compacto
+                  </label>
+                </div>
+
+                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="logo" className="text-sm font-medium">
+                      Logo
+                    </label>
+                    <Input
+                      id="logo"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleFileChange(e, setLogoFile, setLogoPreview)}
+                    />
+                    {logoPreview && (
+                      <div className="mt-2 flex items-center gap-2 rounded-lg border border-border bg-muted/30 p-2">
+                        <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                        <img
+                          src={logoPreview}
+                          alt="Vista previa del logo"
+                          className="h-10 w-10 rounded-md object-contain"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLogoFile(null);
+                            setLogoPreview(null);
+                          }}
+                          className="ml-auto text-xs text-danger hover:underline"
+                        >
+                          Quitar
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="favicon" className="text-sm font-medium">
+                      Favicon
+                    </label>
+                    <Input
+                      id="favicon"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleFileChange(e, setFaviconFile)}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5 sm:col-span-2">
+                    <label htmlFor="banner" className="text-sm font-medium">
+                      Banner de login
+                    </label>
+                    <Input
+                      id="banner"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleFileChange(e, setBannerFile, setBannerPreview)}
+                    />
+                    {bannerPreview && (
+                      <div className="mt-2 overflow-hidden rounded-lg border border-border">
+                        <img
+                          src={bannerPreview}
+                          alt="Vista previa del banner"
+                          className="h-32 w-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setBannerFile(null);
+                            setBannerPreview(null);
+                          }}
+                          className="w-full bg-muted py-1 text-xs text-danger hover:underline"
+                        >
+                          Quitar banner
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex shrink-0 justify-end gap-2 border-t border-border px-4 py-3 md:px-6">
+                <Button type="button" variant="outline" onClick={onClose} disabled={save.isPending}>
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={save.isPending}>
+                  {save.isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                  Guardar tema
+                </Button>
+              </div>
+            </>
+          )}
+        </form>
       </div>
     </div>
   );

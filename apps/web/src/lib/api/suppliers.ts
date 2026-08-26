@@ -9,6 +9,7 @@ export type PurchaseOrder = YggdraSchemas["PurchaseOrder"];
 export type PurchaseOrderList = YggdraSchemas["PurchaseOrderList"];
 export type PurchaseOrderCreate = YggdraSchemas["PurchaseOrderCreate"];
 export type PurchaseOrderItemRequest = YggdraSchemas["PurchaseOrderItemRequest"];
+export type PurchaseOrderRequest = YggdraSchemas["PurchaseOrderRequest"];
 
 export interface PurchaseOrderCreatePayload extends Omit<PurchaseOrderCreate, "items"> {
   items: PurchaseOrderItemRequest[];
@@ -110,5 +111,15 @@ export async function cancelPurchaseOrder(id: string): Promise<PurchaseOrder> {
 export async function markPurchaseOrderCompleted(id: string): Promise<PurchaseOrder> {
   return apiFetch<PurchaseOrder>(`/suppliers/purchase-orders/${id}/mark_completed/`, {
     method: "POST",
+  });
+}
+
+export async function payPurchaseOrder(
+  id: string,
+  payload: Partial<PurchaseOrderRequest>,
+): Promise<PurchaseOrder> {
+  return apiFetch<PurchaseOrder>(`/suppliers/purchase-orders/${id}/pay_order/`, {
+    method: "POST",
+    body: payload as unknown as PurchaseOrderRequest,
   });
 }

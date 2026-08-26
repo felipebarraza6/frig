@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Power, Loader2, Package, AlertTriangle, FileSpreadsheet, FileText } from "lucide-react";
+import { Plus, Search, Power, Loader2, Package, AlertTriangle, FileSpreadsheet, FileText, SlidersHorizontal } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -46,6 +46,7 @@ export default function ProductsPage() {
   const [forSale, setForSale] = useState("");
   const [active, setActive] = useState("");
   const [pageUrl, setPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [creating, setCreating] = useState(false);
   // Para editar se carga el detalle completo: el listado (ProductList) no trae
   // is_public ni nutrición y re-guardar desde ahí borra esos datos.
@@ -147,7 +148,7 @@ export default function ProductsPage() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6">
+      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
         <div>
           <h1 className="text-lg font-semibold">Productos</h1>
           <p className="text-xs text-muted-foreground">
@@ -177,27 +178,40 @@ export default function ProductsPage() {
             <FileText className="h-4 w-4" />
             <span className="hidden sm:inline">PDF</span>
           </Button>
-          <Button onClick={() => setCreating(true)} className="h-9 px-2 sm:px-3">
+          <Button
+            size="icon"
+            onClick={() => setCreating(true)}
+            className="sm:hidden"
+            title="Nuevo producto"
+            aria-label="Nuevo producto"
+          >
             <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">Nuevo producto</span>
-            <span className="sm:hidden">Nuevo</span>
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => setCreating(true)}
+            className="hidden sm:flex"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Nuevo producto
           </Button>
         </div>
       </header>
 
       <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
-        <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:items-end">
-          <div className="relative w-full sm:max-w-xs">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => updateFilter(setSearch, e.target.value)}
-              placeholder="Buscar por nombre…"
-              className="pl-9"
-              aria-label="Buscar producto"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-end">
+        <div className="flex flex-col gap-3">
+          {/* Desktop filters */}
+          <div className="hidden flex-wrap items-end gap-3 lg:flex">
+            <div className="relative w-full max-w-xs">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => updateFilter(setSearch, e.target.value)}
+                placeholder="Buscar por nombre…"
+                className="pl-9"
+                aria-label="Buscar producto"
+              />
+            </div>
             <div className="flex flex-col gap-1">
               <label htmlFor="filter-category" className="text-xs text-muted-foreground">Categoría</label>
               <Select
@@ -270,6 +284,107 @@ export default function ProductsPage() {
               </Select>
             </div>
           </div>
+
+          {/* Mobile/tablet filters */}
+          <div className="flex flex-col gap-3 lg:hidden">
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => updateFilter(setSearch, e.target.value)}
+                  placeholder="Buscar por nombre…"
+                  className="pl-9"
+                  aria-label="Buscar producto"
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-10 px-3"
+                onClick={() => setShowMobileFilters((v) => !v)}
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+                <span className="ml-2">Filtros</span>
+              </Button>
+            </div>
+
+            <div className={`flex flex-col gap-3 ${showMobileFilters ? "" : "hidden"}`}>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="filter-category-mobile" className="text-xs text-muted-foreground">Categoría</label>
+                <Select
+                  id="filter-category-mobile"
+                  value={category}
+                  disabled={loadingCategories}
+                  onChange={(e) => updateFilter(setCategory, e.target.value)}
+                >
+                  <option value="">Todas</option>
+                  {categoryOptions.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </Select>
+                {!loadingCategories && categoryOptions.length === 0 && (
+                  <div className="flex flex-col gap-1 text-xs text-amber-700">
+                    <div className="flex items-center gap-1">
+                      <AlertTriangle className="h-3 w-3 shrink-0" />
+                      <span>Sin categorías para <strong>{branch?.branch_name ?? "esta sucursal"}</strong>.</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => refetchCategories()}
+                      className="w-fit underline hover:text-amber-800"
+                    >
+                      Reintentar
+                    </button>
+                  </div>
+                )}
+                {categoriesError && (
+                  <p className="text-xs text-danger">
+                    Error: {categoriesError.message || "No se pudieron cargar las categorías."}
+                  </p>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="filter-type-mobile" className="text-xs text-muted-foreground">Tipo</label>
+                  <Select
+                    id="filter-type-mobile"
+                    value={productType}
+                    onChange={(e) => updateFilter(setProductType, e.target.value)}
+                  >
+                    <option value="">Todos</option>
+                    {productTypeOptions.map((t) => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="filter-sale-mobile" className="text-xs text-muted-foreground">Venta</label>
+                  <Select
+                    id="filter-sale-mobile"
+                    value={forSale}
+                    onChange={(e) => updateFilter(setForSale, e.target.value)}
+                  >
+                    <option value="">Todos</option>
+                    <option value="true">Sí</option>
+                    <option value="false">No</option>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="filter-active-mobile" className="text-xs text-muted-foreground">Activo</label>
+                  <Select
+                    id="filter-active-mobile"
+                    value={active}
+                    onChange={(e) => updateFilter(setActive, e.target.value)}
+                  >
+                    <option value="">Todos</option>
+                    <option value="true">Sí</option>
+                    <option value="false">No</option>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {error ? (
@@ -281,12 +396,26 @@ export default function ProductsPage() {
         ) : (
           <>
             {products.length === 0 ? (
-              <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border">
-                <p className="text-sm text-muted-foreground">
-                  {search || category || productType || forSale || active
-                    ? "No se encontraron productos con esos filtros."
-                    : "Aún no hay productos creados."}
-                </p>
+              <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">
+                <div>
+                  <Package className="mx-auto h-10 w-10 text-muted-foreground" />
+                  <p className="mt-3 text-sm font-medium">
+                    {search || category || productType || forSale || active
+                      ? "No se encontraron productos"
+                      : "Aún no hay productos"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {search || category || productType || forSale || active
+                      ? "Prueba con otros filtros."
+                      : "Crea tu primer producto para comenzar."}
+                  </p>
+                  {!(search || category || productType || forSale || active) && (
+                    <Button className="mt-4" size="sm" onClick={() => setCreating(true)}>
+                      <Plus className="mr-1 h-3.5 w-3.5" />
+                      Nuevo producto
+                    </Button>
+                  )}
+                </div>
               </div>
             ) : (
               <>
@@ -451,7 +580,7 @@ export default function ProductsPage() {
                           className={
                             p.is_active
                               ? "rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-700"
-                              : "rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
+                              : "rounded-full bg-danger/10 px-2 py-0.5 text-xs font-medium text-danger"
                           }
                         >
                           {p.is_active ? "Activo" : "Inactivo"}
@@ -536,8 +665,8 @@ export default function ProductsPage() {
       )}
 
       {confirmDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
-          <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-lg">
+        <div className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4" role="dialog" aria-modal="true">
+          <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">Eliminar producto</h2>
             <p className="mt-2 text-sm text-muted-foreground">
               ¿Seguro que quieres eliminar <strong>{confirmDelete.name}</strong>? El producto

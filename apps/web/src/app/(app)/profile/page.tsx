@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { User as UserIcon, KeyRound, Store, Check, Loader2, AlertCircle } from "lucide-react";
+import { User as UserIcon, KeyRound, Store, Check, Loader2, AlertCircle, Building2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useSessionStore } from "@/lib/store/session";
@@ -113,7 +113,7 @@ export default function ProfilePage() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex items-center justify-between border-b border-border px-6 py-3">
+      <header className="flex flex-col gap-2 border-b border-border px-6 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-lg font-semibold">Mi perfil</h1>
           <p className="text-xs text-muted-foreground">
@@ -227,40 +227,79 @@ export default function ProfilePage() {
           </div>
 
           {assignments.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No tienes sucursales asignadas.</p>
-          ) : (
-            <div className="overflow-x-auto rounded-xl border border-border">
-              <table className="w-full min-w-[480px] text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                    <th className="px-4 py-3">Sucursal</th>
-                    <th className="px-4 py-3">Rol</th>
-                    <th className="px-4 py-3 text-center">Estado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {assignments.map((a, idx) => (
-                    <tr key={String(a.id ?? `${a.branch_id}-${idx}`)} className="border-b border-border last:border-0">
-                      <td className="px-4 py-3">{a.branch_name ?? `Sucursal ${a.branch_id}`}</td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {a.role_name ?? a.role_code ?? "—"}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <span
-                          className={
-                            a.is_active
-                              ? "rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-700"
-                              : "rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
-                          }
-                        >
-                          {assignmentStatus(a)}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                <Building2 className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <p className="text-sm font-medium">Sin sucursales asignadas</p>
+              <p className="max-w-xs text-xs text-muted-foreground">
+                Cuando un administrador te asigne a una sucursal, aparecerá aquí.
+              </p>
             </div>
+          ) : (
+            <>
+              {/* Vista cards en móvil */}
+              <div className="flex flex-col gap-3 sm:hidden">
+                {assignments.map((a, idx) => (
+                  <div
+                    key={String(a.id ?? `${a.branch_id}-${idx}`)}
+                    className="flex items-center justify-between rounded-xl border border-border bg-background p-3"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">
+                        {a.branch_name ?? `Sucursal ${a.branch_id}`}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {a.role_name ?? a.role_code ?? "—"}
+                      </p>
+                    </div>
+                    <span
+                      className={
+                        a.is_active
+                          ? "rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-700"
+                          : "rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
+                      }
+                    >
+                      {assignmentStatus(a)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Vista tabla en desktop */}
+              <div className="hidden overflow-x-auto rounded-xl border border-border sm:block">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+                      <th className="px-4 py-3">Sucursal</th>
+                      <th className="px-4 py-3">Rol</th>
+                      <th className="px-4 py-3 text-center">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {assignments.map((a, idx) => (
+                      <tr key={String(a.id ?? `${a.branch_id}-${idx}`)} className="border-b border-border last:border-0">
+                        <td className="px-4 py-3">{a.branch_name ?? `Sucursal ${a.branch_id}`}</td>
+                        <td className="px-4 py-3 text-muted-foreground">
+                          {a.role_name ?? a.role_code ?? "—"}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span
+                            className={
+                              a.is_active
+                                ? "rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-700"
+                                : "rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
+                            }
+                          >
+                            {assignmentStatus(a)}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </section>
 

@@ -20,7 +20,10 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
+  FileSpreadsheet,
+  SlidersHorizontal,
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -33,6 +36,7 @@ import {
   transferStock,
 } from "@/lib/api/warehouses";
 import { fetchProducts } from "@/lib/api/products";
+import { apiFetch } from "@/lib/api/client";
 import { formatCLP, cn, stockStatusLabel } from "@/lib/utils";
 import type { YggdraSchemas } from "@/lib/api/types";
 
@@ -40,6 +44,7 @@ type WarehouseProduct = YggdraSchemas["WarehouseProduct"];
 
 const SORT_OPTIONS = [
   { value: "product_name", label: "Producto" },
+  { value: "product_category", label: "Categoría" },
   { value: "current_quantity", label: "Cantidad" },
   { value: "minimum_quantity", label: "Mínima" },
   { value: "product_cost", label: "C/Unitario" },
@@ -76,6 +81,38 @@ function formatDateTime(v: string | null | undefined): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+async function exportWarehouseProductsToExcel(warehouseName: string, warehouseId: number) {
+  const allResults: WarehouseProduct[] = [];
+  let nextUrl: string | null = `/inventory/warehouses/${warehouseId}/products/`;
+  while (nextUrl) {
+    const data: { results?: WarehouseProduct[]; next?: string | null } = await apiFetch(nextUrl);
+    allResults.push(...(data.results ?? []));
+    nextUrl = data.next ?? null;
+  }
+
+  const rows = allResults.map((wp) => ({
+    Producto: wp.product_name,
+    Código: wp.product_code,
+    Categoría: wp.product_category,
+    Unidad: wp.product_measurement_unit,
+    Cantidad: wp.current_quantity,
+    Mínima: wp.minimum_quantity ?? "",
+    "Costo unitario": numValue(wp.product_cost),
+    "Costo total": numValue(wp.total_value),
+    "Estado": stockStatusLabel(wp.stock_status ?? ""),
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws["!cols"] = [
+    { wch: 30 }, { wch: 12 }, { wch: 18 }, { wch: 10 },
+    { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 14 },
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Productos");
+  const date = new Date().toLocaleDateString("en-CA");
+  XLSX.writeFile(wb, `bodega-${warehouseName.toLowerCase().replace(/\s+/g, "-")}_${date}.xlsx`);
 }
 
 function SortIcon({
@@ -152,6 +189,8 @@ export default function WarehouseDetailPage() {
   const [transferTarget, setTransferTarget] = useState("");
   const [transferProduct, setTransferProduct] = useState<WarehouseProduct | null>(null);
   const [transferQuantity, setTransferQuantity] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   const [productSearch, setProductSearch] = useState("");
   const [productPageUrl, setProductPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
@@ -350,94 +389,195 @@ export default function WarehouseDetailPage() {
           <MetricCard icon={TrendingUp} label="Valor venta" value={formatCLP(totalSale)} tone="violet" />
         </div>
 
-        {hasAlerts && (
-          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
-            <div className="flex flex-wrap items-center gap-4">
-              <p className="text-sm font-medium text-amber-800">Alertas de stock</p>
-              {lowStock > 0 && (
-                <span className="text-sm text-amber-700">
-                  {lowStock} producto{lowStock === 1 ? "" : "s"} con stock bajo
-                </span>
+        <div className="flex flex-col gap-3">
+          {/* Desktop filters */}
+          <div className="hidden flex-wrap items-end justify-between gap-3 md:flex">
+            <div className="flex flex-wrap items-end gap-3">
+              {hasAlerts && (
+                <div className="flex flex-wrap items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/5 px-2.5 py-1">
+                  {lowStock > 0 && (
+                    <span className="text-xs text-amber-700">
+                      {lowStock} stock bajo
+                    </span>
+                  )}
+                  {lowStock > 0 && outOfStock > 0 && (
+                    <span className="text-xs text-amber-400">·</span>
+                  )}
+                  {outOfStock > 0 && (
+                    <span className="text-xs text-amber-700">
+                      {outOfStock} sin stock
+                    </span>
+                  )}
+                </div>
               )}
-              {outOfStock > 0 && (
-                <span className="text-sm text-amber-700">
-                  {outOfStock} producto{outOfStock === 1 ? "" : "s"} sin stock
-                </span>
-              )}
+              <div className="relative w-full max-w-xs">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={productSearch}
+                  onChange={(e) => {
+                    setProductSearch(e.target.value);
+                    setProductPageUrl({});
+                  }}
+                  placeholder="Buscar producto…"
+                  className="pl-9"
+                  aria-label="Buscar producto"
+                />
+              </div>
             </div>
-          </div>
-        )}
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center justify-between gap-2 sm:block">
-            <h2 className="text-sm font-semibold">Productos en bodega</h2>
-            <span className="text-xs text-muted-foreground sm:hidden">
-              {totalProductsCount} producto{totalProductsCount === 1 ? "" : "s"}
-            </span>
-          </div>
-          <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-            <div className="flex items-center gap-2 sm:hidden">
-              <Select
-                value={productSort?.field ?? ""}
-                onChange={(e) => {
-                  const field = e.target.value;
-                  if (!field) {
-                    setProductSort(null);
-                  } else {
-                    setProductSort((prev) => ({
-                      field,
-                      desc: prev?.field === field ? !prev.desc : false,
-                    }));
-                  }
-                  setProductPageUrl({});
-                }}
-                className="flex-1"
-              >
-                <option value="">Ordenar por…</option>
-                {SORT_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </Select>
+            <div className="flex items-center gap-2">
               <Button
-                variant="ghost"
                 size="sm"
-                className="px-2"
-                disabled={!productSort}
-                onClick={() =>
-                  setProductSort((prev) =>
-                    prev ? { ...prev, desc: !prev.desc } : null
-                  )
-                }
-                aria-label="Cambiar dirección"
-              >
-                {productSort?.desc ? (
-                  <ArrowDown className="h-4 w-4" />
-                ) : (
-                  <ArrowUp className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-            <div className="relative w-full sm:max-w-xs">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={productSearch}
-                onChange={(e) => {
-                  setProductSearch(e.target.value);
-                  setProductPageUrl({});
+                variant="outline"
+                disabled={exporting || products.length === 0}
+                onClick={async () => {
+                  setExporting(true);
+                  try {
+                    await exportWarehouseProductsToExcel(warehouse.name, warehouseId);
+                  } finally {
+                    setExporting(false);
+                  }
                 }}
-                placeholder="Buscar producto…"
-                className="pl-9"
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={() => setTransferOpen(true)} className="flex-1 sm:flex-none">
+              >
+                {exporting ? (
+                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <FileSpreadsheet className="mr-1 h-3.5 w-3.5" />
+                )}
+                <span className="hidden sm:inline">Excel</span>
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setTransferOpen(true)}>
                 <ArrowRightLeft className="mr-1 h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Transferir</span>
               </Button>
-              <Button size="sm" onClick={() => setAddOpen(true)} className="flex-1 sm:flex-none">
+              <Button size="sm" onClick={() => setAddOpen(true)}>
                 <Plus className="mr-1 h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Agregar producto</span>
+                <span className="hidden sm:inline">Agregar</span>
               </Button>
+            </div>
+          </div>
+
+          {/* Mobile filters */}
+          <div className="flex flex-col gap-3 md:hidden">
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={productSearch}
+                  onChange={(e) => {
+                    setProductSearch(e.target.value);
+                    setProductPageUrl({});
+                  }}
+                  placeholder="Buscar producto…"
+                  className="pl-9"
+                  aria-label="Buscar producto"
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-10 px-3"
+                onClick={() => setShowMobileFilters((v) => !v)}
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+                <span className="ml-2">Filtros</span>
+              </Button>
+            </div>
+
+            <div className={`flex flex-col gap-3 ${showMobileFilters ? "" : "hidden"}`}>
+              {hasAlerts && (
+                <div className="flex flex-wrap items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/5 px-2.5 py-1">
+                  {lowStock > 0 && (
+                    <span className="text-xs text-amber-700">
+                      {lowStock} stock bajo
+                    </span>
+                  )}
+                  {lowStock > 0 && outOfStock > 0 && (
+                    <span className="text-xs text-amber-400">·</span>
+                  )}
+                  {outOfStock > 0 && (
+                    <span className="text-xs text-amber-700">
+                      {outOfStock} sin stock
+                    </span>
+                  )}
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <Select
+                  value={productSort?.field ?? ""}
+                  onChange={(e) => {
+                    const field = e.target.value;
+                    if (!field) {
+                      setProductSort(null);
+                    } else {
+                      setProductSort((prev) => ({
+                        field,
+                        desc: prev?.field === field ? !prev.desc : false,
+                      }));
+                    }
+                    setProductPageUrl({});
+                  }}
+                  className="flex-1"
+                >
+                  <option value="">Ordenar por…</option>
+                  {SORT_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </Select>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="px-2"
+                  disabled={!productSort}
+                  onClick={() =>
+                    setProductSort((prev) =>
+                      prev ? { ...prev, desc: !prev.desc } : null
+                    )
+                  }
+                  aria-label="Cambiar dirección"
+                >
+                  {productSort?.desc ? (
+                    <ArrowDown className="h-4 w-4" />
+                  ) : (
+                    <ArrowUp className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1"
+                  disabled={exporting || products.length === 0}
+                  onClick={async () => {
+                    setExporting(true);
+                    try {
+                      await exportWarehouseProductsToExcel(warehouse.name, warehouseId);
+                    } finally {
+                      setExporting(false);
+                    }
+                  }}
+                >
+                  {exporting ? (
+                    <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <FileSpreadsheet className="mr-1 h-3.5 w-3.5" />
+                  )}
+                  Excel
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setTransferOpen(true)}
+                >
+                  <ArrowRightLeft className="mr-1 h-3.5 w-3.5" />
+                  Transferir
+                </Button>
+                <Button size="sm" className="flex-1" onClick={() => setAddOpen(true)}>
+                  <Plus className="mr-1 h-3.5 w-3.5" />
+                  Agregar
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -481,7 +621,7 @@ export default function WarehouseDetailPage() {
         ) : (
           <>
           <div className="hidden sm:block overflow-x-auto rounded-2xl border border-border">
-            <table className="w-full table-fixed min-w-[720px] text-sm">
+            <table className="w-full table-fixed min-w-[840px] text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                   <th
@@ -490,6 +630,14 @@ export default function WarehouseDetailPage() {
                   >
                     <span className="inline-flex items-center gap-1 whitespace-nowrap">
                       Producto <SortIcon sort={productSort} field="product_name" />
+                    </span>
+                  </th>
+                  <th
+                    className="group w-28 cursor-pointer select-none px-3 py-2 text-left hover:bg-muted/50"
+                    onClick={() => handleSort("product_category")}
+                  >
+                    <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                      Categoría <SortIcon sort={productSort} field="product_category" />
                     </span>
                   </th>
                   <th
@@ -555,11 +703,23 @@ export default function WarehouseDetailPage() {
                           </div>
                           <div className="min-w-0">
                             <p className="truncate font-medium leading-tight">{wp.product_name}</p>
-                            <p className="truncate text-xs text-muted-foreground leading-tight">
-                              {wp.product_code} · {wp.product_measurement_unit}
-                            </p>
+                            <div className="mt-0.5 flex flex-wrap items-center gap-1">
+                              <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                                {wp.product_measurement_unit}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground">{wp.product_code}</span>
+                            </div>
                           </div>
                         </div>
+                      </td>
+                      <td className="px-3 py-2">
+                        {wp.product_category ? (
+                          <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                            {wp.product_category}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums font-medium">
                         {wp.current_quantity}
@@ -654,9 +814,17 @@ export default function WarehouseDetailPage() {
                       </div>
                       <div className="min-w-0">
                         <p className="truncate font-medium leading-tight">{wp.product_name}</p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {wp.product_code} · {wp.product_measurement_unit}
-                        </p>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-1">
+                          <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                            {wp.product_measurement_unit}
+                          </span>
+                          {wp.product_category && (
+                            <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                              {wp.product_category}
+                            </span>
+                          )}
+                          <span className="text-[10px] text-muted-foreground">{wp.product_code}</span>
+                        </div>
                       </div>
                     </div>
                     <span
@@ -909,15 +1077,21 @@ function Modal({
   onClose: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
-      <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-lg">
-        <div className="mb-4 flex items-center justify-between">
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
           <h2 className="text-base font-semibold">{title}</h2>
           <button onClick={onClose} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
             <X className="h-5 w-5" />
           </button>
         </div>
-        {children}
+        <div className="flex-1 overflow-y-auto p-4">
+          {children}
+        </div>
       </div>
     </div>
   );

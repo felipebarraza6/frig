@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Loader2, Plus, X, AlertTriangle, Package, AlertCircle, PackageX, TrendingDown, Ban, FileSpreadsheet, FileText } from "lucide-react";
+import { Search, Loader2, Plus, X, AlertTriangle, Package, AlertCircle, PackageX, TrendingDown, FileSpreadsheet, FileText, SlidersHorizontal, ArrowRightLeft, Calendar } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -17,6 +17,7 @@ import {
 import { fetchProducts } from "@/lib/api/products";
 import { fetchWarehouses } from "@/lib/api/warehouses";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
+import { cn } from "@/lib/utils";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 type InventoryHistory = YggdraSchemas["InventoryHistory"];
@@ -44,6 +45,37 @@ function movementLabel(value?: string | null): string {
   return MOVEMENT_TYPES.find((t) => t.value === value)?.label ?? (value ?? "—");
 }
 
+function movementBadgeClass(movementType?: string | null) {
+  switch (movementType) {
+    case "IN":
+    case "RETURN":
+      return "bg-emerald-500/10 text-emerald-700";
+    case "OUT":
+    case "LOSS":
+    case "DAMAGE":
+      return "bg-danger/10 text-danger";
+    case "TRANSFER":
+      return "bg-blue-500/10 text-blue-700";
+    case "ADJUSTMENT":
+      return "bg-amber-500/10 text-amber-700";
+    default:
+      return "bg-muted text-muted-foreground";
+  }
+}
+
+function formatDateTime(v: string | null | undefined): string {
+  if (!v) return "—";
+  const date = new Date(v);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleString("es-CL", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export default function InventoryPage() {
   const queryClient = useQueryClient();
   const { download: downloadFile, isLoading: isExporting } = useDownloadFile();
@@ -55,6 +87,7 @@ export default function InventoryPage() {
   const [pageUrl, setPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
   const [modalOpen, setModalOpen] = useState(false);
   const [alertSearch, setAlertSearch] = useState("");
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   const { data: productsPage } = useQuery({
     queryKey: ["products", "catalog"],
@@ -135,9 +168,14 @@ export default function InventoryPage() {
     });
   }
 
+  function updateFilter<T>(setter: (v: T) => void, value: T) {
+    setter(value);
+    setPageUrl({});
+  }
+
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex items-center justify-between border-b border-border px-6 py-3">
+      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div>
           <h1 className="text-lg font-semibold">Inventario</h1>
           <p className="text-xs text-muted-foreground">
@@ -150,27 +188,38 @@ export default function InventoryPage() {
             size="sm"
             onClick={() => handleExport("excel")}
             disabled={isExporting}
+            className="h-9 w-9 px-0 sm:w-auto sm:px-3"
+            title="Exportar Excel"
+            aria-label="Exportar Excel"
           >
             <FileSpreadsheet className="h-4 w-4" />
-            Excel
+            <span className="hidden sm:inline">Excel</span>
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={() => handleExport("pdf")}
             disabled={isExporting}
+            className="h-9 w-9 px-0 sm:w-auto sm:px-3"
+            title="Exportar PDF"
+            aria-label="Exportar PDF"
           >
             <FileText className="h-4 w-4" />
-            PDF
+            <span className="hidden sm:inline">PDF</span>
           </Button>
-          <Button onClick={() => setModalOpen(true)}>
+          <Button
+            onClick={() => setModalOpen(true)}
+            className="h-9 w-9 px-0 sm:w-auto sm:px-3"
+            title="Registrar movimiento"
+            aria-label="Registrar movimiento"
+          >
             <Plus className="h-4 w-4" />
-            Registrar movimiento
+            <span className="hidden sm:inline">Registrar movimiento</span>
           </Button>
         </div>
       </header>
 
-      <div className="border-b border-border px-6">
+      <div className="border-b border-border px-4 sm:px-6">
         <div className="flex gap-4">
           <button
             onClick={() => setTab("movements")}
@@ -200,69 +249,128 @@ export default function InventoryPage() {
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col gap-4 p-6">
+      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
         {tab === "movements" && (
           <>
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="relative w-full max-w-xs">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
-                    setPageUrl({});
-                  }}
-                  placeholder="Buscar movimiento…"
-                  className="pl-9"
-                />
+            <div className="flex flex-col gap-3">
+              {/* Desktop filters */}
+              <div className="hidden flex-wrap items-end gap-3 md:flex">
+                <div className="relative w-full max-w-xs">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={search}
+                    onChange={(e) => updateFilter(setSearch, e.target.value)}
+                    placeholder="Buscar movimiento…"
+                    className="pl-9"
+                    aria-label="Buscar movimiento"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="filter-movement" className="text-xs text-muted-foreground">Tipo</label>
+                  <Select
+                    id="filter-movement"
+                    value={movementType}
+                    onChange={(e) => updateFilter(setMovementType, e.target.value)}
+                  >
+                    <option value="">Todos</option>
+                    {MOVEMENT_TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="filter-product" className="text-xs text-muted-foreground">Producto</label>
+                  <Select
+                    id="filter-product"
+                    value={productFilter}
+                    onChange={(e) => updateFilter(setProductFilter, e.target.value)}
+                  >
+                    <option value="">Todos</option>
+                    {products.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="filter-warehouse" className="text-xs text-muted-foreground">Bodega</label>
+                  <Select
+                    id="filter-warehouse"
+                    value={warehouseFilter}
+                    onChange={(e) => updateFilter(setWarehouseFilter, e.target.value)}
+                  >
+                    <option value="">Todas</option>
+                    {warehouses.map((w) => (
+                      <option key={w.id} value={w.id}>{w.name}</option>
+                    ))}
+                  </Select>
+                </div>
               </div>
-              <div className="flex flex-col gap-1">
-                <label htmlFor="filter-movement" className="text-xs text-muted-foreground">Tipo</label>
-                <Select
-                  id="filter-movement"
-                  value={movementType}
-                  onChange={(e) => {
-                    setMovementType(e.target.value);
-                    setPageUrl({});
-                  }}
-                >
-                  <option value="">Todos</option>
-                  {MOVEMENT_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>{t.label}</option>
-                  ))}
-                </Select>
-              </div>
-              <div className="flex flex-col gap-1">
-                <label htmlFor="filter-product" className="text-xs text-muted-foreground">Producto</label>
-                <Select
-                  id="filter-product"
-                  value={productFilter}
-                  onChange={(e) => {
-                    setProductFilter(e.target.value);
-                    setPageUrl({});
-                  }}
-                >
-                  <option value="">Todos</option>
-                  {products.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </Select>
-              </div>
-              <div className="flex flex-col gap-1">
-                <label htmlFor="filter-warehouse" className="text-xs text-muted-foreground">Bodega</label>
-                <Select
-                  id="filter-warehouse"
-                  value={warehouseFilter}
-                  onChange={(e) => {
-                    setWarehouseFilter(e.target.value);
-                    setPageUrl({});
-                  }}
-                >
-                  <option value="">Todas</option>
-                  {warehouses.map((w) => (
-                    <option key={w.id} value={w.id}>{w.name}</option>
-                  ))}
-                </Select>
+
+              {/* Mobile filters */}
+              <div className="flex flex-col gap-3 md:hidden">
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={search}
+                      onChange={(e) => updateFilter(setSearch, e.target.value)}
+                      placeholder="Buscar movimiento…"
+                      className="pl-9"
+                      aria-label="Buscar movimiento"
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-10 px-3"
+                    onClick={() => setShowMobileFilters((v) => !v)}
+                  >
+                    <SlidersHorizontal className="h-4 w-4" />
+                    <span className="ml-2">Filtros</span>
+                  </Button>
+                </div>
+
+                <div className={`flex flex-col gap-3 ${showMobileFilters ? "" : "hidden"}`}>
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor="filter-movement-mobile" className="text-xs text-muted-foreground">Tipo</label>
+                    <Select
+                      id="filter-movement-mobile"
+                      value={movementType}
+                      onChange={(e) => updateFilter(setMovementType, e.target.value)}
+                    >
+                      <option value="">Todos</option>
+                      {MOVEMENT_TYPES.map((t) => (
+                        <option key={t.value} value={t.value}>{t.label}</option>
+                      ))}
+                    </Select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor="filter-product-mobile" className="text-xs text-muted-foreground">Producto</label>
+                    <Select
+                      id="filter-product-mobile"
+                      value={productFilter}
+                      onChange={(e) => updateFilter(setProductFilter, e.target.value)}
+                    >
+                      <option value="">Todos</option>
+                      {products.map((p) => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </Select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor="filter-warehouse-mobile" className="text-xs text-muted-foreground">Bodega</label>
+                    <Select
+                      id="filter-warehouse-mobile"
+                      value={warehouseFilter}
+                      onChange={(e) => updateFilter(setWarehouseFilter, e.target.value)}
+                    >
+                      <option value="">Todas</option>
+                      {warehouses.map((w) => (
+                        <option key={w.id} value={w.id}>{w.name}</option>
+                      ))}
+                    </Select>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -270,9 +378,24 @@ export default function InventoryPage() {
               <div className="grid flex-1 place-items-center">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
+            ) : movements.length === 0 ? (
+              <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">
+                <div>
+                  <ArrowRightLeft className="mx-auto h-10 w-10 text-muted-foreground" />
+                  <p className="mt-3 text-sm font-medium">No se encontraron movimientos</p>
+                  <p className="text-xs text-muted-foreground">
+                    Prueba con otros filtros o registra un nuevo movimiento.
+                  </p>
+                  <Button className="mt-4" size="sm" onClick={() => setModalOpen(true)}>
+                    <Plus className="mr-1 h-3.5 w-3.5" />
+                    Registrar movimiento
+                  </Button>
+                </div>
+              </div>
             ) : (
               <>
-                <div className="overflow-x-auto rounded-xl border border-border">
+                {/* Desktop table */}
+                <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
                   <table className="w-full min-w-[760px] text-sm">
                     <thead>
                       <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -294,15 +417,17 @@ export default function InventoryPage() {
                               <span className="font-medium">{m.product_name}</span>
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-muted-foreground">
-                            {movementLabel(m.movement_type)}
+                          <td className="px-4 py-3">
+                            <span className={cn("inline-flex rounded-full px-2 py-0.5 text-xs font-medium", movementBadgeClass(m.movement_type))}>
+                              {movementLabel(m.movement_type)}
+                            </span>
                           </td>
                           <td className="px-4 py-3 text-right tabular-nums">{m.quantity}</td>
                           <td className="px-4 py-3 text-right tabular-nums">{m.previous_quantity}</td>
                           <td className="px-4 py-3 text-right tabular-nums">{m.current_quantity}</td>
                           <td className="px-4 py-3 text-muted-foreground">{m.user_name ?? "—"}</td>
                           <td className="px-4 py-3 text-muted-foreground">
-                            {new Date(m.created).toLocaleString()}
+                            {formatDateTime(m.created)}
                           </td>
                         </tr>
                       ))}
@@ -310,7 +435,54 @@ export default function InventoryPage() {
                   </table>
                 </div>
 
-                <div className="flex items-center justify-between text-sm">
+                {/* Mobile cards */}
+                <div className="grid gap-3 md:hidden">
+                  {movements.map((m: InventoryHistory) => (
+                    <div
+                      key={m.id}
+                      className="rounded-2xl border border-border bg-card p-4 shadow-sm"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary">
+                            <Package className="h-5 w-5 text-muted-foreground" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate font-medium">{m.product_name}</p>
+                            <span className={cn("mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium", movementBadgeClass(m.movement_type))}>
+                              {movementLabel(m.movement_type)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                        <div className="text-muted-foreground">
+                          <span className="block text-[10px] uppercase tracking-wide">Cantidad</span>
+                          <span className="font-medium tabular-nums text-foreground">{m.quantity}</span>
+                        </div>
+                        <div className="text-muted-foreground">
+                          <span className="block text-[10px] uppercase tracking-wide">Stock actual</span>
+                          <span className="font-medium tabular-nums text-foreground">{m.current_quantity}</span>
+                        </div>
+                        <div className="text-muted-foreground">
+                          <span className="block text-[10px] uppercase tracking-wide">Stock previo</span>
+                          <span className="font-medium tabular-nums text-foreground">{m.previous_quantity}</span>
+                        </div>
+                        <div className="text-muted-foreground">
+                          <span className="block text-[10px] uppercase tracking-wide">Usuario</span>
+                          <span className="font-medium text-foreground">{m.user_name ?? "—"}</span>
+                        </div>
+                        <div className="col-span-2 flex items-center gap-1.5 text-muted-foreground">
+                          <Calendar className="h-3 w-3" />
+                          <span>{formatDateTime(m.created)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex flex-col items-center justify-between gap-3 text-sm sm:flex-row">
                   <p className="text-muted-foreground">
                     {totalMovements} movimiento{totalMovements === 1 ? "" : "s"} en total
                   </p>
@@ -321,7 +493,8 @@ export default function InventoryPage() {
                       onClick={() => setPageUrl({ previous: movementsPage?.previous })}
                       disabled={!movementsPage?.previous}
                     >
-                      Anterior
+                      <span className="sm:hidden">Ant.</span>
+                      <span className="hidden sm:inline">Anterior</span>
                     </Button>
                     <Button
                       variant="outline"
@@ -329,7 +502,8 @@ export default function InventoryPage() {
                       onClick={() => setPageUrl({ next: movementsPage?.next })}
                       disabled={!movementsPage?.next}
                     >
-                      Siguiente
+                      <span className="sm:hidden">Sig.</span>
+                      <span className="hidden sm:inline">Siguiente</span>
                     </Button>
                   </div>
                 </div>
@@ -380,11 +554,14 @@ export default function InventoryPage() {
                 Productos sin stock
               </h2>
               {filteredOutOfStock.length === 0 ? (
-                <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border py-8 text-sm text-muted-foreground">
-                  <Ban className="h-6 w-6" />
-                  {outOfStock.length === 0
-                    ? "No hay productos sin stock."
-                    : "Ningún producto sin stock coincide con la búsqueda."}
+                <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border py-8 text-center">
+                  <PackageX className="h-8 w-8 text-muted-foreground" />
+                  <p className="text-sm font-medium">Sin productos sin stock</p>
+                  <p className="text-xs text-muted-foreground">
+                    {outOfStock.length === 0
+                      ? "No hay productos sin stock."
+                      : "Ningún producto sin stock coincide con la búsqueda."}
+                  </p>
                 </div>
               ) : (
                 <div className="overflow-x-auto rounded-xl border border-border">
@@ -428,11 +605,14 @@ export default function InventoryPage() {
                 Stock bajo
               </h2>
               {filteredLowStock.length === 0 ? (
-                <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border py-8 text-sm text-muted-foreground">
-                  <Ban className="h-6 w-6" />
-                  {lowStock.length === 0
-                    ? "No hay productos con stock bajo."
-                    : "Ningún producto con stock bajo coincide con la búsqueda."}
+                <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border py-8 text-center">
+                  <TrendingDown className="h-8 w-8 text-muted-foreground" />
+                  <p className="text-sm font-medium">Sin productos con stock bajo</p>
+                  <p className="text-xs text-muted-foreground">
+                    {lowStock.length === 0
+                      ? "No hay productos con stock bajo."
+                      : "Ningún producto con stock bajo coincide con la búsqueda."}
+                  </p>
                 </div>
               ) : (
                 <div className="overflow-x-auto rounded-xl border border-border">
@@ -535,86 +715,94 @@ function MovementModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
-      <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-lg">
-        <div className="mb-4 flex items-center justify-between">
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
           <h2 className="text-base font-semibold">Registrar movimiento</h2>
           <button onClick={onClose} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
             <X className="h-5 w-5" />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Producto</label>
-              <Select
-                value={form.product}
-                onChange={(e) => updateField("product", e.target.value)}
-                required
-              >
-                <option value="">Selecciona</option>
-                {products.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </Select>
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Bodega</label>
-              <Select
-                value={form.warehouse}
-                onChange={(e) => updateField("warehouse", e.target.value)}
-              >
-                <option value="">Ninguna</option>
-                {warehouses.map((w) => (
-                  <option key={w.id} value={w.id}>{w.name}</option>
-                ))}
-              </Select>
+        <form onSubmit={handleSubmit} className="relative flex min-h-0 flex-1 flex-col">
+          <div className="relative flex-1 overflow-y-auto p-4">
+            <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-medium">Producto</label>
+                  <Select
+                    value={form.product}
+                    onChange={(e) => updateField("product", e.target.value)}
+                    required
+                  >
+                    <option value="">Selecciona</option>
+                    {products.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-medium">Bodega</label>
+                  <Select
+                    value={form.warehouse}
+                    onChange={(e) => updateField("warehouse", e.target.value)}
+                  >
+                    <option value="">Ninguna</option>
+                    {warehouses.map((w) => (
+                      <option key={w.id} value={w.id}>{w.name}</option>
+                    ))}
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-medium">Tipo</label>
+                  <Select
+                    value={form.movement_type}
+                    onChange={(e) => updateField("movement_type", e.target.value)}
+                  >
+                    {MOVEMENT_TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-medium">Origen</label>
+                  <Select
+                    value={form.source_type}
+                    onChange={(e) => updateField("source_type", e.target.value)}
+                  >
+                    {SOURCE_TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </Select>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Cantidad</label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={form.quantity}
+                  onChange={(e) => updateField("quantity", e.target.value)}
+                  required
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Notas</label>
+                <Input
+                  value={form.notes}
+                  onChange={(e) => updateField("notes", e.target.value)}
+                  placeholder="Opcional"
+                />
+              </div>
+              {error && <p className="text-sm text-danger">{error}</p>}
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Tipo</label>
-              <Select
-                value={form.movement_type}
-                onChange={(e) => updateField("movement_type", e.target.value)}
-              >
-                {MOVEMENT_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
-                ))}
-              </Select>
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Origen</label>
-              <Select
-                value={form.source_type}
-                onChange={(e) => updateField("source_type", e.target.value)}
-              >
-                {SOURCE_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
-                ))}
-              </Select>
-            </div>
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium">Cantidad</label>
-            <Input
-              type="number"
-              min="0"
-              value={form.quantity}
-              onChange={(e) => updateField("quantity", e.target.value)}
-              required
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium">Notas</label>
-            <Input
-              value={form.notes}
-              onChange={(e) => updateField("notes", e.target.value)}
-              placeholder="Opcional"
-            />
-          </div>
-          {error && <p className="text-sm text-danger">{error}</p>}
-          <div className="flex justify-end gap-2">
+          <div className="flex shrink-0 justify-end gap-2 border-t border-border px-4 py-3">
             <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>
               Cancelar
             </Button>

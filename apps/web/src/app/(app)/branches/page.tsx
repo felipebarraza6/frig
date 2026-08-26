@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Pencil, Power, Loader2, Store, Users, Palette } from "lucide-react";
+import { Plus, Search, Pencil, Power, Loader2, Store, Users, Palette, Phone, Mail } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -67,7 +67,7 @@ export default function BranchesPage() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex items-center justify-between border-b border-border px-6 py-3">
+      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
         <div>
           <h1 className="text-lg font-semibold">Sucursales</h1>
           <p className="text-xs text-muted-foreground">
@@ -77,15 +77,26 @@ export default function BranchesPage() {
           </p>
         </div>
         {canManage && (
-          <Button onClick={() => setCreating(true)}>
-            <Plus className="h-4 w-4" />
-            Nueva sucursal
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              size="icon"
+              onClick={() => setCreating(true)}
+              className="sm:hidden"
+              title="Nueva sucursal"
+              aria-label="Nueva sucursal"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button onClick={() => setCreating(true)} className="hidden sm:flex">
+              <Plus className="mr-2 h-4 w-4" />
+              Nueva sucursal
+            </Button>
+          </div>
         )}
       </header>
 
-      <div className="flex flex-1 flex-col gap-4 p-6">
-        <div className="relative max-w-sm">
+      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
+        <div className="relative w-full sm:max-w-sm">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
@@ -105,9 +116,26 @@ export default function BranchesPage() {
           <div className="grid flex-1 place-items-center">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
+        ) : branches.length === 0 ? (
+          <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">
+            <div>
+              <Store className="mx-auto h-10 w-10 text-muted-foreground" />
+              <p className="mt-3 text-sm font-medium">No se encontraron sucursales</p>
+              <p className="text-xs text-muted-foreground">
+                Prueba con otros términos o agrega una nueva sucursal.
+              </p>
+              {canManage && (
+                <Button className="mt-4" size="sm" onClick={() => setCreating(true)}>
+                  <Plus className="mr-1 h-3.5 w-3.5" />
+                  Nueva sucursal
+                </Button>
+              )}
+            </div>
+          </div>
         ) : (
           <>
-            <div className="overflow-x-auto rounded-xl border border-border">
+            {/* Vista desktop */}
+            <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
               <table className="w-full min-w-[640px] text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -123,6 +151,9 @@ export default function BranchesPage() {
                   {branches.map((b, index) => {
                     const manageable = isSuperAdmin || b.can_manage;
                     const rowKey = String(b.branch_id ?? b.id ?? index);
+                    const activeBadgeClass = b.is_active
+                      ? "bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20"
+                      : "bg-danger/10 text-danger hover:bg-danger/20";
                     return (
                       <tr key={rowKey} className="border-b border-border last:border-0">
                         <td className="px-4 py-3">
@@ -151,22 +182,16 @@ export default function BranchesPage() {
                               }
                               disabled={toggleActive.isPending}
                               aria-label={`${b.is_active ? "Desactivar" : "Activar"} ${branchName(b)}`}
-                              className={
-                                b.is_active
-                                  ? "text-emerald-600 hover:text-emerald-700"
-                                  : "text-muted-foreground hover:text-danger"
-                              }
+                              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${activeBadgeClass}`}
                             >
-                              <Power className="h-4 w-4" />
+                              <Power className="h-3 w-3" />
+                              {b.is_active ? "Sí" : "No"}
                             </button>
                           ) : (
                             <span
-                              className={
-                                b.is_active
-                                  ? "rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-700"
-                                  : "rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
-                              }
+                              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${activeBadgeClass}`}
                             >
+                              <Power className="h-3 w-3" />
                               {b.is_active ? "Sí" : "No"}
                             </span>
                           )}
@@ -178,7 +203,7 @@ export default function BranchesPage() {
                               size="sm"
                               onClick={() => setViewingUsers(b)}
                             >
-                              <Users className="h-3.5 w-3.5" />
+                              <Users className="mr-1.5 h-3.5 w-3.5" />
                               Usuarios
                             </Button>
                             {manageable && (
@@ -187,7 +212,7 @@ export default function BranchesPage() {
                                 size="sm"
                                 onClick={() => setEditing(b)}
                               >
-                                <Pencil className="h-3.5 w-3.5" />
+                                <Pencil className="mr-1.5 h-3.5 w-3.5" />
                                 Editar
                               </Button>
                             )}
@@ -197,7 +222,7 @@ export default function BranchesPage() {
                                 size="sm"
                                 onClick={() => setEditingTheme(b)}
                               >
-                                <Palette className="h-3.5 w-3.5" />
+                                <Palette className="mr-1.5 h-3.5 w-3.5" />
                                 Tema
                               </Button>
                             )}
@@ -210,7 +235,105 @@ export default function BranchesPage() {
               </table>
             </div>
 
-            <div className="flex items-center justify-between text-sm">
+            {/* Vista móvil */}
+            <div className="grid gap-3 md:hidden">
+              {branches.map((b, index) => {
+                const manageable = isSuperAdmin || b.can_manage;
+                const rowKey = String(b.branch_id ?? b.id ?? index);
+                return (
+                  <div
+                    key={rowKey}
+                    className="rounded-2xl border border-border bg-card p-4 shadow-sm"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary">
+                          <Store className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">{branchName(b)}</p>
+                          {b.commercial_business && (
+                            <p className="text-xs text-muted-foreground">{b.commercial_business}</p>
+                          )}
+                          <span
+                            className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                              b.is_active
+                                ? "bg-emerald-500/10 text-emerald-700"
+                                : "bg-danger/10 text-danger"
+                            }`}
+                          >
+                            <Power className="h-3 w-3" />
+                            {b.is_active ? "Activa" : "Inactiva"}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          title="Usuarios"
+                          aria-label="Usuarios"
+                          onClick={() => setViewingUsers(b)}
+                        >
+                          <Users className="h-3.5 w-3.5" />
+                          <span className="sr-only">Usuarios</span>
+                        </Button>
+                        {manageable && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            title="Editar"
+                            aria-label="Editar"
+                            onClick={() => setEditing(b)}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                            <span className="sr-only">Editar</span>
+                          </Button>
+                        )}
+                        {manageable && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            title="Tema"
+                            aria-label="Tema"
+                            onClick={() => setEditingTheme(b)}
+                          >
+                            <Palette className="h-3.5 w-3.5" />
+                            <span className="sr-only">Tema</span>
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                      {b.phone && (
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <Phone className="h-3 w-3" />
+                          <span className="truncate">{b.phone}</span>
+                        </div>
+                      )}
+                      {b.email && (
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <Mail className="h-3 w-3" />
+                          <span className="truncate">{b.email}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <Users className="h-3 w-3" />
+                        <span>
+                          <span className="font-medium text-foreground">{b.users_count ?? 0}</span> usuarios
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex flex-col items-center justify-between gap-3 text-sm sm:flex-row">
               <p className="text-muted-foreground">
                 {totalBranches} sucursal{totalBranches === 1 ? "" : "es"} en total
               </p>
@@ -221,7 +344,8 @@ export default function BranchesPage() {
                   onClick={() => setPageUrl({ previous: data?.previous })}
                   disabled={!data?.previous}
                 >
-                  Anterior
+                  <span className="sm:hidden">Ant.</span>
+                  <span className="hidden sm:inline">Anterior</span>
                 </Button>
                 <Button
                   variant="outline"
@@ -229,7 +353,8 @@ export default function BranchesPage() {
                   onClick={() => setPageUrl({ next: data?.next })}
                   disabled={!data?.next}
                 >
-                  Siguiente
+                  <span className="sm:hidden">Sig.</span>
+                  <span className="hidden sm:inline">Siguiente</span>
                 </Button>
               </div>
             </div>

@@ -73,6 +73,24 @@ export async function createExpenseCategory(payload: ExpenseCategoryRequest): Pr
   });
 }
 
+export async function updateExpenseCategory(
+  id: string,
+  payload: Partial<ExpenseCategoryRequest>,
+): Promise<ExpenseCategory> {
+  return apiFetch<ExpenseCategory>(`/finance/expense-categories/${id}/`, {
+    method: "PATCH",
+    body: payload,
+  });
+}
+
+export async function deleteExpenseCategory(id: string): Promise<void> {
+  await apiFetch(`/finance/expense-categories/${id}/`, { method: "DELETE" });
+}
+
+export async function toggleExpenseCategoryActive(id: string): Promise<ExpenseCategory> {
+  return apiFetch<ExpenseCategory>(`/finance/expense-categories/${id}/toggle_active/`, { method: "POST" });
+}
+
 function expensesQueryString(filter: ExpensesFilter): string {
   const qs = new URLSearchParams();
   if (filter.search) qs.set("search", filter.search);

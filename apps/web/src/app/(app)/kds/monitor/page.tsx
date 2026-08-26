@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Clock, ChefHat, Utensils, AlertCircle } from "lucide-react";
+import { Clock, ChefHat, Utensils, ClipboardList } from "lucide-react";
 import { useCurrentBranch } from "@/lib/store/session";
 import { fetchKitchenTickets, type KitchenTicket } from "@/lib/api/kitchen";
 import { cn } from "@/lib/utils";
@@ -113,9 +113,14 @@ export default function KdsMonitorPage() {
             </ul>
           </div>
         ) : (
-          <div className="flex items-center gap-3 text-muted-foreground">
-            <AlertCircle className="h-5 w-5" />
-            <p>Sin comandas activas</p>
+          <div className="flex flex-col items-center justify-center gap-2 py-6 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+              <ClipboardList className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <p className="text-sm font-medium">Sin comandas activas</p>
+            <p className="text-xs text-muted-foreground">
+              Aparecerá la próxima orden entrante.
+            </p>
           </div>
         )}
       </div>

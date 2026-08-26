@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence, useDragControls, type PanInfo } from "framer-motion";
@@ -9,6 +9,9 @@ import {
   LogOut,
   User as UserIcon,
   ArrowRightLeft,
+  Pin,
+  PinOff,
+  Settings2,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -46,22 +49,28 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
   const canSwitchBranch = useCanSwitchBranch();
   const appName = theme?.app_name ?? "FRIG";
   const menuGroups = useFrigMenu();
-  const { favorites } = useNavFavorites();
+  const { favorites, toggleFavorite, isFavorite } = useNavFavorites();
   const isCashier = useIsCashier();
   const isWaiter = useIsWaiter();
+  const [editingQuickAccess, setEditingQuickAccess] = useState(false);
+
+  const handleClose = useCallback(() => {
+    setEditingQuickAccess(false);
+    onClose();
+  }, [onClose]);
 
   // Cierra con Escape.
   useEffect(() => {
     if (!open) return;
     function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") handleClose();
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [open, onClose]);
+  }, [open, handleClose]);
 
   async function handleLogout() {
-    onClose();
+    handleClose();
     try {
       await logout();
     } catch {
@@ -74,7 +83,7 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
 
   function handleDragEnd(_: unknown, info: PanInfo) {
     if (info.offset.y > 80 || info.velocity.y > 500) {
-      onClose();
+      handleClose();
     }
   }
 
@@ -133,7 +142,7 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={onClose}
+            onClick={handleClose}
             aria-hidden="true"
           />
 
@@ -166,7 +175,7 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
               <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleClose}
                 className="absolute right-4 top-3 z-10 rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 aria-label="Cerrar menú"
               >
@@ -209,51 +218,128 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
 
             {/* Contenido scrolleable */}
             <div className="scrollbar-hide flex-1 overflow-y-auto px-5 py-4">
-              {/* Accesos rápidos */}
-              {quickAccess.length > 0 && (
+              {editingQuickAccess ? (
+                /* Modo edición de accesos directos */
                 <section className="mb-5">
-                  <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Accesos rápidos
+                  <div className="mb-3 flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Accesos directos
+                    </p>
+                    <span className="text-xs text-muted-foreground">
+                      {favorites.length} de {QUICK_ACCESS_LIMIT}
+                    </span>
+                  </div>
+                  <p className="mb-3 text-xs text-muted-foreground">
+                    Selecciona los accesos que quieres ver primero en el menú y la barra inferior.
                   </p>
                   <div className="grid grid-cols-4 gap-3">
-                    {quickAccess.map((item) =>
-                      item ? (
-                        <QuickAccessButton
-                          key={item.href}
-                          href={item.href}
-                          label={item.label}
-                          icon={item.icon}
-                          active={pathname === item.href || pathname.startsWith(`${item.href}/`)}
-                          onClick={onClose}
-                        />
-                      ) : null
+                    {visibleGroups.flatMap((group) =>
+                      group.items.map((item) => {
+                        const favorited = isFavorite(item.href);
+                        const disabled = !favorited && favorites.length >= QUICK_ACCESS_LIMIT;
+                        return (
+                          <button
+                            key={item.href}
+                            type="button"
+                            disabled={disabled}
+                            onClick={() => toggleFavorite(item.href)}
+                            className={cn(
+                              "relative flex flex-col items-center justify-center gap-2 rounded-xl border p-3 transition-colors",
+                              favorited
+                                ? "border-primary/30 bg-primary/10 text-primary"
+                                : "border-border bg-background text-foreground hover:bg-muted",
+                              disabled && "cursor-not-allowed opacity-50",
+                            )}
+                          >
+                            <div className="absolute right-1.5 top-1.5">
+                              {favorited ? (
+                                <Pin className="h-3 w-3 text-primary" />
+                              ) : (
+                                <PinOff className="h-3 w-3 text-muted-foreground/60" />
+                              )}
+                            </div>
+                            <item.icon
+                              className={cn(
+                                "h-5 w-5 shrink-0",
+                                favorited ? "text-primary" : "text-muted-foreground",
+                              )}
+                              strokeWidth={favorited ? 2.5 : 1.75}
+                            />
+                            <span className="max-w-full truncate text-[11px] font-medium leading-tight">
+                              {item.label}
+                            </span>
+                          </button>
+                        );
+                      }),
                     )}
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditingQuickAccess(false)}
+                    className="mt-4 w-full rounded-xl bg-primary px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-primary/90"
+                  >
+                    Listo
+                  </button>
                 </section>
-              )}
+              ) : (
+                <>
+                  {/* Accesos directos */}
+                  {quickAccess.length > 0 && (
+                    <section className="mb-5">
+                      <div className="mb-3 flex items-center justify-between">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          Accesos directos
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setEditingQuickAccess(true)}
+                          className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium text-primary transition-colors hover:bg-primary/10"
+                        >
+                          <Settings2 className="h-3 w-3" />
+                          Editar
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-4 gap-3">
+                        {quickAccess.map((item) =>
+                          item ? (
+                            <QuickAccessButton
+                              key={item.href}
+                              href={item.href}
+                              label={item.label}
+                              icon={item.icon}
+                              active={pathname === item.href || pathname.startsWith(`${item.href}/`)}
+                              onClick={handleClose}
+                            />
+                          ) : null,
+                        )}
+                      </div>
+                    </section>
+                  )}
 
-              {/* Grupos como cuadrículas de acceso rápido */}
-              <section className="flex flex-col gap-5">
-                {visibleGroups.map((group) => (
-                  <div key={group.title}>
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      {group.title}
-                    </p>
-                    <div className="grid grid-cols-4 gap-3">
-                      {group.items.map((item) => (
-                        <QuickAccessButton
-                          key={item.href}
-                          href={item.href}
-                          label={item.label}
-                          icon={item.icon}
-                          active={pathname === item.href || pathname.startsWith(`${item.href}/`)}
-                          onClick={onClose}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </section>
+                  {/* Grupos como cuadrículas de acceso rápido */}
+                  <section className="flex flex-col gap-5">
+                    {visibleGroups.map((group) => (
+                      <div key={group.title}>
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          {group.title}
+                        </p>
+                        <div className="grid grid-cols-4 gap-3">
+                          {group.items.map((item) => (
+                            <QuickAccessButton
+                              key={item.href}
+                              href={item.href}
+                              label={item.label}
+                              icon={item.icon}
+                              active={pathname === item.href || pathname.startsWith(`${item.href}/`)}
+                              onClick={handleClose}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </section>
+                </>
+              )}
             </div>
 
             {/* Footer */}
@@ -272,7 +358,7 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
                 {canSwitchBranch && (
                   <Link
                     href="/select-branch"
-                    onClick={onClose}
+                    onClick={handleClose}
                     className="flex items-center justify-center gap-2 rounded-xl bg-muted px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted/80"
                   >
                     <ArrowRightLeft className="h-4 w-4" />

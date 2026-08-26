@@ -14,6 +14,7 @@ import {
   BarChart3,
   TrendingUp,
   Tag,
+  SlidersHorizontal,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -137,6 +138,19 @@ function toIsoDateTime(dateValue: string, endOfDay = false): string | null {
   return date.toISOString();
 }
 
+function statusBadgeClass(status: PromotionDiscountList["status"]) {
+  return cn(
+    "inline-flex rounded px-2 py-0.5 text-xs font-medium",
+    status === "ACTIVE"
+      ? "bg-emerald-500/10 text-emerald-700"
+      : status === "SCHEDULED"
+      ? "bg-blue-500/10 text-blue-700"
+      : status === "EXPIRED"
+      ? "bg-amber-500/10 text-amber-700"
+      : "bg-muted text-muted-foreground",
+  );
+}
+
 export default function DiscountsPage() {
   const branch = useCurrentBranch();
   const [search, setSearch] = useState("");
@@ -144,6 +158,7 @@ export default function DiscountsPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [applyToFilter, setApplyToFilter] = useState("");
   const [activeOnly, setActiveOnly] = useState(false);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<PromotionDiscountList | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<PromotionDiscountList | null>(null);
@@ -299,7 +314,7 @@ export default function DiscountsPage() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex items-center justify-between border-b border-border px-6 py-3">
+      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
         <div>
           <h1 className="text-lg font-semibold">Descuentos y cupones</h1>
           <p className="text-xs text-muted-foreground">
@@ -307,11 +322,29 @@ export default function DiscountsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {/* Mobile: icon-only export */}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleExportExcel}
+            disabled={isDownloading || isLoading}
+            className="sm:hidden"
+            title="Exportar Excel"
+            aria-label="Exportar Excel"
+          >
+            {isDownloading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <FileDown className="h-4 w-4" />
+            )}
+          </Button>
+          {/* Desktop: export with text */}
           <Button
             variant="outline"
             size="sm"
             onClick={handleExportExcel}
             disabled={isDownloading || isLoading}
+            className="hidden sm:flex"
           >
             {isDownloading ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -320,16 +353,32 @@ export default function DiscountsPage() {
             )}
             Exportar Excel
           </Button>
-          <Button onClick={() => openModal()}>
+
+          {/* Mobile: icon-only new discount */}
+          <Button
+            size="icon"
+            onClick={() => openModal()}
+            className="sm:hidden"
+            title="Nuevo descuento"
+            aria-label="Nuevo descuento"
+          >
             <Plus className="h-4 w-4" />
+          </Button>
+          {/* Desktop: new discount with text */}
+          <Button
+            size="sm"
+            onClick={() => openModal()}
+            className="hidden sm:flex"
+          >
+            <Plus className="mr-2 h-4 w-4" />
             Nuevo descuento
           </Button>
         </div>
       </header>
 
-      <div className="flex flex-1 flex-col gap-4 p-6">
+      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
         {dashboard && (
-          <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <section className="grid gap-3 grid-cols-2 lg:grid-cols-4">
             <StatCard
               label="Total descuentos"
               value={dashboard.summary.total_discounts}
@@ -357,7 +406,8 @@ export default function DiscountsPage() {
           </section>
         )}
 
-        <div className="flex flex-wrap items-end gap-3">
+        {/* Desktop filters */}
+        <div className="hidden flex-wrap items-end gap-3 md:flex">
           <div className="relative w-full max-w-xs">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -418,6 +468,82 @@ export default function DiscountsPage() {
           </label>
         </div>
 
+        {/* Mobile filters */}
+        <div className="flex flex-col gap-3 md:hidden">
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar descuento…"
+                className="pl-9"
+                aria-label="Buscar descuento"
+              />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-10 px-3"
+              onClick={() => setShowMobileFilters((v) => !v)}
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              <span className="ml-2">Filtros</span>
+            </Button>
+          </div>
+
+          <div className={`flex flex-col gap-3 ${showMobileFilters ? "" : "hidden"}`}>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="filter-type-mobile" className="text-xs text-muted-foreground">Tipo</label>
+              <Select
+                id="filter-type-mobile"
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+              >
+                <option value="">Todos</option>
+                {DISCOUNT_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="filter-status-mobile" className="text-xs text-muted-foreground">Estado</label>
+              <Select
+                id="filter-status-mobile"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="">Todos</option>
+                {STATUS_OPTIONS.map((s) => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="filter-apply-mobile" className="text-xs text-muted-foreground">Aplicar a</label>
+              <Select
+                id="filter-apply-mobile"
+                value={applyToFilter}
+                onChange={(e) => setApplyToFilter(e.target.value)}
+              >
+                <option value="">Todos</option>
+                {APPLY_TO.map((a) => (
+                  <option key={a.value} value={a.value}>{a.label}</option>
+                ))}
+              </Select>
+            </div>
+            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm">
+              <input
+                type="checkbox"
+                checked={activeOnly}
+                onChange={(e) => setActiveOnly(e.target.checked)}
+                className="h-4 w-4 rounded border-border"
+              />
+              <span className="text-muted-foreground">Solo activos</span>
+            </label>
+          </div>
+        </div>
+
         {error ? (
           <div className="rounded-lg bg-danger/10 p-4 text-sm text-danger">
             <p className="font-medium">No se pudieron cargar los descuentos.</p>
@@ -428,14 +554,21 @@ export default function DiscountsPage() {
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border">
-            <p className="text-sm text-muted-foreground">
-              {search ? "No se encontraron descuentos." : "Aún no hay descuentos creados."}
-            </p>
+          <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">
+            <div>
+              <Percent className="mx-auto h-8 w-8 text-muted-foreground" />
+              <p className="mt-3 text-sm font-medium">
+                {search ? "No se encontraron descuentos." : "Aún no hay descuentos creados."}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {search ? "Prueba con otros filtros." : "Crea el primer descuento para comenzar."}
+              </p>
+            </div>
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto rounded-xl border border-border">
+            {/* Desktop table */}
+            <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
               <table className="w-full min-w-[640px] text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -470,18 +603,7 @@ export default function DiscountsPage() {
                           : formatCLP(parseFloat(d.discount_value))}
                       </td>
                       <td className="px-4 py-3">
-                        <span
-                          className={cn(
-                            "inline-flex rounded px-2 py-0.5 text-xs font-medium",
-                            d.status === "ACTIVE"
-                              ? "bg-emerald-500/10 text-emerald-700"
-                              : d.status === "SCHEDULED"
-                              ? "bg-blue-500/10 text-blue-700"
-                              : d.status === "EXPIRED"
-                              ? "bg-amber-500/10 text-amber-700"
-                              : "bg-muted text-muted-foreground",
-                          )}
-                        >
+                        <span className={statusBadgeClass(d.status)}>
                           {d.status_display}
                         </span>
                       </td>
@@ -499,7 +621,7 @@ export default function DiscountsPage() {
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Button variant="ghost" size="sm" onClick={() => openModal(d)}>
-                            <Pencil className="h-3.5 w-3.5" />
+                            <Pencil className="mr-1.5 h-3.5 w-3.5" />
                             Editar
                           </Button>
                           <Button
@@ -508,7 +630,7 @@ export default function DiscountsPage() {
                             className="text-danger hover:text-danger"
                             onClick={() => setConfirmDelete(d)}
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <Trash2 className="mr-1.5 h-3.5 w-3.5" />
                             Eliminar
                           </Button>
                         </div>
@@ -517,6 +639,83 @@ export default function DiscountsPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="grid gap-3 md:hidden">
+              {filtered.map((d) => (
+                <div
+                  key={d.id}
+                  className="rounded-2xl border border-border bg-card p-4 shadow-sm"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary">
+                        <Percent className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{d.name}</p>
+                        <p className="text-xs text-muted-foreground">{d.code}</p>
+                        <span className={cn("mt-1", statusBadgeClass(d.status))}>
+                          {d.status_display}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        title="Editar"
+                        aria-label="Editar"
+                        onClick={() => openModal(d)}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        <span className="sr-only">Editar</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-danger hover:text-danger"
+                        title="Eliminar"
+                        aria-label="Eliminar"
+                        onClick={() => setConfirmDelete(d)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span className="sr-only">Eliminar</span>
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div className="text-muted-foreground">
+                      <span className="block text-[10px] uppercase tracking-wide">Tipo</span>
+                      <span className="font-medium text-foreground">{d.discount_type_display}</span>
+                    </div>
+                    <div className="text-muted-foreground">
+                      <span className="block text-[10px] uppercase tracking-wide">Valor</span>
+                      <span className="font-medium tabular-nums text-foreground">
+                        {d.discount_type === "PERCENTAGE"
+                          ? `${parseFloat(d.discount_value)}%`
+                          : formatCLP(parseFloat(d.discount_value))}
+                      </span>
+                    </div>
+                    <div className="col-span-2 flex items-center gap-1.5 text-muted-foreground">
+                      <Calendar className="h-3 w-3" />
+                      <span>
+                        {d.start_date && d.end_date ? (
+                          <>
+                            {new Date(d.start_date).toLocaleDateString()} →{" "}
+                            {new Date(d.end_date).toLocaleDateString()}
+                          </>
+                        ) : (
+                          "Sin vigencia definida"
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
 
             <p className="text-sm text-muted-foreground">
@@ -528,12 +727,12 @@ export default function DiscountsPage() {
 
       {modalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
           role="dialog"
           aria-modal="true"
         >
-          <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-xl border border-border bg-card shadow-lg">
-            <div className="flex shrink-0 items-center justify-between border-b border-border px-6 py-4">
+          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-2xl md:rounded-xl md:border">
+            <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 md:px-6 md:py-4">
               <h2 className="text-base font-semibold">
                 {editing ? "Editar descuento" : "Nuevo descuento"}
               </h2>
@@ -547,7 +746,7 @@ export default function DiscountsPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="relative flex min-h-0 flex-1 flex-col">
-              <div className="relative flex-1 overflow-y-auto p-6">
+              <div className="relative flex-1 overflow-y-auto p-4 md:p-6">
                 {loadingDiscount && (
                   <div className="absolute inset-0 z-10 grid place-items-center bg-card/80">
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -870,7 +1069,7 @@ export default function DiscountsPage() {
                 )}
               </div>
 
-              <div className="flex shrink-0 justify-end gap-2 border-t border-border px-6 py-4">
+              <div className="flex shrink-0 justify-end gap-2 border-t border-border px-4 py-3 md:px-6 md:py-4">
                 <Button type="button" variant="outline" onClick={closeModal} disabled={isSaving}>
                   Cancelar
                 </Button>
@@ -886,11 +1085,11 @@ export default function DiscountsPage() {
 
       {confirmDelete && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
           role="dialog"
           aria-modal="true"
         >
-          <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-lg">
+          <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">¿Eliminar descuento?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Se eliminará{" "}

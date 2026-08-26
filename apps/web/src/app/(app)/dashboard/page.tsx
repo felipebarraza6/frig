@@ -16,6 +16,7 @@ import {
   Target,
   FlaskConical,
   ArrowRight,
+  BarChart3,
   type LucideIcon,
 } from "lucide-react";
 
@@ -193,36 +194,42 @@ export default function DashboardPage() {
   const expensesTotal = counts?.expenses_by_supplier?.reduce((sum, e) => sum + e.total, 0) ?? 0;
 
   return (
-    <div className="flex min-h-full flex-col gap-6 p-4">
-      {/* Header */}
-      <header className="flex items-center justify-between gap-3">
-        <h1 className="hidden text-lg font-semibold md:block">Dashboard</h1>
-        <div className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-background px-3 py-2 shadow-sm md:w-auto">
-          <input
-            type="date"
-            value={customRange.start}
-            max={customRange.end}
-            onChange={(e) => {
-              const start = e.target.value;
-              setCustomRange((prev) => ({ start, end: prev.end < start ? start : prev.end }));
-              setRange("custom");
-            }}
-            className="min-w-0 flex-1 border-0 bg-transparent px-1 py-0.5 text-xs font-medium text-foreground outline-none md:flex-none"
-          />
-          <span className="text-xs text-muted-foreground">-</span>
-          <input
-            type="date"
-            value={customRange.end}
-            min={customRange.start}
-            onChange={(e) => {
-              const end = e.target.value;
-              setCustomRange((prev) => ({ start: prev.start > end ? end : prev.start, end }));
-              setRange("custom");
-            }}
-            className="min-w-0 flex-1 border-0 bg-transparent px-1 py-0.5 text-xs font-medium text-foreground outline-none md:flex-none"
-          />
+    <div className="flex min-h-full flex-col">
+      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
+        <div>
+          <h1 className="text-lg font-semibold">Dashboard</h1>
+          <p className="text-xs text-muted-foreground">Resumen general del negocio</p>
+        </div>
+        <div className="flex items-center justify-center sm:justify-end">
+          <div className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-background px-3 py-2 shadow-sm sm:w-auto">
+            <input
+              type="date"
+              value={customRange.start}
+              max={customRange.end}
+              onChange={(e) => {
+                const start = e.target.value;
+                setCustomRange((prev) => ({ start, end: prev.end < start ? start : prev.end }));
+                setRange("custom");
+              }}
+              className="min-w-0 flex-1 border-0 bg-transparent px-1 py-0.5 text-xs font-medium text-foreground outline-none sm:flex-none"
+            />
+            <span className="text-xs text-muted-foreground">-</span>
+            <input
+              type="date"
+              value={customRange.end}
+              min={customRange.start}
+              onChange={(e) => {
+                const end = e.target.value;
+                setCustomRange((prev) => ({ start: prev.start > end ? end : prev.start, end }));
+                setRange("custom");
+              }}
+              className="min-w-0 flex-1 border-0 bg-transparent px-1 py-0.5 text-xs font-medium text-foreground outline-none sm:flex-none"
+            />
+          </div>
         </div>
       </header>
+
+      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
 
       {/* Stats principales */}
       <motion.section variants={container} initial="hidden" animate="show" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -487,7 +494,11 @@ export default function DashboardPage() {
                         ))}
                       </div>
                     ) : (
-                      <p className="text-sm text-muted-foreground">Sin productos con stock bajo.</p>
+                      <div className="py-6 text-center">
+                        <Package className="mx-auto h-8 w-8 text-muted-foreground" />
+                        <p className="mt-2 text-sm font-medium">Sin productos con stock bajo</p>
+                        <p className="text-xs text-muted-foreground">Todos los productos tienen stock suficiente.</p>
+                      </div>
                     )}
                   </div>
                 ),
@@ -648,9 +659,11 @@ export default function DashboardPage() {
                           })()}
                         </div>
                       ) : (
-                        <p className="text-sm text-muted-foreground">
-                          Sin consumo de insumos en el período.
-                        </p>
+                        <div className="py-6 text-center">
+                          <FlaskConical className="mx-auto h-8 w-8 text-muted-foreground" />
+                          <p className="mt-2 text-sm font-medium">Sin consumo de insumos</p>
+                          <p className="text-xs text-muted-foreground">No hay insumos consumidos en el período seleccionado.</p>
+                        </div>
                       )}
                     </div>
                   ),
@@ -725,7 +738,11 @@ export default function DashboardPage() {
                         })()}
                       </div>
                     ) : (
-                      <p className="text-sm text-muted-foreground">Sin gastos registrados.</p>
+                      <div className="py-6 text-center">
+                        <ArrowUpRight className="mx-auto h-8 w-8 text-muted-foreground" />
+                        <p className="mt-2 text-sm font-medium">Sin gastos registrados</p>
+                        <p className="text-xs text-muted-foreground">Aún no hay gastos fijos registrados para la sucursal.</p>
+                      </div>
                     )}
                   </div>
                 ),
@@ -758,8 +775,12 @@ export default function DashboardPage() {
           {summary?.time_series && summary.time_series.length > 0 ? (
             <SalesChart data={summary.time_series} startDate={dates.start} endDate={dates.end} />
           ) : (
-            <div className="grid h-52 place-items-center rounded-xl border border-dashed border-border bg-muted/30">
-              <p className="text-sm text-muted-foreground">Sin datos de ventas en el período.</p>
+            <div className="h-52">
+              <EmptyState
+                icon={BarChart3}
+                title="Sin datos de ventas"
+                subtitle="No hay ventas registradas en el período seleccionado."
+              />
             </div>
           )}
         </div>
@@ -848,7 +869,11 @@ export default function DashboardPage() {
                 );
               })()
             ) : (
-              <p className="text-sm text-muted-foreground">Sin consumo de insumos en el período.</p>
+              <div className="py-6 text-center">
+                <FlaskConical className="mx-auto h-8 w-8 text-muted-foreground" />
+                <p className="mt-2 text-sm font-medium">Sin consumo de insumos</p>
+                <p className="text-xs text-muted-foreground">No hay insumos consumidos en el período seleccionado.</p>
+              </div>
             )}
           </div>
         </motion.section>
@@ -869,41 +894,9 @@ export default function DashboardPage() {
           {drawer.metric.children}
         </MetricDrawer>
       )}
-
-      {/* Stock bajo */}
-      {lowStockProducts.length > 0 && (
-        <motion.section
-          variants={container}
-          initial="hidden"
-          animate="show"
-          className="grid gap-4"
-        >
-          <div>
-            <div className="mb-3">
-              <h2 className="flex items-center gap-2 text-sm font-semibold">
-                <AlertTriangle className="h-4 w-4 text-amber-500" />
-                Stock bajo
-              </h2>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {lowStockProducts.map((p) => (
-                <Link
-                  key={p.id}
-                  href="/inventory"
-                  className="flex items-center gap-2 rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1.5 transition-colors hover:bg-amber-500/15"
-                >
-                  <span className="max-w-[160px] truncate text-sm font-medium">{p.name}</span>
-                  <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-700">
-                    {p.quantity} / {p.minimum_stock}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </motion.section>
-      )}
     </div>
-  );
+  </div>
+);
 }
 
 function StatCard({
@@ -1352,9 +1345,10 @@ function BestSellingProducts({
 }) {
   if (!items || items.length === 0) {
     return (
-      <div className="rounded-xl border border-border bg-background p-4">
-        <h3 className="mb-2 text-xs font-semibold text-muted-foreground">{title}</h3>
-        <p className="text-sm text-muted-foreground">{emptyMessage}</p>
+      <div className="rounded-xl border border-dashed border-border bg-muted/30 p-6 text-center">
+        <Package className="mx-auto h-8 w-8 text-muted-foreground" />
+        <h3 className="mt-2 text-xs font-semibold text-muted-foreground">{title}</h3>
+        <p className="mt-1 text-xs text-muted-foreground">{emptyMessage}</p>
       </div>
     );
   }
@@ -1500,20 +1494,41 @@ function RadarChart({ metrics }: { metrics: { label: string; value: number }[] }
   );
 }
 
+function EmptyState({
+  icon: Icon,
+  title,
+  subtitle,
+}: {
+  icon: LucideIcon;
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <div className="grid h-full place-items-center rounded-xl border border-dashed border-border bg-muted/30 p-6 text-center">
+      <div>
+        <Icon className="mx-auto h-10 w-10 text-muted-foreground" />
+        <p className="mt-3 text-sm font-medium">{title}</p>
+        <p className="text-xs text-muted-foreground">{subtitle}</p>
+      </div>
+    </div>
+  );
+}
+
 function SkeletonPulse({ className }: { className?: string }) {
   return <div className={cn("animate-pulse rounded-lg bg-muted", className)} />;
 }
 
 function DashboardSkeleton() {
   return (
-    <div className="flex min-h-full flex-col gap-4 p-4">
-      {/* Header */}
-      <header className="flex justify-end">
-        <div className="flex flex-wrap items-center gap-2">
-          <SkeletonPulse className="h-8 w-48" />
-          <SkeletonPulse className="h-8 w-44" />
+    <div className="flex min-h-full flex-col">
+      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
+        <div className="space-y-2">
+          <SkeletonPulse className="h-5 w-32" />
+          <SkeletonPulse className="h-3 w-48" />
         </div>
+        <SkeletonPulse className="h-10 w-full sm:w-64" />
       </header>
+      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
 
       {/* Stats principales */}
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -1560,7 +1575,7 @@ function DashboardSkeleton() {
           </div>
         </div>
       </section>
-
+      </div>
     </div>
   );
 }

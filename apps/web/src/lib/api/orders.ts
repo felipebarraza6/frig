@@ -14,7 +14,7 @@ type PaginatedOrder = YggdraSchemas["PaginatedOrderList"];
 
 export interface OrdersFilter {
   search?: string;
-  order_type?: string;
+  order_type?: string | string[];
   status?: string | string[];
   payment_status?: string | string[];
   delivery_status?: string | string[];
@@ -100,7 +100,10 @@ export interface PaymentInstallment {
 function buildOrdersQueryString(filter: OrdersFilter): string {
   const qs = new URLSearchParams();
   if (filter.search) qs.set("search", filter.search);
-  if (filter.order_type) qs.set("order_type", filter.order_type);
+  if (filter.order_type) {
+    const values = Array.isArray(filter.order_type) ? filter.order_type : [filter.order_type];
+    values.forEach((v) => qs.append("order_type", v));
+  }
   if (filter.status) {
     const values = Array.isArray(filter.status) ? filter.status : [filter.status];
     values.forEach((v) => qs.append("status", v));

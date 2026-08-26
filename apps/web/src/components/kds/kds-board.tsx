@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ChefHat,
+  ClipboardList,
   Clock,
   LayoutDashboard,
   Loader2,
@@ -236,9 +237,13 @@ export function KdsBoard({
               </div>
               <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
                 {columnTickets.length === 0 ? (
-                  <p className="py-8 text-center text-sm text-muted-foreground">
-                    Sin comandas
-                  </p>
+                  <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
+                    <ClipboardList className="h-8 w-8 text-muted-foreground/60" />
+                    <p className="text-sm font-medium text-muted-foreground">Sin comandas</p>
+                    <p className="text-xs text-muted-foreground/80">
+                      Esperando nuevas órdenes
+                    </p>
+                  </div>
                 ) : (
                   columnTickets.map((ticket) => (
                     <TicketCard
@@ -470,8 +475,8 @@ export function StationsModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-xl border border-border bg-card shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center sm:p-4">
+      <div className="flex h-[85vh] w-full flex-col rounded-t-2xl border border-border bg-card shadow-xl sm:h-auto sm:max-h-[90vh] sm:max-w-lg sm:rounded-xl">
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <h2 className="text-base font-semibold">Estaciones de cocina</h2>
           <Button variant="ghost" size="icon" onClick={onClose}>

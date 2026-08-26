@@ -36,7 +36,7 @@ const MODULE_LABELS: Partial<Record<ModuleName, string>> = {
   tables: "Mesas y mapa del local",
   production: "Cocina / KDS",
   inventory: "Bodegas y control de stock",
-  nutrition: "Nutrición, recetas e ingredientes",
+  nutrition: "Etiquetado nutricional",
   public_catalog: "Menús digitales con QR",
 };
 
@@ -58,7 +58,7 @@ const MODULE_DESCRIPTIONS: Partial<Record<ModuleName, string>> = {
   tables: "Organiza el salón: mapa de mesas, asignación de garzones y cuentas por mesa.",
   production: "Pantallas de cocina (KDS), estaciones y seguimiento de preparaciones.",
   inventory: "Controla bodegas, stock disponible, movimientos y alertas de inventario.",
-  nutrition: "Etiquetado nutricional, recetas e ingredientes para tus productos.",
+  nutrition: "Muestra información nutricional en productos. Recetas e ingredientes siempre están disponibles.",
   public_catalog: "Menús digitales con QR para que tus clientes vean y compartan.",
 };
 
@@ -186,17 +186,19 @@ export default function BranchModulesPage() {
     <div className="flex min-h-full flex-col">
       {/* Header */}
       <header className="border-b border-border bg-card px-6 py-5">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-            <Sparkles className="h-5 w-5 text-primary" />
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+              <Sparkles className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold tracking-tight">Módulos</h1>
+              <p className="text-sm text-muted-foreground">
+                Activa y desactiva las funciones de tu sucursal
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-lg font-bold tracking-tight">Módulos</h1>
-            <p className="text-sm text-muted-foreground">
-              Activa y desactiva las funciones de tu sucursal
-            </p>
-          </div>
-          <div className="ml-auto flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5 text-sm">
+          <div className="flex items-center gap-2 self-start rounded-full bg-primary/10 px-3 py-1.5 text-sm sm:self-auto">
             <span className="inline-block h-2 w-2 rounded-full bg-primary" />
             <span className="font-semibold text-primary">{stats.active}</span>
             <span className="text-primary/70">de {stats.total} activos</span>
@@ -224,9 +226,14 @@ export default function BranchModulesPage() {
         )}
 
         {(error || (catalog?.modules?.length ?? 0) === 0) && !isLoading && !catalogLoading && (
-          <div className="flex flex-col items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
-            <AlertTriangle className="h-8 w-8 text-destructive" />
-            <p>No se pudieron cargar los módulos.</p>
+          <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+              <AlertTriangle className="h-6 w-6 text-destructive" />
+            </div>
+            <p className="text-sm font-medium">No se pudieron cargar los módulos</p>
+            <p className="max-w-xs text-xs text-muted-foreground">
+              Revisa tu conexión e intenta recargar la página.
+            </p>
           </div>
         )}
 

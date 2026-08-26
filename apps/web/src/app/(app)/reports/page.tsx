@@ -224,9 +224,9 @@ export default function ReportsPage() {
         }
       `}</style>
       {/* Header */}
-      <header className="print-hidden flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <header className="print-hidden flex flex-col gap-3">
         <h1 className="text-xl font-bold tracking-tight">Informes</h1>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           <div className="inline-flex rounded-xl border border-border bg-card p-1 shadow-sm">
             {(["today", "yesterday", "week", "month"] as DateRange[]).map((r) => (
               <button
@@ -309,7 +309,7 @@ export default function ReportsPage() {
         variants={container}
         initial="hidden"
         animate="show"
-        className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5"
+        className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6"
       >
         <StatCard
           label="Ventas del período"
@@ -377,8 +377,12 @@ export default function ReportsPage() {
               endDate={dates.end}
             />
           ) : (
-            <div className="grid h-44 place-items-center rounded-xl border border-dashed border-border bg-muted/30">
-              <p className="text-sm text-muted-foreground">Sin datos de ventas en el período.</p>
+            <div className="grid h-44 place-items-center rounded-xl border border-dashed border-border bg-muted/30 text-center">
+              <div>
+                <BarChart3 className="mx-auto h-8 w-8 text-muted-foreground" />
+                <p className="mt-2 text-sm font-medium">Sin datos de ventas</p>
+                <p className="text-xs text-muted-foreground">No hay ventas en el período seleccionado.</p>
+              </div>
             </div>
           )}
         </div>
@@ -428,7 +432,13 @@ export default function ReportsPage() {
               })}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">Sin ventas en el período.</p>
+            <div className="grid place-items-center rounded-xl border border-dashed border-border bg-muted/30 py-10 text-center">
+              <div>
+                <ShoppingBag className="mx-auto h-8 w-8 text-muted-foreground" />
+                <p className="mt-2 text-sm font-medium">Sin ventas</p>
+                <p className="text-xs text-muted-foreground">No hay productos vendidos en el período.</p>
+              </div>
+            </div>
           )}
         </div>
 
@@ -469,7 +479,13 @@ export default function ReportsPage() {
               })()}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">Sin pagos en el período.</p>
+            <div className="grid place-items-center rounded-xl border border-dashed border-border bg-muted/30 py-10 text-center">
+              <div>
+                <CreditCard className="mx-auto h-8 w-8 text-muted-foreground" />
+                <p className="mt-2 text-sm font-medium">Sin pagos</p>
+                <p className="text-xs text-muted-foreground">No se registraron pagos en el período.</p>
+              </div>
+            </div>
           )}
         </div>
       </motion.section>
@@ -490,35 +506,64 @@ export default function ReportsPage() {
             <span className="text-xs text-muted-foreground">Top 10</span>
           </div>
           {topIngredients.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                    <th className="pb-2 font-medium">Insumo</th>
-                    <th className="pb-2 font-medium">Cantidad</th>
-                    <th className="pb-2 font-medium">Unidad</th>
-                    <th className="pb-2 text-right font-medium">Costo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {topIngredients.map((item) => (
-                    <tr
-                      key={item.ingredient_id}
-                      className="border-b border-border/50 last:border-0"
-                    >
-                      <td className="py-2 font-medium">{item.ingredient_name}</td>
-                      <td className="py-2 tabular-nums">{item.total_quantity}</td>
-                      <td className="py-2 text-muted-foreground">{item.unit}</td>
-                      <td className="py-2 text-right tabular-nums font-semibold">
-                        {formatCLP(item.cost)}
-                      </td>
+            <>
+              {/* Vista móvil: cards */}
+              <div className="space-y-2 sm:hidden">
+                {topIngredients.map((item) => (
+                  <div
+                    key={item.ingredient_id}
+                    className="flex items-center justify-between rounded-xl border border-border bg-background p-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{item.ingredient_name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {item.total_quantity} {item.unit}
+                      </p>
+                    </div>
+                    <p className="shrink-0 text-sm font-semibold tabular-nums">
+                      {formatCLP(item.cost)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Vista desktop: tabla */}
+              <div className="hidden overflow-x-auto sm:block">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                      <th className="pb-2 font-medium">Insumo</th>
+                      <th className="pb-2 font-medium">Cantidad</th>
+                      <th className="pb-2 font-medium">Unidad</th>
+                      <th className="pb-2 text-right font-medium">Costo</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {topIngredients.map((item) => (
+                      <tr
+                        key={item.ingredient_id}
+                        className="border-b border-border/50 last:border-0"
+                      >
+                        <td className="py-2 font-medium">{item.ingredient_name}</td>
+                        <td className="py-2 tabular-nums">{item.total_quantity}</td>
+                        <td className="py-2 text-muted-foreground">{item.unit}</td>
+                        <td className="py-2 text-right tabular-nums font-semibold">
+                          {formatCLP(item.cost)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           ) : (
-            <p className="text-sm text-muted-foreground">Sin consumo de insumos en el período.</p>
+            <div className="grid place-items-center rounded-xl border border-dashed border-border bg-muted/30 py-10 text-center">
+              <div>
+                <FlaskConical className="mx-auto h-8 w-8 text-muted-foreground" />
+                <p className="mt-2 text-sm font-medium">Sin consumo de insumos</p>
+                <p className="text-xs text-muted-foreground">No hay consumo registrado en el período.</p>
+              </div>
+            </div>
           )}
         </div>
       </motion.section>
@@ -799,8 +844,8 @@ function SkeletonPulse({ className }: { className?: string }) {
 function ReportsSkeleton() {
   return (
     <>
-      <section className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-        {Array.from({ length: 5 }).map((_, i) => (
+      <section className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        {Array.from({ length: 6 }).map((_, i) => (
           <div key={i} className="rounded-xl border border-border bg-card p-2.5 shadow-sm">
             <div className="mb-1.5 flex items-center gap-2">
               <SkeletonPulse className="h-7 w-7 rounded-lg" />

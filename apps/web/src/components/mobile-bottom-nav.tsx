@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -19,14 +20,15 @@ import {
   useWaiterAllowedPaths,
   useIsModuleEnabledFromConfig,
 } from "@/lib/store/session";
+import { useFrigMenu } from "@/lib/hooks/useFrigMenu";
+import { useNavFavorites } from "@/lib/store/nav-favorites";
 
 interface NavItem {
-  href?: string;
+  href: string;
   label: string;
   icon: LucideIcon;
-  badge?: number;
+  badge?: string | number;
   description?: string;
-  onClick?: () => void;
 }
 
 interface MobileBottomNavProps {
@@ -37,6 +39,8 @@ function isAllowed(pathname: string, allowedPaths: string[]): boolean {
   return allowedPaths.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
+const BOTTOM_NAV_SLOTS = 4;
+
 export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
   const pathname = usePathname();
   const isCashier = useIsCashier();
@@ -44,24 +48,47 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
   const cashierAllowedPaths = useCashierAllowedPaths();
   const waiterAllowedPaths = useWaiterAllowedPaths();
   const posEnabled = useIsModuleEnabledFromConfig("pos");
+  const menuGroups = useFrigMenu();
+  const { favorites } = useNavFavorites();
 
-  const routeItems: NavItem[] = [
-    { href: "/dashboard", label: "Inicio", icon: LayoutDashboard },
-    { href: "/sales", label: "Ventas", icon: ShoppingBag, description: "Ventas y cuentas abiertas" },
-    ...(posEnabled ? [{ href: "/pos", label: "POS", icon: Receipt }] : []),
-    ...(posEnabled ? [{ href: "/cash-register", label: "Caja", icon: Banknote }] : []),
-  ];
+  const allMenuItems = useMemo(
+    () => menuGroups.flatMap((g) => g.items),
+    [menuGroups],
+  );
 
-  const visibleRoutes = routeItems.filter((item) => {
-    if (!item.href) return true;
-    if (isCashier) return isAllowed(item.href, cashierAllowedPaths);
-    if (isWaiter) return isAllowed(item.href, waiterAllowedPaths);
-    return true;
-  });
+  const visibleMenuItems = useMemo(() => {
+    return allMenuItems.filter((item) => {
+      if (isCashier) return isAllowed(item.href, cashierAllowedPaths);
+      if (isWaiter) return isAllowed(item.href, waiterAllowedPaths);
+      return true;
+    });
+  }, [allMenuItems, isCashier, isWaiter, cashierAllowedPaths, waiterAllowedPaths]);
 
-  const items: NavItem[] = [
-    ...visibleRoutes.slice(0, 4),
-    { label: "Menú", icon: Menu, onClick: onMenuClick },
+  const navItems = useMemo<NavItem[]>(() => {
+    // Favoritos que existan en el menú visible y estén permitidos.
+    const starred = favorites
+      .map((href) => visibleMenuItems.find((i) => i.href === href))
+      .filter((item): item is NonNullable<typeof item> => Boolean(item))
+      .map((item) => ({ ...item, badge: item.badge })) as NavItem[];
+
+    // Defaults que siempre se muestran si hay espacio.
+    const defaults: NavItem[] = [
+      { href: "/dashboard", label: "Inicio", icon: LayoutDashboard },
+      { href: "/sales", label: "Ventas", icon: ShoppingBag, description: "Ventas y cuentas abiertas" },
+      ...(posEnabled ? [{ href: "/pos", label: "POS", icon: Receipt }] : []),
+      ...(posEnabled ? [{ href: "/cash-register", label: "Caja", icon: Banknote }] : []),
+    ];
+
+    // Evita duplicados: los defaults solo se agregan si no están ya en favoritos.
+    const starredHrefs = new Set(starred.map((i) => i.href));
+    const availableDefaults = defaults.filter((i) => !starredHrefs.has(i.href));
+
+    return [...starred, ...availableDefaults].slice(0, BOTTOM_NAV_SLOTS);
+  }, [visibleMenuItems, favorites, posEnabled]);
+
+  const items: (NavItem & { onClick?: () => void })[] = [
+    ...navItems,
+    { href: "", label: "Menú", icon: Menu, onClick: onMenuClick },
   ];
 
   return (
@@ -77,7 +104,7 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
               className={cn(
                 "relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 transition-colors",
                 isActive ? "text-primary" : "text-muted-foreground",
-                isMenu && "text-foreground"
+                isMenu && "text-foreground",
               )}
             >
               {isActive && (
@@ -92,7 +119,7 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
                   className="relative z-10 h-[22px] w-[22px]"
                   strokeWidth={isActive ? 2.5 : 1.75}
                 />
-                {item.badge !== undefined && item.badge > 0 && (
+                {typeof item.badge === "number" && item.badge > 0 && (
                   <motion.span
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
@@ -105,7 +132,7 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
               <span
                 className={cn(
                   "relative z-10 max-w-full truncate px-0.5 text-[11px] font-medium leading-none",
-                  isActive ? "text-primary" : "text-muted-foreground"
+                  isActive ? "text-primary" : "text-muted-foreground",
                 )}
               >
                 {item.label}

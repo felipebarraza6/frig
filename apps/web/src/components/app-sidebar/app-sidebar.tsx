@@ -278,7 +278,7 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
           {favorites.length > 0 && effectivelyExpanded && (
             <nav className="flex flex-col gap-1">
               <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Favoritos
+                Accesos directos
               </p>
               {favorites
                 .map((href) => {

@@ -20,6 +20,7 @@ import {
   Layers,
   Coins,
   ArrowRight,
+  SlidersHorizontal,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -93,6 +94,7 @@ export default function WarehousesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Warehouse | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Warehouse | null>(null);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [form, setForm] = useState({
     name: "",
     warehouse_type: "GENERAL" as string,
@@ -207,6 +209,11 @@ export default function WarehousesPage() {
     });
   }
 
+  function updateFilter<T>(setter: (v: T) => void, value: T) {
+    setter(value);
+    setPageUrl({});
+  }
+
   return (
     <div className="flex min-h-full flex-col">
       <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
@@ -216,12 +223,15 @@ export default function WarehousesPage() {
             Gestiona las bodegas de la sucursal
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
             onClick={() => handleExport("excel")}
             disabled={isExporting}
+            className="h-9 w-9 px-0 sm:w-auto sm:px-3"
+            title="Exportar Excel"
+            aria-label="Exportar Excel"
           >
             <FileSpreadsheet className="h-4 w-4" />
             <span className="hidden sm:inline">Excel</span>
@@ -231,11 +241,19 @@ export default function WarehousesPage() {
             size="sm"
             onClick={() => handleExport("pdf")}
             disabled={isExporting}
+            className="h-9 w-9 px-0 sm:w-auto sm:px-3"
+            title="Exportar PDF"
+            aria-label="Exportar PDF"
           >
             <FileText className="h-4 w-4" />
             <span className="hidden sm:inline">PDF</span>
           </Button>
-          <Button onClick={() => openModal()}>
+          <Button
+            onClick={() => openModal()}
+            className="h-9 w-9 px-0 sm:w-auto sm:px-3"
+            title="Nueva bodega"
+            aria-label="Nueva bodega"
+          >
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Nueva bodega</span>
           </Button>
@@ -243,35 +261,73 @@ export default function WarehousesPage() {
       </header>
 
       <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="relative w-full max-w-xs">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPageUrl({});
-              }}
-              placeholder="Buscar por nombre…"
-              className="pl-9"
-            />
+        <div className="flex flex-col gap-3">
+          {/* Desktop filters */}
+          <div className="hidden flex-wrap items-end gap-3 md:flex">
+            <div className="relative w-full max-w-xs">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => updateFilter(setSearch, e.target.value)}
+                placeholder="Buscar por nombre…"
+                className="pl-9"
+                aria-label="Buscar bodega"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="filter-type" className="text-xs text-muted-foreground">Tipo</label>
+              <Select
+                id="filter-type"
+                value={type}
+                onChange={(e) => updateFilter(setType, e.target.value)}
+              >
+                <option value="">Todos</option>
+                {WAREHOUSE_TYPES_UI.map((t) => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </Select>
+            </div>
           </div>
-          <div className="flex w-full flex-col gap-1 sm:w-auto">
-            <label htmlFor="filter-type" className="text-xs text-muted-foreground">Tipo</label>
-            <Select
-              id="filter-type"
-              className="w-full sm:w-auto"
-              value={type}
-              onChange={(e) => {
-                setType(e.target.value);
-                setPageUrl({});
-              }}
-            >
-              <option value="">Todos</option>
-              {WAREHOUSE_TYPES_UI.map((t) => (
-                <option key={t.value} value={t.value}>{t.label}</option>
-              ))}
-            </Select>
+
+          {/* Mobile filters */}
+          <div className="flex flex-col gap-3 md:hidden">
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => updateFilter(setSearch, e.target.value)}
+                  placeholder="Buscar por nombre…"
+                  className="pl-9"
+                  aria-label="Buscar bodega"
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-10 px-3"
+                onClick={() => setShowMobileFilters((v) => !v)}
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+                <span className="ml-2">Filtros</span>
+              </Button>
+            </div>
+
+            <div className={`flex flex-col gap-3 ${showMobileFilters ? "" : "hidden"}`}>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="filter-type-mobile" className="text-xs text-muted-foreground">Tipo</label>
+                <Select
+                  id="filter-type-mobile"
+                  value={type}
+                  onChange={(e) => updateFilter(setType, e.target.value)}
+                >
+                  <option value="">Todos</option>
+                  {WAREHOUSE_TYPES_UI.map((t) => (
+                    <option key={t.value} value={t.value}>{t.label}</option>
+                  ))}
+                </Select>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -280,6 +336,20 @@ export default function WarehousesPage() {
         ) : isLoading ? (
           <div className="grid flex-1 place-items-center">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : warehouses.length === 0 ? (
+          <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">
+            <div>
+              <Warehouse className="mx-auto h-10 w-10 text-muted-foreground" />
+              <p className="mt-3 text-sm font-medium">No se encontraron bodegas</p>
+              <p className="text-xs text-muted-foreground">
+                Prueba con otros filtros o crea una nueva bodega.
+              </p>
+              <Button className="mt-4" size="sm" onClick={() => openModal()}>
+                <Plus className="mr-1 h-3.5 w-3.5" />
+                Nueva bodega
+              </Button>
+            </div>
           </div>
         ) : (
           <>
@@ -352,8 +422,127 @@ export default function WarehousesPage() {
               </div>
             )}
 
-            {/* Cards de bodegas */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {/* Desktop table */}
+            <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
+              <table className="w-full min-w-[900px] text-sm">
+                <thead>
+                  <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+                    <th className="px-4 py-3">Bodega</th>
+                    <th className="px-4 py-3">Tipo</th>
+                    <th className="px-4 py-3 text-right">Productos</th>
+                    <th className="px-4 py-3 text-right">Unidades</th>
+                    <th className="px-4 py-3 text-right">Costo</th>
+                    <th className="px-4 py-3 text-right">Venta</th>
+                    <th className="px-4 py-3 text-center">Alertas</th>
+                    <th className="px-4 py-3 text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {warehouses.map((w) => {
+                    const Icon = typeIcon(w.warehouse_type);
+                    const accent = typeAccent(w.warehouse_type);
+                    const totalProducts = numValue(w.total_products);
+                    const totalQuantity = numValue(w.total_quantity);
+                    const totalCost = numValue(w.total_value);
+                    const totalSale = numValue(w.total_sale_value);
+                    const lowStock = numValue(w.low_stock_products);
+                    const outOfStock = numValue(w.out_of_stock_products);
+                    const hasAlerts = lowStock > 0 || outOfStock > 0;
+
+                    return (
+                      <tr key={w.id} className="border-b border-border last:border-0">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={cn(
+                                "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border",
+                                accent,
+                              )}
+                            >
+                              <Icon className="h-5 w-5" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate font-medium">{w.name}</p>
+                              {w.is_default && (
+                                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                                  Principal
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">{typeLabel(w.warehouse_type)}</td>
+                        <td className="px-4 py-3 text-right tabular-nums">{totalProducts}</td>
+                        <td className="px-4 py-3 text-right tabular-nums">{totalQuantity}</td>
+                        <td className="px-4 py-3 text-right tabular-nums font-medium text-emerald-700">
+                          {formatCLP(totalCost)}
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums font-medium text-primary">
+                          {formatCLP(totalSale)}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {hasAlerts ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700">
+                              <AlertTriangle className="h-3 w-3" />
+                              {lowStock > 0 && `${lowStock} bajo`}
+                              {lowStock > 0 && outOfStock > 0 && " · "}
+                              {outOfStock > 0 && `${outOfStock} sin`}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-danger hover:text-danger"
+                              title="Eliminar"
+                              aria-label="Eliminar"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setConfirmDelete(w);
+                              }}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              <span className="sr-only">Eliminar</span>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              title="Editar"
+                              aria-label="Editar"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openModal(w);
+                              }}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                              <span className="sr-only">Editar</span>
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`/warehouses/${w.id}`);
+                              }}
+                            >
+                              <span>Entrar</span>
+                              <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="grid gap-4 md:hidden">
               {warehouses.map((w) => {
                 const Icon = typeIcon(w.warehouse_type);
                 const accent = typeAccent(w.warehouse_type);
@@ -370,7 +559,7 @@ export default function WarehousesPage() {
                     key={w.id}
                     onClick={() => router.push(`/warehouses/${w.id}`)}
                     className={cn(
-                      "group cursor-pointer rounded-2xl border border-border bg-card p-4 shadow-sm transition sm:p-5",
+                      "group cursor-pointer rounded-2xl border border-border bg-card p-4 shadow-sm transition",
                       "hover:border-primary hover:shadow-md",
                     )}
                   >
@@ -430,41 +619,44 @@ export default function WarehousesPage() {
                       </div>
                     )}
 
-                    <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                    <div className="mt-4 flex items-center justify-end gap-1">
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="justify-start gap-2 text-danger hover:text-danger sm:justify-center"
+                        className="h-8 w-8 p-0 text-danger hover:text-danger"
+                        title="Eliminar"
+                        aria-label="Eliminar"
                         onClick={(e) => {
                           e.stopPropagation();
                           setConfirmDelete(w);
                         }}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
-                        <span className="sm:hidden">Eliminar</span>
+                        <span className="sr-only">Eliminar</span>
                       </Button>
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
-                        className="justify-start gap-2 sm:justify-center"
+                        className="h-8 w-8 p-0"
+                        title="Editar"
+                        aria-label="Editar"
                         onClick={(e) => {
                           e.stopPropagation();
                           openModal(w);
                         }}
                       >
                         <Pencil className="h-3.5 w-3.5" />
-                        <span className="sm:hidden">Editar</span>
+                        <span className="sr-only">Editar</span>
                       </Button>
                       <Button
                         size="sm"
-                        className="justify-between gap-2 sm:justify-center"
                         onClick={(e) => {
                           e.stopPropagation();
                           router.push(`/warehouses/${w.id}`);
                         }}
                       >
-                        <span>Entrar</span>
-                        <ArrowRight className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">Entrar</span>
+                        <ArrowRight className="h-3.5 w-3.5 sm:ml-1.5" />
                       </Button>
                     </div>
                   </div>
@@ -483,7 +675,8 @@ export default function WarehousesPage() {
                   onClick={() => setPageUrl({ previous: page?.previous })}
                   disabled={!page?.previous}
                 >
-                  Anterior
+                  <span className="sm:hidden">Ant.</span>
+                  <span className="hidden sm:inline">Anterior</span>
                 </Button>
                 <Button
                   variant="outline"
@@ -491,7 +684,8 @@ export default function WarehousesPage() {
                   onClick={() => setPageUrl({ next: page?.next })}
                   disabled={!page?.next}
                 >
-                  Siguiente
+                  <span className="sm:hidden">Sig.</span>
+                  <span className="hidden sm:inline">Siguiente</span>
                 </Button>
               </div>
             </div>
@@ -500,9 +694,13 @@ export default function WarehousesPage() {
       </div>
 
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
-          <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-lg">
-            <div className="mb-4 flex items-center justify-between">
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
+            <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-base font-semibold">
                 {editing ? "Editar bodega" : "Nueva bodega"}
               </h2>
@@ -515,73 +713,78 @@ export default function WarehousesPage() {
                 e.preventDefault();
                 save.mutate();
               }}
-              className="flex flex-col gap-4"
+              className="flex flex-1 flex-col overflow-hidden"
+              id="warehouse-form"
             >
-              <div className="flex flex-col gap-2">
-                <label htmlFor="warehouse-name" className="text-sm font-medium">Nombre</label>
-                <Input
-                  id="warehouse-name"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="warehouse-type" className="text-sm font-medium">Tipo</label>
-                  <Select
-                    id="warehouse-type"
-                    value={form.warehouse_type}
-                    onChange={(e) => setForm({ ...form, warehouse_type: e.target.value })}
-                  >
-                    {WAREHOUSE_TYPES_UI.map((t) => (
-                      <option key={t.value} value={t.value}>{t.label}</option>
-                    ))}
-                  </Select>
+              <div className="flex-1 overflow-y-auto p-4">
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="warehouse-name" className="text-sm font-medium">Nombre</label>
+                    <Input
+                      id="warehouse-name"
+                      value={form.name}
+                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-2">
+                      <label htmlFor="warehouse-type" className="text-sm font-medium">Tipo</label>
+                      <Select
+                        id="warehouse-type"
+                        value={form.warehouse_type}
+                        onChange={(e) => setForm({ ...form, warehouse_type: e.target.value })}
+                      >
+                        {WAREHOUSE_TYPES_UI.map((t) => (
+                          <option key={t.value} value={t.value}>{t.label}</option>
+                        ))}
+                      </Select>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label htmlFor="warehouse-capacity" className="text-sm font-medium">Capacidad</label>
+                      <Input
+                        id="warehouse-capacity"
+                        value={form.capacity}
+                        onChange={(e) => setForm({ ...form, capacity: e.target.value })}
+                        placeholder="Opcional"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="warehouse-location" className="text-sm font-medium">Ubicación</label>
+                    <Input
+                      id="warehouse-location"
+                      value={form.location}
+                      onChange={(e) => setForm({ ...form, location: e.target.value })}
+                      placeholder="Opcional"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="warehouse-description" className="text-sm font-medium">Descripción</label>
+                    <Input
+                      id="warehouse-description"
+                      value={form.description}
+                      onChange={(e) => setForm({ ...form, description: e.target.value })}
+                      placeholder="Opcional"
+                    />
+                  </div>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={form.is_default}
+                      onChange={(e) => setForm({ ...form, is_default: e.target.checked })}
+                      className="h-4 w-4 accent-primary"
+                    />
+                    Bodega principal
+                  </label>
+                  {save.isError && (
+                    <p className="text-sm text-danger">
+                      {save.error instanceof Error ? save.error.message : "Error al guardar"}
+                    </p>
+                  )}
                 </div>
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="warehouse-capacity" className="text-sm font-medium">Capacidad</label>
-                  <Input
-                    id="warehouse-capacity"
-                    value={form.capacity}
-                    onChange={(e) => setForm({ ...form, capacity: e.target.value })}
-                    placeholder="Opcional"
-                  />
-                </div>
               </div>
-              <div className="flex flex-col gap-2">
-                <label htmlFor="warehouse-location" className="text-sm font-medium">Ubicación</label>
-                <Input
-                  id="warehouse-location"
-                  value={form.location}
-                  onChange={(e) => setForm({ ...form, location: e.target.value })}
-                  placeholder="Opcional"
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <label htmlFor="warehouse-description" className="text-sm font-medium">Descripción</label>
-                <Input
-                  id="warehouse-description"
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  placeholder="Opcional"
-                />
-              </div>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={form.is_default}
-                  onChange={(e) => setForm({ ...form, is_default: e.target.checked })}
-                  className="h-4 w-4 accent-primary"
-                />
-                Bodega principal
-              </label>
-              {save.isError && (
-                <p className="text-sm text-danger">
-                  {save.error instanceof Error ? save.error.message : "Error al guardar"}
-                </p>
-              )}
-              <div className="flex justify-end gap-2">
+              <div className="flex shrink-0 justify-end gap-2 border-t border-border px-4 py-3">
                 <Button type="button" variant="outline" onClick={closeModal} disabled={save.isPending}>
                   Cancelar
                 </Button>
@@ -596,8 +799,12 @@ export default function WarehousesPage() {
       )}
 
       {confirmDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
-          <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-lg">
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">¿Eliminar bodega?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Se desactivará <span className="font-medium text-foreground">{confirmDelete.name}</span>.

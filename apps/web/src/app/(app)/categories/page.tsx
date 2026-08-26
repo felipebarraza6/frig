@@ -5,7 +5,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, Pencil, Trash2, Loader2, Tag, X, Copy, FolderOpen, Boxes, Folder } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ActionsMenu } from "@/components/ui/actions-menu";
 import { useToast } from "@/lib/store/toast";
 import { useCurrentBranch } from "@/lib/store/session";
 import {
@@ -109,14 +108,6 @@ export default function CategoriesPage() {
     },
   });
 
-  function categoryActions(c: YggdraCategory) {
-    return [
-      { label: "Editar", icon: Pencil, onClick: () => openModal(c) },
-      { label: "Duplicar", icon: Copy, onClick: () => duplicate.mutate(c) },
-      { label: "Eliminar", icon: Trash2, danger: true, onClick: () => setConfirmDelete(c) },
-    ];
-  }
-
   function openModal(category?: YggdraCategory) {
     setEditing(category ?? null);
     setName(category?.name ?? "");
@@ -133,18 +124,32 @@ export default function CategoriesPage() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6">
+      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
         <div>
           <h1 className="text-lg font-semibold">Categorías</h1>
           <p className="text-xs text-muted-foreground">
             Agrupa y organiza tus productos
           </p>
         </div>
-        <Button onClick={() => openModal()} className="h-9 px-2 sm:px-3">
-          <Plus className="h-4 w-4" />
-          <span className="hidden sm:inline">Nueva categoría</span>
-          <span className="sm:hidden">Nueva</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="icon"
+            onClick={() => openModal()}
+            className="sm:hidden"
+            title="Nueva categoría"
+            aria-label="Nueva categoría"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => openModal()}
+            className="hidden sm:flex"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Nueva categoría
+          </Button>
+        </div>
       </header>
 
       <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
@@ -169,24 +174,20 @@ export default function CategoriesPage() {
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : !hasData ? (
-          <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-border bg-muted/20 p-8">
-            <div className="flex max-w-xs flex-col items-center gap-3 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
-                <FolderOpen className="h-7 w-7 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="font-medium">
-                  {search ? "Sin resultados" : "Aún no hay categorías"}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {search
-                    ? "Prueba con otro término de búsqueda."
-                    : "Crea la primera categoría para organizar tu catálogo."}
-                </p>
-              </div>
+          <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">
+            <div>
+              <FolderOpen className="mx-auto h-10 w-10 text-muted-foreground" />
+              <p className="mt-3 text-sm font-medium">
+                {search ? "Sin resultados" : "Aún no hay categorías"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {search
+                  ? "Prueba con otro término de búsqueda."
+                  : "Crea la primera categoría para organizar tu catálogo."}
+              </p>
               {!search && (
-                <Button onClick={() => openModal()}>
-                  <Plus className="mr-1 h-4 w-4" />
+                <Button className="mt-4" size="sm" onClick={() => openModal()}>
+                  <Plus className="mr-1 h-3.5 w-3.5" />
                   Crear categoría
                 </Button>
               )}
@@ -255,10 +256,34 @@ export default function CategoriesPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <ActionsMenu
-                            ariaLabel={`Acciones de ${c.name}`}
-                            items={categoryActions(c)}
-                          />
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openModal(c)}
+                            >
+                              <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                              Editar
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => duplicate.mutate(c)}
+                              disabled={duplicate.isPending}
+                            >
+                              <Copy className="mr-1.5 h-3.5 w-3.5" />
+                              Duplicar
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-danger hover:text-danger"
+                              onClick={() => setConfirmDelete(c)}
+                            >
+                              <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                              Eliminar
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -288,10 +313,42 @@ export default function CategoriesPage() {
                           </p>
                         </div>
                       </div>
-                      <ActionsMenu
-                        ariaLabel={`Acciones de ${c.name}`}
-                        items={categoryActions(c)}
-                      />
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          title="Editar"
+                          aria-label="Editar"
+                          onClick={() => openModal(c)}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                          <span className="sr-only">Editar</span>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          title="Duplicar"
+                          aria-label="Duplicar"
+                          onClick={() => duplicate.mutate(c)}
+                          disabled={duplicate.isPending}
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                          <span className="sr-only">Duplicar</span>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-danger hover:text-danger"
+                          title="Eliminar"
+                          aria-label="Eliminar"
+                          onClick={() => setConfirmDelete(c)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          <span className="sr-only">Eliminar</span>
+                        </Button>
+                      </div>
                     </div>
 
                     <div className="mt-auto flex items-center justify-between gap-2 border-t border-border pt-3">
@@ -338,12 +395,12 @@ export default function CategoriesPage() {
 
       {modalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4"
+          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
           role="dialog"
           aria-modal="true"
         >
-          <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg sm:max-w-md sm:rounded-xl sm:border sm:p-6">
-            <div className="mb-4 flex items-center justify-between">
+          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
+            <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-base font-semibold">
                 {editing ? "Editar categoría" : "Nueva categoría"}
               </h2>
@@ -356,24 +413,29 @@ export default function CategoriesPage() {
                 e.preventDefault();
                 save.mutate();
               }}
-              className="flex flex-col gap-4"
+              className="flex flex-1 flex-col overflow-hidden"
+              id="category-form"
             >
-              <div className="flex flex-col gap-2">
-                <label htmlFor="category-name" className="text-sm font-medium">Nombre</label>
-                <Input
-                  id="category-name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  placeholder="Ej: Helados"
-                />
+              <div className="flex-1 overflow-y-auto p-4">
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="category-name" className="text-sm font-medium">Nombre</label>
+                    <Input
+                      id="category-name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                      placeholder="Ej: Helados"
+                    />
+                  </div>
+                  {save.isError && (
+                    <p className="text-sm text-danger">
+                      {save.error instanceof Error ? save.error.message : "Error al guardar"}
+                    </p>
+                  )}
+                </div>
               </div>
-              {save.isError && (
-                <p className="text-sm text-danger">
-                  {save.error instanceof Error ? save.error.message : "Error al guardar"}
-                </p>
-              )}
-              <div className="flex justify-end gap-2">
+              <div className="flex shrink-0 justify-end gap-2 border-t border-border px-4 py-3">
                 <Button type="button" variant="outline" onClick={closeModal} disabled={save.isPending}>
                   Cancelar
                 </Button>
@@ -388,8 +450,12 @@ export default function CategoriesPage() {
       )}
 
       {confirmDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
-          <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-lg">
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">¿Eliminar categoría?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Se desactivará <span className="font-medium text-foreground">{confirmDelete.name}</span>. Los productos asociados no se eliminan.

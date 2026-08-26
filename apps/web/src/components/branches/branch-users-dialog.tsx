@@ -50,25 +50,29 @@ export function BranchUsersDialog({ branch, onClose }: BranchUsersDialogProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="flex w-full max-w-lg max-h-[90vh] flex-col rounded-xl border border-border bg-card shadow-lg">
-        <div className="flex items-center justify-between border-b border-border px-6 py-4">
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-lg md:rounded-xl md:border">
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
           <div>
-            <h2 className="text-lg font-semibold">Usuarios de {branchName(branch)}</h2>
+            <h2 className="text-base font-semibold">Usuarios de {branchName(branch)}</h2>
             <p className="text-xs text-muted-foreground">
               {users?.length ?? 0} usuario(s) asignado(s)
             </p>
           </div>
           <button
             onClick={onClose}
-            className="rounded-md p-1 text-muted-foreground hover:bg-muted"
+            className="text-muted-foreground hover:text-foreground"
             aria-label="Cerrar"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-6">
+        <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4">
           {canManage && (
             <form onSubmit={handleInvite} className="flex flex-col gap-3 rounded-xl border border-border bg-muted p-4">
               <p className="text-sm font-medium">Invitar usuario</p>
@@ -117,12 +121,12 @@ export function BranchUsersDialog({ branch, onClose }: BranchUsersDialogProps) {
           )}
 
           {isLoading ? (
-            <div className="grid place-items-center py-8">
+            <div className="grid flex-1 place-items-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            <div className="rounded-xl border border-border">
-              <table className="w-full text-sm">
+            <div className="overflow-x-auto rounded-xl border border-border">
+              <table className="w-full min-w-[400px] text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
                     <th className="px-4 py-2">Usuario</th>
@@ -149,7 +153,7 @@ export function BranchUsersDialog({ branch, onClose }: BranchUsersDialogProps) {
                           className={
                             u.branch_access?.is_active
                               ? "rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-700"
-                              : "rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
+                              : "rounded-full bg-danger/10 px-2 py-0.5 text-xs font-medium text-danger"
                           }
                         >
                           {u.branch_access?.is_active ? "Sí" : "No"}

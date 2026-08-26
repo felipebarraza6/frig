@@ -293,17 +293,29 @@ export default function MenusPage() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6">
+      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
         <div>
           <h1 className="text-lg font-semibold">Menús y vitrinas</h1>
           <p className="text-xs text-muted-foreground">
             Gestiona catálogos QR, pantallas y menús de sucursal
           </p>
         </div>
-        <Button onClick={() => openModal()} className="px-2 sm:px-3">
+        <Button
+          size="icon"
+          onClick={() => openModal()}
+          className="sm:hidden"
+          title="Nuevo menú"
+          aria-label="Nuevo menú"
+        >
           <Plus className="h-4 w-4" />
-          <span className="hidden sm:inline">Nuevo menú</span>
-          <span className="sm:hidden">Nuevo</span>
+        </Button>
+        <Button
+          size="sm"
+          onClick={() => openModal()}
+          className="hidden sm:flex"
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Nuevo menú
         </Button>
       </header>
 
@@ -336,32 +348,42 @@ export default function MenusPage() {
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border">
-            <p className="text-sm text-muted-foreground">
-              {search ? "No se encontraron menús." : "Aún no hay menús creados."}
-            </p>
+          <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">
+            <div>
+              <LayoutTemplate className="mx-auto h-10 w-10 text-muted-foreground" />
+              <p className="mt-3 text-sm font-medium">
+                {search ? "No se encontraron menús" : "Aún no hay menús"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {search ? "Prueba con otro término de búsqueda." : "Crea tu primer menú QR o vitrina."}
+              </p>
+              {!search && (
+                <Button className="mt-4" size="sm" onClick={() => openModal()}>
+                  <Plus className="mr-1 h-3.5 w-3.5" />
+                  Nuevo menú
+                </Button>
+              )}
+            </div>
           </div>
         ) : (
           <>
-            <p className="text-xs text-muted-foreground sm:hidden">
-              Desliza la tabla horizontalmente para ver todas las columnas.
-            </p>
-            <div className="overflow-x-auto rounded-xl border border-border">
+            {/* Desktop table */}
+            <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
               <table className="w-full min-w-[720px] text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                    <th className="px-3 py-2 sm:px-4 sm:py-3">Menú</th>
-                    <th className="px-3 py-2 sm:px-4 sm:py-3">Modo</th>
-                    <th className="px-3 py-2 sm:px-4 sm:py-3">Estación</th>
-                    <th className="px-3 py-2 sm:px-4 sm:py-3 text-center">Productos</th>
-                    <th className="px-3 py-2 sm:px-4 sm:py-3 text-center">Estado</th>
-                    <th className="px-3 py-2 sm:px-4 sm:py-3 text-right">Acciones</th>
+                    <th className="px-4 py-3">Menú</th>
+                    <th className="px-4 py-3">Modo</th>
+                    <th className="px-4 py-3">Estación</th>
+                    <th className="px-4 py-3 text-center">Productos</th>
+                    <th className="px-4 py-3 text-center">Estado</th>
+                    <th className="px-4 py-3 text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.map((catalog) => (
                     <tr key={catalog.id} className="border-b border-border last:border-0">
-                      <td className="px-3 py-2 sm:px-4 sm:py-3">
+                      <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-secondary">
                             <LayoutTemplate className="h-3.5 w-3.5 text-muted-foreground" />
@@ -372,28 +394,28 @@ export default function MenusPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-3 py-2 sm:px-4 sm:py-3 text-muted-foreground">
+                      <td className="px-4 py-3 text-muted-foreground">
                         {catalog.mode_display}
                       </td>
-                      <td className="px-3 py-2 sm:px-4 sm:py-3 text-muted-foreground">
+                      <td className="px-4 py-3 text-muted-foreground">
                         {catalog.station_type_display}
                       </td>
-                      <td className="px-3 py-2 sm:px-4 sm:py-3 text-center tabular-nums">
+                      <td className="px-4 py-3 text-center tabular-nums">
                         {catalog.product_count}
                       </td>
-                      <td className="px-3 py-2 sm:px-4 sm:py-3 text-center">
+                      <td className="px-4 py-3 text-center">
                         <span
                           className={cn(
                             "inline-flex rounded px-2 py-0.5 text-xs font-medium",
                             catalog.is_active
                               ? "bg-emerald-500/10 text-emerald-700"
-                              : "bg-muted text-muted-foreground",
+                              : "bg-danger/10 text-danger",
                           )}
                         >
                           {catalog.is_active ? "Activo" : "Inactivo"}
                         </span>
                       </td>
-                      <td className="px-3 py-2 sm:px-4 sm:py-3 text-right">
+                      <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Button
                             variant="ghost"
@@ -422,19 +444,19 @@ export default function MenusPage() {
                           >
                             <ExternalLink className="h-3.5 w-3.5" />
                           </a>
-                          <Button variant="ghost" size="sm" className="h-8 px-1.5 sm:px-2" onClick={() => openModal(catalog)} title="Editar">
-                            <Pencil className="h-3.5 w-3.5" />
-                            <span className="hidden sm:inline">Editar</span>
+                          <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => openModal(catalog)} title="Editar">
+                            <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                            Editar
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-8 px-1.5 text-danger hover:text-danger sm:px-2"
+                            className="h-8 px-2 text-danger hover:text-danger"
                             onClick={() => setConfirmDelete(catalog)}
                             title="Eliminar"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
-                            <span className="hidden sm:inline">Eliminar</span>
+                            <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                            Eliminar
                           </Button>
                         </div>
                       </td>
@@ -442,6 +464,110 @@ export default function MenusPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="grid gap-3 md:hidden">
+              {filtered.map((catalog) => (
+                <div
+                  key={catalog.id}
+                  className="rounded-2xl border border-border bg-card p-4 shadow-sm"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary">
+                        <LayoutTemplate className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{catalog.title}</p>
+                        <p className="text-xs text-muted-foreground">/{catalog.slug}</p>
+                        <span
+                          className={cn(
+                            "mt-1 inline-flex rounded px-2 py-0.5 text-[10px] font-medium",
+                            catalog.is_active
+                              ? "bg-emerald-500/10 text-emerald-700"
+                              : "bg-danger/10 text-danger",
+                          )}
+                        >
+                          {catalog.is_active ? "Activo" : "Inactivo"}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={() => copyLink(catalog.slug)}
+                        title="Copiar link"
+                        aria-label="Copiar link"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                        <span className="sr-only">Copiar link</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={() => setQrCatalog(catalog)}
+                        title="Generar QR"
+                        aria-label="Generar QR"
+                      >
+                        <QrCode className="h-3.5 w-3.5" />
+                        <span className="sr-only">Generar QR</span>
+                      </Button>
+                      <a
+                        href={publicMenuUrl(catalog.slug)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+                        title="Ver público"
+                        aria-label="Ver público"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        <span className="sr-only">Ver público</span>
+                      </a>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={() => openModal(catalog)}
+                        title="Editar"
+                        aria-label="Editar"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        <span className="sr-only">Editar</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-danger hover:text-danger"
+                        onClick={() => setConfirmDelete(catalog)}
+                        title="Eliminar"
+                        aria-label="Eliminar"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span className="sr-only">Eliminar</span>
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                    <div className="text-muted-foreground">
+                      <span className="block text-[10px] uppercase tracking-wide">Modo</span>
+                      <span className="font-medium text-foreground">{catalog.mode_display}</span>
+                    </div>
+                    <div className="text-muted-foreground">
+                      <span className="block text-[10px] uppercase tracking-wide">Estación</span>
+                      <span className="font-medium text-foreground">{catalog.station_type_display}</span>
+                    </div>
+                    <div className="text-muted-foreground">
+                      <span className="block text-[10px] uppercase tracking-wide">Productos</span>
+                      <span className="font-medium tabular-nums text-foreground">{catalog.product_count}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
 
             <p className="text-sm text-muted-foreground">
@@ -453,12 +579,12 @@ export default function MenusPage() {
 
       {modalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
           role="dialog"
           aria-modal="true"
         >
-          <div className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-xl border border-border bg-card shadow-lg">
-            <div className="flex shrink-0 items-center justify-between border-b border-border px-6 py-4">
+          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-3xl md:rounded-xl md:border">
+            <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 md:px-6 md:py-4">
               <h2 className="text-base font-semibold">
                 {editing ? "Editar menú" : "Nuevo menú"}
               </h2>
@@ -472,7 +598,7 @@ export default function MenusPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-              <div className="relative flex-1 overflow-y-auto p-6">
+              <div className="relative flex-1 overflow-y-auto p-4 md:p-6">
                 {loadingCatalog && (
                   <div className="absolute inset-0 z-10 grid place-items-center bg-card/80">
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -813,7 +939,7 @@ export default function MenusPage() {
                 {formError && <p className="mt-4 text-sm text-danger">{formError}</p>}
               </div>
 
-              <div className="flex shrink-0 justify-end gap-2 border-t border-border px-6 py-4">
+              <div className="flex shrink-0 justify-end gap-2 border-t border-border px-4 py-4 md:px-6">
                 <Button type="button" variant="outline" onClick={closeModal} disabled={isSaving}>
                   Cancelar
                 </Button>
@@ -829,17 +955,28 @@ export default function MenusPage() {
 
       {qrCatalog && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
           role="dialog"
           aria-modal="true"
         >
-          <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-lg">
-            <h2 className="text-base font-semibold">Código QR</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Menú: <span className="font-medium text-foreground">{qrCatalog.title}</span>
-            </p>
+          <div className="flex h-auto w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:max-w-md md:rounded-xl md:border">
+            <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 md:px-6">
+              <div>
+                <h2 className="text-base font-semibold">Código QR</h2>
+                <p className="text-xs text-muted-foreground">
+                  Menú: <span className="font-medium text-foreground">{qrCatalog.title}</span>
+                </p>
+              </div>
+              <button
+                onClick={() => setQrCatalog(null)}
+                aria-label="Cerrar"
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
 
-            <div className="mt-4 flex flex-col items-center gap-3">
+            <div className="flex flex-col items-center gap-3 overflow-y-auto p-4 md:p-6">
               <div className="rounded-xl border border-border bg-white p-3">
                 <QRCodeSVG
                   value={`${window.location.origin}${publicMenuUrl(qrCatalog.slug)}`}
@@ -858,7 +995,7 @@ export default function MenusPage() {
               </a>
             </div>
 
-            <div className="mt-4 flex justify-end gap-2">
+            <div className="flex shrink-0 justify-end gap-2 border-t border-border px-4 py-4 md:px-6">
               <Button variant="outline" onClick={() => setQrCatalog(null)}>
                 Cerrar
               </Button>
@@ -877,11 +1014,11 @@ export default function MenusPage() {
 
       {confirmDelete && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
           role="dialog"
           aria-modal="true"
         >
-          <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-lg">
+          <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">¿Eliminar menú?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Se eliminará <span className="font-medium text-foreground">{confirmDelete.title}</span>. Esta

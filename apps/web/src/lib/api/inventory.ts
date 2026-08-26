@@ -32,6 +32,29 @@ export async function fetchInventoryMovements(filter: MovementsFilter = {}): Pro
   return apiFetch<PaginatedInventoryHistory>(`/inventory/inventory-history/${q ? `?${q}` : ""}`);
 }
 
+export async function fetchAllInventoryMovements(filter: MovementsFilter = {}): Promise<InventoryHistory[]> {
+  const all: InventoryHistory[] = [];
+  let nextUrl: string | null = null;
+  const buildQs = () => {
+    const qs = new URLSearchParams();
+    if (filter.search) qs.set("search", filter.search);
+    if (filter.movement_type) qs.set("movement_type", filter.movement_type);
+    if (filter.product) qs.set("product", String(filter.product));
+    if (filter.warehouse) qs.set("warehouse", String(filter.warehouse));
+    return qs.toString();
+  };
+  const firstQs = buildQs();
+  let data = await apiFetch<PaginatedInventoryHistory>(`/inventory/inventory-history/${firstQs ? `?${firstQs}` : ""}`);
+  all.push(...(data.results ?? []));
+  nextUrl = data.next ?? null;
+  while (nextUrl) {
+    data = await apiFetch<PaginatedInventoryHistory>(nextUrl);
+    all.push(...(data.results ?? []));
+    nextUrl = data.next ?? null;
+  }
+  return all;
+}
+
 export async function createInventoryMovement(payload: InventoryHistoryRequest): Promise<InventoryHistory> {
   return apiFetch<InventoryHistory>("/inventory/inventory-history/create_movement/", {
     method: "POST",

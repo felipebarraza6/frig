@@ -91,3 +91,28 @@ export async function downloadRevenueVoucher(
 ): Promise<ApiFileResult> {
   return apiFile(`/finance/revenues/${id}/download-voucher/?pdf_format=${format}`);
 }
+
+export async function createRevenueCategory(payload: RevenueCategoryRequest): Promise<RevenueCategory> {
+  return apiFetch<RevenueCategory>("/finance/revenue-categories/", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export async function updateRevenueCategory(
+  id: string,
+  payload: Partial<RevenueCategoryRequest>,
+): Promise<RevenueCategory> {
+  return apiFetch<RevenueCategory>(`/finance/revenue-categories/${id}/`, {
+    method: "PATCH",
+    body: payload,
+  });
+}
+
+export async function deleteRevenueCategory(id: string): Promise<void> {
+  await apiFetch(`/finance/revenue-categories/${id}/`, { method: "DELETE" });
+}
+
+export async function toggleRevenueCategoryActive(id: string): Promise<RevenueCategory> {
+  return apiFetch<RevenueCategory>(`/finance/revenue-categories/${id}/toggle_active/`, { method: "POST" });
+}

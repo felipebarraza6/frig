@@ -116,7 +116,7 @@ export default function ProductNutritionPage() {
   if (!nutritionEnabled) {
     return (
       <div className="flex min-h-full flex-col">
-        <header className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6">
+        <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
           <div>
             <h1 className="text-lg font-semibold">Etiquetado nutricional</h1>
             <p className="text-xs text-muted-foreground">
@@ -283,9 +283,9 @@ function NutritionDetailModal({
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
-      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl border border-border bg-card p-6 shadow-lg">
-        <div className="mb-4 flex items-center justify-between">
+    <div className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4" role="dialog" aria-modal="true">
+      <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 md:px-6">
           <h2 className="text-base font-semibold">{product.name}</h2>
           <div className="flex items-center gap-1">
             <Button variant="ghost" size="sm" onClick={onEdit}>
@@ -301,102 +301,104 @@ function NutritionDetailModal({
           </div>
         </div>
 
-        {hasNutrition(product) ? (
-          <ProductNutritionLabel product={product} />
-        ) : (
-          <div className="rounded-lg bg-amber-500/10 p-4 text-sm text-amber-700">
-            Este producto aún no tiene información nutricional.
-          </div>
-        )}
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
+          {hasNutrition(product) ? (
+            <ProductNutritionLabel product={product} />
+          ) : (
+            <div className="rounded-lg bg-amber-500/10 p-4 text-sm text-amber-700">
+              Este producto aún no tiene información nutricional.
+            </div>
+          )}
 
-        {isCompound && (
-          <div className="mt-4 rounded-xl border border-border bg-muted/40 p-4">
-            <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold">
-              <ChefHat className="h-4 w-4" />
-              Receta y etiqueta
-            </h3>
+          {isCompound && (
+            <div className="mt-4 rounded-xl border border-border bg-muted/40 p-4">
+              <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold">
+                <ChefHat className="h-4 w-4" />
+                Receta y etiqueta
+              </h3>
 
-            {loadingRecipes ? (
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-            ) : recipes.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No hay recetas asociadas.</p>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {recipes.map((recipe) => (
-                  <div key={recipe.id} className="rounded-lg border border-border bg-background p-3">
-                    <p className="text-sm font-medium">{recipe.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {recipe.has_nutritional_calculation
-                        ? "Cálculo nutricional disponible"
-                        : "Sin cálculo nutricional"}
-                    </p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => calculate.mutate(recipe.id)}
-                        disabled={calculate.isPending}
-                      >
-                        {calculate.isPending ? (
-                          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Calculator className="mr-2 h-3.5 w-3.5" />
-                        )}
-                        Calcular
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={!recipe.has_nutritional_calculation || downloadingNutritionPdf}
-                        onClick={() => {
-                          // Descarga autenticada via apiFile (window.open pega
-                          // contra Next.js y sin token → 404).
-                          downloadNutritionPdf(
-                            () => downloadRecipeNutritionLabel(recipe.id),
-                            {
-                              filename: `etiqueta-nutricional_${product.name.replace(/[^a-z0-9]+/gi, "_").toLowerCase()}`,
-                              extension: "pdf",
-                            },
-                          ).catch(() => toast.error("No se pudo descargar el PDF de la etiqueta."));
-                        }}
-                      >
-                        {downloadingNutritionPdf ? (
-                          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <FileDown className="mr-2 h-3.5 w-3.5" />
-                        )}
-                        Descargar PDF
-                      </Button>
+              {loadingRecipes ? (
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              ) : recipes.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No hay recetas asociadas.</p>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {recipes.map((recipe) => (
+                    <div key={recipe.id} className="rounded-lg border border-border bg-background p-3">
+                      <p className="text-sm font-medium">{recipe.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {recipe.has_nutritional_calculation
+                          ? "Cálculo nutricional disponible"
+                          : "Sin cálculo nutricional"}
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => calculate.mutate(recipe.id)}
+                          disabled={calculate.isPending}
+                        >
+                          {calculate.isPending ? (
+                            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Calculator className="mr-2 h-3.5 w-3.5" />
+                          )}
+                          Calcular
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={!recipe.has_nutritional_calculation || downloadingNutritionPdf}
+                          onClick={() => {
+                            // Descarga autenticada via apiFile (window.open pega
+                            // contra Next.js y sin token → 404).
+                            downloadNutritionPdf(
+                              () => downloadRecipeNutritionLabel(recipe.id),
+                              {
+                                filename: `etiqueta-nutricional_${product.name.replace(/[^a-z0-9]+/gi, "_").toLowerCase()}`,
+                                extension: "pdf",
+                              },
+                            ).catch(() => toast.error("No se pudo descargar el PDF de la etiqueta."));
+                          }}
+                        >
+                          {downloadingNutritionPdf ? (
+                            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <FileDown className="mr-2 h-3.5 w-3.5" />
+                          )}
+                          Descargar PDF
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
 
-                {loadingLabel ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                ) : labelData ? (
-                  <div className="rounded-lg border border-border bg-background p-3 text-xs">
-                    <p className="font-medium">Compliance MINSAL</p>
-                    <p className="text-muted-foreground">
-                      {String(labelData.compliance?.is_compliant ?? "—")}
-                    </p>
-                    {Array.isArray(labelData.compliance?.warnings) &&
-                      labelData.compliance.warnings.length > 0 && (
-                        <ul className="mt-1 list-inside list-disc text-amber-700">
-                          {(labelData.compliance.warnings as string[]).map((w, i) => (
-                            <li key={i}>{w}</li>
-                          ))}
-                        </ul>
-                      )}
-                  </div>
-                ) : null}
-              </div>
-            )}
-          </div>
-        )}
+                  {loadingLabel ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  ) : labelData ? (
+                    <div className="rounded-lg border border-border bg-background p-3 text-xs">
+                      <p className="font-medium">Compliance MINSAL</p>
+                      <p className="text-muted-foreground">
+                        {String(labelData.compliance?.is_compliant ?? "—")}
+                      </p>
+                      {Array.isArray(labelData.compliance?.warnings) &&
+                        labelData.compliance.warnings.length > 0 && (
+                          <ul className="mt-1 list-inside list-disc text-amber-700">
+                            {(labelData.compliance.warnings as string[]).map((w, i) => (
+                              <li key={i}>{w}</li>
+                            ))}
+                          </ul>
+                        )}
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
-        <div className="mt-4 flex justify-end gap-2">
+        <div className="flex shrink-0 justify-end gap-2 border-t border-border px-4 py-4 md:px-6">
           <Button variant="outline" size="sm" onClick={onClose}>
             Cerrar
           </Button>

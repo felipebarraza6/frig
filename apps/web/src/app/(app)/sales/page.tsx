@@ -125,10 +125,6 @@ function statusLabel(value?: string | null): string {
   return STATUS_OPTIONS.find((o) => o.value === value)?.label ?? (value ?? "—");
 }
 
-function paymentStatusLabel(value?: string | null): string {
-  return PAYMENT_STATUS_OPTIONS.find((o) => o.value === value)?.label ?? (value ?? "—");
-}
-
 function orderTypeLabel(value?: string | null): string {
   return ORDER_TYPE_OPTIONS.find((o) => o.value === value)?.label ?? (value ?? "—");
 }
@@ -304,56 +300,8 @@ function ActionMenuItem({
   );
 }
 
-function Modal({
-  open,
-  onClose,
-  title,
-  children,
-  className,
-}: {
-  open: boolean;
-  onClose: () => void;
-  title: React.ReactNode;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  if (!open) return null;
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4"
-      role="dialog"
-      aria-modal="true"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        className={cn(
-          "relative flex max-h-[100dvh] w-full flex-col overflow-hidden rounded-t-2xl border border-border bg-card shadow-2xl sm:h-auto sm:max-h-[90vh] sm:rounded-2xl",
-          className ?? "sm:max-w-md",
-        )}
-      >
-        <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4">
-          <h2 className="text-base font-semibold sm:text-lg">{title}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Cerrar"
-            className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6">{children}</div>
-      </div>
-    </div>
-  );
-}
-
 function OrderListRow({
   order,
-  showTables,
-  tableById,
   canCancel,
   isDownloading,
   deliverPending,
@@ -367,7 +315,7 @@ function OrderListRow({
   onThermal,
   onA4,
   onCancel,
-}: Omit<OrderCardProps, "index">) {
+}: Omit<OrderCardProps, "index" | "showTables" | "tableById">) {
   const branch = useCurrentBranch();
   const shortDate = new Date(order.date).toLocaleString("es-CL", {
     day: "2-digit",
@@ -1145,17 +1093,20 @@ export default function SalesPage() {
   // Modales de acciones por orden
   const [delivering, setDelivering] = useState<Order | null>(null);
   const [deliverQuantities, setDeliverQuantities] = useState<Record<string, number>>({});
-  useEffect(() => {
-    if (!delivering) {
-      setDeliverQuantities({});
-      return;
-    }
+
+  function openDelivering(order: Order) {
     const initial: Record<string, number> = {};
-    (delivering.products ?? []).forEach((p) => {
+    (order.products ?? []).forEach((p) => {
       initial[p.id] = p.quantity ?? 0;
     });
     setDeliverQuantities(initial);
-  }, [delivering]);
+    setDelivering(order);
+  }
+
+  function closeDelivering() {
+    setDelivering(null);
+    setDeliverQuantities({});
+  }
   const [editing, setEditing] = useState<Order | null>(null);
   const [installmentOrder, setInstallmentOrder] = useState<Order | null>(null);
 
@@ -1351,8 +1302,7 @@ export default function SalesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       queryClient.invalidateQueries({ queryKey: ["products"], refetchType: "all" });
-      setDelivering(null);
-      setDeliverQuantities({});
+      closeDelivering();
     },
   });
 
@@ -2123,7 +2073,7 @@ export default function SalesPage() {
                     cancelPending={cancel.isPending}
                     onView={setDetail}
                     onTicket={handleDownloadTicketPdf}
-                    onDeliver={setDelivering}
+                    onDeliver={openDelivering}
                     onEdit={openEditModal}
                     onInstallments={openInstallments}
                     onCollect={openCollect}
@@ -2139,15 +2089,13 @@ export default function SalesPage() {
                   <OrderListRow
                     key={order.id}
                     order={order}
-                    showTables={showTables}
-                    tableById={tableById}
                     canCancel={canCancel(order.owner)}
                     isDownloading={isDownloading}
                     deliverPending={deliver.isPending}
                     cancelPending={cancel.isPending}
                     onView={setDetail}
                     onTicket={handleDownloadTicketPdf}
-                    onDeliver={setDelivering}
+                    onDeliver={openDelivering}
                     onEdit={openEditModal}
                     onInstallments={openInstallments}
                     onCollect={openCollect}
@@ -2401,7 +2349,7 @@ export default function SalesPage() {
                         variant="outline"
                         className="h-10 border-blue-300 text-blue-700 hover:bg-blue-50"
                         onClick={() => {
-                          setDelivering(detail);
+                          openDelivering(detail);
                           setDetail(null);
                         }}
                       >
@@ -2492,8 +2440,15 @@ export default function SalesPage() {
       )}
 
       {collecting && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
-          <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-lg">
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeCollect();
+          }}
+        >
+          <div className="flex h-[92dvh] w-full flex-col overflow-y-auto rounded-t-xl border-x border-t border-border bg-card p-6 shadow-lg sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-xl sm:border">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-base font-semibold">
                 Cobrar {orderTypeLabel(collecting.order_type).toLowerCase()} {collecting.order_number ?? collecting.id.slice(0, 8)}
@@ -2595,8 +2550,15 @@ export default function SalesPage() {
       )}
 
       {delivering && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
-          <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-lg">
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeDelivering();
+          }}
+        >
+          <div className="flex h-[92dvh] w-full flex-col overflow-y-auto rounded-t-xl border-x border-t border-border bg-card p-6 shadow-lg sm:h-auto sm:max-h-[90vh] sm:max-w-sm sm:rounded-xl sm:border">
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h2 className="text-base font-semibold">Confirmar entrega</h2>
@@ -2604,7 +2566,7 @@ export default function SalesPage() {
                   {orderTypeLabel(delivering.order_type)} · {delivering.order_number ?? delivering.id.slice(0, 8)}
                 </p>
               </div>
-              <button onClick={() => setDelivering(null)} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
+              <button onClick={() => closeDelivering()} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -2674,7 +2636,7 @@ export default function SalesPage() {
                     })}
                 </div>
                 <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={() => setDelivering(null)} disabled={deliver.isPending}>
+                  <Button type="button" variant="outline" onClick={() => closeDelivering()} disabled={deliver.isPending}>
                     Cancelar
                   </Button>
                   <Button type="submit" disabled={deliver.isPending}>
@@ -2689,7 +2651,7 @@ export default function SalesPage() {
                   ¿Marcar {orderTypeLabel(delivering.order_type).toLowerCase()} <strong>{delivering.order_number ?? delivering.id.slice(0, 8)}</strong> como entregada?
                 </p>
                 <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={() => setDelivering(null)} disabled={deliver.isPending}>
+                  <Button type="button" variant="outline" onClick={() => closeDelivering()} disabled={deliver.isPending}>
                     Cancelar
                   </Button>
                   <Button type="submit" disabled={deliver.isPending}>
@@ -2956,8 +2918,15 @@ export default function SalesPage() {
       )}
 
       {installmentOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
-          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl border border-border bg-card p-6 shadow-lg">
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeInstallments();
+          }}
+        >
+          <div className="flex h-[92dvh] w-full flex-col overflow-y-auto rounded-t-xl border-x border-t border-border bg-card p-6 shadow-lg sm:h-auto sm:max-h-[90vh] sm:max-w-lg sm:rounded-xl sm:border">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-base font-semibold">
                 Cuotas {orderTypeLabel(installmentOrder.order_type).toLowerCase()} {installmentOrder.order_number ?? installmentOrder.id.slice(0, 8)}
@@ -3206,13 +3175,23 @@ export default function SalesPage() {
       {/* Modal rápido para crear cuenta abierta (SALE pending) con cliente/mesa */}
       <AnimatePresence>
         {accountModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
+          <div
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setAccountModal(false);
+                resetAccountForm();
+              }
+            }}
+          >
             <motion.div
-              initial={{ opacity: 0, scale: 0.96, y: 16 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, y: 16 }}
+              initial={{ opacity: 0, y: "100%" }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: "100%" }}
               transition={{ duration: 0.2 }}
-              className="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-lg"
+              className="flex h-[92dvh] w-full flex-col overflow-y-auto rounded-t-xl border-x border-t border-border bg-card p-5 shadow-lg sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-xl sm:border"
             >
               <div className="mb-4 flex items-center justify-between">
                 <div>
@@ -3656,15 +3635,13 @@ export default function SalesPage() {
                     <OrderListRow
                       key={order.id}
                       order={order}
-                      showTables={showTables}
-                      tableById={tableById}
                       canCancel={canCancel(order.owner)}
                       isDownloading={isDownloading}
                       deliverPending={deliver.isPending}
                       cancelPending={cancel.isPending}
                       onView={setDetail}
                       onTicket={handleDownloadTicketPdf}
-                      onDeliver={setDelivering}
+                      onDeliver={openDelivering}
                       onEdit={openEditModal}
                       onInstallments={openInstallments}
                       onCollect={openCollect}

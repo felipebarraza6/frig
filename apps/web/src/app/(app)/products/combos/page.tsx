@@ -137,27 +137,27 @@ function comboStatus(combo: ComboList): ComboStatus {
   if (!combo.is_active) {
     return {
       label: "Inactivo",
-      badgeBg: "bg-muted",
-      badgeText: "text-muted-foreground",
+      badgeBg: "bg-danger/10",
+      badgeText: "text-danger",
     };
   }
   if (isExpired(combo.end_date)) {
     return {
       label: "Vencido",
-      badgeBg: "bg-rose-50",
-      badgeText: "text-rose-700",
+      badgeBg: "bg-danger/10",
+      badgeText: "text-danger",
     };
   }
   if (isExpiringSoon(combo.end_date)) {
     return {
       label: "Por vencer",
-      badgeBg: "bg-amber-50",
+      badgeBg: "bg-amber-500/10",
       badgeText: "text-amber-700",
     };
   }
   return {
     label: "Activo",
-    badgeBg: "bg-emerald-50",
+    badgeBg: "bg-emerald-500/10",
     badgeText: "text-emerald-700",
   };
 }
@@ -367,17 +367,29 @@ export default function CombosPage() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6">
+      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
         <div>
           <h1 className="text-lg font-semibold">Combos</h1>
           <p className="text-xs text-muted-foreground">
             Promociones y packs de productos
           </p>
         </div>
-        <Button onClick={() => openModal()} className="h-9 px-2 sm:px-3">
+        <Button
+          size="icon"
+          onClick={() => openModal()}
+          className="sm:hidden"
+          title="Nuevo combo"
+          aria-label="Nuevo combo"
+        >
           <Plus className="h-4 w-4" />
-          <span className="hidden sm:inline">Nuevo combo</span>
-          <span className="sm:hidden">Nuevo</span>
+        </Button>
+        <Button
+          size="sm"
+          onClick={() => openModal()}
+          className="hidden sm:flex"
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Nuevo combo
         </Button>
       </header>
 
@@ -690,11 +702,11 @@ export default function CombosPage() {
 
       {modalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4"
+          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 sm:items-center sm:p-4"
           role="dialog"
           aria-modal="true"
         >
-          <div className="flex h-[92dvh] w-full flex-col rounded-t-xl border-x border-t border-border bg-card shadow-lg sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-xl sm:border">
+          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-xl sm:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-4 sm:px-6">
               <h2 className="text-base font-semibold">
                 {editing ? "Editar combo" : "Nuevo combo"}
@@ -890,11 +902,11 @@ export default function CombosPage() {
 
       {confirmDelete && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
           role="dialog"
           aria-modal="true"
         >
-          <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-lg">
+          <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">¿Eliminar combo?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Se desactivará{" "}

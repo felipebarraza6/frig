@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, ArrowLeft, Pencil, Eye, Settings } from "lucide-react";
+import { Loader2, ArrowLeft, Pencil, Eye, Settings, Table } from "lucide-react";
 import Link from "next/link";
 import { fetchTables, updateTable } from "@/lib/api/tables";
 import { TablesCanvas } from "@/components/tables/tables-canvas";
@@ -54,11 +54,12 @@ export default function TablesMapPage() {
 
   return (
     <div className="flex h-screen flex-col">
-      <header className="flex items-center justify-between border-b border-border/60 px-4 py-3 sm:px-6">
+      <header className="flex flex-col gap-3 border-b border-border/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
           <Link
             href="/tables"
             className="inline-flex items-center gap-1 rounded-lg p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label="Volver a mesas"
           >
             <ArrowLeft className="h-4 w-4" />
           </Link>
@@ -82,28 +83,35 @@ export default function TablesMapPage() {
             <>
               <Link
                 href="/tables"
-                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border/60 bg-background px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                className="inline-flex h-9 w-9 items-center justify-center gap-1.5 rounded-lg border border-border/60 bg-background px-0 text-xs font-medium text-foreground transition-colors hover:bg-muted sm:w-auto sm:px-2.5"
+                title="Gestionar mesas"
+                aria-label="Gestionar mesas"
               >
-                <Settings className="h-3.5 w-3.5" />
-                Gestionar
+                <Settings className="h-4 w-4" />
+                <span className="hidden sm:inline">Gestionar</span>
               </Link>
               <button
                 type="button"
                 onClick={() => setEditMode((v) => !v)}
                 className={cn(
-                  "inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition-colors",
+                  "inline-flex h-9 w-9 items-center justify-center gap-1.5 rounded-lg border px-0 text-xs font-medium transition-colors sm:w-auto sm:px-2.5",
                   editMode
                     ? "border-primary bg-primary text-white"
                     : "border-border/60 bg-background text-foreground hover:bg-muted",
                 )}
+                title={editMode ? "Ver mapa" : "Mover mesas"}
+                aria-label={editMode ? "Ver mapa" : "Mover mesas"}
+                aria-pressed={editMode}
               >
                 {editMode ? (
                   <>
-                    <Eye className="h-3.5 w-3.5" /> Ver
+                    <Eye className="h-4 w-4" />
+                    <span className="hidden sm:inline">Ver</span>
                   </>
                 ) : (
                   <>
-                    <Pencil className="h-3.5 w-3.5" /> Mover
+                    <Pencil className="h-4 w-4" />
+                    <span className="hidden sm:inline">Mover</span>
                   </>
                 )}
               </button>
@@ -120,8 +128,21 @@ export default function TablesMapPage() {
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : tables.length === 0 ? (
-          <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-border">
-            <p className="text-sm text-muted-foreground">No hay mesas registradas.</p>
+          <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">
+            <div>
+              <Table className="mx-auto h-10 w-10 text-muted-foreground" />
+              <p className="mt-3 text-sm font-medium">No hay mesas registradas</p>
+              <p className="text-xs text-muted-foreground">
+                Crea mesas en la vista de gestión para visualizarlas aquí.
+              </p>
+              <Link
+                href="/tables"
+                className="mt-4 inline-flex h-9 items-center gap-2 rounded-lg border border-border/60 bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+              >
+                <Settings className="h-4 w-4" />
+                Gestionar mesas
+              </Link>
+            </div>
           </div>
         ) : (
           <div className="flex-1 min-h-0">
