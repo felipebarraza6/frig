@@ -2,13 +2,14 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Loader2, X, Eye, Ban, CheckCircle2, FileText, SlidersHorizontal, Banknote, Trash2, FileDown } from "lucide-react";
+import { Plus, Search, Loader2, X, Eye, Ban, CheckCircle2, FileText, SlidersHorizontal, Banknote, Trash2, FileDown, Package } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import {
   fetchPurchaseOrders,
   fetchSuppliers,
+  fetchSupplierProducts,
   createPurchaseOrder,
   cancelPurchaseOrder,
   markPurchaseOrderCompleted,
@@ -51,9 +52,13 @@ function statusBadgeClass(status?: string | null) {
 }
 
 interface FormItem {
+  supplier_product?: number | null;
   description: string;
   quantity: string;
   unit_price: string;
+  measurement_unit: string;
+  is_common_expense: boolean;
+  create_product_if_not_exists: boolean;
 }
 
 function initialFormState() {
@@ -64,7 +69,15 @@ function initialFormState() {
     order_date: today,
     expected_delivery_date: nextWeek,
     notes: "",
-    items: [{ description: "", quantity: "1", unit_price: "" }],
+    items: [{
+      supplier_product: null as number | null,
+      description: "",
+      quantity: "1",
+      unit_price: "",
+      measurement_unit: "UN",
+      is_common_expense: false,
+      create_product_if_not_exists: false,
+    } as FormItem],
   };
 }
 
@@ -125,15 +138,22 @@ export default function PurchaseOrdersPage() {
   const orders: PurchaseOrderList[] = page?.results ?? [];
   const totalOrders = page?.count ?? 0;
 
+  const { data: supplierProducts = [] } = useQuery({
+    queryKey: ["supplier-products", form.supplier],
+    queryFn: () => fetchSupplierProducts(form.supplier),
+    enabled: !!form.supplier,
+  });
+
   const create = useMutation({
     mutationFn: () => {
       const items: PurchaseOrderCreatePayload["items"] = form.items.map((item) => ({
+        supplier_product: item.is_common_expense ? null : item.supplier_product,
         description: item.description,
         quantity_ordered: Number(item.quantity),
         unit_price: item.unit_price || "0",
         notes: null,
-        create_product_if_not_exists: false,
-        measurement_unit: "UN",
+        create_product_if_not_exists: item.create_product_if_not_exists,
+        measurement_unit: item.measurement_unit || "UN",
       }));
       return createPurchaseOrder({
         supplier: form.supplier || null,
@@ -281,8 +301,13 @@ export default function PurchaseOrdersPage() {
       return;
     }
     for (const item of form.items) {
-      if (!item.description.trim()) {
-        setFormError("Todos los ítems deben tener descripción.");
+      if (item.is_common_expense) {
+        if (!item.description.trim()) {
+          setFormError("Los gastos comunes deben tener descripción.");
+          return;
+        }
+      } else if (!item.supplier_product) {
+        setFormError("Selecciona un producto del proveedor para cada ítem o márcalo como gasto común.");
         return;
       }
       const qty = Number(item.quantity);
@@ -302,7 +327,15 @@ export default function PurchaseOrdersPage() {
   function addItem() {
     setForm((prev) => ({
       ...prev,
-      items: [...prev.items, { description: "", quantity: "1", unit_price: "" }],
+      items: [...prev.items, {
+        supplier_product: null as number | null,
+        description: "",
+        quantity: "1",
+        unit_price: "",
+        measurement_unit: "UN",
+        is_common_expense: false,
+        create_product_if_not_exists: false,
+      } as FormItem],
     }));
   }
 
@@ -313,10 +346,27 @@ export default function PurchaseOrdersPage() {
     }));
   }
 
-  function updateItem(index: number, field: keyof FormItem, value: string) {
+  function updateItem<K extends keyof FormItem>(index: number, field: K, value: FormItem[K]) {
     setForm((prev) => {
       const next = [...prev.items];
       next[index] = { ...next[index], [field]: value };
+      return { ...prev, items: next };
+    });
+  }
+
+  function selectSupplierProduct(index: number, supplierProductId: string) {
+    const sp = supplierProducts.find((p) => String(p.id) === supplierProductId);
+    setForm((prev) => {
+      const next = [...prev.items];
+      next[index] = {
+        ...next[index],
+        supplier_product: sp ? sp.id : null,
+        description: sp
+          ? (sp.supplier_product_name || sp.product_name || sp.supplier_product_code || "")
+          : "",
+        unit_price: sp ? sp.cost_price : next[index].unit_price,
+        is_common_expense: false,
+      };
       return { ...prev, items: next };
     });
   }
@@ -786,12 +836,37 @@ export default function PurchaseOrdersPage() {
                             )}
                           </div>
                           <div className="mt-2 flex flex-col gap-3">
-                            <Input
-                              value={item.description}
-                              onChange={(e) => updateItem(index, "description", e.target.value)}
-                              placeholder="Descripción del ítem"
-                              required
-                            />
+                            {!item.is_common_expense && (
+                              <div className="flex flex-col gap-1">
+                                <label className="text-xs text-muted-foreground">Producto del proveedor</label>
+                                <Select
+                                  value={item.supplier_product ? String(item.supplier_product) : ""}
+                                  onChange={(e) => selectSupplierProduct(index, e.target.value)}
+                                  disabled={!form.supplier || supplierProducts.length === 0}
+                                >
+                                  <option value="">
+                                    {!form.supplier
+                                      ? "Selecciona un proveedor primero"
+                                      : supplierProducts.length === 0
+                                        ? "Sin productos asignados"
+                                        : "Seleccionar producto…"}
+                                  </option>
+                                  {supplierProducts.map((sp) => (
+                                    <option key={sp.id} value={sp.id}>
+                                      {sp.supplier_product_name || sp.product_name || sp.supplier_product_code || `Producto #${sp.id}`}
+                                    </option>
+                                  ))}
+                                </Select>
+                              </div>
+                            )}
+                            {item.is_common_expense && (
+                              <Input
+                                value={item.description}
+                                onChange={(e) => updateItem(index, "description", e.target.value)}
+                                placeholder="Descripción del gasto común"
+                                required
+                              />
+                            )}
                             <div className="grid grid-cols-2 gap-3">
                               <Input
                                 type="number"
@@ -810,6 +885,25 @@ export default function PurchaseOrdersPage() {
                                 placeholder="Precio unitario"
                                 required
                               />
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <button
+                                type="button"
+                                onClick={() => updateItem(index, "is_common_expense", !item.is_common_expense)}
+                                className={
+                                  item.is_common_expense
+                                    ? "rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-white"
+                                    : "rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted"
+                                }
+                              >
+                                Gasto común
+                              </button>
+                              {!item.is_common_expense && item.supplier_product && (
+                                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                  <Package className="h-3 w-3" />
+                                  {item.description || "Producto seleccionado"}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
