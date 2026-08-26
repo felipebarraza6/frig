@@ -2,11 +2,28 @@
 
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Power, Loader2, Package, AlertTriangle, FileSpreadsheet, FileText, SlidersHorizontal } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Power,
+  Loader2,
+  Package,
+  AlertTriangle,
+  FileSpreadsheet,
+  FileText,
+  SlidersHorizontal,
+  LayoutGrid,
+  List,
+  FilterX,
+  Pencil,
+  Warehouse,
+  Copy,
+  Trash2,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
-import { formatCLP } from "@/lib/utils";
+import { cn, formatCLP } from "@/lib/utils";
 import {
   fetchProducts,
   fetchProduct,
@@ -41,6 +58,231 @@ function isLowStock(p: YggdraProduct, stockByProduct: Map<number, number>): bool
   return productStock(p, stockByProduct) <= p.minimum_stock;
 }
 
+const CATEGORY_PALETTE = [
+  { bg: "bg-red-100", text: "text-red-700" },
+  { bg: "bg-orange-100", text: "text-orange-700" },
+  { bg: "bg-amber-100", text: "text-amber-700" },
+  { bg: "bg-green-100", text: "text-green-700" },
+  { bg: "bg-emerald-100", text: "text-emerald-700" },
+  { bg: "bg-teal-100", text: "text-teal-700" },
+  { bg: "bg-cyan-100", text: "text-cyan-700" },
+  { bg: "bg-sky-100", text: "text-sky-700" },
+  { bg: "bg-blue-100", text: "text-blue-700" },
+  { bg: "bg-indigo-100", text: "text-indigo-700" },
+  { bg: "bg-violet-100", text: "text-violet-700" },
+  { bg: "bg-purple-100", text: "text-purple-700" },
+  { bg: "bg-fuchsia-100", text: "text-fuchsia-700" },
+  { bg: "bg-pink-100", text: "text-pink-700" },
+  { bg: "bg-rose-100", text: "text-rose-700" },
+];
+
+function colorFor(value: string): { bg: string; text: string } {
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) {
+    hash = value.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % CATEGORY_PALETTE.length;
+  return CATEGORY_PALETTE[index];
+}
+
+interface ProductCardProps {
+  product: YggdraProduct;
+  stockByProduct: Map<number, number>;
+  loadingStock: boolean;
+  colorClass: { bg: string; text: string };
+  productTypeLabel: (type?: string) => string;
+  onEdit: () => void;
+  onViewWarehouses: () => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+  onToggleActive: () => void;
+  isTogglingActive: boolean;
+}
+
+function ProductCard({
+  product,
+  stockByProduct,
+  loadingStock,
+  colorClass,
+  productTypeLabel,
+  onEdit,
+  onViewWarehouses,
+  onDuplicate,
+  onDelete,
+  onToggleActive,
+  isTogglingActive,
+}: ProductCardProps) {
+  const stock = productStock(product, stockByProduct);
+  const lowStock = isLowStock(product, stockByProduct);
+  const categoryName = product.category && typeof product.category === "object" ? product.category.name : null;
+
+  return (
+    <div className="group flex flex-col rounded-2xl border border-border bg-card p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+      <div className="mb-4 flex items-start gap-3">
+        <div
+          className={cn(
+            "flex h-14 w-14 shrink-0 items-center justify-center rounded-xl",
+            colorClass.bg,
+            colorClass.text,
+          )}
+        >
+          <Package className="h-7 w-7" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate text-base font-semibold leading-tight" title={product.name}>
+            {product.name}
+          </h3>
+          {product.code ? (
+            <p className="mt-0.5 text-xs text-muted-foreground">Código: {product.code}</p>
+          ) : (
+            <p className="mt-0.5 text-xs text-muted-foreground">Sin código</p>
+          )}
+        </div>
+      </div>
+
+      <div className="mb-3 flex flex-wrap gap-2">
+        {categoryName ? (
+          <span
+            className={cn(
+              "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
+              colorClass.bg,
+              colorClass.text,
+            )}
+          >
+            {categoryName}
+          </span>
+        ) : (
+          <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+            Sin categoría
+          </span>
+        )}
+        <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground">
+          {productTypeLabel(product.product_type)}
+        </span>
+      </div>
+
+      <div className="mb-4 flex items-end justify-between">
+        <div>
+          <p className="text-xs text-muted-foreground">Precio de venta</p>
+          <p className="text-xl font-bold tabular-nums text-foreground">
+            {formatCLP(product.sale_price ?? product.price ?? "0")}
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-xs text-muted-foreground">Stock</p>
+          {loadingStock ? (
+            <span className="inline-block h-5 w-10 animate-pulse rounded bg-muted" />
+          ) : (
+            <div className="flex items-center justify-end gap-1.5">
+              <span
+                className={cn(
+                  "text-lg font-semibold tabular-nums",
+                  lowStock ? "text-amber-600" : "text-foreground",
+                )}
+              >
+                {stock}
+              </span>
+              {lowStock && (
+                <span title="Stock bajo">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
+                </span>
+              )}
+            </div>
+          )}
+          {lowStock && !loadingStock && (
+            <p className="text-xs font-medium text-amber-600">Stock bajo</p>
+          )}
+        </div>
+      </div>
+
+      <div className="mb-4 flex flex-wrap gap-2">
+        <span
+          className={cn(
+            "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
+            product.is_for_sale
+              ? "bg-emerald-500/10 text-emerald-700"
+              : "bg-muted text-muted-foreground",
+          )}
+        >
+          {product.is_for_sale ? "En venta" : "No venta"}
+        </span>
+        <span
+          className={cn(
+            "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
+            product.is_active
+              ? "bg-emerald-500/10 text-emerald-700"
+              : "bg-danger/10 text-danger",
+          )}
+        >
+          {product.is_active ? "Activo" : "Inactivo"}
+        </span>
+      </div>
+
+      <div className="mt-auto flex items-center justify-between border-t border-border pt-3">
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            onClick={onEdit}
+            title="Editar"
+            aria-label={`Editar ${product.name}`}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            onClick={onViewWarehouses}
+            title="Bodegas"
+            aria-label={`Bodegas de ${product.name}`}
+          >
+            <Warehouse className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            onClick={onDuplicate}
+            title="Duplicar"
+            aria-label={`Duplicar ${product.name}`}
+          >
+            <Copy className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-danger"
+            onClick={onDelete}
+            title="Eliminar"
+            aria-label={`Eliminar ${product.name}`}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(
+            "h-8 w-8 rounded-full",
+            product.is_active
+              ? "text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700"
+              : "text-muted-foreground hover:bg-muted hover:text-danger",
+          )}
+          onClick={onToggleActive}
+          disabled={isTogglingActive}
+          title={product.is_active ? "Desactivar" : "Activar"}
+          aria-label={`${product.is_active ? "Desactivar" : "Activar"} ${product.name}`}
+        >
+          <Power className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function ProductsPage() {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -48,15 +290,17 @@ export default function ProductsPage() {
   const { download: downloadFile, isLoading: isExporting } = useDownloadFile();
   const { options: productTypeOptions, labelFor: productTypeLabel } = useBranchProductTypes();
   const { options: categoryOptions, isLoading: loadingCategories, error: categoriesError, refetch: refetchCategories } = useCategoryOptions();
+
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
   const [productType, setProductType] = useState("");
   const [forSale, setForSale] = useState("");
   const [active, setActive] = useState("");
+  const [view, setView] = useState<"grid" | "list">("grid");
   const [pageUrl, setPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [creating, setCreating] = useState(false);
-  // Para editar se carga el detalle completo: el listado (ProductList) no trae
+  // Para editar se carga el detalle completo: el listado no trae
   // is_public ni nutrición y re-guardar desde ahí borra esos datos.
   const [editingId, setEditingId] = useState<number | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<YggdraProduct | null>(null);
@@ -178,61 +422,152 @@ export default function ProductsPage() {
     setPageUrl({});
   }
 
+  function clearFilters() {
+    setSearch("");
+    setCategory("");
+    setProductType("");
+    setForSale("");
+    setActive("");
+    setPageUrl({});
+  }
+
   function handleExport(format: "excel" | "pdf") {
     downloadFile(() => exportProducts(filter, format), {
       filename: exportFilename("productos", format === "excel" ? "xlsx" : "pdf"),
     });
   }
 
+  const activeFilters = useMemo(() => {
+    const filters: { key: string; label: string }[] = [];
+    if (search.trim()) filters.push({ key: "search", label: `Búsqueda: "${search.trim()}"` });
+    if (category) {
+      const name = categoryOptions.find((c) => String(c.id) === category)?.name;
+      filters.push({ key: "category", label: `Categoría: ${name ?? category}` });
+    }
+    if (productType) {
+      const label = productTypeOptions.find((t) => t.value === productType)?.label;
+      filters.push({ key: "productType", label: `Tipo: ${label ?? productType}` });
+    }
+    if (forSale) {
+      filters.push({ key: "forSale", label: forSale === "true" ? "En venta" : "No venta" });
+    }
+    if (active) {
+      filters.push({ key: "active", label: active === "true" ? "Activo" : "Inactivo" });
+    }
+    return filters;
+  }, [search, category, productType, forSale, active, categoryOptions, productTypeOptions]);
+
+  const hasActiveFilters =
+    search.trim() || category || productType || forSale || active;
+
+  function removeFilter(key: string) {
+    switch (key) {
+      case "search":
+        setSearch("");
+        break;
+      case "category":
+        setCategory("");
+        break;
+      case "productType":
+        setProductType("");
+        break;
+      case "forSale":
+        setForSale("");
+        break;
+      case "active":
+        setActive("");
+        break;
+    }
+    setPageUrl({});
+  }
+
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
+      <header className="flex flex-col gap-4 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div>
           <h1 className="text-lg font-semibold">Productos</h1>
           <p className="text-xs text-muted-foreground">
             Gestiona el catálogo de la sucursal
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleExport("excel")}
-            disabled={isExporting}
-            className="h-9 w-9 px-0 sm:h-9 sm:w-auto sm:px-3"
-            title="Exportar Excel"
-          >
-            <FileSpreadsheet className="h-4 w-4" />
-            <span className="hidden sm:inline">Excel</span>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleExport("pdf")}
-            disabled={isExporting}
-            className="h-9 w-9 px-0 sm:h-9 sm:w-auto sm:px-3"
-            title="Exportar PDF"
-          >
-            <FileText className="h-4 w-4" />
-            <span className="hidden sm:inline">PDF</span>
-          </Button>
-          <Button
-            size="icon"
-            onClick={() => setCreating(true)}
-            className="sm:hidden"
-            title="Nuevo producto"
-            aria-label="Nuevo producto"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => setCreating(true)}
-            className="hidden sm:flex"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo producto
-          </Button>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative w-full sm:w-64 lg:w-80">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => updateFilter(setSearch, e.target.value)}
+              placeholder="Buscar productos…"
+              className="h-10 rounded-xl pl-10"
+              aria-label="Buscar producto"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="flex items-center rounded-xl border border-border bg-muted/40 p-0.5">
+              <Button
+                variant={view === "grid" ? "secondary" : "ghost"}
+                size="icon"
+                className="h-8 w-8 rounded-lg"
+                onClick={() => setView("grid")}
+                title="Vista galería"
+                aria-label="Vista galería"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={view === "list" ? "secondary" : "ghost"}
+                size="icon"
+                className="h-8 w-8 rounded-lg"
+                onClick={() => setView("list")}
+                title="Vista lista"
+                aria-label="Vista lista"
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleExport("excel")}
+              disabled={isExporting}
+              className="hidden h-9 w-9 px-0 sm:flex sm:h-9 sm:w-auto sm:px-3"
+              title="Exportar Excel"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              <span className="hidden sm:inline">Excel</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleExport("pdf")}
+              disabled={isExporting}
+              className="hidden h-9 w-9 px-0 sm:flex sm:h-9 sm:w-auto sm:px-3"
+              title="Exportar PDF"
+            >
+              <FileText className="h-4 w-4" />
+              <span className="hidden sm:inline">PDF</span>
+            </Button>
+
+            <Button
+              size="icon"
+              onClick={() => setCreating(true)}
+              className="h-9 w-9 sm:hidden"
+              title="Nuevo producto"
+              aria-label="Nuevo producto"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => setCreating(true)}
+              className="hidden h-9 sm:flex"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo producto
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -240,16 +575,6 @@ export default function ProductsPage() {
         <div className="flex flex-col gap-3">
           {/* Desktop filters */}
           <div className="hidden flex-wrap items-end gap-3 lg:flex">
-            <div className="relative w-full max-w-xs">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(e) => updateFilter(setSearch, e.target.value)}
-                placeholder="Buscar por nombre…"
-                className="pl-9"
-                aria-label="Buscar producto"
-              />
-            </div>
             <div className="flex flex-col gap-1">
               <label htmlFor="filter-category" className="text-xs text-muted-foreground">Categoría</label>
               <Select
@@ -257,6 +582,7 @@ export default function ProductsPage() {
                 value={category}
                 disabled={loadingCategories}
                 onChange={(e) => updateFilter(setCategory, e.target.value)}
+                className="w-44"
               >
                 <option value="">Todas</option>
                 {categoryOptions.map((c) => (
@@ -290,6 +616,7 @@ export default function ProductsPage() {
                 id="filter-type"
                 value={productType}
                 onChange={(e) => updateFilter(setProductType, e.target.value)}
+                className="w-44"
               >
                 <option value="">Todos</option>
                 {productTypeOptions.map((t) => (
@@ -303,22 +630,24 @@ export default function ProductsPage() {
                 id="filter-sale"
                 value={forSale}
                 onChange={(e) => updateFilter(setForSale, e.target.value)}
+                className="w-36"
               >
-                <option value="">Todos</option>
-                <option value="true">Sí</option>
-                <option value="false">No</option>
+                <option value="">Todas</option>
+                <option value="true">En venta</option>
+                <option value="false">No venta</option>
               </Select>
             </div>
             <div className="flex flex-col gap-1">
-              <label htmlFor="filter-active" className="text-xs text-muted-foreground">Activo</label>
+              <label htmlFor="filter-active" className="text-xs text-muted-foreground">Estado</label>
               <Select
                 id="filter-active"
                 value={active}
                 onChange={(e) => updateFilter(setActive, e.target.value)}
+                className="w-36"
               >
                 <option value="">Todos</option>
-                <option value="true">Sí</option>
-                <option value="false">No</option>
+                <option value="true">Activo</option>
+                <option value="false">Inactivo</option>
               </Select>
             </div>
           </div>
@@ -331,8 +660,8 @@ export default function ProductsPage() {
                 <Input
                   value={search}
                   onChange={(e) => updateFilter(setSearch, e.target.value)}
-                  placeholder="Buscar por nombre…"
-                  className="pl-9"
+                  placeholder="Buscar productos…"
+                  className="h-10 rounded-xl pl-10"
                   aria-label="Buscar producto"
                 />
               </div>
@@ -403,26 +732,52 @@ export default function ProductsPage() {
                     value={forSale}
                     onChange={(e) => updateFilter(setForSale, e.target.value)}
                   >
-                    <option value="">Todos</option>
-                    <option value="true">Sí</option>
-                    <option value="false">No</option>
+                    <option value="">Todas</option>
+                    <option value="true">En venta</option>
+                    <option value="false">No venta</option>
                   </Select>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label htmlFor="filter-active-mobile" className="text-xs text-muted-foreground">Activo</label>
+                  <label htmlFor="filter-active-mobile" className="text-xs text-muted-foreground">Estado</label>
                   <Select
                     id="filter-active-mobile"
                     value={active}
                     onChange={(e) => updateFilter(setActive, e.target.value)}
                   >
                     <option value="">Todos</option>
-                    <option value="true">Sí</option>
-                    <option value="false">No</option>
+                    <option value="true">Activo</option>
+                    <option value="false">Inactivo</option>
                   </Select>
                 </div>
               </div>
             </div>
           </div>
+
+          {/* Active filter chips */}
+          {hasActiveFilters && (
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              {activeFilters.map((f) => (
+                <button
+                  key={f.key}
+                  type="button"
+                  onClick={() => removeFilter(f.key)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-muted"
+                  title="Quitar filtro"
+                >
+                  {f.label}
+                  <FilterX className="h-3 w-3 text-muted-foreground" />
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium text-primary transition-colors hover:text-primary/80"
+              >
+                <FilterX className="h-3 w-3" />
+                Limpiar filtros
+              </button>
+            </div>
+          )}
         </div>
 
         {error ? (
@@ -438,16 +793,22 @@ export default function ProductsPage() {
                 <div>
                   <Package className="mx-auto h-10 w-10 text-muted-foreground" />
                   <p className="mt-3 text-sm font-medium">
-                    {search || category || productType || forSale || active
+                    {hasActiveFilters
                       ? "No se encontraron productos"
                       : "Aún no hay productos"}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {search || category || productType || forSale || active
-                      ? "Prueba con otros filtros."
+                    {hasActiveFilters
+                      ? "Prueba con otros filtros o limpia los actuales."
                       : "Crea tu primer producto para comenzar."}
                   </p>
-                  {!(search || category || productType || forSale || active) && (
+                  {hasActiveFilters && (
+                    <Button className="mt-4" size="sm" variant="outline" onClick={clearFilters}>
+                      <FilterX className="mr-1 h-3.5 w-3.5" />
+                      Limpiar filtros
+                    </Button>
+                  )}
+                  {!hasActiveFilters && (
                     <Button className="mt-4" size="sm" onClick={() => setCreating(true)}>
                       <Plus className="mr-1 h-3.5 w-3.5" />
                       Nuevo producto
@@ -457,8 +818,46 @@ export default function ProductsPage() {
               </div>
             ) : (
               <>
-                {/* Vista de tabla para desktop */}
-                <div className="hidden overflow-x-auto rounded-xl border border-border sm:block">
+                {/* Vista galería */}
+                <div
+                  className={cn(
+                    "grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
+                    view === "grid" ? "" : "sm:hidden",
+                  )}
+                >
+                  {products.map((p) => {
+                    const seed =
+                      (p.category && typeof p.category === "object" ? p.category.name : null) ??
+                      p.name ??
+                      String(p.id);
+                    return (
+                      <ProductCard
+                        key={p.id}
+                        product={p}
+                        stockByProduct={stockByProduct}
+                        loadingStock={loadingStock}
+                        colorClass={colorFor(seed)}
+                        productTypeLabel={productTypeLabel}
+                        onEdit={() => setEditingId(p.id)}
+                        onViewWarehouses={() => setViewingWarehouses(p)}
+                        onDuplicate={() => handleDuplicate(p)}
+                        onDelete={() => setConfirmDelete(p)}
+                        onToggleActive={() =>
+                          toggleActive.mutate({ id: p.id, isActive: !p.is_active })
+                        }
+                        isTogglingActive={toggleActive.isPending}
+                      />
+                    );
+                  })}
+                </div>
+
+                {/* Vista lista (tabla) */}
+                <div
+                  className={cn(
+                    "hidden overflow-x-auto rounded-xl border border-border",
+                    view === "list" ? "sm:block" : "hidden",
+                  )}
+                >
                   <table className="w-full min-w-[880px] text-sm">
                     <thead>
                       <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -552,102 +951,6 @@ export default function ProductsPage() {
                       ))}
                     </tbody>
                   </table>
-                </div>
-
-                {/* Vista de cards para móvil */}
-                <div className="grid gap-3 sm:hidden">
-                  {products.map((p) => (
-                    <div
-                      key={p.id}
-                      className="rounded-xl border border-border bg-card p-4 shadow-sm"
-                    >
-                      <div className="mb-3 flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-secondary">
-                            <Package className="h-4 w-4 text-muted-foreground" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="truncate font-medium">{p.name}</p>
-                            {p.code && <p className="text-xs text-muted-foreground">{p.code}</p>}
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => toggleActive.mutate({ id: p.id, isActive: !p.is_active })}
-                          aria-label={`${p.is_active ? "Desactivar" : "Activar"} ${p.name}`}
-                          className={`shrink-0 rounded-full p-2 ${
-                            p.is_active
-                              ? "text-emerald-600 hover:bg-emerald-500/10"
-                              : "text-muted-foreground hover:bg-muted hover:text-danger"
-                          }`}
-                        >
-                          <Power className="h-5 w-5" />
-                        </button>
-                      </div>
-
-                      <div className="mb-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                        <div>
-                          <p className="text-xs text-muted-foreground">Categoría</p>
-                          <p className="truncate">{p.category && typeof p.category === "object" ? p.category.name : "—"}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Tipo</p>
-                          <p className="truncate">{productTypeLabel(p.product_type)}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Precio</p>
-                          <p className="tabular-nums">{formatCLP(p.sale_price ?? p.price ?? "0")}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Stock</p>
-                          <div className="flex items-center gap-1">
-                            {loadingStock ? (
-                              <span className="inline-block h-4 w-8 animate-pulse rounded bg-muted" />
-                            ) : (
-                              <>
-                                <span className="tabular-nums">{productStock(p, stockByProduct)}</span>
-                                {isLowStock(p, stockByProduct) && (
-                                  <span title="Stock bajo">
-                                    <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-                                  </span>
-                                )}
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mb-3 flex flex-wrap items-center gap-2">
-                        <span
-                          className={
-                            p.is_for_sale
-                              ? "rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-700"
-                              : "rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
-                          }
-                        >
-                          Venta: {p.is_for_sale ? "Sí" : "No"}
-                        </span>
-                        <span
-                          className={
-                            p.is_active
-                              ? "rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-700"
-                              : "rounded-full bg-danger/10 px-2 py-0.5 text-xs font-medium text-danger"
-                          }
-                        >
-                          {p.is_active ? "Activo" : "Inactivo"}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-end gap-2 border-t border-border pt-3">
-                        <ProductActionsMenu
-                          product={p}
-                          onEdit={() => setEditingId(p.id)}
-                          onViewWarehouses={() => setViewingWarehouses(p)}
-                          onDuplicate={() => handleDuplicate(p)}
-                          onDelete={() => setConfirmDelete(p)}
-                        />
-                      </div>
-                    </div>
-                  ))}
                 </div>
               </>
             )}
