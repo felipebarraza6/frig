@@ -285,7 +285,11 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
     }
   }, [activeTab, product?.id, tracksWarehouseStock]);
 
-  const { data: existingRecipes = [], isLoading: loadingRecipes } = useQuery({
+  const {
+    data: existingRecipes = [],
+    isLoading: loadingRecipes,
+    error: recipesError,
+  } = useQuery({
     queryKey: ["recipes", "by-product", product?.id],
     queryFn: () => fetchRecipesByProduct(product!.id),
     enabled: !!product && isCompound,
@@ -1142,19 +1146,14 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
               <div className="mb-3 flex items-center justify-between gap-2">
                 <h3 className="text-sm font-semibold">Etiquetado nutricional (por 100 g)</h3>
                 <div className="flex items-center gap-2">
-                  {isCompound && (
+                  {isCompound && recipe.id && (
                     <>
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
                         onClick={handleCalculateNutrition}
-                        disabled={calculatingNutrition || !recipe.id}
-                        title={
-                          recipe.id
-                            ? undefined
-                            : "Guarda el producto primero para calcular la nutrición desde la receta."
-                        }
+                        disabled={calculatingNutrition}
                       >
                         {calculatingNutrition ? (
                           <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
@@ -1168,7 +1167,6 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          if (!recipe.id) return;
                           // Descarga con auth (apiFile); window.open con ruta
                           // relativa pega contra Next.js y sin token → 404.
                           downloadNutritionPdf(
@@ -1181,7 +1179,7 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
                             setError("No se pudo descargar el PDF de la etiqueta nutricional.");
                           });
                         }}
-                        disabled={!recipe.id || downloadingNutritionPdf}
+                        disabled={downloadingNutritionPdf}
                       >
                         {downloadingNutritionPdf ? (
                           <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
@@ -1194,6 +1192,18 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
                   )}
                 </div>
               </div>
+              {isCompound && !recipe.id && (
+                <p className="mb-3 text-xs text-muted-foreground">
+                  Este producto es compuesto pero aún no tiene receta guardada.
+                  Puedes ingresar la información nutricional manualmente o guardar
+                  ingredientes en la pestaña Receta para calcularla automáticamente.
+                </p>
+              )}
+              {recipesError && (
+                <p className="mb-3 text-xs text-danger">
+                  No se pudo cargar la receta: {recipesError instanceof Error ? recipesError.message : "error desconocido"}.
+                </p>
+              )}
               <label className="mb-4 flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
