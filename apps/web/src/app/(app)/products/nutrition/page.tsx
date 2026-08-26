@@ -127,10 +127,10 @@ export default function ProductNutritionPage() {
         <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
           <Apple className="h-10 w-10 text-muted-foreground" />
           <div className="max-w-sm">
-            <p className="text-sm font-medium">Módulo Recetas no activo</p>
+            <p className="text-sm font-medium">Etiquetado nutricional no activo</p>
             <p className="text-xs text-muted-foreground">
-              El etiquetado nutricional requiere el módulo Recetas. Actívalo en
-              Configuración → Módulos para usar esta función.
+              Activa el módulo Etiquetado nutricional en Configuración → Módulos
+              para usar esta función. Recetas e ingredientes siguen disponibles.
             </p>
           </div>
         </div>
