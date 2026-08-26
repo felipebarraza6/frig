@@ -188,6 +188,7 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
   }
 
   const activeHref = getActiveHref(allNavHrefs, pathname);
+  const stationActiveHref = getActiveHref(stationItems, pathname);
 
   async function handleLogout() {
     try {
@@ -343,8 +344,9 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
             <NavGroup
               title="Estaciones"
               expanded={effectivelyExpanded}
-              isOpen={isGroupOpen("Estaciones")}
+              isOpen={isGroupOpen("Estaciones") || !!stationActiveHref}
               onToggle={() =>
+                !stationActiveHref &&
                 setOpenGroup((prev) => (prev === "Estaciones" ? null : "Estaciones"))
               }
             >
@@ -369,13 +371,15 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
             .filter((g) => g.title.toLowerCase() !== "operaciones")
             .map((group) => {
               const groupActiveHref = getActiveHref(group.items, pathname);
+              const forceOpen = !!groupActiveHref;
               return (
                 <NavGroup
                   key={group.title}
                   title={group.title}
                   expanded={effectivelyExpanded}
-                  isOpen={isGroupOpen(group.title)}
+                  isOpen={isGroupOpen(group.title) || forceOpen}
                   onToggle={() =>
+                    !forceOpen &&
                     setOpenGroup((prev) => (prev === group.title ? null : group.title))
                   }
                 >

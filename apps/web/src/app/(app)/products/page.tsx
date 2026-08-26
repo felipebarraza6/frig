@@ -83,22 +83,25 @@ export default function ProductsPage() {
   const { data: page, isLoading, error } = useQuery({
     queryKey: ["products", "manage", filter],
     queryFn: () => fetchProducts(filter),
+    placeholderData: (previousData) => previousData,
   });
 
   const products = page?.results ?? [];
   const totalProducts = page?.count ?? 0;
 
-  const { data: warehouseProducts = [] } = useQuery({
+  const { data: warehouseProducts = [], isLoading: loadingStock } = useQuery({
     queryKey: ["warehouse-products", "branch", branch?.branch_id],
     queryFn: async () => {
       const all: WarehouseProduct[] = [];
       let next: string | null | undefined;
       let first = true;
-      while (first || next) {
-        const data = await fetchBranchWarehouseProducts(first ? { page_size: 1000 } : { next });
+      let pages = 0;
+      while ((first || next) && pages < 20) {
+        const data = await fetchBranchWarehouseProducts(first ? { page_size: 2000 } : { next });
         all.push(...(data.results ?? []));
         next = data.next;
         first = false;
+        pages++;
       }
       return all;
     },
@@ -496,11 +499,17 @@ export default function ProductsPage() {
                           </td>
                           <td className="px-4 py-3 text-center">
                             <div className="flex items-center justify-center gap-1">
-                              <span className="tabular-nums">{productStock(p, stockByProduct)}</span>
-                              {isLowStock(p, stockByProduct) && (
-                                <span title="Stock bajo">
-                                  <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-                                </span>
+                              {loadingStock ? (
+                                <span className="inline-block h-4 w-8 animate-pulse rounded bg-muted" />
+                              ) : (
+                                <>
+                                  <span className="tabular-nums">{productStock(p, stockByProduct)}</span>
+                                  {isLowStock(p, stockByProduct) && (
+                                    <span title="Stock bajo">
+                                      <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                                    </span>
+                                  )}
+                                </>
                               )}
                             </div>
                           </td>
@@ -591,11 +600,17 @@ export default function ProductsPage() {
                         <div>
                           <p className="text-xs text-muted-foreground">Stock</p>
                           <div className="flex items-center gap-1">
-                            <span className="tabular-nums">{productStock(p, stockByProduct)}</span>
-                            {isLowStock(p, stockByProduct) && (
-                              <span title="Stock bajo">
-                                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-                              </span>
+                            {loadingStock ? (
+                              <span className="inline-block h-4 w-8 animate-pulse rounded bg-muted" />
+                            ) : (
+                              <>
+                                <span className="tabular-nums">{productStock(p, stockByProduct)}</span>
+                                {isLowStock(p, stockByProduct) && (
+                                  <span title="Stock bajo">
+                                    <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                                  </span>
+                                )}
+                              </>
                             )}
                           </div>
                         </div>
