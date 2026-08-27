@@ -214,13 +214,13 @@ export default function PosZenPage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.05 }}
                   className={cn(
-                    "flex flex-col gap-4 rounded-2xl border p-5 transition-all",
+                    "flex flex-col gap-4 rounded-2xl border p-4 transition-all sm:flex-row sm:items-center sm:justify-between",
                     selected
                       ? "border-primary/40 bg-gradient-to-br from-primary/10 to-card shadow-md ring-1 ring-primary/20"
                       : "border-border/60 bg-card shadow-sm hover:border-primary/30 hover:bg-muted/30 hover:shadow-md",
                   )}
                 >
-                  <div className="flex items-start gap-4">
+                  <div className="flex items-center gap-4">
                     <div
                       className={cn(
                         "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-colors",
@@ -234,10 +234,27 @@ export default function PosZenPage() {
                         )}
                       />
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-base font-semibold truncate">
-                        {station.name}
-                      </p>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-base font-semibold truncate">
+                          {station.name}
+                        </p>
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
+                            isOpen
+                              ? "bg-emerald-500/10 text-emerald-700"
+                              : "bg-amber-500/10 text-amber-700",
+                          )}
+                        >
+                          {isOpen ? (
+                            <Unlock className="h-3 w-3" />
+                          ) : (
+                            <Lock className="h-3 w-3" />
+                          )}
+                          {isOpen ? "Abierta" : "Cerrada"}
+                        </span>
+                      </div>
                       <p className="text-xs text-muted-foreground">
                         {station.code}
                       </p>
@@ -254,69 +271,41 @@ export default function PosZenPage() {
                         </p>
                       )}
                     </div>
-                    <span
-                      className={cn(
-                        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
-                        isOpen
-                          ? "bg-emerald-500/10 text-emerald-700"
-                          : "bg-amber-500/10 text-amber-700",
-                      )}
-                    >
-                      {isOpen ? (
-                        <Unlock className="h-3 w-3" />
-                      ) : (
-                        <Lock className="h-3 w-3" />
-                      )}
-                      {isOpen ? "Abierta" : "Cerrada"}
-                    </span>
                   </div>
 
                   {isOpen ? (
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="rounded-xl border border-border/60 bg-muted/30 p-3">
-                        <div className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
-                          <BarChart3 className="h-3 w-3" />
-                          Cantidad
-                        </div>
-                        <p className="mt-0.5 text-base font-bold tabular-nums">
-                          {isLoading ? (
-                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                          ) : (
-                            totalOrders
-                          )}
-                        </p>
-                      </div>
-                      <div className="rounded-xl border border-border/60 bg-muted/30 p-3">
-                        <div className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
-                          <ShoppingBag className="h-3 w-3" />
-                          Ventas
-                        </div>
-                        <p className="mt-0.5 text-base font-bold tabular-nums">
-                          {isLoading ? (
-                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                          ) : (
-                            formatCLP(totalSales)
-                          )}
-                        </p>
-                      </div>
-                      <div className="rounded-xl border border-border/60 bg-muted/30 p-3">
-                        <div className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
-                          <Banknote className="h-3 w-3" />
-                          Efectivo
-                        </div>
-                        <p className="mt-0.5 text-base font-bold tabular-nums">
-                          {isLoading ? (
-                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                          ) : (
-                            formatCLP(cashSales)
-                          )}
-                        </p>
-                      </div>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm sm:justify-center">
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <BarChart3 className="h-3.5 w-3.5" />
+                        {isLoading ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <span className="font-semibold text-foreground tabular-nums">{totalOrders}</span>
+                        )}{" "}
+                        ventas
+                      </span>
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <ShoppingBag className="h-3.5 w-3.5" />
+                        {isLoading ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <span className="font-semibold text-foreground tabular-nums">{formatCLP(totalSales)}</span>
+                        )}
+                      </span>
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <Banknote className="h-3.5 w-3.5" />
+                        {isLoading ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <span className="font-semibold text-foreground tabular-nums">{formatCLP(cashSales)}</span>
+                        )}{" "}
+                        efectivo
+                      </span>
                     </div>
                   ) : (
-                    <div className="flex flex-col gap-2">
-                      <label className="text-[11px] font-medium text-muted-foreground">
-                        Monto de apertura
+                    <div className="flex w-full max-w-xs items-center gap-2 sm:justify-center">
+                      <label className="whitespace-nowrap text-xs text-muted-foreground">
+                        Monto apertura
                       </label>
                       <Input
                         value={amount ? formatCLP(parseFloat(toDecimal(amount))) : ""}
@@ -333,7 +322,7 @@ export default function PosZenPage() {
                   )}
 
                   <Button
-                    className="w-full"
+                    className="w-full sm:w-auto sm:shrink-0"
                     disabled={
                       (!isOpening && isBusy) ||
                       !branch

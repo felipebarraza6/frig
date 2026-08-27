@@ -2162,7 +2162,7 @@ export default function PosPage() {
             if (e.target === e.currentTarget) setShowCashRegisterModal(false);
           }}
         >
-          <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-xl border border-border bg-card p-4 shadow-lg sm:p-5">
+          <div className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-border bg-card p-5 shadow-xl sm:p-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h3 className="text-base font-semibold">
