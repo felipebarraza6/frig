@@ -707,127 +707,113 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
           </div>
 
           {activeTab === "basic" && (
-          <>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="flex flex-col gap-2">
-              <label htmlFor="product-name" className="text-sm font-medium">Nombre</label>
-              <Input
-                id="product-name"
-                value={form.name}
-                onChange={(e) => updateField("name", e.target.value)}
-                required
-                placeholder="Ej: Cono artesanal"
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label htmlFor="product-code" className="text-sm font-medium">Código</label>
-              <Input
-                id="product-code"
-                value={form.code}
-                onChange={(e) => updateField("code", e.target.value)}
-                placeholder="Opcional"
-              />
-            </div>
-          </div>
-
-          <div className={`grid grid-cols-1 gap-3 ${isCompound ? "" : "sm:grid-cols-2"}`}>
-            <div className="flex flex-col gap-2">
-              <label htmlFor="product-type" className="text-sm font-medium">Tipo</label>
-              <Select
-                id="product-type"
-                value={form.productType}
-                onChange={(e) => updateField("productType", e.target.value)}
-              >
-                {productTypeOptions.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
-                ))}
-              </Select>
-              <ProductTypeHelp productType={form.productType} />
-            </div>
-            {!isCompound && (
+          <div className="flex flex-col gap-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="flex flex-col gap-2">
-                <label htmlFor="product-description" className="text-sm font-medium">Descripción</label>
+                <label htmlFor="product-name" className="text-sm font-medium">Nombre</label>
                 <Input
-                  id="product-description"
-                  value={form.description}
-                  onChange={(e) => updateField("description", e.target.value)}
+                  id="product-name"
+                  value={form.name}
+                  onChange={(e) => updateField("name", e.target.value)}
+                  required
+                  placeholder="Ej: Cono artesanal"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label htmlFor="product-code" className="text-sm font-medium">Código</label>
+                <Input
+                  id="product-code"
+                  value={form.code}
+                  onChange={(e) => updateField("code", e.target.value)}
                   placeholder="Opcional"
                 />
               </div>
-            )}
-          </div>
-
-          <div className={`grid grid-cols-1 gap-3 ${isCompound ? "" : "sm:grid-cols-2"}`}>
-            <div className="flex flex-col gap-2">
-              <label htmlFor="product-category" className="text-sm font-medium">Categoría</label>
-              <Select
-                id="product-category"
-                value={form.category}
-                disabled={loadingCategories}
-                onChange={(e) => updateField("category", e.target.value)}
-              >
-                <option value="">Sin categoría</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </Select>
             </div>
-            {!isCompound && (
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="flex flex-col gap-2">
-                <label htmlFor="product-unit" className="text-sm font-medium">Unidad de medida</label>
+                <label htmlFor="product-type" className="text-sm font-medium">Tipo</label>
                 <Select
-                  id="product-unit"
-                  value={isCustomUnit ? "otro" : form.measurementUnit}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    updateField("measurementUnit", value === "otro" ? "" : value);
-                  }}
+                  id="product-type"
+                  value={form.productType}
+                  onChange={(e) => updateField("productType", e.target.value)}
                 >
-                  <option value="">Selecciona</option>
-                  {MEASUREMENT_UNITS.map((u) => (
-                    <option key={u.value} value={u.value}>{u.label}</option>
+                  {productTypeOptions.map((t) => (
+                    <option key={t.value} value={t.value}>{t.label}</option>
                   ))}
                 </Select>
-                {isCustomUnit && (
-                  <Input
-                    value={form.measurementUnit}
-                    onChange={(e) => updateField("measurementUnit", e.target.value.toLowerCase().trim())}
-                    placeholder="Escribe la unidad (ej: galón)"
-                  />
-                )}
+                <ProductTypeHelp productType={form.productType} />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label htmlFor="product-category" className="text-sm font-medium">Categoría</label>
+                <Select
+                  id="product-category"
+                  value={form.category}
+                  disabled={loadingCategories}
+                  onChange={(e) => updateField("category", e.target.value)}
+                >
+                  <option value="">Sin categoría</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </Select>
+              </div>
+            </div>
+
+            {!isCompound && (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="product-unit" className="text-sm font-medium">Unidad de medida</label>
+                  <Select
+                    id="product-unit"
+                    value={isCustomUnit ? "otro" : form.measurementUnit}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      updateField("measurementUnit", value === "otro" ? "" : value);
+                    }}
+                  >
+                    <option value="">Selecciona</option>
+                    {MEASUREMENT_UNITS.map((u) => (
+                      <option key={u.value} value={u.value}>{u.label}</option>
+                    ))}
+                  </Select>
+                  {isCustomUnit && (
+                    <Input
+                      value={form.measurementUnit}
+                      onChange={(e) => updateField("measurementUnit", e.target.value.toLowerCase().trim())}
+                      placeholder="Escribe la unidad (ej: galón)"
+                    />
+                  )}
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="product-supplier" className="text-sm font-medium">Proveedor principal</label>
+                  <Select
+                    id="product-supplier"
+                    value={form.supplier}
+                    disabled={loadingSuppliers || loadingSupplierProduct}
+                    onChange={(e) => updateField("supplier", e.target.value)}
+                  >
+                    <option value="">Sin proveedor</option>
+                    {suppliers.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </Select>
+                </div>
               </div>
             )}
-          </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="flex flex-col gap-2">
-              <label htmlFor="product-supplier" className="text-sm font-medium">Proveedor principal</label>
-              <Select
-                id="product-supplier"
-                value={form.supplier}
-                disabled={loadingSuppliers || loadingSupplierProduct}
-                onChange={(e) => updateField("supplier", e.target.value)}
-              >
-                <option value="">Sin proveedor</option>
-                {suppliers.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </Select>
-            </div>
-          </div>
-
-          {isCompound && (
             <div className="flex flex-col gap-2">
               <label htmlFor="product-description" className="text-sm font-medium">Descripción</label>
-              <Input
+              <textarea
                 id="product-description"
                 value={form.description}
                 onChange={(e) => updateField("description", e.target.value)}
-                placeholder="Opcional"
+                placeholder="Describe el producto para el equipo de ventas o cocina..."
+                rows={3}
+                className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
-          )}
-          </>
+          </div>
           )}
 
           {activeTab === "pricing" && (
