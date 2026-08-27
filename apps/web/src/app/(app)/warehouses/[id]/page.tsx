@@ -668,12 +668,12 @@ export default function WarehouseDetailPage() {
           </div>
         ) : (
           <>
-          <div className="hidden sm:block overflow-x-auto rounded-2xl border border-border">
-            <table className="w-full table-fixed min-w-[1080px] text-sm">
+          <div className="hidden sm:block w-full min-w-0 overflow-x-auto rounded-2xl border border-border">
+            <table className="w-full table-auto min-w-[1280px] text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                   <th
-                    className="group w-auto min-w-[160px] cursor-pointer select-none px-3 py-2 text-left hover:bg-muted/50"
+                    className="group min-w-[240px] max-w-[380px] cursor-pointer select-none px-3 py-2 text-left hover:bg-muted/50"
                     onClick={() => handleSort("product_name")}
                   >
                     <span className="inline-flex items-center gap-1 whitespace-nowrap">
@@ -681,33 +681,33 @@ export default function WarehouseDetailPage() {
                     </span>
                   </th>
                   <th
-                    className="group w-32 cursor-pointer select-none px-3 py-2 text-left hover:bg-muted/50"
+                    className="group min-w-[130px] cursor-pointer select-none px-3 py-2 text-left hover:bg-muted/50"
                     onClick={() => handleSort("product_category")}
                   >
                     <span className="inline-flex items-center gap-1 whitespace-nowrap">
                       Categoría <SortIcon sort={productSort} field="product_category" />
                     </span>
                   </th>
-                  <th className="group w-36 px-3 py-2 text-left">
+                  <th className="group min-w-[150px] px-3 py-2 text-left">
                     <span className="inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                       Proveedor
                     </span>
                   </th>
                   <th
-                    className="group w-24 cursor-pointer select-none px-3 py-2 text-right hover:bg-muted/50"
+                    className="group min-w-[100px] cursor-pointer select-none px-3 py-2 text-right hover:bg-muted/50"
                     onClick={() => handleSort("current_quantity")}
                   >
                     <span className="inline-flex items-center justify-end gap-1 whitespace-nowrap">
                       Cantidad <SortIcon sort={productSort} field="current_quantity" />
                     </span>
                   </th>
-                  <th className="group w-28 px-3 py-2 text-right">
+                  <th className="group min-w-[120px] px-3 py-2 text-right">
                     <span className="inline-flex items-center justify-end gap-1 whitespace-nowrap text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                       Rango
                     </span>
                   </th>
                   <th
-                    className="group w-28 cursor-pointer select-none px-3 py-2 text-right hover:bg-muted/50"
+                    className="group min-w-[140px] cursor-pointer select-none px-3 py-2 text-right hover:bg-muted/50"
                     onClick={() => handleSort("total_value")}
                   >
                     <span className="inline-flex items-center justify-end gap-1 whitespace-nowrap">
@@ -715,14 +715,14 @@ export default function WarehouseDetailPage() {
                     </span>
                   </th>
                   <th
-                    className="group w-28 cursor-pointer select-none px-3 py-2 text-right hover:bg-muted/50"
+                    className="group min-w-[140px] cursor-pointer select-none px-3 py-2 text-right hover:bg-muted/50"
                     onClick={() => handleSort("total_sale_value")}
                   >
                     <span className="inline-flex items-center justify-end gap-1 whitespace-nowrap">
                       Venta <SortIcon sort={productSort} field="total_sale_value" />
                     </span>
                   </th>
-                  <th className="w-20 px-3 py-2 text-right">Acciones</th>
+                  <th className="min-w-[100px] px-3 py-2 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -743,7 +743,7 @@ export default function WarehouseDetailPage() {
                           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary">
                             <Package className="h-4 w-4 text-muted-foreground" />
                           </div>
-                          <div className="min-w-0">
+                          <div className="min-w-0 max-w-[340px]">
                             <p className="truncate font-medium leading-tight">{wp.product_name}</p>
                             <div className="mt-1 flex flex-wrap items-center gap-1.5">
                               <span
@@ -765,7 +765,7 @@ export default function WarehouseDetailPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-2 whitespace-nowrap">
                         {wp.product_category ? (
                           <span className="inline-flex items-center rounded-sm bg-secondary px-2 py-1 text-[11px] font-medium text-foreground">
                             {wp.product_category}
@@ -774,7 +774,7 @@ export default function WarehouseDetailPage() {
                           <span className="text-xs text-muted-foreground">—</span>
                         )}
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-2 whitespace-nowrap">
                         {(() => {
                           const name = supplierNameByProduct.get(wp.product ?? 0);
                           return name ? (
@@ -789,21 +789,22 @@ export default function WarehouseDetailPage() {
                           );
                         })()}
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums font-medium">
+                      <td className="px-3 py-2 text-right tabular-nums font-medium whitespace-nowrap">
                         {wp.current_quantity}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
-                        {wp.minimum_quantity ?? 0} <span className="text-[10px]">min</span>
-                        {" — "}
-                        {wp.maximum_quantity ?? "—"} <span className="text-[10px]">máx</span>
+                        <div className="inline-flex flex-col items-end leading-tight whitespace-nowrap">
+                          <span><span className="text-[10px]">mín</span> {wp.minimum_quantity ?? 0}</span>
+                          <span><span className="text-[10px]">máx</span> {wp.maximum_quantity ?? "—"}</span>
+                        </div>
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums">
+                      <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap">
                         <div className="leading-tight">
                           <p className="font-medium text-success">{formatCLP(totalValue)}</p>
                           <p className="text-xs text-muted-foreground">{formatCLP(unitCost)} c/u</p>
                         </div>
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums">
+                      <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap">
                         <div className="leading-tight">
                           <p className="font-medium text-primary">{formatCLP(totalSale)}</p>
                           <p className="text-xs text-muted-foreground">{formatCLP(salePrice)} c/u</p>
