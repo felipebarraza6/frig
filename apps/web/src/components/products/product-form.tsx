@@ -112,6 +112,59 @@ function generateId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+type WarehouseProduct = YggdraSchemas["WarehouseProduct"];
+
+function groupProductWarehousesByWarehouse(items: WarehouseProduct[]): WarehouseProduct[] {
+  const groups = new Map<string, WarehouseProduct[]>();
+  for (const item of items) {
+    const key = String(item.warehouse.id ?? item.warehouse.name ?? "").trim().toLowerCase();
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(item);
+  }
+
+  return Array.from(groups.values()).map((group) => {
+    const first = group[0];
+    let minimumQuantity: number | undefined;
+    let maximumQuantity: number | null = null;
+    let reorderPoint: number | undefined;
+    let location = first.location_in_warehouse ?? null;
+    let earliestCreated = first.created;
+    let recordId = first.id;
+
+    for (const w of group) {
+      if (w.minimum_quantity != null) {
+        minimumQuantity =
+          minimumQuantity === undefined ? w.minimum_quantity : Math.min(minimumQuantity, w.minimum_quantity);
+      }
+      if (w.maximum_quantity != null) {
+        maximumQuantity =
+          maximumQuantity === null ? w.maximum_quantity : Math.max(maximumQuantity, w.maximum_quantity);
+      }
+      if (w.reorder_point != null) {
+        reorderPoint =
+          reorderPoint === undefined ? w.reorder_point : Math.min(reorderPoint, w.reorder_point);
+      }
+      if (!location && w.location_in_warehouse) {
+        location = w.location_in_warehouse;
+      }
+      if (w.created < earliestCreated) {
+        earliestCreated = w.created;
+        recordId = w.id;
+      }
+    }
+
+    return {
+      ...first,
+      id: recordId,
+      minimum_quantity: minimumQuantity,
+      maximum_quantity: maximumQuantity,
+      reorder_point: reorderPoint,
+      location_in_warehouse: location,
+      created: earliestCreated,
+    } as WarehouseProduct;
+  });
+}
+
 export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
   const queryClient = useQueryClient();
   const { options: productTypeOptions, defaultType } = useBranchProductTypes();
@@ -204,6 +257,11 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
     queryFn: () => fetchProductWarehouses(product!.id),
     enabled: !!product?.id,
   });
+
+  const groupedProductWarehouses = useMemo(
+    () => groupProductWarehousesByWarehouse(productWarehouses),
+    [productWarehouses],
+  );
 
   const branch = useCurrentBranch();
   const toast = useToast();
@@ -960,13 +1018,13 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
                       <Loader2 className="h-4 w-4 animate-spin" />
                       Cargando bodegas…
                     </div>
-                  ) : productWarehouses.length === 0 ? (
+                  ) : groupedProductWarehouses.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
                       Este producto no está asignado a ninguna bodega.
                     </p>
                   ) : (
                     <div className="flex flex-col gap-2">
-                      {productWarehouses.map((wp) => (
+                      {groupedProductWarehouses.map((wp) => (
                         <div
                           key={wp.id}
                           className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2"
@@ -1035,7 +1093,7 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
                           .filter(
                             (w) =>
                               !warehouseAssignments.some((a) => a.warehouseId === String(w.id)) &&
-                              !productWarehouses.some((wp) => String(wp.warehouse.id) === String(w.id)),
+                              !groupedProductWarehouses.some((wp) => String(wp.warehouse.id) === String(w.id)),
                           )
                           .map((w) => (
                             <option key={w.id} value={String(w.id)}>{w.name}</option>
