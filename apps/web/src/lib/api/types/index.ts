@@ -1,7 +1,12 @@
 import type { components } from "./yggdra";
 
 export type YggdraSchemas = components["schemas"];
-export type YggdraProduct = YggdraSchemas["ProductList"];
+// ProductList se genera sin stock_available, pero el backend lo anota
+// en el listado de productos para exponer el stock efectivo (incluido
+// el de bowls calculado desde recetas).
+export type YggdraProduct = YggdraSchemas["ProductList"] & {
+  stock_available?: number | null;
+};
 export type YggdraCategory = YggdraSchemas["CategoryProduct"];
 export type YggdraPaginatedProduct = YggdraSchemas["PaginatedProductListList"];
 export type YggdraPaginatedCategory = YggdraSchemas["PaginatedCategoryProductList"];

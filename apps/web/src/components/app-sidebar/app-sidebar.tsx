@@ -123,14 +123,14 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
   const { data: kitchenStations = [] } = useQuery({
     queryKey: ["kitchen-stations"],
     queryFn: fetchKitchenStations,
-    enabled: !!branchId,
+    enabled: !!branchId && isProductionEnabled,
   });
 
   const { data: kitchenTickets = [] } = useQuery({
     queryKey: ["kitchen-tickets", "READY"],
     queryFn: () => fetchKitchenTickets("READY"),
     refetchInterval: 15_000,
-    enabled: !!branch,
+    enabled: !!branch && isProductionEnabled,
   });
 
   const badges = useMemo(() => {

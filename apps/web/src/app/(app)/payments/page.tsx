@@ -304,6 +304,7 @@ export default function PaymentsPage() {
         ) : isLoading ? (
           <div className="flex flex-col gap-3">
             <TableSkeleton />
+            <MobileCardsSkeleton />
             <div className="flex justify-end">
               <Skeleton className="h-9 w-40" />
             </div>
@@ -552,6 +553,40 @@ function TableSkeleton() {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function MobileCardsSkeleton() {
+  return (
+    <div className="grid gap-3 md:hidden">
+      {Array.from({ length: 4 }).map((_, idx) => (
+        <div
+          key={idx}
+          className="rounded-2xl border border-border bg-card p-4 shadow-sm"
+        >
+          <div className="flex items-start gap-3">
+            <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0 flex-1 space-y-2">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+                <Skeleton className="h-5 w-20 shrink-0" />
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-3">
+                {Array.from({ length: 4 }).map((__, i) => (
+                  <div key={i} className="min-w-0 space-y-1">
+                    <Skeleton className="h-3 w-16" />
+                    <Skeleton className="h-4 w-full" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

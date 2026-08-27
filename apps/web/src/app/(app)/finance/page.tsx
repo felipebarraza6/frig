@@ -347,7 +347,7 @@ function StatSkeleton() {
           <Skeleton className="h-3 w-24" />
           <Skeleton className="h-7 w-32" />
         </div>
-        <Skeleton className="h-10 w-10 rounded-full sm:h-8 sm:w-8" />
+        <Skeleton className="h-8 w-8 rounded-full" />
       </div>
       <Skeleton className="h-3 w-20" />
     </div>
@@ -357,12 +357,12 @@ function StatSkeleton() {
 function SimpleBarChart({ data }: { data: (RevenueByDateRangeItem & { date: string; total: string | number })[] }) {
   const max = Math.max(...data.map((d) => parseAmount(d.total)), 1);
   return (
-    <div className="flex h-56 items-end gap-1 sm:gap-1.5">
+    <div className="flex h-56 items-end gap-1 overflow-x-auto pb-1 sm:gap-1.5">
       {data.map((d) => {
         const value = parseAmount(d.total);
         const pct = (value / max) * 100;
         return (
-          <div key={d.date} className="group flex flex-1 flex-col items-center gap-1.5">
+          <div key={d.date} className="group flex min-w-[2rem] flex-1 shrink-0 flex-col items-center gap-1.5">
             <div className="relative w-full flex-1 overflow-hidden rounded-t-md bg-muted">
               <div
                 className="absolute bottom-0 w-full rounded-t-md bg-emerald-500 transition-all duration-500 group-hover:bg-emerald-400"
