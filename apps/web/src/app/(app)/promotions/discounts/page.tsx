@@ -727,7 +727,7 @@ export default function DiscountsPage() {
 
       {modalOpen && (
         <div
-          className="fixed inset-0 z-[60] flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
+          className="fixed inset-0 z-[70] flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
           role="dialog"
           aria-modal="true"
           onMouseDown={(e) => {
@@ -1088,7 +1088,7 @@ export default function DiscountsPage() {
 
       {confirmDelete && (
         <div
-          className="fixed inset-0 z-[60] flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
+          className="fixed inset-0 z-[70] flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
           role="dialog"
           aria-modal="true"
           onMouseDown={(e) => {
@@ -1143,7 +1143,7 @@ function StatCard({
         <Icon className="h-4 w-4" />
         <span className="text-xs font-medium">{label}</span>
       </div>
-      <p className="text-lg font-semibold tabular-nums sm:text-xl">{value}</p>
+      <p className="text-base font-semibold tabular-nums sm:text-xl">{value}</p>
       <p className="text-xs text-muted-foreground">{sub}</p>
     </div>
   );
