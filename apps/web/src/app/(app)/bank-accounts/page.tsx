@@ -23,6 +23,12 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Receipt,
+  Filter,
+  CreditCard,
+  Wallet,
+  TrendingUp,
+  TrendingDown,
+  RotateCcw,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -82,6 +88,23 @@ const REC_STATUS_OPTIONS = [
   { value: "DISCREPANCY", label: "Con discrepancias" },
 ] as const;
 
+const TX_FILTERS = [
+  { value: "ALL", label: "Todos" },
+  { value: "INCOME", label: "Ingresos" },
+  { value: "EXPENSE", label: "Egresos" },
+] as const;
+
+const BANK_GRADIENTS = [
+  "from-slate-700 to-slate-900",
+  "from-blue-700 to-blue-950",
+  "from-emerald-700 to-emerald-950",
+  "from-violet-700 to-violet-950",
+  "from-amber-700 to-amber-950",
+  "from-rose-700 to-rose-950",
+  "from-cyan-700 to-cyan-950",
+  "from-indigo-700 to-indigo-950",
+] as const;
+
 function accountTypeLabel(value?: string | null): string {
   return ACCOUNT_TYPES.find((t) => t.value === value)?.label ?? (value ?? "—");
 }
@@ -110,6 +133,23 @@ function statusBadgeClasses(value?: BankReconciliation["status"]): string {
 
 function todayDateInput(): string {
   return new Date().toISOString().split("T")[0];
+}
+
+function maskAccountNumber(number?: string | null): string {
+  if (!number) return "**** 0000";
+  const clean = number.replace(/\D/g, "");
+  const last4 = clean.slice(-4).padStart(4, "0");
+  return `**** ${last4}`;
+}
+
+function bankGradient(bankName?: string | null, type?: string | null): string {
+  const key = `${bankName ?? ""}:${type ?? ""}`;
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) {
+    hash = key.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const idx = Math.abs(hash) % BANK_GRADIENTS.length;
+  return BANK_GRADIENTS[idx];
 }
 
 const EMPTY_FORM: BankAccountRequest = {
@@ -198,6 +238,7 @@ export default function BankAccountsPage() {
   // Transactions drawer state
   const [txModalOpen, setTxModalOpen] = useState(false);
   const [txAccount, setTxAccount] = useState<BankAccountSummary | null>(null);
+  const [txFilter, setTxFilter] = useState<"ALL" | "INCOME" | "EXPENSE">("ALL");
 
   const {
     data: transactions = [],
@@ -234,6 +275,11 @@ export default function BankAccountsPage() {
         a.account_number.toLowerCase().includes(q),
     );
   }, [accounts, search]);
+
+  const filteredTransactions = useMemo(() => {
+    if (txFilter === "ALL") return transactions;
+    return transactions.filter((t) => t.payment_direction === txFilter);
+  }, [transactions, txFilter]);
 
   useEffect(() => {
     if (editingAccount) {
@@ -356,12 +402,14 @@ export default function BankAccountsPage() {
 
   function openTransactions(account: BankAccountSummary) {
     setTxAccount(account);
+    setTxFilter("ALL");
     setTxModalOpen(true);
   }
 
   function closeTransactions() {
     setTxModalOpen(false);
     setTxAccount(null);
+    setTxFilter("ALL");
   }
 
   function startEditReconciliation(rec: BankReconciliation) {
@@ -388,6 +436,9 @@ export default function BankAccountsPage() {
     const difference = system - statement;
     return { system, statement, difference, lastStatus: last.status };
   }, [selectedAccount, reconciliations]);
+
+  const anyRecActionPending =
+    recMarkBalanced.isPending || recMarkPending.isPending || recValidate.isPending;
 
   return (
     <div className="flex min-h-full flex-col">
@@ -431,7 +482,8 @@ export default function BankAccountsPage() {
           />
         </div>
 
-        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Stats: scrolleable en móvil, grid en desktop */}
+        <section className="flex snap-x gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 lg:grid-cols-4">
           {loadingReconciliationSummary ? (
             <>
               <StatSkeleton />
@@ -471,18 +523,24 @@ export default function BankAccountsPage() {
 
         {isAccountsError ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border p-8 text-center">
-            <AlertCircle className="h-10 w-10 text-danger" />
-            <p className="text-sm font-medium">No se pudieron cargar las cuentas</p>
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-danger/10">
+              <AlertCircle className="h-7 w-7 text-danger" />
+            </div>
+            <div>
+              <p className="text-sm font-medium">No se pudieron cargar las cuentas</p>
+              <p className="text-xs text-muted-foreground">Revisa tu conexión e intenta nuevamente.</p>
+            </div>
             <Button variant="outline" size="sm" onClick={() => refetchAccounts()}>
-              <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+              <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
               Reintentar
             </Button>
           </div>
         ) : isLoading ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <AccountCardSkeleton />
-            <AccountCardSkeleton />
-            <AccountCardSkeleton />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            <BankAccountCardSkeleton />
+            <BankAccountCardSkeleton />
+            <BankAccountCardSkeleton />
+            <BankAccountCardSkeleton />
           </div>
         ) : filteredAccounts.length === 0 ? (
           <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">
@@ -499,95 +557,18 @@ export default function BankAccountsPage() {
             </div>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {filteredAccounts.map((a) => (
-              <div key={a.id} className="rounded-xl border border-border bg-card p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-md bg-secondary">
-                      <Landmark className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{a.account_name}</p>
-                      <p className="text-xs text-muted-foreground">{a.bank_name}</p>
-                    </div>
-                  </div>
-                  {a.is_default && (
-                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                      Principal
-                    </span>
-                  )}
-                </div>
-                <div className="mt-3 space-y-1 text-sm">
-                  <p className="text-muted-foreground">Número: <span className="text-foreground">{a.account_number}</span></p>
-                  <p className="text-muted-foreground">Tipo: <span className="text-foreground">{accountTypeLabel(a.account_type)}</span></p>
-                  <p className="text-muted-foreground">Moneda: <span className="text-foreground">{currencyLabel(a.currency)}</span></p>
-                </div>
-                <div className="mt-3">
-                  <p className="text-xs text-muted-foreground">Saldo actual</p>
-                  <p className="text-xl font-semibold tabular-nums">{formatCLP(a.current_balance)}</p>
-                </div>
-                <div className="mt-3 flex justify-end gap-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                    onClick={() => openTransactions(a)}
-                    title="Movimientos"
-                    aria-label="Movimientos"
-                  >
-                    <Receipt className="h-3.5 w-3.5" />
-                    <span className="sr-only">Movimientos</span>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                    onClick={() => openReconciliations(a)}
-                    title="Conciliaciones"
-                    aria-label="Conciliaciones"
-                  >
-                    <Scale className="h-3.5 w-3.5" />
-                    <span className="sr-only">Conciliaciones</span>
-                  </Button>
-                  {!a.is_default && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0"
-                      onClick={() => setDefault.mutate(a.id)}
-                      disabled={setDefault.isPending}
-                      title="Marcar como principal"
-                      aria-label="Marcar como principal"
-                    >
-                      <Star className="h-3.5 w-3.5" />
-                      <span className="sr-only">Principal</span>
-                    </Button>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                    onClick={() => openModal(a)}
-                    title="Editar"
-                    aria-label="Editar"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                    <span className="sr-only">Editar</span>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0 text-danger hover:text-danger"
-                    onClick={() => setConfirmDelete(a)}
-                    title="Eliminar"
-                    aria-label="Eliminar"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    <span className="sr-only">Eliminar</span>
-                  </Button>
-                </div>
-              </div>
+              <BankAccountCard
+                key={a.id}
+                account={a}
+                onTransactions={openTransactions}
+                onReconciliations={openReconciliations}
+                onEdit={openModal}
+                onDelete={setConfirmDelete}
+                onSetDefault={(id) => setDefault.mutate(id)}
+                isSetDefaultPending={setDefault.isPending}
+              />
             ))}
           </div>
         )}
@@ -790,7 +771,7 @@ export default function BankAccountsPage() {
             <div className="flex flex-1 flex-col overflow-hidden">
               {/* Summary */}
               {summary && (
-                <div className="grid grid-cols-3 gap-2 border-b border-border bg-muted/30 p-3 text-center sm:grid-cols-3">
+                <div className="grid grid-cols-3 gap-2 border-b border-border bg-muted/30 p-3 text-center">
                   <div>
                     <p className="text-xs text-muted-foreground">Sistema</p>
                     <p className="text-sm font-semibold tabular-nums">{formatCLP(summary.system)}</p>
@@ -908,146 +889,44 @@ export default function BankAccountsPage() {
                   </div>
                 ) : isReconciliationsError ? (
                   <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border p-8 text-center">
-                    <AlertCircle className="h-10 w-10 text-danger" />
-                    <p className="text-sm font-medium">No se pudieron cargar las conciliaciones</p>
+                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-danger/10">
+                      <AlertCircle className="h-7 w-7 text-danger" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">No se pudieron cargar las conciliaciones</p>
+                      <p className="text-xs text-muted-foreground">Revisa tu conexión e intenta nuevamente.</p>
+                    </div>
                     <Button variant="outline" size="sm" onClick={() => refetchReconciliations()}>
-                      <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                      <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
                       Reintentar
                     </Button>
                   </div>
                 ) : reconciliations.length === 0 ? (
                   <div className="grid place-items-center rounded-xl border border-dashed border-border p-8 text-center">
-                    <div>
-                      <Scale className="mx-auto h-10 w-10 text-muted-foreground" />
-                      <p className="mt-3 text-sm font-medium">Sin conciliaciones</p>
-                      <p className="text-xs text-muted-foreground">
-                        Registra el saldo de tu extracto bancario para compararlo con el sistema.
-                      </p>
+                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+                      <Scale className="h-7 w-7 text-muted-foreground" />
                     </div>
+                    <p className="mt-3 text-sm font-medium">Sin conciliaciones</p>
+                    <p className="text-xs text-muted-foreground">
+                      Registra el saldo de tu extracto bancario para compararlo con el sistema.
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {reconciliations.map((rec) => {
-                      const statement = parseFloat(rec.bank_statement_balance ?? "0");
-                      const system = parseFloat(rec.system_balance ?? "0");
-                      const diff = parseFloat(rec.difference ?? "0");
-                      return (
-                        <div
-                          key={rec.id}
-                          className="rounded-xl border border-border bg-card p-3 transition-colors hover:border-primary/20"
-                        >
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                            <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="inline-flex items-center gap-1 text-sm font-medium">
-                                  <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                                  {rec.reconciliation_date}
-                                </span>
-                                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusBadgeClasses(rec.status)}`}>
-                                  {statusLabel(rec.status)}
-                                </span>
-                                {rec.is_balanced && (
-                                  <span className="inline-flex items-center gap-0.5 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
-                                    <CheckCircle2 className="h-3 w-3" />
-                                    Balanceada
-                                  </span>
-                                )}
-                              </div>
-                              <div className="mt-2 grid grid-cols-3 gap-2 text-xs sm:grid-cols-3">
-                                <div>
-                                  <p className="text-muted-foreground">Sistema</p>
-                                  <p className="font-medium tabular-nums">{formatCLP(system)}</p>
-                                </div>
-                                <div>
-                                  <p className="text-muted-foreground">Extracto</p>
-                                  <p className="font-medium tabular-nums">{formatCLP(statement)}</p>
-                                </div>
-                                <div>
-                                  <p className="text-muted-foreground">Diferencia</p>
-                                  <p className={`font-medium tabular-nums ${diff === 0 ? "text-success" : "text-danger"}`}>
-                                    {diff >= 0 ? "+" : ""}{formatCLP(diff)}
-                                  </p>
-                                </div>
-                              </div>
-                              {rec.notes && (
-                                <p className="mt-2 text-xs text-muted-foreground">{rec.notes}</p>
-                              )}
-                              {rec.reconciled_by_name && (
-                                <p className="mt-1 text-xs text-muted-foreground">
-                                  Por: {rec.reconciled_by_name}
-                                </p>
-                              )}
-                            </div>
-                            <div className="flex flex-wrap items-center gap-1 sm:flex-col sm:items-end">
-                              {rec.status !== "COMPLETED" && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 text-success hover:text-success"
-                                  onClick={() => recMarkBalanced.mutate(rec.id)}
-                                  disabled={recMarkBalanced.isPending || recMarkPending.isPending || recValidate.isPending}
-                                  title="Marcar balanceada"
-                                  aria-label="Marcar balanceada"
-                                >
-                                  <CheckCircle2 className="h-3.5 w-3.5" />
-                                  <span className="sr-only">Balanceada</span>
-                                </Button>
-                              )}
-                              {rec.status !== "PENDING" && rec.status !== "COMPLETED" && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 text-warning hover:text-warning"
-                                  onClick={() => recMarkPending.mutate(rec.id)}
-                                  disabled={recMarkBalanced.isPending || recMarkPending.isPending || recValidate.isPending}
-                                  title="Marcar pendiente"
-                                  aria-label="Marcar pendiente"
-                                >
-                                  <Clock className="h-3.5 w-3.5" />
-                                  <span className="sr-only">Pendiente</span>
-                                </Button>
-                              )}
-                              {rec.status !== "COMPLETED" && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 text-primary hover:text-primary"
-                                  onClick={() => recValidate.mutate(rec.id)}
-                                  disabled={recMarkBalanced.isPending || recMarkPending.isPending || recValidate.isPending}
-                                  title="Validar"
-                                  aria-label="Validar"
-                                >
-                                  <RefreshCw className="h-3.5 w-3.5" />
-                                  <span className="sr-only">Validar</span>
-                                </Button>
-                              )}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0"
-                                onClick={() => startEditReconciliation(rec)}
-                                title="Editar"
-                                aria-label="Editar"
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                                <span className="sr-only">Editar</span>
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0 text-danger hover:text-danger"
-                                onClick={() => setRecConfirmDelete(rec)}
-                                title="Eliminar"
-                                aria-label="Eliminar"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                                <span className="sr-only">Eliminar</span>
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
+                    {reconciliations.map((rec, idx, arr) => (
+                      <ReconciliationCard
+                        key={rec.id}
+                        rec={rec}
+                        isLast={idx === 0}
+                        isFirst={idx === arr.length - 1}
+                        anyActionPending={anyRecActionPending}
+                        onMarkBalanced={() => recMarkBalanced.mutate(rec.id)}
+                        onMarkPending={() => recMarkPending.mutate(rec.id)}
+                        onValidate={() => recValidate.mutate(rec.id)}
+                        onEdit={() => startEditReconciliation(rec)}
+                        onDelete={() => setRecConfirmDelete(rec)}
+                      />
+                    ))}
                   </div>
                 )}
               </div>
@@ -1107,7 +986,7 @@ export default function BankAccountsPage() {
             </div>
 
             <div className="flex flex-1 flex-col overflow-hidden">
-              {balanceSummary && (
+              {balanceSummary && !loadingBalanceSummary && (
                 <div className="grid grid-cols-3 gap-2 border-b border-border bg-muted/30 p-3 text-center">
                   <div>
                     <p className="text-xs text-muted-foreground">Saldo</p>
@@ -1124,6 +1003,32 @@ export default function BankAccountsPage() {
                 </div>
               )}
 
+              {/* Filters */}
+              <div className="flex items-center gap-2 border-b border-border px-4 py-2">
+                <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+                <div className="flex flex-1 gap-1">
+                  {TX_FILTERS.map((f) => {
+                    const active = txFilter === f.value;
+                    const Icon = f.value === "INCOME" ? TrendingUp : f.value === "EXPENSE" ? TrendingDown : Wallet;
+                    return (
+                      <button
+                        key={f.value}
+                        type="button"
+                        onClick={() => setTxFilter(f.value as typeof txFilter)}
+                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                          active
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted text-muted-foreground hover:bg-muted/80"
+                        }`}
+                      >
+                        <Icon className="h-3 w-3" />
+                        {f.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className="flex-1 overflow-y-auto p-4">
                 {loadingTransactions || loadingBalanceSummary ? (
                   <div className="grid place-items-center py-8">
@@ -1131,26 +1036,44 @@ export default function BankAccountsPage() {
                   </div>
                 ) : isTransactionsError ? (
                   <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border p-8 text-center">
-                    <AlertCircle className="h-10 w-10 text-danger" />
-                    <p className="text-sm font-medium">No se pudieron cargar los movimientos</p>
+                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-danger/10">
+                      <AlertCircle className="h-7 w-7 text-danger" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">No se pudieron cargar los movimientos</p>
+                      <p className="text-xs text-muted-foreground">Revisa tu conexión e intenta nuevamente.</p>
+                    </div>
                     <Button variant="outline" size="sm" onClick={() => refetchTransactions()}>
-                      <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                      <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
                       Reintentar
                     </Button>
                   </div>
                 ) : transactions.length === 0 ? (
                   <div className="grid place-items-center rounded-xl border border-dashed border-border p-8 text-center">
-                    <div>
-                      <Receipt className="mx-auto h-10 w-10 text-muted-foreground" />
-                      <p className="mt-3 text-sm font-medium">Sin movimientos</p>
-                      <p className="text-xs text-muted-foreground">
-                        No se encontraron transacciones para esta cuenta.
-                      </p>
+                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+                      <Receipt className="h-7 w-7 text-muted-foreground" />
                     </div>
+                    <p className="mt-3 text-sm font-medium">Sin movimientos</p>
+                    <p className="text-xs text-muted-foreground">
+                      Aún no hay transacciones registradas para esta cuenta.
+                    </p>
+                  </div>
+                ) : filteredTransactions.length === 0 ? (
+                  <div className="grid place-items-center rounded-xl border border-dashed border-border p-8 text-center">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+                      <Filter className="h-7 w-7 text-muted-foreground" />
+                    </div>
+                    <p className="mt-3 text-sm font-medium">Sin resultados</p>
+                    <p className="text-xs text-muted-foreground">
+                      No hay movimientos de este tipo. Cambia el filtro para ver todos.
+                    </p>
+                    <Button variant="outline" size="sm" className="mt-3" onClick={() => setTxFilter("ALL")}>
+                      Ver todos
+                    </Button>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {transactions.map((tx) => (
+                    {filteredTransactions.map((tx) => (
                       <TransactionCard key={tx.id} tx={tx} />
                     ))}
                   </div>
@@ -1176,7 +1099,7 @@ function StatCard({
   sub: string;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <div className="min-w-[9.5rem] flex-1 snap-start rounded-xl border border-border bg-card p-4">
       <div className="mb-2 flex items-center gap-2 text-muted-foreground">
         <Icon className="h-4 w-4" />
         <span className="text-xs font-medium">{label}</span>
@@ -1189,7 +1112,7 @@ function StatCard({
 
 function StatSkeleton() {
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <div className="min-w-[9.5rem] flex-1 snap-start rounded-xl border border-border bg-card p-4">
       <div className="mb-2 flex items-center gap-2">
         <Skeleton className="h-4 w-4 rounded-full" />
         <Skeleton className="h-3.5 w-24" />
@@ -1200,29 +1123,184 @@ function StatSkeleton() {
   );
 }
 
-function AccountCardSkeleton() {
+function BankAccountCard({
+  account,
+  onTransactions,
+  onReconciliations,
+  onEdit,
+  onDelete,
+  onSetDefault,
+  isSetDefaultPending,
+}: {
+  account: BankAccountSummary;
+  onTransactions: (a: BankAccountSummary) => void;
+  onReconciliations: (a: BankAccountSummary) => void;
+  onEdit: (a: BankAccountSummary) => void;
+  onDelete: (a: BankAccountSummary) => void;
+  onSetDefault: (id: string) => void;
+  isSetDefaultPending: boolean;
+}) {
+  const gradient = bankGradient(account.bank_name, account.account_type);
+
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-2">
-          <Skeleton className="h-8 w-8 rounded-md" />
-          <div className="space-y-1">
-            <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-3 w-20" />
-          </div>
+    <div
+      className={`group relative flex min-w-0 flex-col justify-between overflow-hidden rounded-2xl bg-gradient-to-br ${gradient} p-5 text-white shadow-lg ring-1 ring-white/10 transition-all hover:-translate-y-0.5 hover:shadow-xl`}
+    >
+      {/* Decorative glows */}
+      <div className="pointer-events-none absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white/5 blur-2xl" />
+      <div className="pointer-events-none absolute -bottom-8 -left-8 h-40 w-40 rounded-full bg-white/5 blur-3xl" />
+
+      {/* Header */}
+      <div className="relative flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-xs font-medium uppercase tracking-wider text-white/70">
+            {account.bank_name || "Banco"}
+          </p>
+          <p className="truncate text-base font-semibold leading-tight">{account.account_name}</p>
         </div>
-        <Skeleton className="h-5 w-16 rounded-full" />
+        {account.is_default ? (
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
+            <Star className="h-3 w-3 fill-current" />
+            Principal
+          </span>
+        ) : null}
       </div>
-      <div className="mt-3 space-y-1.5">
-        <Skeleton className="h-3.5 w-3/4" />
-        <Skeleton className="h-3.5 w-2/3" />
-        <Skeleton className="h-3.5 w-1/2" />
+
+      {/* Card body */}
+      <div className="relative mt-5">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="relative h-9 w-12 shrink-0 overflow-hidden rounded-md bg-gradient-to-br from-yellow-200 via-yellow-400 to-yellow-600 shadow-inner">
+            <div className="absolute left-1 top-1/2 h-5 w-6 -translate-y-1/2 rounded-sm border border-yellow-700/30 bg-yellow-300/50" />
+            <div className="absolute right-1 top-1/2 h-3 w-4 -translate-y-1/2 rounded-sm border border-yellow-700/30 bg-yellow-300/50" />
+          </div>
+          <span className="font-mono text-lg tracking-[0.15em] text-white/95">
+            {maskAccountNumber(account.account_number)}
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium text-white/70">
+          <span className="inline-flex items-center gap-1">
+            <CreditCard className="h-3 w-3" />
+            {accountTypeLabel(account.account_type)}
+          </span>
+          <span className="hidden sm:inline">·</span>
+          <span className="inline-flex items-center gap-1">
+            <DollarSign className="h-3 w-3" />
+            {currencyLabel(account.currency)}
+          </span>
+        </div>
       </div>
-      <div className="mt-3">
-        <Skeleton className="h-3 w-20" />
-        <Skeleton className="mt-1 h-7 w-32" />
+
+      {/* Footer */}
+      <div className="relative mt-5 flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-xs text-white/60">Sucursal</p>
+          <p className="truncate text-sm font-medium">{account.branch_name || "—"}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-xs text-white/60">Saldo actual</p>
+          <p className="text-2xl font-bold tabular-nums tracking-tight">{formatCLP(account.current_balance)}</p>
+        </div>
       </div>
-      <div className="mt-3 flex justify-end gap-1">
+
+      {/* Actions */}
+      <div className="relative mt-4 flex flex-wrap justify-end gap-1 border-t border-white/10 pt-3">
+        <ActionButton
+          onClick={() => onTransactions(account)}
+          label="Movimientos"
+          icon={Receipt}
+        />
+        <ActionButton
+          onClick={() => onReconciliations(account)}
+          label="Conciliaciones"
+          icon={Scale}
+        />
+        {!account.is_default && (
+          <ActionButton
+            onClick={() => onSetDefault(account.id)}
+            label="Marcar como principal"
+            icon={Star}
+            disabled={isSetDefaultPending}
+          />
+        )}
+        <ActionButton
+          onClick={() => onEdit(account)}
+          label="Editar"
+          icon={Pencil}
+        />
+        <ActionButton
+          onClick={() => onDelete(account)}
+          label="Eliminar"
+          icon={Trash2}
+          className="hover:bg-white/20 hover:text-white"
+        />
+      </div>
+    </div>
+  );
+}
+
+function ActionButton({
+  onClick,
+  label,
+  icon: Icon,
+  disabled,
+  className,
+}: {
+  onClick: () => void;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  disabled?: boolean;
+  className?: string;
+}) {
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      className={`h-8 w-8 p-0 text-white/80 hover:bg-white/10 hover:text-white ${className ?? ""}`}
+      onClick={onClick}
+      disabled={disabled}
+      title={label}
+      aria-label={label}
+    >
+      <Icon className="h-3.5 w-3.5" />
+      <span className="sr-only">{label}</span>
+    </Button>
+  );
+}
+
+function BankAccountCardSkeleton() {
+  return (
+    <div className="relative flex min-w-0 flex-col justify-between overflow-hidden rounded-2xl bg-gradient-to-br from-slate-300 to-slate-400 p-5 shadow-lg dark:from-slate-700 dark:to-slate-800">
+      <div className="pointer-events-none absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white/5 blur-2xl" />
+      <div className="pointer-events-none absolute -bottom-8 -left-8 h-40 w-40 rounded-full bg-white/5 blur-3xl" />
+      <div className="relative flex items-start justify-between gap-3">
+        <div className="min-w-0 space-y-1.5">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-5 w-36" />
+        </div>
+        <Skeleton className="h-5 w-16 shrink-0 rounded-full" />
+      </div>
+      <div className="relative mt-5">
+        <div className="mb-4 flex items-center gap-3">
+          <Skeleton className="h-9 w-12 rounded-md" />
+          <Skeleton className="h-5 w-28" />
+        </div>
+        <div className="flex gap-3">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-3 w-20" />
+        </div>
+      </div>
+      <div className="relative mt-5 flex items-end justify-between gap-3">
+        <div className="min-w-0 space-y-1">
+          <Skeleton className="h-3 w-12" />
+          <Skeleton className="h-4 w-28" />
+        </div>
+        <div className="space-y-1 text-right">
+          <Skeleton className="h-3 w-16" />
+          <Skeleton className="h-8 w-32" />
+        </div>
+      </div>
+      <div className="relative mt-4 flex justify-end gap-1 border-t border-white/10 pt-3">
+        <Skeleton className="h-8 w-8 rounded-md" />
         <Skeleton className="h-8 w-8 rounded-md" />
         <Skeleton className="h-8 w-8 rounded-md" />
         <Skeleton className="h-8 w-8 rounded-md" />
@@ -1235,11 +1313,27 @@ function AccountCardSkeleton() {
 function TransactionCard({ tx }: { tx: BankAccountTransaction }) {
   const isIncome = tx.payment_direction === "INCOME";
   const amount = parseFloat(tx.amount) || 0;
+  const date = useMemo(() => {
+    try {
+      return new Date(tx.payment_date).toLocaleDateString("es-CL", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
+    } catch {
+      return tx.payment_date;
+    }
+  }, [tx.payment_date]);
+
   return (
     <div className="rounded-xl border border-border bg-card p-3 transition-colors hover:border-primary/20">
       <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${isIncome ? "bg-emerald-500/10" : "bg-rose-500/10"}`}>
+        <div className="flex min-w-0 items-start gap-3">
+          <div
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+              isIncome ? "bg-emerald-500/10" : "bg-rose-500/10"
+            }`}
+          >
             {isIncome ? (
               <ArrowDownLeft className="h-4 w-4 text-emerald-600" />
             ) : (
@@ -1247,19 +1341,190 @@ function TransactionCard({ tx }: { tx: BankAccountTransaction }) {
             )}
           </div>
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium">{tx.description || tx.payment_source || "Movimiento"}</p>
-            <p className="text-xs text-muted-foreground">
-              {tx.payment_method_name || tx.payment_source} · {new Date(tx.payment_date).toLocaleDateString("es-CL")}
+            <p className="truncate text-sm font-medium">
+              {tx.description || tx.payment_source || "Movimiento"}
             </p>
+            <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1">
+                <Calendar className="h-3 w-3" />
+                {date}
+              </span>
+              {tx.payment_method_name && (
+                <>
+                  <span>·</span>
+                  <span className="inline-flex items-center gap-1">
+                    <Wallet className="h-3 w-3" />
+                    {tx.payment_method_name}
+                  </span>
+                </>
+              )}
+              {tx.reference && (
+                <>
+                  <span>·</span>
+                  <span className="inline-flex items-center gap-1">
+                    <FileText className="h-3 w-3" />
+                    Ref: {tx.reference}
+                  </span>
+                </>
+              )}
+            </div>
           </div>
         </div>
         <div className="shrink-0 text-right">
           <p className={`text-sm font-semibold tabular-nums ${isIncome ? "text-emerald-700" : "text-rose-700"}`}>
             {isIncome ? "+" : "-"}{formatCLP(amount)}
           </p>
-          <p className="text-xs text-muted-foreground">{tx.status}</p>
+          {tx.status && (
+            <p className="text-xs capitalize text-muted-foreground">{tx.status.toLowerCase()}</p>
+          )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function ReconciliationCard({
+  rec,
+  isLast,
+  isFirst,
+  anyActionPending,
+  onMarkBalanced,
+  onMarkPending,
+  onValidate,
+  onEdit,
+  onDelete,
+}: {
+  rec: BankReconciliation;
+  isLast: boolean;
+  isFirst: boolean;
+  anyActionPending: boolean;
+  onMarkBalanced: () => void;
+  onMarkPending: () => void;
+  onValidate: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const statement = parseFloat(rec.bank_statement_balance ?? "0");
+  const system = parseFloat(rec.system_balance ?? "0");
+  const diff = parseFloat(rec.difference ?? "0");
+
+  return (
+    <div className="relative rounded-xl border border-border bg-card p-3 transition-colors hover:border-primary/20">
+      {isLast && (
+        <div className="absolute -left-px top-3 h-5 w-1 rounded-r bg-primary" aria-hidden="true" />
+      )}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1 text-sm font-medium">
+              <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+              {rec.reconciliation_date}
+            </span>
+            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusBadgeClasses(rec.status)}`}>
+              {statusLabel(rec.status)}
+            </span>
+            {rec.is_balanced && (
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
+                <CheckCircle2 className="h-3 w-3" />
+                Balanceada
+              </span>
+            )}
+          </div>
+          <div className="mt-2 grid grid-cols-3 gap-2 text-xs sm:grid-cols-3">
+            <div>
+              <p className="text-muted-foreground">Sistema</p>
+              <p className="font-medium tabular-nums">{formatCLP(system)}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Extracto</p>
+              <p className="font-medium tabular-nums">{formatCLP(statement)}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Diferencia</p>
+              <p className={`font-medium tabular-nums ${diff === 0 ? "text-success" : "text-danger"}`}>
+                {diff >= 0 ? "+" : ""}{formatCLP(diff)}
+              </p>
+            </div>
+          </div>
+          {rec.notes && (
+            <p className="mt-2 text-xs text-muted-foreground">{rec.notes}</p>
+          )}
+          {rec.reconciled_by_name && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Por: {rec.reconciled_by_name}
+            </p>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-1 sm:flex-col sm:items-end">
+          {rec.status !== "COMPLETED" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 text-success hover:text-success"
+              onClick={onMarkBalanced}
+              disabled={anyActionPending}
+              title="Marcar balanceada"
+              aria-label="Marcar balanceada"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              <span className="sr-only">Balanceada</span>
+            </Button>
+          )}
+          {rec.status !== "PENDING" && rec.status !== "COMPLETED" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 text-warning hover:text-warning"
+              onClick={onMarkPending}
+              disabled={anyActionPending}
+              title="Marcar pendiente"
+              aria-label="Marcar pendiente"
+            >
+              <Clock className="h-3.5 w-3.5" />
+              <span className="sr-only">Pendiente</span>
+            </Button>
+          )}
+          {rec.status !== "COMPLETED" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 text-primary hover:text-primary"
+              onClick={onValidate}
+              disabled={anyActionPending}
+              title="Validar"
+              aria-label="Validar"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              <span className="sr-only">Validar</span>
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={onEdit}
+            title="Editar"
+            aria-label="Editar"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            <span className="sr-only">Editar</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0 text-danger hover:text-danger"
+            onClick={onDelete}
+            title="Eliminar"
+            aria-label="Eliminar"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            <span className="sr-only">Eliminar</span>
+          </Button>
+        </div>
+      </div>
+      {!isFirst && (
+        <div className="pointer-events-none absolute -bottom-3 left-4 right-4 h-px bg-border" aria-hidden="true" />
+      )}
     </div>
   );
 }

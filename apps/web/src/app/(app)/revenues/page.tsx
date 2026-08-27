@@ -10,7 +10,6 @@ import {
   Loader2,
   X,
   CheckCircle2,
-  TrendingDown,
   FileDown,
   Receipt,
   SlidersHorizontal,
@@ -594,7 +593,7 @@ export default function RevenuesPage() {
                   value={search}
                   onChange={(e) => updateFilter(setSearch, e.target.value)}
                   placeholder="Buscar ingreso…"
-                  className="pl-9"
+                  className="h-10 pl-9"
                   aria-label="Buscar ingreso"
                 />
               </div>
@@ -603,78 +602,99 @@ export default function RevenuesPage() {
                 size="sm"
                 className="h-10 px-3"
                 onClick={() => setShowMobileFilters((v) => !v)}
+                aria-expanded={showMobileFilters}
+                aria-controls="mobile-filters-panel"
               >
                 <SlidersHorizontal className="h-4 w-4" />
                 <span className="ml-2">Filtros</span>
               </Button>
             </div>
 
-            <div className={`flex flex-col gap-3 ${showMobileFilters ? "" : "hidden"}`}>
-              <div className="flex flex-col gap-1">
-                <label htmlFor="filter-category-mobile" className="text-xs text-muted-foreground">Categoría</label>
-                <Select
-                  id="filter-category-mobile"
-                  value={category}
-                  onChange={(e) => updateFilter(setCategory, e.target.value)}
+            <div
+              id="mobile-filters-panel"
+              className={`rounded-2xl border border-border bg-card p-4 shadow-sm ${showMobileFilters ? "" : "hidden"}`}
+            >
+              <div className="mb-3 flex items-center justify-between">
+                <span className="text-sm font-medium">Filtros avanzados</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 text-xs"
+                  onClick={() => setShowMobileFilters(false)}
                 >
-                  <option value="">Todas</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </Select>
+                  <X className="h-4 w-4" />
+                  <span className="sr-only">Cerrar filtros</span>
+                </Button>
               </div>
-              <div className="flex flex-col gap-1">
-                <label htmlFor="filter-status-mobile" className="text-xs text-muted-foreground">Estado</label>
-                <Select
-                  id="filter-status-mobile"
-                  value={status}
-                  onChange={(e) => updateFilter(setStatus, e.target.value)}
+              <div className="grid gap-3">
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="filter-category-mobile" className="text-xs text-muted-foreground">Categoría</label>
+                  <Select
+                    id="filter-category-mobile"
+                    value={category}
+                    onChange={(e) => updateFilter(setCategory, e.target.value)}
+                  >
+                    <option value="">Todas</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="filter-status-mobile" className="text-xs text-muted-foreground">Estado</label>
+                  <Select
+                    id="filter-status-mobile"
+                    value={status}
+                    onChange={(e) => updateFilter(setStatus, e.target.value)}
+                  >
+                    {STATUS_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="filter-period-mobile" className="text-xs text-muted-foreground">Período</label>
+                  <Select
+                    id="filter-period-mobile"
+                    value={period}
+                    onChange={(e) => applyPeriod(e.target.value)}
+                  >
+                    {PERIOD_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor="filter-start-mobile" className="text-xs text-muted-foreground">Desde</label>
+                    <Input
+                      id="filter-start-mobile"
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => handleStartDateChange(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor="filter-end-mobile" className="text-xs text-muted-foreground">Hasta</label>
+                    <Input
+                      id="filter-end-mobile"
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => handleEndDateChange(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={clearFilters}
+                  disabled={!hasActiveFilters}
+                  className="h-10"
                 >
-                  {STATUS_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </Select>
+                  <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                  Limpiar filtros
+                </Button>
               </div>
-              <div className="flex flex-col gap-1">
-                <label htmlFor="filter-period-mobile" className="text-xs text-muted-foreground">Período</label>
-                <Select
-                  id="filter-period-mobile"
-                  value={period}
-                  onChange={(e) => applyPeriod(e.target.value)}
-                >
-                  {PERIOD_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </Select>
-              </div>
-              <div className="flex flex-col gap-1">
-                <label htmlFor="filter-start-mobile" className="text-xs text-muted-foreground">Desde</label>
-                <Input
-                  id="filter-start-mobile"
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => handleStartDateChange(e.target.value)}
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label htmlFor="filter-end-mobile" className="text-xs text-muted-foreground">Hasta</label>
-                <Input
-                  id="filter-end-mobile"
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => handleEndDateChange(e.target.value)}
-                />
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={clearFilters}
-                disabled={!hasActiveFilters}
-                className="h-10"
-              >
-                <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-                Limpiar filtros
-              </Button>
             </div>
           </div>
         </div>
@@ -694,24 +714,28 @@ export default function RevenuesPage() {
                 value={formatCLP(stats.total)}
                 icon={DollarSign}
                 sub={`${totalRevenues} registros`}
+                tone="emerald"
               />
               <StatCard
                 label="Recibido"
                 value={formatCLP(stats.received)}
                 icon={TrendingUp}
                 sub="ingresos cobrados"
+                tone="emerald"
               />
               <StatCard
                 label="Pendiente"
                 value={formatCLP(stats.pending)}
                 icon={Clock}
                 sub="por cobrar"
+                tone="amber"
               />
               <StatCard
                 label="Cancelado / Reembolsado"
                 value={formatCLP(stats.cancelled)}
                 icon={Ban}
                 sub="no efectivos"
+                tone="rose"
               />
             </>
           )}
@@ -748,17 +772,19 @@ export default function RevenuesPage() {
             </div>
           </div>
         ) : revenues.length === 0 ? (
-          <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">
+          <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-border p-8 text-center">
             <div>
-              <TrendingDown className="mx-auto h-10 w-10 text-muted-foreground" />
-              <p className="mt-3 text-sm font-medium">No se encontraron ingresos</p>
-              <p className="text-xs text-muted-foreground">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+                <TrendingUp className="h-7 w-7 text-muted-foreground" />
+              </div>
+              <p className="mt-4 text-base font-medium">No se encontraron ingresos</p>
+              <p className="mx-auto mt-1 max-w-xs text-sm text-muted-foreground">
                 {hasActiveFilters
-                  ? "Prueba con otros filtros o crea un nuevo ingreso."
-                  : "Aún no hay ingresos registrados."}
+                  ? "Ajusta los filtros o crea un nuevo ingreso para comenzar."
+                  : "Aún no hay ingresos registrados. Registra el primero."}
               </p>
               {!hasActiveFilters && (
-                <Button size="sm" onClick={() => openModal()} className="mt-4">
+                <Button size="sm" onClick={() => openModal()} className="mt-5 h-10 px-4">
                   <Plus className="mr-2 h-4 w-4" />
                   Nuevo ingreso
                 </Button>
@@ -866,8 +892,8 @@ export default function RevenuesPage() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary">
-                        <TrendingDown className="h-5 w-5 text-muted-foreground" />
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600">
+                        <TrendingUp className="h-5 w-5" />
                       </div>
                       <div className="min-w-0">
                         <p className="truncate font-medium">{r.title}</p>
@@ -879,89 +905,80 @@ export default function RevenuesPage() {
                         </span>
                       </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-1">
-                      {r.status === "PENDING" && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0"
-                          onClick={() => markReceived.mutate(r.id)}
-                          disabled={markReceived.isPending}
-                          title="Recibir"
-                          aria-label="Recibir"
-                        >
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          <span className="sr-only">Recibir</span>
-                        </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        onClick={() => handleDownloadVoucher(r)}
-                        disabled={isDownloading}
-                        title="Descargar comprobante"
-                        aria-label="Descargar comprobante"
-                      >
-                        <Receipt className="h-3.5 w-3.5" />
-                        <span className="sr-only">Comprobante</span>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        onClick={() => openModal(r)}
-                        title="Editar"
-                        aria-label="Editar"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                        <span className="sr-only">Editar</span>
-                      </Button>
-                      {r.status !== "CANCELLED" && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 text-danger hover:text-danger"
-                          onClick={() => cancel.mutate(r.id)}
-                          disabled={cancel.isPending}
-                          title="Cancelar"
-                          aria-label="Cancelar"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                          <span className="sr-only">Cancelar</span>
-                        </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0 text-danger hover:text-danger"
-                        onClick={() => setConfirmDelete(r)}
-                        title="Eliminar"
-                        aria-label="Eliminar"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        <span className="sr-only">Eliminar</span>
-                      </Button>
+                    <div className="shrink-0 text-right">
+                      <p className="text-base font-bold tabular-nums text-emerald-700">{formatCLP(r.amount)}</p>
+                      <p className="text-[10px] text-muted-foreground">{r.revenue_date}</p>
                     </div>
                   </div>
 
-                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-3 text-xs">
                     <div className="text-muted-foreground">
-                      <span className="block text-[10px] uppercase tracking-wide">Categoría</span>
+                      <span className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Categoría</span>
                       <span className="font-medium text-foreground">{r.category_name}</span>
                     </div>
                     <div className="text-muted-foreground">
-                      <span className="block text-[10px] uppercase tracking-wide">Tipo</span>
+                      <span className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Tipo</span>
                       <span className="font-medium text-foreground">{r.revenue_type_display}</span>
                     </div>
-                    <div className="text-muted-foreground">
-                      <span className="block text-[10px] uppercase tracking-wide">Monto</span>
-                      <span className="font-medium tabular-nums text-foreground">{formatCLP(r.amount)}</span>
-                    </div>
-                    <div className="text-muted-foreground">
-                      <span className="block text-[10px] uppercase tracking-wide">Fecha</span>
-                      <span className="font-medium text-foreground">{r.revenue_date}</span>
-                    </div>
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+                    {r.status === "PENDING" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-10 gap-1.5 px-3 text-xs"
+                        onClick={() => markReceived.mutate(r.id)}
+                        disabled={markReceived.isPending}
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        Recibir
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-10 w-10 p-0"
+                      onClick={() => handleDownloadVoucher(r)}
+                      disabled={isDownloading}
+                      title="Comprobante"
+                      aria-label="Comprobante"
+                    >
+                      <Receipt className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-10 w-10 p-0"
+                      onClick={() => openModal(r)}
+                      title="Editar"
+                      aria-label="Editar"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    {r.status !== "CANCELLED" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-10 w-10 p-0 text-amber-600 hover:text-amber-600"
+                        onClick={() => cancel.mutate(r.id)}
+                        disabled={cancel.isPending}
+                        title="Cancelar"
+                        aria-label="Cancelar"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-10 w-10 p-0 text-danger hover:text-danger"
+                      onClick={() => setConfirmDelete(r)}
+                      title="Eliminar"
+                      aria-label="Eliminar"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -1373,32 +1390,64 @@ function StatCard({
   value,
   icon: Icon,
   sub,
+  tone = "slate",
 }: {
   label: string;
   value: string | number;
   icon: React.ComponentType<{ className?: string }>;
   sub: string;
+  tone?: "emerald" | "rose" | "amber" | "teal" | "slate";
 }) {
+  const toneStyles = {
+    emerald: "from-emerald-50/60 via-white/90 to-white/90",
+    rose: "from-rose-50/60 via-white/90 to-white/90",
+    amber: "from-amber-50/60 via-white/90 to-white/90",
+    teal: "from-teal-50/60 via-white/90 to-white/90",
+    slate: "from-muted/50 via-white/90 to-white/90",
+  };
+  const toneText = {
+    emerald: "text-emerald-700/90",
+    rose: "text-rose-700/90",
+    amber: "text-amber-700/90",
+    teal: "text-teal-700/90",
+    slate: "text-muted-foreground",
+  };
+  const toneIcon = {
+    emerald: "bg-emerald-500/12 text-emerald-600",
+    rose: "bg-rose-500/12 text-rose-600",
+    amber: "bg-amber-500/12 text-amber-600",
+    teal: "bg-teal-500/12 text-teal-600",
+    slate: "bg-muted text-muted-foreground",
+  };
+
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
-      <div className="mb-2 flex items-center gap-2 text-muted-foreground">
-        <Icon className="h-4 w-4" />
-        <span className="text-xs font-medium">{label}</span>
+    <div className={`rounded-2xl border border-border/60 bg-gradient-to-br p-4 shadow-sm ${toneStyles[tone]}`}>
+      <div className="mb-2 flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <span className={`block text-[11px] font-medium uppercase tracking-wider ${toneText[tone]}`}>
+            {label}
+          </span>
+          <p className="mt-1 text-xl font-bold tabular-nums tracking-tight text-foreground">{value}</p>
+        </div>
+        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full sm:h-8 sm:w-8 ${toneIcon[tone]}`}>
+          <Icon className="h-5 w-5 sm:h-4 sm:w-4" />
+        </div>
       </div>
-      <p className="text-xl font-semibold tabular-nums">{value}</p>
-      <p className="text-xs text-muted-foreground">{sub}</p>
+      <p className="text-[11px] text-muted-foreground">{sub}</p>
     </div>
   );
 }
 
 function StatSkeleton() {
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
-      <div className="mb-2 flex items-center gap-2">
-        <Skeleton className="h-4 w-4 rounded-full" />
-        <Skeleton className="h-3.5 w-24" />
+    <div className="rounded-2xl border border-border/60 bg-muted/30 p-4 shadow-sm">
+      <div className="mb-2 flex items-start justify-between gap-2">
+        <div className="min-w-0 space-y-2">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-7 w-32" />
+        </div>
+        <Skeleton className="h-10 w-10 rounded-full sm:h-8 sm:w-8" />
       </div>
-      <Skeleton className="mb-1 h-7 w-32" />
       <Skeleton className="h-3 w-20" />
     </div>
   );
