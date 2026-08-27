@@ -870,11 +870,10 @@ export default function WarehouseDetailPage() {
             </div>
           ) : (
             <div className="overflow-x-auto rounded-2xl border border-border">
-              <table className="w-full table-auto min-w-[1100px] text-sm">
+              <table className="w-full table-auto min-w-[950px] text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                     <th className="px-3 py-2 text-left">Producto</th>
-                    <th className="px-3 py-2 text-left">Categoría</th>
                     <th className="px-3 py-2 text-left">Proveedor</th>
                     <th className="px-3 py-2 text-right">Cantidad</th>
                     <th className="px-3 py-2 text-right">Rango</th>
@@ -898,40 +897,31 @@ export default function WarehouseDetailPage() {
                     return (
                       <tr key={wp.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
                         <td className="px-3 py-2">
-                          <div className="flex items-center gap-2.5">
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary">
-                              <Package className="h-4 w-4 text-muted-foreground" />
+                          <div className="min-w-0 max-w-[280px]">
+                            <p className="truncate font-medium leading-tight">{wp.product_name}</p>
+                            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                              <span
+                                className={cn(
+                                  "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium",
+                                  isOk && "bg-success/10 text-success",
+                                  isLow && "bg-warning/10 text-warning",
+                                  isOut && "bg-danger/10 text-danger",
+                                  !isOk && !isLow && !isOut && "bg-muted text-muted-foreground",
+                                )}
+                              >
+                                {stockStatusLabel(status)}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground">
+                                {wp.product_measurement_unit}
+                                {wp.product_code ? ` · ${wp.product_code}` : ""}
+                              </span>
                             </div>
-                            <div className="min-w-0 max-w-[260px]">
-                              <p className="truncate font-medium leading-tight">{wp.product_name}</p>
-                              <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                                <span
-                                  className={cn(
-                                    "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium",
-                                    isOk && "bg-success/10 text-success",
-                                    isLow && "bg-warning/10 text-warning",
-                                    isOut && "bg-danger/10 text-danger",
-                                    !isOk && !isLow && !isOut && "bg-muted text-muted-foreground",
-                                  )}
-                                >
-                                  {stockStatusLabel(status)}
-                                </span>
-                                <span className="text-[10px] text-muted-foreground">
-                                  {wp.product_measurement_unit}
-                                  {wp.product_code ? ` · ${wp.product_code}` : ""}
-                                </span>
-                              </div>
-                            </div>
+                            {wp.product_category && (
+                              <span className="mt-1 inline-flex items-center rounded-sm bg-secondary px-2 py-0.5 text-[10px] font-medium text-foreground">
+                                {wp.product_category}
+                              </span>
+                            )}
                           </div>
-                        </td>
-                        <td className="px-3 py-2 whitespace-nowrap">
-                          {wp.product_category ? (
-                            <span className="inline-flex items-center rounded-sm bg-secondary px-2 py-1 text-[11px] font-medium text-foreground">
-                              {wp.product_category}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          )}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap">
                           {supplierName ? (
