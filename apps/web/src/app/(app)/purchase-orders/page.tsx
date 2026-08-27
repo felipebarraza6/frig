@@ -596,6 +596,8 @@ export default function PurchaseOrdersPage() {
                     <th className="px-4 py-3">Proveedor</th>
                     <th className="px-4 py-3">Estado</th>
                     <th className="px-4 py-3 text-right">Total</th>
+                    <th className="px-4 py-3 text-right">Pagado</th>
+                    <th className="px-4 py-3 text-right">Pendiente</th>
                     <th className="px-4 py-3">Entrega esperada</th>
                     <th className="px-4 py-3 text-right">Acciones</th>
                   </tr>
@@ -623,6 +625,8 @@ export default function PurchaseOrdersPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums font-medium">{formatCLP(order.total_amount ?? "0")}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">{formatCLP(order.paid_amount ?? "0")}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">{formatCLP(order.remaining_amount ?? "0")}</td>
                       <td className="px-4 py-3 text-muted-foreground">{formatDateCL(order.expected_delivery_date)}</td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex flex-wrap items-center justify-end gap-1">
@@ -722,6 +726,14 @@ export default function PurchaseOrdersPage() {
                     <div className="text-muted-foreground">
                       <span className="block text-[10px] uppercase tracking-wide">Total</span>
                       <span className="font-medium tabular-nums text-foreground">{formatCLP(order.total_amount ?? "0")}</span>
+                    </div>
+                    <div className="text-muted-foreground">
+                      <span className="block text-[10px] uppercase tracking-wide">Pagado</span>
+                      <span className="font-medium tabular-nums text-foreground">{formatCLP(order.paid_amount ?? "0")}</span>
+                    </div>
+                    <div className="text-muted-foreground">
+                      <span className="block text-[10px] uppercase tracking-wide">Pendiente</span>
+                      <span className="font-medium tabular-nums text-foreground">{formatCLP(order.remaining_amount ?? "0")}</span>
                     </div>
                     <div className="text-muted-foreground">
                       <span className="block text-[10px] uppercase tracking-wide">Entrega esperada</span>

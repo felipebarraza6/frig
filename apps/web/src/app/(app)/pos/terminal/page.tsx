@@ -35,6 +35,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import CartPanel from "@/components/pos/cart-panel";
 import { ProductCard } from "@/components/pos/product-card";
 import { PostSaleModal } from "@/components/pos/post-sale-modal";
@@ -74,6 +76,7 @@ import {
   createPurchaseOrder,
   payPurchaseOrder,
   markPurchaseOrderCompleted,
+  fetchSupplierProducts,
   type SupplierList,
 } from "@/lib/api/suppliers";
 import { fetchExpenseCategories, createExpenseCategory, createExpense } from "@/lib/api/expenses";
@@ -116,6 +119,14 @@ function numberValue(v: string): string {
 
 function toDecimal(v: string): string {
   return (parseInt(v || "0", 10) || 0).toFixed(2);
+}
+
+interface SupplierOrderItem {
+  supplier_product: number | null;
+  description: string;
+  quantity: string;
+  unit_price: string;
+  measurement_unit: string;
 }
 
 function SupplierDropdown({
@@ -212,6 +223,18 @@ export default function PosPage() {
   const [newSupplierName, setNewSupplierName] = useState("");
   const [newSupplierTaxId, setNewSupplierTaxId] = useState("");
   const [supplierPaymentConcept, setSupplierPaymentConcept] = useState("");
+  const [supplierPaymentMode, setSupplierPaymentMode] = useState<"DIRECT_EXPENSE" | "CREATE_PAY_ORDER">("DIRECT_EXPENSE");
+  const [supplierPaymentMethod, setSupplierPaymentMethod] = useState("");
+  const [supplierOrderItems, setSupplierOrderItems] = useState<SupplierOrderItem[]>([
+    {
+      supplier_product: null,
+      description: "",
+      quantity: "1",
+      unit_price: "",
+      measurement_unit: "UN",
+    },
+  ]);
+  const [supplierPaidAmount, setSupplierPaidAmount] = useState("");
   const [isSupplierPaymentSubmitting, setIsSupplierPaymentSubmitting] = useState(false);
   const [posMode, setPosMode] = useState<"SALE" | "ORDER" | null>(() => {
     if (typeof window === "undefined") return null;
@@ -467,6 +490,13 @@ export default function PosPage() {
     staleTime: 60_000,
   });
 
+  const { data: supplierProducts = [] } = useQuery({
+    queryKey: ["supplier-products", selectedSupplier?.id, "pos-terminal"],
+    queryFn: () => fetchSupplierProducts(selectedSupplier!.id),
+    enabled: !!selectedSupplier,
+    staleTime: 60_000,
+  });
+
   const {
     data: currentCashRegister,
     error: cashRegisterError,
@@ -612,12 +642,121 @@ export default function PosPage() {
     },
   });
 
-  async function handleSupplierPayment() {
+  function resetSupplierForm() {
+    setMovementAmount("");
+    setSupplierPaymentConcept("");
+    setSupplierPaidAmount("");
+    setSupplierPaymentMethod("");
+    setSelectedSupplier(null);
+    setSupplierSearch("");
+    setSupplierOptions([]);
+    setSupplierOrderItems([
+      {
+        supplier_product: null,
+        description: "",
+        quantity: "1",
+        unit_price: "",
+        measurement_unit: "UN",
+      },
+    ]);
+  }
+
+  function addSupplierOrderItem() {
+    setSupplierOrderItems((prev) => [
+      ...prev,
+      {
+        supplier_product: null,
+        description: "",
+        quantity: "1",
+        unit_price: "",
+        measurement_unit: "UN",
+      },
+    ]);
+  }
+
+  function removeSupplierOrderItem(index: number) {
+    setSupplierOrderItems((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function updateSupplierOrderItem<K extends keyof SupplierOrderItem>(
+    index: number,
+    field: K,
+    value: SupplierOrderItem[K],
+  ) {
+    setSupplierOrderItems((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value };
+      return next;
+    });
+  }
+
+  function selectSupplierProductForItem(index: number, supplierProductId: string) {
+    const sp = supplierProducts.find((p) => String(p.id) === supplierProductId);
+    setSupplierOrderItems((prev) => {
+      const next = [...prev];
+      next[index] = {
+        ...next[index],
+        supplier_product: sp ? sp.id : null,
+        description: sp
+          ? (sp.supplier_product_name || sp.product_name || sp.supplier_product_code || "")
+          : next[index].description,
+        unit_price: sp ? sp.cost_price : next[index].unit_price,
+      };
+      return next;
+    });
+  }
+
+  const supplierOrderTotal = useMemo(() => {
+    return supplierOrderItems.reduce((sum, item) => {
+      const qty = parseFloat(item.quantity) || 0;
+      const price = parseFloat(item.unit_price) || 0;
+      return sum + qty * price;
+    }, 0);
+  }, [supplierOrderItems]);
+
+  const prevSupplierOrderTotalRef = useRef(supplierOrderTotal);
+  useEffect(() => {
+    if (
+      supplierPaymentMode === "CREATE_PAY_ORDER" &&
+      supplierPaidAmount === String(prevSupplierOrderTotalRef.current)
+    ) {
+      setSupplierPaidAmount(String(supplierOrderTotal));
+    }
+    prevSupplierOrderTotalRef.current = supplierOrderTotal;
+  }, [supplierOrderTotal, supplierPaymentMode, supplierPaidAmount]);
+
+  const supplierProductOptions = useMemo(
+    () =>
+      supplierProducts.map((sp) => ({
+        value: String(sp.id),
+        label: sp.supplier_product_name || sp.product_name || sp.supplier_product_code || `Producto #${sp.id}`,
+      })),
+    [supplierProducts],
+  );
+
+  async function ensureSupplierExpenseCategory() {
+    if (!branch?.branch_id) throw new Error("No hay sucursal seleccionada");
+    const categories = await fetchExpenseCategories();
+    let category = categories.find((c) => c.name.toLowerCase().includes("pagos a proveedores"));
+    if (!category) {
+      category = await createExpenseCategory({
+        name: "Pagos a proveedores",
+        category_type: "SUPPLIES",
+        branch: Number(branch.branch_id),
+        description: "Egresos asociados a pagos a proveedores",
+        is_active: true,
+      });
+    }
+    return category;
+  }
+
+  async function handleSupplierDirectExpense() {
     if (!currentCashRegister) throw new Error("No hay caja abierta");
     if (!branch?.branch_id) throw new Error("No hay sucursal seleccionada");
     if (!user?.id) throw new Error("No hay usuario identificado");
     if (!selectedSupplier) throw new Error("Selecciona un proveedor");
-    if (!movementAmount || parseFloat(toDecimal(movementAmount)) <= 0) throw new Error("Ingresa un monto válido");
+    const amount = parseFloat(toDecimal(movementAmount));
+    if (amount <= 0) throw new Error("Ingresa un monto válido");
     const concept = supplierPaymentConcept.trim() || `Pago a proveedor ${selectedSupplier.name}`;
 
     setIsSupplierPaymentSubmitting(true);
@@ -625,53 +764,11 @@ export default function PosPage() {
       const today = new Date().toISOString().split("T")[0];
       const amountDecimal = toDecimal(movementAmount);
 
-      const order = await createPurchaseOrder({
-        supplier: selectedSupplier.id,
-        branch: Number(branch.branch_id),
-        order_date: today,
-        expected_delivery_date: today,
-        notes: concept,
-        items: [
-          {
-            description: concept,
-            quantity_ordered: 1,
-            unit_price: amountDecimal,
-            create_product_if_not_exists: false,
-            measurement_unit: "UN",
-          },
-        ],
-      });
-
-      try {
-        await markPurchaseOrderCompleted(order.id);
-      } catch {
-        // Continuamos aunque no se pueda marcar como completada.
-      }
-
-      try {
-        await payPurchaseOrder(order.id, { paid_amount: amountDecimal, notes: concept });
-      } catch {
-        // El endpoint puede no aceptar el payload parcial; el flujo sigue con egreso y retiro.
-      }
-
-      const categories = await fetchExpenseCategories();
-      let category = categories.find(
-        (c) => c.category_type === "SUPPLIES" || c.name.toLowerCase().includes("proveedor"),
-      );
-      if (!category) {
-        category = await createExpenseCategory({
-          name: "Pagos a proveedores",
-          category_type: "SUPPLIES",
-          branch: Number(branch.branch_id),
-          description: "Egresos asociados a pagos a proveedores",
-          is_active: true,
-          is_default_for_suppliers: false,
-        });
-      }
+      const category = await ensureSupplierExpenseCategory();
 
       await createExpense({
         name: concept,
-        description: `Orden de compra ${order.order_number || order.id} - Pago a proveedor desde caja`,
+        description: "Egreso directo a proveedor desde caja",
         branch: Number(branch.branch_id),
         category: category.id,
         created_by: Number(user.id),
@@ -685,14 +782,109 @@ export default function PosPage() {
       await cashOut(currentCashRegister.id, { amount: amountDecimal, reason: concept });
 
       queryClient.invalidateQueries({ queryKey: ["cash-register"] });
-      setMovementAmount("");
-      setSupplierPaymentConcept("");
-      setSelectedSupplier(null);
-      setSupplierSearch("");
-      setSupplierOptions([]);
-      toast.success("Pago a proveedor registrado");
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      resetSupplierForm();
+      toast.success("Egreso directo a proveedor registrado");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "No se pudo registrar el pago");
+      toast.error(err instanceof Error ? err.message : "No se pudo registrar el egreso");
+    } finally {
+      setIsSupplierPaymentSubmitting(false);
+    }
+  }
+
+  async function handleCreateAndPayPurchaseOrder() {
+    if (!currentCashRegister) throw new Error("No hay caja abierta");
+    if (!branch?.branch_id) throw new Error("No hay sucursal seleccionada");
+    if (!user?.id) throw new Error("No hay usuario identificado");
+    if (!selectedSupplier) throw new Error("Selecciona un proveedor");
+    if (supplierOrderItems.length === 0) throw new Error("Agrega al menos un ítem");
+
+    const total = supplierOrderTotal;
+    if (total <= 0) throw new Error("El total de la orden debe ser mayor a 0");
+
+    const paid = parseFloat(toDecimal(supplierPaidAmount));
+    if (paid <= 0) throw new Error("El monto a pagar debe ser mayor a 0");
+    if (paid > total) throw new Error("El monto a pagar no puede superar el total de la orden");
+
+    for (const item of supplierOrderItems) {
+      if (!item.supplier_product && !item.description.trim()) {
+        throw new Error("Cada ítem debe tener una descripción o un producto del proveedor");
+      }
+      const qty = parseFloat(item.quantity);
+      if (qty <= 0) throw new Error("La cantidad debe ser mayor a 0");
+      const price = parseFloat(item.unit_price);
+      if (price < 0) throw new Error("El precio unitario no puede ser negativo");
+    }
+
+    setIsSupplierPaymentSubmitting(true);
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const totalDecimal = toDecimal(String(total));
+      const paidDecimal = toDecimal(supplierPaidAmount);
+      const concept = supplierPaymentConcept.trim() || `Pago a proveedor ${selectedSupplier.name}`;
+
+      const order = await createPurchaseOrder({
+        supplier: selectedSupplier.id,
+        branch: Number(branch.branch_id),
+        order_date: today,
+        expected_delivery_date: today,
+        notes: concept,
+        items: supplierOrderItems.map((item) => ({
+          supplier_product: item.supplier_product,
+          description: item.description,
+          quantity_ordered: Number(item.quantity),
+          unit_price: toDecimal(item.unit_price),
+          create_product_if_not_exists: false,
+          measurement_unit: item.measurement_unit || "UN",
+        })),
+      });
+
+      await payPurchaseOrder(order.id, {
+        paid_amount: paidDecimal,
+        notes: concept,
+        payment_method: supplierPaymentMethod || null,
+      });
+
+      if (paid >= total) {
+        try {
+          await markPurchaseOrderCompleted(order.id);
+        } catch {
+          // Opcional: no bloqueamos si no se puede marcar como completada.
+        }
+      }
+
+      const category = await ensureSupplierExpenseCategory();
+
+      await createExpense({
+        name: concept,
+        description: `Orden de compra ${order.order_number || order.id} - Pago a proveedor desde caja`,
+        branch: Number(branch.branch_id),
+        category: category.id,
+        created_by: Number(user.id),
+        amount: paidDecimal,
+        frequency: "ONE_TIME",
+        start_date: today,
+        status: "ACTIVE",
+        supplier: selectedSupplier.id,
+      });
+
+      await cashOut(currentCashRegister.id, {
+        amount: paidDecimal,
+        reason: `${concept} (OC ${order.order_number || order.id})`,
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["cash-register"] });
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["purchase-order-payment-summary", order.id] });
+      resetSupplierForm();
+      toast.success(
+        paid < total
+          ? `Pago parcial registrado: ${formatCLP(paidDecimal)} de ${formatCLP(totalDecimal)}`
+          : "Orden de compra creada y pagada",
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo crear la orden ni registrar el pago");
     } finally {
       setIsSupplierPaymentSubmitting(false);
     }
@@ -2519,7 +2711,7 @@ export default function PosPage() {
                 </div>
 
                 {movementType === "SUPPLIER_PAYMENT" ? (
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-col gap-3">
                     {!showSupplierCreate ? (
                       <div className="relative">
                         <Input
@@ -2615,40 +2807,231 @@ export default function PosPage() {
                       </div>
                     )}
 
-                    <Input
-                      value={movementAmount ? formatCLP(parseFloat(toDecimal(movementAmount))) : ""}
-                      onChange={(e) => setMovementAmount(numberValue(e.target.value))}
-                      placeholder="Monto"
-                      disabled={!isRegisterController || isSupplierPaymentSubmitting}
-                      className="h-10 text-sm tabular-nums sm:h-9 sm:text-xs"
-                    />
-                    <Input
-                      value={supplierPaymentConcept}
-                      onChange={(e) => setSupplierPaymentConcept(e.target.value)}
-                      placeholder="Concepto (opcional)"
-                      disabled={!isRegisterController || isSupplierPaymentSubmitting}
-                      className="h-10 text-sm sm:h-9 sm:text-xs"
-                    />
-                    <Button
-                      size="sm"
-                      onClick={() => handleSupplierPayment()}
-                      disabled={
-                        !isRegisterController ||
-                        !selectedSupplier ||
-                        !movementAmount ||
-                        isSupplierPaymentSubmitting
-                      }
-                      variant="danger"
-                      className="h-auto min-h-10 whitespace-normal py-2 text-xs sm:min-h-9"
-                    >
-                      {isSupplierPaymentSubmitting ? (
-                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Truck className="mr-1.5 h-3.5 w-3.5" />
-                      )}
-                      <span className="hidden sm:inline">Registrar pago a proveedor</span>
-                      <span className="sm:hidden">Registrar pago</span>
-                    </Button>
+                    <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-1">
+                      {([
+                        { key: "DIRECT_EXPENSE", label: "Egreso directo" },
+                        { key: "CREATE_PAY_ORDER", label: "Crear OC y pagar" },
+                      ] as const).map((opt) => (
+                        <button
+                          key={opt.key}
+                          type="button"
+                          onClick={() => setSupplierPaymentMode(opt.key)}
+                          disabled={!isRegisterController || isSupplierPaymentSubmitting}
+                          className={cn(
+                            "flex-1 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors",
+                            supplierPaymentMode === opt.key
+                              ? "bg-primary text-white"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                          )}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {supplierPaymentMode === "DIRECT_EXPENSE" ? (
+                      <div className="flex flex-col gap-2">
+                        <Input
+                          value={movementAmount ? formatCLP(parseFloat(toDecimal(movementAmount))) : ""}
+                          onChange={(e) => setMovementAmount(numberValue(e.target.value))}
+                          placeholder="Monto"
+                          disabled={!isRegisterController || isSupplierPaymentSubmitting}
+                          className="h-10 text-sm tabular-nums sm:h-9 sm:text-xs"
+                        />
+                        <Input
+                          value={supplierPaymentConcept}
+                          onChange={(e) => setSupplierPaymentConcept(e.target.value)}
+                          placeholder="Concepto (opcional)"
+                          disabled={!isRegisterController || isSupplierPaymentSubmitting}
+                          className="h-10 text-sm sm:h-9 sm:text-xs"
+                        />
+                        <Select
+                          value={supplierPaymentMethod}
+                          onChange={(e) => setSupplierPaymentMethod(e.target.value)}
+                          disabled={!isRegisterController || isSupplierPaymentSubmitting}
+                          className="h-10 text-sm sm:h-9 sm:text-xs"
+                        >
+                          <option value="">Método de pago (opcional)</option>
+                          {paymentMethods?.map((m) => (
+                            <option key={m.id} value={m.id}>
+                              {m.name}
+                            </option>
+                          ))}
+                        </Select>
+                        <Button
+                          size="sm"
+                          onClick={() => handleSupplierDirectExpense()}
+                          disabled={
+                            !isRegisterController ||
+                            !selectedSupplier ||
+                            !movementAmount ||
+                            isSupplierPaymentSubmitting
+                          }
+                          variant="danger"
+                          className="h-auto min-h-10 whitespace-normal py-2 text-xs sm:min-h-9"
+                        >
+                          {isSupplierPaymentSubmitting ? (
+                            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Truck className="mr-1.5 h-3.5 w-3.5" />
+                          )}
+                          <span className="hidden sm:inline">Registrar egreso directo</span>
+                          <span className="sm:hidden">Registrar egreso</span>
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        <div className="flex flex-col gap-2">
+                          {supplierOrderItems.map((item, index) => (
+                            <div
+                              key={index}
+                              className="rounded-xl border border-border/60 bg-muted/30 p-2.5"
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <span className="text-xs font-medium text-muted-foreground">Ítem {index + 1}</span>
+                                {supplierOrderItems.length > 1 && (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 text-danger hover:text-danger"
+                                    onClick={() => removeSupplierOrderItem(index)}
+                                    disabled={isSupplierPaymentSubmitting}
+                                    aria-label="Eliminar ítem"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
+                              </div>
+                              <div className="mt-2 flex flex-col gap-2">
+                                <SearchableSelect
+                                  options={supplierProductOptions}
+                                  value={item.supplier_product ? String(item.supplier_product) : ""}
+                                  onChange={(value) => selectSupplierProductForItem(index, value)}
+                                  disabled={!selectedSupplier || supplierProducts.length === 0 || isSupplierPaymentSubmitting}
+                                  placeholder={
+                                    !selectedSupplier
+                                      ? "Selecciona un proveedor primero"
+                                      : supplierProducts.length === 0
+                                        ? "Sin productos asignados"
+                                        : "Producto del proveedor…"
+                                  }
+                                  searchPlaceholder="Buscar producto…"
+                                  emptyMessage="Sin coincidencias"
+                                />
+                                <Input
+                                  value={item.description}
+                                  onChange={(e) => updateSupplierOrderItem(index, "description", e.target.value)}
+                                  placeholder="Descripción"
+                                  disabled={isSupplierPaymentSubmitting}
+                                  className="h-10 text-sm sm:h-9 sm:text-xs"
+                                />
+                                <div className="grid grid-cols-2 gap-2">
+                                  <Input
+                                    type="number"
+                                    min="1"
+                                    value={item.quantity}
+                                    onChange={(e) => updateSupplierOrderItem(index, "quantity", e.target.value)}
+                                    placeholder="Cantidad"
+                                    disabled={isSupplierPaymentSubmitting}
+                                    className="h-10 text-sm sm:h-9 sm:text-xs"
+                                  />
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={item.unit_price}
+                                    onChange={(e) => updateSupplierOrderItem(index, "unit_price", e.target.value)}
+                                    placeholder="Precio unitario"
+                                    disabled={isSupplierPaymentSubmitting}
+                                    className="h-10 text-sm sm:h-9 sm:text-xs"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={addSupplierOrderItem}
+                            disabled={isSupplierPaymentSubmitting}
+                          >
+                            <Plus className="mr-2 h-4 w-4" />
+                            Agregar ítem
+                          </Button>
+                        </div>
+
+                        <div className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-sm">
+                          <span className="text-muted-foreground">Total OC</span>
+                          <span className="font-semibold tabular-nums">{formatCLP(supplierOrderTotal)}</span>
+                        </div>
+
+                        <Input
+                          value={supplierPaidAmount}
+                          onChange={(e) => setSupplierPaidAmount(e.target.value)}
+                          placeholder="Monto a pagar"
+                          type="number"
+                          step="0.01"
+                          min="0.01"
+                          max={supplierOrderTotal || undefined}
+                          disabled={!isRegisterController || isSupplierPaymentSubmitting || supplierOrderTotal <= 0}
+                          className="h-10 text-sm tabular-nums sm:h-9 sm:text-xs"
+                        />
+                        {parseFloat(supplierPaidAmount || "0") > 0 &&
+                          parseFloat(supplierPaidAmount || "0") < supplierOrderTotal && (
+                            <p className="text-xs text-blue-700">
+                              Pago parcial: {formatCLP(parseFloat(supplierPaidAmount || "0"))} de{" "}
+                              {formatCLP(supplierOrderTotal)}
+                            </p>
+                          )}
+
+                        <Input
+                          value={supplierPaymentConcept}
+                          onChange={(e) => setSupplierPaymentConcept(e.target.value)}
+                          placeholder="Concepto / notas (opcional)"
+                          disabled={!isRegisterController || isSupplierPaymentSubmitting}
+                          className="h-10 text-sm sm:h-9 sm:text-xs"
+                        />
+
+                        <Select
+                          value={supplierPaymentMethod}
+                          onChange={(e) => setSupplierPaymentMethod(e.target.value)}
+                          disabled={!isRegisterController || isSupplierPaymentSubmitting}
+                          className="h-10 text-sm sm:h-9 sm:text-xs"
+                        >
+                          <option value="">Método de pago (opcional)</option>
+                          {paymentMethods?.map((m) => (
+                            <option key={m.id} value={m.id}>
+                              {m.name}
+                            </option>
+                          ))}
+                        </Select>
+
+                        <Button
+                          size="sm"
+                          onClick={() => handleCreateAndPayPurchaseOrder()}
+                          disabled={
+                            !isRegisterController ||
+                            !selectedSupplier ||
+                            supplierOrderItems.length === 0 ||
+                            supplierOrderTotal <= 0 ||
+                            !supplierPaidAmount ||
+                            isSupplierPaymentSubmitting
+                          }
+                          variant="danger"
+                          className="h-auto min-h-10 whitespace-normal py-2 text-xs sm:min-h-9"
+                        >
+                          {isSupplierPaymentSubmitting ? (
+                            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Truck className="mr-1.5 h-3.5 w-3.5" />
+                          )}
+                          <span className="hidden sm:inline">Crear orden y registrar pago</span>
+                          <span className="sm:hidden">Crear OC y pagar</span>
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="flex flex-col gap-2">
