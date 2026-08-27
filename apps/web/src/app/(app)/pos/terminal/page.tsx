@@ -1028,20 +1028,24 @@ export default function PosPage() {
             )}
           </span>
 
-          {/* Cambiar modo */}
+          {/* Cambiar modo / salir de orden en edición */}
           {(posMode || isEditingOrder) && (
             <button
               type="button"
               onClick={() => {
                 clearCart();
-                setShowModeSelector(true);
-                clearPosMode();
+                if (isEditingOrder) {
+                  startNewOrder("SALE");
+                } else {
+                  setShowModeSelector(true);
+                  clearPosMode();
+                }
               }}
               className="inline-flex h-8 items-center gap-1 rounded-md border border-border/60 bg-background px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              title="Cambiar entre venta y orden"
+              title={isEditingOrder ? "Cerrar orden y crear una venta nueva" : "Cambiar entre venta y orden"}
             >
-              <ArrowLeftRight className="h-3 w-3" />
-              <span className="hidden sm:inline">Cambiar</span>
+              {isEditingOrder ? <Plus className="h-3 w-3" /> : <ArrowLeftRight className="h-3 w-3" />}
+              <span className="hidden sm:inline">{isEditingOrder ? "Nueva venta" : "Cambiar"}</span>
             </button>
           )}
 
@@ -1439,7 +1443,13 @@ export default function PosPage() {
                 setCartOpen(false);
               }}
               onPostSaleOrder={handlePostSaleOrder}
-              onClose={() => setCartOpen(false)}
+              onClose={() => {
+                if (isEditingOrder) {
+                  clearCart();
+                  startNewOrder("SALE");
+                }
+                setCartOpen(false);
+              }}
               isWaiter={isWaiter}
             />
           </motion.div>
