@@ -71,9 +71,10 @@ function groupWarehousesByWarehouse(items: WarehouseProduct[]): WarehouseProduct
   const groups = new Map<string, WarehouseProduct[]>();
   for (const item of items) {
     // Algunos backends devuelven registros duplicados de la misma bodega con
-    // IDs distintos. Agrupamos por nombre normalizado para no mostrar la misma
-    // bodega varias veces; el primer objeto de warehouse se conserva.
-    const key = String(item.warehouse.name ?? item.warehouse.id ?? "").trim().toLowerCase();
+    // IDs distintos. Agrupamos por ID de bodega (o nombre normalizado como
+    // fallback) para no mostrar la misma bodega varias veces; el primer objeto
+    // de warehouse se conserva.
+    const key = String(item.warehouse.id ?? item.warehouse.name ?? "").trim().toLowerCase();
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(item);
   }
