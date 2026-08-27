@@ -153,11 +153,13 @@ function MetricCard({
   label,
   value,
   tone = "default",
+  alert,
 }: {
   icon: React.ElementType;
   label: string;
   value: string | number;
   tone?: "default" | "primary" | "emerald" | "violet" | "amber";
+  alert?: React.ReactNode;
 }) {
   const tones = {
     default: "bg-muted text-foreground",
@@ -172,9 +174,10 @@ function MetricCard({
         <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", tones[tone])}>
           <Icon className="h-5 w-5" />
         </div>
-        <div>
+        <div className="min-w-0 flex-1">
           <p className="text-xs text-muted-foreground">{label}</p>
           <p className="text-lg font-semibold tabular-nums">{value}</p>
+          {alert && <div className="mt-1">{alert}</div>}
         </div>
       </div>
     </div>
@@ -442,7 +445,27 @@ export default function WarehouseDetailPage() {
       <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
         {/* Métricas principales */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <MetricCard icon={Package} label="Productos" value={totalProducts} />
+          <MetricCard
+            icon={Package}
+            label="Productos de bodega"
+            value={totalProducts}
+            alert={
+              hasAlerts ? (
+                <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+                  {lowStock > 0 && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-1.5 py-0.5 font-medium text-warning">
+                      {lowStock} bajo
+                    </span>
+                  )}
+                  {outOfStock > 0 && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-danger/10 px-1.5 py-0.5 font-medium text-danger">
+                      {outOfStock} sin stock
+                    </span>
+                  )}
+                </div>
+              ) : undefined
+            }
+          />
           <MetricCard icon={Layers} label="Unidades" value={totalQuantity} tone="default" />
           <MetricCard icon={Coins} label="Valor costo" value={formatCLP(totalCost)} tone="emerald" />
           <MetricCard icon={TrendingUp} label="Valor venta" value={formatCLP(totalSale)} tone="violet" />
@@ -452,23 +475,6 @@ export default function WarehouseDetailPage() {
           {/* Desktop filters */}
           <div className="hidden flex-wrap items-end justify-between gap-3 md:flex">
             <div className="flex flex-wrap items-end gap-3">
-              {hasAlerts && (
-                <div className="flex flex-wrap items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/5 px-2.5 py-1">
-                  {lowStock > 0 && (
-                    <span className="text-xs text-amber-700">
-                      {lowStock} stock bajo
-                    </span>
-                  )}
-                  {lowStock > 0 && outOfStock > 0 && (
-                    <span className="text-xs text-amber-400">·</span>
-                  )}
-                  {outOfStock > 0 && (
-                    <span className="text-xs text-amber-700">
-                      {outOfStock} sin stock
-                    </span>
-                  )}
-                </div>
-              )}
               <div className="relative w-full max-w-xs">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -543,23 +549,6 @@ export default function WarehouseDetailPage() {
             </div>
 
             <div className={`flex flex-col gap-3 ${showMobileFilters ? "" : "hidden"}`}>
-              {hasAlerts && (
-                <div className="flex flex-wrap items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/5 px-2.5 py-1">
-                  {lowStock > 0 && (
-                    <span className="text-xs text-amber-700">
-                      {lowStock} stock bajo
-                    </span>
-                  )}
-                  {lowStock > 0 && outOfStock > 0 && (
-                    <span className="text-xs text-amber-400">·</span>
-                  )}
-                  {outOfStock > 0 && (
-                    <span className="text-xs text-amber-700">
-                      {outOfStock} sin stock
-                    </span>
-                  )}
-                </div>
-              )}
               <div className="flex items-center gap-2">
                 <Select
                   value={productSort?.field ?? ""}
@@ -780,18 +769,20 @@ export default function WarehouseDetailPage() {
                           </div>
                           <div className="min-w-0">
                             <p className="truncate font-medium leading-tight">{wp.product_name}</p>
-                            <div className="mt-0.5 flex flex-wrap items-center gap-1">
-                              <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                            <div className="mt-1 flex flex-wrap items-center gap-1">
+                              <span className="inline-flex items-center rounded-sm bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground">
                                 {wp.product_measurement_unit}
                               </span>
-                              <span className="text-[10px] text-muted-foreground">{wp.product_code}</span>
+                              {wp.product_code && (
+                                <span className="text-[10px] text-muted-foreground">{wp.product_code}</span>
+                              )}
                             </div>
                           </div>
                         </div>
                       </td>
                       <td className="px-3 py-2">
                         {wp.product_category ? (
-                          <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                          <span className="inline-flex items-center rounded-sm bg-secondary px-2.5 py-1 text-[11px] font-medium text-foreground">
                             {wp.product_category}
                           </span>
                         ) : (
@@ -803,7 +794,7 @@ export default function WarehouseDetailPage() {
                           const name = supplierNameByProduct.get(wp.product ?? 0);
                           return name ? (
                             <span
-                              className="inline-flex max-w-full items-center truncate rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary"
+                              className="inline-flex max-w-full items-center truncate rounded-sm bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary"
                               title={name}
                             >
                               {name}
@@ -816,7 +807,7 @@ export default function WarehouseDetailPage() {
                       <td className="px-3 py-2">
                         {wp.location_in_warehouse ? (
                           <span
-                            className="inline-flex max-w-full items-center truncate rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
+                            className="inline-flex max-w-full items-center truncate rounded-sm bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground"
                             title={wp.location_in_warehouse}
                           >
                             {wp.location_in_warehouse}
@@ -836,7 +827,7 @@ export default function WarehouseDetailPage() {
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums">
                         <div className="leading-tight">
-                          <p className="font-medium text-emerald-700">{formatCLP(totalValue)}</p>
+                          <p className="font-medium text-success">{formatCLP(totalValue)}</p>
                           <p className="text-xs text-muted-foreground">{formatCLP(unitCost)} c/u</p>
                         </div>
                       </td>
@@ -938,16 +929,18 @@ export default function WarehouseDetailPage() {
                       </div>
                       <div className="min-w-0">
                         <p className="truncate font-medium leading-tight">{wp.product_name}</p>
-                        <div className="mt-0.5 flex flex-wrap items-center gap-1">
-                          <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                        <div className="mt-1 flex flex-wrap items-center gap-1">
+                          <span className="inline-flex items-center rounded-sm bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground">
                             {wp.product_measurement_unit}
                           </span>
                           {wp.product_category && (
-                            <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                            <span className="inline-flex items-center rounded-sm bg-secondary px-2 py-1 text-[10px] font-medium text-foreground">
                               {wp.product_category}
                             </span>
                           )}
-                          <span className="text-[10px] text-muted-foreground">{wp.product_code}</span>
+                          {wp.product_code && (
+                            <span className="text-[10px] text-muted-foreground">{wp.product_code}</span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -979,7 +972,7 @@ export default function WarehouseDetailPage() {
                     </div>
                     <div className="rounded-xl bg-muted/50 p-2 text-center">
                       <p className="text-[10px] text-muted-foreground">Costo</p>
-                      <p className="text-sm font-semibold tabular-nums text-emerald-700">{formatCLP(totalValue)}</p>
+                      <p className="text-sm font-semibold tabular-nums text-success">{formatCLP(totalValue)}</p>
                     </div>
                     <div className="rounded-xl bg-muted/50 p-2 text-center">
                       <p className="text-[10px] text-muted-foreground">V/Unitario</p>
@@ -994,12 +987,12 @@ export default function WarehouseDetailPage() {
                   {(wp.location_in_warehouse || wp.maximum_quantity !== null && wp.maximum_quantity !== undefined) && (
                     <div className="mt-2 flex flex-wrap gap-2">
                       {wp.location_in_warehouse && (
-                        <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                        <span className="inline-flex items-center rounded-sm bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground">
                           Ubicación: {wp.location_in_warehouse}
                         </span>
                       )}
                       {wp.maximum_quantity !== null && wp.maximum_quantity !== undefined && (
-                        <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                        <span className="inline-flex items-center rounded-sm bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground">
                           Máx: {wp.maximum_quantity}
                         </span>
                       )}
