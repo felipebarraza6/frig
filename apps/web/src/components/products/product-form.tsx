@@ -744,19 +744,32 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
                 </Select>
                 <ProductTypeHelp productType={form.productType} />
               </div>
-              <div className="flex flex-col gap-2">
-                <label htmlFor="product-category" className="text-sm font-medium">Categoría</label>
-                <Select
-                  id="product-category"
-                  value={form.category}
-                  disabled={loadingCategories}
-                  onChange={(e) => updateField("category", e.target.value)}
-                >
-                  <option value="">Sin categoría</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </Select>
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="product-category" className="text-sm font-medium">Categoría</label>
+                  <Select
+                    id="product-category"
+                    value={form.category}
+                    disabled={loadingCategories}
+                    onChange={(e) => updateField("category", e.target.value)}
+                  >
+                    <option value="">Sin categoría</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="product-description" className="text-sm font-medium">Descripción</label>
+                  <textarea
+                    id="product-description"
+                    value={form.description}
+                    onChange={(e) => updateField("description", e.target.value)}
+                    placeholder="Describe el producto para el equipo de ventas o cocina..."
+                    rows={3}
+                    className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
               </div>
             </div>
 
@@ -801,18 +814,6 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
                 </div>
               </div>
             )}
-
-            <div className="flex flex-col gap-2">
-              <label htmlFor="product-description" className="text-sm font-medium">Descripción</label>
-              <textarea
-                id="product-description"
-                value={form.description}
-                onChange={(e) => updateField("description", e.target.value)}
-                placeholder="Describe el producto para el equipo de ventas o cocina..."
-                rows={3}
-                className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
           </div>
           )}
 
