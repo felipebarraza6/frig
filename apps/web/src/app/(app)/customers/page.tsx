@@ -72,7 +72,7 @@ export default function CustomersPage() {
       search: search || undefined,
       dni: dni || undefined,
       phone: phone || undefined,
-      status: statusFilter || undefined,
+      status: statusFilter,
       ...pageUrl,
     }),
     [search, dni, phone, statusFilter, pageUrl],
@@ -251,7 +251,7 @@ export default function CustomersPage() {
       <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
         <div className="flex flex-col gap-3">
           {/* Desktop: todos los filtros en una fila */}
-          <div className="hidden flex-wrap items-end gap-2 lg:flex">
+          <div className="hidden flex-wrap items-end gap-2 md:flex">
             <div className="relative w-[180px]">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -313,7 +313,7 @@ export default function CustomersPage() {
           </div>
 
           {/* Mobile/tablet: búsqueda principal + botón filtros */}
-          <div className="flex items-center gap-2 lg:hidden">
+          <div className="flex items-center gap-2 md:hidden">
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -335,7 +335,7 @@ export default function CustomersPage() {
           </div>
 
           {/* Mobile/tablet: filtros avanzados colapsables */}
-          <div className={`flex flex-col gap-3 lg:hidden ${showMobileFilters ? "" : "hidden sm:flex"} sm:flex-row sm:flex-wrap sm:items-end`}>
+          <div className={`flex flex-col gap-3 md:hidden ${showMobileFilters ? "" : "hidden"} sm:flex-row sm:flex-wrap sm:items-end`}>
             <div className="relative w-full sm:max-w-[160px]">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -463,7 +463,7 @@ export default function CustomersPage() {
                           aria-label={`${c.is_active ? "Desactivar" : "Activar"} ${c.name}`}
                           className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
                             c.is_active
-                              ? "bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20"
+                              ? "bg-success/10 text-success hover:bg-success/20"
                               : "bg-muted text-muted-foreground hover:bg-muted/80"
                           }`}
                         >
@@ -521,7 +521,7 @@ export default function CustomersPage() {
                           }
                           className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${
                             c.is_active
-                              ? "bg-emerald-500/10 text-emerald-700"
+                              ? "bg-success/10 text-success"
                               : "bg-muted text-muted-foreground"
                           }`}
                         >
@@ -635,7 +635,7 @@ export default function CustomersPage() {
 
       {modalOpen && (
         <div
-          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
+          className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
           role="dialog"
           aria-modal="true"
         >
@@ -789,7 +789,7 @@ export default function CustomersPage() {
 
       {confirmDelete && (
         <div
-          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
+          className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
           role="dialog"
           aria-modal="true"
         >
