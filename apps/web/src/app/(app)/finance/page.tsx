@@ -130,7 +130,7 @@ export default function FinanceDashboardPage() {
           </div>
         ) : (
           <>
-            <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <section className="grid gap-3 overflow-x-auto pb-1 [grid-template-columns:repeat(4,minmax(150px,1fr))] sm:grid-cols-2 lg:grid-cols-4">
               {loadingSummary ? (
                 <>
                   <StatSkeleton />
@@ -328,10 +328,10 @@ function StatCard({
           <span className={`block text-[11px] font-medium uppercase tracking-wider ${toneText[tone]}`}>
             {label}
           </span>
-          <p className="mt-1 text-xl font-bold tabular-nums tracking-tight text-foreground">{value}</p>
+          <p className="mt-1 break-words text-base font-bold tabular-nums tracking-tight text-foreground sm:text-lg lg:text-xl">{value}</p>
         </div>
-        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full sm:h-8 sm:w-8 ${toneIcon[tone]}`}>
-          <Icon className="h-5 w-5 sm:h-4 sm:w-4" />
+        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${toneIcon[tone]}`}>
+          <Icon className="h-4 w-4" />
         </div>
       </div>
       <p className="text-[11px] text-muted-foreground">{sub}</p>

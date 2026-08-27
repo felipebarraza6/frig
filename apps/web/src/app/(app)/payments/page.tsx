@@ -127,7 +127,7 @@ export default function PaymentsPage() {
       </header>
 
       <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
-        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="grid gap-3 overflow-x-auto pb-1 [grid-template-columns:repeat(4,minmax(150px,1fr))] sm:grid-cols-2 lg:grid-cols-4">
           {loadingDirectionSummary ? (
             <>
               <StatSkeleton />
@@ -386,30 +386,40 @@ export default function PaymentsPage() {
                     className="rounded-2xl border border-border bg-card p-4 shadow-sm"
                   >
                     <div className="flex items-start gap-3">
-                      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${isIncome ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600"}`}>
-                        {isIncome ? <TrendingUp className="h-6 w-6" /> : <TrendingDown className="h-6 w-6" />}
+                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${isIncome ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600"}`}>
+                        {isIncome ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <p className="font-medium">{methodName}</p>
-                            <p className="text-xs text-muted-foreground">{p.payment_source_display}</p>
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-medium">{methodName}</p>
+                            <p className="break-words text-xs text-muted-foreground">{p.payment_source_display}</p>
                           </div>
                           <p className={`shrink-0 text-base font-bold tabular-nums ${isIncome ? "text-emerald-700" : "text-rose-700"}`}>
                             {isIncome ? "+" : "-"}{formatCLP(parseAmount(p.amount))}
                           </p>
                         </div>
-                        <div className="mt-2 flex flex-wrap items-center gap-2">
-                          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${isIncome ? "bg-emerald-500/10 text-emerald-700" : "bg-rose-500/10 text-rose-700"}`}>
-                            {isIncome ? <ArrowDownLeft className="h-3 w-3" /> : <ArrowUpRight className="h-3 w-3" />}
-                            {isIncome ? "Ingreso" : "Egreso"}
-                          </span>
-                          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusBadgeClass(p.status)}`}>
-                            {p.status_display}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {new Date(p.payment_date).toLocaleDateString("es-CL")}
-                          </span>
+                        <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-3 text-xs">
+                          <div className="min-w-0">
+                            <span className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Dirección</span>
+                            <span className={`block truncate font-medium ${isIncome ? "text-emerald-700" : "text-rose-700"}`}>
+                              {isIncome ? "Ingreso" : "Egreso"}
+                            </span>
+                          </div>
+                          <div className="min-w-0">
+                            <span className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Estado</span>
+                            <span className="block truncate font-medium text-foreground">{p.status_display}</span>
+                          </div>
+                          <div className="min-w-0">
+                            <span className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Fecha</span>
+                            <span className="block truncate font-medium text-foreground">
+                              {new Date(p.payment_date).toLocaleDateString("es-CL")}
+                            </span>
+                          </div>
+                          <div className="min-w-0">
+                            <span className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Origen</span>
+                            <span className="block truncate font-medium text-foreground">{p.payment_source_display}</span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -491,10 +501,10 @@ function StatCard({
           <span className={`block text-[11px] font-medium uppercase tracking-wider ${toneText[tone]}`}>
             {label}
           </span>
-          <p className="mt-1 text-xl font-bold tabular-nums tracking-tight text-foreground">{value}</p>
+          <p className="mt-1 break-words text-base font-bold tabular-nums tracking-tight text-foreground sm:text-lg lg:text-xl">{value}</p>
         </div>
-        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full sm:h-8 sm:w-8 ${toneIcon[tone]}`}>
-          <Icon className="h-5 w-5 sm:h-4 sm:w-4" />
+        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${toneIcon[tone]}`}>
+          <Icon className="h-4 w-4" />
         </div>
       </div>
       <p className="text-[11px] text-muted-foreground">{sub}</p>
@@ -510,7 +520,7 @@ function StatSkeleton() {
           <Skeleton className="h-3 w-24" />
           <Skeleton className="h-7 w-32" />
         </div>
-        <Skeleton className="h-10 w-10 rounded-full sm:h-8 sm:w-8" />
+        <Skeleton className="h-8 w-8 rounded-full" />
       </div>
       <Skeleton className="h-3 w-20" />
     </div>

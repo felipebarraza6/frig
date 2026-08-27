@@ -664,7 +664,7 @@ export default function RevenuesPage() {
                     ))}
                   </Select>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3">
                   <div className="flex flex-col gap-1">
                     <label htmlFor="filter-start-mobile" className="text-xs text-muted-foreground">Desde</label>
                     <Input
@@ -699,7 +699,7 @@ export default function RevenuesPage() {
           </div>
         </div>
 
-        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="grid gap-3 overflow-x-auto pb-1 [grid-template-columns:repeat(4,minmax(150px,1fr))] sm:grid-cols-2 lg:grid-cols-4">
           {isLoadingSummary ? (
             <>
               <StatSkeleton />
@@ -890,15 +890,15 @@ export default function RevenuesPage() {
                   key={r.id}
                   className="rounded-2xl border border-border bg-card p-4 shadow-sm"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="flex min-w-0 flex-1 items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600">
                         <TrendingUp className="h-5 w-5" />
                       </div>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="truncate font-medium">{r.title}</p>
                         {r.description && (
-                          <p className="text-xs text-muted-foreground">{r.description}</p>
+                          <p className="break-words text-xs text-muted-foreground">{r.description}</p>
                         )}
                         <span className={`mt-1 inline-flex ${statusBadgeClass(r.status)}`}>
                           {statusLabel(r.status)}
@@ -912,13 +912,21 @@ export default function RevenuesPage() {
                   </div>
 
                   <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-3 text-xs">
-                    <div className="text-muted-foreground">
+                    <div className="min-w-0">
                       <span className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Categoría</span>
-                      <span className="font-medium text-foreground">{r.category_name}</span>
+                      <span className="block truncate font-medium text-foreground">{r.category_name}</span>
                     </div>
-                    <div className="text-muted-foreground">
+                    <div className="min-w-0">
                       <span className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Tipo</span>
-                      <span className="font-medium text-foreground">{r.revenue_type_display}</span>
+                      <span className="block truncate font-medium text-foreground">{r.revenue_type_display}</span>
+                    </div>
+                    <div className="min-w-0">
+                      <span className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Fecha</span>
+                      <span className="block truncate font-medium text-foreground">{r.revenue_date}</span>
+                    </div>
+                    <div className="min-w-0">
+                      <span className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Estado</span>
+                      <span className="block truncate font-medium text-foreground">{statusLabel(r.status)}</span>
                     </div>
                   </div>
 
@@ -938,7 +946,7 @@ export default function RevenuesPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-10 w-10 p-0"
+                      className="h-10 w-10 shrink-0 p-0"
                       onClick={() => handleDownloadVoucher(r)}
                       disabled={isDownloading}
                       title="Comprobante"
@@ -949,7 +957,7 @@ export default function RevenuesPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-10 w-10 p-0"
+                      className="h-10 w-10 shrink-0 p-0"
                       onClick={() => openModal(r)}
                       title="Editar"
                       aria-label="Editar"
@@ -960,7 +968,7 @@ export default function RevenuesPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-10 w-10 p-0 text-amber-600 hover:text-amber-600"
+                        className="h-10 w-10 shrink-0 p-0 text-amber-600 hover:text-amber-600"
                         onClick={() => cancel.mutate(r.id)}
                         disabled={cancel.isPending}
                         title="Cancelar"
@@ -972,7 +980,7 @@ export default function RevenuesPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-10 w-10 p-0 text-danger hover:text-danger"
+                      className="h-10 w-10 shrink-0 p-0 text-danger hover:text-danger"
                       onClick={() => setConfirmDelete(r)}
                       title="Eliminar"
                       aria-label="Eliminar"
@@ -1427,10 +1435,10 @@ function StatCard({
           <span className={`block text-[11px] font-medium uppercase tracking-wider ${toneText[tone]}`}>
             {label}
           </span>
-          <p className="mt-1 text-xl font-bold tabular-nums tracking-tight text-foreground">{value}</p>
+          <p className="mt-1 break-words text-base font-bold tabular-nums tracking-tight text-foreground sm:text-lg lg:text-xl">{value}</p>
         </div>
-        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full sm:h-8 sm:w-8 ${toneIcon[tone]}`}>
-          <Icon className="h-5 w-5 sm:h-4 sm:w-4" />
+        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${toneIcon[tone]}`}>
+          <Icon className="h-4 w-4" />
         </div>
       </div>
       <p className="text-[11px] text-muted-foreground">{sub}</p>
@@ -1446,7 +1454,7 @@ function StatSkeleton() {
           <Skeleton className="h-3 w-24" />
           <Skeleton className="h-7 w-32" />
         </div>
-        <Skeleton className="h-10 w-10 rounded-full sm:h-8 sm:w-8" />
+        <Skeleton className="h-8 w-8 rounded-full" />
       </div>
       <Skeleton className="h-3 w-20" />
     </div>
