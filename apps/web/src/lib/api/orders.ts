@@ -100,26 +100,23 @@ export interface PaymentInstallment {
 function buildOrdersQueryString(filter: OrdersFilter): string {
   const qs = new URLSearchParams();
   if (filter.search) qs.set("search", filter.search);
-  if (filter.order_type) {
-    const values = Array.isArray(filter.order_type) ? filter.order_type : [filter.order_type];
-    values.forEach((v) => qs.append("order_type", v));
+
+  // El backend expone filtros `__in` para múltiples valores separados por comas.
+  // Usar repetidos de la misma clave no funciona de forma confiable en DRF/django-filter.
+  function setMulti(key: string, value: string | string[] | undefined) {
+    if (value === undefined || value === null) return;
+    const values = Array.isArray(value) ? value : [value];
+    if (values.length === 0) return;
+    const suffix = values.length > 1 || key.endsWith("__in") ? "__in" : "";
+    qs.set(`${key}${suffix}`, values.join(","));
   }
-  if (filter.status) {
-    const values = Array.isArray(filter.status) ? filter.status : [filter.status];
-    values.forEach((v) => qs.append("status", v));
-  }
-  if (filter.payment_status) {
-    const values = Array.isArray(filter.payment_status) ? filter.payment_status : [filter.payment_status];
-    values.forEach((v) => qs.append("payment_status", v));
-  }
-  if (filter.delivery_status) {
-    const values = Array.isArray(filter.delivery_status) ? filter.delivery_status : [filter.delivery_status];
-    values.forEach((v) => qs.append("delivery_status", v));
-  }
-  if (filter.client__in) {
-    const values = Array.isArray(filter.client__in) ? filter.client__in : [filter.client__in];
-    values.forEach((v) => qs.append("client__in", v));
-  }
+
+  setMulti("order_type", filter.order_type);
+  setMulti("status", filter.status);
+  setMulti("payment_status", filter.payment_status);
+  setMulti("delivery_status", filter.delivery_status);
+  setMulti("client__in", filter.client__in);
+
   if (filter.start_date) qs.set("start_date", filter.start_date);
   if (filter.end_date) qs.set("end_date", filter.end_date);
   if (filter.page_size) qs.set("page_size", String(filter.page_size));

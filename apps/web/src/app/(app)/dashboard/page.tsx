@@ -179,7 +179,7 @@ export default function DashboardPage() {
   const completedOrders = summary?.orders?.completed ?? 0;
   const customers = counts?.customers?.total ?? 0;
   // El contador de productos del backend llega en 0 para esta sucursal a pesar de
-  // tener catálogo. Usamos la lista local que ya cargamos para stock bajo.
+  // tener catálogo. Usamos la lista local que ya cargamos.
   const productsCount = products.length;
   const pendingOrders = counts?.sales?.pending_orders ?? 0;
   const pendingSalesAmount = counts?.sales?.pending_sales_amount ?? 0;
@@ -451,7 +451,7 @@ export default function DashboardPage() {
           sub="activos en catálogo"
           tone="orange"
           href="/products"
-          description="Productos activos en el catálogo. El stock bajo se gestiona desde la página de Productos."
+          description="Productos activos en el catálogo."
           onClick={() =>
             setDrawer({
               open: true,
@@ -459,7 +459,7 @@ export default function DashboardPage() {
                 title: "Productos",
                 value: productsCount,
                 icon: Package,
-                description: "Productos activos en el catálogo. El detalle de stock bajo se gestiona desde la página de Productos.",
+                description: "Productos activos en el catálogo.",
                 sections: [
                   { label: "Catálogo local", value: String(productsCount) },
                 ],

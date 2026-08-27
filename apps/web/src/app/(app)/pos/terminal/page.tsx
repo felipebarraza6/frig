@@ -409,7 +409,7 @@ export default function PosPage() {
     queryFn: () =>
       fetchOrders({
         // Incluir tanto cuentas abiertas (SALE pending) como órdenes pendientes.
-        payment_status: "PENDING",
+        payment_status: ["PENDING", "PARTIAL"],
         order_type: ["SALE", "ORDER"],
       }),
     staleTime: 15_000,
@@ -420,6 +420,8 @@ export default function PosPage() {
     queryKey: ["orders", "pending-deliveries", "pos-terminal"],
     queryFn: () =>
       fetchOrders({
+        // Órdenes/ventas aún no entregadas: permanecen en PENDING/IN_PROGRESS
+        // hasta que el cajero/mark registrar la entrega vía deliver/.
         status: ["PENDING", "IN_PROGRESS"],
         order_type: ["SALE", "ORDER"],
       }),
@@ -547,13 +549,54 @@ export default function PosPage() {
   );
 
   const movementMutation = useMutation({
-    mutationFn: (payload: { type: "CASH_IN" | "CASH_OUT"; amount: string; reason: string }) => {
+    mutationFn: async (payload: { type: "CASH_IN" | "CASH_OUT"; amount: string; reason: string }) => {
       if (!currentCashRegister) throw new Error("No hay caja abierta");
+      if (!branch?.branch_id) throw new Error("No hay sucursal seleccionada");
+      if (!user?.id) throw new Error("No hay usuario identificado");
+
       const base = { amount: payload.amount, reason: payload.reason };
-      return payload.type === "CASH_IN" ? cashIn(currentCashRegister.id, base) : cashOut(currentCashRegister.id, base);
+      const result = await (payload.type === "CASH_IN"
+        ? cashIn(currentCashRegister.id, base)
+        : cashOut(currentCashRegister.id, base));
+
+      // Los retiros de caja se registran automáticamente como egreso para
+      // mantener la contabilidad al día sin trabajo extra del cajero.
+      if (payload.type === "CASH_OUT") {
+        try {
+          const categories = await fetchExpenseCategories();
+          let category = categories.find(
+            (c) => c.name.toLowerCase().includes("retiro"),
+          );
+          if (!category) {
+            category = await createExpenseCategory({
+              name: "Retiros de caja",
+              category_type: "OTHER",
+              branch: Number(branch.branch_id),
+              description: "Egresos generados por retiros manuales de caja desde el POS",
+              is_active: true,
+            });
+          }
+          await createExpense({
+            name: payload.reason,
+            description: `Retiro de caja registrado en ${activeStation?.name ?? "estación actual"}`,
+            branch: Number(branch.branch_id),
+            category: category.id,
+            created_by: Number(user.id),
+            amount: payload.amount,
+            frequency: "ONE_TIME",
+            start_date: new Date().toISOString().split("T")[0],
+            status: "ACTIVE",
+          });
+        } catch {
+          // No bloqueamos el retiro si falla el egreso; se puede conciliar después.
+        }
+      }
+
+      return result;
     },
     onSuccess: (_, payload) => {
       queryClient.invalidateQueries({ queryKey: ["cash-register"] });
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
       setMovementAmount("");
       setMovementReason("");
       toast.success(payload.type === "CASH_IN" ? "Ingreso registrado" : "Retiro registrado");
@@ -718,10 +761,9 @@ export default function PosPage() {
       : (queryTable ?? existingTable);
   const setSelectedTable = (t: TableItem | null) => setSelectedTableState(t);
 
-  const activeStation = useMemo(() => {
-    if (!activeStationId) return null;
-    return stations.find((s) => s.id === activeStationId) ?? null;
-  }, [stations, activeStationId]);
+  const activeStation = activeStationId
+    ? (stations.find((s) => s.id === activeStationId) ?? null)
+    : null;
 
   const { data: catalogs } = useQuery({
     queryKey: ["public-catalogs", "pos-terminal"],
@@ -846,7 +888,7 @@ export default function PosPage() {
 
   const pendingDeliveriesBase = useMemo(() => {
     // Mostramos todas las cuentas/órdenes pendientes o en progreso.
-    // El backend ya filtra por status PENDING/IN_PROGRESS y tipos SALE/ORDER.
+    // El backend ya filtra por status__in=PENDING,IN_PROGRESS y order_type__in=SALE,ORDER.
     return (pendingDeliveriesPage?.results ?? []) as Order[];
   }, [pendingDeliveriesPage]);
 
@@ -1185,7 +1227,7 @@ export default function PosPage() {
                 </span>
               </div>
             )}
-            <div className="flex flex-wrap items-center gap-1.5">
+            <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center">
               {showTables && !isWaiter && (
                 <>
                   <div className="relative shrink-0">
@@ -1225,31 +1267,33 @@ export default function PosPage() {
                 </>
               )}
 
-              <button
-                onClick={() => setActiveCategory(null)}
-                className={cn(
-                  "shrink-0 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
-                  activeCategory === null
-                    ? "bg-primary text-white"
-                    : "bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
-                )}
-              >
-                Todos
-              </button>
-              {categories?.map((cat) => (
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
                 <button
-                  key={cat.id}
-                  onClick={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)}
+                  onClick={() => setActiveCategory(null)}
                   className={cn(
                     "shrink-0 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
-                    activeCategory === cat.id
+                    activeCategory === null
                       ? "bg-primary text-white"
                       : "bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
                   )}
                 >
-                  {cat.name}
+                  Todos
                 </button>
-              ))}
+                {categories?.map((cat) => (
+                  <button
+                    key={cat.id}
+                    onClick={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)}
+                    className={cn(
+                      "shrink-0 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
+                      activeCategory === cat.id
+                        ? "bg-primary text-white"
+                        : "bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
+                    )}
+                  >
+                    {cat.name}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="flex flex-wrap items-center gap-2 border-t border-border/40 pt-1.5">
               <div className="relative min-w-0 flex-1 sm:flex-none sm:w-56">
@@ -1298,7 +1342,7 @@ export default function PosPage() {
                 <p className="text-sm text-muted-foreground">No hay productos que coincidan.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
                 {filtered.map((product) => (
                   <ProductCard
                     key={product.id}
@@ -1397,7 +1441,7 @@ export default function PosPage() {
 
       {/* Bottom bar móvil */}
       {!cartOpen && !(isWaiter && !selectedTable && !isEditingOrder) && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 flex items-center gap-2 border-t border-border/60 bg-background px-2 py-2 shadow-lg md:hidden">
+        <div className="fixed bottom-0 left-0 right-0 z-40 flex items-center gap-1.5 border-t border-border/60 bg-background px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-lg md:hidden">
           <button
             type="button"
             onClick={() => {
@@ -2161,7 +2205,21 @@ export default function PosPage() {
 
             {currentCashRegister && cashRegisterTab === "summary" && dailySummary && (
               <>
-                <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <div className="mt-4 rounded-xl border border-border/60 bg-emerald-500/10 p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[11px] font-medium text-emerald-700">Efectivo esperado en caja</p>
+                      <p className="text-2xl font-bold tabular-nums text-emerald-800 sm:text-3xl">
+                        {formatCLP(parseFloat(String(dailySummary.expected_amount ?? "0")))}
+                      </p>
+                    </div>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/20 sm:h-12 sm:w-12">
+                      <Banknote className="h-5 w-5 text-emerald-700 sm:h-6 sm:w-6" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
                   <div className="rounded-lg border border-border/60 bg-muted/40 p-2.5">
                     <div className="mb-1 flex items-center gap-1 text-[10px] text-muted-foreground">
                       <TrendingUp className="h-3 w-3" />

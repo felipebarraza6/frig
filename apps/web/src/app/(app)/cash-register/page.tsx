@@ -64,6 +64,7 @@ import {
   useIsSuperAdmin,
 } from "@/lib/store/session";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
+import { fetchExpenseCategories, createExpenseCategory, createExpense } from "@/lib/api/expenses";
 
 function numberValue(v: string): string {
   const cleaned = v.replace(/[^0-9]/g, "");
@@ -292,14 +293,51 @@ export default function CashRegisterPage() {
   });
 
   const movementMutation = useMutation({
-    mutationFn: (payload: { type: "CASH_IN" | "CASH_OUT"; amount: string; reason: string }) => {
+    mutationFn: async (payload: { type: "CASH_IN" | "CASH_OUT"; amount: string; reason: string }) => {
+      if (!branch?.branch_id) throw new Error("No hay sucursal seleccionada");
+      if (!user?.id) throw new Error("No hay usuario identificado");
+
       const base = { amount: payload.amount, reason: payload.reason };
-      return payload.type === "CASH_IN"
+      const result = await (payload.type === "CASH_IN"
         ? cashIn(cashRegister!.id, base)
-        : cashOut(cashRegister!.id, base);
+        : cashOut(cashRegister!.id, base));
+
+      if (payload.type === "CASH_OUT") {
+        try {
+          const categories = await fetchExpenseCategories();
+          let category = categories.find(
+            (c) => c.name.toLowerCase().includes("retiro"),
+          );
+          if (!category) {
+            category = await createExpenseCategory({
+              name: "Retiros de caja",
+              category_type: "OTHER",
+              branch: Number(branch.branch_id),
+              description: "Egresos generados por retiros manuales de caja",
+              is_active: true,
+            });
+          }
+          await createExpense({
+            name: payload.reason,
+            description: `Retiro de caja registrado en ${activeStation?.name ?? "estación actual"}`,
+            branch: Number(branch.branch_id),
+            category: category.id,
+            created_by: Number(user.id),
+            amount: payload.amount,
+            frequency: "ONE_TIME",
+            start_date: new Date().toISOString().split("T")[0],
+            status: "ACTIVE",
+          });
+        } catch {
+          // No bloqueamos el retiro si falla el egreso; se puede conciliar después.
+        }
+      }
+
+      return result;
     },
     onSuccess: (_, payload) => {
       queryClient.invalidateQueries({ queryKey: ["cash-register"] });
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
       setMovementAmount("");
       setMovementReason("");
       toast.success(payload.type === "CASH_IN" ? "Ingreso registrado" : "Retiro registrado");

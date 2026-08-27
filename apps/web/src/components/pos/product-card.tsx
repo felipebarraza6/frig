@@ -59,20 +59,20 @@ function ProductCardRaw({ product, onClick, onKeyDown }: ProductCardProps) {
       onKeyDown={(e) => onKeyDown?.(e, product)}
       whileTap={disabled ? undefined : { scale: 0.95 }}
       transition={{ type: "spring", stiffness: 500, damping: 20 }}
-      className="group flex h-[132px] cursor-pointer flex-col justify-between overflow-hidden rounded-xl border border-border/60 bg-muted/20 p-3 transition-all hover:border-primary/40 hover:bg-muted/40 hover:shadow-sm aria-disabled:cursor-not-allowed aria-disabled:opacity-50 aria-disabled:hover:border-border/60 aria-disabled:hover:bg-muted/20 aria-disabled:hover:shadow-none"
+      className="group flex h-[110px] cursor-pointer flex-col justify-between overflow-hidden rounded-xl border border-border/60 bg-muted/20 p-2.5 transition-all hover:border-primary/40 hover:bg-muted/40 hover:shadow-sm aria-disabled:cursor-not-allowed aria-disabled:opacity-50 aria-disabled:hover:border-border/60 aria-disabled:hover:bg-muted/20 aria-disabled:hover:shadow-none sm:h-[132px] sm:p-3"
     >
       <div className="flex items-start justify-between gap-2">
-        <p className="line-clamp-2 text-[15px] font-medium leading-snug">{product.name}</p>
+        <p className="line-clamp-2 text-sm font-medium leading-snug sm:text-[15px]">{product.name}</p>
       </div>
 
-      <div className="mt-2 flex flex-col gap-2">
+      <div className="mt-1.5 flex flex-col gap-1.5 sm:mt-2 sm:gap-2">
         <div className="flex flex-wrap items-center gap-1">
           <span className="inline-flex h-5 items-center rounded bg-muted px-1.5 text-[10px] font-medium text-muted-foreground">
             {productTypeLabel(product.product_type)}
           </span>
           <StockBadge product={product} />
         </div>
-        <p className="self-end text-lg font-bold tabular-nums leading-none text-foreground">
+        <p className="self-end text-base font-bold tabular-nums leading-none text-foreground sm:text-lg">
           {formatCLP(product.price)}
         </p>
       </div>
