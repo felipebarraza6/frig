@@ -21,6 +21,8 @@ import {
   ArrowDown,
   FileSpreadsheet,
   SlidersHorizontal,
+  LayoutGrid,
+  List,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
@@ -311,6 +313,7 @@ export default function WarehouseDetailPage() {
   const [transferQuantity, setTransferQuantity] = useState("");
   const [exporting, setExporting] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [view, setView] = useState<"grid" | "list">("grid");
 
   const [productSearch, setProductSearch] = useState("");
   const [productPageUrl, setProductPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
@@ -581,6 +584,26 @@ export default function WarehouseDetailPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <div className="hidden sm:flex items-center rounded-lg border border-border p-0.5">
+                <Button
+                  variant={view === "grid" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={() => setView("grid")}
+                  aria-label="Vista tarjetas"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={view === "list" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={() => setView("list")}
+                  aria-label="Vista lista"
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+              </div>
               <Button
                 size="sm"
                 variant="outline"
@@ -637,6 +660,26 @@ export default function WarehouseDetailPage() {
                 <SlidersHorizontal className="h-4 w-4" />
                 <span className="ml-2">Filtros</span>
               </Button>
+              <div className="flex items-center rounded-lg border border-border p-0.5">
+                <Button
+                  variant={view === "grid" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={() => setView("grid")}
+                  aria-label="Vista tarjetas"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={view === "list" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={() => setView("list")}
+                  aria-label="Vista lista"
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
             <div className={`flex flex-col gap-3 ${showMobileFilters ? "" : "hidden"}`}>
@@ -722,32 +765,56 @@ export default function WarehouseDetailPage() {
         </div>
 
         {loadingProducts ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-                <div className="flex items-start gap-3">
-                  <SkeletonBlock className="h-10 w-10 shrink-0 rounded-xl" />
-                  <div className="min-w-0 flex-1">
-                    <SkeletonBlock className="h-4 w-32" />
-                    <SkeletonBlock className="mt-2 h-3 w-20" />
+          view === "grid" ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <SkeletonBlock className="h-10 w-10 shrink-0 rounded-xl" />
+                    <div className="min-w-0 flex-1">
+                      <SkeletonBlock className="h-4 w-32" />
+                      <SkeletonBlock className="mt-2 h-3 w-20" />
+                    </div>
+                  </div>
+                  <div className="mt-4 grid grid-cols-3 gap-3">
+                    <SkeletonBlock className="h-8" />
+                    <SkeletonBlock className="h-8" />
+                    <SkeletonBlock className="h-8" />
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <SkeletonBlock className="h-8" />
+                    <SkeletonBlock className="h-8" />
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <SkeletonBlock className="h-6 w-16" />
+                    <SkeletonBlock className="h-6 w-16" />
                   </div>
                 </div>
-                <div className="mt-4 grid grid-cols-3 gap-3">
-                  <SkeletonBlock className="h-8" />
-                  <SkeletonBlock className="h-8" />
-                  <SkeletonBlock className="h-8" />
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-3">
-                  <SkeletonBlock className="h-8" />
-                  <SkeletonBlock className="h-8" />
-                </div>
-                <div className="mt-3 flex gap-2">
-                  <SkeletonBlock className="h-6 w-16" />
-                  <SkeletonBlock className="h-6 w-16" />
-                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-2xl border border-border">
+              <div className="border-b border-border bg-muted/50 p-4">
+                <SkeletonBlock className="h-4 w-48" />
               </div>
-            ))}
-          </div>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="flex items-center justify-between border-b border-border p-4 last:border-0">
+                  <div className="flex items-center gap-3">
+                    <SkeletonBlock className="h-8 w-8" />
+                    <div>
+                      <SkeletonBlock className="h-4 w-32" />
+                      <SkeletonBlock className="mt-1 h-3 w-20" />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-8">
+                    <SkeletonBlock className="h-4 w-12" />
+                    <SkeletonBlock className="h-4 w-12" />
+                    <SkeletonBlock className="h-6 w-16" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
         ) : products.length === 0 ? (
           <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-border p-12">
             <div className="text-center">
@@ -764,42 +831,196 @@ export default function WarehouseDetailPage() {
           </div>
         ) : (
           <>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {products.map((wp) => (
-              <WarehouseProductCard
-                key={wp.id}
-                wp={wp}
-                supplierName={supplierNameByProduct.get(wp.product ?? 0)}
-                salePrice={productSalePriceMap.get(wp.product ?? 0) ?? 0}
-                onConfigure={(wp) => {
-                  setConfigProduct(wp);
-                  setConfigForm({
-                    current_quantity: String(wp.current_quantity ?? 0),
-                    minimum_quantity:
-                      wp.minimum_quantity === null || wp.minimum_quantity === undefined
-                        ? ""
-                        : String(wp.minimum_quantity),
-                    maximum_quantity:
-                      wp.maximum_quantity === null || wp.maximum_quantity === undefined
-                        ? ""
-                        : String(wp.maximum_quantity),
-                    reorder_point:
-                      wp.reorder_point === null || wp.reorder_point === undefined
-                        ? ""
-                        : String(wp.reorder_point),
-                    location_in_warehouse: wp.location_in_warehouse ?? "",
-                    is_active: wp.is_active ?? true,
-                    is_preferred_location: wp.is_preferred_location ?? false,
-                  });
-                  setConfigOpen(true);
-                }}
-                onTransfer={(wp) => {
-                  setTransferProduct(wp);
-                  setTransferOpen(true);
-                }}
-              />
-            ))}
-          </div>
+          {view === "grid" ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {products.map((wp) => (
+                <WarehouseProductCard
+                  key={wp.id}
+                  wp={wp}
+                  supplierName={supplierNameByProduct.get(wp.product ?? 0)}
+                  salePrice={productSalePriceMap.get(wp.product ?? 0) ?? 0}
+                  onConfigure={(wp) => {
+                    setConfigProduct(wp);
+                    setConfigForm({
+                      current_quantity: String(wp.current_quantity ?? 0),
+                      minimum_quantity:
+                        wp.minimum_quantity === null || wp.minimum_quantity === undefined
+                          ? ""
+                          : String(wp.minimum_quantity),
+                      maximum_quantity:
+                        wp.maximum_quantity === null || wp.maximum_quantity === undefined
+                          ? ""
+                          : String(wp.maximum_quantity),
+                      reorder_point:
+                        wp.reorder_point === null || wp.reorder_point === undefined
+                          ? ""
+                          : String(wp.reorder_point),
+                      location_in_warehouse: wp.location_in_warehouse ?? "",
+                      is_active: wp.is_active ?? true,
+                      is_preferred_location: wp.is_preferred_location ?? false,
+                    });
+                    setConfigOpen(true);
+                  }}
+                  onTransfer={(wp) => {
+                    setTransferProduct(wp);
+                    setTransferOpen(true);
+                  }}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-2xl border border-border">
+              <table className="w-full table-auto min-w-[1100px] text-sm">
+                <thead>
+                  <tr className="border-b border-border text-left text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                    <th className="px-3 py-2 text-left">Producto</th>
+                    <th className="px-3 py-2 text-left">Categoría</th>
+                    <th className="px-3 py-2 text-left">Proveedor</th>
+                    <th className="px-3 py-2 text-right">Cantidad</th>
+                    <th className="px-3 py-2 text-right">Rango</th>
+                    <th className="px-3 py-2 text-right">Costo</th>
+                    <th className="px-3 py-2 text-right">Venta</th>
+                    <th className="px-3 py-2 text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {products.map((wp) => {
+                    const unitCost = numValue(wp.product_cost);
+                    const totalValue = numValue(wp.total_value);
+                    const salePrice = productSalePriceMap.get(wp.product ?? 0) ?? 0;
+                    const totalSale = salePrice * wp.current_quantity;
+                    const status = wp.stock_status ?? "";
+                    const isOk = status === "IN_STOCK";
+                    const isLow = status === "LOW_STOCK";
+                    const isOut = status === "OUT_OF_STOCK";
+                    const supplierName = supplierNameByProduct.get(wp.product ?? 0);
+
+                    return (
+                      <tr key={wp.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-2.5">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary">
+                              <Package className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                            <div className="min-w-0 max-w-[260px]">
+                              <p className="truncate font-medium leading-tight">{wp.product_name}</p>
+                              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                <span
+                                  className={cn(
+                                    "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium",
+                                    isOk && "bg-success/10 text-success",
+                                    isLow && "bg-warning/10 text-warning",
+                                    isOut && "bg-danger/10 text-danger",
+                                    !isOk && !isLow && !isOut && "bg-muted text-muted-foreground",
+                                  )}
+                                >
+                                  {stockStatusLabel(status)}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground">
+                                  {wp.product_measurement_unit}
+                                  {wp.product_code ? ` · ${wp.product_code}` : ""}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          {wp.product_category ? (
+                            <span className="inline-flex items-center rounded-sm bg-secondary px-2 py-1 text-[11px] font-medium text-foreground">
+                              {wp.product_category}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          {supplierName ? (
+                            <span
+                              className="inline-flex max-w-full items-center truncate rounded-sm bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary"
+                              title={supplierName}
+                            >
+                              {supplierName}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums font-medium whitespace-nowrap">
+                          {wp.current_quantity}
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                          <div className="inline-flex flex-col items-end leading-tight whitespace-nowrap">
+                            <span><span className="text-[10px]">mín</span> {wp.minimum_quantity ?? 0}</span>
+                            <span><span className="text-[10px]">máx</span> {wp.maximum_quantity ?? "—"}</span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap">
+                          <div className="leading-tight">
+                            <p className="font-medium text-success">{formatCLP(totalValue)}</p>
+                            <p className="text-xs text-muted-foreground">{formatCLP(unitCost)} c/u</p>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap">
+                          <div className="leading-tight">
+                            <p className="font-medium text-primary">{formatCLP(totalSale)}</p>
+                            <p className="text-xs text-muted-foreground">{formatCLP(salePrice)} c/u</p>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              title="Configurar"
+                              onClick={() => {
+                                setConfigProduct(wp);
+                                setConfigForm({
+                                  current_quantity: String(wp.current_quantity ?? 0),
+                                  minimum_quantity:
+                                    wp.minimum_quantity === null || wp.minimum_quantity === undefined
+                                      ? ""
+                                      : String(wp.minimum_quantity),
+                                  maximum_quantity:
+                                    wp.maximum_quantity === null || wp.maximum_quantity === undefined
+                                      ? ""
+                                      : String(wp.maximum_quantity),
+                                  reorder_point:
+                                    wp.reorder_point === null || wp.reorder_point === undefined
+                                      ? ""
+                                      : String(wp.reorder_point),
+                                  location_in_warehouse: wp.location_in_warehouse ?? "",
+                                  is_active: wp.is_active ?? true,
+                                  is_preferred_location: wp.is_preferred_location ?? false,
+                                });
+                                setConfigOpen(true);
+                              }}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                              <span className="sr-only">Configurar</span>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              title="Transferir a otra bodega"
+                              onClick={() => {
+                                setTransferProduct(wp);
+                                setTransferOpen(true);
+                              }}
+                            >
+                              <ArrowRightLeft className="h-3.5 w-3.5" />
+                              <span className="sr-only">Mover</span>
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
             <p className="text-muted-foreground">
