@@ -1,16 +1,38 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { X, Warehouse, History, Package, AlertTriangle, ArrowLeft, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  X,
+  Warehouse,
+  History,
+  Package,
+  AlertTriangle,
+  ArrowLeft,
+  Loader2,
+  Truck,
+  Save,
+  Pencil,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { fetchProductWarehouses } from "@/lib/api/warehouses";
+import { Input } from "@/components/ui/input";
+import { fetchProductWarehouses, updateWarehouseProduct } from "@/lib/api/warehouses";
 import { fetchAllInventoryMovements } from "@/lib/api/inventory";
+import {
+  fetchSuppliers,
+  fetchSupplierProductsByProduct,
+  createSupplierProduct,
+  updateSupplierProduct,
+  type SupplierList,
+} from "@/lib/api/suppliers";
+import { useCurrentBranch } from "@/lib/store/session";
+import { useToast } from "@/lib/store/toast";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 type WarehouseProduct = YggdraSchemas["WarehouseProduct"];
 type InventoryHistory = YggdraSchemas["InventoryHistory"];
 type YggdraProduct = YggdraSchemas["ProductList"];
+type SupplierProduct = YggdraSchemas["SupplierProduct"];
 
 interface ProductWarehousesModalProps {
   product: YggdraProduct;
@@ -55,7 +77,7 @@ function formatDate(value?: string | null): string {
   if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat("es-CL", {
     day: "2-digit",
-    month:"short",
+    month: "short",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
@@ -67,13 +89,14 @@ function formatNumber(value?: number | null): string {
   return Number(value).toLocaleString("es-CL");
 }
 
+function numberValue(v: string): string {
+  const cleaned = v.replace(/[^0-9]/g, "");
+  return cleaned ? (parseInt(cleaned, 10) || 0).toString() : "";
+}
+
 function groupWarehousesByWarehouse(items: WarehouseProduct[]): WarehouseProduct[] {
   const groups = new Map<string, WarehouseProduct[]>();
   for (const item of items) {
-    // Algunos backends devuelven registros duplicados de la misma bodega con
-    // IDs distintos. Agrupamos por ID de bodega (o nombre normalizado como
-    // fallback) para no mostrar la misma bodega varias veces; el primer objeto
-    // de warehouse se conserva.
     const key = String(item.warehouse.id ?? item.warehouse.name ?? "").trim().toLowerCase();
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(item);
@@ -88,6 +111,7 @@ function groupWarehousesByWarehouse(items: WarehouseProduct[]): WarehouseProduct
     let reorderPoint: number | undefined;
     let location = first.location_in_warehouse ?? null;
     let earliestCreated = first.created;
+    let recordId = first.id;
 
     for (const w of group) {
       currentQuantity += w.current_quantity ?? 0;
@@ -110,6 +134,7 @@ function groupWarehousesByWarehouse(items: WarehouseProduct[]): WarehouseProduct
       }
       if (w.created < earliestCreated) {
         earliestCreated = w.created;
+        recordId = w.id;
       }
     }
 
@@ -122,7 +147,7 @@ function groupWarehousesByWarehouse(items: WarehouseProduct[]): WarehouseProduct
 
     return {
       ...first,
-      id: first.id,
+      id: recordId,
       current_quantity: currentQuantity,
       total_value: String(totalValue),
       minimum_quantity: minimumQuantity,
@@ -193,7 +218,8 @@ export function ProductWarehousesModal({ product, onClose }: ProductWarehousesMo
             </h2>
             {!selectedWarehouse && (
               <p className="text-xs text-muted-foreground">
-                {groupedWarehouses.length} bodega{groupedWarehouses.length === 1 ? "" : "s"} · Stock total: {formatNumber(totalStock)}
+                {groupedWarehouses.length} bodega{groupedWarehouses.length === 1 ? "" : "s"} · Stock total:{" "}
+                {formatNumber(totalStock)}
               </p>
             )}
           </div>
@@ -214,92 +240,19 @@ export function ProductWarehousesModal({ product, onClose }: ProductWarehousesMo
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : selectedWarehouse ? (
-            <div className="flex flex-col gap-4">
-              {/* Resumen de la bodega seleccionada */}
-              <div className="rounded-xl border border-border bg-muted/40 p-4">
-                <div className="mb-3 flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-secondary">
-                      <Warehouse className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <p className="font-medium">{selectedWarehouse.warehouse.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {WAREHOUSE_TYPE_LABELS[selectedWarehouse.warehouse.warehouse_type ?? "GENERAL"] ?? "Bodega"}
-                        {selectedWarehouse.warehouse.location ? ` · ${selectedWarehouse.warehouse.location}` : ""}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 flex-col items-end gap-0.5">
-                    <span className="text-[10px] text-muted-foreground">Stock actual</span>
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${stockStatusColor(
-                        selectedWarehouse.stock_status,
-                      )}`}
-                    >
-                      {formatNumber(selectedWarehouse.current_quantity)} {selectedWarehouse.product_measurement_unit}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Mínimo</p>
-                    <p>{formatNumber(selectedWarehouse.minimum_quantity)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Máximo</p>
-                    <p>{formatNumber(selectedWarehouse.maximum_quantity)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Punto de reorden</p>
-                    <p>{formatNumber(selectedWarehouse.reorder_point)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Valor total</p>
-                    <p>${formatNumber(Number(selectedWarehouse.total_value))}</p>
-                  </div>
-                </div>
-
-                {selectedWarehouse.location_in_warehouse && (
-                  <p className="mt-3 text-xs text-muted-foreground">
-                    Ubicación: {selectedWarehouse.location_in_warehouse}
-                  </p>
-                )}
-              </div>
-
-              {/* Historial */}
-              <div>
-                <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold">
-                  <History className="h-4 w-4" />
-                  Historial de movimientos
-                </h3>
-
-                {loadingMovements ? (
-                  <div className="grid place-items-center py-8">
-                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                  </div>
-                ) : movements.length === 0 ? (
-                  <p className="rounded-lg border border-dashed border-border py-6 text-center text-sm text-muted-foreground">
-                    No hay movimientos registrados en esta bodega.
-                  </p>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    {movements.map((m) => (
-                      <MovementItem key={m.id} movement={m} />
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+            <WarehouseDetail
+              product={product}
+              warehouseProduct={selectedWarehouse}
+              movements={movements}
+              loadingMovements={loadingMovements}
+              onBack={() => setSelectedWarehouse(null)}
+            />
           ) : groupedWarehouses.length === 0 ? (
             <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border py-12">
               <div className="text-center">
                 <Package className="mx-auto h-10 w-10 text-muted-foreground" />
                 <p className="mt-3 text-sm font-medium">Sin asignación a bodegas</p>
-                <p className="text-xs text-muted-foreground">
-                  Este producto no está asignado a ninguna bodega.
-                </p>
+                <p className="text-xs text-muted-foreground">Este producto no está asignado a ninguna bodega.</p>
               </div>
             </div>
           ) : (
@@ -321,9 +274,7 @@ export function ProductWarehousesModal({ product, onClose }: ProductWarehousesMo
                         {WAREHOUSE_TYPE_LABELS[w.warehouse.warehouse_type ?? "GENERAL"] ?? "Bodega"}
                         {w.location_in_warehouse ? ` · ${w.location_in_warehouse}` : ""}
                       </p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        Agregado el {formatDate(w.created)}
-                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">Agregado el {formatDate(w.created)}</p>
                     </div>
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">
@@ -334,12 +285,14 @@ export function ProductWarehousesModal({ product, onClose }: ProductWarehousesMo
                     >
                       {w.current_quantity} {w.product_measurement_unit}
                     </span>
-                    {w.minimum_quantity !== undefined && w.minimum_quantity !== null && w.current_quantity <= w.minimum_quantity && (
-                      <span className="flex items-center gap-1 text-xs text-amber-600">
-                        <AlertTriangle className="h-3 w-3" />
-                        Stock bajo
-                      </span>
-                    )}
+                    {w.minimum_quantity !== undefined &&
+                      w.minimum_quantity !== null &&
+                      w.current_quantity <= w.minimum_quantity && (
+                        <span className="flex items-center gap-1 text-xs text-amber-600">
+                          <AlertTriangle className="h-3 w-3" />
+                          Stock bajo
+                        </span>
+                      )}
                   </div>
                 </button>
               ))}
@@ -353,6 +306,325 @@ export function ProductWarehousesModal({ product, onClose }: ProductWarehousesMo
             Cerrar
           </Button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function WarehouseDetail({
+  product,
+  warehouseProduct,
+  movements,
+  loadingMovements,
+  onBack,
+}: {
+  product: YggdraProduct;
+  warehouseProduct: WarehouseProduct;
+  movements: InventoryHistory[];
+  loadingMovements: boolean;
+  onBack: () => void;
+}) {
+  const branch = useCurrentBranch();
+  const toast = useToast();
+  const queryClient = useQueryClient();
+
+  const [minQty, setMinQty] = useState<string>(
+    warehouseProduct.minimum_quantity !== undefined && warehouseProduct.minimum_quantity !== null
+      ? String(warehouseProduct.minimum_quantity)
+      : "",
+  );
+  const [maxQty, setMaxQty] = useState<string>(
+    warehouseProduct.maximum_quantity !== undefined && warehouseProduct.maximum_quantity !== null
+      ? String(warehouseProduct.maximum_quantity)
+      : "",
+  );
+  const [reorderPoint, setReorderPoint] = useState<string>(
+    warehouseProduct.reorder_point !== undefined && warehouseProduct.reorder_point !== null
+      ? String(warehouseProduct.reorder_point)
+      : "",
+  );
+  const [location, setLocation] = useState(warehouseProduct.location_in_warehouse ?? "");
+
+  const { data: supplierProducts = [] } = useQuery({
+    queryKey: ["supplier-products", "by-product", product.id],
+    queryFn: () => fetchSupplierProductsByProduct(product.id),
+    enabled: !!product?.id,
+  });
+
+  const supplierProduct = useMemo(() => {
+    return (
+      (supplierProducts as SupplierProduct[]).find((sp) => {
+        return sp.product != null && String(sp.product) === String(product.id);
+      }) ?? null
+    );
+  }, [supplierProducts, product.id]);
+
+  const [supplierSearch, setSupplierSearch] = useState("");
+  const [supplierOptions, setSupplierOptions] = useState<SupplierList[]>([]);
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(() => supplierProduct?.supplier ?? null);
+  const [costPrice, setCostPrice] = useState<string>(() => supplierProduct?.cost_price ?? "");
+  const [supplierProductName, setSupplierProductName] = useState<string>(
+    () => supplierProduct?.supplier_product_name ?? product.name ?? "",
+  );
+
+  useEffect(() => {
+    const term = supplierSearch.trim();
+    const t = setTimeout(async () => {
+      try {
+        const data = await fetchSuppliers({ search: term, status: "ACTIVE" });
+        setSupplierOptions(data.results ?? []);
+      } catch {
+        setSupplierOptions([]);
+      }
+    }, 250);
+    return () => clearTimeout(t);
+  }, [supplierSearch]);
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      if (!branch?.branch_id) throw new Error("No hay sucursal seleccionada");
+
+      await updateWarehouseProduct(Number(warehouseProduct.id), {
+        minimum_quantity: minQty === "" ? undefined : Number(minQty),
+        maximum_quantity: maxQty === "" ? undefined : Number(maxQty),
+        reorder_point: reorderPoint === "" ? undefined : Number(reorderPoint),
+        location_in_warehouse: location.trim() || undefined,
+      });
+
+      if (selectedSupplierId) {
+        const payload = {
+          supplier: selectedSupplierId,
+          product: product.id,
+          cost_price: costPrice || "0",
+          supplier_product_name: supplierProductName.trim() || product.name,
+          branch: Number(branch.branch_id),
+          is_active: true,
+          create_inventory_product: false,
+          measurement_unit: (product as unknown as { measurement_unit?: string }).measurement_unit || "UN",
+        };
+        if (supplierProduct) {
+          await updateSupplierProduct(supplierProduct.id, payload);
+        } else {
+          await createSupplierProduct(payload);
+        }
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products", product.id, "warehouses"] });
+      queryClient.invalidateQueries({ queryKey: ["supplier-products", "by-product", product.id] });
+      toast.success("Configuración guardada");
+      onBack();
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "No se pudo guardar la configuración");
+    },
+  });
+
+  const selectedSupplier = supplierOptions.find((s) => s.id === selectedSupplierId);
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Resumen */}
+      <div className="rounded-xl border border-border bg-muted/40 p-4">
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-secondary">
+              <Warehouse className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="font-medium">{warehouseProduct.warehouse.name}</p>
+              <p className="text-xs text-muted-foreground">
+                {WAREHOUSE_TYPE_LABELS[warehouseProduct.warehouse.warehouse_type ?? "GENERAL"] ?? "Bodega"}
+                {warehouseProduct.warehouse.location ? ` · ${warehouseProduct.warehouse.location}` : ""}
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0 flex-col items-end gap-0.5">
+            <span className="text-[10px] text-muted-foreground">Stock actual</span>
+            <span
+              className={`rounded-full px-2.5 py-1 text-xs font-medium ${stockStatusColor(
+                warehouseProduct.stock_status,
+              )}`}
+            >
+              {formatNumber(warehouseProduct.current_quantity)} {warehouseProduct.product_measurement_unit}
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+          <div>
+            <p className="text-xs text-muted-foreground">Mínimo</p>
+            <p>{formatNumber(warehouseProduct.minimum_quantity)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Máximo</p>
+            <p>{formatNumber(warehouseProduct.maximum_quantity)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Punto de reorden</p>
+            <p>{formatNumber(warehouseProduct.reorder_point)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Valor total</p>
+            <p>${formatNumber(Number(warehouseProduct.total_value))}</p>
+          </div>
+        </div>
+
+        {warehouseProduct.location_in_warehouse && (
+          <p className="mt-3 text-xs text-muted-foreground">
+            Ubicación: {warehouseProduct.location_in_warehouse}
+          </p>
+        )}
+      </div>
+
+      {/* Configuración editable */}
+      <div className="rounded-xl border border-border bg-muted/40 p-4">
+        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+          <Pencil className="h-4 w-4" />
+          Configuración de bodega
+        </h3>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-muted-foreground">Mínimo</label>
+            <Input
+              type="number"
+              min={0}
+              value={minQty}
+              onChange={(e) => setMinQty(numberValue(e.target.value))}
+              className="h-9 text-xs tabular-nums"
+              placeholder="0"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-muted-foreground">Máximo</label>
+            <Input
+              type="number"
+              min={0}
+              value={maxQty}
+              onChange={(e) => setMaxQty(numberValue(e.target.value))}
+              className="h-9 text-xs tabular-nums"
+              placeholder="Sin máximo"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-muted-foreground">Punto de reorden</label>
+            <Input
+              type="number"
+              min={0}
+              value={reorderPoint}
+              onChange={(e) => setReorderPoint(numberValue(e.target.value))}
+              className="h-9 text-xs tabular-nums"
+              placeholder="0"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-muted-foreground">Ubicación</label>
+            <Input
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              className="h-9 text-xs"
+              placeholder="Estante A3"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Proveedor */}
+      <div className="rounded-xl border border-border bg-muted/40 p-4">
+        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+          <Truck className="h-4 w-4" />
+          Proveedor del producto
+        </h3>
+        <div className="flex flex-col gap-3">
+          <div className="relative">
+            <label className="mb-1 block text-xs text-muted-foreground">Proveedor</label>
+            <Input
+              value={selectedSupplier ? selectedSupplier.name : supplierSearch}
+              onChange={(e) => {
+                if (selectedSupplierId) {
+                  setSelectedSupplierId(null);
+                }
+                setSupplierSearch(e.target.value);
+              }}
+              placeholder="Buscar proveedor..."
+              className="h-9 text-xs"
+            />
+            {supplierOptions.length > 0 && !selectedSupplierId && (
+              <div className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-md border border-border bg-card shadow-md">
+                {supplierOptions.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedSupplierId(s.id);
+                      setSupplierSearch(s.name);
+                      setSupplierOptions([]);
+                    }}
+                    className="flex w-full items-center justify-between px-3 py-2 text-left text-xs hover:bg-muted"
+                  >
+                    <span>{s.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground">Precio de costo</label>
+              <Input
+                value={costPrice ? formatNumber(Number(costPrice)) : ""}
+                onChange={(e) => setCostPrice(numberValue(e.target.value))}
+                placeholder="0"
+                className="h-9 text-xs tabular-nums"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground">Nombre del producto en proveedor</label>
+              <Input
+                value={supplierProductName}
+                onChange={(e) => setSupplierProductName(e.target.value)}
+                placeholder={product.name}
+                className="h-9 text-xs"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Historial */}
+      <div>
+        <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold">
+          <History className="h-4 w-4" />
+          Historial de movimientos
+        </h3>
+
+        {loadingMovements ? (
+          <div className="grid place-items-center py-8">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : movements.length === 0 ? (
+          <p className="rounded-lg border border-dashed border-border py-6 text-center text-sm text-muted-foreground">
+            No hay movimientos registrados en esta bodega.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {movements.map((m) => (
+              <MovementItem key={m.id} movement={m} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" onClick={onBack}>
+          Volver
+        </Button>
+        <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+          {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          <Save className="mr-1.5 h-4 w-4" />
+          Guardar
+        </Button>
       </div>
     </div>
   );
@@ -391,12 +663,8 @@ function MovementItem({ movement }: { movement: InventoryHistory }) {
         </div>
       </div>
 
-      {movement.user_name && (
-        <p className="mt-2 text-xs text-muted-foreground">Por: {movement.user_name}</p>
-      )}
-      {movement.notes && (
-        <p className="mt-1 text-xs text-muted-foreground">Nota: {movement.notes}</p>
-      )}
+      {movement.user_name && <p className="mt-2 text-xs text-muted-foreground">Por: {movement.user_name}</p>}
+      {movement.notes && <p className="mt-1 text-xs text-muted-foreground">Nota: {movement.notes}</p>}
     </div>
   );
 }
