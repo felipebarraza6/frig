@@ -19,7 +19,6 @@ import {
   Search,
   ArrowUp,
   ArrowDown,
-  ArrowUpDown,
   FileSpreadsheet,
   SlidersHorizontal,
 } from "lucide-react";
@@ -123,28 +122,130 @@ async function exportWarehouseProductsToExcel(warehouseName: string, warehouseId
   XLSX.writeFile(wb, `bodega-${warehouseName.toLowerCase().replace(/\s+/g, "-")}_${date}.xlsx`);
 }
 
-function SortIcon({
-  field,
-  sort,
-}: {
-  field: string;
-  sort: { field: string; desc: boolean } | null;
-}) {
-  if (sort?.field !== field) {
-    return (
-      <ArrowUpDown className="ml-1 inline h-3 w-3 text-muted-foreground" />
-    );
-  }
-  return sort.desc ? (
-    <ArrowDown className="ml-1 inline h-3 w-3 text-primary" />
-  ) : (
-    <ArrowUp className="ml-1 inline h-3 w-3 text-primary" />
-  );
-}
-
 function SkeletonBlock({ className }: { className?: string }) {
   return (
     <div className={cn("animate-pulse rounded-xl bg-muted", className)} />
+  );
+}
+
+function WarehouseProductCard({
+  wp,
+  supplierName,
+  salePrice,
+  onConfigure,
+  onTransfer,
+}: {
+  wp: WarehouseProduct;
+  supplierName?: string;
+  salePrice: number;
+  onConfigure: (wp: WarehouseProduct) => void;
+  onTransfer: (wp: WarehouseProduct) => void;
+}) {
+  const totalValue = numValue(wp.total_value);
+  const totalSale = salePrice * wp.current_quantity;
+  const unitCost = numValue(wp.product_cost);
+  const status = wp.stock_status ?? "";
+  const isOk = status === "IN_STOCK";
+  const isLow = status === "LOW_STOCK";
+  const isOut = status === "OUT_OF_STOCK";
+
+  return (
+    <div className="flex flex-col rounded-2xl border border-border bg-card p-4 shadow-sm transition-colors hover:bg-muted/30">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary">
+            <Package className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <div className="min-w-0">
+            <p className="truncate font-medium leading-tight">{wp.product_name}</p>
+            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+              <span
+                className={cn(
+                  "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium",
+                  isOk && "bg-success/10 text-success",
+                  isLow && "bg-warning/10 text-warning",
+                  isOut && "bg-danger/10 text-danger",
+                  !isOk && !isLow && !isOut && "bg-muted text-muted-foreground",
+                )}
+              >
+                {stockStatusLabel(status)}
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                {wp.product_measurement_unit}
+                {wp.product_code ? ` · ${wp.product_code}` : ""}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0"
+            title="Configurar"
+            onClick={() => onConfigure(wp)}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            <span className="sr-only">Configurar</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0"
+            title="Transferir a otra bodega"
+            onClick={() => onTransfer(wp)}
+          >
+            <ArrowRightLeft className="h-3.5 w-3.5" />
+            <span className="sr-only">Mover</span>
+          </Button>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-3 gap-3">
+        <div>
+          <p className="text-[10px] text-muted-foreground">Cantidad</p>
+          <p className="text-sm font-semibold tabular-nums">{wp.current_quantity}</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-muted-foreground">Rango</p>
+          <p className="text-sm font-semibold tabular-nums">
+            {wp.minimum_quantity ?? 0}-{wp.maximum_quantity ?? "—"}
+          </p>
+        </div>
+        <div>
+          <p className="text-[10px] text-muted-foreground">Costo total</p>
+          <p className="text-sm font-semibold tabular-nums text-success">{formatCLP(totalValue)}</p>
+        </div>
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-3">
+        <div>
+          <p className="text-[10px] text-muted-foreground">Venta total</p>
+          <p className="text-sm font-semibold tabular-nums text-primary">{formatCLP(totalSale)}</p>
+          <p className="text-[10px] text-muted-foreground">{formatCLP(salePrice)} c/u</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-muted-foreground">Costo unitario</p>
+          <p className="text-sm font-semibold tabular-nums text-success">{formatCLP(unitCost)}</p>
+        </div>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {wp.product_category && (
+          <span className="inline-flex items-center rounded-sm bg-secondary px-2 py-1 text-[10px] font-medium text-foreground">
+            {wp.product_category}
+          </span>
+        )}
+        {supplierName && (
+          <span
+            className="inline-flex max-w-full items-center truncate rounded-sm bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary"
+            title={supplierName}
+          >
+            {supplierName}
+          </span>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -277,16 +378,6 @@ export default function WarehouseDetailPage() {
     }
     return map;
   }, [supplierProducts]);
-
-  const handleSort = (field: string) => {
-    setProductSort((prev) => {
-      if (prev?.field === field) {
-        return { field, desc: !prev.desc };
-      }
-      return { field, desc: false };
-    });
-    setProductPageUrl({});
-  };
 
   const add = useMutation({
     mutationFn: () =>
@@ -631,22 +722,27 @@ export default function WarehouseDetailPage() {
         </div>
 
         {loadingProducts ? (
-          <div className="overflow-hidden rounded-2xl border border-border">
-            <div className="border-b border-border bg-muted/50 p-4">
-              <SkeletonBlock className="h-4 w-48" />
-            </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="flex items-center justify-between border-b border-border p-4 last:border-0">
-                <div className="flex items-center gap-3">
-                  <SkeletonBlock className="h-8 w-8" />
-                  <div>
+              <div key={i} className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <SkeletonBlock className="h-10 w-10 shrink-0 rounded-xl" />
+                  <div className="min-w-0 flex-1">
                     <SkeletonBlock className="h-4 w-32" />
-                    <SkeletonBlock className="mt-1 h-3 w-20" />
+                    <SkeletonBlock className="mt-2 h-3 w-20" />
                   </div>
                 </div>
-                <div className="flex items-center gap-8">
-                  <SkeletonBlock className="h-4 w-12" />
-                  <SkeletonBlock className="h-4 w-12" />
+                <div className="mt-4 grid grid-cols-3 gap-3">
+                  <SkeletonBlock className="h-8" />
+                  <SkeletonBlock className="h-8" />
+                  <SkeletonBlock className="h-8" />
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <SkeletonBlock className="h-8" />
+                  <SkeletonBlock className="h-8" />
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <SkeletonBlock className="h-6 w-16" />
                   <SkeletonBlock className="h-6 w-16" />
                 </div>
               </div>
@@ -668,327 +764,41 @@ export default function WarehouseDetailPage() {
           </div>
         ) : (
           <>
-          <div className="hidden sm:block w-full min-w-0 overflow-x-auto rounded-2xl border border-border">
-            <table className="w-full table-auto min-w-[1280px] text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                  <th
-                    className="group min-w-[240px] max-w-[380px] cursor-pointer select-none px-3 py-2 text-left hover:bg-muted/50"
-                    onClick={() => handleSort("product_name")}
-                  >
-                    <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                      Producto <SortIcon sort={productSort} field="product_name" />
-                    </span>
-                  </th>
-                  <th
-                    className="group min-w-[130px] cursor-pointer select-none px-3 py-2 text-left hover:bg-muted/50"
-                    onClick={() => handleSort("product_category")}
-                  >
-                    <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                      Categoría <SortIcon sort={productSort} field="product_category" />
-                    </span>
-                  </th>
-                  <th className="group min-w-[150px] px-3 py-2 text-left">
-                    <span className="inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                      Proveedor
-                    </span>
-                  </th>
-                  <th
-                    className="group min-w-[100px] cursor-pointer select-none px-3 py-2 text-right hover:bg-muted/50"
-                    onClick={() => handleSort("current_quantity")}
-                  >
-                    <span className="inline-flex items-center justify-end gap-1 whitespace-nowrap">
-                      Cantidad <SortIcon sort={productSort} field="current_quantity" />
-                    </span>
-                  </th>
-                  <th className="group min-w-[120px] px-3 py-2 text-right">
-                    <span className="inline-flex items-center justify-end gap-1 whitespace-nowrap text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                      Rango
-                    </span>
-                  </th>
-                  <th
-                    className="group min-w-[140px] cursor-pointer select-none px-3 py-2 text-right hover:bg-muted/50"
-                    onClick={() => handleSort("total_value")}
-                  >
-                    <span className="inline-flex items-center justify-end gap-1 whitespace-nowrap">
-                      Costo <SortIcon sort={productSort} field="total_value" />
-                    </span>
-                  </th>
-                  <th
-                    className="group min-w-[140px] cursor-pointer select-none px-3 py-2 text-right hover:bg-muted/50"
-                    onClick={() => handleSort("total_sale_value")}
-                  >
-                    <span className="inline-flex items-center justify-end gap-1 whitespace-nowrap">
-                      Venta <SortIcon sort={productSort} field="total_sale_value" />
-                    </span>
-                  </th>
-                  <th className="min-w-[100px] px-3 py-2 text-right">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {products.map((wp) => {
-                  const unitCost = numValue(wp.product_cost);
-                  const totalValue = numValue(wp.total_value);
-                  const salePrice = productSalePriceMap.get(wp.product ?? 0) ?? 0;
-                  const totalSale = salePrice * wp.current_quantity;
-                  const status = wp.stock_status ?? "";
-                  const isOk = status === "IN_STOCK";
-                  const isLow = status === "LOW_STOCK";
-                  const isOut = status === "OUT_OF_STOCK";
-
-                  return (
-                    <tr key={wp.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
-                      <td className="px-3 py-2">
-                        <div className="flex items-center gap-2.5">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary">
-                            <Package className="h-4 w-4 text-muted-foreground" />
-                          </div>
-                          <div className="min-w-0 max-w-[340px]">
-                            <p className="truncate font-medium leading-tight">{wp.product_name}</p>
-                            <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                              <span
-                                className={cn(
-                                  "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium",
-                                  isOk && "bg-success/10 text-success",
-                                  isLow && "bg-warning/10 text-warning",
-                                  isOut && "bg-danger/10 text-danger",
-                                  !isOk && !isLow && !isOut && "bg-muted text-muted-foreground",
-                                )}
-                              >
-                                {stockStatusLabel(status)}
-                              </span>
-                              <span className="text-[10px] text-muted-foreground">
-                                {wp.product_measurement_unit}
-                                {wp.product_code ? ` · ${wp.product_code}` : ""}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-3 py-2 whitespace-nowrap">
-                        {wp.product_category ? (
-                          <span className="inline-flex items-center rounded-sm bg-secondary px-2 py-1 text-[11px] font-medium text-foreground">
-                            {wp.product_category}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 whitespace-nowrap">
-                        {(() => {
-                          const name = supplierNameByProduct.get(wp.product ?? 0);
-                          return name ? (
-                            <span
-                              className="inline-flex max-w-full items-center truncate rounded-sm bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary"
-                              title={name}
-                            >
-                              {name}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          );
-                        })()}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums font-medium whitespace-nowrap">
-                        {wp.current_quantity}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
-                        <div className="inline-flex flex-col items-end leading-tight whitespace-nowrap">
-                          <span><span className="text-[10px]">mín</span> {wp.minimum_quantity ?? 0}</span>
-                          <span><span className="text-[10px]">máx</span> {wp.maximum_quantity ?? "—"}</span>
-                        </div>
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap">
-                        <div className="leading-tight">
-                          <p className="font-medium text-success">{formatCLP(totalValue)}</p>
-                          <p className="text-xs text-muted-foreground">{formatCLP(unitCost)} c/u</p>
-                        </div>
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap">
-                        <div className="leading-tight">
-                          <p className="font-medium text-primary">{formatCLP(totalSale)}</p>
-                          <p className="text-xs text-muted-foreground">{formatCLP(salePrice)} c/u</p>
-                        </div>
-                      </td>
-                      <td className="px-3 py-2 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0"
-                            title="Configurar"
-                            onClick={() => {
-                              setConfigProduct(wp);
-                              setConfigForm({
-                                current_quantity: String(wp.current_quantity ?? 0),
-                                minimum_quantity:
-                                  wp.minimum_quantity === null || wp.minimum_quantity === undefined
-                                    ? ""
-                                    : String(wp.minimum_quantity),
-                                maximum_quantity:
-                                  wp.maximum_quantity === null || wp.maximum_quantity === undefined
-                                    ? ""
-                                    : String(wp.maximum_quantity),
-                                reorder_point:
-                                  wp.reorder_point === null || wp.reorder_point === undefined
-                                    ? ""
-                                    : String(wp.reorder_point),
-                                location_in_warehouse: wp.location_in_warehouse ?? "",
-                                is_active: wp.is_active ?? true,
-                                is_preferred_location: wp.is_preferred_location ?? false,
-                              });
-                              setConfigOpen(true);
-                            }}
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                            <span className="sr-only">Configurar</span>
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0"
-                            title="Transferir a otra bodega"
-                            onClick={() => {
-                              setTransferProduct(wp);
-                              setTransferOpen(true);
-                            }}
-                          >
-                            <ArrowRightLeft className="h-3.5 w-3.5" />
-                            <span className="sr-only">Mover</span>
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Vista móvil de productos */}
-          <div className="grid gap-3 sm:hidden">
-            {products.map((wp) => {
-              const totalValue = numValue(wp.total_value);
-              const status = wp.stock_status ?? "";
-              const isOk = status === "IN_STOCK";
-              const isLow = status === "LOW_STOCK";
-              const isOut = status === "OUT_OF_STOCK";
-
-              return (
-                <div
-                  key={wp.id}
-                  className="rounded-2xl border border-border bg-card p-4 shadow-sm"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-2.5">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary">
-                        <Package className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="truncate font-medium leading-tight">{wp.product_name}</p>
-                        <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                          <span
-                            className={cn(
-                              "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium",
-                              isOk && "bg-success/10 text-success",
-                              isLow && "bg-warning/10 text-warning",
-                              isOut && "bg-danger/10 text-danger",
-                              !isOk && !isLow && !isOut && "bg-muted text-muted-foreground",
-                            )}
-                          >
-                            {stockStatusLabel(status)}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground">
-                            {wp.product_measurement_unit}
-                            {wp.product_code ? ` · ${wp.product_code}` : ""}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 grid grid-cols-3 gap-2">
-                    <div className="text-left">
-                      <p className="text-[10px] text-muted-foreground">Cantidad</p>
-                      <p className="text-sm font-semibold tabular-nums">{wp.current_quantity}</p>
-                    </div>
-                    <div className="text-left">
-                      <p className="text-[10px] text-muted-foreground">Rango</p>
-                      <p className="text-sm font-semibold tabular-nums">
-                        {wp.minimum_quantity ?? 0}-{wp.maximum_quantity ?? "—"}
-                      </p>
-                    </div>
-                    <div className="text-left">
-                      <p className="text-[10px] text-muted-foreground">Costo total</p>
-                      <p className="text-sm font-semibold tabular-nums text-success">{formatCLP(totalValue)}</p>
-                    </div>
-                  </div>
-
-                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    {wp.product_category && (
-                      <span className="inline-flex items-center rounded-sm bg-secondary px-2 py-1 text-[10px] font-medium text-foreground">
-                        {wp.product_category}
-                      </span>
-                    )}
-                    {(() => {
-                      const name = supplierNameByProduct.get(wp.product ?? 0);
-                      return name ? (
-                        <span className="inline-flex max-w-full items-center truncate rounded-sm bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary">
-                          {name}
-                        </span>
-                      ) : null;
-                    })()}
-                  </div>
-
-                  <div className="mt-3 flex justify-end gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0"
-                      title="Configurar"
-                      onClick={() => {
-                        setConfigProduct(wp);
-                        setConfigForm({
-                          current_quantity: String(wp.current_quantity ?? 0),
-                          minimum_quantity:
-                            wp.minimum_quantity === null || wp.minimum_quantity === undefined
-                              ? ""
-                              : String(wp.minimum_quantity),
-                          maximum_quantity:
-                            wp.maximum_quantity === null || wp.maximum_quantity === undefined
-                              ? ""
-                              : String(wp.maximum_quantity),
-                          reorder_point:
-                            wp.reorder_point === null || wp.reorder_point === undefined
-                              ? ""
-                              : String(wp.reorder_point),
-                          location_in_warehouse: wp.location_in_warehouse ?? "",
-                          is_active: wp.is_active ?? true,
-                          is_preferred_location: wp.is_preferred_location ?? false,
-                        });
-                        setConfigOpen(true);
-                      }}
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                      <span className="sr-only">Configurar</span>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0"
-                      title="Transferir a otra bodega"
-                      onClick={() => {
-                        setTransferProduct(wp);
-                        setTransferOpen(true);
-                      }}
-                    >
-                      <ArrowRightLeft className="h-3.5 w-3.5" />
-                      <span className="sr-only">Mover</span>
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {products.map((wp) => (
+              <WarehouseProductCard
+                key={wp.id}
+                wp={wp}
+                supplierName={supplierNameByProduct.get(wp.product ?? 0)}
+                salePrice={productSalePriceMap.get(wp.product ?? 0) ?? 0}
+                onConfigure={(wp) => {
+                  setConfigProduct(wp);
+                  setConfigForm({
+                    current_quantity: String(wp.current_quantity ?? 0),
+                    minimum_quantity:
+                      wp.minimum_quantity === null || wp.minimum_quantity === undefined
+                        ? ""
+                        : String(wp.minimum_quantity),
+                    maximum_quantity:
+                      wp.maximum_quantity === null || wp.maximum_quantity === undefined
+                        ? ""
+                        : String(wp.maximum_quantity),
+                    reorder_point:
+                      wp.reorder_point === null || wp.reorder_point === undefined
+                        ? ""
+                        : String(wp.reorder_point),
+                    location_in_warehouse: wp.location_in_warehouse ?? "",
+                    is_active: wp.is_active ?? true,
+                    is_preferred_location: wp.is_preferred_location ?? false,
+                  });
+                  setConfigOpen(true);
+                }}
+                onTransfer={(wp) => {
+                  setTransferProduct(wp);
+                  setTransferOpen(true);
+                }}
+              />
+            ))}
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
