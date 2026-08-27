@@ -3,7 +3,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { X, Loader2, Plus, Trash2, Search, FileDown } from "lucide-react";
+import { X, Loader2, Plus, Trash2, Search, FileDown, Warehouse } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,7 +35,12 @@ import {
   type RecipePayload,
   type RecipeIngredientPayload,
 } from "@/lib/api/recipes";
-import { fetchWarehouses, fetchProductWarehouses, addProductToWarehouse } from "@/lib/api/warehouses";
+import {
+  fetchWarehouses,
+  fetchProductWarehouses,
+  addProductToWarehouse,
+  deleteWarehouseProduct,
+} from "@/lib/api/warehouses";
 import { useBranchProductTypes } from "@/lib/hooks/useBranchProductTypes";
 import { useDownloadFile } from "@/lib/hooks/useDownloadFile";
 import { useIsNutritionEnabled } from "@/lib/store/session";
@@ -253,6 +258,7 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
   const [selectedMaximumQty, setSelectedMaximumQty] = useState("");
   const [selectedReorderPoint, setSelectedReorderPoint] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("");
+  const [removingWarehouseId, setRemovingWarehouseId] = useState<number | null>(null);
 
   const [recipe, setRecipe] = useState<{
     id?: string;
@@ -486,6 +492,21 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
 
   function removeWarehouseAssignment(localId: string) {
     setWarehouseAssignments((prev) => prev.filter((a) => a.localId !== localId));
+  }
+
+  async function removeExistingWarehouseProduct(id: number) {
+    if (!product?.id) return;
+    setRemovingWarehouseId(id);
+    try {
+      await deleteWarehouseProduct(id);
+      toast.success("Bodega eliminada del producto");
+      queryClient.invalidateQueries({ queryKey: ["warehouse-products", "product", product.id] });
+      queryClient.invalidateQueries({ queryKey: ["products", product.id, "warehouses"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo eliminar la bodega");
+    } finally {
+      setRemovingWarehouseId(null);
+    }
   }
 
   async function saveWarehouseAssignments(productId: number) {
@@ -933,7 +954,7 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
             <div className="flex flex-col gap-4">
               {product?.id && (
                 <div className="rounded-xl border border-border bg-muted/40 p-4">
-                  <h3 className="mb-3 text-sm font-semibold">Bodegas actuales</h3>
+                  <h3 className="mb-3 text-sm font-semibold">Bodegas configuradas</h3>
                   {loadingProductWarehouses ? (
                     <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -948,23 +969,42 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
                       {productWarehouses.map((wp) => (
                         <div
                           key={wp.id}
-                          className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2"
+                          className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2"
                         >
-                          <div className="min-w-0">
+                          <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-medium">{wp.warehouse.name}</p>
                             <p className="text-xs text-muted-foreground">
-                              Cantidad: {wp.current_quantity ?? 0}
-                              {wp.minimum_quantity != null ? ` · Mín: ${wp.minimum_quantity}` : ""}
-                              {wp.maximum_quantity != null ? ` · Máx: ${wp.maximum_quantity}` : ""}
-                              {wp.location_in_warehouse ? ` · Ubicación: ${wp.location_in_warehouse}` : ""}
+                              {wp.minimum_quantity != null ? `Mín: ${wp.minimum_quantity}` : "Sin mínimo"}
+                              {" · "}
+                              {wp.maximum_quantity != null ? `Máx: ${wp.maximum_quantity}` : "Sin máximo"}
+                              {wp.reorder_point != null ? ` · Reorden: ${wp.reorder_point}` : ""}
+                              {wp.location_in_warehouse ? ` · ${wp.location_in_warehouse}` : ""}
                             </p>
                           </div>
-                          <Link
-                            href={`/warehouses/${wp.warehouse.id}`}
-                            className="shrink-0 text-xs font-medium text-primary hover:underline"
-                          >
-                            Ver bodega
-                          </Link>
+                          <div className="flex shrink-0 items-center gap-1">
+                            <Link
+                              href={`/warehouses/${wp.warehouse.id}`}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                              title="Ver bodega"
+                            >
+                              <Warehouse className="h-4 w-4" />
+                              <span className="sr-only">Ver bodega</span>
+                            </Link>
+                            <button
+                              type="button"
+                              onClick={() => removeExistingWarehouseProduct(wp.id)}
+                              disabled={removingWarehouseId === wp.id}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-rose-50 hover:text-danger disabled:opacity-50"
+                              title="Quitar producto de esta bodega"
+                            >
+                              {removingWarehouseId === wp.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                              <span className="sr-only">Quitar</span>
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>

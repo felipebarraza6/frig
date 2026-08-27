@@ -136,6 +136,10 @@ export async function updateWarehouseProduct(
   });
 }
 
+export async function deleteWarehouseProduct(id: number): Promise<void> {
+  await apiFetch(`/inventory/warehouse-products/${id}/`, { method: "DELETE" });
+}
+
 export interface TransferStockItem {
   product_id: number;
   quantity: number;
