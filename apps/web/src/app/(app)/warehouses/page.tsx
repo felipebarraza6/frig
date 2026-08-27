@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import {
@@ -89,8 +89,17 @@ export default function WarehousesPage() {
   const queryClient = useQueryClient();
   const { download: downloadFile, isLoading: isExporting } = useDownloadFile();
   const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
   const [type, setType] = useState("");
   const [pageUrl, setPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput);
+      setPageUrl({});
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Warehouse | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Warehouse | null>(null);
@@ -267,8 +276,8 @@ export default function WarehousesPage() {
             <div className="relative w-full max-w-xs">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                value={search}
-                onChange={(e) => updateFilter(setSearch, e.target.value)}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Buscar por nombre…"
                 className="pl-9"
                 aria-label="Buscar bodega"
@@ -295,8 +304,8 @@ export default function WarehousesPage() {
               <div className="relative flex-1">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  value={search}
-                  onChange={(e) => updateFilter(setSearch, e.target.value)}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
                   placeholder="Buscar por nombre…"
                   className="pl-9"
                   aria-label="Buscar bodega"

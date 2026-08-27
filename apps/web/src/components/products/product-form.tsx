@@ -350,6 +350,13 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
 
   const [ingredients, setIngredients] = useState<IngredientDraft[]>([]);
   const [ingredientSearch, setIngredientSearch] = useState("");
+  const [ingredientSearchInput, setIngredientSearchInput] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIngredientSearch(ingredientSearchInput), 300);
+    return () => clearTimeout(timer);
+  }, [ingredientSearchInput]);
+
   const [removedIngredientIds, setRemovedIngredientIds] = useState<number[]>([]);
 
   const isCompound = form.productType === "RECIPE_BASED";
@@ -520,6 +527,7 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
       },
     ]);
     setIngredientSearch("");
+    setIngredientSearchInput("");
   }
 
   function updateIngredient(localId: string, patch: Partial<IngredientDraft>) {
@@ -650,25 +658,21 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
       recipeId = created.id;
     }
 
-    for (const id of removedIngredientIds) {
-      await deleteRecipeIngredient(id);
-    }
+    await Promise.all(removedIngredientIds.map((id) => deleteRecipeIngredient(id)));
 
-    for (const ing of ingredients) {
-      const payload: RecipeIngredientPayload = {
-        recipe: recipeId,
-        ingredient: ing.ingredient,
-        quantity: ing.quantity || "0",
-        unit: ing.unit || "unidad",
-        is_optional: ing.is_optional,
-        preparation_notes: ing.preparation_notes || null,
-      };
-      if (ing.id) {
-        await updateRecipeIngredient(ing.id, payload);
-      } else {
-        await createRecipeIngredient(payload);
-      }
-    }
+    await Promise.all(
+      ingredients.map((ing) => {
+        const payload: RecipeIngredientPayload = {
+          recipe: recipeId,
+          ingredient: ing.ingredient,
+          quantity: ing.quantity || "0",
+          unit: ing.unit || "unidad",
+          is_optional: ing.is_optional,
+          preparation_notes: ing.preparation_notes || null,
+        };
+        return ing.id ? updateRecipeIngredient(ing.id, payload) : createRecipeIngredient(payload);
+      }),
+    );
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -1311,12 +1315,12 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
                 <div className="relative mb-3">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
-                    value={ingredientSearch}
-                    onChange={(e) => setIngredientSearch(e.target.value)}
+                    value={ingredientSearchInput}
+                    onChange={(e) => setIngredientSearchInput(e.target.value)}
                     placeholder="Buscar materia prima…"
                     className="pl-9"
                   />
-                  {ingredientSearch.trim().length >= 2 && (
+                  {ingredientSearchInput.trim().length >= 2 && (
                     <div className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-lg border border-border bg-card shadow-lg">
                       {ingredientProducts.length === 0 ? (
                         <p className="px-3 py-2 text-xs text-muted-foreground">No se encontraron materias primas.</p>

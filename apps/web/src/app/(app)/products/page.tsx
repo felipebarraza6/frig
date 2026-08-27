@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
@@ -291,12 +291,21 @@ export default function ProductsPage() {
   const { options: categoryOptions, isLoading: loadingCategories, error: categoriesError, refetch: refetchCategories } = useCategoryOptions();
 
   const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
   const [category, setCategory] = useState("");
   const [productType, setProductType] = useState("");
   const [forSale, setForSale] = useState("");
   const [active, setActive] = useState("");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [pageUrl, setPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput);
+      setPageUrl({});
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [creating, setCreating] = useState(false);
   // Para editar se carga el detalle completo: el listado no trae
@@ -332,19 +341,23 @@ export default function ProductsPage() {
   const products = page?.results ?? [];
   const totalProducts = page?.count ?? 0;
 
+  const productIds = useMemo(() => (page?.results ?? []).map((p) => p.id), [page?.results]);
+
   const {
     data: warehouseProducts = [],
     isLoading: loadingStock,
     error: stockError,
   } = useQuery({
-    queryKey: ["warehouse-products", "branch", branch?.branch_id],
+    queryKey: ["warehouse-products", "branch", branch?.branch_id, productIds],
     queryFn: async () => {
       const all: WarehouseProduct[] = [];
       let next: string | null | undefined;
       let first = true;
       let pages = 0;
       while ((first || next) && pages < 20) {
-        const data = await fetchBranchWarehouseProducts(first ? { page_size: 2000 } : { next });
+        const data = await fetchBranchWarehouseProducts(
+          first ? { page_size: 2000, product__in: productIds } : { next },
+        );
         all.push(...(data.results ?? []));
         next = data.next;
         first = false;
@@ -352,7 +365,7 @@ export default function ProductsPage() {
       }
       return all;
     },
-    enabled: !!branch?.branch_id,
+    enabled: !!branch?.branch_id && productIds.length > 0,
     staleTime: 30_000,
   });
 
@@ -429,6 +442,7 @@ export default function ProductsPage() {
 
   function clearFilters() {
     setSearch("");
+    setSearchInput("");
     setCategory("");
     setProductType("");
     setForSale("");
@@ -469,6 +483,7 @@ export default function ProductsPage() {
     switch (key) {
       case "search":
         setSearch("");
+        setSearchInput("");
         break;
       case "category":
         setCategory("");
@@ -500,8 +515,8 @@ export default function ProductsPage() {
           <div className="relative w-full sm:w-64 lg:w-80">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              value={search}
-              onChange={(e) => updateFilter(setSearch, e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Buscar productos…"
               className="h-10 rounded-xl pl-10"
               aria-label="Buscar producto"
@@ -663,8 +678,8 @@ export default function ProductsPage() {
               <div className="relative flex-1">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  value={search}
-                  onChange={(e) => updateFilter(setSearch, e.target.value)}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
                   placeholder="Buscar productos…"
                   className="h-10 rounded-xl pl-10"
                   aria-label="Buscar producto"

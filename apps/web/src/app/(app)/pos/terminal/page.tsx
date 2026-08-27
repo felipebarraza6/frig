@@ -1117,9 +1117,9 @@ export default function PosPage() {
               >
                 <ClipboardList className="h-3.5 w-3.5" />
                 <span>Cuentas</span>
-                {(openAccountsPage?.count ?? 0) > 0 && (
+                {visibleOpenAccounts.length > 0 && (
                   <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-semibold text-white">
-                    {openAccountsPage?.count ?? 0}
+                    {visibleOpenAccounts.length}
                   </span>
                 )}
               </button>
@@ -1172,7 +1172,7 @@ export default function PosPage() {
             if (e.target === e.currentTarget) setShowModeSelector(false);
           }}
         >
-          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-2xl border-x border-t border-border bg-card p-6 shadow-xl sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-2xl sm:border">
+          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-2xl border-x border-t border-border bg-card p-6 shadow-xl sm:h-auto sm:max-h-[90dvh] sm:max-w-md sm:rounded-2xl sm:border">
             <div className="mb-5 text-center">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
                 <Receipt className="h-6 w-6 text-primary" />
@@ -1466,7 +1466,7 @@ export default function PosPage() {
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ duration: 0.2 }}
-            className="flex h-[85vh] w-full flex-col rounded-t-2xl bg-card shadow-xl"
+            className="flex h-[85dvh] w-full flex-col rounded-t-2xl bg-card shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex shrink-0 justify-center py-2">
@@ -1556,9 +1556,9 @@ export default function PosPage() {
               >
                 <ClipboardList className="h-[18px] w-[18px]" />
                 <span className="truncate px-0.5">Cuentas</span>
-                {(openAccountsPage?.count ?? 0) > 0 && (
+                {visibleOpenAccounts.length > 0 && (
                   <span className="absolute right-2 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-semibold text-white">
-                    {openAccountsPage?.count}
+                    {visibleOpenAccounts.length}
                   </span>
                 )}
               </button>

@@ -37,7 +37,10 @@ export function useDownloadFile() {
         const error = err instanceof Error ? err : new Error("Error al descargar");
         setError(error);
         options.onError?.(error);
-        throw error;
+        // No relanzamos: el error ya se expone vía `error` y `onError`;
+        // de lo contrario, los consumidores que no hagan catch generarían
+        // unhandled promise rejections.
+        return;
       } finally {
         setIsLoading(false);
       }

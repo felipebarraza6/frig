@@ -146,6 +146,7 @@ export default function PurchaseOrdersPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [detail, setDetail] = useState<PurchaseOrderList | null>(null);
   const [payTarget, setPayTarget] = useState<PayTarget | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ type: "cancel" | "complete"; order: PurchaseOrderList } | null>(null);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [form, setForm] = useState(initialFormState);
@@ -327,16 +328,14 @@ export default function PurchaseOrdersPage() {
     pay.reset();
   }
 
-  function handleCancel(order: PurchaseOrderList) {
-    if (window.confirm(`¿Anular la orden ${order.order_number}? Esta acción no se puede deshacer.`)) {
-      cancel.mutate(order.id);
-    }
+  function openConfirmCancel(order: PurchaseOrderList) {
+    cancel.reset();
+    setConfirmAction({ type: "cancel", order });
   }
 
-  function handleComplete(order: PurchaseOrderList) {
-    if (window.confirm(`¿Marcar la orden ${order.order_number} como completada?`)) {
-      complete.mutate(order.id);
-    }
+  function openConfirmComplete(order: PurchaseOrderList) {
+    complete.reset();
+    setConfirmAction({ type: "complete", order });
   }
 
   function handleCreateSubmit(e: FormEvent) {
@@ -666,7 +665,7 @@ export default function PurchaseOrdersPage() {
                                 variant="ghost"
                                 size="sm"
                                 className="h-8 w-8 p-0"
-                                onClick={() => handleComplete(order)}
+                                onClick={() => openConfirmComplete(order)}
                                 disabled={complete.isPending}
                                 title="Completar orden"
                               >
@@ -677,7 +676,7 @@ export default function PurchaseOrdersPage() {
                                 variant="ghost"
                                 size="sm"
                                 className="h-8 w-8 p-0 text-danger hover:text-danger"
-                                onClick={() => handleCancel(order)}
+                                onClick={() => openConfirmCancel(order)}
                                 disabled={cancel.isPending}
                                 title="Anular orden"
                               >
@@ -775,7 +774,7 @@ export default function PurchaseOrdersPage() {
                           className="h-10 w-10 p-0"
                           title="Completar"
                           aria-label="Completar"
-                          onClick={() => handleComplete(order)}
+                          onClick={() => openConfirmComplete(order)}
                           disabled={complete.isPending}
                         >
                           <CheckCircle2 className="h-4 w-4" />
@@ -787,7 +786,7 @@ export default function PurchaseOrdersPage() {
                           className="h-10 w-10 p-0 text-danger hover:text-danger"
                           title="Anular"
                           aria-label="Anular"
-                          onClick={() => handleCancel(order)}
+                          onClick={() => openConfirmCancel(order)}
                           disabled={cancel.isPending}
                         >
                           <Ban className="h-4 w-4" />
@@ -1203,6 +1202,60 @@ export default function PurchaseOrdersPage() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {confirmAction && (
+        <div
+          className="fixed inset-0 z-[70] flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
+          role="dialog"
+          aria-modal="true"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setConfirmAction(null);
+          }}
+        >
+          <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
+            <h2 className="text-base font-semibold">
+              {confirmAction.type === "cancel" ? "¿Anular orden?" : "¿Completar orden?"}
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {confirmAction.type === "cancel"
+                ? `Se anulará la orden ${confirmAction.order.order_number}. Esta acción no se puede deshacer.`
+                : `Se marcará la orden ${confirmAction.order.order_number} como completada.`}
+            </p>
+            {(cancel.isError || complete.isError) && (
+              <p className="mt-2 text-sm text-danger">
+                {(cancel.error ?? complete.error) instanceof Error
+                  ? ((cancel.error ?? complete.error) as Error).message
+                  : "Error al procesar la orden"}
+              </p>
+            )}
+            <div className="mt-4 flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setConfirmAction(null)}
+                disabled={cancel.isPending || complete.isPending}
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant={confirmAction.type === "cancel" ? "danger" : "default"}
+                onClick={() => {
+                  if (confirmAction.type === "cancel") {
+                    cancel.mutate(confirmAction.order.id);
+                  } else {
+                    complete.mutate(confirmAction.order.id);
+                  }
+                }}
+                disabled={cancel.isPending || complete.isPending}
+              >
+                {(cancel.isPending || complete.isPending) && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                {confirmAction.type === "cancel" ? "Anular" : "Completar"}
+              </Button>
+            </div>
           </div>
         </div>
       )}

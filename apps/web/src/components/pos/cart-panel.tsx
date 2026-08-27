@@ -441,7 +441,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
             <button
               onClick={() => setSelectedClient(null)}
               aria-label="Quitar cliente"
-              className="text-muted-foreground hover:text-foreground"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               <X className="h-4 w-4" />
             </button>
@@ -561,7 +561,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
               type="button"
               onClick={onClose}
               aria-label="Cerrar"
-              className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <X className="h-4 w-4" />
             </button>
@@ -658,9 +658,9 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                         <button
                           onClick={() => removeItem(item.id)}
                           aria-label={`Quitar ${item.product.name}`}
-                          className="mt-0.5 shrink-0 text-muted-foreground transition-colors hover:text-danger"
+                          className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-danger"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
 
@@ -669,19 +669,19 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                           <button
                             onClick={() => updateQuantity(item.id, item.quantity - 1)}
                             aria-label="Disminuir cantidad"
-                            className="flex h-6 w-6 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+                            className="flex h-9 w-9 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
                           >
-                            <Minus className="h-3 w-3" />
+                            <Minus className="h-4 w-4" />
                           </button>
-                          <span className="w-6 text-center text-xs font-semibold tabular-nums">
+                          <span className="w-9 text-center text-xs font-semibold tabular-nums">
                             {item.quantity}
                           </span>
                           <button
                             onClick={() => updateQuantity(item.id, item.quantity + 1)}
                             aria-label="Aumentar cantidad"
-                            className="flex h-6 w-6 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+                            className="flex h-9 w-9 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
                           >
-                            <Plus className="h-3 w-3" />
+                            <Plus className="h-4 w-4" />
                           </button>
                         </div>
                         <span className="text-sm font-semibold tabular-nums">
@@ -775,9 +775,9 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                                 type="button"
                                 onClick={() => removePayment(payment.id)}
                                 aria-label="Quitar pago"
-                                className="mb-4 text-muted-foreground hover:text-danger"
+                                className="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-danger"
                               >
-                                <X className="h-3.5 w-3.5" />
+                                <X className="h-4 w-4" />
                               </button>
                             </div>
                             {isCash && (
@@ -1025,7 +1025,7 @@ function CustomerCreateModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
-      <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-lg">
+      <div className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-xl border border-border bg-card p-6 shadow-lg">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-base font-semibold">Nuevo cliente rápido</h2>
           <button onClick={onClose} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">

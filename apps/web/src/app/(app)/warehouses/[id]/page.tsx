@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -316,8 +316,17 @@ export default function WarehouseDetailPage() {
   const [view, setView] = useState<"grid" | "list">("grid");
 
   const [productSearch, setProductSearch] = useState("");
+  const [productSearchInput, setProductSearchInput] = useState("");
   const [productPageUrl, setProductPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
   const [productSort, setProductSort] = useState<{ field: string; desc: boolean } | null>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setProductSearch(productSearchInput);
+      setProductPageUrl({});
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [productSearchInput]);
 
   const { data: warehouse, isLoading: loadingWarehouse } = useQuery({
     queryKey: ["warehouses", warehouseId],
@@ -587,11 +596,8 @@ export default function WarehouseDetailPage() {
               <div className="relative w-full max-w-xs">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  value={productSearch}
-                  onChange={(e) => {
-                    setProductSearch(e.target.value);
-                    setProductPageUrl({});
-                  }}
+                  value={productSearchInput}
+                  onChange={(e) => setProductSearchInput(e.target.value)}
                   placeholder="Buscar producto…"
                   className="pl-9"
                   aria-label="Buscar producto"
@@ -656,11 +662,8 @@ export default function WarehouseDetailPage() {
               <div className="relative flex-1">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  value={productSearch}
-                  onChange={(e) => {
-                    setProductSearch(e.target.value);
-                    setProductPageUrl({});
-                  }}
+                  value={productSearchInput}
+                  onChange={(e) => setProductSearchInput(e.target.value)}
                   placeholder="Buscar producto…"
                   className="pl-9"
                   aria-label="Buscar producto"

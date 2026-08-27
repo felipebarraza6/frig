@@ -87,6 +87,7 @@ export async function fetchProductWarehouses(productId: number): Promise<Warehou
 export interface BranchWarehouseProductsFilter {
   search?: string;
   page_size?: number;
+  product__in?: number[];
   next?: string | null;
   previous?: string | null;
 }
@@ -103,6 +104,9 @@ export async function fetchBranchWarehouseProducts(
   const qs = new URLSearchParams();
   if (filter.search) qs.set("search", filter.search);
   if (filter.page_size) qs.set("page_size", String(filter.page_size));
+  if (filter.product__in && filter.product__in.length > 0) {
+    qs.set("product__in", filter.product__in.join(","));
+  }
   const q = qs.toString();
   return apiFetch<PaginatedWarehouseProduct>(`/inventory/warehouse-products/${q ? `?${q}` : ""}`);
 }

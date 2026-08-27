@@ -597,6 +597,7 @@ export default function SuppliersPage() {
                     <label htmlFor="supplier-website" className="text-sm font-medium">Sitio web</label>
                     <Input
                       id="supplier-website"
+                      type="url"
                       value={form.website ?? ""}
                       onChange={(e) => setForm({ ...form, website: e.target.value || null })}
                       placeholder="Opcional"

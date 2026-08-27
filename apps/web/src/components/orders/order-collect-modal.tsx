@@ -113,7 +113,7 @@ export default function OrderCollectModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
-      <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-lg">
+      <div className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-xl border border-border bg-card p-6 shadow-lg">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-base font-semibold">
             Cobrar orden {order.order_number ?? order.id.slice(0, 8)}

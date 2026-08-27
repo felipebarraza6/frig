@@ -153,6 +153,7 @@ export default function ExpensesPage() {
   });
   const [categoriesModalOpen, setCategoriesModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<ExpenseCategory | null>(null);
+  const [confirmDeleteCategory, setConfirmDeleteCategory] = useState<ExpenseCategory | null>(null);
   const branch = useCurrentBranch();
   const [categoryForm, setCategoryForm] = useState<ExpenseCategoryRequest>({
     name: "",
@@ -338,10 +339,9 @@ export default function ExpensesPage() {
     }
   }
 
-  function handleDeleteCategory(id: string) {
-    if (confirm("¿Eliminar esta categoría?")) {
-      deleteCategory.mutate(id);
-    }
+  function openConfirmDeleteCategory(category: ExpenseCategory) {
+    deleteCategory.reset();
+    setConfirmDeleteCategory(category);
   }
 
   function openModal(expense?: FixedExpense) {
@@ -1242,7 +1242,7 @@ export default function ExpensesPage() {
                             variant="ghost"
                             size="sm"
                             className="h-8 w-8 p-0 text-danger hover:text-danger"
-                            onClick={() => handleDeleteCategory(c.id)}
+                            onClick={() => openConfirmDeleteCategory(c)}
                             disabled={deleteCategory.isPending}
                             title="Eliminar"
                             aria-label="Eliminar"
@@ -1338,6 +1338,39 @@ export default function ExpensesPage() {
                   </div>
                 </form>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDeleteCategory && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
+            <h2 className="text-base font-semibold">¿Eliminar categoría?</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Se eliminará <span className="font-medium text-foreground">{confirmDeleteCategory.name}</span>.
+            </p>
+            {deleteCategory.isError && (
+              <p className="mt-2 text-sm text-danger">
+                {deleteCategory.error instanceof Error ? deleteCategory.error.message : "Error al eliminar"}
+              </p>
+            )}
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setConfirmDeleteCategory(null)} disabled={deleteCategory.isPending}>
+                Cancelar
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => deleteCategory.mutate(confirmDeleteCategory.id)}
+                disabled={deleteCategory.isPending}
+              >
+                {deleteCategory.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Eliminar
+              </Button>
             </div>
           </div>
         </div>
