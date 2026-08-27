@@ -20,10 +20,14 @@ import {
   Calendar,
   DollarSign,
   FileText,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Receipt,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   fetchBankAccounts,
   fetchBankAccount,
@@ -32,11 +36,15 @@ import {
   updateBankAccount,
   deleteBankAccount,
   setBankAccountAsDefault,
+  fetchBankAccountTransactions,
+  fetchBankAccountBalanceSummary,
   type BankAccountSummary,
   type BankAccountRequest,
+  type BankAccountTransaction,
 } from "@/lib/api/bank-accounts";
 import {
   fetchBankReconciliations,
+  fetchBankReconciliationsSummary,
   createBankReconciliation,
   updateBankReconciliation,
   deleteBankReconciliation,
@@ -142,7 +150,12 @@ export default function BankAccountsPage() {
   const [recStatusFilter, setRecStatusFilter] = useState<BankReconciliation["status"] | "">("");
   const [recConfirmDelete, setRecConfirmDelete] = useState<BankReconciliation | null>(null);
 
-  const { data: accounts = [], isLoading } = useQuery({
+  const {
+    data: accounts = [],
+    isLoading,
+    isError: isAccountsError,
+    refetch: refetchAccounts,
+  } = useQuery({
     queryKey: ["bank-accounts"],
     queryFn: fetchBankAccounts,
   });
@@ -161,7 +174,8 @@ export default function BankAccountsPage() {
   const {
     data: reconciliationsData,
     isLoading: loadingReconciliations,
-    error: reconciliationsError,
+    isError: isReconciliationsError,
+    refetch: refetchReconciliations,
   } = useQuery({
     queryKey: ["bank-reconciliations", selectedAccount?.id, recStatusFilter],
     queryFn: () =>
@@ -171,6 +185,38 @@ export default function BankAccountsPage() {
         page_size: 100,
       }),
     enabled: recModalOpen && Boolean(selectedAccount?.id),
+  });
+
+  const {
+    data: reconciliationSummary,
+    isLoading: loadingReconciliationSummary,
+  } = useQuery({
+    queryKey: ["bank-reconciliations", "summary"],
+    queryFn: fetchBankReconciliationsSummary,
+  });
+
+  // Transactions drawer state
+  const [txModalOpen, setTxModalOpen] = useState(false);
+  const [txAccount, setTxAccount] = useState<BankAccountSummary | null>(null);
+
+  const {
+    data: transactions = [],
+    isLoading: loadingTransactions,
+    isError: isTransactionsError,
+    refetch: refetchTransactions,
+  } = useQuery({
+    queryKey: ["bank-accounts", txAccount?.id, "transactions"],
+    queryFn: () => fetchBankAccountTransactions(txAccount!.id),
+    enabled: txModalOpen && Boolean(txAccount?.id),
+  });
+
+  const {
+    data: balanceSummary,
+    isLoading: loadingBalanceSummary,
+  } = useQuery({
+    queryKey: ["bank-accounts", txAccount?.id, "balance-summary"],
+    queryFn: () => fetchBankAccountBalanceSummary(txAccount!.id),
+    enabled: txModalOpen && Boolean(txAccount?.id),
   });
 
   const reconciliations = useMemo(
@@ -289,7 +335,7 @@ export default function BankAccountsPage() {
   function openReconciliations(account: BankAccountSummary) {
     setSelectedAccount(account);
     setRecModalOpen(true);
-    resetRecForm();
+    resetRecForm(account);
   }
 
   function closeReconciliations() {
@@ -299,12 +345,23 @@ export default function BankAccountsPage() {
     setRecStatusFilter("");
   }
 
-  function resetRecForm() {
+  function resetRecForm(account: BankAccountSummary | null = selectedAccount) {
     setRecEditingId(null);
     setRecForm({
       ...EMPTY_RECONCILIATION_FORM,
-      bank_account: selectedAccount?.id ?? "",
+      bank_account: account?.id ?? "",
+      system_balance: account?.current_balance ?? "0",
     });
+  }
+
+  function openTransactions(account: BankAccountSummary) {
+    setTxAccount(account);
+    setTxModalOpen(true);
+  }
+
+  function closeTransactions() {
+    setTxModalOpen(false);
+    setTxAccount(null);
   }
 
   function startEditReconciliation(rec: BankReconciliation) {
@@ -374,9 +431,58 @@ export default function BankAccountsPage() {
           />
         </div>
 
-        {isLoading ? (
-          <div className="grid flex-1 place-items-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {loadingReconciliationSummary ? (
+            <>
+              <StatSkeleton />
+              <StatSkeleton />
+              <StatSkeleton />
+              <StatSkeleton />
+            </>
+          ) : (
+            <>
+              <StatCard
+                label="Total conciliaciones"
+                value={reconciliationSummary?.total ?? 0}
+                icon={Scale}
+                sub="registradas"
+              />
+              <StatCard
+                label="Pendientes"
+                value={reconciliationSummary?.pending ?? 0}
+                icon={Clock}
+                sub="por revisar"
+              />
+              <StatCard
+                label="Completadas"
+                value={reconciliationSummary?.completed ?? 0}
+                icon={CheckCircle2}
+                sub="balanceadas"
+              />
+              <StatCard
+                label="Discrepancias"
+                value={reconciliationSummary?.discrepancy ?? 0}
+                icon={AlertCircle}
+                sub="requieren atención"
+              />
+            </>
+          )}
+        </section>
+
+        {isAccountsError ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border p-8 text-center">
+            <AlertCircle className="h-10 w-10 text-danger" />
+            <p className="text-sm font-medium">No se pudieron cargar las cuentas</p>
+            <Button variant="outline" size="sm" onClick={() => refetchAccounts()}>
+              <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+              Reintentar
+            </Button>
+          </div>
+        ) : isLoading ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <AccountCardSkeleton />
+            <AccountCardSkeleton />
+            <AccountCardSkeleton />
           </div>
         ) : filteredAccounts.length === 0 ? (
           <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">
@@ -422,6 +528,17 @@ export default function BankAccountsPage() {
                   <p className="text-xl font-semibold tabular-nums">{formatCLP(a.current_balance)}</p>
                 </div>
                 <div className="mt-3 flex justify-end gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={() => openTransactions(a)}
+                    title="Movimientos"
+                    aria-label="Movimientos"
+                  >
+                    <Receipt className="h-3.5 w-3.5" />
+                    <span className="sr-only">Movimientos</span>
+                  </Button>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -789,9 +906,14 @@ export default function BankAccountsPage() {
                   <div className="grid place-items-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   </div>
-                ) : reconciliationsError ? (
-                  <div className="rounded-lg border border-danger/20 bg-danger/10 p-4 text-sm text-danger">
-                    No se pudieron cargar las conciliaciones.
+                ) : isReconciliationsError ? (
+                  <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border p-8 text-center">
+                    <AlertCircle className="h-10 w-10 text-danger" />
+                    <p className="text-sm font-medium">No se pudieron cargar las conciliaciones</p>
+                    <Button variant="outline" size="sm" onClick={() => refetchReconciliations()}>
+                      <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                      Reintentar
+                    </Button>
                   </div>
                 ) : reconciliations.length === 0 ? (
                   <div className="grid place-items-center rounded-xl border border-dashed border-border p-8 text-center">
@@ -964,6 +1086,180 @@ export default function BankAccountsPage() {
           </div>
         </div>
       )}
+
+      {txModalOpen && txAccount && (
+        <div
+          className="fixed inset-0 z-[60] flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-2xl md:rounded-xl md:border">
+            <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
+              <div className="min-w-0">
+                <h2 className="truncate text-base font-semibold">Movimientos: {txAccount.account_name}</h2>
+                <p className="text-xs text-muted-foreground">
+                  Saldo actual: <span className="font-medium text-foreground">{formatCLP(txAccount.current_balance)}</span>
+                </p>
+              </div>
+              <button onClick={closeTransactions} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="flex flex-1 flex-col overflow-hidden">
+              {balanceSummary && (
+                <div className="grid grid-cols-3 gap-2 border-b border-border bg-muted/30 p-3 text-center">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Saldo</p>
+                    <p className="text-sm font-semibold tabular-nums">{formatCLP(balanceSummary.current_balance ?? txAccount.current_balance)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Ingresos</p>
+                    <p className="text-sm font-semibold tabular-nums text-emerald-700">{formatCLP(balanceSummary.total_income ?? 0)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Egresos</p>
+                    <p className="text-sm font-semibold tabular-nums text-danger">{formatCLP(balanceSummary.total_expenses ?? 0)}</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex-1 overflow-y-auto p-4">
+                {loadingTransactions || loadingBalanceSummary ? (
+                  <div className="grid place-items-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : isTransactionsError ? (
+                  <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border p-8 text-center">
+                    <AlertCircle className="h-10 w-10 text-danger" />
+                    <p className="text-sm font-medium">No se pudieron cargar los movimientos</p>
+                    <Button variant="outline" size="sm" onClick={() => refetchTransactions()}>
+                      <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                      Reintentar
+                    </Button>
+                  </div>
+                ) : transactions.length === 0 ? (
+                  <div className="grid place-items-center rounded-xl border border-dashed border-border p-8 text-center">
+                    <div>
+                      <Receipt className="mx-auto h-10 w-10 text-muted-foreground" />
+                      <p className="mt-3 text-sm font-medium">Sin movimientos</p>
+                      <p className="text-xs text-muted-foreground">
+                        No se encontraron transacciones para esta cuenta.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {transactions.map((tx) => (
+                      <TransactionCard key={tx.id} tx={tx} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  sub,
+}: {
+  label: string;
+  value: string | number;
+  icon: React.ComponentType<{ className?: string }>;
+  sub: string;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-card p-4">
+      <div className="mb-2 flex items-center gap-2 text-muted-foreground">
+        <Icon className="h-4 w-4" />
+        <span className="text-xs font-medium">{label}</span>
+      </div>
+      <p className="text-xl font-semibold tabular-nums">{value}</p>
+      <p className="text-xs text-muted-foreground">{sub}</p>
+    </div>
+  );
+}
+
+function StatSkeleton() {
+  return (
+    <div className="rounded-xl border border-border bg-card p-4">
+      <div className="mb-2 flex items-center gap-2">
+        <Skeleton className="h-4 w-4 rounded-full" />
+        <Skeleton className="h-3.5 w-24" />
+      </div>
+      <Skeleton className="mb-1 h-7 w-16" />
+      <Skeleton className="h-3 w-20" />
+    </div>
+  );
+}
+
+function AccountCardSkeleton() {
+  return (
+    <div className="rounded-xl border border-border bg-card p-4">
+      <div className="flex items-start justify-between">
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-8 w-8 rounded-md" />
+          <div className="space-y-1">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-3 w-20" />
+          </div>
+        </div>
+        <Skeleton className="h-5 w-16 rounded-full" />
+      </div>
+      <div className="mt-3 space-y-1.5">
+        <Skeleton className="h-3.5 w-3/4" />
+        <Skeleton className="h-3.5 w-2/3" />
+        <Skeleton className="h-3.5 w-1/2" />
+      </div>
+      <div className="mt-3">
+        <Skeleton className="h-3 w-20" />
+        <Skeleton className="mt-1 h-7 w-32" />
+      </div>
+      <div className="mt-3 flex justify-end gap-1">
+        <Skeleton className="h-8 w-8 rounded-md" />
+        <Skeleton className="h-8 w-8 rounded-md" />
+        <Skeleton className="h-8 w-8 rounded-md" />
+        <Skeleton className="h-8 w-8 rounded-md" />
+      </div>
+    </div>
+  );
+}
+
+function TransactionCard({ tx }: { tx: BankAccountTransaction }) {
+  const isIncome = tx.payment_direction === "INCOME";
+  const amount = parseFloat(tx.amount) || 0;
+  return (
+    <div className="rounded-xl border border-border bg-card p-3 transition-colors hover:border-primary/20">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${isIncome ? "bg-emerald-500/10" : "bg-rose-500/10"}`}>
+            {isIncome ? (
+              <ArrowDownLeft className="h-4 w-4 text-emerald-600" />
+            ) : (
+              <ArrowUpRight className="h-4 w-4 text-rose-600" />
+            )}
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium">{tx.description || tx.payment_source || "Movimiento"}</p>
+            <p className="text-xs text-muted-foreground">
+              {tx.payment_method_name || tx.payment_source} · {new Date(tx.payment_date).toLocaleDateString("es-CL")}
+            </p>
+          </div>
+        </div>
+        <div className="shrink-0 text-right">
+          <p className={`text-sm font-semibold tabular-nums ${isIncome ? "text-emerald-700" : "text-rose-700"}`}>
+            {isIncome ? "+" : "-"}{formatCLP(amount)}
+          </p>
+          <p className="text-xs text-muted-foreground">{tx.status}</p>
+        </div>
+      </div>
     </div>
   );
 }

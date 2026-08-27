@@ -70,6 +70,33 @@ export async function markRevenueAsReceived(id: string): Promise<Revenue> {
   return apiFetch<Revenue>(`/finance/revenues/${id}/mark_received/`, { method: "POST" });
 }
 
+export interface RevenueSummary {
+  total_amount?: string | number;
+  received_amount?: string | number;
+  pending_amount?: string | number;
+  cancelled_amount?: string | number;
+  refunded_amount?: string | number;
+  count?: number;
+  /** Backwards-compatible/raw backend fields */
+  total?: string | number;
+  received?: string | number;
+  pending?: string | number;
+  cancelled?: string | number;
+  refunded?: string | number;
+  [key: string]: unknown;
+}
+
+export async function fetchRevenueSummary(filter: Omit<RevenuesFilter, "next" | "previous"> = {}): Promise<RevenueSummary> {
+  const qs = new URLSearchParams();
+  if (filter.search) qs.set("search", filter.search);
+  if (filter.category) qs.set("category", filter.category);
+  if (filter.status) qs.set("status", filter.status);
+  if (filter.startDate) qs.set("start_date", filter.startDate);
+  if (filter.endDate) qs.set("end_date", filter.endDate);
+  const q = qs.toString();
+  return apiFetch<RevenueSummary>(`/finance/revenues/summary/${q ? `?${q}` : ""}`);
+}
+
 function revenuesQueryString(filter: RevenuesFilter): string {
   const qs = new URLSearchParams();
   if (filter.search) qs.set("search", filter.search);

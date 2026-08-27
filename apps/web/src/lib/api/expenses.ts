@@ -91,6 +91,31 @@ export async function toggleExpenseCategoryActive(id: string): Promise<ExpenseCa
   return apiFetch<ExpenseCategory>(`/finance/expense-categories/${id}/toggle_active/`, { method: "POST" });
 }
 
+export interface ExpenseSummary {
+  total_amount?: string | number;
+  active_amount?: string | number;
+  pending_amount?: string | number;
+  cancelled_amount?: string | number;
+  count?: number;
+  /** Backwards-compatible/raw backend fields */
+  total?: string | number;
+  active?: string | number;
+  pending?: string | number;
+  cancelled?: string | number;
+  [key: string]: unknown;
+}
+
+export async function fetchExpenseSummary(filter: Omit<ExpensesFilter, "next" | "previous"> = {}): Promise<ExpenseSummary> {
+  const qs = new URLSearchParams();
+  if (filter.search) qs.set("search", filter.search);
+  if (filter.category) qs.set("category", filter.category);
+  if (filter.status) qs.set("status", filter.status);
+  if (filter.startDate) qs.set("start_date", filter.startDate);
+  if (filter.endDate) qs.set("end_date", filter.endDate);
+  const q = qs.toString();
+  return apiFetch<ExpenseSummary>(`/finance/fixed-expenses/summary/${q ? `?${q}` : ""}`);
+}
+
 function expensesQueryString(filter: ExpensesFilter): string {
   const qs = new URLSearchParams();
   if (filter.search) qs.set("search", filter.search);

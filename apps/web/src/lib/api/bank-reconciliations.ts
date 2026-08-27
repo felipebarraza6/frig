@@ -4,6 +4,16 @@ import type { YggdraSchemas } from "@/lib/api/types";
 export type BankReconciliation = YggdraSchemas["BankReconciliation"];
 export type BankReconciliationRequest = YggdraSchemas["BankReconciliationRequest"];
 
+export interface BankReconciliationSummary {
+  total?: number;
+  pending?: number;
+  completed?: number;
+  in_progress?: number;
+  discrepancy?: number;
+  last_reconciliation_date?: string | null;
+  [key: string]: unknown;
+}
+
 type PaginatedBankReconciliation = YggdraSchemas["PaginatedBankReconciliationList"];
 
 export interface BankReconciliationsFilter {
@@ -79,4 +89,8 @@ export async function validateBankReconciliation(id: string): Promise<BankReconc
     `/finance/bank-reconciliations/${id}/validate_reconciliation/`,
     { method: "POST" },
   );
+}
+
+export async function fetchBankReconciliationsSummary(): Promise<BankReconciliationSummary> {
+  return apiFetch<BankReconciliationSummary>("/finance/bank-reconciliations/summary/");
 }

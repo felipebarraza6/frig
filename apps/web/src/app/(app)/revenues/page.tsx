@@ -20,12 +20,14 @@ import {
   Ban,
   RotateCcw,
   Tags,
+  AlertCircle,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import {
   fetchRevenues,
+  fetchRevenueSummary,
   fetchRevenueCategories,
   createRevenue,
   updateRevenue,
@@ -42,10 +44,12 @@ import {
   type RevenueRequest,
   type RevenueCategory,
   type RevenueCategoryRequest,
+  type RevenueSummary,
 } from "@/lib/api/revenues";
 import { useCurrentBranch } from "@/lib/store/session";
 import { formatCLP } from "@/lib/utils";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const REVENUE_CATEGORY_TYPES = [
   { value: "SALES", label: "Ventas" },
@@ -145,9 +149,25 @@ export default function RevenuesPage() {
     branch: Number(branch?.branch_id ?? 0),
   });
 
-  const { data: page, isLoading } = useQuery({
+  const {
+    data: page,
+    isLoading: isLoadingPage,
+    isError: isPageError,
+    refetch: refetchPage,
+  } = useQuery({
     queryKey: ["revenues", { search, category, status, startDate, endDate, pageUrl }],
     queryFn: () => fetchRevenues({ search, category, status, startDate, endDate, ...pageUrl }),
+  });
+
+  const summaryFilter = { search, category, status, startDate, endDate };
+  const {
+    data: summary,
+    isLoading: isLoadingSummary,
+    isError: isSummaryError,
+    refetch: refetchSummary,
+  } = useQuery({
+    queryKey: ["revenues", "summary", summaryFilter],
+    queryFn: () => fetchRevenueSummary(summaryFilter),
   });
 
   const { download: downloadFile, isLoading: isDownloading } = useDownloadFile();
@@ -175,18 +195,21 @@ export default function RevenuesPage() {
   const totalRevenues = page?.count ?? 0;
 
   const stats = useMemo(() => {
-    const total = revenues.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
-    const received = revenues
-      .filter((r) => r.status === "RECEIVED")
-      .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
-    const pending = revenues
-      .filter((r) => r.status === "PENDING")
-      .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
-    const cancelled = revenues
-      .filter((r) => r.status === "CANCELLED" || r.status === "REFUNDED")
-      .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+    const amount = (field: keyof RevenueSummary): number => {
+      const raw = summary?.[field];
+      if (raw === undefined || raw === null) return 0;
+      return parseFloat(String(raw)) || 0;
+    };
+    const total = amount("total_amount") || amount("total");
+    const received = amount("received_amount") || amount("received");
+    const pending = amount("pending_amount") || amount("pending");
+    const cancelled =
+      amount("cancelled_amount") ||
+      amount("cancelled") ||
+      amount("refunded_amount") ||
+      amount("refunded");
     return { total, received, pending, cancelled };
-  }, [revenues]);
+  }, [summary]);
 
   const pageTotal = useMemo(
     () => revenues.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0),
@@ -656,38 +679,73 @@ export default function RevenuesPage() {
           </div>
         </div>
 
-        {revenues.length > 0 && (
-          <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard
-              label="Total ingresos"
-              value={formatCLP(stats.total)}
-              icon={DollarSign}
-              sub={`${revenues.length} registros visibles`}
-            />
-            <StatCard
-              label="Recibido"
-              value={formatCLP(stats.received)}
-              icon={TrendingUp}
-              sub="ingresos cobrados"
-            />
-            <StatCard
-              label="Pendiente"
-              value={formatCLP(stats.pending)}
-              icon={Clock}
-              sub="por cobrar"
-            />
-            <StatCard
-              label="Cancelado / Reembolsado"
-              value={formatCLP(stats.cancelled)}
-              icon={Ban}
-              sub="no efectivos"
-            />
-          </section>
-        )}
+        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {isLoadingSummary ? (
+            <>
+              <StatSkeleton />
+              <StatSkeleton />
+              <StatSkeleton />
+              <StatSkeleton />
+            </>
+          ) : (
+            <>
+              <StatCard
+                label="Total ingresos"
+                value={formatCLP(stats.total)}
+                icon={DollarSign}
+                sub={`${totalRevenues} registros`}
+              />
+              <StatCard
+                label="Recibido"
+                value={formatCLP(stats.received)}
+                icon={TrendingUp}
+                sub="ingresos cobrados"
+              />
+              <StatCard
+                label="Pendiente"
+                value={formatCLP(stats.pending)}
+                icon={Clock}
+                sub="por cobrar"
+              />
+              <StatCard
+                label="Cancelado / Reembolsado"
+                value={formatCLP(stats.cancelled)}
+                icon={Ban}
+                sub="no efectivos"
+              />
+            </>
+          )}
+        </section>
 
-        {isLoading ? (
-          <div className="grid flex-1 place-items-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        {isPageError || isSummaryError ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border p-8 text-center">
+            <AlertCircle className="h-10 w-10 text-danger" />
+            <p className="text-sm font-medium">No se pudieron cargar los ingresos</p>
+            <p className="max-w-md text-xs text-muted-foreground">
+              {isPageError && isSummaryError
+                ? "Ocurrió un error al consultar el listado y el resumen."
+                : isPageError
+                  ? "Ocurrió un error al consultar el listado."
+                  : "Ocurrió un error al consultar el resumen."}
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (isPageError) refetchPage();
+                if (isSummaryError) refetchSummary();
+              }}
+            >
+              <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+              Reintentar
+            </Button>
+          </div>
+        ) : isLoadingPage ? (
+          <div className="flex flex-col gap-3">
+            <TableSkeleton />
+            <div className="flex justify-end">
+              <Skeleton className="h-9 w-40" />
+            </div>
           </div>
         ) : revenues.length === 0 ? (
           <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">
@@ -1296,6 +1354,48 @@ function StatCard({
       </div>
       <p className="text-xl font-semibold tabular-nums">{value}</p>
       <p className="text-xs text-muted-foreground">{sub}</p>
+    </div>
+  );
+}
+
+function StatSkeleton() {
+  return (
+    <div className="rounded-xl border border-border bg-card p-4">
+      <div className="mb-2 flex items-center gap-2">
+        <Skeleton className="h-4 w-4 rounded-full" />
+        <Skeleton className="h-3.5 w-24" />
+      </div>
+      <Skeleton className="mb-1 h-7 w-32" />
+      <Skeleton className="h-3 w-20" />
+    </div>
+  );
+}
+
+function TableSkeleton() {
+  return (
+    <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
+      <table className="w-full min-w-[900px] text-sm">
+        <thead>
+          <tr className="border-b border-border">
+            {Array.from({ length: 7 }).map((_, i) => (
+              <th key={i} className="px-4 py-3">
+                <Skeleton className="h-3.5 w-20" />
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {Array.from({ length: 5 }).map((_, row) => (
+            <tr key={row} className="border-b border-border last:border-0">
+              {Array.from({ length: 7 }).map((__, col) => (
+                <td key={col} className="px-4 py-3">
+                  <Skeleton className="h-4 w-full max-w-[80px]" />
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
