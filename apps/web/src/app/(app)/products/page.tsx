@@ -39,8 +39,7 @@ import {
   fetchBranchWarehouseProducts,
   type WarehouseProduct,
 } from "@/lib/api/warehouses";
-import { ProductForm } from "@/components/products/product-form";
-import { ProductWarehousesModal } from "@/components/products/product-warehouses-modal";
+import { ProductForm, type FormTab } from "@/components/products/product-form";
 import { ProductActionsMenu } from "@/components/products/product-actions-menu";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
 import { useBranchProductTypes } from "@/lib/hooks/useBranchProductTypes";
@@ -92,7 +91,7 @@ interface ProductCardProps {
   colorClass: { bg: string; text: string };
   productTypeLabel: (type?: string) => string;
   onEdit: () => void;
-  onViewWarehouses: () => void;
+  onEditWarehouses: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
   onToggleActive: () => void;
@@ -106,7 +105,7 @@ function ProductCard({
   colorClass,
   productTypeLabel,
   onEdit,
-  onViewWarehouses,
+  onEditWarehouses,
   onDuplicate,
   onDelete,
   onToggleActive,
@@ -234,9 +233,9 @@ function ProductCard({
             variant="ghost"
             size="icon"
             className="h-8 w-8 text-muted-foreground hover:text-foreground"
-            onClick={onViewWarehouses}
-            title="Bodegas"
-            aria-label={`Bodegas de ${product.name}`}
+            onClick={onEditWarehouses}
+            title="Editar bodegas"
+            aria-label={`Editar bodegas de ${product.name}`}
           >
             <Warehouse className="h-4 w-4" />
           </Button>
@@ -303,8 +302,8 @@ export default function ProductsPage() {
   // Para editar se carga el detalle completo: el listado no trae
   // is_public ni nutrición y re-guardar desde ahí borra esos datos.
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [editInitialTab, setEditInitialTab] = useState<FormTab>("basic");
   const [confirmDelete, setConfirmDelete] = useState<YggdraProduct | null>(null);
-  const [viewingWarehouses, setViewingWarehouses] = useState<YggdraProduct | null>(null);
 
   const { data: editingProduct, isLoading: loadingEditing } = useQuery({
     queryKey: ["products", "detail", editingId],
@@ -840,8 +839,14 @@ export default function ProductsPage() {
                         loadingStock={loadingStock}
                         colorClass={colorFor(seed)}
                         productTypeLabel={productTypeLabel}
-                        onEdit={() => setEditingId(p.id)}
-                        onViewWarehouses={() => setViewingWarehouses(p)}
+                        onEdit={() => {
+                          setEditInitialTab("basic");
+                          setEditingId(p.id);
+                        }}
+                        onEditWarehouses={() => {
+                          setEditInitialTab("warehouses");
+                          setEditingId(p.id);
+                        }}
                         onDuplicate={() => handleDuplicate(p)}
                         onDelete={() => setConfirmDelete(p)}
                         onToggleActive={() =>
@@ -943,8 +948,14 @@ export default function ProductsPage() {
                           <td className="px-4 py-3 text-right">
                             <ProductActionsMenu
                               product={p}
-                              onEdit={() => setEditingId(p.id)}
-                              onViewWarehouses={() => setViewingWarehouses(p)}
+                              onEdit={() => {
+                                setEditInitialTab("basic");
+                                setEditingId(p.id);
+                              }}
+                              onEditWarehouses={() => {
+                                setEditInitialTab("warehouses");
+                                setEditingId(p.id);
+                              }}
                               onDuplicate={() => handleDuplicate(p)}
                               onDelete={() => setConfirmDelete(p)}
                             />
@@ -988,13 +999,6 @@ export default function ProductsPage() {
         )}
       </div>
 
-      {viewingWarehouses && (
-        <ProductWarehousesModal
-          product={viewingWarehouses}
-          onClose={() => setViewingWarehouses(null)}
-        />
-      )}
-
       {loadingEditing && editingId && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
           <Loader2 className="h-6 w-6 animate-spin text-white" />
@@ -1011,9 +1015,11 @@ export default function ProductsPage() {
       {editingProduct && (
         <ProductForm
           product={editingProduct}
+          initialTab={editInitialTab}
           onClose={() => {
             if (editingId) queryClient.removeQueries({ queryKey: ["products", "detail", editingId] });
             setEditingId(null);
+            setEditInitialTab("basic");
           }}
           onSubmit={onSubmit}
         />

@@ -102,8 +102,11 @@ interface YggdraProductDetail extends Omit<YggdraProduct, "category" | "branch" 
   sodium_mg?: string | null;
 }
 
+export type FormTab = "basic" | "pricing" | "recipe" | "warehouses" | "nutrition";
+
 interface ProductFormProps {
   product?: YggdraProductDetail;
+  initialTab?: FormTab;
   onClose: () => void;
   onSubmit: (payload: ProductPayload, id?: number) => Promise<YggdraProduct>;
 }
@@ -165,7 +168,7 @@ function groupProductWarehousesByWarehouse(items: WarehouseProduct[]): Warehouse
   });
 }
 
-export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
+export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductFormProps) {
   const queryClient = useQueryClient();
   const { options: productTypeOptions, defaultType } = useBranchProductTypes();
   const nutritionEnabled = useIsNutritionEnabled();
@@ -355,8 +358,7 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
     ? !MEASUREMENT_UNITS.some((u) => u.value === form.measurementUnit)
     : false;
 
-  type FormTab = "basic" | "pricing" | "recipe" | "warehouses" | "nutrition";
-  const [activeTab, setActiveTab] = useState<FormTab>("basic");
+  const [activeTab, setActiveTab] = useState<FormTab>(initialTab ?? "basic");
 
   const tabs = useMemo<{ id: FormTab; label: string; enabled: boolean }[]>(() => {
     const list: { id: FormTab; label: string; enabled: boolean }[] = [
@@ -785,6 +787,7 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
             </div>
           </div>
 
+          <div className="mt-6">
           {activeTab === "basic" && (
           <div className="flex flex-col gap-4">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -1009,9 +1012,9 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
           )}
 
           {activeTab === "warehouses" && (
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-5">
               {product?.id && (
-                <div className="rounded-xl border border-border bg-muted/40 p-4">
+                <div className="rounded-xl border border-border bg-muted/40 p-5">
                   <h3 className="mb-3 text-sm font-semibold">Bodegas configuradas</h3>
                   {loadingProductWarehouses ? (
                     <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
@@ -1023,11 +1026,11 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
                       Este producto no está asignado a ninguna bodega.
                     </p>
                   ) : (
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-3">
                       {groupedProductWarehouses.map((wp) => (
                         <div
                           key={wp.id}
-                          className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2"
+                          className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background px-4 py-3"
                         >
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-medium">{wp.warehouse.name}</p>
@@ -1070,7 +1073,7 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
                 </div>
               )}
 
-              <div className="rounded-xl border border-border bg-muted/40 p-4">
+              <div className="rounded-xl border border-border bg-muted/40 p-5">
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <h3 className="text-sm font-semibold">
                     {product ? "Agregar a nueva bodega" : "Asignación a bodegas"}
@@ -1514,6 +1517,7 @@ export function ProductForm({ product, onClose, onSubmit }: ProductFormProps) {
             <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>
           )}
 
+          </div>
           </div>
 
           <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border px-4 py-3 sm:px-6">

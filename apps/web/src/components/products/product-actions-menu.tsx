@@ -8,7 +8,7 @@ import type { YggdraProduct } from "@/lib/api/types";
 interface ProductActionsMenuProps {
   product: YggdraProduct;
   onEdit: (product: YggdraProduct) => void;
-  onViewWarehouses: (product: YggdraProduct) => void;
+  onEditWarehouses: (product: YggdraProduct) => void;
   onDuplicate: (product: YggdraProduct) => void;
   onDelete: (product: YggdraProduct) => void;
 }
@@ -16,7 +16,7 @@ interface ProductActionsMenuProps {
 export function ProductActionsMenu({
   product,
   onEdit,
-  onViewWarehouses,
+  onEditWarehouses,
   onDuplicate,
   onDelete,
 }: ProductActionsMenuProps) {
@@ -45,10 +45,10 @@ export function ProductActionsMenu({
       },
     },
     {
-      label: "Bodegas",
+      label: "Editar bodegas",
       icon: Warehouse,
       onClick: () => {
-        onViewWarehouses(product);
+        onEditWarehouses(product);
         setOpen(false);
       },
     },
