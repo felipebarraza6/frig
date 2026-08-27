@@ -357,7 +357,9 @@ export default function ProductsPage() {
     const map = new Map<number, number>();
     for (const wp of warehouseProducts) {
       if (wp.product == null) continue;
-      map.set(wp.product, (map.get(wp.product) ?? 0) + (wp.current_quantity ?? 0));
+      const productId = typeof wp.product === "object" ? (wp.product as { id?: number }).id : wp.product;
+      if (productId == null) continue;
+      map.set(Number(productId), (map.get(Number(productId)) ?? 0) + (wp.current_quantity ?? 0));
     }
     return map;
   }, [warehouseProducts]);
