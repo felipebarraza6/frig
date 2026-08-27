@@ -78,6 +78,10 @@ interface IngredientDraft {
   localId: string;
   id?: number; // real id si ya existe
   ingredient: number;
+  /** Nombre/código cacheados: el API ya los trae y evita mostrar "Producto #X"
+   * cuando el ingrediente no está en los resultados de búsqueda actuales. */
+  ingredient_name?: string;
+  ingredient_code?: string | null;
   quantity: string;
   unit: string;
   is_optional?: boolean;
@@ -436,6 +440,8 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
           localId: generateId(),
           id: ing.id,
           ingredient: ing.ingredient,
+          ingredient_name: ing.ingredient_name,
+          ingredient_code: ing.ingredient_code ?? null,
           quantity: ing.quantity,
           unit: ing.unit,
           is_optional: ing.is_optional,
@@ -505,6 +511,8 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
       {
         localId: generateId(),
         ingredient: product.id,
+        ingredient_name: product.name,
+        ingredient_code: product.code ?? null,
         quantity: "",
         unit: product.measurement_unit ?? "",
         is_optional: false,
@@ -738,6 +746,8 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
         await saveWarehouseAssignments(savedProduct.id);
         queryClient.invalidateQueries({ queryKey: ["warehouses"] });
         queryClient.invalidateQueries({ queryKey: ["warehouse-products", "product", product?.id] });
+        // Actualiza el stock del listado de productos (suma por bodega).
+        queryClient.invalidateQueries({ queryKey: ["warehouse-products", "branch"] });
       }
 
       onClose();
@@ -1339,7 +1349,7 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
                         <div key={ing.localId} className="grid grid-cols-12 items-end gap-2 rounded-lg border border-border bg-background p-2">
                           <div className="col-span-12 sm:col-span-4">
                             <span className="block truncate text-sm font-medium">
-                              {product?.name ?? `Producto #${ing.ingredient}`}
+                              {ing.ingredient_name ?? product?.name ?? `Producto #${ing.ingredient}`}
                             </span>
                           </div>
                           <div className="col-span-4 sm:col-span-2">

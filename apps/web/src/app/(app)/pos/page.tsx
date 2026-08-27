@@ -28,6 +28,7 @@ import { fetchCashRegisterStations } from "@/lib/api/cash-register-stations";
 import type { CashRegisterStation } from "@/lib/api/cash-register-stations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/lib/store/toast";
 
 function numberValue(v: string): string {
@@ -60,7 +61,11 @@ export default function PosZenPage() {
   const [openingAmounts, setOpeningAmounts] = useState<Record<number, string>>({});
   const processingRef = useRef(false);
 
-  const { data: stations = [] } = useQuery({
+  const {
+    data: stations = [],
+    isLoading: stationsLoading,
+    error: stationsError,
+  } = useQuery({
     queryKey: ["cash-register-stations", "pos-landing"],
     queryFn: fetchCashRegisterStations,
     staleTime: 60_000,
@@ -117,12 +122,15 @@ export default function PosZenPage() {
     return map;
   }, [stations, cashRegisters, dailySummaries]);
 
-  const openTerminal = (stationId: number) => {
-    window.open(
-      `/pos/terminal?station_id=${stationId}`,
-      "_blank",
-      "noopener,noreferrer",
-    );
+  const openTerminal = (stationId: number, win?: Window | null) => {
+    const url = `/pos/terminal?station_id=${stationId}`;
+    if (win) {
+      // Ventana capturada en el click (antes de los await) para que iOS/Android
+      // no bloqueen el popup; aquí solo la navegamos al terminal.
+      win.location.href = url;
+      return;
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   const isBusy = openingStationId !== null;
@@ -133,6 +141,10 @@ export default function PosZenPage() {
     setSelectedStationId(station.id);
     setOpeningStationId(station.id);
 
+    // window.open debe ejecutarse en el gesto del usuario; tras un await los
+    // navegadores móviles lo bloquean. Sin "noopener" para conservar el handle.
+    const win = window.open("", "_blank");
+
     try {
       const register = await getCurrentCashRegister(station.id);
       if (register?.status === "OPEN") {
@@ -140,7 +152,7 @@ export default function PosZenPage() {
           ["cash-register", "current", station.id],
           register,
         );
-        openTerminal(station.id);
+        openTerminal(station.id, win);
         return;
       }
 
@@ -157,7 +169,7 @@ export default function PosZenPage() {
       queryClient.invalidateQueries({
         queryKey: ["cash-register", "daily-summary"],
       });
-      openTerminal(data.station ?? station.id);
+      openTerminal(data.station ?? station.id, win);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "";
       const msg = message.toLowerCase();
@@ -166,8 +178,10 @@ export default function PosZenPage() {
         msg.includes("already open") ||
         msg.includes("open cash register already exists")
       ) {
-        openTerminal(station.id);
+        openTerminal(station.id, win);
       } else {
+        // No vamos a navegar: cerramos la pestaña en blanco que pre-abrimos.
+        win?.close();
         toast.error(message || "No se pudo abrir la caja");
       }
     } finally {
@@ -193,7 +207,37 @@ export default function PosZenPage() {
           </p>
         </div>
 
-        {stations.length > 0 ? (
+        {stationsLoading ? (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-card p-4 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="flex items-center gap-4">
+                  <Skeleton className="h-12 w-12 shrink-0 rounded-xl" />
+                  <div className="flex flex-col gap-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-20" />
+                  </div>
+                </div>
+                <Skeleton className="h-10 w-full sm:w-28" />
+              </div>
+            ))}
+          </div>
+        ) : stationsError ? (
+          <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-rose-300 bg-card p-10 text-center">
+            <Monitor className="h-10 w-10 text-rose-400" />
+            <div>
+              <p className="text-sm font-medium">
+                No se pudieron cargar las estaciones
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Revisa tu conexión e intenta nuevamente.
+              </p>
+            </div>
+          </div>
+        ) : stations.length > 0 ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {stations.map((station, idx) => {
               const selected = activeStationId === station.id;

@@ -332,7 +332,11 @@ export default function ProductsPage() {
   const products = page?.results ?? [];
   const totalProducts = page?.count ?? 0;
 
-  const { data: warehouseProducts = [], isLoading: loadingStock } = useQuery({
+  const {
+    data: warehouseProducts = [],
+    isLoading: loadingStock,
+    error: stockError,
+  } = useQuery({
     queryKey: ["warehouse-products", "branch", branch?.branch_id],
     queryFn: async () => {
       const all: WarehouseProduct[] = [];
@@ -780,6 +784,18 @@ export default function ProductsPage() {
             </div>
           )}
         </div>
+
+        {stockError && (
+          <div className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>
+              No se pudo cargar el stock por bodega
+              {stockError instanceof Error && stockError.message ? ` (${stockError.message})` : ""}.
+              El stock mostrado corresponde al valor general del producto y puede no reflejar
+              el inventario real de la sucursal.
+            </p>
+          </div>
+        )}
 
         {error ? (
           <p className="text-sm text-danger">No se pudo cargar el catálogo.</p>

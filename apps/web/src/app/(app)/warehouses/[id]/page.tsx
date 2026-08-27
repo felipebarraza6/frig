@@ -342,19 +342,34 @@ export default function WarehouseDetailPage() {
   const products = productsPage?.results ?? [];
   const totalProductsCount = productsPage?.count ?? 0;
 
-  const { data: catalogPage } = useQuery({
+  const { data: catalog = [] } = useQuery({
     queryKey: ["products", "catalog"],
-    queryFn: () => fetchProducts({}),
+    queryFn: async () => {
+      // El catálogo completo alimenta productSalePriceMap y el modal de
+      // agregar: sin paginar queda truncado a la primera página.
+      const all: YggdraSchemas["ProductList"][] = [];
+      let next: string | null | undefined;
+      let first = true;
+      let pages = 0;
+      while ((first || next) && pages < 20) {
+        const data = await fetchProducts(first ? { page_size: 2000 } : { next });
+        all.push(...(data.results ?? []));
+        next = data.next;
+        first = false;
+        pages++;
+      }
+      return all;
+    },
+    staleTime: 60_000,
   });
-  const catalog = catalogPage?.results ?? [];
 
   const productSalePriceMap = useMemo(() => {
     const map = new Map<number, number>();
-    for (const p of catalogPage?.results ?? []) {
+    for (const p of catalog) {
       map.set(p.id, numValue(p.sale_price));
     }
     return map;
-  }, [catalogPage?.results]);
+  }, [catalog]);
 
   const { data: warehousesPage } = useQuery({
     queryKey: ["warehouses", "all"],

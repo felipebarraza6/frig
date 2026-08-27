@@ -30,9 +30,11 @@ import {
   Lock,
   Truck,
   Check,
+  AlertTriangle,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import CartPanel from "@/components/pos/cart-panel";
 import { ProductCard } from "@/components/pos/product-card";
 import { PostSaleModal } from "@/components/pos/post-sale-modal";
@@ -400,7 +402,7 @@ export default function PosPage() {
 
   const { data: products, isLoading: productsLoading, error: productsError } =
     useProducts();
-  const { data: categories } = useCategories();
+  const { data: categories, isLoading: categoriesLoading } = useCategories();
   const { data: productModifierGroups } = useProductModifierGroups();
   const { data: combos } = useCombos();
 
@@ -465,7 +467,11 @@ export default function PosPage() {
     staleTime: 60_000,
   });
 
-  const { data: currentCashRegister } = useQuery({
+  const {
+    data: currentCashRegister,
+    error: cashRegisterError,
+    refetch: refetchCashRegister,
+  } = useQuery({
     queryKey: ["cash-register", "current", activeStationId],
     queryFn: () => getCurrentCashRegister(activeStationId),
     staleTime: 30_000,
@@ -503,7 +509,7 @@ export default function PosPage() {
     },
   });
 
-  const { data: dailySummary } = useQuery({
+  const { data: dailySummary, isLoading: dailySummaryLoading } = useQuery({
     queryKey: ["cash-register", "daily-summary", activeStationId],
     queryFn: () => getDailySummary(activeStationId),
     enabled: !!currentCashRegister && !!activeStationId && canViewHistory,
@@ -1066,14 +1072,27 @@ export default function PosPage() {
               }}
               className={cn(
                 "inline-flex h-8 items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
-                currentCashRegister
-                  ? "bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20"
-                  : "bg-amber-500/10 text-amber-700 hover:bg-amber-500/20"
+                cashRegisterError
+                  ? "bg-rose-500/10 text-rose-700 hover:bg-rose-500/20"
+                  : currentCashRegister
+                    ? "bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20"
+                    : "bg-amber-500/10 text-amber-700 hover:bg-amber-500/20"
               )}
-              title={currentCashRegister ? "Caja abierta - click para ver resumen o cerrar" : "Caja cerrada - click para abrir"}
+              title={
+                cashRegisterError
+                  ? "No se pudo consultar el estado de la caja - click para reintentar"
+                  : currentCashRegister
+                    ? "Caja abierta - click para ver resumen o cerrar"
+                    : "Caja cerrada - click para abrir"
+              }
             >
               {openCashRegisterMutation.isPending || closeCashRegisterMutation.isPending ? (
                 <Loader2 className="h-3 w-3 animate-spin" />
+              ) : cashRegisterError ? (
+                <>
+                  <AlertTriangle className="h-3 w-3" />
+                  <span className="hidden sm:inline">Error de caja</span>
+                </>
               ) : currentCashRegister ? (
                 <>
                   <Banknote className="h-3 w-3" />
@@ -1122,6 +1141,26 @@ export default function PosPage() {
 
         </div>
       </header>
+
+      {/* Banner: error al consultar la caja (distinto de "sin caja abierta") */}
+      {cashRegisterError && !isWaiter && (
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-rose-200 bg-rose-500/10 px-3 py-2 sm:px-4">
+          <p className="flex min-w-0 items-center gap-2 text-xs text-rose-700">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">
+              No se pudo consultar el estado de la caja. Revisa tu conexión.
+            </span>
+          </p>
+          <button
+            type="button"
+            onClick={() => refetchCashRegister()}
+            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-rose-300 bg-background px-2 py-1 text-[11px] font-medium text-rose-700 transition-colors hover:bg-rose-50"
+          >
+            <RefreshCcw className="h-3 w-3" />
+            Reintentar
+          </button>
+        </div>
+      )}
 
       {/* Selector inicial de modo Venta / Orden */}
       {showModeSelector && !queryOrderType && !isEditingOrder && !isWaiter && (
@@ -1284,7 +1323,14 @@ export default function PosPage() {
                 >
                   Todos
                 </button>
-                {categories?.map((cat) => (
+                {categoriesLoading
+                  ? [0, 1, 2, 3, 4].map((i) => (
+                      <Skeleton
+                        key={i}
+                        className="h-6 w-16 shrink-0 rounded-md"
+                      />
+                    ))
+                  : categories?.map((cat) => (
                   <button
                     key={cat.id}
                     onClick={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)}
@@ -1487,13 +1533,21 @@ export default function PosPage() {
                 }}
                 className={cn(
                   "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[10px] font-medium transition-colors",
-                  currentCashRegister
-                    ? "text-emerald-700 hover:bg-emerald-500/10"
-                    : "text-amber-700 hover:bg-amber-500/10"
+                  cashRegisterError
+                    ? "text-rose-700 hover:bg-rose-500/10"
+                    : currentCashRegister
+                      ? "text-emerald-700 hover:bg-emerald-500/10"
+                      : "text-amber-700 hover:bg-amber-500/10"
                 )}
               >
-                <Banknote className="h-[18px] w-[18px]" />
-                <span className="truncate px-0.5">{currentCashRegister ? "Caja" : "Abrir caja"}</span>
+                {cashRegisterError ? (
+                  <AlertTriangle className="h-[18px] w-[18px]" />
+                ) : (
+                  <Banknote className="h-[18px] w-[18px]" />
+                )}
+                <span className="truncate px-0.5">
+                  {cashRegisterError ? "Error caja" : currentCashRegister ? "Caja" : "Abrir caja"}
+                </span>
               </button>
               <button
                 type="button"
@@ -1663,8 +1717,25 @@ export default function PosPage() {
             </div>
             <div className="flex-1 overflow-y-auto p-4">
               {loadingOpenAccounts ? (
-                <div className="grid place-items-center py-12">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <div className="flex flex-col gap-2">
+                  {[0, 1, 2].map((i) => (
+                    <div
+                      key={i}
+                      className="flex flex-col gap-2 rounded-xl border border-border bg-background p-3"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex flex-col gap-1.5">
+                          <Skeleton className="h-4 w-24" />
+                          <Skeleton className="h-3 w-32" />
+                        </div>
+                        <Skeleton className="h-4 w-16" />
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <Skeleton className="h-3 w-28" />
+                        <Skeleton className="h-7 w-24" />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : visibleOpenAccounts.length === 0 ? (
                 <div className="flex flex-col items-center gap-3 py-12 text-center">
@@ -2009,8 +2080,26 @@ export default function PosPage() {
             </div>
             <div className="flex-1 overflow-y-auto p-4">
               {loadingPendingDeliveries ? (
-                <div className="grid place-items-center py-12">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <div className="flex flex-col gap-2">
+                  {[0, 1, 2].map((i) => (
+                    <div
+                      key={i}
+                      className="flex flex-col gap-2 rounded-xl border border-border bg-background p-3"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex flex-col gap-1.5">
+                          <Skeleton className="h-4 w-24" />
+                          <Skeleton className="h-3 w-32" />
+                        </div>
+                        <Skeleton className="h-4 w-16" />
+                      </div>
+                      <Skeleton className="h-3 w-40" />
+                      <div className="flex items-center justify-between gap-2">
+                        <Skeleton className="h-3 w-20" />
+                        <Skeleton className="h-7 w-24" />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : filteredPendingDeliveries.length === 0 ? (
                 <div className="flex flex-col items-center gap-3 py-12 text-center">
@@ -2166,7 +2255,11 @@ export default function PosPage() {
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h3 className="text-base font-semibold">
-                  {currentCashRegister ? "Caja" : "Abrir caja"}
+                  {cashRegisterError
+                    ? "Estado de caja desconocido"
+                    : currentCashRegister
+                      ? "Caja"
+                      : "Abrir caja"}
                 </h3>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Estación {activeStation?.name ?? "actual"}
@@ -2202,7 +2295,28 @@ export default function PosPage() {
               )}
             </div>
 
-            {!currentCashRegister && (
+            {cashRegisterError && (
+              <div className="mt-4 flex flex-col gap-3 rounded-xl border border-rose-200 bg-rose-500/10 p-4">
+                <p className="flex items-center gap-2 text-sm text-rose-700">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  No se pudo consultar el estado de la caja (error de red o del
+                  servidor). No es posible abrir u operar la caja hasta
+                  recuperar la conexión.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="self-start"
+                  onClick={() => refetchCashRegister()}
+                >
+                  <RefreshCcw className="mr-1.5 h-3.5 w-3.5" />
+                  Reintentar
+                </Button>
+              </div>
+            )}
+
+            {!currentCashRegister && !cashRegisterError && (
               <div className="mt-4">
                 <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
                   Monto inicial en caja
@@ -2328,6 +2442,20 @@ export default function PosPage() {
                 </div>
               </>
             )}
+
+            {currentCashRegister &&
+              cashRegisterTab === "summary" &&
+              !dailySummary &&
+              dailySummaryLoading && (
+                <div className="mt-4 flex flex-col gap-3">
+                  <Skeleton className="h-24 w-full rounded-xl" />
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {[0, 1, 2, 3, 4, 5].map((i) => (
+                      <Skeleton key={i} className="h-16 w-full rounded-lg" />
+                    ))}
+                  </div>
+                </div>
+              )}
 
             {currentCashRegister && cashRegisterTab === "movements" && (
               <div className="mt-4 flex flex-col gap-3 rounded-xl border border-border/60 bg-card p-4">
@@ -2601,7 +2729,15 @@ export default function PosPage() {
               >
                 Cancelar
               </Button>
-              {currentCashRegister ? (
+              {cashRegisterError ? (
+                <Button
+                  variant="outline"
+                  onClick={() => refetchCashRegister()}
+                >
+                  <RefreshCcw className="mr-2 h-4 w-4" />
+                  Reintentar
+                </Button>
+              ) : currentCashRegister ? (
                 <Button
                   onClick={() => closeCashRegisterMutation.mutate()}
                   disabled={closeCashRegisterMutation.isPending}
