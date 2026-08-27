@@ -681,45 +681,29 @@ export default function WarehouseDetailPage() {
                     </span>
                   </th>
                   <th
-                    className="group w-28 cursor-pointer select-none px-3 py-2 text-left hover:bg-muted/50"
+                    className="group w-32 cursor-pointer select-none px-3 py-2 text-left hover:bg-muted/50"
                     onClick={() => handleSort("product_category")}
                   >
                     <span className="inline-flex items-center gap-1 whitespace-nowrap">
                       Categoría <SortIcon sort={productSort} field="product_category" />
                     </span>
                   </th>
-                  <th className="group w-32 px-3 py-2 text-left">
+                  <th className="group w-36 px-3 py-2 text-left">
                     <span className="inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                       Proveedor
                     </span>
                   </th>
-                  <th className="group w-28 px-3 py-2 text-left">
-                    <span className="inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                      Ubicación
-                    </span>
-                  </th>
                   <th
-                    className="group w-20 cursor-pointer select-none px-3 py-2 text-right hover:bg-muted/50"
+                    className="group w-24 cursor-pointer select-none px-3 py-2 text-right hover:bg-muted/50"
                     onClick={() => handleSort("current_quantity")}
                   >
                     <span className="inline-flex items-center justify-end gap-1 whitespace-nowrap">
                       Cantidad <SortIcon sort={productSort} field="current_quantity" />
                     </span>
                   </th>
-                  <th
-                    className="group w-20 cursor-pointer select-none px-3 py-2 text-right hover:bg-muted/50"
-                    onClick={() => handleSort("minimum_quantity")}
-                  >
-                    <span className="inline-flex items-center justify-end gap-1 whitespace-nowrap">
-                      Mínima <SortIcon sort={productSort} field="minimum_quantity" />
-                    </span>
-                  </th>
-                  <th
-                    className="group w-20 cursor-pointer select-none px-3 py-2 text-right hover:bg-muted/50"
-                    onClick={() => handleSort("maximum_quantity")}
-                  >
-                    <span className="inline-flex items-center justify-end gap-1 whitespace-nowrap">
-                      Máxima <SortIcon sort={productSort} field="maximum_quantity" />
+                  <th className="group w-28 px-3 py-2 text-right">
+                    <span className="inline-flex items-center justify-end gap-1 whitespace-nowrap text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                      Rango
                     </span>
                   </th>
                   <th
@@ -736,14 +720,6 @@ export default function WarehouseDetailPage() {
                   >
                     <span className="inline-flex items-center justify-end gap-1 whitespace-nowrap">
                       Venta <SortIcon sort={productSort} field="total_sale_value" />
-                    </span>
-                  </th>
-                  <th
-                    className="group w-24 cursor-pointer select-none px-3 py-2 text-center hover:bg-muted/50"
-                    onClick={() => handleSort("stock_status")}
-                  >
-                    <span className="inline-flex items-center justify-center gap-1 whitespace-nowrap">
-                      Estado <SortIcon sort={productSort} field="stock_status" />
                     </span>
                   </th>
                   <th className="w-20 px-3 py-2 text-right">Acciones</th>
@@ -769,20 +745,29 @@ export default function WarehouseDetailPage() {
                           </div>
                           <div className="min-w-0">
                             <p className="truncate font-medium leading-tight">{wp.product_name}</p>
-                            <div className="mt-1 flex flex-wrap items-center gap-1">
-                              <span className="inline-flex items-center rounded-sm bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground">
-                                {wp.product_measurement_unit}
+                            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                              <span
+                                className={cn(
+                                  "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium",
+                                  isOk && "bg-success/10 text-success",
+                                  isLow && "bg-warning/10 text-warning",
+                                  isOut && "bg-danger/10 text-danger",
+                                  !isOk && !isLow && !isOut && "bg-muted text-muted-foreground",
+                                )}
+                              >
+                                {stockStatusLabel(status)}
                               </span>
-                              {wp.product_code && (
-                                <span className="text-[10px] text-muted-foreground">{wp.product_code}</span>
-                              )}
+                              <span className="text-[10px] text-muted-foreground">
+                                {wp.product_measurement_unit}
+                                {wp.product_code ? ` · ${wp.product_code}` : ""}
+                              </span>
                             </div>
                           </div>
                         </div>
                       </td>
                       <td className="px-3 py-2">
                         {wp.product_category ? (
-                          <span className="inline-flex items-center rounded-sm bg-secondary px-2.5 py-1 text-[11px] font-medium text-foreground">
+                          <span className="inline-flex items-center rounded-sm bg-secondary px-2 py-1 text-[11px] font-medium text-foreground">
                             {wp.product_category}
                           </span>
                         ) : (
@@ -794,7 +779,7 @@ export default function WarehouseDetailPage() {
                           const name = supplierNameByProduct.get(wp.product ?? 0);
                           return name ? (
                             <span
-                              className="inline-flex max-w-full items-center truncate rounded-sm bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary"
+                              className="inline-flex max-w-full items-center truncate rounded-sm bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary"
                               title={name}
                             >
                               {name}
@@ -804,26 +789,13 @@ export default function WarehouseDetailPage() {
                           );
                         })()}
                       </td>
-                      <td className="px-3 py-2">
-                        {wp.location_in_warehouse ? (
-                          <span
-                            className="inline-flex max-w-full items-center truncate rounded-sm bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground"
-                            title={wp.location_in_warehouse}
-                          >
-                            {wp.location_in_warehouse}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </td>
                       <td className="px-3 py-2 text-right tabular-nums font-medium">
                         {wp.current_quantity}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
-                        {wp.minimum_quantity ?? "—"}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
-                        {wp.maximum_quantity ?? "—"}
+                        {wp.minimum_quantity ?? 0} <span className="text-[10px]">min</span>
+                        {" — "}
+                        {wp.maximum_quantity ?? "—"} <span className="text-[10px]">máx</span>
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums">
                         <div className="leading-tight">
@@ -836,19 +808,6 @@ export default function WarehouseDetailPage() {
                           <p className="font-medium text-primary">{formatCLP(totalSale)}</p>
                           <p className="text-xs text-muted-foreground">{formatCLP(salePrice)} c/u</p>
                         </div>
-                      </td>
-                      <td className="px-3 py-2 text-center">
-                        <span
-                          className={cn(
-                            "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
-                            isOk && "bg-success/10 text-success",
-                            isLow && "bg-warning/10 text-warning",
-                            isOut && "bg-danger/10 text-danger",
-                            !isOk && !isLow && !isOut && "bg-muted text-muted-foreground",
-                          )}
-                        >
-                          {stockStatusLabel(status)}
-                        </span>
                       </td>
                       <td className="px-3 py-2 text-right">
                         <div className="flex items-center justify-end gap-1">
@@ -908,10 +867,7 @@ export default function WarehouseDetailPage() {
           {/* Vista móvil de productos */}
           <div className="grid gap-3 sm:hidden">
             {products.map((wp) => {
-              const unitCost = numValue(wp.product_cost);
               const totalValue = numValue(wp.total_value);
-              const salePrice = productSalePriceMap.get(wp.product ?? 0) ?? 0;
-              const totalSale = salePrice * wp.current_quantity;
               const status = wp.stock_status ?? "";
               const isOk = status === "IN_STOCK";
               const isLow = status === "LOW_STOCK";
@@ -929,75 +885,59 @@ export default function WarehouseDetailPage() {
                       </div>
                       <div className="min-w-0">
                         <p className="truncate font-medium leading-tight">{wp.product_name}</p>
-                        <div className="mt-1 flex flex-wrap items-center gap-1">
-                          <span className="inline-flex items-center rounded-sm bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground">
-                            {wp.product_measurement_unit}
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                          <span
+                            className={cn(
+                              "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium",
+                              isOk && "bg-success/10 text-success",
+                              isLow && "bg-warning/10 text-warning",
+                              isOut && "bg-danger/10 text-danger",
+                              !isOk && !isLow && !isOut && "bg-muted text-muted-foreground",
+                            )}
+                          >
+                            {stockStatusLabel(status)}
                           </span>
-                          {wp.product_category && (
-                            <span className="inline-flex items-center rounded-sm bg-secondary px-2 py-1 text-[10px] font-medium text-foreground">
-                              {wp.product_category}
-                            </span>
-                          )}
-                          {wp.product_code && (
-                            <span className="text-[10px] text-muted-foreground">{wp.product_code}</span>
-                          )}
+                          <span className="text-[10px] text-muted-foreground">
+                            {wp.product_measurement_unit}
+                            {wp.product_code ? ` · ${wp.product_code}` : ""}
+                          </span>
                         </div>
                       </div>
                     </div>
-                    <span
-                      className={cn(
-                        "inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
-                        isOk && "bg-success/10 text-success",
-                        isLow && "bg-warning/10 text-warning",
-                        isOut && "bg-danger/10 text-danger",
-                        !isOk && !isLow && !isOut && "bg-muted text-muted-foreground",
-                      )}
-                    >
-                      {stockStatusLabel(status)}
-                    </span>
                   </div>
 
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    <div className="rounded-xl bg-muted/50 p-2 text-center">
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    <div className="text-left">
                       <p className="text-[10px] text-muted-foreground">Cantidad</p>
                       <p className="text-sm font-semibold tabular-nums">{wp.current_quantity}</p>
                     </div>
-                    <div className="rounded-xl bg-muted/50 p-2 text-center">
-                      <p className="text-[10px] text-muted-foreground">Mínima</p>
-                      <p className="text-sm font-semibold tabular-nums">{wp.minimum_quantity ?? "—"}</p>
+                    <div className="text-left">
+                      <p className="text-[10px] text-muted-foreground">Rango</p>
+                      <p className="text-sm font-semibold tabular-nums">
+                        {wp.minimum_quantity ?? 0}-{wp.maximum_quantity ?? "—"}
+                      </p>
                     </div>
-                    <div className="rounded-xl bg-muted/50 p-2 text-center">
-                      <p className="text-[10px] text-muted-foreground">C/Unitario</p>
-                      <p className="text-sm font-semibold tabular-nums">{formatCLP(unitCost)}</p>
-                    </div>
-                    <div className="rounded-xl bg-muted/50 p-2 text-center">
-                      <p className="text-[10px] text-muted-foreground">Costo</p>
+                    <div className="text-left">
+                      <p className="text-[10px] text-muted-foreground">Costo total</p>
                       <p className="text-sm font-semibold tabular-nums text-success">{formatCLP(totalValue)}</p>
-                    </div>
-                    <div className="rounded-xl bg-muted/50 p-2 text-center">
-                      <p className="text-[10px] text-muted-foreground">V/Unitario</p>
-                      <p className="text-sm font-semibold tabular-nums">{formatCLP(salePrice)}</p>
-                    </div>
-                    <div className="rounded-xl bg-muted/50 p-2 text-center">
-                      <p className="text-[10px] text-muted-foreground">Venta</p>
-                      <p className="text-sm font-semibold tabular-nums text-primary">{formatCLP(totalSale)}</p>
                     </div>
                   </div>
 
-                  {(wp.location_in_warehouse || wp.maximum_quantity !== null && wp.maximum_quantity !== undefined) && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {wp.location_in_warehouse && (
-                        <span className="inline-flex items-center rounded-sm bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground">
-                          Ubicación: {wp.location_in_warehouse}
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    {wp.product_category && (
+                      <span className="inline-flex items-center rounded-sm bg-secondary px-2 py-1 text-[10px] font-medium text-foreground">
+                        {wp.product_category}
+                      </span>
+                    )}
+                    {(() => {
+                      const name = supplierNameByProduct.get(wp.product ?? 0);
+                      return name ? (
+                        <span className="inline-flex max-w-full items-center truncate rounded-sm bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary">
+                          {name}
                         </span>
-                      )}
-                      {wp.maximum_quantity !== null && wp.maximum_quantity !== undefined && (
-                        <span className="inline-flex items-center rounded-sm bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground">
-                          Máx: {wp.maximum_quantity}
-                        </span>
-                      )}
-                    </div>
-                  )}
+                      ) : null;
+                    })()}
+                  </div>
 
                   <div className="mt-3 flex justify-end gap-1">
                     <Button
