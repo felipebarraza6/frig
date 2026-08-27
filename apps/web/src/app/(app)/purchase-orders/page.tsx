@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, Loader2, X, Eye, Ban, CheckCircle2, FileText, SlidersHorizontal, Banknote, Trash2, FileDown, Package } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   fetchPurchaseOrders,
   fetchSuppliers,
@@ -14,13 +15,14 @@ import {
   cancelPurchaseOrder,
   markPurchaseOrderCompleted,
   payPurchaseOrder,
+  fetchPurchaseOrderPaymentSummary,
   downloadPurchaseOrderPdf,
   downloadPurchaseOrderVoucher,
   type PurchaseOrderList,
   type PurchaseOrderCreatePayload,
-  type PurchaseOrderRequest,
   type SupplierList,
 } from "@/lib/api/suppliers";
+import { fetchPaymentMethods } from "@/lib/api/payments";
 import { useCurrentBranch } from "@/lib/store/session";
 import { useToast } from "@/lib/store/toast";
 import { formatCLP } from "@/lib/utils";
@@ -41,14 +43,53 @@ function statusLabel(value?: string | null): string {
   return STATUS_OPTIONS.find((o) => o.value === value)?.label ?? (value ?? "—");
 }
 
+const STATUS_BADGE_CLASSES: Record<string, string> = {
+  DRAFT: "rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground",
+  SENT: "rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-700",
+  CONFIRMED: "rounded-full bg-purple-500/10 px-2 py-0.5 text-xs font-medium text-purple-700",
+  PARTIAL_RECEIVED: "rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning",
+  RECEIVED: "rounded-full bg-teal-500/10 px-2 py-0.5 text-xs font-medium text-teal-700",
+  COMPLETED: "rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success",
+  CANCELLED: "rounded-full bg-danger/10 px-2 py-0.5 text-xs font-medium text-danger",
+};
+
 function statusBadgeClass(status?: string | null) {
-  if (status === "COMPLETED") {
+  return (
+    (status && STATUS_BADGE_CLASSES[status]) ??
+    "rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
+  );
+}
+
+const PAYMENT_STATUS_OPTIONS = [
+  { value: "PENDING", label: "Pendiente" },
+  { value: "PARTIAL", label: "Parcial" },
+  { value: "PAID", label: "Pagada" },
+  { value: "OVERDUE", label: "Vencida" },
+];
+
+function paymentStatusLabel(value?: string | null): string {
+  return PAYMENT_STATUS_OPTIONS.find((o) => o.value === value)?.label ?? (value ?? "—");
+}
+
+function paymentStatusBadgeClass(status?: string | null) {
+  if (status === "PAID") {
     return "rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success";
   }
-  if (status === "CANCELLED") {
+  if (status === "OVERDUE") {
     return "rounded-full bg-danger/10 px-2 py-0.5 text-xs font-medium text-danger";
   }
+  if (status === "PARTIAL") {
+    return "rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-700";
+  }
   return "rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning";
+}
+
+function formatDateCL(value?: string | null): string {
+  if (!value) return "—";
+  // Se ancla a mediodía local para evitar desfases de zona horaria con fechas YYYY-MM-DD.
+  const date = new Date(`${value.slice(0, 10)}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("es-CL");
 }
 
 interface FormItem {
@@ -85,6 +126,7 @@ interface PayTarget {
   order: PurchaseOrderList;
   amount: string;
   notes: string;
+  paymentMethod: string;
 }
 
 function canPay(order: PurchaseOrderList): boolean {
@@ -144,6 +186,27 @@ export default function PurchaseOrdersPage() {
     enabled: !!form.supplier,
   });
 
+  const { data: paymentMethods = [] } = useQuery({
+    queryKey: ["payment-methods"],
+    queryFn: fetchPaymentMethods,
+    staleTime: 60_000,
+  });
+
+  const { data: paymentSummary } = useQuery({
+    queryKey: ["purchase-order-payment-summary", detail?.id],
+    queryFn: () => fetchPurchaseOrderPaymentSummary(detail!.id),
+    enabled: !!detail,
+  });
+
+  const supplierProductOptions = useMemo(
+    () =>
+      supplierProducts.map((sp) => ({
+        value: String(sp.id),
+        label: sp.supplier_product_name || sp.product_name || sp.supplier_product_code || `Producto #${sp.id}`,
+      })),
+    [supplierProducts],
+  );
+
   const create = useMutation({
     mutationFn: () => {
       const items: PurchaseOrderCreatePayload["items"] = form.items.map((item) => ({
@@ -198,30 +261,17 @@ export default function PurchaseOrdersPage() {
   });
 
   const pay = useMutation({
-    mutationFn: async (target: PayTarget) => {
-      const { order, amount, notes } = target;
-      try {
-        return await payPurchaseOrder(order.id, {
-          paid_amount: amount,
-          notes: notes || null,
-        });
-      } catch {
-        // Si el backend rechaza el payload parcial, reintenta con los campos
-        // requeridos de PurchaseOrderRequest usando los valores actuales de la orden.
-        const full: Partial<PurchaseOrderRequest> = {
-          supplier: order.supplier ?? null,
-          branch: order.branch,
-          status: order.status,
-          order_date: order.order_date,
-          expected_delivery_date: order.expected_delivery_date,
-          paid_amount: amount,
-          notes: notes || null,
-        };
-        return payPurchaseOrder(order.id, full);
-      }
-    },
+    // Un solo POST con el payload mínimo: reintentar con la orden completa
+    // podía registrar el pago dos veces y sobrescribir las notas.
+    mutationFn: (target: PayTarget) =>
+      payPurchaseOrder(target.order.id, {
+        paid_amount: target.amount,
+        notes: target.notes || null,
+        payment_method: target.paymentMethod || null,
+      }),
     onSuccess: (updated) => {
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["purchase-order-payment-summary", updated.id] });
       setDetail((prev) => (prev && prev.id === updated.id ? { ...prev, ...updated } : prev));
       setPayTarget(null);
       toast.success("Pago registrado");
@@ -269,7 +319,7 @@ export default function PurchaseOrdersPage() {
 
   function openPayModal(order: PurchaseOrderList) {
     pay.reset();
-    setPayTarget({ order, amount: order.remaining_amount ?? "", notes: "" });
+    setPayTarget({ order, amount: order.remaining_amount ?? "", notes: "", paymentMethod: "" });
   }
 
   function closePayModal() {
@@ -376,6 +426,11 @@ export default function PurchaseOrdersPage() {
     if (!payTarget) return;
     const amount = Number(payTarget.amount);
     if (!Number.isFinite(amount) || amount <= 0) return;
+    const remaining = Number(payTarget.order.remaining_amount ?? "0");
+    if (Number.isFinite(remaining) && amount > remaining) {
+      toast.error(`El monto no puede superar el saldo pendiente (${formatCLP(payTarget.order.remaining_amount ?? "0")}).`);
+      return;
+    }
     pay.mutate(payTarget);
   }
 
@@ -557,12 +612,19 @@ export default function PurchaseOrdersPage() {
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">{order.supplier_name ?? "—"}</td>
                       <td className="px-4 py-3">
-                        <span className={statusBadgeClass(order.status)}>
-                          {statusLabel(order.status)}
-                        </span>
+                        <div className="flex flex-wrap items-center gap-1">
+                          <span className={statusBadgeClass(order.status)}>
+                            {statusLabel(order.status)}
+                          </span>
+                          {order.payment_status && (
+                            <span className={paymentStatusBadgeClass(order.payment_status)}>
+                              {paymentStatusLabel(order.payment_status)}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums font-medium">{formatCLP(order.total_amount ?? "0")}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{order.expected_delivery_date}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{formatDateCL(order.expected_delivery_date)}</td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex flex-wrap items-center justify-end gap-1">
                           <Button
@@ -649,6 +711,11 @@ export default function PurchaseOrdersPage() {
                       <span className={`mt-1 inline-flex ${statusBadgeClass(order.status)}`}>
                         {statusLabel(order.status)}
                       </span>
+                      {order.payment_status && (
+                        <span className={`ml-1 mt-1 inline-flex ${paymentStatusBadgeClass(order.payment_status)}`}>
+                          {paymentStatusLabel(order.payment_status)}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -659,7 +726,7 @@ export default function PurchaseOrdersPage() {
                     </div>
                     <div className="text-muted-foreground">
                       <span className="block text-[10px] uppercase tracking-wide">Entrega esperada</span>
-                      <span className="font-medium text-foreground">{order.expected_delivery_date}</span>
+                      <span className="font-medium text-foreground">{formatDateCL(order.expected_delivery_date)}</span>
                     </div>
                   </div>
 
@@ -667,36 +734,36 @@ export default function PurchaseOrdersPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 w-8 p-0"
+                      className="h-10 w-10 p-0"
                       title="Ver"
                       aria-label="Ver"
                       onClick={() => setDetail(order)}
                     >
-                      <Eye className="h-3.5 w-3.5" />
+                      <Eye className="h-4 w-4" />
                       <span className="sr-only">Ver</span>
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 w-8 p-0"
+                      className="h-10 w-10 p-0"
                       title="Descargar comprobante PDF"
                       aria-label="Descargar comprobante PDF"
                       onClick={() => handleDownloadVoucher(order)}
                       disabled={isDownloading}
                     >
-                      <FileDown className="h-3.5 w-3.5" />
+                      <FileDown className="h-4 w-4" />
                       <span className="sr-only">Descargar comprobante PDF</span>
                     </Button>
                     {canPay(order) && (
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-8 w-8 p-0"
+                        className="h-10 w-10 p-0"
                         title="Registrar pago"
                         aria-label="Registrar pago"
                         onClick={() => openPayModal(order)}
                       >
-                        <Banknote className="h-3.5 w-3.5" />
+                        <Banknote className="h-4 w-4" />
                         <span className="sr-only">Registrar pago</span>
                       </Button>
                     )}
@@ -705,25 +772,25 @@ export default function PurchaseOrdersPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 w-8 p-0"
+                          className="h-10 w-10 p-0"
                           title="Completar"
                           aria-label="Completar"
                           onClick={() => handleComplete(order)}
                           disabled={complete.isPending}
                         >
-                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          <CheckCircle2 className="h-4 w-4" />
                           <span className="sr-only">Completar</span>
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 w-8 p-0 text-danger hover:text-danger"
+                          className="h-10 w-10 p-0 text-danger hover:text-danger"
                           title="Anular"
                           aria-label="Anular"
                           onClick={() => handleCancel(order)}
                           disabled={cancel.isPending}
                         >
-                          <Ban className="h-3.5 w-3.5" />
+                          <Ban className="h-4 w-4" />
                           <span className="sr-only">Anular</span>
                         </Button>
                       </>
@@ -851,24 +918,21 @@ export default function PurchaseOrdersPage() {
                             {!item.is_common_expense && (
                               <div className="flex flex-col gap-1">
                                 <label className="text-xs text-muted-foreground">Producto del proveedor</label>
-                                <Select
+                                <SearchableSelect
+                                  options={supplierProductOptions}
                                   value={item.supplier_product ? String(item.supplier_product) : ""}
-                                  onChange={(e) => selectSupplierProduct(index, e.target.value)}
+                                  onChange={(value) => selectSupplierProduct(index, value)}
                                   disabled={!form.supplier || supplierProducts.length === 0}
-                                >
-                                  <option value="">
-                                    {!form.supplier
+                                  placeholder={
+                                    !form.supplier
                                       ? "Selecciona un proveedor primero"
                                       : supplierProducts.length === 0
                                         ? "Sin productos asignados"
-                                        : "Seleccionar producto…"}
-                                  </option>
-                                  {supplierProducts.map((sp) => (
-                                    <option key={sp.id} value={sp.id}>
-                                      {sp.supplier_product_name || sp.product_name || sp.supplier_product_code || `Producto #${sp.id}`}
-                                    </option>
-                                  ))}
-                                </Select>
+                                        : "Seleccionar producto…"
+                                  }
+                                  searchPlaceholder="Buscar producto…"
+                                  emptyMessage="Sin coincidencias"
+                                />
                               </div>
                             )}
                             {item.is_common_expense && (
@@ -988,13 +1052,46 @@ export default function PurchaseOrdersPage() {
             <div className="flex-1 overflow-y-auto p-4">
               <div className="flex flex-col gap-2 text-sm">
                 <p><span className="text-muted-foreground">Proveedor:</span> {detail.supplier_name ?? "—"}</p>
-                <p><span className="text-muted-foreground">Estado:</span> {statusLabel(detail.status)}</p>
+                <p className="flex items-center gap-1">
+                  <span className="text-muted-foreground">Estado:</span>
+                  <span className={statusBadgeClass(detail.status)}>{statusLabel(detail.status)}</span>
+                  {detail.payment_status && (
+                    <span className={paymentStatusBadgeClass(detail.payment_status)}>
+                      {paymentStatusLabel(detail.payment_status)}
+                    </span>
+                  )}
+                </p>
                 <p><span className="text-muted-foreground">Total:</span> {formatCLP(detail.total_amount ?? "0")}</p>
                 <p><span className="text-muted-foreground">Pagado:</span> {formatCLP(detail.paid_amount ?? "0")}</p>
                 <p><span className="text-muted-foreground">Pendiente:</span> {formatCLP(detail.remaining_amount ?? "0")}</p>
-                <p><span className="text-muted-foreground">Entrega esperada:</span> {detail.expected_delivery_date}</p>
+                <p><span className="text-muted-foreground">Entrega esperada:</span> {formatDateCL(detail.expected_delivery_date)}</p>
                 <p><span className="text-muted-foreground">Ítems:</span> {detail.items_count}</p>
               </div>
+
+              {paymentSummary && (paymentSummary.payments?.length ?? 0) > 0 && (
+                <div className="mt-4">
+                  <h3 className="text-sm font-medium">Historial de pagos</h3>
+                  <ul className="mt-2 flex flex-col gap-2">
+                    {paymentSummary.payments!.map((p, i) => (
+                      <li
+                        key={p.id ?? i}
+                        className="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-xs"
+                      >
+                        <div className="min-w-0">
+                          <p className="font-medium tabular-nums">{formatCLP(p.amount ?? p.paid_amount ?? "0")}</p>
+                          <p className="text-muted-foreground">
+                            {p.payment_method_name ?? "—"}
+                            {(p.payment_date ?? p.date ?? p.created) && ` · ${formatDateCL(p.payment_date ?? p.date ?? p.created)}`}
+                          </p>
+                          {(p.notes ?? p.reference) && (
+                            <p className="truncate text-muted-foreground">{p.notes ?? p.reference}</p>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
             <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-border px-4 py-3">
               <Button
@@ -1058,10 +1155,27 @@ export default function PurchaseOrdersPage() {
                       type="number"
                       step="0.01"
                       min="0.01"
+                      max={payTarget.order.remaining_amount ?? undefined}
                       value={payTarget.amount}
                       onChange={(e) => setPayTarget({ ...payTarget, amount: e.target.value })}
                       required
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Máximo: {formatCLP(payTarget.order.remaining_amount ?? "0")}
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="pay-method" className="text-sm font-medium">Método de pago</label>
+                    <Select
+                      id="pay-method"
+                      value={payTarget.paymentMethod}
+                      onChange={(e) => setPayTarget({ ...payTarget, paymentMethod: e.target.value })}
+                    >
+                      <option value="">Sin especificar</option>
+                      {paymentMethods.map((m) => (
+                        <option key={m.id} value={m.id}>{m.name}</option>
+                      ))}
+                    </Select>
                   </div>
                   <div className="flex flex-col gap-2">
                     <label htmlFor="pay-notes" className="text-sm font-medium">Referencia / nota</label>

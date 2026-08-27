@@ -17,6 +17,36 @@ export interface PurchaseOrderCreatePayload extends Omit<PurchaseOrderCreate, "i
   items: PurchaseOrderItemRequest[];
 }
 
+/** Payload mínimo para registrar un pago en pay_order (sin reenviar la orden completa). */
+export interface PayPurchaseOrderPayload {
+  paid_amount: string;
+  notes?: string | null;
+  payment_method?: string | null;
+}
+
+/** Entrada individual del historial de pagos de una orden de compra. */
+export interface PurchaseOrderPaymentEntry {
+  id?: string | number;
+  amount?: string;
+  paid_amount?: string;
+  payment_method?: string | number | null;
+  payment_method_name?: string | null;
+  date?: string | null;
+  payment_date?: string | null;
+  created?: string | null;
+  notes?: string | null;
+  reference?: string | null;
+}
+
+/** Resumen de pagos de una OC (GET pay_order/payment_summary). */
+export interface PurchaseOrderPaymentSummary {
+  total_amount?: string;
+  paid_amount?: string;
+  remaining_amount?: string;
+  payment_status?: string;
+  payments?: PurchaseOrderPaymentEntry[];
+}
+
 export type PaginatedSupplier = YggdraSchemas["PaginatedSupplierListList"];
 export type PaginatedSupplierProduct = YggdraSchemas["PaginatedSupplierProductList"];
 export type PaginatedPurchaseOrder = YggdraSchemas["PaginatedPurchaseOrderListList"];
@@ -68,8 +98,7 @@ export async function deleteSupplier(id: string): Promise<void> {
 }
 
 export async function fetchSupplierProducts(supplierId: string): Promise<SupplierProduct[]> {
-  const data = await apiFetch<PaginatedSupplierProduct>(`/suppliers/supplier-products/?supplier=${supplierId}`);
-  return data.results ?? [];
+  return fetchAllSupplierProducts(`/suppliers/supplier-products/?supplier=${supplierId}`);
 }
 
 export async function fetchSupplierProductsByProduct(productId: number): Promise<SupplierProduct[]> {
@@ -154,12 +183,18 @@ export async function markPurchaseOrderCompleted(id: string): Promise<PurchaseOr
 
 export async function payPurchaseOrder(
   id: string,
-  payload: Partial<PurchaseOrderRequest>,
+  payload: PayPurchaseOrderPayload,
 ): Promise<PurchaseOrder> {
   return apiFetch<PurchaseOrder>(`/suppliers/purchase-orders/${id}/pay_order/`, {
     method: "POST",
     body: payload as unknown as PurchaseOrderRequest,
   });
+}
+
+export async function fetchPurchaseOrderPaymentSummary(
+  id: string,
+): Promise<PurchaseOrderPaymentSummary> {
+  return apiFetch<PurchaseOrderPaymentSummary>(`/suppliers/purchase-orders/${id}/payment_summary/`);
 }
 
 export async function downloadPurchaseOrderPdf(id: string): Promise<ApiFileResult> {
