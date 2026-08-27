@@ -1029,10 +1029,11 @@ export default function PosPage() {
           </span>
 
           {/* Cambiar modo */}
-          {posMode && !isEditingOrder && (
+          {(posMode || isEditingOrder) && (
             <button
               type="button"
               onClick={() => {
+                clearCart();
                 setShowModeSelector(true);
                 clearPosMode();
               }}
@@ -1386,9 +1387,12 @@ export default function PosPage() {
               existingOrderLoading={loadingExistingOrder}
               existingOrderError={existingOrderError}
               defaultOrderType={queryOrderType ?? undefined}
-              onOrderRegistered={() => {
+              onOrderRegistered={(orderType) => {
                 if (isWaiter) goToWaiterTablesView();
-                else resetPosContext();
+                else {
+                  clearCart();
+                  startNewOrder(orderType ?? "SALE");
+                }
               }}
               onPostSaleOrder={handlePostSaleOrder}
               isWaiter={isWaiter}
@@ -1426,9 +1430,12 @@ export default function PosPage() {
               existingOrderLoading={loadingExistingOrder}
               existingOrderError={existingOrderError}
               defaultOrderType={queryOrderType ?? undefined}
-              onOrderRegistered={() => {
+              onOrderRegistered={(orderType) => {
                 if (isWaiter) goToWaiterTablesView();
-                else resetPosContext();
+                else {
+                  clearCart();
+                  startNewOrder(orderType ?? "SALE");
+                }
                 setCartOpen(false);
               }}
               onPostSaleOrder={handlePostSaleOrder}

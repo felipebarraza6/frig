@@ -61,7 +61,7 @@ interface CartPanelProps {
   existingOrder?: Order | null;
   existingOrderLoading?: boolean;
   existingOrderError?: Error | null;
-  onOrderRegistered?: () => void;
+  onOrderRegistered?: (orderType?: "SALE" | "ORDER") => void;
   onPostSaleOrder?: (order: Order, items: CartItem[]) => void;
   onClose?: () => void;
   isWaiter?: boolean;
@@ -261,7 +261,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
         queryClient.invalidateQueries({ queryKey: ["products"], refetchType: "all" });
         clear();
         toast.success(`Productos agregados a orden ${order.id.slice(0, 8)}`);
-        onOrderRegistered?.();
+        onOrderRegistered?.(existingOrder?.order_type === "ORDER" ? "ORDER" : "SALE");
         return;
       }
 
@@ -370,7 +370,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
       setValidatedDiscount(null);
       const actionLabel = payments.length > 0 ? "Venta registrada" : "Pedido guardado";
       toast.success(`${actionLabel} (orden ${order.id.slice(0, 8)})`);
-      onOrderRegistered?.();
+      onOrderRegistered?.(orderType === "AGREEMENT" ? "SALE" : orderType);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al registrar la venta");
     } finally {

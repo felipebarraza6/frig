@@ -565,28 +565,37 @@ export default function PurchaseOrdersPage() {
                       <td className="px-4 py-3 text-muted-foreground">{order.expected_delivery_date}</td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex flex-wrap items-center justify-end gap-1">
-                          <Button variant="ghost" size="sm" onClick={() => setDetail(order)}>
-                            <Eye className="mr-1.5 h-3.5 w-3.5" />
-                            Ver
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            title="Ver detalle"
+                            onClick={() => setDetail(order)}
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                            <span className="sr-only">Ver</span>
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
+                            className="h-8 w-8 p-0"
                             onClick={() => handleDownloadVoucher(order)}
                             disabled={isDownloading}
                             title="Descargar comprobante PDF"
                           >
-                            <FileDown className="mr-1.5 h-3.5 w-3.5" />
-                            PDF
+                            <FileDown className="h-3.5 w-3.5" />
+                            <span className="sr-only">PDF</span>
                           </Button>
                           {canPay(order) && (
                             <Button
                               variant="ghost"
                               size="sm"
+                              className="h-8 w-8 p-0"
                               onClick={() => openPayModal(order)}
+                              title="Registrar pago"
                             >
-                              <Banknote className="mr-1.5 h-3.5 w-3.5" />
-                              Pagar
+                              <Banknote className="h-3.5 w-3.5" />
+                              <span className="sr-only">Pagar</span>
                             </Button>
                           )}
                           {order.status !== "CANCELLED" && order.status !== "COMPLETED" && (
@@ -594,21 +603,24 @@ export default function PurchaseOrdersPage() {
                               <Button
                                 variant="ghost"
                                 size="sm"
+                                className="h-8 w-8 p-0"
                                 onClick={() => handleComplete(order)}
                                 disabled={complete.isPending}
+                                title="Completar orden"
                               >
-                                <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
-                                Completar
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                <span className="sr-only">Completar</span>
                               </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="text-danger hover:text-danger"
+                                className="h-8 w-8 p-0 text-danger hover:text-danger"
                                 onClick={() => handleCancel(order)}
                                 disabled={cancel.isPending}
+                                title="Anular orden"
                               >
-                                <Ban className="mr-1.5 h-3.5 w-3.5" />
-                                Anular
+                                <Ban className="h-3.5 w-3.5" />
+                                <span className="sr-only">Anular</span>
                               </Button>
                             </>
                           )}
@@ -752,7 +764,7 @@ export default function PurchaseOrdersPage() {
 
       {modalOpen && (
         <div
-          className="fixed inset-0 z-[60] flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
+          className="fixed inset-0 z-[70] flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
           role="dialog"
           aria-modal="true"
           onMouseDown={(e) => {
@@ -959,7 +971,7 @@ export default function PurchaseOrdersPage() {
 
       {detail && (
         <div
-          className="fixed inset-0 z-[60] flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
+          className="fixed inset-0 z-[70] flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
           role="dialog"
           aria-modal="true"
           onMouseDown={(e) => {
@@ -1019,7 +1031,7 @@ export default function PurchaseOrdersPage() {
 
       {payTarget && (
         <div
-          className="fixed inset-0 z-[60] flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
+          className="fixed inset-0 z-[70] flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
           role="dialog"
           aria-modal="true"
           onMouseDown={(e) => {
