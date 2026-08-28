@@ -7,7 +7,6 @@ import {
   Pencil,
   X,
   Package,
-  Loader2,
   AlertTriangle,
   Apple,
   FileDown,
@@ -16,6 +15,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import {
   fetchProducts,
   fetchProduct,
@@ -35,6 +35,7 @@ import { formatCLP } from "@/lib/utils";
 import type { YggdraProduct } from "@/lib/api/types";
 import { useToast } from "@/lib/store/toast";
 import { useIsNutritionEnabled } from "@/lib/store/session";
+import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 
 type ProductDetail = YggdraProduct & {
   is_nutritional_ingredient?: boolean;
@@ -163,9 +164,7 @@ export default function ProductNutritionPage() {
         {error ? (
           <p className="text-sm text-danger">No se pudo cargar el catálogo.</p>
         ) : isLoading ? (
-          <div className="grid flex-1 place-items-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
+          <TableSkeleton rows={5} columns={4} />
         ) : filtered.length === 0 ? (
           <div className="rounded-xl border border-border bg-card p-8 text-center">
             <Apple className="mx-auto h-10 w-10 text-muted-foreground" />
@@ -283,7 +282,11 @@ function NutritionDetailModal({
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4" role="dialog" aria-modal="true">
+    <AnimatedOverlay
+      open={true}
+      onClose={onClose}
+      panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
+    >
       <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
         <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 md:px-6">
           <h2 className="text-base font-semibold">{product.name}</h2>
@@ -318,7 +321,7 @@ function NutritionDetailModal({
               </h3>
 
               {loadingRecipes ? (
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                <TableSkeleton rows={2} columns={2} showHeader={false} />
               ) : recipes.length === 0 ? (
                 <p className="text-xs text-muted-foreground">No hay recetas asociadas.</p>
               ) : (
@@ -337,20 +340,17 @@ function NutritionDetailModal({
                           variant="outline"
                           size="sm"
                           onClick={() => calculate.mutate(recipe.id)}
-                          disabled={calculate.isPending}
+                          isLoading={calculate.isPending}
                         >
-                          {calculate.isPending ? (
-                            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Calculator className="mr-2 h-3.5 w-3.5" />
-                          )}
+                          <Calculator className="mr-2 h-3.5 w-3.5" />
                           Calcular
                         </Button>
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
-                          disabled={!recipe.has_nutritional_calculation || downloadingNutritionPdf}
+                          disabled={!recipe.has_nutritional_calculation}
+                          isLoading={downloadingNutritionPdf}
                           onClick={() => {
                             // Descarga autenticada via apiFile (window.open pega
                             // contra Next.js y sin token → 404).
@@ -363,11 +363,7 @@ function NutritionDetailModal({
                             ).catch(() => toast.error("No se pudo descargar el PDF de la etiqueta."));
                           }}
                         >
-                          {downloadingNutritionPdf ? (
-                            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <FileDown className="mr-2 h-3.5 w-3.5" />
-                          )}
+                          <FileDown className="mr-2 h-3.5 w-3.5" />
                           Descargar PDF
                         </Button>
                       </div>
@@ -375,7 +371,7 @@ function NutritionDetailModal({
                   ))}
 
                   {loadingLabel ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    <TableSkeleton rows={2} columns={2} showHeader={false} />
                   ) : labelData ? (
                     <div className="rounded-lg border border-border bg-background p-3 text-xs">
                       <p className="font-medium">Compliance MINSAL</p>
@@ -407,6 +403,6 @@ function NutritionDetailModal({
           </Button>
         </div>
       </div>
-    </div>
+    </AnimatedOverlay>
   );
 }

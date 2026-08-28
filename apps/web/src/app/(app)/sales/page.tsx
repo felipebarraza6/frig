@@ -2,9 +2,10 @@
 
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Loader2, ShoppingBag, X, Eye, Ban, Banknote, Plus, Trash2, FileDown, ClipboardList, Receipt, FileText, SlidersHorizontal, Zap, Pencil, CalendarDays, Wallet, Clock, UtensilsCrossed, Store, Package, MoreHorizontal, LayoutGrid, List, HandHelping, MapPin } from "lucide-react";
+import { Search, ShoppingBag, X, Eye, Ban, Banknote, Plus, Trash2, FileDown, ClipboardList, Receipt, FileText, SlidersHorizontal, Zap, Pencil, CalendarDays, Wallet, Clock, UtensilsCrossed, Store, Package, MoreHorizontal, LayoutGrid, List, HandHelping, MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { Select } from "@/components/ui/select";
 import {
   fetchOrders,
@@ -1757,12 +1758,8 @@ export default function SalesPage() {
                 Nueva cuenta
               </Button>
             </div>
-            <Button variant="ghost" size="sm" onClick={handleExportExcel} disabled={isDownloading}>
-              {isDownloading ? (
-                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-              ) : (
-                <FileDown className="mr-1.5 h-4 w-4" />
-              )}
+            <Button variant="ghost" size="sm" onClick={handleExportExcel} isLoading={isDownloading}>
+              <FileDown className="mr-1.5 h-4 w-4" />
               <span className="hidden sm:inline">Exportar Excel</span>
               <span className="sm:hidden">Excel</span>
             </Button>
@@ -2537,10 +2534,7 @@ export default function SalesPage() {
                 <Button type="button" variant="outline" onClick={closeCollect} disabled={collect.isPending}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={collect.isPending}>
-                  {collect.isPending && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
+                <Button type="submit" isLoading={collect.isPending}>
                   Registrar pago
                 </Button>
               </div>
@@ -2639,8 +2633,7 @@ export default function SalesPage() {
                   <Button type="button" variant="outline" onClick={() => closeDelivering()} disabled={deliver.isPending}>
                     Cancelar
                   </Button>
-                  <Button type="submit" disabled={deliver.isPending}>
-                    {deliver.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  <Button type="submit" isLoading={deliver.isPending}>
                     Confirmar entrega
                   </Button>
                 </div>
@@ -2654,8 +2647,7 @@ export default function SalesPage() {
                   <Button type="button" variant="outline" onClick={() => closeDelivering()} disabled={deliver.isPending}>
                     Cancelar
                   </Button>
-                  <Button type="submit" disabled={deliver.isPending}>
-                    {deliver.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  <Button type="submit" isLoading={deliver.isPending}>
                     Confirmar entrega
                   </Button>
                 </div>
@@ -2906,8 +2898,7 @@ export default function SalesPage() {
                   <Button type="button" variant="outline" className="flex-1" onClick={closeEditModal} disabled={edit.isPending}>
                     Cancelar
                   </Button>
-                  <Button type="submit" className="flex-1" disabled={edit.isPending}>
-                    {edit.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  <Button type="submit" className="flex-1" isLoading={edit.isPending}>
                     Guardar cambios
                   </Button>
                 </div>
@@ -3006,13 +2997,12 @@ export default function SalesPage() {
                   <Button
                     type="submit"
                     size="sm"
+                    isLoading={createInstallment.isPending}
                     disabled={
-                      createInstallment.isPending ||
                       !installmentStartDate ||
                       parseInt(installmentCount, 10) < 1
                     }
                   >
-                    {createInstallment.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Generar cuotas
                   </Button>
                 </div>
@@ -3022,8 +3012,8 @@ export default function SalesPage() {
             <div className="flex flex-col gap-3">
               <h3 className="text-sm font-medium">Cuotas registradas</h3>
               {installmentsQuery.isLoading ? (
-                <div className="grid place-items-center py-4">
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                <div className="py-4">
+                  <TableSkeleton rows={3} columns={4} />
                 </div>
               ) : (installmentsQuery.data?.length ?? 0) === 0 ? (
                 <p className="text-sm text-muted-foreground">No hay cuotas registradas.</p>
@@ -3105,8 +3095,7 @@ export default function SalesPage() {
                                   <Button type="button" variant="outline" size="sm" onClick={resetPayInstallmentForm} disabled={payInstallmentMut.isPending}>
                                     Cancelar
                                   </Button>
-                                  <Button type="submit" size="sm" disabled={payInstallmentMut.isPending || !payInstallmentMethodId}>
-                                    {payInstallmentMut.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                  <Button type="submit" size="sm" isLoading={payInstallmentMut.isPending} disabled={!payInstallmentMethodId}>
                                     Registrar pago
                                   </Button>
                                 </div>
@@ -3160,8 +3149,7 @@ export default function SalesPage() {
                     />
                   </div>
                   <div className="flex justify-end">
-                    <Button type="submit" size="sm" disabled={createInstallment.isPending || !newInstAmount}>
-                      {createInstallment.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    <Button type="submit" size="sm" isLoading={createInstallment.isPending} disabled={!newInstAmount}>
                       Agregar cuota
                     </Button>
                   </div>
@@ -3338,9 +3326,9 @@ export default function SalesPage() {
                     type="button"
                     size="sm"
                     onClick={handleCreateAccount}
-                    disabled={creatingAccount || (!selectedClient && !createClientName.trim())}
+                    isLoading={creatingAccount}
+                    disabled={!selectedClient && !createClientName.trim()}
                   >
-                    {creatingAccount && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
                     Crear cuenta
                   </Button>
                 </div>

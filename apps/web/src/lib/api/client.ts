@@ -47,7 +47,44 @@ type ApiOptions = {
   /** auto = salta si no hay token (para endpoints públicos), required = lanza. */
   auth?: "auto" | "required" | "none";
   branch?: "auto" | "none";
+  /** Señal de cancelación opcional. */
+  signal?: AbortSignal;
+  /** Tiempo máximo de espera en milisegundos (por defecto 30.000 ms). */
+  timeoutMs?: number;
 };
+
+function createRequestSignal(
+  timeoutMs = 30_000,
+  userSignal?: AbortSignal,
+): { signal: AbortSignal; cleanup: () => void } {
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  if (timeoutMs > 0) {
+    timer = setTimeout(() => {
+      controller.abort(new ApiError(408, "Tiempo de espera agotado al conectar con el servidor"));
+    }, timeoutMs);
+  }
+
+  if (userSignal) {
+    if (userSignal.aborted) {
+      controller.abort(userSignal.reason);
+    } else {
+      userSignal.addEventListener(
+        "abort",
+        () => controller.abort(userSignal.reason),
+        { once: true },
+      );
+    }
+  }
+
+  return {
+    signal: controller.signal,
+    cleanup: () => {
+      if (timer) clearTimeout(timer);
+    },
+  };
+}
 
 export async function apiFetch<T>(path: string, opts: ApiOptions = {}): Promise<T> {
   const {
@@ -56,6 +93,8 @@ export async function apiFetch<T>(path: string, opts: ApiOptions = {}): Promise<
     headers = {},
     auth = "required",
     branch = "auto",
+    signal,
+    timeoutMs,
   } = opts;
 
   const finalHeaders: Record<string, string> = {
@@ -81,41 +120,60 @@ export async function apiFetch<T>(path: string, opts: ApiOptions = {}): Promise<
     finalHeaders["X-Branch-ID"] = branchId;
   }
 
-  // credentials: "include" para la cookie HttpOnly de auth_token
-  const url = /^https?:\/\//i.test(path) ? path : `${API_BASE}${path}`;
-  const res = await fetch(url, {
-    method,
-    headers: finalHeaders,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-    credentials: "include",
-  });
+  const { signal: requestSignal, cleanup } = createRequestSignal(
+    timeoutMs ?? 30_000,
+    signal,
+  );
 
-  if (res.status === 401 && auth === "required") {
-    redirectToLogin();
-    throw new ApiError(401, "Sesión expirada");
-  }
+  try {
+    // credentials: "include" para la cookie HttpOnly de auth_token
+    const url = /^https?:\/\//i.test(path) ? path : `${API_BASE}${path}`;
+    const res = await fetch(url, {
+      method,
+      headers: finalHeaders,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      credentials: "include",
+      signal: requestSignal,
+    });
 
-  const text = await res.text();
-  let data: unknown = null;
-  if (text) {
-    try {
-      data = JSON.parse(text);
-    } catch {
-      // respuesta no JSON (ej: PDF) ─ se devuelve tal cual
+    if (res.status === 401 && auth === "required") {
+      redirectToLogin();
+      throw new ApiError(401, "Sesión expirada");
     }
-  }
 
-  if (!res.ok) {
-    const detail = data;
-    const message = formatErrorDetail(detail) || `Error ${res.status}`;
-    const error = new ApiError(res.status, message, detail);
-    if (res.status === 403 && typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("api:forbidden", { detail: error }));
+    const text = await res.text();
+    let data: unknown = null;
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        // respuesta no JSON (ej: PDF) ─ se devuelve tal cual
+      }
     }
-    throw error;
-  }
 
-  return data as T;
+    if (!res.ok) {
+      const detail = data;
+      const message = formatErrorDetail(detail) || `Error ${res.status}`;
+      const error = new ApiError(res.status, message, detail);
+      if (res.status === 403 && typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("api:forbidden", { detail: error }));
+      }
+      throw error;
+    }
+
+    return data as T;
+  } catch (err: unknown) {
+    if (err instanceof ApiError) throw err;
+    if (err instanceof Error && err.name === "AbortError") {
+      if (requestSignal.reason instanceof ApiError) {
+        throw requestSignal.reason;
+      }
+      throw new ApiError(408, "Petición cancelada o tiempo de espera agotado");
+    }
+    throw err;
+  } finally {
+    cleanup();
+  }
 }
 
 function formatErrorDetail(detail: unknown): string {
@@ -180,6 +238,8 @@ export async function apiFile(
     headers = {},
     auth = "required",
     branch = "auto",
+    signal,
+    timeoutMs,
   } = opts;
 
   const finalHeaders: Record<string, string> = {
@@ -204,30 +264,49 @@ export async function apiFile(
     finalHeaders["X-Branch-ID"] = branchId;
   }
 
-  const url = /^https?:\/\//i.test(path) ? path : `${API_BASE}${path}`;
-  const res = await fetch(url, {
-    method,
-    headers: finalHeaders,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-    credentials: "include",
-  });
+  const { signal: requestSignal, cleanup } = createRequestSignal(
+    timeoutMs ?? 60_000, // Archivos pueden demorar más (60s)
+    signal,
+  );
 
-  if (res.status === 401 && auth === "required") {
-    redirectToLogin();
-    throw new ApiError(401, "Sesión expirada");
-  }
+  try {
+    const url = /^https?:\/\//i.test(path) ? path : `${API_BASE}${path}`;
+    const res = await fetch(url, {
+      method,
+      headers: finalHeaders,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      credentials: "include",
+      signal: requestSignal,
+    });
 
-  if (!res.ok) {
-    const text = await res.text();
-    let detail: unknown = text;
-    try {
-      detail = JSON.parse(text);
-    } catch {
-      // respuesta no JSON: conservamos el texto crudo
+    if (res.status === 401 && auth === "required") {
+      redirectToLogin();
+      throw new ApiError(401, "Sesión expirada");
     }
-    const message = formatErrorDetail(detail) || `Error ${res.status} al descargar archivo`;
-    throw new ApiError(res.status, message, detail);
-  }
 
-  return { blob: await res.blob(), filename: extractFilename(res.headers) };
+    if (!res.ok) {
+      const text = await res.text();
+      let detail: unknown = text;
+      try {
+        detail = JSON.parse(text);
+      } catch {
+        // respuesta no JSON: conservamos el texto crudo
+      }
+      const message = formatErrorDetail(detail) || `Error ${res.status} al descargar archivo`;
+      throw new ApiError(res.status, message, detail);
+    }
+
+    return { blob: await res.blob(), filename: extractFilename(res.headers) };
+  } catch (err: unknown) {
+    if (err instanceof ApiError) throw err;
+    if (err instanceof Error && err.name === "AbortError") {
+      if (requestSignal.reason instanceof ApiError) {
+        throw requestSignal.reason;
+      }
+      throw new ApiError(408, "Petición cancelada o tiempo de espera agotado al descargar archivo");
+    }
+    throw err;
+  } finally {
+    cleanup();
+  }
 }

@@ -7,13 +7,13 @@ import {
   Search,
   Pencil,
   Trash2,
-  Loader2,
   X,
   Monitor,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import { cn } from "@/lib/utils";
 import {
   fetchCashRegisterStations,
@@ -350,12 +350,11 @@ export default function CashRegisterStationsPage() {
         )}
       </div>
 
-      {modalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
-          role="dialog"
-          aria-modal="true"
-        >
+      <AnimatedOverlay
+        open={modalOpen}
+        onClose={closeModal}
+        panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
+      >
           <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-base font-semibold">
@@ -419,27 +418,24 @@ export default function CashRegisterStationsPage() {
                 <Button type="button" variant="outline" onClick={closeModal} disabled={isSaving}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={isSaving}>
-                  {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Button type="submit" isLoading={isSaving}>
                   Guardar
                 </Button>
               </div>
             </form>
           </div>
-        </div>
-      )}
+      </AnimatedOverlay>
 
-      {confirmDelete && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
-          role="dialog"
-          aria-modal="true"
-        >
+      <AnimatedOverlay
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
+      >
           <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">¿Eliminar estación?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Se eliminará{" "}
-              <span className="font-medium text-foreground">{confirmDelete.name}</span>. Esta
+              <span className="font-medium text-foreground">{confirmDelete!.name}</span>. Esta
               acción no se puede deshacer.
             </p>
             {deleteMutation.error && (
@@ -457,14 +453,12 @@ export default function CashRegisterStationsPage() {
               >
                 Cancelar
               </Button>
-              <Button variant="danger" onClick={handleDelete} disabled={deleteMutation.isPending}>
-                {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button variant="danger" onClick={handleDelete} isLoading={deleteMutation.isPending}>
                 Eliminar
               </Button>
             </div>
           </div>
-        </div>
-      )}
+      </AnimatedOverlay>
     </div>
   );
 }

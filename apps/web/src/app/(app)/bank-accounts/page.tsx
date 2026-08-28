@@ -7,7 +7,6 @@ import {
   Plus,
   Pencil,
   Trash2,
-  Loader2,
   Landmark,
   X,
   Star,
@@ -808,8 +807,7 @@ export default function BankAccountsPage() {
                   <Button type="button" variant="outline" onClick={closeModal} disabled={save.isPending}>
                     Cancelar
                   </Button>
-                  <Button type="submit" disabled={save.isPending}>
-                    {save.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  <Button type="submit" isLoading={save.isPending}>
                     Guardar
                   </Button>
                 </div>
@@ -834,8 +832,7 @@ export default function BankAccountsPage() {
               <Button variant="outline" onClick={() => setConfirmDelete(null)} disabled={remove.isPending}>
                 Cancelar
               </Button>
-              <Button variant="danger" onClick={() => remove.mutate(confirmDelete.id)} disabled={remove.isPending}>
-                {remove.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button variant="danger" onClick={() => remove.mutate(confirmDelete.id)} isLoading={remove.isPending}>
                 Eliminar
               </Button>
             </div>
@@ -947,8 +944,7 @@ export default function BankAccountsPage() {
                           Cancelar
                         </Button>
                       )}
-                      <Button type="submit" size="sm" disabled={recSave.isPending}>
-                        {recSave.isPending && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                      <Button type="submit" size="sm" isLoading={recSave.isPending}>
                         {recEditingId ? "Guardar cambios" : "Agregar conciliación"}
                       </Button>
                     </div>
@@ -1065,8 +1061,7 @@ export default function BankAccountsPage() {
               <Button variant="outline" onClick={() => setRecConfirmDelete(null)} disabled={recRemove.isPending}>
                 Cancelar
               </Button>
-              <Button variant="danger" onClick={() => recRemove.mutate(recConfirmDelete.id)} disabled={recRemove.isPending}>
-                {recRemove.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button variant="danger" onClick={() => recRemove.mutate(recConfirmDelete.id)} isLoading={recRemove.isPending}>
                 Eliminar
               </Button>
             </div>

@@ -3,11 +3,12 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { X, Loader2, Plus, Trash2, Search, FileDown, Warehouse } from "lucide-react";
+import { X, Plus, Trash2, Search, FileDown, Warehouse } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import { useCategoryOptions } from "@/lib/hooks/useCategoryOptions";
 import { fetchProducts } from "@/lib/api/products";
 import type { ProductPayload } from "@/lib/api/products";
@@ -771,7 +772,12 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
   );
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center overflow-hidden bg-black/40 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true">
+    <AnimatedOverlay
+      open={true}
+      onClose={onClose}
+      zIndex="z-[60]"
+      panelClassName="flex items-end justify-center overflow-hidden p-0 sm:items-center sm:p-4"
+    >
       <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg sm:h-auto sm:max-h-[90vh] sm:max-w-3xl sm:rounded-xl sm:border">
         <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 sm:px-6">
           <h2 className="text-base font-semibold">
@@ -1035,7 +1041,10 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
                   <h3 className="mb-3 text-sm font-semibold">Bodegas configuradas</h3>
                   {loadingProductWarehouses ? (
                     <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <svg className="animate-spin h-4 w-4 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
                       Cargando bodegas…
                     </div>
                   ) : groupedProductWarehouses.length === 0 ? (
@@ -1076,7 +1085,10 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
                               title="Quitar producto de esta bodega"
                             >
                               {removingWarehouseId === wp.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <svg className="animate-spin h-4 w-4 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                </svg>
                               ) : (
                                 <Trash2 className="h-4 w-4" />
                               )}
@@ -1225,7 +1237,10 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
 
               {loadingRecipes && (
                 <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <svg className="animate-spin h-4 w-4 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
                   Cargando receta existente…
                 </div>
               )}
@@ -1417,13 +1432,9 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
                         variant="outline"
                         size="sm"
                         onClick={handleCalculateNutrition}
-                        disabled={calculatingNutrition}
+                        isLoading={calculatingNutrition}
                       >
-                        {calculatingNutrition ? (
-                          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Plus className="mr-2 h-3.5 w-3.5" />
-                        )}
+                        {!calculatingNutrition && <Plus className="mr-2 h-3.5 w-3.5" />}
                         Calcular desde receta
                       </Button>
                       <Button
@@ -1443,13 +1454,9 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
                             setError("No se pudo descargar el PDF de la etiqueta nutricional.");
                           });
                         }}
-                        disabled={downloadingNutritionPdf}
+                        isLoading={downloadingNutritionPdf}
                       >
-                        {downloadingNutritionPdf ? (
-                          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <FileDown className="mr-2 h-3.5 w-3.5" />
-                        )}
+                        {!downloadingNutritionPdf && <FileDown className="mr-2 h-3.5 w-3.5" />}
                         Descargar PDF
                       </Button>
                     </>
@@ -1565,8 +1572,7 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
                   Siguiente
                 </Button>
               ) : (
-                <Button type="submit" disabled={loading}>
-                  {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                <Button type="submit" isLoading={loading}>
                   {product ? "Guardar cambios" : "Crear producto"}
                 </Button>
               )}
@@ -1574,6 +1580,6 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
           </div>
         </form>
       </div>
-    </div>
+    </AnimatedOverlay>
   );
 }

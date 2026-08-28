@@ -2,11 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Loader2, Plus, X, AlertTriangle, Package, AlertCircle, PackageX, TrendingDown, FileSpreadsheet, FileText, SlidersHorizontal, ArrowRightLeft, Calendar } from "lucide-react";
+import { Search, Plus, X, AlertTriangle, Package, AlertCircle, PackageX, TrendingDown, FileSpreadsheet, FileText, SlidersHorizontal, ArrowRightLeft, Calendar } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import {
   fetchInventoryMovements,
   createInventoryMovement,
@@ -729,10 +730,10 @@ function MovementModal({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
-      role="dialog"
-      aria-modal="true"
+    <AnimatedOverlay
+      open={true}
+      onClose={onClose}
+      panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
     >
       <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
         <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
@@ -820,13 +821,12 @@ function MovementModal({
             <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={isPending || !form.product || !form.quantity}>
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="submit" disabled={isPending || !form.product || !form.quantity} isLoading={isPending}>
               Guardar
             </Button>
           </div>
         </form>
       </div>
-    </div>
+    </AnimatedOverlay>
   );
 }

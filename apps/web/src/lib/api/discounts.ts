@@ -170,6 +170,9 @@ export interface ValidatedDiscount {
     apply_to: string;
     discount_value: string;
     minimum_amount: string;
+    maximum_discount?: string | null;
+    products?: number[];
+    categories?: number[];
     description?: string | null;
   };
 }

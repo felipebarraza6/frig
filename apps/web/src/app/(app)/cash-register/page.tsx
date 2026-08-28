@@ -4,7 +4,6 @@ import * as React from "react";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  Loader2,
   Plus,
   Minus,
   ArrowDownLeft,
@@ -33,7 +32,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
 import {
   getCurrentCashRegister,
   getLastClosedCashRegister,
@@ -437,6 +436,7 @@ export default function CashRegisterPage() {
               size="sm"
               className="h-8"
               disabled={!amount || closeHistoryMutation.isPending}
+              isLoading={closeHistoryMutation.isPending}
               onClick={() =>
                 closeHistoryMutation.mutate({
                   id: cr.id,
@@ -444,7 +444,6 @@ export default function CashRegisterPage() {
                 })
               }
             >
-              {closeHistoryMutation.isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
               Cerrar
             </Button>
             <Button
@@ -482,6 +481,7 @@ export default function CashRegisterPage() {
               size="sm"
               className="h-8"
               disabled={!stationId || !branch || openHistoryMutation.isPending}
+              isLoading={openHistoryMutation.isPending}
               onClick={() =>
                 openHistoryMutation.mutate({
                   stationId: stationId!,
@@ -489,7 +489,6 @@ export default function CashRegisterPage() {
                 })
               }
             >
-              {openHistoryMutation.isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
               Abrir
             </Button>
             <Button
@@ -567,7 +566,7 @@ export default function CashRegisterPage() {
               {canChangeStation ? (
                 <div className="flex items-center gap-2">
                   {loadingStations ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                    <SkeletonText width="120px" height="sm" />
                   ) : stations.length === 0 ? (
                     <span className="text-xs text-amber-600">No hay estaciones creadas.</span>
                   ) : (
@@ -726,10 +725,10 @@ export default function CashRegisterPage() {
                       <Button
                         onClick={() => closeMutation.mutate(toDecimal(closeAmount))}
                         disabled={!isRegisterController || !closeAmount || closeMutation.isPending}
+                        isLoading={closeMutation.isPending}
                         variant="outline"
                         className="shrink-0"
                       >
-                        {closeMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Cerrar caja
                       </Button>
                       {expected !== null && closeAmount && isRegisterController && (
@@ -793,8 +792,8 @@ export default function CashRegisterPage() {
                             })
                           }
                           disabled={!branch || openMutation.isPending}
+                          isLoading={openMutation.isPending}
                         >
-                          {openMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                           Abrir caja
                         </Button>
                       </>
@@ -868,11 +867,10 @@ export default function CashRegisterPage() {
                         !movementReason ||
                         movementMutation.isPending
                       }
+                      isLoading={movementMutation.isPending}
                       variant={movementType === "CASH_OUT" ? "danger" : "default"}
                     >
-                      {movementMutation.isPending ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : movementType === "CASH_IN" ? (
+                      {movementType === "CASH_IN" ? (
                         <Plus className="mr-2 h-4 w-4" />
                       ) : (
                         <Minus className="mr-2 h-4 w-4" />
@@ -933,7 +931,11 @@ export default function CashRegisterPage() {
 
           {tab === "summary" ? (
             loadingSummary ? (
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-[92px] rounded-xl" />
+                ))}
+              </div>
             ) : summary ? (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <SummaryCard
@@ -1000,7 +1002,10 @@ export default function CashRegisterPage() {
             )
           ) : tab === "audit" ? (
             loadingAudit ? (
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              <div className="space-y-4">
+                <Skeleton className="h-24 rounded-2xl" />
+                <Skeleton className="h-48 rounded-2xl" />
+              </div>
             ) : audit ? (
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-background/60 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1042,7 +1047,7 @@ export default function CashRegisterPage() {
                         className="h-8 gap-1 text-xs"
                       >
                         {downloadingAuditMode === "simple" ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          <SkeletonText width="14px" height="sm" className="inline-block" />
                         ) : (
                           <FileDown className="h-3.5 w-3.5" />
                         )}
@@ -1056,7 +1061,7 @@ export default function CashRegisterPage() {
                         className="h-8 gap-1 text-xs"
                       >
                         {downloadingAuditMode === "full" ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          <SkeletonText width="14px" height="sm" className="inline-block" />
                         ) : (
                           <FileDown className="h-3.5 w-3.5" />
                         )}
@@ -1177,7 +1182,7 @@ export default function CashRegisterPage() {
                       </div>
 
                       {loadingAudit ? (
-                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                        <Skeleton className="h-10 w-full rounded-lg" />
                       ) : paidOrders.length === 0 ? (
                         <div className="grid place-items-center rounded-xl border border-dashed border-border bg-muted/20 py-8 text-center">
                           <div>
@@ -1606,7 +1611,7 @@ export default function CashRegisterPage() {
                     className="gap-1.5"
                   >
                     {isDownloading ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <SkeletonText width="14px" height="sm" className="inline-block" />
                     ) : (
                       <FileDown className="h-3.5 w-3.5" />
                     )}
@@ -1693,7 +1698,7 @@ function MetricItem({
         <span className="leading-tight">{label}</span>
       </div>
       <p className={cn("text-base font-bold tabular-nums tracking-tight", muted && "text-muted-foreground")}>
-        {loading ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : value}
+        {loading ? <SkeletonText width="60%" height="md" /> : value}
       </p>
     </div>
   );

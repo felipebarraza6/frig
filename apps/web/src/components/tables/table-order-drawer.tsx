@@ -3,11 +3,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { Clock, Loader2, Plus, ShoppingBag, User, X, Banknote } from "lucide-react";
+import { Clock, Plus, ShoppingBag, User, X, Banknote } from "lucide-react";
 import { fetchOrder } from "@/lib/api/orders";
 import { useElapsedTime } from "@/lib/hooks/useElapsedTime";
 import { formatCLP } from "@/lib/utils";
 import type { YggdraSchemas } from "@/lib/api/types";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type TableItem = YggdraSchemas["Table"];
 type Order = YggdraSchemas["Order"];
@@ -97,7 +98,7 @@ export function TableOrderDrawer({ table, isWaiter, onClose }: TableOrderDrawerP
             </div>
           ) : isLoading ? (
             <div className="grid h-full place-items-center">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <Skeleton className="h-6 w-6 rounded-full" />
             </div>
           ) : error || !order ? (
             <div className="grid h-full place-items-center">

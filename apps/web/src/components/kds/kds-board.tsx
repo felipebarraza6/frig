@@ -8,7 +8,6 @@ import {
   ClipboardList,
   Clock,
   LayoutDashboard,
-  Loader2,
   Settings2,
   Trash2,
   Utensils,
@@ -19,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import {
   cancelKitchenTicket,
   deliverKitchenTicket,
@@ -36,6 +36,7 @@ import {
 } from "@/lib/api/kitchen-stations";
 import { useCategoryOptions } from "@/lib/hooks/useCategoryOptions";
 import { useCurrentBranch } from "@/lib/store/session";
+import { useToast } from "@/lib/store/toast";
 import { cn } from "@/lib/utils";
 
 const COLUMNS: {
@@ -109,10 +110,17 @@ export function KdsBoard({
     enabled: !!branch,
   });
 
+  const toast = useToast();
+
   const invalidateTickets = () =>
     queryClient.invalidateQueries({ queryKey: ["kitchen-tickets"] });
 
-  const mutationOptions = { onSuccess: invalidateTickets };
+  const mutationOptions = {
+    onSuccess: invalidateTickets,
+    onError: (error: Error) => {
+      toast.error(error.message || "Error al actualizar la comanda");
+    },
+  };
   const startMutation = useMutation({
     mutationFn: startKitchenTicket,
     ...mutationOptions,
@@ -381,10 +389,8 @@ function TicketCard({
               size="sm"
               onClick={() => startMutation.mutate(ticket.id)}
               disabled={isPending}
+              isLoading={startMutation.isPending}
             >
-              {startMutation.isPending && (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              )}
               Preparar
             </Button>
           )}
@@ -393,10 +399,8 @@ function TicketCard({
               size="sm"
               onClick={() => readyMutation.mutate(ticket.id)}
               disabled={isPending}
+              isLoading={readyMutation.isPending}
             >
-              {readyMutation.isPending && (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              )}
               Listo
             </Button>
           )}
@@ -405,10 +409,8 @@ function TicketCard({
               size="sm"
               onClick={() => deliverMutation.mutate(ticket.id)}
               disabled={isPending}
+              isLoading={deliverMutation.isPending}
             >
-              {deliverMutation.isPending && (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              )}
               Entregar
             </Button>
           )}
@@ -419,10 +421,8 @@ function TicketCard({
               className="text-danger hover:bg-danger/10"
               onClick={() => cancelMutation.mutate(ticket.id)}
               disabled={isPending}
+              isLoading={cancelMutation.isPending}
             >
-              {cancelMutation.isPending && (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              )}
               <XCircle className="h-3.5 w-3.5" />
             </Button>
           )}
@@ -442,6 +442,7 @@ export function StationsModal({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const [editingId, setEditingId] = useState<number | null>(null);
   const [name, setName] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
@@ -470,7 +471,13 @@ export function StationsModal({
   });
   const deleteMutation = useMutation({
     mutationFn: deleteKitchenStation,
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate();
+      toast.success("Estación eliminada");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Error al eliminar estación");
+    },
   });
 
   const resetForm = () => {
@@ -514,7 +521,12 @@ export function StationsModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center sm:p-4">
+    <AnimatedOverlay
+      open={true}
+      onClose={onClose}
+      className="bg-black/50"
+      panelClassName="flex items-end justify-center sm:items-center sm:p-4"
+    >
       <div className="flex h-[85vh] w-full flex-col rounded-t-2xl border border-border bg-card shadow-xl sm:h-auto sm:max-h-[90vh] sm:max-w-lg sm:rounded-xl">
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <h2 className="text-base font-semibold">Estaciones de cocina</h2>
@@ -557,10 +569,8 @@ export function StationsModal({
               </div>
             </div>
             <div className="flex gap-2">
-              <Button type="submit" disabled={!name.trim() || createMutation.isPending || updateMutation.isPending}>
-                {createMutation.isPending || updateMutation.isPending ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : editingId ? (
+              <Button type="submit" disabled={!name.trim() || createMutation.isPending || updateMutation.isPending} isLoading={createMutation.isPending || updateMutation.isPending}>
+                {editingId ? (
                   "Guardar cambios"
                 ) : (
                   "Crear estación"
@@ -617,6 +627,6 @@ export function StationsModal({
           </div>
         </div>
       </div>
-    </div>
+    </AnimatedOverlay>
   );
 }

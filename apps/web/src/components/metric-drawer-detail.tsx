@@ -4,7 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchOrders, type OrdersFilter } from "@/lib/api/orders";
 import { fetchCustomers, type CustomersFilter } from "@/lib/api/customers";
 import { formatCLP } from "@/lib/utils";
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Order = import("@/lib/api/types").YggdraSchemas["Order"];
 
@@ -98,8 +99,8 @@ export function OrdersMetricDetail({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-8 text-muted-foreground">
-        <Loader2 className="h-5 w-5 animate-spin" />
+      <div className="flex items-center justify-center py-8">
+        <Skeleton className="h-5 w-5 rounded-full" />
       </div>
     );
   }
@@ -154,8 +155,8 @@ export function IncomeMetricDetail({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-8 text-muted-foreground">
-        <Loader2 className="h-5 w-5 animate-spin" />
+      <div className="flex items-center justify-center py-8">
+        <Skeleton className="h-5 w-5 rounded-full" />
       </div>
     );
   }
@@ -196,8 +197,8 @@ export function CustomersMetricDetail({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-8 text-muted-foreground">
-        <Loader2 className="h-5 w-5 animate-spin" />
+      <div className="flex items-center justify-center py-8">
+        <Skeleton className="h-5 w-5 rounded-full" />
       </div>
     );
   }

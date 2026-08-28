@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { FileText, Printer, Receipt, Loader2 } from "lucide-react";
+import { FileText, Printer, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { downloadOrderThermalPdf } from "@/lib/api/orders";
@@ -170,13 +170,9 @@ export function PostSaleModal({ order, items, branchName, onClose }: PostSaleMod
           variant="outline"
           className="h-auto justify-start gap-3 py-3"
           onClick={handleDownloadBoleta}
-          disabled={downloadingPdf}
+          isLoading={downloadingPdf}
         >
-          {downloadingPdf ? (
-            <Loader2 className="h-5 w-5 animate-spin text-primary" />
-          ) : (
-            <Receipt className="h-5 w-5 text-primary" />
-          )}
+          <Receipt className="h-5 w-5 text-primary" />
           <div className="text-left">
             <p className="text-sm font-medium">Boleta (PDF 80mm)</p>
             <p className="text-xs text-muted-foreground">Comprobante bonito para impresora térmica</p>
@@ -187,13 +183,9 @@ export function PostSaleModal({ order, items, branchName, onClose }: PostSaleMod
           variant="outline"
           className="h-auto justify-start gap-3 py-3"
           onClick={handleDownloadTicket}
-          disabled={downloadingTxt}
+          isLoading={downloadingTxt}
         >
-          {downloadingTxt ? (
-            <Loader2 className="h-5 w-5 animate-spin text-primary" />
-          ) : (
-            <FileText className="h-5 w-5 text-primary" />
-          )}
+          <FileText className="h-5 w-5 text-primary" />
           <div className="text-left">
             <p className="text-sm font-medium">Ticket simple (TXT)</p>
             <p className="text-xs text-muted-foreground">Solo contenido, sin precios</p>
@@ -204,13 +196,9 @@ export function PostSaleModal({ order, items, branchName, onClose }: PostSaleMod
           variant="outline"
           className="h-auto justify-start gap-3 py-3"
           onClick={handlePrintTicket}
-          disabled={printingTicket}
+          isLoading={printingTicket}
         >
-          {printingTicket ? (
-            <Loader2 className="h-5 w-5 animate-spin text-primary" />
-          ) : (
-            <Printer className="h-5 w-5 text-primary" />
-          )}
+          <Printer className="h-5 w-5 text-primary" />
           <div className="text-left">
             <p className="text-sm font-medium">Imprimir ticket simple</p>
             <p className="text-xs text-muted-foreground">Envía el contenido a la impresora</p>

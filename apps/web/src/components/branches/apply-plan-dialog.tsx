@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { X, Loader2, CreditCard } from "lucide-react";
+import { X, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import { fetchModulePlans, applyBranchPlan } from "@/lib/api/module-plans";
 import { useToast } from "@/lib/store/toast";
 import { cn } from "@/lib/utils";
@@ -38,7 +40,12 @@ export function ApplyPlanDialog({ branch, onClose, onApplied }: ApplyPlanDialogP
   const selectedPlan = plans.find((p) => p.id === selectedPlanId);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+    <AnimatedOverlay
+      open={true}
+      onClose={onClose}
+      className="bg-black/50"
+      panelClassName="flex items-center justify-center p-4"
+    >
       <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -60,7 +67,7 @@ export function ApplyPlanDialog({ branch, onClose, onApplied }: ApplyPlanDialogP
 
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <Skeleton className="h-6 w-6 rounded-full" />
           </div>
         ) : plans.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
@@ -111,15 +118,15 @@ export function ApplyPlanDialog({ branch, onClose, onApplied }: ApplyPlanDialogP
               </Button>
               <Button
                 onClick={() => apply.mutate()}
-                disabled={!selectedPlanId || apply.isPending}
+                disabled={!selectedPlanId}
+                isLoading={apply.isPending}
               >
-                {apply.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Aplicar plan
               </Button>
             </div>
           </div>
         )}
       </div>
-    </div>
+    </AnimatedOverlay>
   );
 }

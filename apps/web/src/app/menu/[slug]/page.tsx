@@ -3,11 +3,12 @@
 import { useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, ShoppingBag, ChefHat, CreditCard, Store, Monitor } from "lucide-react";
+import { ShoppingBag, ChefHat, CreditCard, Store, Monitor } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { fetchPublicMenuBySlug, type PublicMenuProduct } from "@/lib/api/public-catalog";
 import { formatCLP } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 function groupByCategory(products: PublicMenuProduct[]) {
   const map = new Map<
@@ -69,7 +70,7 @@ export default function PublicMenuPage() {
         className="flex min-h-screen items-center justify-center"
         style={{ backgroundColor: secondaryColor }}
       >
-        <Loader2 className="h-8 w-8 animate-spin" style={{ color: themeColor }} />
+        <Skeleton className="h-8 w-8 rounded-full" style={{ backgroundColor: themeColor }} />
       </div>
     );
   }

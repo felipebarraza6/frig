@@ -8,7 +8,6 @@ import {
   Trash2,
   Minus,
   Plus,
-  Loader2,
   Banknote,
   User,
   X,
@@ -152,37 +151,57 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
     const value = parseFloat(d.discount_value || "0");
     if (Number.isNaN(value) || value <= 0) return 0;
 
-    if (d.apply_to === "ORDER_TOTAL" || d.apply_to === "ALL_PRODUCTS") {
-      if (d.discount_type === "PERCENTAGE") {
-        return Math.min(Math.round(baseTotal * (value / 100)), baseTotal);
+    // Validar monto mínimo si está definido
+    if (d.minimum_amount) {
+      const minAmount = parseFloat(d.minimum_amount);
+      if (!Number.isNaN(minAmount) && baseTotal < minAmount) {
+        return 0;
       }
-      if (d.discount_type === "FIXED_AMOUNT") {
-        return Math.min(Math.round(value), baseTotal);
-      }
-      return 0;
     }
 
-    if (d.apply_to === "SPECIFIC_PRODUCTS" || d.apply_to === "CATEGORY") {
-      // Aproximación frontend: descuento sobre productos afectados.
-      // El backend recalculará al aplicar a la orden.
+    let calculated = 0;
+
+    if (d.apply_to === "ORDER_TOTAL" || d.apply_to === "ALL_PRODUCTS") {
+      if (d.discount_type === "PERCENTAGE") {
+        calculated = Math.round(baseTotal * (value / 100));
+      } else if (d.discount_type === "FIXED_AMOUNT") {
+        calculated = Math.round(value);
+      }
+    } else if (d.apply_to === "SPECIFIC_PRODUCTS" || d.apply_to === "CATEGORY") {
       let applicableTotal = 0;
+      const targetProductIds = new Set(d.products ?? []);
+      const targetCategoryIds = new Set(d.categories ?? []);
+
       for (const item of cartItems) {
-        const productTotal = cartItemSubtotal(item);
+        const itemSub = cartItemSubtotal(item);
         if (d.apply_to === "SPECIFIC_PRODUCTS") {
-          // No tenemos la lista de IDs en este tipo; asumimos que aplica a todos como fallback.
-          applicableTotal += productTotal;
-        } else {
-          applicableTotal += productTotal;
+          if (targetProductIds.size === 0 || targetProductIds.has(item.product.id)) {
+            applicableTotal += itemSub;
+          }
+        } else if (d.apply_to === "CATEGORY") {
+          const itemCatId = item.product.categoryId;
+          if (targetCategoryIds.size === 0 || (itemCatId && targetCategoryIds.has(itemCatId))) {
+            applicableTotal += itemSub;
+          }
         }
       }
+
       if (d.discount_type === "PERCENTAGE") {
-        return Math.min(Math.round(applicableTotal * (value / 100)), baseTotal);
-      }
-      if (d.discount_type === "FIXED_AMOUNT") {
-        return Math.min(Math.round(value), baseTotal);
+        calculated = Math.round(applicableTotal * (value / 100));
+      } else if (d.discount_type === "FIXED_AMOUNT") {
+        calculated = Math.round(value);
       }
     }
-    return 0;
+
+    // Aplicar tope de descuento máximo si existe
+    if (d.maximum_discount) {
+      const maxDisc = parseFloat(d.maximum_discount);
+      if (!Number.isNaN(maxDisc) && maxDisc > 0) {
+        calculated = Math.min(calculated, Math.round(maxDisc));
+      }
+    }
+
+    return Math.min(calculated, baseTotal);
   }
 
   const existingOrderTotal = existingOrder
@@ -909,16 +928,13 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
           </div>
         </div>
 
-        <Button size="lg" disabled={!canRegister} onClick={handleRegister} className="h-12 text-sm font-semibold">
+        <Button size="lg" disabled={!canRegister} isLoading={saving} onClick={handleRegister} className="h-12 text-sm font-semibold">
           {saving ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              {existingOrderId
-                ? "Agregando…"
-                : isWaiter || payments.length === 0
-                  ? "Guardando…"
-                  : "Cobrando…"}
-            </>
+            existingOrderId
+              ? "Agregando…"
+              : isWaiter || payments.length === 0
+                ? "Guardando…"
+                : "Cobrando…"
           ) : existingOrderId ? (
             "Agregar a la orden"
           ) : defaultOrderType === "ORDER" ? (
@@ -961,7 +977,10 @@ function ExistingOrderSummary({
     return (
       <div className="flex flex-col gap-2 rounded-lg bg-primary/5 px-3 py-2.5 text-xs text-primary">
         <div className="flex items-center gap-2">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          <svg className="h-3.5 w-3.5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
           <span>Cargando orden #{existingOrderId.slice(0, 8)}…</span>
         </div>
       </div>
@@ -1086,8 +1105,7 @@ function CustomerCreateModal({
             <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="submit" isLoading={isPending}>
               Crear y seleccionar
             </Button>
           </div>

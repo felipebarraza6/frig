@@ -2,11 +2,12 @@
 
 import { use, useMemo } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { Printer, ExternalLink, Loader2, Store } from "lucide-react";
+import { Printer, ExternalLink, Store } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { fetchPublicMenuBySlug, publicMenuUrl } from "@/lib/api/public-catalog";
 import { useQuery } from "@tanstack/react-query";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function MenuTotemPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
@@ -42,7 +43,7 @@ export default function MenuTotemPage({ params }: { params: Promise<{ slug: stri
   if (isLoading) {
     return (
       <div className="grid min-h-screen place-items-center" style={{ backgroundColor: secondaryColor }}>
-        <Loader2 className="h-8 w-8 animate-spin" style={{ color: themeColor }} />
+        <Skeleton className="h-8 w-8 rounded-full" style={{ backgroundColor: themeColor }} />
       </div>
     );
   }

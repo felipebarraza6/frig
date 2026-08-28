@@ -27,7 +27,7 @@ import {
   useWaiterAllowedPaths,
 } from "@/lib/store/session";
 import { useFrigMenu } from "@/lib/hooks/useFrigMenu";
-import { useNavFavorites } from "@/lib/store/nav-favorites";
+import { useNavFavorites, MAX_NAV_FAVORITES } from "@/lib/store/nav-favorites";
 import { logout } from "@/lib/api/auth";
 import { clearToken } from "@/lib/api/session-storage";
 import { BrandLogo } from "@/components/brand-logo";
@@ -37,7 +37,7 @@ interface MobileMenuSheetProps {
   onClose: () => void;
 }
 
-const QUICK_ACCESS_LIMIT = 6;
+const QUICK_ACCESS_LIMIT = MAX_NAV_FAVORITES;
 
 export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
   const pathname = usePathname();
@@ -251,18 +251,18 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
                             disabled={disabled}
                             onClick={() => toggleFavorite(item.href)}
                             className={cn(
-                              "relative flex flex-col items-center justify-center gap-2 rounded-xl border p-3 transition-colors",
+                              "relative flex min-h-[76px] flex-col items-center justify-center gap-1.5 rounded-xl border p-2.5 transition-all touch-manipulation active:scale-[0.96]",
                               favorited
-                                ? "border-primary/30 bg-primary/10 text-primary"
-                                : "border-border bg-background text-foreground hover:bg-muted",
-                              disabled && "cursor-not-allowed opacity-50",
+                                ? "border-primary/40 bg-primary/10 text-primary shadow-xs"
+                                : "border-border/80 bg-background text-foreground hover:bg-muted active:bg-muted/80",
+                              disabled && "cursor-not-allowed opacity-40 active:scale-100",
                             )}
                           >
                             <div className="absolute right-1.5 top-1.5">
                               {favorited ? (
-                                <Pin className="h-3 w-3 text-primary" />
+                                <Pin className="h-3.5 w-3.5 text-primary" />
                               ) : (
-                                <PinOff className="h-3 w-3 text-muted-foreground/60" />
+                                <PinOff className="h-3.5 w-3.5 text-muted-foreground/60" />
                               )}
                             </div>
                             <item.icon
@@ -410,10 +410,10 @@ function QuickAccessButton({
       href={href}
       onClick={onClick}
       className={cn(
-        "flex flex-col items-center justify-center gap-2 rounded-xl border p-3 transition-colors",
+        "flex min-h-[76px] flex-col items-center justify-center gap-1.5 rounded-xl border p-2.5 transition-all touch-manipulation active:scale-[0.96]",
         active
-          ? "border-primary/30 bg-primary/10 text-primary"
-          : "border-border bg-background text-foreground hover:bg-muted"
+          ? "border-primary/40 bg-primary/10 text-primary shadow-xs font-semibold"
+          : "border-border/80 bg-background text-foreground hover:bg-muted active:bg-muted/80"
       )}
     >
       <Icon className="h-5 w-5 shrink-0" strokeWidth={active ? 2.5 : 1.75} />

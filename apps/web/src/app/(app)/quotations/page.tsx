@@ -2,11 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Search, Loader2, FileDown, Eye, FileText, Inbox, X } from "lucide-react";
+import { Search, FileDown, Eye, FileText, Inbox, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import { fetchQuotations, exportQuotationsExcel, type Quotation } from "@/lib/api/quotations";
 import { formatCLP, cn } from "@/lib/utils";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
@@ -92,14 +93,10 @@ export default function QuotationsPage() {
           variant="outline"
           size="sm"
           onClick={handleExportExcel}
-          disabled={isDownloading}
+          isLoading={isDownloading}
           className="h-9 w-full sm:w-auto"
         >
-          {isDownloading ? (
-            <Loader2 className="mr-0 h-4 w-4 animate-spin sm:mr-2" />
-          ) : (
-            <FileDown className="mr-0 h-4 w-4 sm:mr-2" />
-          )}
+          <FileDown className="mr-0 h-4 w-4 sm:mr-2" />
           <span className="hidden sm:inline">Exportar Excel</span>
         </Button>
       </header>
@@ -331,18 +328,14 @@ export default function QuotationsPage() {
         )}
       </div>
 
-      {detail && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
-          role="dialog"
-          aria-modal="true"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setDetail(null);
-          }}
-        >
+      <AnimatedOverlay
+        open={!!detail}
+        onClose={() => setDetail(null)}
+        panelClassName="flex items-end justify-center p-0 sm:items-center sm:p-4"
+      >
           <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-xl sm:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
-              <h2 className="text-base font-semibold">Cotización {detail.id.slice(0, 8)}</h2>
+              <h2 className="text-base font-semibold">Cotización {detail!.id.slice(0, 8)}</h2>
               <button
                 onClick={() => setDetail(null)}
                 aria-label="Cerrar"
@@ -353,14 +346,14 @@ export default function QuotationsPage() {
             </div>
             <div className="flex-1 overflow-y-auto p-4">
               <div className="flex flex-col gap-2 text-sm">
-                <p><span className="text-muted-foreground">N° Orden:</span> {detail.order_number ?? detail.id.slice(0, 8)}</p>
-                <p><span className="text-muted-foreground">Cliente:</span> {detail.client?.name ?? "—"}</p>
-                <p><span className="text-muted-foreground">Tipo:</span> {detail.order_type}</p>
-                <p><span className="text-muted-foreground">Estado:</span> {statusLabel(detail.status)}</p>
-                <p><span className="text-muted-foreground">Total:</span> {formatCLP(detail.total_amount ?? "0")}</p>
-                <p><span className="text-muted-foreground">Fecha:</span> {new Date(detail.date).toLocaleString()}</p>
-                {detail.observation && (
-                  <p><span className="text-muted-foreground">Observación:</span> {detail.observation}</p>
+                <p><span className="text-muted-foreground">N° Orden:</span> {detail!.order_number ?? detail!.id.slice(0, 8)}</p>
+                <p><span className="text-muted-foreground">Cliente:</span> {detail!.client?.name ?? "—"}</p>
+                <p><span className="text-muted-foreground">Tipo:</span> {detail!.order_type}</p>
+                <p><span className="text-muted-foreground">Estado:</span> {statusLabel(detail!.status)}</p>
+                <p><span className="text-muted-foreground">Total:</span> {formatCLP(detail!.total_amount ?? "0")}</p>
+                <p><span className="text-muted-foreground">Fecha:</span> {new Date(detail!.date).toLocaleString()}</p>
+                {detail!.observation && (
+                  <p><span className="text-muted-foreground">Observación:</span> {detail!.observation}</p>
                 )}
               </div>
             </div>
@@ -370,8 +363,7 @@ export default function QuotationsPage() {
               </Button>
             </div>
           </div>
-        </div>
-      )}
+      </AnimatedOverlay>
     </div>
   );
 }

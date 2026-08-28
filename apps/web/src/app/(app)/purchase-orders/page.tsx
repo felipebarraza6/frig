@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Loader2, X, Eye, Ban, CheckCircle2, FileText, SlidersHorizontal, Banknote, Trash2, FileDown, Package } from "lucide-react";
+import { Plus, Search, X, Eye, Ban, CheckCircle2, FileText, SlidersHorizontal, Banknote, Trash2, FileDown, Package } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { Select } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
@@ -27,6 +28,7 @@ import { useCurrentBranch } from "@/lib/store/session";
 import { useToast } from "@/lib/store/toast";
 import { formatCLP } from "@/lib/utils";
 import { useDownloadFile } from "@/lib/hooks/useDownloadFile";
+import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 
 const STATUS_OPTIONS = [
   { value: "", label: "Todos" },
@@ -572,8 +574,8 @@ export default function PurchaseOrdersPage() {
         </div>
 
         {isLoading ? (
-          <div className="grid flex-1 place-items-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <div className="flex-1 py-8">
+            <TableSkeleton rows={5} columns={6} />
           </div>
         ) : orders.length === 0 ? (
           <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">
@@ -840,15 +842,12 @@ export default function PurchaseOrdersPage() {
         )}
       </div>
 
-      {modalOpen && (
-        <div
-          className="fixed inset-0 z-[70] flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
-          role="dialog"
-          aria-modal="true"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) closeModal();
-          }}
-        >
+      <AnimatedOverlay
+        open={modalOpen}
+        onClose={closeModal}
+        zIndex="z-[70]"
+        panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
+      >
           <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-2xl md:rounded-xl md:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-base font-semibold">Nueva orden de compra</h2>
@@ -1034,49 +1033,44 @@ export default function PurchaseOrdersPage() {
                 <Button type="button" variant="outline" onClick={closeModal} disabled={create.isPending}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={create.isPending}>
-                  {create.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Button type="submit" isLoading={create.isPending}>
                   Crear orden
                 </Button>
               </div>
             </form>
           </div>
-        </div>
-      )}
+      </AnimatedOverlay>
 
-      {detail && (
-        <div
-          className="fixed inset-0 z-[70] flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
-          role="dialog"
-          aria-modal="true"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) closeDetail();
-          }}
-        >
+      <AnimatedOverlay
+        open={!!detail}
+        onClose={closeDetail}
+        zIndex="z-[70]"
+        panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
+      >
           <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-lg md:rounded-xl md:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
-              <h2 className="text-base font-semibold">Orden {detail.order_number}</h2>
+              <h2 className="text-base font-semibold">Orden {detail!.order_number}</h2>
               <button onClick={closeDetail} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
                 <X className="h-5 w-5" />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-4">
               <div className="flex flex-col gap-2 text-sm">
-                <p><span className="text-muted-foreground">Proveedor:</span> {detail.supplier_name ?? "—"}</p>
+                <p><span className="text-muted-foreground">Proveedor:</span> {detail!.supplier_name ?? "—"}</p>
                 <p className="flex items-center gap-1">
                   <span className="text-muted-foreground">Estado:</span>
-                  <span className={statusBadgeClass(detail.status)}>{statusLabel(detail.status)}</span>
-                  {detail.payment_status && (
-                    <span className={paymentStatusBadgeClass(detail.payment_status)}>
-                      {paymentStatusLabel(detail.payment_status)}
+                  <span className={statusBadgeClass(detail!.status)}>{statusLabel(detail!.status)}</span>
+                  {detail!.payment_status && (
+                    <span className={paymentStatusBadgeClass(detail!.payment_status)}>
+                      {paymentStatusLabel(detail!.payment_status)}
                     </span>
                   )}
                 </p>
-                <p><span className="text-muted-foreground">Total:</span> {formatCLP(detail.total_amount ?? "0")}</p>
-                <p><span className="text-muted-foreground">Pagado:</span> {formatCLP(detail.paid_amount ?? "0")}</p>
-                <p><span className="text-muted-foreground">Pendiente:</span> {formatCLP(detail.remaining_amount ?? "0")}</p>
-                <p><span className="text-muted-foreground">Entrega esperada:</span> {formatDateCL(detail.expected_delivery_date)}</p>
-                <p><span className="text-muted-foreground">Ítems:</span> {detail.items_count}</p>
+                <p><span className="text-muted-foreground">Total:</span> {formatCLP(detail!.total_amount ?? "0")}</p>
+                <p><span className="text-muted-foreground">Pagado:</span> {formatCLP(detail!.paid_amount ?? "0")}</p>
+                <p><span className="text-muted-foreground">Pendiente:</span> {formatCLP(detail!.remaining_amount ?? "0")}</p>
+                <p><span className="text-muted-foreground">Entrega esperada:</span> {formatDateCL(detail!.expected_delivery_date)}</p>
+                <p><span className="text-muted-foreground">Ítems:</span> {detail!.items_count}</p>
               </div>
 
               {paymentSummary && (paymentSummary.payments?.length ?? 0) > 0 && (
@@ -1108,7 +1102,7 @@ export default function PurchaseOrdersPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => handleDownloadPdf(detail)}
+                onClick={() => handleDownloadPdf(detail!)}
                 disabled={isDownloading}
               >
                 <FileDown className="mr-2 h-4 w-4" />
@@ -1117,14 +1111,14 @@ export default function PurchaseOrdersPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => handleDownloadVoucher(detail)}
+                onClick={() => handleDownloadVoucher(detail!)}
                 disabled={isDownloading}
               >
                 <FileDown className="mr-2 h-4 w-4" />
                 Comprobante PDF
               </Button>
-              {canPay(detail) && (
-                <Button size="sm" onClick={() => openPayModal(detail)}>
+              {canPay(detail!) && (
+                <Button size="sm" onClick={() => openPayModal(detail!)}>
                   <Banknote className="mr-2 h-4 w-4" />
                   Registrar pago
                 </Button>
@@ -1134,21 +1128,17 @@ export default function PurchaseOrdersPage() {
               </Button>
             </div>
           </div>
-        </div>
-      )}
+      </AnimatedOverlay>
 
-      {payTarget && (
-        <div
-          className="fixed inset-0 z-[70] flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
-          role="dialog"
-          aria-modal="true"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) closePayModal();
-          }}
-        >
+      <AnimatedOverlay
+        open={!!payTarget}
+        onClose={closePayModal}
+        zIndex="z-[70]"
+        panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
+      >
           <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-sm md:rounded-xl md:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
-              <h2 className="text-base font-semibold">Registrar pago — {payTarget.order.order_number}</h2>
+              <h2 className="text-base font-semibold">Registrar pago — {payTarget!.order.order_number}</h2>
               <button onClick={closePayModal} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
                 <X className="h-5 w-5" />
               </button>
@@ -1157,7 +1147,7 @@ export default function PurchaseOrdersPage() {
               <div className="flex-1 overflow-y-auto p-4">
                 <div className="flex flex-col gap-4">
                   <p className="text-sm text-muted-foreground">
-                    Pendiente: <span className="font-medium tabular-nums text-foreground">{formatCLP(payTarget.order.remaining_amount ?? "0")}</span>
+                    Pendiente: <span className="font-medium tabular-nums text-foreground">{formatCLP(payTarget!.order.remaining_amount ?? "0")}</span>
                   </p>
                   <div className="flex flex-col gap-2">
                     <label htmlFor="pay-amount" className="text-sm font-medium">Monto</label>
@@ -1166,21 +1156,21 @@ export default function PurchaseOrdersPage() {
                       type="number"
                       step="0.01"
                       min="0.01"
-                      max={payTarget.order.remaining_amount ?? undefined}
-                      value={payTarget.amount}
-                      onChange={(e) => setPayTarget({ ...payTarget, amount: e.target.value })}
+                      max={payTarget!.order.remaining_amount ?? undefined}
+                      value={payTarget!.amount}
+                      onChange={(e) => setPayTarget({ ...payTarget!, amount: e.target.value })}
                       required
                     />
                     <p className="text-xs text-muted-foreground">
-                      Máximo: {formatCLP(payTarget.order.remaining_amount ?? "0")}
+                      Máximo: {formatCLP(payTarget!.order.remaining_amount ?? "0")}
                     </p>
                   </div>
                   <div className="flex flex-col gap-2">
                     <label htmlFor="pay-method" className="text-sm font-medium">Método de pago</label>
                     <Select
                       id="pay-method"
-                      value={payTarget.paymentMethod}
-                      onChange={(e) => setPayTarget({ ...payTarget, paymentMethod: e.target.value })}
+                      value={payTarget!.paymentMethod}
+                      onChange={(e) => setPayTarget({ ...payTarget!, paymentMethod: e.target.value })}
                     >
                       <option value="">Sin especificar</option>
                       {paymentMethods.map((m) => (
@@ -1192,8 +1182,8 @@ export default function PurchaseOrdersPage() {
                     <label htmlFor="pay-notes" className="text-sm font-medium">Referencia / nota</label>
                     <Input
                       id="pay-notes"
-                      value={payTarget.notes}
-                      onChange={(e) => setPayTarget({ ...payTarget, notes: e.target.value })}
+                      value={payTarget!.notes}
+                      onChange={(e) => setPayTarget({ ...payTarget!, notes: e.target.value })}
                       placeholder="Opcional"
                     />
                   </div>
@@ -1208,33 +1198,28 @@ export default function PurchaseOrdersPage() {
                 <Button type="button" variant="outline" onClick={closePayModal} disabled={pay.isPending}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={pay.isPending}>
-                  {pay.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Button type="submit" isLoading={pay.isPending}>
                   Registrar pago
                 </Button>
               </div>
             </form>
           </div>
-        </div>
-      )}
+      </AnimatedOverlay>
 
-      {confirmAction && (
-        <div
-          className="fixed inset-0 z-[70] flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
-          role="dialog"
-          aria-modal="true"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setConfirmAction(null);
-          }}
-        >
+      <AnimatedOverlay
+        open={!!confirmAction}
+        onClose={() => setConfirmAction(null)}
+        zIndex="z-[70]"
+        panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
+      >
           <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">
-              {confirmAction.type === "cancel" ? "¿Anular orden?" : "¿Completar orden?"}
+              {confirmAction!.type === "cancel" ? "¿Anular orden?" : "¿Completar orden?"}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              {confirmAction.type === "cancel"
-                ? `Se anulará la orden ${confirmAction.order.order_number}. Esta acción no se puede deshacer.`
-                : `Se marcará la orden ${confirmAction.order.order_number} como completada.`}
+              {confirmAction!.type === "cancel"
+                ? `Se anulará la orden ${confirmAction!.order.order_number}. Esta acción no se puede deshacer.`
+                : `Se marcará la orden ${confirmAction!.order.order_number} como completada.`}
             </p>
             {(cancel.isError || complete.isError) && (
               <p className="mt-2 text-sm text-danger">
@@ -1252,25 +1237,21 @@ export default function PurchaseOrdersPage() {
                 Cancelar
               </Button>
               <Button
-                variant={confirmAction.type === "cancel" ? "danger" : "default"}
+                variant={confirmAction!.type === "cancel" ? "danger" : "default"}
                 onClick={() => {
-                  if (confirmAction.type === "cancel") {
-                    cancel.mutate(confirmAction.order.id);
+                  if (confirmAction!.type === "cancel") {
+                    cancel.mutate(confirmAction!.order.id);
                   } else {
-                    complete.mutate(confirmAction.order.id);
+                    complete.mutate(confirmAction!.order.id);
                   }
                 }}
-                disabled={cancel.isPending || complete.isPending}
+                isLoading={cancel.isPending || complete.isPending}
               >
-                {(cancel.isPending || complete.isPending) && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                {confirmAction.type === "cancel" ? "Anular" : "Completar"}
+                {confirmAction!.type === "cancel" ? "Anular" : "Completar"}
               </Button>
             </div>
           </div>
-        </div>
-      )}
+      </AnimatedOverlay>
     </div>
   );
 }

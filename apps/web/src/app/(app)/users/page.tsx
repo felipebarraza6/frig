@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, KeyRound, Power, Loader2, Users, Pencil } from "lucide-react";
+import { Plus, Search, KeyRound, Power, Users, Pencil } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { useSessionStore, useCurrentBranch, useCanManageUsers } from "@/lib/store/session";
 import { branchName } from "@/lib/types";
 import {
@@ -150,9 +151,7 @@ export default function UsersPage() {
         {error ? (
           <p className="text-sm text-danger">No se pudo cargar los usuarios.</p>
         ) : isLoading ? (
-          <div className="grid flex-1 place-items-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
+          <TableSkeleton rows={5} columns={4} />
         ) : users.length === 0 ? (
           <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">
             <div>

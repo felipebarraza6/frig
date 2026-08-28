@@ -5,7 +5,6 @@ import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
-  Loader2,
   Package,
   Plus,
   ArrowRightLeft,
@@ -27,6 +26,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import {
   fetchWarehouses,
   fetchWarehouse,
@@ -630,6 +630,7 @@ export default function WarehouseDetailPage() {
                 size="sm"
                 variant="outline"
                 disabled={exporting || products.length === 0}
+                isLoading={exporting}
                 onClick={async () => {
                   setExporting(true);
                   try {
@@ -639,11 +640,7 @@ export default function WarehouseDetailPage() {
                   }
                 }}
               >
-                {exporting ? (
-                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <FileSpreadsheet className="mr-1 h-3.5 w-3.5" />
-                )}
+                <FileSpreadsheet className="mr-1 h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Excel</span>
               </Button>
               <Button size="sm" variant="outline" onClick={() => setTransferOpen(true)}>
@@ -749,6 +746,7 @@ export default function WarehouseDetailPage() {
                   variant="outline"
                   className="flex-1"
                   disabled={exporting || products.length === 0}
+                  isLoading={exporting}
                   onClick={async () => {
                     setExporting(true);
                     try {
@@ -758,11 +756,7 @@ export default function WarehouseDetailPage() {
                     }
                   }}
                 >
-                  {exporting ? (
-                    <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <FileSpreadsheet className="mr-1 h-3.5 w-3.5" />
-                  )}
+                  <FileSpreadsheet className="mr-1 h-3.5 w-3.5" />
                   Excel
                 </Button>
                 <Button
@@ -1094,8 +1088,8 @@ export default function WarehouseDetailPage() {
               <Button
                 onClick={() => add.mutate()}
                 disabled={add.isPending || !selectedProduct || !initialQuantity}
+                isLoading={add.isPending}
               >
-                {add.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Agregar
               </Button>
             </div>
@@ -1245,8 +1239,8 @@ export default function WarehouseDetailPage() {
                   configForm.current_quantity === "" ||
                   Number(configForm.current_quantity) < 0
                 }
+                isLoading={config.isPending}
               >
-                {config.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Guardar
               </Button>
             </div>
@@ -1305,8 +1299,8 @@ export default function WarehouseDetailPage() {
               <Button
                 onClick={() => transfer.mutate()}
                 disabled={transfer.isPending || !transferProduct || !transferTarget || !transferQuantity}
+                isLoading={transfer.isPending}
               >
-                {transfer.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Transferir
               </Button>
             </div>
@@ -1327,10 +1321,10 @@ function Modal({
   onClose: () => void;
 }) {
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
-      role="dialog"
-      aria-modal="true"
+    <AnimatedOverlay
+      open={true}
+      onClose={onClose}
+      panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
     >
       <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
         <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
@@ -1343,6 +1337,6 @@ function Modal({
           {children}
         </div>
       </div>
-    </div>
+    </AnimatedOverlay>
   );
 }

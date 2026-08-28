@@ -7,7 +7,7 @@ import {
   Search,
   Pencil,
   Power,
-  Loader2,
+
   User,
   X,
   FileDown,
@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import {
   fetchCustomers,
   createCustomer,
@@ -215,30 +216,22 @@ export default function CustomersPage() {
             variant="outline"
             size="sm"
             onClick={handleExportExcel}
-            disabled={isDownloading}
+            isLoading={isDownloading}
             className="h-9 w-9 px-0 sm:w-auto sm:px-3"
             title="Exportar Excel"
           >
-            {isDownloading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <FileDown className="h-4 w-4" />
-            )}
+            <FileDown className="h-4 w-4" />
             <span className="hidden sm:inline">Excel</span>
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={handleExportPdf}
-            disabled={isDownloading}
+            isLoading={isDownloading}
             className="h-9 w-9 px-0 sm:w-auto sm:px-3"
             title="Exportar PDF"
           >
-            {isDownloading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <FileText className="h-4 w-4" />
-            )}
+            <FileText className="h-4 w-4" />
             <span className="hidden sm:inline">PDF</span>
           </Button>
           <Button onClick={() => openModal()} className="h-9">
@@ -667,12 +660,12 @@ export default function CustomersPage() {
         )}
       </div>
 
-      {modalOpen && (
-        <div
-          className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
-          role="dialog"
-          aria-modal="true"
-        >
+      <AnimatedOverlay
+        open={modalOpen}
+        onClose={closeModal}
+        zIndex="z-[70]"
+        panelClassName="flex items-end justify-center p-0 sm:items-center sm:p-4"
+      >
           <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg sm:h-auto sm:max-h-[90vh] sm:max-w-lg sm:rounded-xl sm:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-base font-semibold">
@@ -812,25 +805,23 @@ export default function CustomersPage() {
               <Button type="button" variant="outline" onClick={closeModal} disabled={save.isPending}>
                 Cancelar
               </Button>
-              <Button type="submit" form="customer-form" disabled={save.isPending}>
-                {save.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button type="submit" form="customer-form" isLoading={save.isPending}>
                 Guardar
               </Button>
             </div>
           </div>
-        </div>
-      )}
+      </AnimatedOverlay>
 
-      {confirmDelete && (
-        <div
-          className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
-          role="dialog"
-          aria-modal="true"
-        >
+      <AnimatedOverlay
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        zIndex="z-[70]"
+        panelClassName="flex items-end justify-center p-0 sm:items-center sm:p-4"
+      >
           <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg sm:max-w-md sm:rounded-xl sm:border sm:p-6">
             <h2 className="text-base font-semibold">¿Eliminar cliente?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Se eliminará <span className="font-medium text-foreground">{confirmDelete.name}</span>.
+              Se eliminará <span className="font-medium text-foreground">{confirmDelete!.name}</span>.
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <Button variant="outline" onClick={() => setConfirmDelete(null)} disabled={remove.isPending}>
@@ -838,16 +829,14 @@ export default function CustomersPage() {
               </Button>
               <Button
                 variant="danger"
-                onClick={() => remove.mutate(confirmDelete.id)}
-                disabled={remove.isPending}
+                onClick={() => remove.mutate(confirmDelete!.id)}
+                isLoading={remove.isPending}
               >
-                {remove.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Eliminar
               </Button>
             </div>
           </div>
-        </div>
-      )}
+      </AnimatedOverlay>
     </div>
   );
 }

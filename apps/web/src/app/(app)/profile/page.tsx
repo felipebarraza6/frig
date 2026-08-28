@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { User as UserIcon, KeyRound, Store, Check, Loader2, AlertCircle, Building2 } from "lucide-react";
+import { User as UserIcon, KeyRound, Store, Check, AlertCircle, Building2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -219,8 +219,7 @@ export default function ProfilePage() {
               )}
 
               <div className="flex justify-end">
-                <Button type="submit" disabled={updateProfile.isPending}>
-                  {updateProfile.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Button type="submit" isLoading={updateProfile.isPending}>
                   Guardar cambios
                 </Button>
               </div>
@@ -371,8 +370,7 @@ export default function ProfilePage() {
             )}
 
             <div className="flex justify-end">
-              <Button type="submit" disabled={changePass.isPending}>
-                {changePass.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button type="submit" isLoading={changePass.isPending}>
                 Cambiar contraseña
               </Button>
             </div>

@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { X, Loader2, Palette, ImageIcon } from "lucide-react";
+import { X, Palette, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import { useToast } from "@/lib/store/toast";
 import { useSessionStore } from "@/lib/store/session";
 import {
@@ -130,10 +132,10 @@ export function BranchThemeDialog({ branch, onClose }: BranchThemeDialogProps) {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
-      role="dialog"
-      aria-modal="true"
+    <AnimatedOverlay
+      open={true}
+      onClose={onClose}
+      panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
     >
       <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-2xl md:rounded-xl md:border">
         <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 md:px-6">
@@ -160,7 +162,7 @@ export function BranchThemeDialog({ branch, onClose }: BranchThemeDialogProps) {
         >
           {isLoading ? (
             <div className="grid flex-1 place-items-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <Skeleton className="h-6 w-6 rounded-full" />
             </div>
           ) : (
             <>
@@ -381,8 +383,7 @@ export function BranchThemeDialog({ branch, onClose }: BranchThemeDialogProps) {
                 <Button type="button" variant="outline" onClick={onClose} disabled={save.isPending}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={save.isPending}>
-                  {save.isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                <Button type="submit" isLoading={save.isPending}>
                   Guardar tema
                 </Button>
               </div>
@@ -390,6 +391,6 @@ export function BranchThemeDialog({ branch, onClose }: BranchThemeDialogProps) {
           )}
         </form>
       </div>
-    </div>
+    </AnimatedOverlay>
   );
 }

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { Select } from "@/components/ui/select";
 import { QRCodeSVG } from "qrcode.react";
 import { cn } from "@/lib/utils";
@@ -43,6 +44,7 @@ import {
   type FontFamily,
 } from "@/lib/api/public-catalog";
 import { useCurrentBranch } from "@/lib/store/session";
+import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 
 const MENU_MODES: { value: MenuMode; label: string }[] = [
   { value: "VITRINA", label: "Solo vitrina" },
@@ -344,9 +346,7 @@ export default function MenusPage() {
             )}
           </div>
         ) : isLoading ? (
-          <div className="grid flex-1 place-items-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
+          <TableSkeleton rows={5} columns={4} />
         ) : filtered.length === 0 ? (
           <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">
             <div>
@@ -577,12 +577,11 @@ export default function MenusPage() {
         )}
       </div>
 
-      {modalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
-          role="dialog"
-          aria-modal="true"
-        >
+      <AnimatedOverlay
+        open={modalOpen}
+        onClose={closeModal}
+        panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
+      >
           <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-3xl md:rounded-xl md:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 md:px-6 md:py-4">
               <h2 className="text-base font-semibold">
@@ -943,28 +942,25 @@ export default function MenusPage() {
                 <Button type="button" variant="outline" onClick={closeModal} disabled={isSaving}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={isSaving}>
-                  {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Button type="submit" isLoading={isSaving}>
                   Guardar
                 </Button>
               </div>
             </form>
           </div>
-        </div>
-      )}
+      </AnimatedOverlay>
 
-      {qrCatalog && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
-          role="dialog"
-          aria-modal="true"
-        >
+      <AnimatedOverlay
+        open={!!qrCatalog}
+        onClose={() => setQrCatalog(null)}
+        panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
+      >
           <div className="flex h-auto w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:max-w-md md:rounded-xl md:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 md:px-6">
               <div>
                 <h2 className="text-base font-semibold">Código QR</h2>
                 <p className="text-xs text-muted-foreground">
-                  Menú: <span className="font-medium text-foreground">{qrCatalog.title}</span>
+                  Menú: <span className="font-medium text-foreground">{qrCatalog!.title}</span>
                 </p>
               </div>
               <button
@@ -979,19 +975,19 @@ export default function MenusPage() {
             <div className="flex flex-col items-center gap-3 overflow-y-auto p-4 md:p-6">
               <div className="rounded-xl border border-border bg-white p-3">
                 <QRCodeSVG
-                  value={`${window.location.origin}${publicMenuUrl(qrCatalog.slug)}`}
+                  value={`${window.location.origin}${publicMenuUrl(qrCatalog!.slug)}`}
                   size={256}
                   level="M"
                   includeMargin
                 />
               </div>
               <a
-                href={publicMenuUrl(qrCatalog.slug)}
+                href={publicMenuUrl(qrCatalog!.slug)}
                 target="_blank"
                 rel="noreferrer"
                 className="max-w-full truncate text-xs text-primary hover:underline"
               >
-                {window.location.origin}{publicMenuUrl(qrCatalog.slug)}
+                {window.location.origin}{publicMenuUrl(qrCatalog!.slug)}
               </a>
             </div>
 
@@ -1000,7 +996,7 @@ export default function MenusPage() {
                 Cerrar
               </Button>
               <a
-                href={`/menu/${qrCatalog.slug}/totem`}
+                href={`/menu/${qrCatalog!.slug}/totem`}
                 target="_blank"
                 rel="noreferrer"
                 className={cn(buttonVariants({ variant: "default" }))}
@@ -1009,19 +1005,17 @@ export default function MenusPage() {
               </a>
             </div>
           </div>
-        </div>
-      )}
+      </AnimatedOverlay>
 
-      {confirmDelete && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
-          role="dialog"
-          aria-modal="true"
-        >
+      <AnimatedOverlay
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
+      >
           <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">¿Eliminar menú?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Se eliminará <span className="font-medium text-foreground">{confirmDelete.title}</span>. Esta
+              Se eliminará <span className="font-medium text-foreground">{confirmDelete!.title}</span>. Esta
               acción no se puede deshacer.
             </p>
             <div className="mt-4 flex justify-end gap-2">
@@ -1032,14 +1026,12 @@ export default function MenusPage() {
               >
                 Cancelar
               </Button>
-              <Button variant="danger" onClick={handleDelete} disabled={deleteMutation.isPending}>
-                {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button variant="danger" onClick={handleDelete} isLoading={deleteMutation.isPending}>
                 Eliminar
               </Button>
             </div>
           </div>
-        </div>
-      )}
+      </AnimatedOverlay>
     </div>
   );
 }

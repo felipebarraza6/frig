@@ -5,7 +5,6 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   Search,
-  Loader2,
   Receipt,
   ClipboardList,
   X,
@@ -34,7 +33,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton, GridSkeleton } from "@/components/ui/skeleton";
 import { Select } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import CartPanel from "@/components/pos/cart-panel";
@@ -1285,7 +1284,10 @@ export default function PosPage() {
               }
             >
               {openCashRegisterMutation.isPending || closeCashRegisterMutation.isPending ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
+                <svg className="h-3 w-3 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
               ) : cashRegisterError ? (
                 <>
                   <AlertTriangle className="h-3 w-3" />
@@ -1584,7 +1586,7 @@ export default function PosPage() {
               </div>
             ) : productsLoading || assignedMenuLoading ? (
               <div className="grid h-full place-items-center rounded-xl border border-dashed border-border">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <GridSkeleton count={12} />
               </div>
             ) : filtered.length === 0 ? (
               <div className="grid h-full place-items-center rounded-xl border border-dashed border-border">
@@ -1652,7 +1654,7 @@ export default function PosPage() {
       {/* Carrito móvil / bottom sheet */}
       {cartOpen && (
         <div
-          className="fixed inset-0 z-50 flex flex-col justify-end bg-black/40 md:hidden"
+          className="fixed inset-0 z-50 flex flex-col justify-end bg-black/50 backdrop-blur-xs md:hidden"
           role="dialog"
           aria-modal="true"
           onClick={(e) => {
@@ -1663,12 +1665,12 @@ export default function PosPage() {
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
-            transition={{ duration: 0.2 }}
-            className="flex h-[85dvh] w-full flex-col rounded-t-2xl bg-card shadow-xl"
+            transition={{ type: "spring", stiffness: 350, damping: 32 }}
+            className="flex max-h-[92dvh] h-[90dvh] w-full flex-col rounded-t-3xl bg-card shadow-2xl overflow-hidden pb-[env(safe-area-inset-bottom)]"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex shrink-0 justify-center py-2">
-              <div className="h-1 w-10 rounded-full bg-muted" />
+            <div className="flex shrink-0 justify-center py-2.5">
+              <div className="h-1.5 w-12 rounded-full bg-muted-foreground/30" />
             </div>
             <CartPanel
               stationId={activeStationId}
@@ -2172,8 +2174,8 @@ export default function PosPage() {
                   size="sm"
                   onClick={handleCreateAccountFromPos}
                   disabled={accountCreating || (!accountSelectedClient && !accountCreateName.trim())}
+                  isLoading={accountCreating}
                 >
-                  {accountCreating && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
                   Abrir cuenta
                 </Button>
               </div>
@@ -2352,7 +2354,10 @@ export default function PosPage() {
                             className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
                           >
                             {deliverMutation.isPending && deliverMutation.variables?.id === order.id ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
+                              <svg className="h-3 w-3 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                              </svg>
                             ) : (
                               <Zap className="h-3 w-3" />
                             )}
@@ -2397,9 +2402,8 @@ export default function PosPage() {
               <Button
                 variant="danger"
                 onClick={() => handleCancelOrder(cancelingOrder)}
-                disabled={isCanceling}
+                isLoading={isCanceling}
               >
-                {isCanceling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Anular
               </Button>
             </div>
@@ -2873,14 +2877,11 @@ export default function PosPage() {
                             !movementAmount ||
                             isSupplierPaymentSubmitting
                           }
+                          isLoading={isSupplierPaymentSubmitting}
                           variant="danger"
                           className="h-auto min-h-10 whitespace-normal py-2 text-xs sm:min-h-9"
                         >
-                          {isSupplierPaymentSubmitting ? (
-                            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Truck className="mr-1.5 h-3.5 w-3.5" />
-                          )}
+                          <Truck className="mr-1.5 h-3.5 w-3.5" />
                           <span className="hidden sm:inline">Registrar egreso directo</span>
                           <span className="sm:hidden">Registrar egreso</span>
                         </Button>
@@ -3025,14 +3026,11 @@ export default function PosPage() {
                             !supplierPaidAmount ||
                             isSupplierPaymentSubmitting
                           }
+                          isLoading={isSupplierPaymentSubmitting}
                           variant="danger"
                           className="h-auto min-h-10 whitespace-normal py-2 text-xs sm:min-h-9"
                         >
-                          {isSupplierPaymentSubmitting ? (
-                            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Truck className="mr-1.5 h-3.5 w-3.5" />
-                          )}
+                          <Truck className="mr-1.5 h-3.5 w-3.5" />
                           <span className="hidden sm:inline">Crear orden y registrar pago</span>
                           <span className="sm:hidden">Crear OC y pagar</span>
                         </Button>
@@ -3065,12 +3063,11 @@ export default function PosPage() {
                         })
                       }
                       disabled={!isRegisterController || !movementAmount || !movementReason || movementMutation.isPending}
+                      isLoading={movementMutation.isPending}
                       variant={movementType === "CASH_OUT" ? "danger" : "default"}
                       className="h-auto min-h-10 whitespace-normal py-2 text-xs sm:min-h-9"
                     >
-                      {movementMutation.isPending ? (
-                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                      ) : movementType === "CASH_IN" ? (
+                      {movementType === "CASH_IN" ? (
                         <Plus className="mr-1.5 h-3.5 w-3.5" />
                       ) : (
                         <Minus className="mr-1.5 h-3.5 w-3.5" />
@@ -3129,17 +3126,15 @@ export default function PosPage() {
               ) : currentCashRegister ? (
                 <Button
                   onClick={() => closeCashRegisterMutation.mutate()}
-                  disabled={closeCashRegisterMutation.isPending}
+                  isLoading={closeCashRegisterMutation.isPending}
                 >
-                  {closeCashRegisterMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Cerrar caja
                 </Button>
               ) : (
                 <Button
                   onClick={() => openCashRegisterMutation.mutate()}
-                  disabled={openCashRegisterMutation.isPending}
+                  isLoading={openCashRegisterMutation.isPending}
                 >
-                  {openCashRegisterMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Abrir caja
                 </Button>
               )}

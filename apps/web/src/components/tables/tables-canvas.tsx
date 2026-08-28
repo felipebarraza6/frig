@@ -235,11 +235,6 @@ export function TablesCanvas({
 
   const hasMultipleAreas = areaGroups.length > 1;
 
-  const hoveredElapsed = useElapsedTime(
-    hoveredTable?.occupied_since,
-    { enabled: hoveredTable?.status === "OCCUPIED" },
-  );
-
   function handleDragEnd(
     event: MouseEvent | TouchEvent | PointerEvent,
     table: TableItem,
@@ -409,7 +404,6 @@ export function TablesCanvas({
         {hoveredTable && hoveredTable.status === "OCCUPIED" && (
           <TableTooltip
             table={hoveredTable}
-            elapsedText={hoveredElapsed.text}
             contentOffset={contentOffset}
           />
         )}
@@ -420,13 +414,14 @@ export function TablesCanvas({
 
 function TableTooltip({
   table,
-  elapsedText,
   contentOffset,
 }: {
   table: TableItem;
-  elapsedText: string;
   contentOffset: { x: number; y: number };
 }) {
+  const elapsed = useElapsedTime(table.occupied_since, {
+    enabled: table.status === "OCCUPIED",
+  });
   const dims = tableDimensions(table.capacity || 1, table.shape);
   const x = (table.x_position ?? 0) + contentOffset.x + dims.width / 2;
   const y = (table.y_position ?? 0) + contentOffset.y - 8;
@@ -450,7 +445,7 @@ function TableTooltip({
       <p className="text-muted-foreground">{table.area || "Sin área"}</p>
       <p className="mt-1 flex items-center gap-1 font-medium text-rose-700">
         <Clock className="h-3 w-3" />
-        {elapsedText} en consumo
+        {elapsed.text} en consumo
       </p>
       {order && (
         <p className="mt-1 font-bold tabular-nums text-emerald-700">

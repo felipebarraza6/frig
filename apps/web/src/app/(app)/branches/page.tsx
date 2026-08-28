@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Pencil, Power, Loader2, Store, Users, Palette, Phone, Mail } from "lucide-react";
+import { Plus, Search, Pencil, Power, Store, Users, Palette, Phone, Mail } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import {
   useSessionStore,
   useCanViewBranches,
@@ -113,9 +114,7 @@ export default function BranchesPage() {
         {error ? (
           <p className="text-sm text-danger">No se pudieron cargar las sucursales.</p>
         ) : isLoading ? (
-          <div className="grid flex-1 place-items-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
+          <TableSkeleton rows={5} columns={4} />
         ) : branches.length === 0 ? (
           <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">
             <div>

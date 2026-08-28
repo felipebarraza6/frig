@@ -6,7 +6,6 @@ import {
   Plus,
   Search,
   Power,
-  Loader2,
   Package,
   AlertTriangle,
   FileSpreadsheet,
@@ -23,7 +22,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton, TableSkeleton } from "@/components/ui/skeleton";
 import { cn, formatCLP } from "@/lib/utils";
 import {
   fetchProducts,
@@ -44,6 +43,7 @@ import { useBranchProductTypes } from "@/lib/hooks/useBranchProductTypes";
 import { useCategoryOptions } from "@/lib/hooks/useCategoryOptions";
 import { useToast } from "@/lib/store/toast";
 import { useCurrentBranch } from "@/lib/store/session";
+import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import type { YggdraProduct } from "@/lib/api/types";
 
 function productStock(p: YggdraProduct): number {
@@ -1010,7 +1010,7 @@ export function ProductsClient() {
 
       {loadingEditing && editingId && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
-          <Loader2 className="h-6 w-6 animate-spin text-white" />
+          <TableSkeleton rows={3} columns={2} />
         </div>
       )}
 
@@ -1034,8 +1034,12 @@ export function ProductsClient() {
         />
       )}
 
-      {confirmDelete && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4" role="dialog" aria-modal="true">
+      <AnimatedOverlay
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
+      >
+          {confirmDelete && (
           <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">Eliminar producto</h2>
             <p className="mt-2 text-sm text-muted-foreground">
@@ -1055,15 +1059,14 @@ export function ProductsClient() {
                 variant="danger"
                 size="sm"
                 onClick={handleConfirmDelete}
-                disabled={remove.isPending}
+                isLoading={remove.isPending}
               >
-                {remove.isPending && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
                 Eliminar
               </Button>
             </div>
           </div>
-        </div>
-      )}
+          )}
+      </AnimatedOverlay>
     </div>
   );
 }

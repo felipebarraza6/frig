@@ -2,9 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Pencil, Trash2, Loader2, Tag, X, Copy, FolderOpen, Boxes, Folder } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Tag, X, Copy, FolderOpen, Boxes, Folder } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import { useToast } from "@/lib/store/toast";
 import { useCurrentBranch } from "@/lib/store/session";
 import {
@@ -170,8 +172,8 @@ export default function CategoriesPage() {
         {error ? (
           <p className="text-sm text-danger">No se pudieron cargar las categorías.</p>
         ) : isLoading ? (
-          <div className="grid flex-1 place-items-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <div className="flex-1 py-8">
+            <TableSkeleton rows={5} columns={3} />
           </div>
         ) : !hasData ? (
           <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">
@@ -393,15 +395,12 @@ export default function CategoriesPage() {
         )}
       </div>
 
-      {modalOpen && (
-        <div
-          className="fixed inset-0 z-[60] flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
-          role="dialog"
-          aria-modal="true"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) closeModal();
-          }}
-        >
+      <AnimatedOverlay
+        open={modalOpen}
+        onClose={closeModal}
+        zIndex="z-[60]"
+        panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
+      >
           <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-base font-semibold">
@@ -442,29 +441,24 @@ export default function CategoriesPage() {
                 <Button type="button" variant="outline" onClick={closeModal} disabled={save.isPending}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={save.isPending}>
-                  {save.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Button type="submit" isLoading={save.isPending}>
                   Guardar
                 </Button>
               </div>
             </form>
           </div>
-        </div>
-      )}
+      </AnimatedOverlay>
 
-      {confirmDelete && (
-        <div
-          className="fixed inset-0 z-[60] flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
-          role="dialog"
-          aria-modal="true"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setConfirmDelete(null);
-          }}
-        >
+      <AnimatedOverlay
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        zIndex="z-[60]"
+        panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
+      >
           <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">¿Eliminar categoría?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Se desactivará <span className="font-medium text-foreground">{confirmDelete.name}</span>. Los productos asociados no se eliminan.
+              Se desactivará <span className="font-medium text-foreground">{confirmDelete!.name}</span>. Los productos asociados no se eliminan.
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <Button variant="outline" onClick={() => setConfirmDelete(null)} disabled={remove.isPending}>
@@ -472,16 +466,14 @@ export default function CategoriesPage() {
               </Button>
               <Button
                 variant="danger"
-                onClick={() => remove.mutate(confirmDelete.id)}
-                disabled={remove.isPending}
+                onClick={() => remove.mutate(confirmDelete!.id)}
+                isLoading={remove.isPending}
               >
-                {remove.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Eliminar
               </Button>
             </div>
           </div>
-        </div>
-      )}
+      </AnimatedOverlay>
     </div>
   );
 }

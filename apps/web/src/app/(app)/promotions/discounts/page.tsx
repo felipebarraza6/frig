@@ -6,7 +6,6 @@ import {
   Search,
   Pencil,
   Trash2,
-  Loader2,
   Percent,
   X,
   Calendar,
@@ -19,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { formatCLP, cn } from "@/lib/utils";
 import { useToast } from "@/lib/store/toast";
 import {
@@ -36,6 +36,7 @@ import { useCategories } from "@/lib/hooks/useCatalog";
 import { fetchDiscount, exportDiscountsExcel } from "@/lib/api/discounts";
 import { useCurrentBranch } from "@/lib/store/session";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
+import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 
 const DISCOUNT_TYPES = [
   { value: "PERCENTAGE", label: "Porcentaje" },
@@ -328,15 +329,12 @@ export default function DiscountsPage() {
             size="icon"
             onClick={handleExportExcel}
             disabled={isDownloading || isLoading}
+            isLoading={isDownloading}
             className="sm:hidden"
             title="Exportar Excel"
             aria-label="Exportar Excel"
           >
-            {isDownloading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <FileDown className="h-4 w-4" />
-            )}
+            <FileDown className="h-4 w-4" />
           </Button>
           {/* Desktop: export with text */}
           <Button
@@ -344,13 +342,10 @@ export default function DiscountsPage() {
             size="sm"
             onClick={handleExportExcel}
             disabled={isDownloading || isLoading}
+            isLoading={isDownloading}
             className="hidden sm:flex"
           >
-            {isDownloading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <FileDown className="mr-2 h-4 w-4" />
-            )}
+            <FileDown className="mr-2 h-4 w-4" />
             Exportar Excel
           </Button>
 
@@ -551,7 +546,7 @@ export default function DiscountsPage() {
           </div>
         ) : isLoading ? (
           <div className="grid flex-1 place-items-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <TableSkeleton rows={5} columns={4} />
           </div>
         ) : filtered.length === 0 ? (
           <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">
@@ -725,15 +720,12 @@ export default function DiscountsPage() {
         )}
       </div>
 
-      {modalOpen && (
-        <div
-          className="fixed inset-0 z-[70] flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
-          role="dialog"
-          aria-modal="true"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) closeModal();
-          }}
-        >
+      <AnimatedOverlay
+        open={modalOpen}
+        onClose={closeModal}
+        zIndex="z-[70]"
+        panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
+      >
           <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-2xl md:rounded-xl md:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 md:px-6 md:py-4">
               <h2 className="text-base font-semibold">
@@ -752,7 +744,7 @@ export default function DiscountsPage() {
               <div className="relative flex-1 overflow-y-auto p-4 md:p-6">
                 {loadingDiscount && (
                   <div className="absolute inset-0 z-10 grid place-items-center bg-card/80">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    <TableSkeleton rows={3} columns={4} />
                   </div>
                 )}
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -1076,30 +1068,25 @@ export default function DiscountsPage() {
                 <Button type="button" variant="outline" onClick={closeModal} disabled={isSaving}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={isSaving}>
-                  {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Button type="submit" isLoading={isSaving}>
                   Guardar
                 </Button>
               </div>
             </form>
           </div>
-        </div>
-      )}
+      </AnimatedOverlay>
 
-      {confirmDelete && (
-        <div
-          className="fixed inset-0 z-[70] flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
-          role="dialog"
-          aria-modal="true"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setConfirmDelete(null);
-          }}
-        >
+      <AnimatedOverlay
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        zIndex="z-[70]"
+        panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
+      >
           <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">¿Eliminar descuento?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Se eliminará{" "}
-              <span className="font-medium text-foreground">{confirmDelete.name}</span>. Esta
+              <span className="font-medium text-foreground">{confirmDelete!.name}</span>. Esta
               acción no se puede deshacer.
             </p>
             <div className="mt-4 flex justify-end gap-2">
@@ -1113,15 +1100,13 @@ export default function DiscountsPage() {
               <Button
                 variant="danger"
                 onClick={handleDelete}
-                disabled={deleteMutation.isPending}
+                isLoading={deleteMutation.isPending}
               >
-                {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Eliminar
               </Button>
             </div>
           </div>
-        </div>
-      )}
+      </AnimatedOverlay>
     </div>
   );
 }

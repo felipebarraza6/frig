@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { X, Loader2, UserPlus } from "lucide-react";
+import { X, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import { useCanManageBranches } from "@/lib/store/session";
 import { fetchBranchUsers, inviteBranchUser, fetchBranchRoles } from "@/lib/api/branches";
 import type { RoleDefinition } from "@/lib/types";
@@ -50,10 +52,10 @@ export function BranchUsersDialog({ branch, onClose }: BranchUsersDialogProps) {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
-      role="dialog"
-      aria-modal="true"
+    <AnimatedOverlay
+      open={true}
+      onClose={onClose}
+      panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
     >
       <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-lg md:rounded-xl md:border">
         <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
@@ -108,12 +110,8 @@ export function BranchUsersDialog({ branch, onClose }: BranchUsersDialogProps) {
                 </Select>
               </div>
               <div className="flex justify-end">
-                <Button type="submit" size="sm" disabled={invite.isPending}>
-                  {invite.isPending ? (
-                    <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <UserPlus className="mr-1 h-3.5 w-3.5" />
-                  )}
+                <Button type="submit" size="sm" isLoading={invite.isPending}>
+                  <UserPlus className="mr-1 h-3.5 w-3.5" />
                   Invitar
                 </Button>
               </div>
@@ -122,7 +120,7 @@ export function BranchUsersDialog({ branch, onClose }: BranchUsersDialogProps) {
 
           {isLoading ? (
             <div className="grid flex-1 place-items-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <Skeleton className="h-6 w-6 rounded-full" />
             </div>
           ) : (
             <div className="overflow-x-auto rounded-xl border border-border">
@@ -167,6 +165,6 @@ export function BranchUsersDialog({ branch, onClose }: BranchUsersDialogProps) {
           )}
         </div>
       </div>
-    </div>
+    </AnimatedOverlay>
   );
 }

@@ -16,6 +16,7 @@ import {
   PinOff,
   ChevronDown,
   ChevronRight,
+  Store,
   User as UserIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -133,17 +134,42 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
   );
 
   const allItems = useMemo<CommandPaletteItem[]>(() => {
-    const ops = visibleMenuGroups.flatMap((g) => g.title.toLowerCase() === "operaciones" ? g.items.map((i) => ({ href: i.href, label: i.label, group: "Operaciones" as const })) : []);
+    const ops = visibleMenuGroups.flatMap((g) =>
+      g.title.toLowerCase() === "operaciones"
+        ? g.items.map((i) => ({
+            href: i.href,
+            label: i.label,
+            group: "Operaciones" as const,
+            icon: i.icon,
+            description: i.description,
+          }))
+        : [],
+    );
     const stations = kitchenStations.map((s) => ({
       href: `/kds/station/${s.id}`,
       label: s.name,
       group: "Estaciones de cocina",
+      icon: ChefHat,
     }));
     const admin = visibleMenuGroups
       .filter((g) => g.title.toLowerCase() !== "operaciones")
-      .flatMap((g) => g.items.map((i) => ({ href: i.href, label: i.label, group: g.title })));
-    return [...ops, ...stations, ...admin];
-  }, [visibleMenuGroups, kitchenStations]);
+      .flatMap((g) =>
+        g.items.map((i) => ({
+          href: i.href,
+          label: i.label,
+          group: g.title,
+          icon: i.icon,
+          description: i.description,
+        })),
+      );
+    const actions: CommandPaletteItem[] = [
+      { href: "", label: "Cerrar sesión", group: "Acciones", icon: LogOut, action: handleLogout },
+      ...(canSwitchBranch
+        ? [{ href: "", label: "Cambiar sucursal", group: "Acciones" as const, icon: Store, action: () => router.push("/select-branch") }]
+        : []),
+    ];
+    return [...ops, ...stations, ...admin, ...actions];
+  }, [visibleMenuGroups, kitchenStations, canSwitchBranch, handleLogout, router]);
 
   const allNavHrefs = useMemo(
     () => [...visibleMenuGroups.flatMap((g) => g.items), ...stationItems],

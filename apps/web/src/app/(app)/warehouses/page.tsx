@@ -8,7 +8,6 @@ import {
   Search,
   Pencil,
   Trash2,
-  Loader2,
   Warehouse,
   X,
   FileSpreadsheet,
@@ -26,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import {
   fetchWarehouses,
   createWarehouse,
@@ -736,12 +736,11 @@ export default function WarehousesPage() {
         )}
       </div>
 
-      {modalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
-          role="dialog"
-          aria-modal="true"
-        >
+      <AnimatedOverlay
+        open={modalOpen}
+        onClose={closeModal}
+        panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
+      >
           <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-base font-semibold">
@@ -831,26 +830,23 @@ export default function WarehousesPage() {
                 <Button type="button" variant="outline" onClick={closeModal} disabled={save.isPending}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={save.isPending}>
-                  {save.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Button type="submit" isLoading={save.isPending}>
                   Guardar
                 </Button>
               </div>
             </form>
           </div>
-        </div>
-      )}
+      </AnimatedOverlay>
 
-      {confirmDelete && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
-          role="dialog"
-          aria-modal="true"
-        >
+      <AnimatedOverlay
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
+      >
           <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">¿Eliminar bodega?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Se desactivará <span className="font-medium text-foreground">{confirmDelete.name}</span>.
+              Se desactivará <span className="font-medium text-foreground">{confirmDelete!.name}</span>.
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <Button variant="outline" onClick={() => setConfirmDelete(null)} disabled={remove.isPending}>
@@ -858,16 +854,14 @@ export default function WarehousesPage() {
               </Button>
               <Button
                 variant="danger"
-                onClick={() => remove.mutate(confirmDelete.id)}
-                disabled={remove.isPending}
+                onClick={() => remove.mutate(confirmDelete!.id)}
+                isLoading={remove.isPending}
               >
-                {remove.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Eliminar
               </Button>
             </div>
           </div>
-        </div>
-      )}
+      </AnimatedOverlay>
     </div>
   );
 }

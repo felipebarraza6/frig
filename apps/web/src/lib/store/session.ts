@@ -229,6 +229,11 @@ function normalizeRole(role?: string | null): string | undefined {
   return role?.trim().toUpperCase() || undefined;
 }
 
+/** Comprueba si el usuario tiene privilegios de administrador global o superusuario. */
+export function isUserAdminOrSuperuser(user: User | null): boolean {
+  return Boolean(user && (user.is_superuser || user.type_user === "ADM"));
+}
+
 /** Rol del usuario en la sucursal activa. */
 export function useCurrentBranchRole(): string | undefined {
   const currentBranchId = useSessionStore((s) => s.currentBranchId);
@@ -246,7 +251,7 @@ export function useCanManageUsers(): boolean {
   const currentBranchId = useSessionStore((s) => s.currentBranchId);
   const currentRole = useCurrentBranchRole();
   if (!user || !currentBranchId) return false;
-  if (user.is_superuser || user.type_user === "ADM") return true;
+  if (isUserAdminOrSuperuser(user)) return true;
   return ["OWNER", "ADMIN_LOCAL", "MANAGER"].includes(currentRole ?? "");
 }
 
@@ -254,7 +259,7 @@ export function useCanManageUsers(): boolean {
 export function useCanViewBranches(): boolean {
   const user = useSessionStore((s) => s.user);
   if (!user) return false;
-  if (user.is_superuser || user.type_user === "ADM") return true;
+  if (isUserAdminOrSuperuser(user)) return true;
   return user.branch_assignments?.some((a) =>
     ["OWNER", "ADMIN_LOCAL"].includes(normalizeRole(a.role_code) ?? ""),
   ) ?? false;
@@ -264,7 +269,7 @@ export function useCanViewBranches(): boolean {
 export function useCanManageBranches(): boolean {
   const user = useSessionStore((s) => s.user);
   if (!user) return false;
-  if (user.is_superuser || user.type_user === "ADM") return true;
+  if (isUserAdminOrSuperuser(user)) return true;
   return user.branch_assignments?.some((a) => normalizeRole(a.role_code) === "OWNER") ?? false;
 }
 
@@ -274,7 +279,7 @@ export function useCanManageInventory(): boolean {
   const currentBranchId = useSessionStore((s) => s.currentBranchId);
   const currentRole = useCurrentBranchRole();
   if (!user || !currentBranchId) return false;
-  if (user.is_superuser || user.type_user === "ADM") return true;
+  if (isUserAdminOrSuperuser(user)) return true;
   return ["OWNER", "ADMIN_LOCAL", "MANAGER"].includes(currentRole ?? "");
 }
 
@@ -284,7 +289,7 @@ export function useCanManageCustomers(): boolean {
   const currentBranchId = useSessionStore((s) => s.currentBranchId);
   const currentRole = useCurrentBranchRole();
   if (!user || !currentBranchId) return false;
-  if (user.is_superuser || user.type_user === "ADM") return true;
+  if (isUserAdminOrSuperuser(user)) return true;
   return ["OWNER", "ADMIN_LOCAL", "MANAGER"].includes(currentRole ?? "");
 }
 
@@ -296,14 +301,14 @@ export function useIsPosFirstRole(): boolean {
   const currentBranchId = useSessionStore((s) => s.currentBranchId);
   const currentRole = useCurrentBranchRole();
   if (!user || !currentBranchId) return false;
-  if (user.is_superuser || user.type_user === "ADM") return false;
+  if (isUserAdminOrSuperuser(user)) return false;
   return ["ADMIN_LOCAL", "CAJERO", "WAITER"].includes(currentRole ?? "");
 }
 
 /** True si el usuario es superadmin (is_superuser o type_user === "ADM"). */
 export function useIsSuperAdmin(): boolean {
   const user = useSessionStore((s) => s.user);
-  return !!user && (user.is_superuser || user.type_user === "ADM");
+  return isUserAdminOrSuperuser(user);
 }
 
 /** True si el rol activo es OWNER. */
@@ -315,7 +320,7 @@ export function useIsOwner(): boolean {
 export function useCanSwitchBranch(): boolean {
   const user = useSessionStore((s) => s.user);
   if (!user) return false;
-  if (user.is_superuser || user.type_user === "ADM") return true;
+  if (isUserAdminOrSuperuser(user)) return true;
   return (user.branch_assignments?.length ?? 0) > 1;
 }
 
@@ -334,7 +339,7 @@ export function useCanViewCashRegisterHistory(): boolean {
   const user = useSessionStore((s) => s.user);
   const currentRole = useCurrentBranchRole();
   if (!user) return false;
-  if (user.is_superuser || user.type_user === "ADM") return true;
+  if (isUserAdminOrSuperuser(user)) return true;
   return ["OWNER", "ADMIN_LOCAL", "MANAGER"].includes(currentRole ?? "");
 }
 
@@ -343,7 +348,7 @@ export function useCanManageCashMovements(): boolean {
   const user = useSessionStore((s) => s.user);
   const currentRole = useCurrentBranchRole();
   if (!user) return false;
-  if (user.is_superuser || user.type_user === "ADM") return true;
+  if (isUserAdminOrSuperuser(user)) return true;
   return currentRole === "OWNER";
 }
 
@@ -356,7 +361,7 @@ export function useCashierStationOnly(): boolean {
   const currentBranchId = useSessionStore((s) => s.currentBranchId);
   const currentRole = useCurrentBranchRole();
   if (!user || !currentBranchId) return false;
-  if (user.is_superuser || user.type_user === "ADM") return false;
+  if (isUserAdminOrSuperuser(user)) return false;
   if (currentRole !== "CAJERO") return false;
   const assignment = user.branch_assignments?.find(
     (a) => String(a.branch_id) === currentBranchId,
@@ -374,7 +379,7 @@ export function useCanManageTables(): boolean {
   const user = useSessionStore((s) => s.user);
   const currentRole = useCurrentBranchRole();
   if (!user) return false;
-  if (user.is_superuser || user.type_user === "ADM") return true;
+  if (isUserAdminOrSuperuser(user)) return true;
   return ["OWNER", "ADMIN_LOCAL", "MANAGER"].includes(currentRole ?? "");
 }
 
@@ -383,7 +388,7 @@ export function useCanViewTables(): boolean {
   const user = useSessionStore((s) => s.user);
   const currentRole = useCurrentBranchRole();
   if (!user) return false;
-  if (user.is_superuser || user.type_user === "ADM") return true;
+  if (isUserAdminOrSuperuser(user)) return true;
   return ["OWNER", "ADMIN_LOCAL", "MANAGER", "WAITER", "CAJERO"].includes(currentRole ?? "");
 }
 
@@ -485,7 +490,7 @@ export function canCancelOrder(
   orderOwnerId?: string | number,
 ): boolean {
   if (!user) return false;
-  if (user.is_superuser || user.type_user === "ADM") return true;
+  if (isUserAdminOrSuperuser(user)) return true;
   const role = normalizeRole(currentRole);
   if (["OWNER", "ADMIN_LOCAL"].includes(role ?? "")) return true;
   if (role === "CAJERO") {

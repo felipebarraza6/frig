@@ -6,7 +6,6 @@ import {
   Plus,
   Search,
   Pencil,
-  Loader2,
   Table,
   AlertTriangle,
   CheckCircle2,
@@ -26,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import {
   fetchTables,
   createTable,
@@ -258,32 +258,24 @@ export default function TablesPage() {
             variant="outline"
             size="sm"
             onClick={() => handleExport("excel")}
-            disabled={isExporting}
+            isLoading={isExporting}
             className="h-9 w-9 px-0 sm:w-auto sm:px-3"
             title="Exportar Excel"
             aria-label="Exportar Excel"
           >
-            {isExporting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <FileSpreadsheet className="h-4 w-4" />
-            )}
+            <FileSpreadsheet className="h-4 w-4" />
             <span className="hidden sm:inline">Excel</span>
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={() => handleExport("pdf")}
-            disabled={isExporting}
+            isLoading={isExporting}
             className="h-9 w-9 px-0 sm:w-auto sm:px-3"
             title="Exportar PDF"
             aria-label="Exportar PDF"
           >
-            {isExporting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <FileText className="h-4 w-4" />
-            )}
+            <FileText className="h-4 w-4" />
             <span className="hidden sm:inline">PDF</span>
           </Button>
           <Link
@@ -748,12 +740,14 @@ export default function TablesPage() {
         )}
       </div>
 
-      {(creating || editing) && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
-          role="dialog"
-          aria-modal="true"
-        >
+      <AnimatedOverlay
+        open={!!(creating || editing)}
+        onClose={() => {
+          setCreating(false);
+          setEditing(null);
+        }}
+        panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
+      >
           <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-lg md:rounded-xl md:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-base font-semibold">{editing ? "Editar mesa" : "Nueva mesa"}</h2>
@@ -852,27 +846,22 @@ export default function TablesPage() {
                 >
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={create.isPending || update.isPending}>
-                  {create.isPending || update.isPending ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : null}
+                <Button type="submit" isLoading={create.isPending || update.isPending}>
                   {editing ? "Guardar" : "Crear"}
                 </Button>
               </div>
             </form>
           </div>
-        </div>
-      )}
+      </AnimatedOverlay>
 
-      {transferringTable && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
-          role="dialog"
-          aria-modal="true"
-        >
+      <AnimatedOverlay
+        open={!!transferringTable}
+        onClose={() => setTransferringTable(null)}
+        panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
+      >
           <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card p-0 shadow-lg md:h-auto md:max-h-[90vh] md:max-w-sm md:rounded-xl md:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
-              <h2 className="text-base font-semibold">Transferir mesa {transferringTable.number}</h2>
+              <h2 className="text-base font-semibold">Transferir mesa {transferringTable!.number}</h2>
               <button
                 onClick={() => setTransferringTable(null)}
                 aria-label="Cerrar"
@@ -887,7 +876,7 @@ export default function TablesPage() {
                 const form = e.currentTarget;
                 const waiterId = String(formDataFromForm(form).get("transfer_waiter") ?? "");
                 transferWaiter.mutate({
-                  id: transferringTable.id,
+                  id: transferringTable!.id,
                   waiterId: waiterId ? Number(waiterId) : null,
                 });
               }}
@@ -895,8 +884,8 @@ export default function TablesPage() {
             >
               <div className="flex-1 overflow-y-auto p-4">
                 <p className="mb-4 text-xs text-muted-foreground">
-                  {transferringTable.assigned_waiter
-                    ? `Actual: ${transferringTable.assigned_waiter_name ?? `Mesero #${transferringTable.assigned_waiter}`}`
+                  {transferringTable!.assigned_waiter
+                    ? `Actual: ${transferringTable!.assigned_waiter_name ?? `Mesero #${transferringTable!.assigned_waiter}`}`
                     : "Sin mesero asignado"}
                 </p>
                 <div className="flex flex-col gap-2">
@@ -924,15 +913,13 @@ export default function TablesPage() {
                 >
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={transferWaiter.isPending}>
-                  {transferWaiter.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Button type="submit" isLoading={transferWaiter.isPending}>
                   Guardar
                 </Button>
               </div>
             </form>
           </div>
-        </div>
-      )}
+      </AnimatedOverlay>
     </div>
   );
 }

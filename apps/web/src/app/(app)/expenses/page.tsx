@@ -7,7 +7,7 @@ import {
   Search,
   Pencil,
   Trash2,
-  Loader2,
+
   X,
   Ban,
   TrendingUp,
@@ -52,6 +52,7 @@ import { useViewFile } from "@/lib/hooks/useViewFile";
 import { useToast } from "@/lib/store/toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ActionsMenu } from "@/components/ui/actions-menu";
+import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 
 const EXPENSE_CATEGORY_TYPES = [
   { value: "RENT", label: "Renta" },
@@ -494,15 +495,11 @@ export default function ExpensesPage() {
             variant="outline"
             size="sm"
             onClick={handleExportExcel}
-            disabled={isDownloading}
+            isLoading={isDownloading}
             className="h-9 w-9 px-0 sm:w-auto sm:px-3"
             title="Exportar Excel"
           >
-            {isDownloading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <FileDown className="h-4 w-4" />
-            )}
+            <FileDown className="h-4 w-4" />
             <span className="hidden sm:inline">Exportar Excel</span>
           </Button>
           <Button
@@ -1056,12 +1053,11 @@ export default function ExpensesPage() {
         )}
       </div>
 
-      {modalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
-          role="dialog"
-          aria-modal="true"
-        >
+      <AnimatedOverlay
+        open={modalOpen}
+        onClose={closeModal}
+        panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
+      >
           <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-base font-semibold">{editing ? "Editar egreso" : "Nuevo egreso"}</h2>
@@ -1184,46 +1180,40 @@ export default function ExpensesPage() {
                 <Button type="button" variant="outline" onClick={closeModal} disabled={save.isPending}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={save.isPending}>
-                  {save.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Button type="submit" isLoading={save.isPending}>
                   Guardar
                 </Button>
               </div>
             </form>
           </div>
-        </div>
-      )}
+      </AnimatedOverlay>
 
-      {confirmDelete && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
-          role="dialog"
-          aria-modal="true"
-        >
+      <AnimatedOverlay
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        panelClassName="flex items-end justify-center p-0 md:items-center md:p-4"
+      >
           <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">¿Eliminar egreso?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Se eliminará <span className="font-medium text-foreground">{confirmDelete.name}</span>.
+              Se eliminará <span className="font-medium text-foreground">{confirmDelete!.name}</span>.
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <Button variant="outline" onClick={() => setConfirmDelete(null)} disabled={remove.isPending}>
                 Cancelar
               </Button>
-              <Button variant="danger" onClick={() => remove.mutate(confirmDelete.id)} disabled={remove.isPending}>
-                {remove.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button variant="danger" onClick={() => remove.mutate(confirmDelete!.id)} isLoading={remove.isPending}>
                 Eliminar
               </Button>
             </div>
           </div>
-        </div>
-      )}
+      </AnimatedOverlay>
 
-      {categoriesModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
-          role="dialog"
-          aria-modal="true"
-        >
+      <AnimatedOverlay
+        open={categoriesModalOpen}
+        onClose={closeCategoriesModal}
+        panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
+      >
           <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-lg md:rounded-xl md:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-base font-semibold">Categorías de egreso</h2>
@@ -1386,11 +1376,8 @@ export default function ExpensesPage() {
                     )}
                     <Button
                       type="submit"
-                      disabled={createCategory.isPending || updateCategory.isPending}
+                      isLoading={createCategory.isPending || updateCategory.isPending}
                     >
-                      {(createCategory.isPending || updateCategory.isPending) && (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      )}
                       Guardar
                     </Button>
                   </div>
@@ -1398,19 +1385,17 @@ export default function ExpensesPage() {
               </div>
             </div>
           </div>
-        </div>
-      )}
+      </AnimatedOverlay>
 
-      {confirmDeleteCategory && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
-          role="dialog"
-          aria-modal="true"
-        >
+      <AnimatedOverlay
+        open={!!confirmDeleteCategory}
+        onClose={() => setConfirmDeleteCategory(null)}
+        panelClassName="flex items-end justify-center p-0 md:items-center md:p-4"
+      >
           <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">¿Eliminar categoría?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Se eliminará <span className="font-medium text-foreground">{confirmDeleteCategory.name}</span>.
+              Se eliminará <span className="font-medium text-foreground">{confirmDeleteCategory!.name}</span>.
             </p>
             {deleteCategory.isError && (
               <p className="mt-2 text-sm text-danger">
@@ -1423,16 +1408,14 @@ export default function ExpensesPage() {
               </Button>
               <Button
                 variant="danger"
-                onClick={() => deleteCategory.mutate(confirmDeleteCategory.id)}
-                disabled={deleteCategory.isPending}
+                onClick={() => deleteCategory.mutate(confirmDeleteCategory!.id)}
+                isLoading={deleteCategory.isPending}
               >
-                {deleteCategory.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Eliminar
               </Button>
             </div>
           </div>
-        </div>
-      )}
+      </AnimatedOverlay>
     </div>
   );
 }

@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { X, Loader2 } from "lucide-react";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import { useSessionStore } from "@/lib/store/session";
 import { createBranch, updateBranch } from "@/lib/api/branches";
 import { fetchModulePlans, applyBranchPlan } from "@/lib/api/module-plans";
@@ -94,10 +95,10 @@ export function BranchForm({ branch, onClose, onSuccess }: BranchFormProps) {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
-      role="dialog"
-      aria-modal="true"
+    <AnimatedOverlay
+      open={true}
+      onClose={onClose}
+      panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
     >
       <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-lg md:rounded-xl md:border">
         <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
@@ -266,19 +267,12 @@ export function BranchForm({ branch, onClose, onSuccess }: BranchFormProps) {
             <Button type="button" variant="outline" onClick={onClose} disabled={save.isPending}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={save.isPending}>
-              {save.isPending ? (
-                <>
-                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                  Guardando…
-                </>
-              ) : (
-                "Guardar"
-              )}
+            <Button type="submit" isLoading={save.isPending}>
+              Guardar
             </Button>
           </div>
         </form>
       </div>
-    </div>
+    </AnimatedOverlay>
   );
 }

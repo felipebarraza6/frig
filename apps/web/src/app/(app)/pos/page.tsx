@@ -5,7 +5,8 @@ import { motion } from "framer-motion";
 import {
   Banknote,
   BarChart3,
-  Loader2,
+  Clock,
+  Coins,
   Lock,
   Monitor,
   Receipt,
@@ -18,6 +19,7 @@ import {
   useCanViewCashRegisterHistory,
 } from "@/lib/store/session";
 import { formatCLP, cn } from "@/lib/utils";
+import { statusBadge } from "@/lib/status-styles";
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import {
   getCurrentCashRegister,
@@ -28,7 +30,7 @@ import { fetchCashRegisterStations } from "@/lib/api/cash-register-stations";
 import type { CashRegisterStation } from "@/lib/api/cash-register-stations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
 import { useToast } from "@/lib/store/toast";
 
 function numberValue(v: string): string {
@@ -208,26 +210,36 @@ export default function PosZenPage() {
         </div>
 
         {stationsLoading ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {[0, 1, 2].map((i) => (
               <div
                 key={i}
-                className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-card p-4 sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col justify-between rounded-2xl border border-border/60 bg-card p-5 shadow-sm"
               >
-                <div className="flex items-center gap-4">
-                  <Skeleton className="h-12 w-12 shrink-0 rounded-xl" />
-                  <div className="flex flex-col gap-2">
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-3 w-20" />
+                <div>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3.5">
+                      <Skeleton className="h-12 w-12 rounded-xl" />
+                      <div className="space-y-1.5">
+                        <Skeleton className="h-5 w-32" />
+                        <Skeleton className="h-3 w-20" />
+                      </div>
+                    </div>
+                    <Skeleton className="h-6 w-16 rounded-full" />
+                  </div>
+                  <div className="mt-4 border-t border-border/50 pt-4">
+                    <Skeleton className="h-16 w-full rounded-xl" />
                   </div>
                 </div>
-                <Skeleton className="h-10 w-full sm:w-28" />
+                <div className="mt-5 pt-3 border-t border-border/40">
+                  <Skeleton className="h-11 w-full rounded-xl" />
+                </div>
               </div>
             ))}
           </div>
         ) : stationsError ? (
-          <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-rose-300 bg-card p-10 text-center">
-            <Monitor className="h-10 w-10 text-rose-400" />
+          <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-danger/30 bg-card p-10 text-center">
+            <Monitor className="h-10 w-10 text-danger/80" />
             <div>
               <p className="text-sm font-medium">
                 No se pudieron cargar las estaciones
@@ -238,7 +250,7 @@ export default function PosZenPage() {
             </div>
           </div>
         ) : stations.length > 0 ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {stations.map((station, idx) => {
               const selected = activeStationId === station.id;
               const isOpening = openingStationId === station.id;
@@ -254,138 +266,187 @@ export default function PosZenPage() {
               return (
                 <motion.div
                   key={station.id}
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.05 }}
                   className={cn(
-                    "flex flex-col gap-4 rounded-2xl border p-4 transition-all sm:flex-row sm:items-center sm:justify-between",
+                    "flex flex-col justify-between rounded-2xl border bg-card p-5 transition-all shadow-sm hover:shadow-md",
                     selected
-                      ? "border-primary/40 bg-gradient-to-br from-primary/10 to-card shadow-md ring-1 ring-primary/20"
-                      : "border-border/60 bg-card shadow-sm hover:border-primary/30 hover:bg-muted/30 hover:shadow-md",
+                      ? "border-primary/50 bg-gradient-to-b from-primary/5 to-card ring-2 ring-primary/20 shadow-md"
+                      : "border-border hover:border-primary/40",
                   )}
                 >
-                  <div className="flex items-center gap-4">
-                    <div
-                      className={cn(
-                        "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-colors",
-                        selected ? "bg-primary/15" : "bg-muted",
-                      )}
-                    >
-                      <Monitor
-                        className={cn(
-                          "h-5 w-5",
-                          selected ? "text-primary" : "text-muted-foreground",
-                        )}
-                      />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-base font-semibold truncate">
-                          {station.name}
-                        </p>
-                        <span
+                  {/* Header y cuerpo */}
+                  <div>
+                    {/* Top: Icono + Título + Badge de estado */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <div
                           className={cn(
-                            "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
-                            isOpen
-                              ? "bg-emerald-500/10 text-emerald-700"
-                              : "bg-amber-500/10 text-amber-700",
+                            "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-colors shadow-xs",
+                            isOpen || selected
+                              ? "bg-primary/10 text-primary ring-1 ring-primary/20"
+                              : "bg-muted text-muted-foreground",
                           )}
                         >
-                          {isOpen ? (
-                            <Unlock className="h-3 w-3" />
-                          ) : (
-                            <Lock className="h-3 w-3" />
-                          )}
-                          {isOpen ? "Abierta" : "Cerrada"}
-                        </span>
+                          <Monitor className="h-6 w-6" />
+                        </div>
+                        <div className="min-w-0">
+                          <h2 className="text-base font-bold text-foreground truncate leading-snug">
+                            {station.name}
+                          </h2>
+                          <p className="text-xs text-muted-foreground font-medium truncate">
+                            {station.code || "Punto de venta"}
+                          </p>
+                        </div>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        {station.code}
-                      </p>
-                      {isOpen && register?.created && (
-                        <p className="truncate whitespace-nowrap text-[10px] text-muted-foreground">
-                          Abierta{" "}
-                          {new Date(register.created).toLocaleString("es-CL", {
-                            day: "2-digit",
-                            month: "2-digit",
-                            year: "numeric",
+
+                      <span
+                        className={cn(
+                          "inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold shadow-xs",
+                          statusBadge(isOpen ? "OPEN" : "CLOSED"),
+                        )}
+                      >
+                        {isOpen ? (
+                          <Unlock className="h-3.5 w-3.5" />
+                        ) : (
+                          <Lock className="h-3.5 w-3.5" />
+                        )}
+                        {isOpen ? "Abierta" : "Cerrada"}
+                      </span>
+                    </div>
+
+                    {/* Subtexto de turno */}
+                    {isOpen && register?.created ? (
+                      <div className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Clock className="h-3.5 w-3.5" />
+                        <span>
+                          Abierta hoy a las{" "}
+                          {new Date(register.created).toLocaleTimeString("es-CL", {
                             hour: "2-digit",
                             minute: "2-digit",
                           })}
-                        </p>
+                        </span>
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-xs text-muted-foreground">
+                        La caja está cerrada. Define el monto inicial para abrir turno.
+                      </p>
+                    )}
+
+                    {/* Cuerpo: Métricas o Formulario de apertura */}
+                    <div className="mt-4 border-t border-border pt-4">
+                      {isOpen ? (
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="flex flex-col rounded-xl bg-muted/50 p-2.5 text-center">
+                            <span className="text-[11px] font-medium text-muted-foreground flex items-center justify-center gap-1">
+                              <BarChart3 className="h-3 w-3" />
+                              Órdenes
+                            </span>
+                            <span className="mt-1 text-sm font-bold text-foreground tabular-nums">
+                              {isLoading ? <SkeletonText width="60%" height="sm" className="mx-auto" /> : totalOrders}
+                            </span>
+                          </div>
+
+                          <div className="flex flex-col rounded-xl bg-muted/50 p-2.5 text-center">
+                            <span className="text-[11px] font-medium text-muted-foreground flex items-center justify-center gap-1">
+                              <ShoppingBag className="h-3 w-3" />
+                              Ventas
+                            </span>
+                            <span className="mt-1 text-sm font-bold text-primary tabular-nums truncate">
+                              {isLoading ? <SkeletonText width="60%" height="sm" className="mx-auto" /> : formatCLP(totalSales)}
+                            </span>
+                          </div>
+
+                          <div className="flex flex-col rounded-xl bg-muted/50 p-2.5 text-center">
+                            <span className="text-[11px] font-medium text-muted-foreground flex items-center justify-center gap-1">
+                              <Banknote className="h-3 w-3" />
+                              Efectivo
+                            </span>
+                            <span className="mt-1 text-sm font-bold text-foreground tabular-nums truncate">
+                              {isLoading ? <SkeletonText width="60%" height="sm" className="mx-auto" /> : formatCLP(cashSales)}
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-2.5">
+                          <div className="flex items-center justify-between">
+                            <label
+                              htmlFor={`opening-${station.id}`}
+                              className="text-xs font-semibold text-foreground flex items-center gap-1"
+                            >
+                              <Coins className="h-3.5 w-3.5 text-muted-foreground" />
+                              Monto inicial de apertura
+                            </label>
+                            <span className="text-[11px] text-muted-foreground">Efectivo en caja</span>
+                          </div>
+
+                          <Input
+                            id={`opening-${station.id}`}
+                            value={amount ? formatCLP(parseFloat(toDecimal(amount))) : ""}
+                            onChange={(e) =>
+                              setOpeningAmounts((prev) => ({
+                                ...prev,
+                                [station.id]: numberValue(e.target.value),
+                              }))
+                            }
+                            placeholder="$0"
+                            className="h-11 w-full rounded-xl text-base font-semibold tabular-nums text-foreground bg-background"
+                          />
+
+                          {/* Accesos rápidos de monto sugerido */}
+                          <div className="flex items-center gap-1.5">
+                            {[0, 20000, 50000].map((preset) => (
+                              <button
+                                key={preset}
+                                type="button"
+                                onClick={() =>
+                                  setOpeningAmounts((prev) => ({
+                                    ...prev,
+                                    [station.id]: String(preset),
+                                  }))
+                                }
+                                className={cn(
+                                  "flex-1 rounded-lg border py-1.5 text-xs font-medium transition-colors touch-manipulation active:scale-[0.97]",
+                                  amount === String(preset) || (!amount && preset === 0)
+                                    ? "border-primary/50 bg-primary/10 text-primary font-semibold shadow-xs"
+                                    : "border-border bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground",
+                                )}
+                              >
+                                {preset === 0 ? "$0" : formatCLP(preset)}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       )}
                     </div>
                   </div>
 
-                  {isOpen ? (
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm sm:justify-center">
-                      <span className="flex items-center gap-1.5 text-muted-foreground">
-                        <BarChart3 className="h-3.5 w-3.5" />
-                        {isLoading ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <span className="font-semibold text-foreground tabular-nums">{totalOrders}</span>
-                        )}{" "}
-                        ventas
-                      </span>
-                      <span className="flex items-center gap-1.5 text-muted-foreground">
-                        <ShoppingBag className="h-3.5 w-3.5" />
-                        {isLoading ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <span className="font-semibold text-foreground tabular-nums">{formatCLP(totalSales)}</span>
-                        )}
-                      </span>
-                      <span className="flex items-center gap-1.5 text-muted-foreground">
-                        <Banknote className="h-3.5 w-3.5" />
-                        {isLoading ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <span className="font-semibold text-foreground tabular-nums">{formatCLP(cashSales)}</span>
-                        )}{" "}
-                        efectivo
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="flex w-full flex-col gap-1.5 sm:w-56">
-                      <label
-                        htmlFor={`opening-${station.id}`}
-                        className="text-xs font-medium text-muted-foreground"
-                      >
-                        Monto apertura
-                      </label>
-                      <Input
-                        id={`opening-${station.id}`}
-                        value={amount ? formatCLP(parseFloat(toDecimal(amount))) : ""}
-                        onChange={(e) =>
-                          setOpeningAmounts((prev) => ({
-                            ...prev,
-                            [station.id]: numberValue(e.target.value),
-                          }))
-                        }
-                        placeholder="$0"
-                        className="h-10 w-full text-sm tabular-nums"
-                      />
-                    </div>
-                  )}
-
-                  <Button
-                    className="w-full sm:w-auto sm:shrink-0"
-                    disabled={
-                      (!isOpening && isBusy) ||
-                      !branch
-                    }
-                    onClick={() => handleOpen(station)}
-                  >
-                    {isOpening ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : isOpen ? (
-                      <Receipt className="mr-2 h-4 w-4" />
-                    ) : (
-                      <Unlock className="mr-2 h-4 w-4" />
-                    )}
-                    {isOpen ? "Abrir terminal" : "Abrir caja"}
-                  </Button>
+                  {/* Botón de acción al fondo de la tarjeta */}
+                  <div className="mt-5 pt-3 border-t border-border">
+                    <Button
+                      size="lg"
+                      variant="default"
+                      className="w-full h-11 rounded-xl text-sm font-semibold shadow-sm transition-all touch-manipulation active:scale-[0.98]"
+                      disabled={(!isOpening && isBusy) || !branch}
+                      isLoading={isOpening}
+                      onClick={() => handleOpen(station)}
+                    >
+                      {isOpening ? (
+                        isOpen ? "Cargando punto de venta..." : "Abriendo caja..."
+                      ) : isOpen ? (
+                        <>
+                          <Receipt className="mr-2 h-4 w-4" />
+                          Abrir terminal de venta
+                        </>
+                      ) : (
+                        <>
+                          <Unlock className="mr-2 h-4 w-4" />
+                          Abrir caja e iniciar turno
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </motion.div>
               );
             })}

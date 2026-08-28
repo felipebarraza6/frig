@@ -24,9 +24,11 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { Select } from "@/components/ui/select";
 import { ActionsMenu } from "@/components/ui/actions-menu";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import { formatCLP, cn } from "@/lib/utils";
 import { useToast } from "@/lib/store/toast";
 import {
@@ -411,9 +413,7 @@ export default function CombosPage() {
         {error ? (
           <p className="text-sm text-danger">No se pudieron cargar los combos.</p>
         ) : isLoading ? (
-          <div className="grid flex-1 place-items-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
+          <TableSkeleton rows={5} columns={4} />
         ) : !hasData ? (
           <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-border bg-muted/20 p-8">
             <div className="flex max-w-xs flex-col items-center gap-3 text-center">
@@ -700,12 +700,11 @@ export default function CombosPage() {
         )}
       </div>
 
-      {modalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 sm:items-center sm:p-4"
-          role="dialog"
-          aria-modal="true"
-        >
+      <AnimatedOverlay
+        open={modalOpen}
+        onClose={closeModal}
+        panelClassName="flex items-end justify-center overflow-hidden p-0 sm:items-center sm:p-4"
+      >
           <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-xl sm:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-4 sm:px-6">
               <h2 className="text-base font-semibold">
@@ -890,27 +889,24 @@ export default function CombosPage() {
                 <Button type="button" variant="outline" onClick={closeModal} disabled={isSaving}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={isSaving}>
-                  {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Button type="submit" isLoading={isSaving}>
                   Guardar
                 </Button>
               </div>
             </form>
           </div>
-        </div>
-      )}
+      </AnimatedOverlay>
 
-      {confirmDelete && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
-          role="dialog"
-          aria-modal="true"
-        >
+      <AnimatedOverlay
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
+      >
           <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">¿Eliminar combo?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Se desactivará{" "}
-              <span className="font-medium text-foreground">{confirmDelete.name}</span>. Esta
+              <span className="font-medium text-foreground">{confirmDelete!.name}</span>. Esta
               acción no se puede deshacer.
             </p>
             <div className="mt-4 flex justify-end gap-2">
@@ -924,15 +920,13 @@ export default function CombosPage() {
               <Button
                 variant="danger"
                 onClick={handleDelete}
-                disabled={deleteMutation.isPending}
+                isLoading={deleteMutation.isPending}
               >
-                {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Eliminar
               </Button>
             </div>
           </div>
-        </div>
-      )}
+      </AnimatedOverlay>
     </div>
   );
 }

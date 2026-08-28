@@ -3,6 +3,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+export const MAX_NAV_FAVORITES = 8;
+
 interface NavFavoritesState {
   favorites: string[];
   toggleFavorite: (href: string) => void;
@@ -19,7 +21,7 @@ export const useNavFavorites = create<NavFavoritesState>()(
           if (exists) {
             return { favorites: state.favorites.filter((h) => h !== href) };
           }
-          return { favorites: [href, ...state.favorites].slice(0, 8) };
+          return { favorites: [href, ...state.favorites].slice(0, MAX_NAV_FAVORITES) };
         }),
       isFavorite: (href) => get().favorites.includes(href),
     }),
@@ -28,3 +30,4 @@ export const useNavFavorites = create<NavFavoritesState>()(
     },
   ),
 );
+
