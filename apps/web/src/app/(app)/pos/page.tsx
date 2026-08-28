@@ -347,11 +347,15 @@ export default function PosZenPage() {
                       </span>
                     </div>
                   ) : (
-                    <div className="flex w-full max-w-xs items-center gap-2 sm:justify-center">
-                      <label className="whitespace-nowrap text-xs text-muted-foreground">
+                    <div className="flex w-full flex-col gap-1.5 sm:w-56">
+                      <label
+                        htmlFor={`opening-${station.id}`}
+                        className="text-xs font-medium text-muted-foreground"
+                      >
                         Monto apertura
                       </label>
                       <Input
+                        id={`opening-${station.id}`}
                         value={amount ? formatCLP(parseFloat(toDecimal(amount))) : ""}
                         onChange={(e) =>
                           setOpeningAmounts((prev) => ({
@@ -359,8 +363,8 @@ export default function PosZenPage() {
                             [station.id]: numberValue(e.target.value),
                           }))
                         }
-                        placeholder="0"
-                        className="h-10 text-sm tabular-nums"
+                        placeholder="$0"
+                        className="h-10 w-full text-sm tabular-nums"
                       />
                     </div>
                   )}

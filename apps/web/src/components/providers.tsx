@@ -2,7 +2,10 @@
 
 import { useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MotionConfig } from "framer-motion";
+import { LazyMotion, MotionConfig } from "framer-motion";
+
+const loadFeatures = () =>
+  import("framer-motion").then((res) => res.domAnimation);
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
@@ -20,7 +23,9 @@ export function Providers({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <MotionConfig reducedMotion="user">{children}</MotionConfig>
+      <LazyMotion features={loadFeatures} strict={false}>
+        <MotionConfig reducedMotion="user">{children}</MotionConfig>
+      </LazyMotion>
     </QueryClientProvider>
   );
 }

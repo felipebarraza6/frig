@@ -25,6 +25,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   fetchTables,
   createTable,
@@ -46,16 +47,17 @@ import type { YggdraSchemas } from "@/lib/api/types";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { statusBadge } from "@/lib/status-styles";
 
 type TableItem = YggdraSchemas["Table"];
 
-const STATUS_OPTIONS: { value: TableStatus | ""; label: string; color: string }[] = [
-  { value: "", label: "Todos", color: "bg-muted text-muted-foreground" },
-  { value: "FREE", label: "Libre", color: "bg-emerald-500/10 text-emerald-700" },
-  { value: "OCCUPIED", label: "Ocupada", color: "bg-rose-500/10 text-rose-700" },
-  { value: "RESERVED", label: "Reservada", color: "bg-amber-500/10 text-amber-700" },
-  { value: "CLEANING", label: "Limpieza", color: "bg-blue-500/10 text-blue-700" },
-  { value: "OUT_OF_SERVICE", label: "Fuera de servicio", color: "bg-slate-500/10 text-slate-700" },
+const STATUS_OPTIONS: { value: TableStatus | ""; label: string }[] = [
+  { value: "", label: "Todos" },
+  { value: "FREE", label: "Libre" },
+  { value: "OCCUPIED", label: "Ocupada" },
+  { value: "RESERVED", label: "Reservada" },
+  { value: "CLEANING", label: "Limpieza" },
+  { value: "OUT_OF_SERVICE", label: "Fuera de servicio" },
 ];
 
 function statusLabel(status?: TableStatus | null): string {
@@ -63,7 +65,7 @@ function statusLabel(status?: TableStatus | null): string {
 }
 
 function statusColor(status?: TableStatus | null): string {
-  return STATUS_OPTIONS.find((s) => s.value === status)?.color ?? "bg-muted text-muted-foreground";
+  return statusBadge(status);
 }
 
 export default function TablesPage() {
@@ -406,9 +408,42 @@ export default function TablesPage() {
         {error ? (
           <p className="text-sm text-danger">No se pudieron cargar las mesas.</p>
         ) : isLoading ? (
-          <div className="grid flex-1 place-items-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
+          <>
+            {/* Vista desktop */}
+            <div className="hidden overflow-hidden rounded-xl border border-border md:block">
+              <div className="border-b border-border px-4 py-3">
+                <Skeleton className="h-3 w-44" />
+              </div>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-3 border-b border-border px-4 py-3 last:border-0"
+                >
+                  <Skeleton className="h-8 w-8 rounded-md" />
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-5 w-20 rounded-full" />
+                  <Skeleton className="ml-auto h-4 w-16" />
+                </div>
+              ))}
+            </div>
+            {/* Vista móvil */}
+            <div className="flex flex-col gap-3 md:hidden">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="rounded-xl border border-border bg-card p-4 shadow-sm"
+                >
+                  <div className="mb-2 flex items-center gap-2">
+                    <Skeleton className="h-8 w-8 rounded-md" />
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="ml-auto h-5 w-16 rounded-full" />
+                  </div>
+                  <Skeleton className="h-3 w-32" />
+                </div>
+              ))}
+            </div>
+          </>
         ) : tables.length === 0 ? (
           <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">
             <div>
@@ -625,7 +660,7 @@ export default function TablesPage() {
                           <button
                             onClick={() => changeStatus.mutate({ id: table.id, action: "free" })}
                             disabled={changeStatus.isPending}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             title="Liberar"
                             aria-label="Liberar"
                           >
@@ -637,7 +672,7 @@ export default function TablesPage() {
                           <button
                             onClick={() => changeStatus.mutate({ id: table.id, action: "free" })}
                             disabled={changeStatus.isPending}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             title="Libre"
                             aria-label="Libre"
                           >
@@ -648,7 +683,7 @@ export default function TablesPage() {
                         <button
                           onClick={() => setTransferringTable(table)}
                           disabled={transferWaiter.isPending}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-blue-500/10 text-blue-700 hover:bg-blue-500/20"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-blue-500/10 text-blue-700 hover:bg-blue-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           title="Transferir"
                           aria-label="Transferir"
                         >

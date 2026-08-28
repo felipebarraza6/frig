@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -175,6 +175,9 @@ export default function PosPage() {
   const queryView = searchParams.get("view");
   const queryOrderId = searchParams.get("order_id");
   const queryReturnTo = searchParams.get("return_to");
+  // Solo rutas internas: evita javascript: u otros esquemas en el enlace "Volver".
+  const safeReturnTo =
+    queryReturnTo && /^\/(?!\/)/.test(queryReturnTo) ? queryReturnTo : null;
   const queryOrderType = searchParams.get("order_type") as "SALE" | "ORDER" | "AGREEMENT" | null;
   const openAccountParam = searchParams.get("open_account") === "1";
   const isWaiterSimulation = queryView === "waiter";
@@ -193,6 +196,8 @@ export default function PosPage() {
   }, [queryStationId, userStation, stations]);
 
   const [query, setQuery] = useState("");
+  // Difiere el filtrado del catálogo para no bloquear el tipeo.
+  const deferredQuery = useDeferredValue(query);
   const [activeCategory, setActiveCategory] = useState<number | null>(null);
   const [modifierProduct, setModifierProduct] = useState<PosProduct | null>(null);
   const [modifierGroups, setModifierGroups] = useState<ProductModifierGroup[]>([]);
@@ -283,7 +288,7 @@ export default function PosPage() {
     setSelectedTableState(undefined);
     const url = new URL("/pos/terminal", window.location.origin);
     url.searchParams.set("view", "waiter");
-    if (queryReturnTo) url.searchParams.set("return_to", queryReturnTo);
+    if (safeReturnTo) url.searchParams.set("return_to", safeReturnTo);
     if (queryStationId) url.searchParams.set("station_id", queryStationId);
     router.push(url.pathname + url.search);
   }
@@ -292,7 +297,7 @@ export default function PosPage() {
     setSelectedTableState(undefined);
     const url = new URL("/pos/terminal", window.location.origin);
     if (isWaiterSimulation) url.searchParams.set("view", "waiter");
-    if (queryReturnTo) url.searchParams.set("return_to", queryReturnTo);
+    if (safeReturnTo) url.searchParams.set("return_to", safeReturnTo);
     if (queryStationId) url.searchParams.set("station_id", queryStationId);
     router.replace(url.pathname + url.search);
   }
@@ -305,7 +310,7 @@ export default function PosPage() {
     url.searchParams.set("order_type", orderType);
     if (isAccount) url.searchParams.set("open_account", "1");
     if (isWaiterSimulation) url.searchParams.set("view", "waiter");
-    if (queryReturnTo) url.searchParams.set("return_to", queryReturnTo);
+    if (safeReturnTo) url.searchParams.set("return_to", safeReturnTo);
     if (queryStationId) url.searchParams.set("station_id", queryStationId);
     router.replace(url.pathname + url.search);
   }
@@ -370,7 +375,7 @@ export default function PosPage() {
   function handleEditOrder(order: Order) {
     const url = new URL("/pos/terminal", window.location.origin);
     url.searchParams.set("order_id", order.id);
-    if (queryReturnTo) url.searchParams.set("return_to", queryReturnTo);
+    if (safeReturnTo) url.searchParams.set("return_to", safeReturnTo);
     if (queryStationId) url.searchParams.set("station_id", queryStationId);
     router.push(url.pathname + url.search);
     setShowOpenAccounts(false);
@@ -415,13 +420,11 @@ export default function PosPage() {
   }
 
   const addItem = useCartStore((s) => s.addItem);
-  const cartItems = useCartStore((s) => s.items);
+  // Selector primitivo: la página solo deriva el total, no renderiza la lista.
+  const cartTotal = useCartStore((s) =>
+    Math.max(0, cartSubtotal(s.items) - cartDiscountTotal(s.items)),
+  );
   const clearCart = useCartStore((s) => s.clear);
-  const cartTotal = useMemo(() => {
-    const subtotal = cartSubtotal(cartItems);
-    const discounts = cartDiscountTotal(cartItems);
-    return Math.max(0, subtotal - discounts);
-  }, [cartItems]);
 
   const { data: products, isLoading: productsLoading, error: productsError } =
     useProducts();
@@ -991,7 +994,7 @@ export default function PosPage() {
 
   const filtered = useMemo(() => {
     if (!products) return [];
-    const q = query.trim().toLowerCase();
+    const q = deferredQuery.trim().toLowerCase();
     return products.filter((p) => {
       const productType = p.product_type?.toUpperCase();
       if (productType && allowedProductTypes.size > 0 && !allowedProductTypes.has(productType)) {
@@ -1002,20 +1005,23 @@ export default function PosPage() {
       if (q && !p.name.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [products, query, activeCategory, allowedProductIds, allowedProductTypes]);
+  }, [products, deferredQuery, activeCategory, allowedProductIds, allowedProductTypes]);
 
-  function handleAddProduct(product: PosProduct) {
-    const groups = productModifierGroups
-      ? getModifierGroupsForProduct(product.id, productModifierGroups)
-      : [];
-    if (groups.length > 0) {
-      setModifierProduct(product);
-      setModifierGroups(groups);
-    } else {
-      addItem(product);
-      // El carrito se mantiene cerrado; el usuario lo abre con el botón de cuenta.
-    }
-  }
+  const handleAddProduct = useCallback(
+    (product: PosProduct) => {
+      const groups = productModifierGroups
+        ? getModifierGroupsForProduct(product.id, productModifierGroups)
+        : [];
+      if (groups.length > 0) {
+        setModifierProduct(product);
+        setModifierGroups(groups);
+      } else {
+        addItem(product);
+        // El carrito se mantiene cerrado; el usuario lo abre con el botón de cuenta.
+      }
+    },
+    [productModifierGroups, addItem],
+  );
 
   function handleConfirmModifiers(modifiers: CartItemModifier[]) {
     if (modifierProduct) {
@@ -1134,9 +1140,9 @@ export default function PosPage() {
       {/* Header */}
       <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border/60 bg-background/95 px-3 backdrop-blur sm:h-12 sm:px-4">
         <div className="flex flex-1 min-w-0 items-center gap-2">
-          {queryReturnTo && (
+          {safeReturnTo && (
             <Link
-              href={decodeURIComponent(queryReturnTo)}
+              href={decodeURIComponent(safeReturnTo)}
               className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               aria-label="Volver"
             >

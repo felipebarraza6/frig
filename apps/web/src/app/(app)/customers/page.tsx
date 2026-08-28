@@ -22,6 +22,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   fetchCustomers,
   createCustomer,
@@ -385,9 +386,42 @@ export default function CustomersPage() {
         {error ? (
           <p className="text-sm text-danger">No se pudieron cargar los clientes.</p>
         ) : isLoading ? (
-          <div className="grid flex-1 place-items-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
+          <>
+            {/* Vista desktop */}
+            <div className="hidden overflow-hidden rounded-xl border border-border sm:block">
+              <div className="border-b border-border px-3 py-3">
+                <Skeleton className="h-3 w-44" />
+              </div>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-3 border-b border-border px-3 py-3 last:border-0"
+                >
+                  <Skeleton className="h-8 w-8 rounded-md" />
+                  <Skeleton className="h-4 w-36" />
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="ml-auto h-5 w-16 rounded-full" />
+                </div>
+              ))}
+            </div>
+            {/* Vista móvil */}
+            <div className="flex flex-col gap-3 sm:hidden">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="rounded-xl border border-border bg-card p-4 shadow-sm"
+                >
+                  <div className="mb-2 flex items-center gap-2">
+                    <Skeleton className="h-8 w-8 rounded-md" />
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="ml-auto h-5 w-14 rounded-full" />
+                  </div>
+                  <Skeleton className="h-3 w-40" />
+                </div>
+              ))}
+            </div>
+          </>
         ) : filteredCustomers.length === 0 ? (
           <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">
             <div>

@@ -10,7 +10,7 @@ import {
   type BranchEventScope,
 } from "@/lib/realtime/useBranchWebSocket";
 
-const SCOPES: BranchEventScope[] = ["pos", "cash_register", "dashboard"];
+const SCOPES: BranchEventScope[] = ["pos", "cash_register", "dashboard", "modules"];
 
 function invalidateQueriesForEvent(
   queryClient: ReturnType<typeof useQueryClient>,
@@ -28,6 +28,11 @@ function invalidateQueriesForEvent(
       break;
     case "dashboard":
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      break;
+    case "modules":
+      // Otro dispositivo/ventana cambió los módulos activos de la sucursal.
+      // Refrescamos la query para que el menú y los guards se enteren.
+      queryClient.invalidateQueries({ queryKey: ["branch-modules"] });
       break;
     default:
       break;

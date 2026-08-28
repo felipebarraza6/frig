@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import {
   fetchCashRegisterStations,
@@ -190,8 +191,21 @@ export default function CashRegisterStationsPage() {
             {error instanceof Error && <p className="mt-1 opacity-90">{error.message}</p>}
           </div>
         ) : isLoading ? (
-          <div className="grid flex-1 place-items-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <div className="overflow-hidden rounded-xl border border-border">
+            <div className="border-b border-border px-4 py-3">
+              <Skeleton className="h-3 w-40" />
+            </div>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-3 border-b border-border px-4 py-3 last:border-0"
+              >
+                <Skeleton className="h-7 w-7 rounded-md" />
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="ml-auto h-5 w-16 rounded-full" />
+              </div>
+            ))}
           </div>
         ) : filtered.length === 0 ? (
           <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">

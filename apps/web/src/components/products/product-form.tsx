@@ -43,7 +43,7 @@ import {
 } from "@/lib/api/warehouses";
 import { useBranchProductTypes } from "@/lib/hooks/useBranchProductTypes";
 import { useDownloadFile } from "@/lib/hooks/useDownloadFile";
-import { useIsNutritionEnabled } from "@/lib/store/session";
+import { useIsNutritionEnabled, useIsModuleEnabledFromConfig } from "@/lib/store/session";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 const RECIPE_TYPES = [
@@ -176,6 +176,9 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
   const queryClient = useQueryClient();
   const { options: productTypeOptions, defaultType } = useBranchProductTypes();
   const nutritionEnabled = useIsNutritionEnabled();
+  // El check "Público en menú QR" depende del módulo Menús digitales
+  // (public_catalog), igual que el tab Nutrición depende de `nutrition`.
+  const publicCatalogEnabled = useIsModuleEnabledFromConfig("public_catalog");
   const { download: downloadNutritionPdf, isLoading: downloadingNutritionPdf } = useDownloadFile();
   const { options: categories, isLoading: loadingCategories } = useCategoryOptions();
 
@@ -1004,7 +1007,7 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
               />
               Activo
             </label>
-            {isSellable && (
+            {isSellable && publicCatalogEnabled && (
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"

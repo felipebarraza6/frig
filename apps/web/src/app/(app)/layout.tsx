@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
@@ -9,15 +9,18 @@ import {
   useIsWaiter,
   useCashierAllowedPaths,
   useWaiterAllowedPaths,
+  useBranchModulesState,
 } from "@/lib/store/session";
-import { useSidebarStore } from "@/lib/store/sidebar";
 import { useIsRouteModuleEnabled } from "@/lib/hooks/useRouteModuleAccess";
+import { fetchFrontendConfig } from "@/lib/api/frontend-config";
+import { useSidebarStore } from "@/lib/store/sidebar";
 import { AppSidebar } from "@/components/app-sidebar/app-sidebar";
 import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { MobileMenuSheet } from "@/components/mobile-menu-sheet";
 import { RealtimeProvider } from "@/components/realtime/realtime-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { ForbiddenListener } from "@/components/forbidden-listener";
+import { enabledModuleSet, firstEnabledAllowedPath } from "@/lib/modules";
 
 const HIDDEN_SIDEBAR_PATHS = ["/pos/terminal", "/kds/terminal", "/kds/monitor"];
 
@@ -38,11 +41,39 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const isWaiter = useIsWaiter();
   const cashierAllowedPaths = useCashierAllowedPaths();
   const waiterAllowedPaths = useWaiterAllowedPaths();
-  const sidebarExpanded = useSidebarStore((s) => s.expanded);
-  const sidebarHovering = useSidebarStore((s) => s.hovering);
-  const effectivelyExpanded = sidebarExpanded || sidebarHovering;
+  const sessionModules = useBranchModulesState();
+  const enabledModules = useMemo(
+    () => enabledModuleSet(sessionModules),
+    [sessionModules]
+  );
   const [mobileOpen, setMobileOpen] = useState(false);
+  const sidebarExpanded = useSidebarStore((s) => s.expanded);
   const isRouteModuleEnabled = useIsRouteModuleEnabled(pathname);
+  const setFrontendConfig = useSessionStore((s) => s.setFrontendConfig);
+
+  // Re-sincroniza los módulos de la sesión con frontend-config al entrar a la
+  // app. El store persiste `modules` en localStorage; sin este refresco quedan
+  // stale si el backend cambió (por ejemplo, un toggle de módulo hecho en otra
+  // ventana/dispositivo) y la UI seguiría mostrando secciones de módulos que ya
+  // están desactivados (caso Nutrición en productos).
+  //
+  // IMPORTANTE: la dependencia usa `user?.id` (primitivo), no `user` (objeto).
+  // `setFrontendConfig` reemplaza `user` con una referencia nueva en cada
+  // respuesta; depender del objeto re-disparaba este efecto en un loop infinito
+  // de GET /frontend-config. El ref además limita el refresco a una vez por
+  // sucursal en cada sesión de navegación.
+  const refreshedBranchRef = useRef<string | null>(null);
+  const userId = user?.id;
+  useEffect(() => {
+    if (!hasHydrated || !userId || !currentBranchId) return;
+    if (refreshedBranchRef.current === currentBranchId) return;
+    refreshedBranchRef.current = currentBranchId;
+    fetchFrontendConfig(Number(currentBranchId))
+      .then((config) => setFrontendConfig(config, String(currentBranchId)))
+      .catch((err) => {
+        console.error("[layout] failed to refresh frontend-config:", err);
+      });
+  }, [hasHydrated, userId, currentBranchId, setFrontendConfig]);
 
   useEffect(() => {
     if (!hasHydrated) return;
@@ -55,22 +86,44 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Roles operativos: si la ruta actual no está permitida para su rol,
+    // los mandamos al primer path permitido cuyo módulo siga activo. Si
+    // todos los paths habilitados cayeron (caso degenerado), caemos a
+    // `/profile`, que es libre de módulo y siempre seguro.
     if (isCashier && !isAllowed(pathname, cashierAllowedPaths)) {
-      router.replace("/pos/terminal");
+      const target =
+        firstEnabledAllowedPath(cashierAllowedPaths, enabledModules) ?? "/profile";
+      router.replace(target);
       return;
     }
 
     if (isWaiter && !isAllowed(pathname, waiterAllowedPaths)) {
-      router.replace("/pos/terminal");
+      const target =
+        firstEnabledAllowedPath(waiterAllowedPaths, enabledModules) ?? "/profile";
+      router.replace(target);
       return;
     }
 
     // Cajero/mesero no necesitan ver el hub de estaciones; entran directo al terminal.
     if ((isCashier || isWaiter) && pathname === "/pos") {
+      // Si por algún motivo el módulo POS quedó deshabilitado, los mandamos
+      // a otra ruta operativa permitida antes que dejarlos en un hub que
+      // no pueden usar.
+      if (!enabledModules.has("pos")) {
+        const fallback =
+          (isCashier
+            ? firstEnabledAllowedPath(cashierAllowedPaths, enabledModules)
+            : firstEnabledAllowedPath(waiterAllowedPaths, enabledModules)) ?? "/profile";
+        router.replace(fallback);
+        return;
+      }
       router.replace("/pos/terminal");
       return;
     }
 
+    // Rutas no operativas: si el módulo de la ruta está deshabilitado,
+    // redirigir a /dashboard (always-on y siempre disponible para admins).
+    // Para roles operativos este chequeo ya pasó arriba; no llega acá.
     if (!isRouteModuleEnabled && pathname !== "/dashboard") {
       router.replace("/dashboard");
     }
@@ -85,6 +138,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     cashierAllowedPaths,
     waiterAllowedPaths,
     isRouteModuleEnabled,
+    enabledModules,
   ]);
 
   if (!hasHydrated || !user) {
@@ -112,7 +166,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           className={cn(
             "flex min-h-full flex-1 flex-col",
             !shouldHideSidebar && [
-              effectivelyExpanded ? "md:ml-60" : "md:ml-16",
+              // El pin reserva espacio; el hover expande como overlay sin mover el layout.
+              sidebarExpanded ? "md:ml-60" : "md:ml-16",
               "pb-24 md:pb-0",
             ]
           )}

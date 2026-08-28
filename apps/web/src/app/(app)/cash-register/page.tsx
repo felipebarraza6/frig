@@ -33,6 +33,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   getCurrentCashRegister,
   getLastClosedCashRegister,
@@ -595,9 +596,30 @@ export default function CashRegisterPage() {
 
         {/* Top POS panel: Cash + Movements */}
         {loadingRegister ? (
-          <div className="grid flex-1 place-items-center rounded-2xl border border-border/60 bg-card py-10">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
+          <section className="grid gap-4 lg:grid-cols-3">
+            <div className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-card p-5 shadow-sm lg:col-span-2">
+              <div className="flex items-center gap-3">
+                <Skeleton className="h-10 w-10 rounded-xl" />
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-3 w-28" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="space-y-2">
+                    <Skeleton className="h-3 w-16" />
+                    <Skeleton className="h-6 w-24" />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-9 w-full" />
+              <Skeleton className="h-9 w-full" />
+            </div>
+          </section>
         ) : (
           <section className={cn("grid gap-4", canManageMovements && "lg:grid-cols-3")}>
             {/* Cash register panel */}
@@ -1383,8 +1405,19 @@ export default function CashRegisterPage() {
               </div>
 
               {loadingHistory ? (
-                <div className="grid place-items-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <div className="rounded-lg border border-border">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-4 border-b border-border px-4 py-2.5 last:border-0"
+                    >
+                      <Skeleton className="h-3 w-20" />
+                      <Skeleton className="h-4 w-14 rounded-full" />
+                      <Skeleton className="ml-auto h-3 w-16" />
+                      <Skeleton className="h-3 w-16" />
+                      <Skeleton className="h-3 w-16" />
+                    </div>
+                  ))}
                 </div>
               ) : !history || history.results.length === 0 ? (
                 <div className="grid place-items-center rounded-2xl border border-dashed border-border bg-muted/20 py-10 text-center">
@@ -1532,8 +1565,18 @@ export default function CashRegisterPage() {
               )}
             </div>
           ) : loadingMovements || loadingMovementsRegister ? (
-            <div className="grid place-items-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <div className="flex flex-col gap-2">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5"
+                >
+                  <Skeleton className="h-7 w-7 rounded-md" />
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="hidden h-3 w-20 sm:block" />
+                  <Skeleton className="ml-auto h-4 w-20" />
+                </div>
+              ))}
             </div>
           ) : (
             <div className="flex flex-col gap-3">

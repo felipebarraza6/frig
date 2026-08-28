@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
-import { motion, AnimatePresence } from "framer-motion";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { m, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
   LogOut,
@@ -27,6 +27,8 @@ import {
   useIsWaiter,
   useCanSwitchBranch,
   useIsModuleEnabledFromConfig,
+  useCashierAllowedPaths,
+  useWaiterAllowedPaths,
 } from "@/lib/store/session";
 import { useFrigMenu } from "@/lib/hooks/useFrigMenu";
 import { useNavFavorites } from "@/lib/store/nav-favorites";
@@ -54,6 +56,7 @@ interface AppSidebarProps {
 export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: AppSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const storeExpanded = useSidebarStore((s) => s.expanded);
   const toggleExpanded = useSidebarStore((s) => s.toggle);
   const expanded = forceExpanded ?? storeExpanded;
@@ -77,28 +80,8 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
   const appName = theme?.app_name ?? "FRIG";
   const { favorites, toggleFavorite, isFavorite } = useNavFavorites();
 
-  const cashierAllowedPaths = useMemo(
-    () => ["/pos", "/cash-register", "/kds", "/sales", "/profile"],
-    []
-  );
-  const waiterAllowedPaths = useMemo(
-    () => [
-      "/pos",
-      "/cash-register",
-      "/sales",
-      "/products",
-      "/categories",
-      "/warehouses",
-      "/inventory",
-      "/tables",
-      "/tables/map",
-      "/customers",
-      "/suppliers",
-      "/purchase-orders",
-      "/profile",
-    ],
-    []
-  );
+  const cashierAllowedPaths = useCashierAllowedPaths();
+  const waiterAllowedPaths = useWaiterAllowedPaths();
 
   function isAllowedPath(href: string, allowedPaths: string[]): boolean {
     return allowedPaths.some((p) => href === p || href.startsWith(`${p}/`));
@@ -198,6 +181,7 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
     }
     clearToken();
     clearSession();
+    queryClient.clear();
     router.replace("/login");
   }
 
@@ -214,14 +198,19 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
 
   if (!hasHydrated || !user) return null;
 
-  const widthClass = effectivelyExpanded ? "w-60" : "w-16";
+  // Sombra solo cuando el panel expandido flota como overlay (hover sin pin).
+  const widthClass = effectivelyExpanded
+    ? hovering && !expanded
+      ? "w-60 shadow-xl"
+      : "w-60"
+    : "w-16";
 
   return (
     <>
       <CommandPalette items={allItems} open={searchOpen} onClose={() => setSearchOpen(false)} />
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex flex-col overflow-hidden border-r border-border bg-card transition-all duration-300 ease-out",
+          "fixed inset-y-0 left-0 z-50 flex flex-col overflow-hidden border-r border-border bg-card transition-all duration-300 ease-out",
           widthClass
         )}
         onMouseEnter={() => setHovering(true)}
@@ -231,7 +220,7 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
           <BrandLogo src={theme?.logo} alt={appName} containerClassName="h-9 w-9 shrink-0" />
           <AnimatePresence>
             {effectivelyExpanded && (
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, x: -8 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -8 }}
@@ -242,7 +231,7 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
                 {branch && (
                   <p className="truncate text-xs text-muted-foreground">{branchName(branch)}</p>
                 )}
-              </motion.div>
+              </m.div>
             )}
           </AnimatePresence>
           <button
@@ -278,7 +267,7 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
 
           {favorites.length > 0 && effectivelyExpanded && (
             <nav className="flex flex-col gap-1">
-              <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <p className="px-3 py-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Accesos directos
               </p>
               {favorites
@@ -312,7 +301,7 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
           {visibleMenuGroups.some((g) => g.title.toLowerCase() === "operaciones") && (
             <nav className="flex flex-col gap-1">
               {effectivelyExpanded && (
-                <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <p className="px-3 py-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   Operaciones
                 </p>
               )}
@@ -476,28 +465,23 @@ function NavGroup({
   }
 
   return (
-    <div className="flex flex-col gap-1 border-t border-border pt-2">
+    <div className="flex flex-col gap-1 mt-3 pt-1">
       <button
         type="button"
         onClick={onToggle}
-        className="flex items-center justify-between rounded-lg px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className="flex items-center justify-between rounded-lg px-3 py-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
       >
         {title}
-        {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+        {isOpen ? <ChevronDown className="h-3 w-3 opacity-60" /> : <ChevronRight className="h-3 w-3 opacity-60" />}
       </button>
-      <AnimatePresence initial={false}>
-        {isOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="flex flex-col gap-1 overflow-hidden"
-          >
-            {children}
-          </motion.div>
+      <div
+        className={cn(
+          "grid transition-all duration-200 ease-out",
+          isOpen ? "grid-rows-[1fr] opacity-100" : "invisible grid-rows-[0fr] opacity-0"
         )}
-      </AnimatePresence>
+      >
+        <div className="flex min-h-0 flex-col gap-1 overflow-hidden">{children}</div>
+      </div>
     </div>
   );
 }
@@ -533,18 +517,19 @@ function NavItem({
         href={href}
         onClick={onClick}
         className={cn(
-          "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+          "relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           active
-            ? "bg-primary text-white"
+            ? "bg-primary text-primary-foreground"
             : "text-muted-foreground hover:bg-muted hover:text-foreground",
           !expanded && "h-9 w-9 justify-center p-0"
         )}
         title={description || (!expanded ? label : undefined)}
       >
         {active && (
-          <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-white/80" />
+          <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-primary-foreground/80" />
         )}
-        <Icon className="h-4 w-4 shrink-0" />
+        <Icon className="h-5 w-5 shrink-0" />
         {expanded && (
           <>
             <span className="flex-1 truncate">{label}</span>

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence, useDragControls, type PanInfo } from "framer-motion";
 import {
   X,
@@ -22,6 +23,8 @@ import {
   useCanSwitchBranch,
   useIsCashier,
   useIsWaiter,
+  useCashierAllowedPaths,
+  useWaiterAllowedPaths,
 } from "@/lib/store/session";
 import { useFrigMenu } from "@/lib/hooks/useFrigMenu";
 import { useNavFavorites } from "@/lib/store/nav-favorites";
@@ -39,6 +42,7 @@ const QUICK_ACCESS_LIMIT = 6;
 export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const dragControls = useDragControls();
   const sheetRef = useRef<HTMLDivElement>(null);
 
@@ -52,6 +56,8 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
   const { favorites, toggleFavorite, isFavorite } = useNavFavorites();
   const isCashier = useIsCashier();
   const isWaiter = useIsWaiter();
+  const cashierAllowedPaths = useCashierAllowedPaths();
+  const waiterAllowedPaths = useWaiterAllowedPaths();
   const [editingQuickAccess, setEditingQuickAccess] = useState(false);
 
   const handleClose = useCallback(() => {
@@ -78,6 +84,7 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
     }
     clearToken();
     clearSession();
+    queryClient.clear();
     router.replace("/login");
   }
 
@@ -107,16 +114,16 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
   const isAllowed = useCallback(
     (href: string): boolean => {
       if (isCashier)
-        return ["/pos", "/pos/terminal", "/cash-register", "/kds", "/sales", "/profile"].some(
-          (p) => href === p || href.startsWith(`${p}/`)
+        return cashierAllowedPaths.some(
+          (p) => href === p || href.startsWith(`${p}/`),
         );
       if (isWaiter)
-        return ["/pos", "/pos/terminal", "/tables", "/tables/map", "/sales", "/profile"].some(
-          (p) => href === p || href.startsWith(`${p}/`)
+        return waiterAllowedPaths.some(
+          (p) => href === p || href.startsWith(`${p}/`),
         );
       return true;
     },
-    [isCashier, isWaiter]
+    [isCashier, isWaiter, cashierAllowedPaths, waiterAllowedPaths]
   );
 
   const visibleGroups = useMemo(
@@ -199,7 +206,7 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
                       src={null}
                       alt={appName}
                       name={displayName}
-                      containerClassName="h-16 w-16 rounded-xl bg-primary text-lg text-white"
+                      containerClassName="h-16 w-16 rounded-xl bg-primary text-lg text-primary-foreground"
                     />
                   </div>
                 )}
@@ -276,7 +283,7 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
                   <button
                     type="button"
                     onClick={() => setEditingQuickAccess(false)}
-                    className="mt-4 w-full rounded-xl bg-primary px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-primary/90"
+                    className="mt-4 w-full rounded-xl bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
                   >
                     Listo
                   </button>

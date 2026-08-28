@@ -100,17 +100,13 @@ export function normalizeModules(raw: unknown): Record<string, FrontendModuleSta
   };
 
   // Forma 1: { enabled: [...], disabled: [...], permissions: {...} }
+  // Nota: `permissions` trae read/write/delete por módulo, no configuración de
+  // submódulos; se ignora para no contaminar `submodule_config` (antes se
+  // guardaba como tal, lo que hacía ilegibles los checks de submódulos).
   if (Array.isArray((raw as { enabled?: unknown }).enabled)) {
-    const r = raw as { enabled?: string[]; disabled?: string[]; permissions?: Record<string, unknown> };
-    const perms = r.permissions ?? {};
+    const r = raw as { enabled?: string[]; disabled?: string[] };
     for (const mod of r.enabled ?? []) {
-      const perm = perms[mod];
-      out[mod] = {
-        is_enabled: true,
-        ...(perm && typeof perm === "object"
-          ? { submodule_config: perm as Record<string, boolean> }
-          : {}),
-      };
+      out[mod] = { is_enabled: true };
     }
     for (const mod of r.disabled ?? []) {
       out[mod] = { is_enabled: false };
@@ -184,6 +180,9 @@ export const useSessionStore = create<SessionState>()(
         set((s) => ({ modules: { ...s.modules, [moduleName]: state } })),
       clearSession: () => {
         clearBranchId();
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("frig.session");
+        }
         set({
           user: null,
           branches: [],
@@ -442,9 +441,19 @@ export function useIsRecipesEnabled(): boolean {
  * True si el módulo de nutrición está habilitado.
  * El etiquetado nutricional y la página `/products/nutrition` dependen de este
  * módulo. Recetas e ingredientes están siempre disponibles.
+ *
+ * Importante: si bien el módulo compuesto `nutrition` puede estar activo,
+ * los submódulos `recipes` e `ingredients` también deben estar habilitados
+ * para que la página funcione. Devuelve `false` si falta alguno de los
+ * dos, alineando el chequeo con el que usa el backend.
  */
 export function useIsNutritionEnabled(): boolean {
-  return useSessionStore((s) => s.modules["nutrition"]?.is_enabled ?? false);
+  return useSessionStore((s) => {
+    const mod = s.modules["nutrition"];
+    if (!mod?.is_enabled) return false;
+    const subs = mod.submodule_config ?? {};
+    return subs["recipes"] !== false && subs["ingredients"] !== false;
+  });
 }
 
 /** Feature flags devueltos por frontend-config. */

@@ -70,6 +70,8 @@ export function BrandLogo({
       <img
         src={src}
         alt={alt}
+        loading="lazy"
+        decoding="async"
         onError={() => setError(true)}
         className={cn("object-contain", className ?? "h-full w-full p-1")}
       />

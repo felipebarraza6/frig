@@ -4,7 +4,7 @@
 import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, AlertTriangle, CheckCircle2, Sparkles } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Sparkles } from "lucide-react";
 import { useCurrentBranch, useIsOwner, useIsSuperAdmin, useSessionStore } from "@/lib/store/session";
 import { useToast } from "@/lib/store/toast";
 import {
@@ -13,8 +13,11 @@ import {
   parseSubmoduleConfig,
   type ModuleName,
 } from "@/lib/api/branch-modules";
+import { fetchFrontendConfig } from "@/lib/api/frontend-config";
 import { ApiError } from "@/lib/api/client";
 import type { YggdraSchemas } from "@/lib/api/types";
+import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/page-header";
 import { cn } from "@/lib/utils";
 import { getIcon, type IconName } from "@/lib/icons";
 import {
@@ -89,6 +92,8 @@ export default function BranchModulesPage() {
   const isSuperAdmin = useIsSuperAdmin();
   const toast = useToast();
   const setModuleState = useSessionStore((s) => s.setModuleState);
+  const setFrontendConfig = useSessionStore((s) => s.setFrontendConfig);
+  const sessionModules = useSessionStore((s) => s.modules);
   const queryClient = useQueryClient();
   const branchId = branch?.branch_id ? Number(branch.branch_id) : null;
   const canManage = isOwner || isSuperAdmin;
@@ -108,22 +113,26 @@ export default function BranchModulesPage() {
         existing.set(c.module_name, c);
       }
     }
-    // Si el backend no devolvió un módulo configurable, lo mostramos como inactivo
-    // para que el usuario pueda activarlo desde aquí.
-    return FRIG_SETTINGS_MODULES.filter((name) => !isCore(name)).map(
-      (name) =>
-        existing.get(name) ??
-        ({
-          id: 0,
-          branch: branchId ?? 0,
-          module_name: name,
-          is_enabled: false,
-          submodule_config: {},
-          created: "",
-          modified: "",
-        } as ModuleConfig),
-    );
-  }, [configs, branchId]);
+    // Si el backend no devolvió una fila de configuración para un módulo
+    // configurable, la card se sintetiza. El estado real en ese caso lo entrega
+    // frontend-config (session.modules): módulos activos por plan pueden no
+    // tener fila en `by_branch`, y si aquí se asume `false` la card aparece
+    // "Inactivo" mientras el módulo está activo en la app, y el toggle acciona
+    // en dirección contraria (activa en vez de desactivar).
+    return FRIG_SETTINGS_MODULES.filter((name) => !isCore(name)).map((name) => {
+      const row = existing.get(name);
+      if (row) return row;
+      return {
+        id: 0,
+        branch: branchId ?? 0,
+        module_name: name,
+        is_enabled: sessionModules[name]?.is_enabled ?? false,
+        submodule_config: sessionModules[name]?.submodule_config ?? {},
+        created: "",
+        modified: "",
+      } as unknown as ModuleConfig;
+    });
+  }, [configs, branchId, sessionModules]);
 
   const configByName = useMemo(() => {
     const map = new Map<ModuleName, ModuleConfig>();
@@ -160,15 +169,84 @@ export default function BranchModulesPage() {
 
   const toggle = useMutation({
     mutationFn: toggleBranchModule,
-    onSuccess: (data) => {
+    // Optimistic: actualizamos cache de query y session store antes del
+    // round-trip. Si el backend rechaza, onError hace rollback desde el
+    // contexto y muestra el toast correspondiente. Si acepta, onSuccess
+    // reconcilia con la respuesta real del servidor.
+    onMutate: async (vars) => {
+      await queryClient.cancelQueries({ queryKey: ["branch-modules", branchId] });
+      const previous = queryClient.getQueryData<ModuleConfig[]>([
+        "branch-modules",
+        branchId,
+      ]);
+      // Capturar antes de setQueryData: el updater corre sincrónicamente y no
+      // puede leer una const declarada después (TDZ).
+      const prevSession = sessionModules[vars.moduleName];
+      queryClient.setQueryData<ModuleConfig[]>(
+        ["branch-modules", branchId],
+        (old = []) => {
+          const base = old.map((c) =>
+            c.module_name === vars.moduleName
+              ? { ...c, is_enabled: vars.isEnabled }
+              : c,
+          );
+          // El módulo puede no tener fila en `by_branch` (card sintetizada):
+          // agregarla al cache para que el switch haga flip optimista también
+          // en ese caso y no espere el refetch.
+          if (!base.some((c) => c.module_name === vars.moduleName)) {
+            base.push({
+              id: 0,
+              branch: branchId ?? 0,
+              module_name: vars.moduleName,
+              is_enabled: vars.isEnabled,
+              submodule_config: prevSession?.submodule_config ?? {},
+              created: "",
+              modified: "",
+            } as unknown as ModuleConfig);
+          }
+          return base;
+        },
+      );
+      setModuleState(vars.moduleName, {
+        is_enabled: vars.isEnabled,
+        submodule_config: prevSession?.submodule_config ?? {},
+      });
+      return { previous, prevSession };
+    },
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ["branch-modules", branchId] });
       setModuleState(data.module_name, {
         is_enabled: !!data.is_enabled,
         submodule_config: parseSubmoduleConfig(data.submodule_config),
       });
+      // Recargar frontend-config para que el menú use la fuente de verdad del backend
+      if (branchId) {
+        try {
+          const config = await fetchFrontendConfig(branchId);
+          setFrontendConfig(config, String(branchId));
+        } catch (e) {
+          console.error("[modules] failed to refresh frontend-config after toggle:", e);
+        }
+      }
     },
-    onError: (err: Error, vars) => {
-      queryClient.invalidateQueries({ queryKey: ["branch-modules", branchId] });
+    onError: (
+      err: Error,
+      vars,
+      context: { previous?: ModuleConfig[]; prevSession?: typeof sessionModules[string] } | undefined,
+    ) => {
+      // Rollback del cambio optimista.
+      if (context?.previous) {
+        queryClient.setQueryData(["branch-modules", branchId], context.previous);
+      } else if (vars && context !== undefined) {
+        // La card era sintetizada (sin fila en `by_branch`): el optimismo la
+        // agregó al cache; al fallar se retira para no dejar un estado falso.
+        queryClient.setQueryData<ModuleConfig[]>(["branch-modules", branchId], (old = []) =>
+          old.filter((c) => c.module_name !== vars.moduleName),
+        );
+      }
+      if (context?.prevSession !== undefined) {
+        setModuleState(vars.moduleName, context.prevSession);
+      }
       const meta = getModuleMetadata(vars.moduleName, metadataByName);
       const moduleLabel = MODULE_LABELS[vars.moduleName] ?? meta.label ?? vars.moduleName;
 
@@ -189,6 +267,10 @@ export default function BranchModulesPage() {
   });
 
   function handleToggle(moduleName: ModuleName) {
+    // Evita encolar mutaciones: mientras una está en vuelo, los clics se
+    // ignoran (si no, cada clic encolaba un toggle y el módulo alternaba
+    // activar/desactivar en un loop de peticiones).
+    if (toggle.isPending) return;
     if (!canManage) {
       toast.error("No tienes permisos para modificar módulos");
       return;
@@ -207,24 +289,18 @@ export default function BranchModulesPage() {
     <div className="flex min-h-full flex-col">
       {/* Header */}
       <header className="border-b border-border bg-card px-6 py-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-              <Sparkles className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold tracking-tight">Módulos</h1>
-              <p className="text-sm text-muted-foreground">
-                Activa y desactiva las funciones de tu sucursal
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 self-start rounded-full bg-primary/10 px-3 py-1.5 text-sm sm:self-auto">
-            <span className="inline-block h-2 w-2 rounded-full bg-primary" />
-            <span className="font-semibold text-primary">{stats.active}</span>
-            <span className="text-primary/70">de {stats.total} activos</span>
-          </div>
-        </div>
+        <PageHeader
+          title="Módulos"
+          subtitle="Activa y desactiva las funciones de tu sucursal"
+          icon={<Sparkles className="h-5 w-5" />}
+          badge={
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary" />
+              {stats.active}/{stats.total}
+            </span>
+          }
+          className="mb-0"
+        />
 
         {/* Progress bar */}
         <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-muted">
@@ -259,8 +335,30 @@ export default function BranchModulesPage() {
         )}
 
         {isLoading || catalogLoading ? (
-          <div className="flex flex-1 items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <div className="flex flex-col gap-8">
+            {Array.from({ length: 2 }).map((_, g) => (
+              <section key={g}>
+                <div className="mb-3 flex items-center gap-2">
+                  <Skeleton className="h-3 w-28" />
+                  <Skeleton className="h-4 w-10 rounded-full" />
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="rounded-xl border border-border bg-card p-4"
+                    >
+                      <div className="mb-3 flex items-center gap-3">
+                        <Skeleton className="h-9 w-9 rounded-lg" />
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="ml-auto h-5 w-9 rounded-full" />
+                      </div>
+                      <Skeleton className="h-3 w-full" />
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ))}
           </div>
         ) : (
           <div className="flex flex-col gap-8">
@@ -286,7 +384,7 @@ export default function BranchModulesPage() {
                       canManage={canManage}
                       isPending={toggle.isPending}
                       metadataByName={metadataByName}
-                      animKey={toggle.variables?.moduleName === config.module_name ? Date.now() : undefined}
+                      animKey={toggle.variables?.moduleName === config.module_name && toggle.isPending ? "pending" : undefined}
                       onToggle={() => handleToggle(config.module_name)}
                     />
                   ))}
@@ -312,7 +410,7 @@ function ModuleCard({
   canManage: boolean;
   isPending: boolean;
   metadataByName: Record<string, ModuleCatalogMetadata>;
-  animKey?: number;
+  animKey?: string;
   onToggle: () => void;
 }) {
   const core = isCore(config.module_name);
@@ -326,10 +424,10 @@ function ModuleCard({
       className={cn(
         "group relative rounded-2xl transition-all duration-200",
         enabled ? "p-[2px]" : "border border-border bg-card",
-        !core && canManage && "cursor-pointer",
+        !core && canManage && !isPending && "cursor-pointer",
         core && "cursor-default"
       )}
-      onClick={core ? undefined : onToggle}
+      onClick={core || isPending ? undefined : onToggle}
     >
       {/* Borde que parpadea al activar y luego queda estático */}
       <AnimatePresence>

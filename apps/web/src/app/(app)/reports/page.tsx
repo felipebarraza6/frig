@@ -18,7 +18,6 @@ import {
   FileSpreadsheet,
   type LucideIcon,
 } from "lucide-react";
-import * as XLSX from "xlsx";
 import {
   fetchDashboardSummary,
   fetchIngredientConsumption,
@@ -28,6 +27,8 @@ import {
 } from "@/lib/api/analytics";
 import { formatCLP, cn, paymentTypeLabel } from "@/lib/utils";
 import { useCurrentBranch } from "@/lib/store/session";
+import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/page-header";
 
 const container: Variants = {
   hidden: { opacity: 0 },
@@ -101,10 +102,12 @@ function exportToPDF() {
   window.print();
 }
 
-function exportToExcel(
+async function exportToExcel(
   summary: DashboardSummary,
   ingredientConsumption: IngredientConsumption | undefined,
 ) {
+  // Import dinámico: xlsx solo se usa al exportar, fuera del bundle inicial.
+  const XLSX = await import("xlsx");
   const wb = XLSX.utils.book_new();
 
   const salesTotal = summary.sales.completed.total_amount;
@@ -225,7 +228,7 @@ export default function ReportsPage() {
       `}</style>
       {/* Header */}
       <header className="print-hidden flex flex-col gap-3">
-        <h1 className="text-xl font-bold tracking-tight">Informes</h1>
+        <PageHeader title="Informes" className="mb-0" />
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           <div className="inline-flex rounded-xl border border-border bg-card p-1 shadow-sm">
             {(["today", "yesterday", "week", "month"] as DateRange[]).map((r) => (
@@ -837,10 +840,6 @@ function SalesChart({
   );
 }
 
-function SkeletonPulse({ className }: { className?: string }) {
-  return <div className={cn("animate-pulse rounded-lg bg-muted", className)} />;
-}
-
 function ReportsSkeleton() {
   return (
     <>
@@ -848,47 +847,47 @@ function ReportsSkeleton() {
         {Array.from({ length: 6 }).map((_, i) => (
           <div key={i} className="rounded-xl border border-border bg-card p-2.5 shadow-sm">
             <div className="mb-1.5 flex items-center gap-2">
-              <SkeletonPulse className="h-7 w-7 rounded-lg" />
-              <SkeletonPulse className="h-3 w-20" />
+              <Skeleton className="h-7 w-7 rounded-lg" />
+              <Skeleton className="h-3 w-20" />
             </div>
-            <SkeletonPulse className="mb-1 h-6 w-24" />
-            <SkeletonPulse className="h-3 w-16" />
+            <Skeleton className="mb-1 h-6 w-24" />
+            <Skeleton className="h-3 w-16" />
           </div>
         ))}
       </section>
 
       <section className="grid gap-4">
         <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-          <SkeletonPulse className="mb-4 h-4 w-40" />
-          <SkeletonPulse className="h-40 w-full" />
+          <Skeleton className="mb-4 h-4 w-40" />
+          <Skeleton className="h-40 w-full" />
         </div>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-          <SkeletonPulse className="mb-4 h-4 w-40" />
+          <Skeleton className="mb-4 h-4 w-40" />
           <div className="flex flex-col gap-3">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
-                  <SkeletonPulse className="h-3 w-32" />
-                  <SkeletonPulse className="h-3 w-20" />
+                  <Skeleton className="h-3 w-32" />
+                  <Skeleton className="h-3 w-20" />
                 </div>
-                <SkeletonPulse className="h-2.5 w-full" />
+                <Skeleton className="h-2.5 w-full" />
               </div>
             ))}
           </div>
         </div>
         <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-          <SkeletonPulse className="mb-4 h-4 w-32" />
+          <Skeleton className="mb-4 h-4 w-32" />
           <div className="flex flex-col gap-3">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
-                  <SkeletonPulse className="h-3 w-28" />
-                  <SkeletonPulse className="h-3 w-16" />
+                  <Skeleton className="h-3 w-28" />
+                  <Skeleton className="h-3 w-16" />
                 </div>
-                <SkeletonPulse className="h-2.5 w-full" />
+                <Skeleton className="h-2.5 w-full" />
               </div>
             ))}
           </div>
@@ -897,12 +896,12 @@ function ReportsSkeleton() {
 
       <section className="grid gap-4">
         <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-          <SkeletonPulse className="mb-4 h-4 w-36" />
+          <Skeleton className="mb-4 h-4 w-36" />
           <div className="flex flex-col gap-2">
             {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="flex items-center justify-between">
-                <SkeletonPulse className="h-3 w-32" />
-                <SkeletonPulse className="h-3 w-20" />
+                <Skeleton className="h-3 w-32" />
+                <Skeleton className="h-3 w-20" />
               </div>
             ))}
           </div>

@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   cancelKitchenTicket,
   deliverKitchenTicket,
@@ -136,8 +137,46 @@ export function KdsBoard({
 
   if (isLoading) {
     return (
-      <div className="grid min-h-full place-items-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className={cn("flex min-h-full flex-col gap-4 p-6", className)}>
+        <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-3 w-48" />
+          </div>
+          <Skeleton className="h-9 w-full sm:w-64" />
+        </header>
+        <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, col) => (
+            <div
+              key={col}
+              className="flex min-h-0 flex-col rounded-xl border border-border bg-card"
+            >
+              <div className="flex items-center gap-2 px-4 py-3">
+                <Skeleton className="h-4 w-4 rounded" />
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="ml-auto h-4 w-6 rounded-full" />
+              </div>
+              <div className="flex flex-col gap-3 p-3">
+                {Array.from({ length: col === 0 ? 3 : 2 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="rounded-lg border border-border bg-background p-4 shadow-sm"
+                  >
+                    <div className="mb-2 flex items-center justify-between">
+                      <Skeleton className="h-3 w-24" />
+                      <Skeleton className="h-3 w-10" />
+                    </div>
+                    <div className="mb-3 flex flex-col gap-1.5">
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-4 w-1/2" />
+                    </div>
+                    <Skeleton className="h-8 w-full" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

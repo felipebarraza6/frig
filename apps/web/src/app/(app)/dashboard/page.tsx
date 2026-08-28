@@ -33,6 +33,7 @@ import { MetricDrawer, type MetricDrawerSection } from "@/components/metric-draw
 import { Sparkline } from "@/components/sparkline";
 import { CustomersMetricDetail, IncomeMetricDetail, OrdersMetricDetail } from "@/components/metric-drawer-detail";
 import Link from "next/link";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const container: Variants = {
   hidden: { opacity: 0 },
@@ -1486,19 +1487,15 @@ function EmptyState({
   );
 }
 
-function SkeletonPulse({ className }: { className?: string }) {
-  return <div className={cn("animate-pulse rounded-lg bg-muted", className)} />;
-}
-
 function DashboardSkeleton() {
   return (
     <div className="flex min-h-full flex-col">
       <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
         <div className="space-y-2">
-          <SkeletonPulse className="h-5 w-32" />
-          <SkeletonPulse className="h-3 w-48" />
+          <Skeleton className="h-5 w-32" />
+          <Skeleton className="h-3 w-48" />
         </div>
-        <SkeletonPulse className="h-10 w-full sm:w-64" />
+        <Skeleton className="h-10 w-full sm:w-64" />
       </header>
       <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
 
@@ -1507,11 +1504,11 @@ function DashboardSkeleton() {
         {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="rounded-2xl border border-border bg-card p-4 shadow-sm">
             <div className="mb-2 flex items-center gap-1.5">
-              <SkeletonPulse className="h-3.5 w-3.5 rounded-sm" />
-              <SkeletonPulse className="h-3 w-20" />
+              <Skeleton className="h-3.5 w-3.5 rounded-sm" />
+              <Skeleton className="h-3 w-20" />
             </div>
-            <SkeletonPulse className="mb-2 h-7 w-28" />
-            <SkeletonPulse className="h-3 w-16" />
+            <Skeleton className="mb-2 h-7 w-28" />
+            <Skeleton className="h-3 w-16" />
           </div>
         ))}
       </section>
@@ -1521,11 +1518,11 @@ function DashboardSkeleton() {
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="rounded-2xl border border-border bg-card p-4 shadow-sm">
             <div className="mb-2 flex items-center gap-1.5">
-              <SkeletonPulse className="h-3.5 w-3.5 rounded-sm" />
-              <SkeletonPulse className="h-3 w-20" />
+              <Skeleton className="h-3.5 w-3.5 rounded-sm" />
+              <Skeleton className="h-3 w-20" />
             </div>
-            <SkeletonPulse className="mb-2 h-7 w-28" />
-            <SkeletonPulse className="h-3 w-16" />
+            <Skeleton className="mb-2 h-7 w-28" />
+            <Skeleton className="h-3 w-16" />
           </div>
         ))}
       </section>
@@ -1533,17 +1530,17 @@ function DashboardSkeleton() {
       {/* Gráficos */}
       <section className="grid gap-3 lg:grid-cols-3">
         <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm lg:col-span-2">
-          <SkeletonPulse className="mb-2 h-4 w-40" />
-          <SkeletonPulse className="h-36 w-full" />
+          <Skeleton className="mb-2 h-4 w-40" />
+          <Skeleton className="h-36 w-full" />
         </div>
         <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
-          <SkeletonPulse className="mb-2 h-4 w-36" />
+          <Skeleton className="mb-2 h-4 w-36" />
           <div className="flex flex-col items-center">
-            <SkeletonPulse className="h-20 w-20 rounded-full" />
+            <Skeleton className="h-20 w-20 rounded-full" />
           </div>
           <div className="mt-3 grid grid-cols-2 gap-3">
-            <SkeletonPulse className="h-8 w-full" />
-            <SkeletonPulse className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
           </div>
         </div>
       </section>

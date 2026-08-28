@@ -24,7 +24,6 @@ import {
   LayoutGrid,
   List,
 } from "lucide-react";
-import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -88,6 +87,8 @@ function formatDateTime(v: string | null | undefined): string {
 }
 
 async function exportWarehouseProductsToExcel(warehouseName: string, warehouseId: number) {
+  // Import dinámico: xlsx solo se usa al exportar, fuera del bundle inicial.
+  const XLSX = await import("xlsx");
   const allResults: WarehouseProduct[] = [];
   let next: string | null | undefined = undefined;
   let first = true;

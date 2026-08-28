@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Modal } from "@/components/ui/modal";
 import type { ProductModifierGroup } from "@/lib/hooks/useCatalog";
 import type { CartItemModifier } from "@/lib/store/cart";
 import { cn, formatCLP } from "@/lib/utils";
@@ -62,78 +62,62 @@ export default function ModifierModal({ productName, groups, onConfirm, onCancel
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="flex max-h-[80vh] w-full max-w-md flex-col rounded-xl border border-border bg-card shadow-lg">
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <div>
-            <h2 className="text-base font-semibold">Personalizar</h2>
-            <p className="text-xs text-muted-foreground">{productName}</p>
-          </div>
-          <button
-            onClick={onCancel}
-            aria-label="Cerrar"
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-5">
-          {availableGroups.map((group) => {
-            const groupData = group.modifier_group;
-            const selectedIds = selected[groupData.id] ?? [];
-            const min = groupData.min_selections ?? 0;
-            const max = groupData.max_selections ?? 0;
-            return (
-              <div key={groupData.id} className="flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-medium">{groupData.name}</h3>
-                  {group.is_required && <span className="text-[10px] text-danger">Requerido</span>}
-                </div>
-                {min > 0 && (
-                  <p className="text-[10px] text-muted-foreground">
-                    Selecciona al menos {min} {max > 0 ? `(máx. ${max})` : ""}
-                  </p>
-                )}
-                <div className="flex flex-col gap-1.5">
-                  {groupData.options.map((option) => {
-                    const isSelected = selectedIds.includes(option.id);
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => toggleOption(groupData.id, option.id, max)}
-                        className={cn(
-                          "flex items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition-colors",
-                          isSelected
-                            ? "border-primary bg-primary/10 text-primary"
-                            : "border-border bg-card hover:bg-muted",
-                        )}
-                      >
-                        <span>{option.name}</span>
-                        <span className="text-xs tabular-nums">
-                          {parseFloat(option.surcharge ?? "0") > 0
-                            ? `+${formatCLP(option.surcharge ?? 0)}`
-                            : "Incluido"}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
+    <Modal open onClose={onCancel} title="Personalizar" description={productName} size="md">
+      <div className="flex flex-col gap-4 py-2">
+        {availableGroups.map((group) => {
+          const groupData = group.modifier_group;
+          const selectedIds = selected[groupData.id] ?? [];
+          const min = groupData.min_selections ?? 0;
+          const max = groupData.max_selections ?? 0;
+          return (
+            <div key={groupData.id} className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium">{groupData.name}</h3>
+                {group.is_required && <span className="text-[10px] text-danger">Requerido</span>}
               </div>
-            );
-          })}
-        </div>
-
-        <div className="flex shrink-0 justify-end gap-2 border-t border-border p-4">
-          <Button variant="outline" onClick={onCancel}>
-            Cancelar
-          </Button>
-          <Button onClick={handleConfirm} disabled={!canConfirm}>
-            Agregar
-          </Button>
-        </div>
+              {min > 0 && (
+                <p className="text-[10px] text-muted-foreground">
+                  Selecciona al menos {min} {max > 0 ? `(máx. ${max})` : ""}
+                </p>
+              )}
+              <div className="flex flex-col gap-1.5">
+                {groupData.options.map((option) => {
+                  const isSelected = selectedIds.includes(option.id);
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => toggleOption(groupData.id, option.id, max)}
+                      className={cn(
+                        "flex items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+                        isSelected
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border bg-card hover:bg-muted",
+                      )}
+                    >
+                      <span>{option.name}</span>
+                      <span className="text-xs tabular-nums">
+                        {parseFloat(option.surcharge ?? "0") > 0
+                          ? `+${formatCLP(option.surcharge ?? 0)}`
+                          : "Incluido"}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
       </div>
-    </div>
+
+      <div className="mt-4 flex justify-end gap-2 border-t border-border pt-4">
+        <Button variant="outline" onClick={onCancel}>
+          Cancelar
+        </Button>
+        <Button onClick={handleConfirm} disabled={!canConfirm}>
+          Agregar
+        </Button>
+      </div>
+    </Modal>
   );
 }

@@ -69,15 +69,43 @@ export async function setBankAccountAsDefault(id: string): Promise<BankAccountSu
   return apiFetch<BankAccountSummary>(`/finance/bank-accounts/${id}/set_as_default/`, { method: "POST" });
 }
 
-export async function fetchBankAccountTransactions(id: string): Promise<BankAccountTransaction[]> {
-  const data = await apiFetch<unknown>(`/finance/bank-accounts/${id}/transactions/`);
+export interface BankAccountTransactionsFilter {
+  /** Fecha inicial (YYYY-MM-DD). Filtra por `payment_date__gte`. */
+  startDate?: string;
+  /** Fecha final (YYYY-MM-DD). Filtra por `payment_date__lte`. */
+  endDate?: string;
+  /** Limita a un único sentido (INCOME/EXPENSE). */
+  direction?: "INCOME" | "EXPENSE";
+}
+
+export async function fetchBankAccountTransactions(
+  id: string,
+  filter: BankAccountTransactionsFilter = {},
+): Promise<BankAccountTransaction[]> {
+  const qs = new URLSearchParams();
+  if (filter.startDate) qs.set("start_date", filter.startDate);
+  if (filter.endDate) qs.set("end_date", filter.endDate);
+  if (filter.direction) qs.set("direction", filter.direction);
+  const suffix = qs.toString() ? `?${qs.toString()}` : "";
+  const data = await apiFetch<unknown>(`/finance/bank-accounts/${id}/transactions/${suffix}`);
   if (Array.isArray(data)) return data as BankAccountTransaction[];
-  if (data && typeof data === "object" && "results" in data) {
-    return ((data as { results?: unknown }).results as BankAccountTransaction[]) ?? [];
+  if (data && typeof data === "object") {
+    const payload = data as { results?: unknown; transactions?: unknown };
+    return ((payload.transactions ?? payload.results) as BankAccountTransaction[]) ?? [];
   }
   return [];
 }
 
-export async function fetchBankAccountBalanceSummary(id: string): Promise<BankAccountBalanceSummary> {
-  return apiFetch<BankAccountBalanceSummary>(`/finance/bank-accounts/${id}/balance_summary/`);
+export async function fetchBankAccountBalanceSummary(
+  id: string,
+  filter: BankAccountTransactionsFilter = {},
+): Promise<BankAccountBalanceSummary> {
+  const qs = new URLSearchParams();
+  if (filter.startDate) qs.set("start_date", filter.startDate);
+  if (filter.endDate) qs.set("end_date", filter.endDate);
+  if (filter.direction) qs.set("direction", filter.direction);
+  const suffix = qs.toString() ? `?${qs.toString()}` : "";
+  return apiFetch<BankAccountBalanceSummary>(
+    `/finance/bank-accounts/${id}/balance_summary/${suffix}`,
+  );
 }

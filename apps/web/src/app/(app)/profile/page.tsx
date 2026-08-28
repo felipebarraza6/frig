@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { User as UserIcon, KeyRound, Store, Check, Loader2, AlertCircle, Building2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useSessionStore } from "@/lib/store/session";
 import { fetchMyProfile, updateMyProfile, changePassword } from "@/lib/api/profile";
 import type { BranchAssignment } from "@/lib/types";
@@ -131,8 +132,16 @@ export default function ProfilePage() {
           </div>
 
           {loadingProfile ? (
-            <div className="grid place-items-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <div className="flex flex-col gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="flex flex-col gap-1.5">
+                    <Skeleton className="h-3 w-20" />
+                    <Skeleton className="h-9 w-full" />
+                  </div>
+                ))}
+              </div>
+              <Skeleton className="h-9 w-32" />
             </div>
           ) : (
             <form onSubmit={handleProfileSubmit} className="flex flex-col gap-4">

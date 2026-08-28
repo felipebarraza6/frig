@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchBranchModules, parseSubmoduleConfig, type ModuleName, type SubmoduleConfig } from "@/lib/api/branch-modules";
 import { useCurrentBranch } from "@/lib/store/session";
-import { getModuleForPath, isModuleEnabled, isSubmoduleEnabled } from "@/lib/modules";
+import { isSubmoduleEnabled } from "@/lib/modules";
 
 export function useBranchModules() {
   const branch = useCurrentBranch();
@@ -60,9 +60,11 @@ export function useIsSubmoduleEnabled(
   return isSubmoduleEnabled(compositeName, submoduleName, submoduleConfigs.get(compositeName) ?? {});
 }
 
-/** Verifica si el módulo asociado a una ruta está habilitado. */
-export function useIsRouteModuleEnabled(pathname: string): boolean {
-  const { enabledModules, isLoading } = useBranchModules();
-  if (isLoading) return true;
-  return isModuleEnabled(getModuleForPath(pathname), enabledModules);
-}
+/**
+ * NOTA: el chequeo de ruta está centralizado en `useRouteModuleAccess.ts`
+ * (`useIsRouteModuleEnabled`) para que layout, guards y menú compartan la
+ * misma fuente de verdad (session.modules vía frontend-config). Esta función
+ * se conserva porque sigue siendo útil para chequeos ad-hoc dentro de
+ * `/settings/modules` (donde la query `branch-modules` es la fuente).
+ */
+export { useIsRouteModuleEnabled } from "@/lib/hooks/useRouteModuleAccess";

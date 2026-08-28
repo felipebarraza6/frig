@@ -16,7 +16,7 @@ const styles = {
   success: "bg-emerald-500 text-white",
   error: "bg-danger text-white",
   warning: "bg-amber-500 text-white",
-  info: "bg-primary text-white",
+  info: "bg-primary text-primary-foreground",
 };
 
 export function Toaster() {
@@ -24,7 +24,7 @@ export function Toaster() {
   const removeToast = useToastStore((s) => s.removeToast);
 
   return (
-    <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2">
+    <div className="fixed bottom-24 right-4 z-[100] flex flex-col gap-2 sm:bottom-4">
       <AnimatePresence>
         {toasts.map((toast) => {
           const Icon = icons[toast.variant ?? "info"];

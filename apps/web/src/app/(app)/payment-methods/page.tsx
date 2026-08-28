@@ -6,6 +6,7 @@ import { Plus, Pencil, Trash2, Loader2, CreditCard, X, Power, Search } from "luc
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   fetchPaymentMethods,
   createPaymentMethod,
@@ -158,8 +159,21 @@ export default function PaymentMethodsPage() {
         </div>
 
         {isLoading ? (
-          <div className="grid flex-1 place-items-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <div className="overflow-hidden rounded-xl border border-border">
+            <div className="border-b border-border px-4 py-3">
+              <Skeleton className="h-3 w-40" />
+            </div>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-3 border-b border-border px-4 py-3 last:border-0"
+              >
+                <Skeleton className="h-7 w-7 rounded-md" />
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="hidden h-4 w-20 sm:block" />
+                <Skeleton className="ml-auto h-4 w-16" />
+              </div>
+            ))}
           </div>
         ) : filteredMethods.length === 0 ? (
           <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">

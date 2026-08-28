@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { FileText, Printer, Receipt, X, Loader2 } from "lucide-react";
+import { FileText, Printer, Receipt, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { downloadOrderThermalPdf } from "@/lib/api/orders";
 import { useToast } from "@/lib/store/toast";
 import type { CartItem } from "@/lib/store/cart";
@@ -136,7 +137,7 @@ export function PostSaleModal({ order, items, branchName, onClose }: PostSaleMod
       printWindow.document.write(
         `<html>
           <head>
-            <title>Ticket ${orderLabel}</title>
+            <title>Ticket ${orderLabel.replace(/</g, "&lt;")}</title>
             <style>
               body { font-family: monospace; font-size: 14px; padding: 16px; margin: 0; }
               pre { white-space: pre-wrap; word-break: break-word; }
@@ -156,87 +157,71 @@ export function PostSaleModal({ order, items, branchName, onClose }: PostSaleMod
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      role="dialog"
-      aria-modal="true"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <Modal
+      open
+      onClose={onClose}
+      title="Pago registrado"
+      description={`Orden ${orderLabel}`}
+      size="sm"
+      hideCloseButton
     >
-      <div className="flex w-full max-w-sm flex-col rounded-2xl border border-border/60 bg-card p-5 shadow-xl">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <h2 className="text-base font-semibold">Pago registrado</h2>
-            <p className="text-xs text-muted-foreground">Orden {orderLabel}</p>
+      <ModalBody className="flex flex-col gap-3">
+        <Button
+          variant="outline"
+          className="h-auto justify-start gap-3 py-3"
+          onClick={handleDownloadBoleta}
+          disabled={downloadingPdf}
+        >
+          {downloadingPdf ? (
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          ) : (
+            <Receipt className="h-5 w-5 text-primary" />
+          )}
+          <div className="text-left">
+            <p className="text-sm font-medium">Boleta (PDF 80mm)</p>
+            <p className="text-xs text-muted-foreground">Comprobante bonito para impresora térmica</p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Cerrar"
-            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+        </Button>
 
-        <div className="flex flex-col gap-3">
-          <Button
-            variant="outline"
-            className="h-auto justify-start gap-3 py-3"
-            onClick={handleDownloadBoleta}
-            disabled={downloadingPdf}
-          >
-            {downloadingPdf ? (
-              <Loader2 className="h-5 w-5 animate-spin text-primary" />
-            ) : (
-              <Receipt className="h-5 w-5 text-primary" />
-            )}
-            <div className="text-left">
-              <p className="text-sm font-medium">Boleta (PDF 80mm)</p>
-              <p className="text-xs text-muted-foreground">Comprobante bonito para impresora térmica</p>
-            </div>
-          </Button>
+        <Button
+          variant="outline"
+          className="h-auto justify-start gap-3 py-3"
+          onClick={handleDownloadTicket}
+          disabled={downloadingTxt}
+        >
+          {downloadingTxt ? (
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          ) : (
+            <FileText className="h-5 w-5 text-primary" />
+          )}
+          <div className="text-left">
+            <p className="text-sm font-medium">Ticket simple (TXT)</p>
+            <p className="text-xs text-muted-foreground">Solo contenido, sin precios</p>
+          </div>
+        </Button>
 
-          <Button
-            variant="outline"
-            className="h-auto justify-start gap-3 py-3"
-            onClick={handleDownloadTicket}
-            disabled={downloadingTxt}
-          >
-            {downloadingTxt ? (
-              <Loader2 className="h-5 w-5 animate-spin text-primary" />
-            ) : (
-              <FileText className="h-5 w-5 text-primary" />
-            )}
-            <div className="text-left">
-              <p className="text-sm font-medium">Ticket simple (TXT)</p>
-              <p className="text-xs text-muted-foreground">Solo contenido, sin precios</p>
-            </div>
-          </Button>
-
-          <Button
-            variant="outline"
-            className="h-auto justify-start gap-3 py-3"
-            onClick={handlePrintTicket}
-            disabled={printingTicket}
-          >
-            {printingTicket ? (
-              <Loader2 className="h-5 w-5 animate-spin text-primary" />
-            ) : (
-              <Printer className="h-5 w-5 text-primary" />
-            )}
-            <div className="text-left">
-              <p className="text-sm font-medium">Imprimir ticket simple</p>
-              <p className="text-xs text-muted-foreground">Envía el contenido a la impresora</p>
-            </div>
-          </Button>
-
-          <Button onClick={onClose} className="mt-1 w-full">
-            Cerrar y seguir
-          </Button>
-        </div>
-      </div>
-    </div>
+        <Button
+          variant="outline"
+          className="h-auto justify-start gap-3 py-3"
+          onClick={handlePrintTicket}
+          disabled={printingTicket}
+        >
+          {printingTicket ? (
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          ) : (
+            <Printer className="h-5 w-5 text-primary" />
+          )}
+          <div className="text-left">
+            <p className="text-sm font-medium">Imprimir ticket simple</p>
+            <p className="text-xs text-muted-foreground">Envía el contenido a la impresora</p>
+          </div>
+        </Button>
+      </ModalBody>
+      <ModalFooter>
+        <Button onClick={onClose} className="w-full sm:w-auto">
+          Cerrar y seguir
+        </Button>
+      </ModalFooter>
+    </Modal>
   );
 }

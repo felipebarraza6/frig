@@ -11,7 +11,6 @@ import {
   X,
   CheckCircle2,
   FileDown,
-  Receipt,
   SlidersHorizontal,
   DollarSign,
   TrendingUp,
@@ -20,6 +19,9 @@ import {
   RotateCcw,
   Tags,
   AlertCircle,
+  Eye,
+  Download,
+  FileText,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -46,9 +48,12 @@ import {
   type RevenueSummary,
 } from "@/lib/api/revenues";
 import { useCurrentBranch } from "@/lib/store/session";
-import { formatCLP } from "@/lib/utils";
+import { formatCLP, revenueTypeLabel, revenueCategoryTypeLabel } from "@/lib/utils";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
+import { useViewFile } from "@/lib/hooks/useViewFile";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/lib/store/toast";
+import { ActionsMenu } from "@/components/ui/actions-menu";
 
 const REVENUE_CATEGORY_TYPES = [
   { value: "SALES", label: "Ventas" },
@@ -117,6 +122,7 @@ function startOfWeek(date: Date): Date {
 
 export default function RevenuesPage() {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
   const [status, setStatus] = useState("");
@@ -180,9 +186,20 @@ export default function RevenuesPage() {
     });
   }
 
-  async function handleDownloadVoucher(revenue: Revenue) {
-    await downloadFile(() => downloadRevenueVoucher(revenue.id), {
-      filename: `comprobante_${revenue.id.slice(0, 8)}.pdf`,
+  async function handleDownloadVoucher(revenue: Revenue, format: "thermal" | "a4" = "thermal") {
+    await downloadFile(() => downloadRevenueVoucher(revenue.id, format), {
+      filename:
+        format === "a4"
+          ? `comprobante_${revenue.id.slice(0, 8)}_a4.pdf`
+          : `comprobante_${revenue.id.slice(0, 8)}.pdf`,
+    });
+  }
+
+  const { view: viewFile } = useViewFile();
+
+  async function handleViewVoucher(revenue: Revenue, format: "thermal" | "a4" = "thermal") {
+    await viewFile(() => downloadRevenueVoucher(revenue.id, format), {
+      onError: (err) => toast.error(err.message || "No se pudo previsualizar el comprobante"),
     });
   }
 
@@ -200,16 +217,25 @@ export default function RevenuesPage() {
       if (raw === undefined || raw === null) return 0;
       return parseFloat(String(raw)) || 0;
     };
-    const total = amount("total_amount") || amount("total");
-    const received = amount("received_amount") || amount("received");
-    const pending = amount("pending_amount") || amount("pending");
-    const cancelled =
+    let total = amount("total_amount") || amount("total");
+    let received = amount("received_amount") || amount("received");
+    let pending = amount("pending_amount") || amount("pending");
+    let cancelled =
       amount("cancelled_amount") ||
       amount("cancelled") ||
       amount("refunded_amount") ||
       amount("refunded");
+
+    // Fallback: calcular desde los items de la página si el summary está vacío
+    if (total === 0 && received === 0 && pending === 0 && cancelled === 0 && revenues.length > 0) {
+      total = revenues.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+      received = revenues.filter((r) => r.status === "RECEIVED").reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+      pending = revenues.filter((r) => r.status === "PENDING").reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+      cancelled = revenues.filter((r) => r.status === "CANCELLED" || r.status === "REFUNDED").reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+    }
+
     return { total, received, pending, cancelled };
-  }, [summary]);
+  }, [summary, revenues]);
 
   const pageTotal = useMemo(
     () => revenues.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0),
@@ -699,7 +725,7 @@ export default function RevenuesPage() {
           </div>
         </div>
 
-        <section className="grid gap-3 overflow-x-auto pb-1 [grid-template-columns:repeat(4,minmax(150px,1fr))] sm:grid-cols-2 lg:grid-cols-4">
+        <section className="grid gap-3 grid-cols-2 lg:grid-cols-4">
           {isLoadingSummary ? (
             <>
               <StatSkeleton />
@@ -818,7 +844,7 @@ export default function RevenuesPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">{r.category_name}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{r.revenue_type_display}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{revenueTypeLabel(r.revenue_type, r.revenue_type_display)}</td>
                       <td className="px-4 py-3 text-right tabular-nums font-medium">{formatCLP(r.amount)}</td>
                       <td className="px-4 py-3">
                         <span className={statusBadgeClass(r.status)}>
@@ -839,18 +865,26 @@ export default function RevenuesPage() {
                               Recibir
                             </Button>
                           )}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0"
-                            onClick={() => handleDownloadVoucher(r)}
-                            disabled={isDownloading}
-                            title="Descargar comprobante"
-                            aria-label="Descargar comprobante"
-                          >
-                            <Receipt className="h-3.5 w-3.5" />
-                            <span className="sr-only">Comprobante</span>
-                          </Button>
+                          <ActionsMenu
+                            ariaLabel="Comprobante"
+                            items={[
+                              {
+                                label: "Ver PDF (térmico)",
+                                icon: Eye,
+                                onClick: () => handleViewVoucher(r, "thermal"),
+                              },
+                              {
+                                label: "Descargar PDF (térmico)",
+                                icon: Download,
+                                onClick: () => handleDownloadVoucher(r, "thermal"),
+                              },
+                              {
+                                label: "Descargar PDF (A4)",
+                                icon: FileText,
+                                onClick: () => handleDownloadVoucher(r, "a4"),
+                              },
+                            ]}
+                          />
                           <Button variant="ghost" size="sm" onClick={() => openModal(r)}>
                             <Pencil className="mr-1.5 h-3.5 w-3.5" />
                             Editar
@@ -919,7 +953,7 @@ export default function RevenuesPage() {
                     </div>
                     <div className="min-w-0">
                       <span className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Tipo</span>
-                      <span className="block truncate font-medium text-foreground">{r.revenue_type_display}</span>
+                      <span className="block truncate font-medium text-foreground">{revenueTypeLabel(r.revenue_type, r.revenue_type_display)}</span>
                     </div>
                     <div className="min-w-0">
                       <span className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Fecha</span>
@@ -944,17 +978,26 @@ export default function RevenuesPage() {
                         Recibir
                       </Button>
                     )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-10 w-10 shrink-0 p-0"
-                      onClick={() => handleDownloadVoucher(r)}
-                      disabled={isDownloading}
-                      title="Comprobante"
-                      aria-label="Comprobante"
-                    >
-                      <Receipt className="h-4 w-4" />
-                    </Button>
+                    <ActionsMenu
+                      ariaLabel="Comprobante"
+                      items={[
+                        {
+                          label: "Ver PDF (térmico)",
+                          icon: Eye,
+                          onClick: () => handleViewVoucher(r, "thermal"),
+                        },
+                        {
+                          label: "Descargar PDF (térmico)",
+                          icon: Download,
+                          onClick: () => handleDownloadVoucher(r, "thermal"),
+                        },
+                        {
+                          label: "Descargar PDF (A4)",
+                          icon: FileText,
+                          onClick: () => handleDownloadVoucher(r, "a4"),
+                        },
+                      ]}
+                    />
                     <Button
                       variant="outline"
                       size="sm"
@@ -1219,7 +1262,7 @@ export default function RevenuesPage() {
                             </span>
                           </div>
                           <p className="text-xs text-muted-foreground">
-                            {REVENUE_CATEGORY_TYPES.find((t) => t.value === c.category_type)?.label ?? c.category_type}
+                            {revenueCategoryTypeLabel(c.category_type)}
                           </p>
                           {c.description && (
                             <p className="mt-1 text-xs text-muted-foreground">{c.description}</p>

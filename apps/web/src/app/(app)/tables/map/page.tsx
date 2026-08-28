@@ -9,6 +9,7 @@ import { TablesCanvas } from "@/components/tables/tables-canvas";
 import { TableOrderDrawer } from "@/components/tables/table-order-drawer";
 import { useCanManageTables, useIsWaiter } from "@/lib/store/session";
 import { useToast } from "@/lib/store/toast";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { YggdraSchemas } from "@/lib/api/types";
 
@@ -83,7 +84,7 @@ export default function TablesMapPage() {
             <>
               <Link
                 href="/tables"
-                className="inline-flex h-9 w-9 items-center justify-center gap-1.5 rounded-lg border border-border/60 bg-background px-0 text-xs font-medium text-foreground transition-colors hover:bg-muted sm:w-auto sm:px-2.5"
+                className="inline-flex h-9 w-9 items-center justify-center gap-1.5 rounded-lg border border-border/60 bg-background px-0 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-auto sm:px-2.5"
                 title="Gestionar mesas"
                 aria-label="Gestionar mesas"
               >
@@ -97,7 +98,7 @@ export default function TablesMapPage() {
                   "inline-flex h-9 w-9 items-center justify-center gap-1.5 rounded-lg border px-0 text-xs font-medium transition-colors sm:w-auto sm:px-2.5",
                   editMode
                     ? "border-primary bg-primary text-white"
-                    : "border-border/60 bg-background text-foreground hover:bg-muted",
+                    : "border-border/60 bg-background text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 )}
                 title={editMode ? "Ver mapa" : "Mover mesas"}
                 aria-label={editMode ? "Ver mapa" : "Mover mesas"}
@@ -124,8 +125,8 @@ export default function TablesMapPage() {
         {error ? (
           <p className="text-sm text-danger">No se pudieron cargar las mesas.</p>
         ) : isLoading ? (
-          <div className="grid flex-1 place-items-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <div className="flex-1 min-h-0">
+            <Skeleton className="h-full min-h-[320px] w-full rounded-xl" />
           </div>
         ) : tables.length === 0 ? (
           <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">

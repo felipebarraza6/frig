@@ -12,7 +12,6 @@ import {
   Ban,
   TrendingUp,
   FileDown,
-  Receipt,
   SlidersHorizontal,
   DollarSign,
   CheckCircle2,
@@ -20,6 +19,8 @@ import {
   RotateCcw,
   Tags,
   AlertCircle,
+  Eye,
+  Download,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -45,9 +46,12 @@ import {
   type ExpenseSummary,
 } from "@/lib/api/expenses";
 import { useCurrentBranch } from "@/lib/store/session";
-import { formatCLP } from "@/lib/utils";
+import { formatCLP, expenseFrequencyLabel, expenseCategoryTypeLabel } from "@/lib/utils";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
+import { useViewFile } from "@/lib/hooks/useViewFile";
+import { useToast } from "@/lib/store/toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ActionsMenu } from "@/components/ui/actions-menu";
 
 const EXPENSE_CATEGORY_TYPES = [
   { value: "RENT", label: "Renta" },
@@ -99,7 +103,7 @@ function statusLabel(value?: string | null): string {
 }
 
 function frequencyLabel(value?: string | null): string {
-  return FREQUENCY_OPTIONS.find((o) => o.value === value)?.label ?? (value ?? "—");
+  return FREQUENCY_OPTIONS.find((o) => o.value === value)?.label ?? expenseFrequencyLabel(value);
 }
 
 function statusBadgeClass(status?: string | null) {
@@ -127,6 +131,7 @@ function startOfWeek(date: Date): Date {
 
 export default function ExpensesPage() {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
   const [status, setStatus] = useState("");
@@ -199,6 +204,14 @@ export default function ExpensesPage() {
     });
   }
 
+  const { view: viewFile } = useViewFile();
+
+  async function handleViewVoucher(expense: FixedExpense) {
+    await viewFile(() => downloadExpenseVoucher(expense.id), {
+      onError: (err) => toast.error(err.message || "No se pudo previsualizar el comprobante"),
+    });
+  }
+
   const { data: categories = [] } = useQuery({
     queryKey: ["expense-categories"],
     queryFn: fetchExpenseCategories,
@@ -213,12 +226,21 @@ export default function ExpensesPage() {
       if (raw === undefined || raw === null) return 0;
       return parseFloat(String(raw)) || 0;
     };
-    const total = amount("total_amount") || amount("total");
-    const active = amount("active_amount") || amount("active");
-    const pending = amount("pending_amount") || amount("pending");
-    const cancelled = amount("cancelled_amount") || amount("cancelled");
+    let total = amount("total_amount") || amount("total");
+    let active = amount("active_amount") || amount("active");
+    let pending = amount("pending_amount") || amount("pending");
+    let cancelled = amount("cancelled_amount") || amount("cancelled");
+
+    // Fallback: calcular desde los items de la página si el summary está vacío
+    if (total === 0 && active === 0 && pending === 0 && cancelled === 0 && expenses.length > 0) {
+      total = expenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+      active = expenses.filter((e) => e.status === "ACTIVE").reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+      pending = expenses.filter((e) => e.status === "PENDING").reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+      cancelled = expenses.filter((e) => e.status === "CANCELLED").reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+    }
+
     return { total, active, pending, cancelled };
-  }, [summary]);
+  }, [summary, expenses]);
 
   const pageTotal = useMemo(
     () => expenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0),
@@ -710,7 +732,7 @@ export default function ExpensesPage() {
           </div>
         </div>
 
-        <section className="grid gap-3 overflow-x-auto pb-1 [grid-template-columns:repeat(4,minmax(150px,1fr))] sm:grid-cols-2 lg:grid-cols-4">
+        <section className="grid gap-3 grid-cols-2 lg:grid-cols-4">
           {isLoadingSummary ? (
             <>
               <StatSkeleton />
@@ -846,18 +868,21 @@ export default function ExpensesPage() {
                       <td className="px-4 py-3 text-muted-foreground">{e.start_date}</td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0"
-                            onClick={() => handleDownloadVoucher(e)}
-                            disabled={isDownloading}
-                            title="Descargar comprobante"
-                            aria-label="Descargar comprobante"
-                          >
-                            <Receipt className="h-3.5 w-3.5" />
-                            <span className="sr-only">Comprobante</span>
-                          </Button>
+                          <ActionsMenu
+                            ariaLabel="Comprobante"
+                            items={[
+                              {
+                                label: "Ver PDF",
+                                icon: Eye,
+                                onClick: () => handleViewVoucher(e),
+                              },
+                              {
+                                label: "Descargar comprobante",
+                                icon: Download,
+                                onClick: () => handleDownloadVoucher(e),
+                              },
+                            ]}
+                          />
                           <Button variant="ghost" size="sm" onClick={() => openModal(e)}>
                             <Pencil className="mr-1.5 h-3.5 w-3.5" />
                             Editar
@@ -946,17 +971,21 @@ export default function ExpensesPage() {
                   </div>
 
                   <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-10 w-10 shrink-0 p-0"
-                      onClick={() => handleDownloadVoucher(e)}
-                      disabled={isDownloading}
-                      title="Comprobante"
-                      aria-label="Comprobante"
-                    >
-                      <Receipt className="h-4 w-4" />
-                    </Button>
+                    <ActionsMenu
+                      ariaLabel="Comprobante"
+                      items={[
+                        {
+                          label: "Ver PDF",
+                          icon: Eye,
+                          onClick: () => handleViewVoucher(e),
+                        },
+                        {
+                          label: "Descargar comprobante",
+                          icon: Download,
+                          onClick: () => handleDownloadVoucher(e),
+                        },
+                      ]}
+                    />
                     <Button
                       variant="outline"
                       size="sm"
@@ -1233,7 +1262,7 @@ export default function ExpensesPage() {
                             </span>
                           </div>
                           <p className="text-xs text-muted-foreground">
-                            {EXPENSE_CATEGORY_TYPES.find((t) => t.value === c.category_type)?.label ?? c.category_type}
+                            {expenseCategoryTypeLabel(c.category_type) ?? EXPENSE_CATEGORY_TYPES.find((t) => t.value === c.category_type)?.label ?? c.category_type}
                           </p>
                           {c.description && (
                             <p className="mt-1 text-xs text-muted-foreground">{c.description}</p>

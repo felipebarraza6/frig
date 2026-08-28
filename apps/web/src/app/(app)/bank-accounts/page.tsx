@@ -24,16 +24,18 @@ import {
   ArrowUpRight,
   Receipt,
   Filter,
-  CreditCard,
   Wallet,
   TrendingUp,
   TrendingDown,
   RotateCcw,
+  CalendarRange,
+  Download,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import {
   fetchBankAccounts,
   fetchBankAccount,
@@ -94,17 +96,6 @@ const TX_FILTERS = [
   { value: "EXPENSE", label: "Egresos" },
 ] as const;
 
-const BANK_GRADIENTS = [
-  "from-slate-700 to-slate-900",
-  "from-blue-700 to-blue-950",
-  "from-emerald-700 to-emerald-950",
-  "from-violet-700 to-violet-950",
-  "from-amber-700 to-amber-950",
-  "from-rose-700 to-rose-950",
-  "from-cyan-700 to-cyan-950",
-  "from-indigo-700 to-indigo-950",
-] as const;
-
 function accountTypeLabel(value?: string | null): string {
   return ACCOUNT_TYPES.find((t) => t.value === value)?.label ?? (value ?? "—");
 }
@@ -135,21 +126,55 @@ function todayDateInput(): string {
   return new Date().toISOString().split("T")[0];
 }
 
+type TxPreset = "today" | "week" | "month" | "last30";
+
+/**
+ * Devuelve el rango [from, to] en formato YYYY-MM-DD para un preset de fechas
+ * usado en el filtro de movimientos.
+ */
+function presetRange(
+  preset: TxPreset,
+): { from: string; to: string; label: string } {
+  const today = new Date();
+  const todayIso = today.toISOString().split("T")[0];
+  const fmt = (d: Date) => d.toISOString().split("T")[0];
+  const addDays = (d: Date, n: number) => {
+    const c = new Date(d);
+    c.setDate(c.getDate() + n);
+    return c;
+  };
+  switch (preset) {
+    case "today":
+      return { from: todayIso, to: todayIso, label: "Hoy" };
+    case "week": {
+      const dow = today.getDay();
+      const monday = addDays(today, dow === 0 ? -6 : 1 - dow);
+      return { from: fmt(monday), to: todayIso, label: "Esta semana" };
+    }
+    case "month": {
+      const first = new Date(today.getFullYear(), today.getMonth(), 1);
+      return { from: fmt(first), to: todayIso, label: "Este mes" };
+    }
+    case "last30":
+    default: {
+      const from = addDays(today, -29);
+      return { from: fmt(from), to: todayIso, label: "Últimos 30 días" };
+    }
+  }
+}
+
+const TX_PRESET_OPTIONS: { value: TxPreset; label: string }[] = [
+  { value: "last30", label: "Últimos 30 días" },
+  { value: "today", label: "Hoy" },
+  { value: "week", label: "Esta semana" },
+  { value: "month", label: "Este mes" },
+];
+
 function maskAccountNumber(number?: string | null): string {
   if (!number) return "**** 0000";
   const clean = number.replace(/\D/g, "");
   const last4 = clean.slice(-4).padStart(4, "0");
   return `**** ${last4}`;
-}
-
-function bankGradient(bankName?: string | null, type?: string | null): string {
-  const key = `${bankName ?? ""}:${type ?? ""}`;
-  let hash = 0;
-  for (let i = 0; i < key.length; i++) {
-    hash = key.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const idx = Math.abs(hash) % BANK_GRADIENTS.length;
-  return BANK_GRADIENTS[idx];
 }
 
 const EMPTY_FORM: BankAccountRequest = {
@@ -239,6 +264,16 @@ export default function BankAccountsPage() {
   const [txModalOpen, setTxModalOpen] = useState(false);
   const [txAccount, setTxAccount] = useState<BankAccountSummary | null>(null);
   const [txFilter, setTxFilter] = useState<"ALL" | "INCOME" | "EXPENSE">("ALL");
+  const [txPreset, setTxPreset] = useState<TxPreset>("last30");
+
+  const txFilterParams = useMemo(() => {
+    const range = presetRange(txPreset);
+    return {
+      startDate: range.from,
+      endDate: range.to,
+      direction: txFilter === "ALL" ? undefined : txFilter,
+    };
+  }, [txPreset, txFilter]);
 
   const {
     data: transactions = [],
@@ -246,8 +281,8 @@ export default function BankAccountsPage() {
     isError: isTransactionsError,
     refetch: refetchTransactions,
   } = useQuery({
-    queryKey: ["bank-accounts", txAccount?.id, "transactions"],
-    queryFn: () => fetchBankAccountTransactions(txAccount!.id),
+    queryKey: ["bank-accounts", txAccount?.id, "transactions", txFilterParams],
+    queryFn: () => fetchBankAccountTransactions(txAccount!.id, txFilterParams),
     enabled: txModalOpen && Boolean(txAccount?.id),
   });
 
@@ -255,8 +290,8 @@ export default function BankAccountsPage() {
     data: balanceSummary,
     isLoading: loadingBalanceSummary,
   } = useQuery({
-    queryKey: ["bank-accounts", txAccount?.id, "balance-summary"],
-    queryFn: () => fetchBankAccountBalanceSummary(txAccount!.id),
+    queryKey: ["bank-accounts", txAccount?.id, "balance-summary", txFilterParams],
+    queryFn: () => fetchBankAccountBalanceSummary(txAccount!.id, txFilterParams),
     enabled: txModalOpen && Boolean(txAccount?.id),
   });
 
@@ -403,6 +438,7 @@ export default function BankAccountsPage() {
   function openTransactions(account: BankAccountSummary) {
     setTxAccount(account);
     setTxFilter("ALL");
+    setTxPreset("last30");
     setTxModalOpen(true);
   }
 
@@ -410,6 +446,58 @@ export default function BankAccountsPage() {
     setTxModalOpen(false);
     setTxAccount(null);
     setTxFilter("ALL");
+    setTxPreset("last30");
+  }
+
+  const txRange = useMemo(
+    () => presetRange(txPreset),
+    [txPreset],
+  );
+
+  const txPeriodLabel = txRange.label;
+
+  const periodIncome = useMemo(
+    () =>
+      transactions
+        .filter((t) => t.payment_direction === "INCOME")
+        .reduce((acc, t) => acc + (parseFloat(t.amount) || 0), 0),
+    [transactions],
+  );
+  const periodExpense = useMemo(
+    () =>
+      transactions
+        .filter((t) => t.payment_direction === "EXPENSE")
+        .reduce((acc, t) => acc + (parseFloat(t.amount) || 0), 0),
+    [transactions],
+  );
+
+  function exportTransactionsCsv() {
+    if (!txAccount || transactions.length === 0) return;
+    const headers = ["Fecha", "Tipo", "Descripción", "Referencia", "Método", "Monto"];
+    const rows = transactions.map((t) => {
+      const amount = parseFloat(t.amount) || 0;
+      const signed = t.payment_direction === "INCOME" ? amount : -amount;
+      return [
+        t.payment_date,
+        t.payment_direction === "INCOME" ? "Ingreso" : "Egreso",
+        (t.description ?? t.payment_source ?? "").replace(/[\r\n,;]/g, " "),
+        (t.reference ?? "").replace(/[\r\n,;]/g, " "),
+        (t.payment_method_name ?? "").replace(/[\r\n,;]/g, " "),
+        signed.toString(),
+      ];
+    });
+    const csv = [headers, ...rows]
+      .map((cols) => cols.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `movimientos_${txAccount.account_name.replace(/\s+/g, "_")}_${new Date().toISOString().split("T")[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
   }
 
   function startEditReconciliation(rec: BankReconciliation) {
@@ -442,7 +530,7 @@ export default function BankAccountsPage() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
+      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 md:flex-row md:items-start md:justify-between md:px-6">
         <div>
           <h1 className="text-lg font-semibold">Cuentas bancarias</h1>
           <p className="text-xs text-muted-foreground">
@@ -453,7 +541,7 @@ export default function BankAccountsPage() {
           <Button
             size="icon"
             onClick={() => openModal()}
-            className="sm:hidden"
+            className="md:hidden"
             title="Nueva cuenta"
             aria-label="Nueva cuenta"
           >
@@ -462,7 +550,7 @@ export default function BankAccountsPage() {
           <Button
             size="sm"
             onClick={() => openModal()}
-            className="hidden sm:flex"
+            className="hidden md:flex"
           >
             <Plus className="mr-2 h-4 w-4" />
             Nueva cuenta
@@ -471,7 +559,7 @@ export default function BankAccountsPage() {
       </header>
 
       <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
-        <div className="relative max-w-xs">
+        <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
@@ -482,8 +570,8 @@ export default function BankAccountsPage() {
           />
         </div>
 
-        {/* Stats: scrolleable en móvil, grid en desktop */}
-        <section className="flex snap-x gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 lg:grid-cols-4">
+        {/* Stats: grid responsive como el resto de la app */}
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {loadingReconciliationSummary ? (
             <>
               <StatSkeleton />
@@ -494,10 +582,10 @@ export default function BankAccountsPage() {
           ) : (
             <>
               <StatCard
-                label="Total conciliaciones"
+                label="Total"
                 value={reconciliationSummary?.total ?? 0}
                 icon={Scale}
-                sub="registradas"
+                sub="conciliaciones"
               />
               <StatCard
                 label="Pendientes"
@@ -515,11 +603,11 @@ export default function BankAccountsPage() {
                 label="Discrepancias"
                 value={reconciliationSummary?.discrepancy ?? 0}
                 icon={AlertCircle}
-                sub="requieren atención"
+                sub="requieren"
               />
             </>
           )}
-        </section>
+        </div>
 
         {isAccountsError ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border p-8 text-center">
@@ -536,8 +624,7 @@ export default function BankAccountsPage() {
             </Button>
           </div>
         ) : isLoading ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-            <BankAccountCardSkeleton />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <BankAccountCardSkeleton />
             <BankAccountCardSkeleton />
             <BankAccountCardSkeleton />
@@ -557,7 +644,7 @@ export default function BankAccountsPage() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filteredAccounts.map((a) => (
               <BankAccountCard
                 key={a.id}
@@ -588,8 +675,15 @@ export default function BankAccountsPage() {
               </button>
             </div>
             {loadingEditing ? (
-              <div className="grid flex-1 place-items-center py-6">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <div className="flex-1 overflow-y-auto p-4">
+                <div className="flex flex-col gap-4">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="flex flex-col gap-2">
+                      <Skeleton className="h-3.5 w-28" />
+                      <Skeleton className="h-9 w-full" />
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : (
               <form
@@ -884,8 +978,22 @@ export default function BankAccountsPage() {
               {/* List */}
               <div className="flex-1 overflow-y-auto p-4">
                 {loadingReconciliations ? (
-                  <div className="grid place-items-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  <div className="space-y-3">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="rounded-xl border border-border bg-card p-4 shadow-sm"
+                      >
+                        <div className="mb-2 flex items-center justify-between">
+                          <Skeleton className="h-4 w-32" />
+                          <Skeleton className="h-5 w-20 rounded-full" />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <Skeleton className="h-3 w-24" />
+                          <Skeleton className="h-4 w-20" />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ) : isReconciliationsError ? (
                   <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border p-8 text-center">
@@ -966,122 +1074,169 @@ export default function BankAccountsPage() {
         </div>
       )}
 
-      {txModalOpen && txAccount && (
-        <div
-          className="fixed inset-0 z-[60] flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
-          role="dialog"
-          aria-modal="true"
+      {txAccount && (
+        <Modal
+          open={txModalOpen}
+          onClose={closeTransactions}
+          title={`Movimientos: ${txAccount.account_name}`}
+          description={`Saldo actual: ${formatCLP(txAccount.current_balance)} · Mostrando: ${txPeriodLabel}`}
+          size="lg"
         >
-          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-2xl md:rounded-xl md:border">
-            <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
-              <div className="min-w-0">
-                <h2 className="truncate text-base font-semibold">Movimientos: {txAccount.account_name}</h2>
-                <p className="text-xs text-muted-foreground">
-                  Saldo actual: <span className="font-medium text-foreground">{formatCLP(txAccount.current_balance)}</span>
+          <div className="border-b border-border bg-muted/30 px-6 py-4">
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Saldo actual</p>
+                <p className="text-sm font-semibold tabular-nums">{formatCLP(balanceSummary?.current_balance ?? txAccount.current_balance)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  Ingresos del período
+                </p>
+                <p className="text-sm font-semibold tabular-nums text-success">
+                  {formatCLP(balanceSummary?.total_income ?? periodIncome)}
                 </p>
               </div>
-              <button onClick={closeTransactions} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
-                <X className="h-5 w-5" />
-              </button>
+              <div>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  Egresos del período
+                </p>
+                <p className="text-sm font-semibold tabular-nums text-danger">
+                  {formatCLP(balanceSummary?.total_expenses ?? periodExpense)}
+                </p>
+              </div>
             </div>
+            <p className="mt-2 text-center text-[10px] text-muted-foreground">
+              Los totales reflejan el período seleccionado.
+            </p>
+          </div>
 
-            <div className="flex flex-1 flex-col overflow-hidden">
-              {balanceSummary && !loadingBalanceSummary && (
-                <div className="grid grid-cols-3 gap-2 border-b border-border bg-muted/30 p-3 text-center">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Saldo</p>
-                    <p className="text-sm font-semibold tabular-nums">{formatCLP(balanceSummary.current_balance ?? txAccount.current_balance)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Ingresos</p>
-                    <p className="text-sm font-semibold tabular-nums text-emerald-700">{formatCLP(balanceSummary.total_income ?? 0)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Egresos</p>
-                    <p className="text-sm font-semibold tabular-nums text-danger">{formatCLP(balanceSummary.total_expenses ?? 0)}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Filters */}
-              <div className="flex items-center gap-2 border-b border-border px-4 py-2">
-                <Filter className="h-3.5 w-3.5 text-muted-foreground" />
-                <div className="flex flex-1 gap-1">
-                  {TX_FILTERS.map((f) => {
-                    const active = txFilter === f.value;
-                    const Icon = f.value === "INCOME" ? TrendingUp : f.value === "EXPENSE" ? TrendingDown : Wallet;
-                    return (
-                      <button
-                        key={f.value}
-                        type="button"
-                        onClick={() => setTxFilter(f.value as typeof txFilter)}
-                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
-                          active
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted text-muted-foreground hover:bg-muted/80"
-                        }`}
-                      >
-                        <Icon className="h-3 w-3" />
-                        {f.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-4">
-                {loadingTransactions || loadingBalanceSummary ? (
-                  <div className="grid place-items-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  </div>
-                ) : isTransactionsError ? (
-                  <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border p-8 text-center">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-danger/10">
-                      <AlertCircle className="h-7 w-7 text-danger" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">No se pudieron cargar los movimientos</p>
-                      <p className="text-xs text-muted-foreground">Revisa tu conexión e intenta nuevamente.</p>
-                    </div>
-                    <Button variant="outline" size="sm" onClick={() => refetchTransactions()}>
-                      <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-                      Reintentar
-                    </Button>
-                  </div>
-                ) : transactions.length === 0 ? (
-                  <div className="grid place-items-center rounded-xl border border-dashed border-border p-8 text-center">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
-                      <Receipt className="h-7 w-7 text-muted-foreground" />
-                    </div>
-                    <p className="mt-3 text-sm font-medium">Sin movimientos</p>
-                    <p className="text-xs text-muted-foreground">
-                      Aún no hay transacciones registradas para esta cuenta.
-                    </p>
-                  </div>
-                ) : filteredTransactions.length === 0 ? (
-                  <div className="grid place-items-center rounded-xl border border-dashed border-border p-8 text-center">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
-                      <Filter className="h-7 w-7 text-muted-foreground" />
-                    </div>
-                    <p className="mt-3 text-sm font-medium">Sin resultados</p>
-                    <p className="text-xs text-muted-foreground">
-                      No hay movimientos de este tipo. Cambia el filtro para ver todos.
-                    </p>
-                    <Button variant="outline" size="sm" className="mt-3" onClick={() => setTxFilter("ALL")}>
-                      Ver todos
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {filteredTransactions.map((tx) => (
-                      <TransactionCard key={tx.id} tx={tx} />
-                    ))}
-                  </div>
-                )}
-              </div>
+          <div className="flex flex-col gap-3 border-b border-border px-6 py-3 sm:flex-row sm:flex-wrap sm:items-center">
+            <div className="flex items-center gap-2">
+              <CalendarRange className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground">Período:</span>
+              <Select
+                value={txPreset}
+                onChange={(e) => setTxPreset(e.target.value as TxPreset)}
+                className="h-8 w-44 text-xs"
+                aria-label="Período de movimientos"
+              >
+                {TX_PRESET_OPTIONS.map((p) => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
+              </Select>
+            </div>
+            <div className="flex items-center gap-1 sm:ml-auto">
+              <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+              {TX_FILTERS.map((f) => {
+                const active = txFilter === f.value;
+                const Icon = f.value === "INCOME" ? TrendingUp : f.value === "EXPENSE" ? TrendingDown : Wallet;
+                return (
+                  <button
+                    key={f.value}
+                    type="button"
+                    onClick={() => setTxFilter(f.value as typeof txFilter)}
+                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                      active
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80"
+                    }`}
+                  >
+                    <Icon className="h-3 w-3" />
+                    {f.label}
+                  </button>
+                );
+              })}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1.5 px-2"
+                onClick={exportTransactionsCsv}
+                disabled={transactions.length === 0}
+                title="Exportar a CSV"
+                aria-label="Exportar a CSV"
+              >
+                <Download className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">CSV</span>
+              </Button>
             </div>
           </div>
-        </div>
+
+          <ModalBody>
+            {loadingTransactions || loadingBalanceSummary ? (
+              <div className="flex flex-col gap-2">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5"
+                  >
+                    <Skeleton className="h-7 w-7 rounded-md" />
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="hidden h-3 w-20 sm:block" />
+                    <Skeleton className="ml-auto h-4 w-20" />
+                  </div>
+                ))}
+              </div>
+            ) : isTransactionsError ? (
+              <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border p-8 text-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-danger/10">
+                  <AlertCircle className="h-7 w-7 text-danger" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">No se pudieron cargar los movimientos</p>
+                  <p className="text-xs text-muted-foreground">Revisa tu conexión e intenta nuevamente.</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => refetchTransactions()}>
+                  <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                  Reintentar
+                </Button>
+              </div>
+            ) : transactions.length === 0 ? (
+              <div className="grid place-items-center rounded-xl border border-dashed border-border p-8 text-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+                  <Receipt className="h-7 w-7 text-muted-foreground" />
+                </div>
+                <p className="mt-3 text-sm font-medium">Sin movimientos</p>
+                <p className="text-xs text-muted-foreground">
+                  No hay movimientos en el período seleccionado.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-3"
+                  onClick={() => setTxPreset("last30")}
+                >
+                  Ver últimos 30 días
+                </Button>
+              </div>
+            ) : filteredTransactions.length === 0 ? (
+              <div className="grid place-items-center rounded-xl border border-dashed border-border p-8 text-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+                  <Filter className="h-7 w-7 text-muted-foreground" />
+                </div>
+                <p className="mt-3 text-sm font-medium">Sin resultados</p>
+                <p className="text-xs text-muted-foreground">
+                  No hay movimientos de este tipo en el período seleccionado.
+                </p>
+                <Button variant="outline" size="sm" className="mt-3" onClick={() => setTxFilter("ALL")}>
+                  Ver todos
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredTransactions.map((tx) => (
+                  <TransactionCard key={tx.id} tx={tx} />
+                ))}
+              </div>
+            )}
+          </ModalBody>
+
+          <ModalFooter>
+            <p className="mr-auto text-xs text-muted-foreground">
+              {filteredTransactions.length} de {transactions.length} movimientos
+            </p>
+            <Button variant="outline" onClick={closeTransactions}>Cerrar</Button>
+          </ModalFooter>
+        </Modal>
       )}
     </div>
   );
@@ -1099,7 +1254,7 @@ function StatCard({
   sub: string;
 }) {
   return (
-    <div className="min-w-[9.5rem] flex-1 snap-start rounded-xl border border-border bg-card p-4">
+    <div className="rounded-xl border border-border bg-card p-4">
       <div className="mb-2 flex items-center gap-2 text-muted-foreground">
         <Icon className="h-4 w-4" />
         <span className="text-xs font-medium">{label}</span>
@@ -1112,7 +1267,7 @@ function StatCard({
 
 function StatSkeleton() {
   return (
-    <div className="min-w-[9.5rem] flex-1 snap-start rounded-xl border border-border bg-card p-4">
+    <div className="rounded-xl border border-border bg-card p-4">
       <div className="mb-2 flex items-center gap-2">
         <Skeleton className="h-4 w-4 rounded-full" />
         <Skeleton className="h-3.5 w-24" />
@@ -1140,174 +1295,174 @@ function BankAccountCard({
   onSetDefault: (id: string) => void;
   isSetDefaultPending: boolean;
 }) {
-  const gradient = bankGradient(account.bank_name, account.account_type);
-
   return (
-    <div
-      className={`group relative flex min-w-0 flex-col justify-between overflow-hidden rounded-2xl bg-gradient-to-br ${gradient} p-5 text-white shadow-lg ring-1 ring-white/10 transition-all hover:-translate-y-0.5 hover:shadow-xl`}
-    >
-      {/* Decorative glows */}
-      <div className="pointer-events-none absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white/5 blur-2xl" />
-      <div className="pointer-events-none absolute -bottom-8 -left-8 h-40 w-40 rounded-full bg-white/5 blur-3xl" />
-
-      {/* Header */}
-      <div className="relative flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-xs font-medium uppercase tracking-wider text-white/70">
+    <div className="group flex flex-col rounded-2xl border border-border bg-card p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+      {/* Header: icono + nombre banco + nombre cuenta */}
+      <div className="mb-3 flex items-start gap-3">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <Landmark className="h-6 w-6" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             {account.bank_name || "Banco"}
           </p>
-          <p className="truncate text-base font-semibold leading-tight">{account.account_name}</p>
+          <p className="truncate text-base font-semibold leading-tight" title={account.account_name}>
+            {account.account_name}
+          </p>
+          <p className="mt-0.5 truncate text-xs text-muted-foreground tabular-nums">
+            {maskAccountNumber(account.account_number)} · {accountTypeLabel(account.account_type)} · {currencyLabel(account.currency)}
+          </p>
         </div>
+      </div>
+
+      {/* Pills: badges de estado */}
+      <div className="mb-3 flex flex-wrap gap-2">
         {account.is_default ? (
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
+          <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
             <Star className="h-3 w-3 fill-current" />
             Principal
           </span>
-        ) : null}
+        ) : (
+          <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+            No principal
+          </span>
+        )}
+        {account.is_active === false ? (
+          <span className="inline-flex items-center rounded-full bg-danger/10 px-2.5 py-0.5 text-xs font-medium text-danger">
+            Inactiva
+          </span>
+        ) : (
+          <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
+            Activa
+          </span>
+        )}
       </div>
 
-      {/* Card body */}
-      <div className="relative mt-5">
-        <div className="mb-4 flex items-center gap-3">
-          <div className="relative h-9 w-12 shrink-0 overflow-hidden rounded-md bg-gradient-to-br from-yellow-200 via-yellow-400 to-yellow-600 shadow-inner">
-            <div className="absolute left-1 top-1/2 h-5 w-6 -translate-y-1/2 rounded-sm border border-yellow-700/30 bg-yellow-300/50" />
-            <div className="absolute right-1 top-1/2 h-3 w-4 -translate-y-1/2 rounded-sm border border-yellow-700/30 bg-yellow-300/50" />
-          </div>
-          <span className="font-mono text-lg tracking-[0.15em] text-white/95">
-            {maskAccountNumber(account.account_number)}
-          </span>
-        </div>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium text-white/70">
-          <span className="inline-flex items-center gap-1">
-            <CreditCard className="h-3 w-3" />
-            {accountTypeLabel(account.account_type)}
-          </span>
-          <span className="hidden sm:inline">·</span>
-          <span className="inline-flex items-center gap-1">
-            <DollarSign className="h-3 w-3" />
-            {currencyLabel(account.currency)}
-          </span>
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div className="relative mt-5 flex items-end justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-xs text-white/60">Sucursal</p>
-          <p className="truncate text-sm font-medium">{account.branch_name || "—"}</p>
+      {/* Stats inline (mismo patrón 2-col que ProductCard: precio + stock) */}
+      <div className="mb-4 flex items-end justify-between">
+        <div>
+          <p className="text-xs text-muted-foreground">Saldo actual</p>
+          <p className="text-xl font-bold tabular-nums tracking-tight">
+            {formatCLP(account.current_balance)}
+          </p>
         </div>
         <div className="text-right">
-          <p className="text-xs text-white/60">Saldo actual</p>
-          <p className="text-2xl font-bold tabular-nums tracking-tight">{formatCLP(account.current_balance)}</p>
+          <p className="text-xs text-muted-foreground">Sucursal</p>
+          <p className="truncate text-sm font-medium" title={account.branch_name ?? undefined}>
+            {account.branch_name || "—"}
+          </p>
         </div>
       </div>
 
-      {/* Actions */}
-      <div className="relative mt-4 flex flex-wrap justify-end gap-1 border-t border-white/10 pt-3">
-        <ActionButton
-          onClick={() => onTransactions(account)}
-          label="Movimientos"
-          icon={Receipt}
-        />
-        <ActionButton
-          onClick={() => onReconciliations(account)}
-          label="Conciliaciones"
-          icon={Scale}
-        />
-        {!account.is_default && (
-          <ActionButton
-            onClick={() => onSetDefault(account.id)}
-            label="Marcar como principal"
-            icon={Star}
-            disabled={isSetDefaultPending}
-          />
-        )}
-        <ActionButton
-          onClick={() => onEdit(account)}
-          label="Editar"
-          icon={Pencil}
-        />
-        <ActionButton
-          onClick={() => onDelete(account)}
-          label="Eliminar"
-          icon={Trash2}
-          className="hover:bg-white/20 hover:text-white"
-        />
+      {/* Actions: mismo patrón icon-only con sr-only que ProductCard */}
+      <div className="mt-auto flex items-center justify-between border-t border-border pt-3">
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            onClick={() => onTransactions(account)}
+            title="Movimientos"
+            aria-label={`Movimientos de ${account.account_name}`}
+          >
+            <Receipt className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            onClick={() => onReconciliations(account)}
+            title="Conciliaciones"
+            aria-label={`Conciliaciones de ${account.account_name}`}
+          >
+            <Scale className="h-4 w-4" />
+          </Button>
+          {!account.is_default && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              onClick={() => onSetDefault(account.id)}
+              disabled={isSetDefaultPending}
+              title="Marcar como principal"
+              aria-label={`Marcar como principal ${account.account_name}`}
+            >
+              <Star className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            onClick={() => onEdit(account)}
+            title="Editar"
+            aria-label={`Editar ${account.account_name}`}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-danger"
+            onClick={() => onDelete(account)}
+            title="Eliminar"
+            aria-label={`Eliminar ${account.account_name}`}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </div>
-  );
-}
-
-function ActionButton({
-  onClick,
-  label,
-  icon: Icon,
-  disabled,
-  className,
-}: {
-  onClick: () => void;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  disabled?: boolean;
-  className?: string;
-}) {
-  return (
-    <Button
-      variant="ghost"
-      size="sm"
-      className={`h-8 w-8 p-0 text-white/80 hover:bg-white/10 hover:text-white ${className ?? ""}`}
-      onClick={onClick}
-      disabled={disabled}
-      title={label}
-      aria-label={label}
-    >
-      <Icon className="h-3.5 w-3.5" />
-      <span className="sr-only">{label}</span>
-    </Button>
   );
 }
 
 function BankAccountCardSkeleton() {
   return (
-    <div className="relative flex min-w-0 flex-col justify-between overflow-hidden rounded-2xl bg-gradient-to-br from-slate-300 to-slate-400 p-5 shadow-lg dark:from-slate-700 dark:to-slate-800">
-      <div className="pointer-events-none absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white/5 blur-2xl" />
-      <div className="pointer-events-none absolute -bottom-8 -left-8 h-40 w-40 rounded-full bg-white/5 blur-3xl" />
-      <div className="relative flex items-start justify-between gap-3">
-        <div className="min-w-0 space-y-1.5">
-          <Skeleton className="h-3 w-24" />
-          <Skeleton className="h-5 w-36" />
+    <div className="flex flex-col rounded-2xl border border-border bg-card p-4 shadow-sm">
+      <div className="mb-3 flex items-start gap-3">
+        <Skeleton className="h-12 w-12 shrink-0 rounded-xl" />
+        <div className="min-w-0 flex-1 space-y-2">
+          <Skeleton className="h-3 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+          <Skeleton className="h-3 w-full" />
         </div>
-        <Skeleton className="h-5 w-16 shrink-0 rounded-full" />
       </div>
-      <div className="relative mt-5">
-        <div className="mb-4 flex items-center gap-3">
-          <Skeleton className="h-9 w-12 rounded-md" />
-          <Skeleton className="h-5 w-28" />
-        </div>
-        <div className="flex gap-3">
-          <Skeleton className="h-3 w-24" />
+      <div className="mb-3 flex gap-2">
+        <Skeleton className="h-5 w-20 rounded-full" />
+        <Skeleton className="h-5 w-14 rounded-full" />
+      </div>
+      <div className="mb-4 flex items-end justify-between">
+        <div className="space-y-1.5">
           <Skeleton className="h-3 w-20" />
+          <Skeleton className="h-6 w-28" />
+        </div>
+        <div className="space-y-1.5 text-right">
+          <Skeleton className="h-3 w-10" />
+          <Skeleton className="h-4 w-24" />
         </div>
       </div>
-      <div className="relative mt-5 flex items-end justify-between gap-3">
-        <div className="min-w-0 space-y-1">
-          <Skeleton className="h-3 w-12" />
-          <Skeleton className="h-4 w-28" />
+      <div className="mt-auto flex items-center justify-between border-t border-border pt-3">
+        <div className="flex items-center gap-1">
+          <Skeleton className="h-8 w-8 rounded-md" />
+          <Skeleton className="h-8 w-8 rounded-md" />
         </div>
-        <div className="space-y-1 text-right">
-          <Skeleton className="h-3 w-16" />
-          <Skeleton className="h-8 w-32" />
+        <div className="flex items-center gap-1">
+          <Skeleton className="h-8 w-8 rounded-md" />
+          <Skeleton className="h-8 w-8 rounded-md" />
         </div>
-      </div>
-      <div className="relative mt-4 flex justify-end gap-1 border-t border-white/10 pt-3">
-        <Skeleton className="h-8 w-8 rounded-md" />
-        <Skeleton className="h-8 w-8 rounded-md" />
-        <Skeleton className="h-8 w-8 rounded-md" />
-        <Skeleton className="h-8 w-8 rounded-md" />
-        <Skeleton className="h-8 w-8 rounded-md" />
       </div>
     </div>
   );
+}
+
+function translateTransactionSource(value?: string | null): string | undefined {
+  if (!value) return undefined;
+  const upper = value.trim().toUpperCase();
+  if (upper === "EXPENSE" || upper === "EGRESO") return "Egreso";
+  if (upper === "REVENUE" || upper === "INCOME" || upper === "INGRESO") return "Ingreso";
+  return value;
 }
 
 function TransactionCard({ tx }: { tx: BankAccountTransaction }) {
@@ -1325,6 +1480,8 @@ function TransactionCard({ tx }: { tx: BankAccountTransaction }) {
     }
   }, [tx.payment_date]);
 
+  const title = translateTransactionSource(tx.description ?? tx.payment_source) ?? "Movimiento";
+
   return (
     <div className="rounded-xl border border-border bg-card p-3 transition-colors hover:border-primary/20">
       <div className="flex items-start justify-between gap-3">
@@ -1341,10 +1498,11 @@ function TransactionCard({ tx }: { tx: BankAccountTransaction }) {
             )}
           </div>
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium">
-              {tx.description || tx.payment_source || "Movimiento"}
-            </p>
+            <p className="truncate text-sm font-medium">{title}</p>
             <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+              <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${isIncome ? "bg-emerald-500/10 text-emerald-700" : "bg-rose-500/10 text-rose-700"}`}>
+                {isIncome ? "Ingreso" : "Egreso"}
+              </span>
               <span className="inline-flex items-center gap-1">
                 <Calendar className="h-3 w-3" />
                 {date}

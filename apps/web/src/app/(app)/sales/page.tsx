@@ -1401,7 +1401,7 @@ export default function SalesPage() {
     await downloadFile(
       async () => {
         const data = await fetchOrders(exportFilter);
-        const blob = generateOrdersExcel(
+        const blob = await generateOrdersExcel(
           data.results,
           theme?.primary_color ?? "#2f6b3c",
         );

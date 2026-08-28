@@ -6,6 +6,7 @@ import { Plus, Search, Pencil, Trash2, Loader2, Truck, X, SlidersHorizontal } fr
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   fetchSupplier,
   fetchSuppliers,
@@ -288,8 +289,22 @@ export default function SuppliersPage() {
         </div>
 
         {isLoading ? (
-          <div className="grid flex-1 place-items-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <div className="overflow-hidden rounded-xl border border-border">
+            <div className="border-b border-border px-4 py-3">
+              <Skeleton className="h-3 w-44" />
+            </div>
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-3 border-b border-border px-4 py-3 last:border-0"
+              >
+                <Skeleton className="h-7 w-7 rounded-md" />
+                <Skeleton className="h-4 w-36" />
+                <Skeleton className="hidden h-4 w-24 sm:block" />
+                <Skeleton className="h-5 w-16 rounded-full" />
+                <Skeleton className="ml-auto h-4 w-12" />
+              </div>
+            ))}
           </div>
         ) : suppliers.length === 0 ? (
           <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">
@@ -492,8 +507,13 @@ export default function SuppliersPage() {
             >
               <div className="flex-1 overflow-y-auto p-4">
                 {detailLoading ? (
-                  <div className="grid h-full place-items-center">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    {Array.from({ length: 8 }).map((_, i) => (
+                      <div key={i} className="flex flex-col gap-2">
+                        <Skeleton className="h-3.5 w-24" />
+                        <Skeleton className="h-9 w-full" />
+                      </div>
+                    ))}
                   </div>
                 ) : detailError ? (
                   <p className="text-sm text-danger">{detailError}</p>

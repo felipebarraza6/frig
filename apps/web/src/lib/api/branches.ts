@@ -194,14 +194,42 @@ export async function fetchPublicLoginTheme(
   }
 }
 
+/** Foreground oscuro del tema, usado como texto sobre colores de marca claros. */
+const DARK_BRAND_FOREGROUND = "#1a1d18";
+
+/**
+ * Devuelve el color de texto legible sobre un HEX de marca según su
+ * luminancia percibida (YIQ: 0.299R + 0.587G + 0.114B). Colores claros
+ * reciben el foreground oscuro del tema; los oscuros, blanco.
+ */
+function readableForegroundFor(hex: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return "#ffffff";
+  const n = parseInt(m[1], 16);
+  const luminance =
+    0.299 * ((n >> 16) & 0xff) + 0.587 * ((n >> 8) & 0xff) + 0.114 * (n & 0xff);
+  return luminance > 150 ? DARK_BRAND_FOREGROUND : "#ffffff";
+}
+
 /**
  * Aplica el tema multi-tenant a `:root` inyectando CSS custom properties
  * de marca. Sin theme se usan los defaults de globals.css.
  */
 export function applyThemeConfig(theme: BranchThemeConfig | null): void {
   const root = document.documentElement;
-  root.style.setProperty("--brand-primary", theme?.primary_color ?? "#2f6b3c");
-  root.style.setProperty("--brand-secondary", theme?.secondary_color ?? "#f2e8cf");
+  const primary = theme?.primary_color ?? "#2f6b3c";
+  const secondary = theme?.secondary_color ?? "#f2e8cf";
+  root.style.setProperty("--brand-primary", primary);
+  root.style.setProperty("--brand-secondary", secondary);
+  // Foreground derivado del color de marca para texto legible encima.
+  // Se setea también el alias --color-* por si algún consumo usa el token
+  // directo en vez del mapeo de @theme.
+  const primaryForeground = readableForegroundFor(primary);
+  const secondaryForeground = readableForegroundFor(secondary);
+  root.style.setProperty("--primary-foreground", primaryForeground);
+  root.style.setProperty("--secondary-foreground", secondaryForeground);
+  root.style.setProperty("--color-primary-foreground", primaryForeground);
+  root.style.setProperty("--color-secondary-foreground", secondaryForeground);
   root.style.setProperty(
     "--brand-radius",
     typeof theme?.borderRadius === "number" && theme.borderRadius > 0

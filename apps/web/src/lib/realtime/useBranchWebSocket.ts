@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 
-export type BranchEventScope = "pos" | "cash_register" | "dashboard" | "order";
+export type BranchEventScope = "pos" | "cash_register" | "dashboard" | "order" | "modules";
 
 export type BranchEventMessage = {
   type: "branch_event";
@@ -16,7 +16,7 @@ export type WebSocketStatus = "connecting" | "open" | "closed" | "error";
 
 const RECONNECT_DELAY_MS = 3000;
 const MAX_RECONNECT_DELAY_MS = 30000;
-const DEFAULT_SCOPES: BranchEventScope[] = ["pos", "cash_register", "dashboard"];
+const DEFAULT_SCOPES: BranchEventScope[] = ["pos", "cash_register", "dashboard", "modules"];
 
 function getWsBaseUrl(): string {
   const apiBase = process.env.NEXT_PUBLIC_YGGDRA_API_BASE ?? "http://localhost:8000/api";

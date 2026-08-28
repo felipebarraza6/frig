@@ -1,4 +1,3 @@
-import * as XLSX from "xlsx-js-style";
 import { apiFetch, apiFile, ApiError, type ApiFileResult } from "@/lib/api/client";
 import type { YggdraSchemas } from "@/lib/api/types";
 import type { CartItem } from "@/lib/store/cart";
@@ -315,11 +314,15 @@ function normalizeHexForXlsx(color: string, fallback = "FF2F6B3C"): string {
  *
  * Se usa `aoa_to_sheet` en lugar de `json_to_sheet` para garantizar que las
  * celdas del encabezado existan y acepten estilos de forma confiable.
+ *
+ * `xlsx-js-style` se importa de forma dinámica para mantenerla fuera del
+ * bundle inicial (orders.ts es importado por el terminal POS y cart-panel).
  */
-export function generateOrdersExcel(
+export async function generateOrdersExcel(
   orders: YggdraOrder[],
   primaryColor = "#2f6b3c",
-): Blob {
+): Promise<Blob> {
+  const XLSX = await import("xlsx-js-style");
   const headers = [
     "ID",
     "Tipo",

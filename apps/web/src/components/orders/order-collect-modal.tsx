@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { X, Plus, Trash2, Loader2 } from "lucide-react";
+import { Plus, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { formatCLP, paymentTypeLabel } from "@/lib/utils";
 import { createPayment } from "@/lib/api/payments";
 import { freeTable } from "@/lib/api/tables";
@@ -112,17 +113,14 @@ export default function OrderCollectModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
-      <div className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-xl border border-border bg-card p-6 shadow-lg">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-base font-semibold">
-            Cobrar orden {order.order_number ?? order.id.slice(0, 8)}
-          </h2>
-          <button onClick={onClose} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <Modal
+      open
+      onClose={onClose}
+      title={`Cobrar orden ${order.order_number ?? order.id.slice(0, 8)}`}
+      size="md"
+    >
+      <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+        <ModalBody className="flex flex-col gap-4">
           <div className="flex items-center justify-between rounded-lg border border-border p-3 text-sm">
             <span className="text-muted-foreground">Total a cobrar</span>
             <span className="text-lg font-semibold tabular-nums">{formatCLP(total)}</span>
@@ -165,7 +163,7 @@ export default function OrderCollectModal({
                 <button
                   type="button"
                   onClick={() => removePaymentLine(line.id)}
-                  className="mb-2 text-muted-foreground hover:text-danger"
+                  className="mb-2 text-muted-foreground hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md p-1"
                   aria-label="Quitar pago"
                 >
                   <Trash2 className="h-4 w-4" />
@@ -182,20 +180,20 @@ export default function OrderCollectModal({
             <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{collectError}</p>
           )}
           {collectSuccess && (
-            <p className="rounded-lg bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700">{collectSuccess}</p>
+            <p className="rounded-lg bg-success/10 px-3 py-2 text-sm text-success">{collectSuccess}</p>
           )}
+        </ModalBody>
 
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Registrar pago
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <ModalFooter>
+          <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={isPending}>
+            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Registrar pago
+          </Button>
+        </ModalFooter>
+      </form>
+    </Modal>
   );
 }

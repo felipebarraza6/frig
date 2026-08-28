@@ -204,19 +204,6 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
     ],
   },
   {
-    title: "Inventario",
-    items: [
-      { href: "/warehouses", label: "Bodegas", icon: "Warehouse", module: "inventory" },
-      { href: "/inventory", label: "Inventario", icon: "ClipboardList", module: "inventory" },
-    ],
-  },
-  {
-    title: "Nutrición",
-    items: [
-      { href: "/products/nutrition", label: "Etiquetado nutricional", icon: "Apple", module: "nutrition" },
-    ],
-  },
-  {
     title: "Sala",
     items: [
       { href: "/tables", label: "Mesas", icon: "Table", module: "tables" },
@@ -228,19 +215,27 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
     items: [
       { href: "/products", label: "Productos", icon: "Package", module: "product_catalog" },
       { href: "/products/combos", label: "Combos", icon: "Boxes", module: "product_catalog" },
-      { href: "/products/menus", label: "Menús digitales", icon: "QrCode", module: "public_catalog" },
       { href: "/categories", label: "Categorías", icon: "Tags", module: "product_catalog" },
+      { href: "/products/nutrition", label: "Etiquetado nutricional", icon: "Apple", module: "nutrition" },
+      { href: "/products/menus", label: "Menús digitales", icon: "QrCode", module: "public_catalog" },
     ],
   },
   {
-    title: "CRM",
+    title: "Inventario",
+    items: [
+      { href: "/warehouses", label: "Bodegas", icon: "Warehouse", module: "inventory" },
+      { href: "/inventory", label: "Inventario", icon: "ClipboardList", module: "inventory" },
+    ],
+  },
+  {
+    title: "Clientes",
     items: [
       { href: "/customers", label: "Clientes", icon: "UserCircle", module: "customers" },
       { href: "/promotions/discounts", label: "Promociones", icon: "Percent", module: "promotions" },
     ],
   },
   {
-    title: "Logística",
+    title: "Compras",
     items: [
       { href: "/suppliers", label: "Proveedores", icon: "Truck", module: "suppliers" },
       { href: "/purchase-orders", label: "Órdenes de compra", icon: "ShoppingCart", module: "suppliers" },
@@ -273,3 +268,59 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
 export const FRIG_MODULE_NAMES = Array.from(
   new Set(FRIG_MENU_DEF.flatMap((g) => g.items.map((i) => i.module))),
 ) as ModuleName[];
+
+// ── Guards de redirección ─────────────────────────────────────────────────────
+
+/** Módulos de ruta que en Frig dependen de que POS esté habilitado. */
+const POS_DEPENDENT_ROUTE_MODULES = new Set<string>(["cash_register"]);
+
+/**
+ * Dado un conjunto de paths permitidos (p. ej. `CASHIER_ALLOWED_PATHS`) y
+ * los módulos habilitados en la sucursal, devuelve el primer path cuyo
+ * módulo asociado esté activo. Si ninguno calza, devuelve `null` y el caller
+ * puede caer a una ruta neutra (p. ej. `/dashboard`).
+ *
+ * - Rutas no mapeadas en `ROUTE_MODULE_MAP` se consideran libres de módulo.
+ * - Módulos always-on de Frig siempre califican.
+ * - Rutas con módulo POS-dependiente (`cash_register`) exigen además que
+ *   `pos` esté habilitado.
+ *
+ * Usado por el layout para evitar el loop: si el cajero está en
+ * `/pos/terminal` y `pos` se desactiva, no queremos redirigirlo a
+ * `/dashboard` (que también está bloqueada para cajero) ni a otra ruta
+ * POS-dependiente caída.
+ */
+export function firstEnabledAllowedPath(
+  allowedPaths: readonly string[],
+  enabledModuleNames: ReadonlySet<string>,
+): string | null {
+  for (const path of allowedPaths) {
+    const moduleName = getModuleForPath(path);
+    if (moduleName === null || moduleName === undefined) return path;
+    if (FRIG_ALWAYS_ON_MODULES.includes(moduleName)) return path;
+    if (!enabledModuleNames.has(moduleName)) continue;
+    if (
+      POS_DEPENDENT_ROUTE_MODULES.has(moduleName) &&
+      !enabledModuleNames.has("pos")
+    ) {
+      continue;
+    }
+    return path;
+  }
+  return null;
+}
+
+/**
+ * Set de módulos habilitados construido a partir del estado del session
+ * store (frontend-config). Útil para los guards que necesitan la respuesta
+ * rápida del store (sin esperar a la query `branch-modules`).
+ */
+export function enabledModuleSet(
+  modules: Record<string, { is_enabled?: boolean } | undefined>,
+): Set<string> {
+  const set = new Set<string>();
+  for (const [name, state] of Object.entries(modules)) {
+    if (state?.is_enabled === true) set.add(name);
+  }
+  return set;
+}

@@ -6,6 +6,7 @@ import { Search, Loader2, FileDown, Eye, FileText, Inbox, X } from "lucide-react
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { fetchQuotations, exportQuotationsExcel, type Quotation } from "@/lib/api/quotations";
 import { formatCLP, cn } from "@/lib/utils";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
@@ -161,8 +162,22 @@ export default function QuotationsPage() {
             </div>
           </div>
         ) : isLoading ? (
-          <div className="grid flex-1 place-items-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <div className="overflow-hidden rounded-xl border border-border">
+            <div className="border-b border-border px-4 py-3">
+              <Skeleton className="h-3 w-44" />
+            </div>
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-3 border-b border-border px-4 py-3 last:border-0"
+              >
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-5 w-16 rounded-full" />
+                <Skeleton className="hidden h-4 w-20 sm:block" />
+                <Skeleton className="ml-auto h-4 w-16" />
+              </div>
+            ))}
           </div>
         ) : quotations.length === 0 ? (
           <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-border p-8 text-center">

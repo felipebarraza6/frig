@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ApiError } from "@/lib/api/client";
 import { useToast } from "@/lib/store/toast";
@@ -22,6 +22,17 @@ export function ForbiddenListener() {
   const toast = useToast();
   const isPosFirstRole = useIsPosFirstRole();
 
+  // Regex compilada una sola vez con word-boundaries: evita que "sales"
+  // matchee "salesperson" o "config" matchee "configuration".
+  const alwaysOnRegex = useMemo(
+    () =>
+      new RegExp(
+        `\\b(${FRIG_ALWAYS_ON_MODULES.join("|")})\\b`,
+        "i",
+      ),
+    [],
+  );
+
   useEffect(() => {
     function handleForbidden(e: Event) {
       const error = e instanceof CustomEvent ? (e.detail as ApiError) : null;
@@ -30,16 +41,17 @@ export function ForbiddenListener() {
 
       // Si el error proviene de un módulo core de Frig (siempre activo), no
       // molestamos al usuario: el backend debería tenerlo habilitado.
-      const isAlwaysOnModule = FRIG_ALWAYS_ON_MODULES.some((moduleName) =>
-        rawMessage.toLowerCase().includes(moduleName.toLowerCase()),
-      );
-      if (isAlwaysOnModule) {
+      // Match por palabra completa para no caer en falsos positivos
+      // (p. ej. "salesperson" contiene "sales" pero NO debe silenciarse).
+      if (rawMessage && alwaysOnRegex.test(rawMessage)) {
         return;
       }
 
       // No mostrar toast si es una petición secundaria silenciosa de POS.
       const isPosRoute = pathname.startsWith("/pos");
-      const isSecondaryModule = /tables|public_catalog|product_catalog|nutrition/i.test(rawMessage);
+      const isSecondaryModule = /\b(tables|public_catalog|product_catalog|nutrition)\b/i.test(
+        rawMessage,
+      );
       if (!(isPosRoute && isSecondaryModule)) {
         toast.error(message);
       }
@@ -54,7 +66,7 @@ export function ForbiddenListener() {
 
     window.addEventListener("api:forbidden", handleForbidden);
     return () => window.removeEventListener("api:forbidden", handleForbidden);
-  }, [router, pathname, toast, isPosFirstRole]);
+  }, [router, pathname, toast, isPosFirstRole, alwaysOnRegex]);
 
   return null;
 }
