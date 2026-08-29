@@ -341,30 +341,53 @@ export default function LoginPage() {
             Gestión comercial y gastronómica por FRIG
           </p>
 
-          {/* Cortina de bloques pixel-art: cubre y revela el card en cascada. */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 z-20 flex overflow-hidden"
-          >
-            {Array.from({ length: 10 }).map((_, i) => (
-              <motion.span
-                key={`curtain-${mode}-${forgotSent}-${i}`}
-                initial={{ scaleY: 0 }}
-                animate={{ scaleY: [0, 1, 1, 0] }}
-                transition={{
-                  duration: 0.6,
-                  times: [0, 0.4, 0.6, 1],
-                  delay: i * 0.05,
-                  ease: stepEase(5),
-                }}
-                className="h-full flex-1"
-                style={{
-                  backgroundColor:
-                    i % 2 === 0 ? "var(--color-primary)" : "color-mix(in srgb, var(--color-primary) 62%, #0b3b22)",
-                  transformOrigin: i % 2 === 0 ? "top" : "bottom",
-                }}
-              />
-            ))}
+          {/* Cortina retro: capa base opaca (nada se ve detrás) + columnas pixeladas + degradado derecho. */}
+          <div aria-hidden className="pointer-events-none absolute inset-0 z-20 overflow-hidden">
+            {/* Capa base: garantiza cobertura total durante la transición. */}
+            <motion.div
+              key={`curtain-cover-${mode}-${forgotSent}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: [0, 1, 1, 0] }}
+              transition={{ duration: 0.85, times: [0, 0.15, 0.85, 1], ease: "easeOut" }}
+              className="absolute inset-0"
+              style={{ backgroundColor: "var(--color-primary)" }}
+            />
+
+            {/* Columnas pixeladas: textura retro encima de la capa base. */}
+            <div className="absolute inset-0 flex">
+              {Array.from({ length: 10 }).map((_, i) => (
+                <motion.span
+                  key={`curtain-${mode}-${forgotSent}-${i}`}
+                  initial={{ scaleY: 0 }}
+                  animate={{ scaleY: [0, 1, 1, 0] }}
+                  transition={{
+                    duration: 0.85,
+                    times: [0, 0.25, 0.85, 1],
+                    delay: i * 0.015,
+                    ease: stepEase(5),
+                  }}
+                  className="h-full flex-1"
+                  style={{
+                    backgroundColor:
+                      i % 2 === 0 ? "var(--color-primary)" : "color-mix(in srgb, var(--color-primary) 62%, #0b3b22)",
+                    transformOrigin: i % 2 === 0 ? "top" : "bottom",
+                  }}
+                />
+              ))}
+            </div>
+
+            {/* Degradado sutil en el borde derecho (efecto scan/degrade). */}
+            <motion.div
+              key={`curtain-degrade-${mode}-${forgotSent}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: [0, 1, 1, 0] }}
+              transition={{ duration: 0.85, times: [0, 0.2, 0.8, 1], ease: "easeOut" }}
+              className="absolute inset-y-0 right-0 w-1/4"
+              style={{
+                background:
+                  "linear-gradient(to left, color-mix(in srgb, var(--color-primary) 55%, #0b3b22), transparent)",
+              }}
+            />
           </div>
         </motion.div>
       </section>
