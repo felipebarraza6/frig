@@ -205,7 +205,7 @@ export default function LoginPage() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25, ease: "easeOut" }}
-          className="relative w-full max-w-sm overflow-hidden font-pixel"
+          className="relative flex w-full max-w-sm flex-col overflow-hidden font-pixel lg:h-[600px] lg:justify-center"
         >
           <div className="mb-8 flex flex-col items-center gap-3 text-center">
             <div className="mb-2 flex items-center gap-3">
@@ -341,51 +341,52 @@ export default function LoginPage() {
             Gestión comercial y gastronómica por FRIG
           </p>
 
-          {/* Cortina retro: capa base opaca (nada se ve detrás) + columnas pixeladas + degradado derecho. */}
+          {/* Cortina retro pixel: base oscura + cuadrícula de bloques (checkerboard) + degradado derecho.
+              La cuadrícula con separación visible evita el rectángulo liso: siempre se leen cuadros. */}
           <div aria-hidden className="pointer-events-none absolute inset-0 z-20 overflow-hidden">
-            {/* Capa base: garantiza cobertura total durante la transición. */}
+            {/* Base oscura: oculta el contenido y da las "líneas" entre cuadros. */}
             <motion.div
               key={`curtain-cover-${mode}-${forgotSent}`}
               initial={{ opacity: 0 }}
               animate={{ opacity: [0, 1, 1, 0] }}
-              transition={{ duration: 0.85, times: [0, 0.15, 0.85, 1], ease: "easeOut" }}
+              transition={{ duration: 0.9, times: [0, 0.15, 0.85, 1], ease: "easeOut" }}
               className="absolute inset-0"
-              style={{ backgroundColor: "var(--color-primary)" }}
+              style={{ backgroundColor: "color-mix(in srgb, var(--color-primary) 30%, #0b3b22)" }}
             />
 
-            {/* Columnas pixeladas: textura retro encima de la capa base. */}
-            <div className="absolute inset-0 flex">
-              {Array.from({ length: 10 }).map((_, i) => (
+            {/* Cuadrícula de bloques pixel con separación, aparece en cascada. */}
+            <div className="absolute inset-0 grid grid-cols-6 grid-rows-5 gap-1 p-1">
+              {Array.from({ length: 30 }).map((_, i) => (
                 <motion.span
                   key={`curtain-${mode}-${forgotSent}-${i}`}
-                  initial={{ scaleY: 0 }}
-                  animate={{ scaleY: [0, 1, 1, 0] }}
+                  initial={{ scaleY: 0, opacity: 0 }}
+                  animate={{ scaleY: [0, 1, 1, 0], opacity: [0, 1, 1, 0] }}
                   transition={{
-                    duration: 0.85,
+                    duration: 0.9,
                     times: [0, 0.25, 0.85, 1],
-                    delay: i * 0.015,
-                    ease: stepEase(5),
+                    delay: (i % 6) * 0.03 + Math.floor(i / 6) * 0.04,
+                    ease: stepEase(6),
                   }}
-                  className="h-full flex-1"
+                  className="h-full w-full"
                   style={{
                     backgroundColor:
-                      i % 2 === 0 ? "var(--color-primary)" : "color-mix(in srgb, var(--color-primary) 62%, #0b3b22)",
-                    transformOrigin: i % 2 === 0 ? "top" : "bottom",
+                      i % 2 === 0 ? "var(--color-primary)" : "color-mix(in srgb, var(--color-primary) 70%, #0b3b22)",
                   }}
                 />
               ))}
             </div>
 
-            {/* Degradado sutil en el borde derecho (efecto scan/degrade). */}
+            {/* Degradado en el borde derecho (efecto scan, bien visible). */}
             <motion.div
               key={`curtain-degrade-${mode}-${forgotSent}`}
               initial={{ opacity: 0 }}
               animate={{ opacity: [0, 1, 1, 0] }}
-              transition={{ duration: 0.85, times: [0, 0.2, 0.8, 1], ease: "easeOut" }}
-              className="absolute inset-y-0 right-0 w-1/4"
+              transition={{ duration: 0.9, times: [0, 0.25, 0.85, 1], ease: "easeOut" }}
+              className="absolute inset-y-0 right-0 w-1/3"
               style={{
                 background:
-                  "linear-gradient(to left, color-mix(in srgb, var(--color-primary) 55%, #0b3b22), transparent)",
+                  "linear-gradient(to left, #06230f 0%, color-mix(in srgb, var(--color-primary) 45%, #0b3b22) 45%, transparent 100%)",
+                boxShadow: "inset -6px 0 0 rgba(0,0,0,0.25)",
               }}
             />
           </div>
