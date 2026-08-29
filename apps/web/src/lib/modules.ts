@@ -27,7 +27,7 @@ export const ROUTE_MODULE_MAP: Record<string, ModuleName | null> = {
   "/customers": "customers",
   "/promotions/discounts": "promotions",
   "/payment-methods": "payment_methods",
-  "/tax-documents": "finance",
+  "/tax-documents": "invoices",
   "/banks": "bank_accounts",
   "/bank-accounts": "bank_accounts",
   "/reconciliations": "bank_accounts",
@@ -169,6 +169,7 @@ export const FRIG_SETTINGS_MODULES: ModuleName[] = [
   "inventory",
   "nutrition",
   "public_catalog",
+  "invoices",
 ];
 
 // ── Definición del menú de Frig ───────────────────────────────────────────────
@@ -250,7 +251,7 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
     title: "Finanzas",
     items: [
       { href: "/cash-register/stations", label: "Estaciones POS", icon: "Monitor", module: "cash_register" },
-      { href: "/tax-documents", label: "Documentos tributarios", icon: "FileText", module: "finance" },
+      { href: "/tax-documents", label: "Documentos tributarios", icon: "FileText", module: "invoices" },
       { href: "/payment-methods", label: "Métodos de pago", icon: "CreditCard", module: "payment_methods" },
       { href: "/bank-accounts", label: "Billeteras digitales", icon: "Landmark", module: "bank_accounts" },
       { href: "/reconciliations", label: "Conciliaciones", icon: "Scale", module: "bank_accounts" },
