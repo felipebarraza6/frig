@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSessionStore, normalizeDashboardRoute } from "@/lib/store/session";
@@ -205,7 +205,7 @@ export default function LoginPage() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25, ease: "easeOut" }}
-          className="w-full max-w-sm font-pixel"
+          className="relative w-full max-w-sm overflow-hidden font-pixel"
         >
           <div className="mb-8 flex flex-col items-center gap-3 text-center">
             <div className="mb-2 flex items-center gap-3">
@@ -226,15 +226,6 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <div className="relative">
-          <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={mode === "forgot" ? (forgotSent ? "forgot-sent" : "forgot") : "login"}
-            initial={{ opacity: 0, y: 18 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -18 }}
-            transition={{ duration: 0.3, ease: stepEase(6) }}
-          >
           {mode === "forgot" ? (
             forgotSent ? (
               <div className="flex flex-col gap-4">
@@ -345,23 +336,36 @@ export default function LoginPage() {
               </div>
             </form>
           )}
-          </motion.div>
-          </AnimatePresence>
-
-          <motion.span
-            aria-hidden
-            key={`beam-${mode}-${forgotSent}`}
-            initial={{ x: "-40%" }}
-            animate={{ x: "140%" }}
-            transition={{ duration: 0.5, ease: "linear" }}
-            className="pointer-events-none absolute inset-y-0 left-0 z-10 w-1/3 bg-gradient-to-r from-transparent via-primary/15 to-transparent"
-            style={{ imageRendering: "pixelated" }}
-          />
-          </div>
 
           <p className={cn("mt-8 text-center text-xs text-muted-foreground")}>
             Gestión comercial y gastronómica por FRIG
           </p>
+
+          {/* Cortina de bloques pixel-art: cubre y revela el card en cascada. */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 z-20 flex overflow-hidden"
+          >
+            {Array.from({ length: 10 }).map((_, i) => (
+              <motion.span
+                key={`curtain-${mode}-${forgotSent}-${i}`}
+                initial={{ scaleY: 0 }}
+                animate={{ scaleY: [0, 1, 1, 0] }}
+                transition={{
+                  duration: 0.6,
+                  times: [0, 0.4, 0.6, 1],
+                  delay: i * 0.05,
+                  ease: stepEase(5),
+                }}
+                className="h-full flex-1"
+                style={{
+                  backgroundColor:
+                    i % 2 === 0 ? "var(--color-primary)" : "color-mix(in srgb, var(--color-primary) 62%, #0b3b22)",
+                  transformOrigin: i % 2 === 0 ? "top" : "bottom",
+                }}
+              />
+            ))}
+          </div>
         </motion.div>
       </section>
 
