@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -228,6 +229,15 @@ export default function LoginPage() {
             <Button type="submit" size="lg" disabled={loading} className="mt-2">
               {loading ? "Ingresando…" : "Ingresar"}
             </Button>
+
+            <div className="mt-3 text-center">
+              <Link
+                href="/forgot-password"
+                className="text-xs text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+              >
+                ¿Olvidaste tu contraseña? Recupérala aquí
+              </Link>
+            </div>
           </form>
 
           <p className={cn("mt-8 text-center text-xs text-muted-foreground")}>
