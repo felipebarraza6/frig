@@ -1041,36 +1041,37 @@ export default function PurchaseOrdersPage() {
           </div>
       </AnimatedOverlay>
 
+{detail && (
       <AnimatedOverlay
-        open={!!detail}
+        open={true}
         onClose={closeDetail}
         zIndex="z-[70]"
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
           <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-lg md:rounded-xl md:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
-              <h2 className="text-base font-semibold">Orden {detail!.order_number}</h2>
+              <h2 className="text-base font-semibold">Orden {detail.order_number}</h2>
               <button onClick={closeDetail} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
                 <X className="h-5 w-5" />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-4">
               <div className="flex flex-col gap-2 text-sm">
-                <p><span className="text-muted-foreground">Proveedor:</span> {detail!.supplier_name ?? "—"}</p>
+                <p><span className="text-muted-foreground">Proveedor:</span> {detail.supplier_name ?? "—"}</p>
                 <p className="flex items-center gap-1">
                   <span className="text-muted-foreground">Estado:</span>
-                  <span className={statusBadgeClass(detail!.status)}>{statusLabel(detail!.status)}</span>
-                  {detail!.payment_status && (
-                    <span className={paymentStatusBadgeClass(detail!.payment_status)}>
-                      {paymentStatusLabel(detail!.payment_status)}
+                  <span className={statusBadgeClass(detail.status)}>{statusLabel(detail.status)}</span>
+                  {detail.payment_status && (
+                    <span className={paymentStatusBadgeClass(detail.payment_status)}>
+                      {paymentStatusLabel(detail.payment_status)}
                     </span>
                   )}
                 </p>
-                <p><span className="text-muted-foreground">Total:</span> {formatCLP(detail!.total_amount ?? "0")}</p>
-                <p><span className="text-muted-foreground">Pagado:</span> {formatCLP(detail!.paid_amount ?? "0")}</p>
-                <p><span className="text-muted-foreground">Pendiente:</span> {formatCLP(detail!.remaining_amount ?? "0")}</p>
-                <p><span className="text-muted-foreground">Entrega esperada:</span> {formatDateCL(detail!.expected_delivery_date)}</p>
-                <p><span className="text-muted-foreground">Ítems:</span> {detail!.items_count}</p>
+                <p><span className="text-muted-foreground">Total:</span> {formatCLP(detail.total_amount ?? "0")}</p>
+                <p><span className="text-muted-foreground">Pagado:</span> {formatCLP(detail.paid_amount ?? "0")}</p>
+                <p><span className="text-muted-foreground">Pendiente:</span> {formatCLP(detail.remaining_amount ?? "0")}</p>
+                <p><span className="text-muted-foreground">Entrega esperada:</span> {formatDateCL(detail.expected_delivery_date)}</p>
+                <p><span className="text-muted-foreground">Ítems:</span> {detail.items_count}</p>
               </div>
 
               {paymentSummary && (paymentSummary.payments?.length ?? 0) > 0 && (
@@ -1129,16 +1130,18 @@ export default function PurchaseOrdersPage() {
             </div>
           </div>
       </AnimatedOverlay>
+)}
 
+{payTarget && (
       <AnimatedOverlay
-        open={!!payTarget}
+        open={true}
         onClose={closePayModal}
         zIndex="z-[70]"
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
           <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-sm md:rounded-xl md:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
-              <h2 className="text-base font-semibold">Registrar pago — {payTarget!.order.order_number}</h2>
+              <h2 className="text-base font-semibold">Registrar pago — {payTarget.order.order_number}</h2>
               <button onClick={closePayModal} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
                 <X className="h-5 w-5" />
               </button>
@@ -1147,7 +1150,7 @@ export default function PurchaseOrdersPage() {
               <div className="flex-1 overflow-y-auto p-4">
                 <div className="flex flex-col gap-4">
                   <p className="text-sm text-muted-foreground">
-                    Pendiente: <span className="font-medium tabular-nums text-foreground">{formatCLP(payTarget!.order.remaining_amount ?? "0")}</span>
+                    Pendiente: <span className="font-medium tabular-nums text-foreground">{formatCLP(payTarget.order.remaining_amount ?? "0")}</span>
                   </p>
                   <div className="flex flex-col gap-2">
                     <label htmlFor="pay-amount" className="text-sm font-medium">Monto</label>
@@ -1156,20 +1159,20 @@ export default function PurchaseOrdersPage() {
                       type="number"
                       step="0.01"
                       min="0.01"
-                      max={payTarget!.order.remaining_amount ?? undefined}
-                      value={payTarget!.amount}
+                      max={payTarget.order.remaining_amount ?? undefined}
+                      value={payTarget.amount}
                       onChange={(e) => setPayTarget({ ...payTarget!, amount: e.target.value })}
                       required
                     />
                     <p className="text-xs text-muted-foreground">
-                      Máximo: {formatCLP(payTarget!.order.remaining_amount ?? "0")}
+                      Máximo: {formatCLP(payTarget.order.remaining_amount ?? "0")}
                     </p>
                   </div>
                   <div className="flex flex-col gap-2">
                     <label htmlFor="pay-method" className="text-sm font-medium">Método de pago</label>
                     <Select
                       id="pay-method"
-                      value={payTarget!.paymentMethod}
+                      value={payTarget.paymentMethod}
                       onChange={(e) => setPayTarget({ ...payTarget!, paymentMethod: e.target.value })}
                     >
                       <option value="">Sin especificar</option>
@@ -1182,7 +1185,7 @@ export default function PurchaseOrdersPage() {
                     <label htmlFor="pay-notes" className="text-sm font-medium">Referencia / nota</label>
                     <Input
                       id="pay-notes"
-                      value={payTarget!.notes}
+                      value={payTarget.notes}
                       onChange={(e) => setPayTarget({ ...payTarget!, notes: e.target.value })}
                       placeholder="Opcional"
                     />
@@ -1205,21 +1208,23 @@ export default function PurchaseOrdersPage() {
             </form>
           </div>
       </AnimatedOverlay>
+)}
 
+{confirmAction && (
       <AnimatedOverlay
-        open={!!confirmAction}
+        open={true}
         onClose={() => setConfirmAction(null)}
         zIndex="z-[70]"
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
           <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">
-              {confirmAction!.type === "cancel" ? "¿Anular orden?" : "¿Completar orden?"}
+              {confirmAction.type === "cancel" ? "¿Anular orden?" : "¿Completar orden?"}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              {confirmAction!.type === "cancel"
-                ? `Se anulará la orden ${confirmAction!.order.order_number}. Esta acción no se puede deshacer.`
-                : `Se marcará la orden ${confirmAction!.order.order_number} como completada.`}
+              {confirmAction.type === "cancel"
+                ? `Se anulará la orden ${confirmAction.order.order_number}. Esta acción no se puede deshacer.`
+                : `Se marcará la orden ${confirmAction.order.order_number} como completada.`}
             </p>
             {(cancel.isError || complete.isError) && (
               <p className="mt-2 text-sm text-danger">
@@ -1237,21 +1242,22 @@ export default function PurchaseOrdersPage() {
                 Cancelar
               </Button>
               <Button
-                variant={confirmAction!.type === "cancel" ? "danger" : "default"}
+                variant={confirmAction.type === "cancel" ? "danger" : "default"}
                 onClick={() => {
-                  if (confirmAction!.type === "cancel") {
-                    cancel.mutate(confirmAction!.order.id);
+                  if (confirmAction.type === "cancel") {
+                    cancel.mutate(confirmAction.order.id);
                   } else {
-                    complete.mutate(confirmAction!.order.id);
+                    complete.mutate(confirmAction.order.id);
                   }
                 }}
                 isLoading={cancel.isPending || complete.isPending}
               >
-                {confirmAction!.type === "cancel" ? "Anular" : "Completar"}
+                {confirmAction.type === "cancel" ? "Anular" : "Completar"}
               </Button>
             </div>
           </div>
       </AnimatedOverlay>
+)}
     </div>
   );
 }
