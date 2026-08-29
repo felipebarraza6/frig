@@ -31,6 +31,7 @@ import {
   type ExpenseByFrequency,
 } from "@/lib/api/financial-metrics";
 import { formatCLP } from "@/lib/utils";
+import { useCurrentBranch } from "@/lib/store/session";
 
 function parseAmount(value: unknown): number {
   if (value === undefined || value === null) return 0;
@@ -45,6 +46,8 @@ function formatShortDate(iso: string): string {
 
 export default function FinanceDashboardPage() {
   const monthRange = useMemo(() => getCurrentMonthRange(), []);
+  const branch = useCurrentBranch();
+  const branchId = branch?.branch_id;
   const [range] = useState({
     start: monthRange.start,
     end: monthRange.end,
@@ -56,8 +59,9 @@ export default function FinanceDashboardPage() {
     isError: summaryError,
     refetch: refetchSummary,
   } = useQuery({
-    queryKey: ["financial-metrics", "summary"],
-    queryFn: fetchFinancialMetricsSummary,
+    queryKey: ["financial-metrics", "summary", branchId],
+    queryFn: () => fetchFinancialMetricsSummary(branchId),
+    enabled: Boolean(branchId),
   });
 
   const {
@@ -66,8 +70,9 @@ export default function FinanceDashboardPage() {
     isError: revenueRangeError,
     refetch: refetchRevenueRange,
   } = useQuery({
-    queryKey: ["revenues", "by_date_range", range.start, range.end],
-    queryFn: () => fetchRevenuesByDateRange(range.start, range.end),
+    queryKey: ["revenues", "by_date_range", branchId, range.start, range.end],
+    queryFn: () => fetchRevenuesByDateRange(branchId, range.start, range.end),
+    enabled: Boolean(branchId),
   });
 
   const {
@@ -76,8 +81,9 @@ export default function FinanceDashboardPage() {
     isError: expensesFrequencyError,
     refetch: refetchExpensesFrequency,
   } = useQuery({
-    queryKey: ["fixed-expenses", "by_frequency"],
-    queryFn: fetchExpensesByFrequency,
+    queryKey: ["fixed-expenses", "by_frequency", branchId],
+    queryFn: () => fetchExpensesByFrequency(branchId),
+    enabled: Boolean(branchId),
   });
 
   const revenueItems = useMemo(() => {

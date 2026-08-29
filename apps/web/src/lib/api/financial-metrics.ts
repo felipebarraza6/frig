@@ -35,23 +35,41 @@ export interface ExpensesByFrequency {
   [key: string]: unknown;
 }
 
-export async function fetchFinancialMetricsSummary(): Promise<FinancialMetricsSummary> {
-  return apiFetch<FinancialMetricsSummary>("/finance/financial-metrics/summary/");
+export async function fetchFinancialMetricsSummary(
+  branchId?: number | string,
+): Promise<FinancialMetricsSummary> {
+  const qs = new URLSearchParams();
+  if (branchId) qs.set("branch", String(branchId));
+  const q = qs.toString();
+  // La ruta es profitability-reports/summary (no financial-metrics/summary): ese
+  // endpoint del modelo de ratios no expone los campos planos que el dashboard lee.
+  return apiFetch<FinancialMetricsSummary>(
+    `/finance/profitability-reports/summary/${q ? `?${q}` : ""}`,
+  );
 }
 
 export async function fetchRevenuesByDateRange(
+  branchId?: number | string,
   startDate?: string,
   endDate?: string,
 ): Promise<RevenueByDateRange> {
   const qs = new URLSearchParams();
+  if (branchId) qs.set("branch", String(branchId));
   if (startDate) qs.set("start_date", startDate);
   if (endDate) qs.set("end_date", endDate);
   const q = qs.toString();
   return apiFetch<RevenueByDateRange>(`/finance/revenues/by_date_range/${q ? `?${q}` : ""}`);
 }
 
-export async function fetchExpensesByFrequency(): Promise<ExpensesByFrequency> {
-  return apiFetch<ExpensesByFrequency>("/finance/fixed-expenses/by_frequency/");
+export async function fetchExpensesByFrequency(
+  branchId?: number | string,
+): Promise<ExpensesByFrequency> {
+  const qs = new URLSearchParams();
+  if (branchId) qs.set("branch", String(branchId));
+  const q = qs.toString();
+  return apiFetch<ExpensesByFrequency>(
+    `/finance/fixed-expenses/by_frequency/${q ? `?${q}` : ""}`,
+  );
 }
 
 function parseAmount(value: unknown): number {

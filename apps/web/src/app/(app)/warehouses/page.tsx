@@ -36,6 +36,7 @@ import {
 } from "@/lib/api/warehouses";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
 import { formatCLP, cn } from "@/lib/utils";
+import { useCurrentBranch } from "@/lib/store/session";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 type Warehouse = YggdraSchemas["Warehouse"];
@@ -88,6 +89,7 @@ function numValue(v: string | null | undefined): number {
 export default function WarehousesPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const branch = useCurrentBranch();
   const { download: downloadFile, isLoading: isExporting } = useDownloadFile();
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
@@ -162,7 +164,7 @@ export default function WarehousesPage() {
         location: form.location || null,
         capacity: form.capacity || null,
         is_default: form.is_default,
-        branch_id: 0, // el backend resuelve la sucursal desde X-Branch-ID
+        branch_id: Number(branch?.branch_id ?? 0),
       };
       if (editing) {
         await updateWarehouse(editing.id, payload);
