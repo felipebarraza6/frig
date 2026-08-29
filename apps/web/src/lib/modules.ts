@@ -34,6 +34,7 @@ export const ROUTE_MODULE_MAP: Record<string, ModuleName | null> = {
   "/revenues": "finance",
   "/expenses": "finance",
   "/fixed-expenses": "finance",
+  "/finance/settings": "finance",
   "/suppliers": "suppliers",
   "/purchase-orders": "suppliers",
   "/users": "config",
@@ -256,6 +257,7 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
       { href: "/revenues", label: "Ingresos", icon: "ArrowDownLeft", module: "finance" },
       { href: "/expenses", label: "Egresos", icon: "ArrowUpRight", module: "finance" },
       { href: "/fixed-expenses", label: "Gastos fijos", icon: "Repeat", module: "finance" },
+      { href: "/finance/settings", label: "Config. financiera", icon: "Settings", module: "finance" },
     ],
   },
   {
