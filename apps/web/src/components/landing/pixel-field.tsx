@@ -1,12 +1,10 @@
 "use client";
 
-import { motion } from "framer-motion";
-
 /**
- * Fondo pixel-art en solo verdes oscuros: grilla 12x8 estática + "energía"
- * que viaja por los bordes de las filas del retículo (corriente retro a lo
- * largo de las líneas). Los haces son pocos (bajo consumo) y desfilan en
- * cascada de arriba a abajo, con un par de columnas cruzando en vertical.
+ * Fondo pixel-art en solo verdes oscuros: cada cuadrito tiene relieve de
+ * bloque (bisel pixel: luz arriba-izquierda + sombra abajo-derecha) y una
+ * sombra proyectada, como los bloques de los juegos retro. Todo el fondo
+ * es píxeles con sombra; las celdas son estáticas (consumo mínimo).
  */
 const COLUMNS = 12;
 const ROWS = 8;
@@ -21,6 +19,19 @@ const GREEN_TONES = [
   "#0a2217",
 ] as const;
 
+/**
+ * Sombra pixel-art por celda: bisel interior (luz arriba-izq, sombra
+ * abajo-der) + sombra exterior proyectada hacia abajo-derecha.
+ */
+function blockShadow(): string {
+  return [
+    "inset 3px 3px 0 0 rgba(169,216,191,0.24)", // luz (arriba-izq)
+    "inset -3px -3px 0 0 rgba(0,0,0,0.48)", // sombra interior (abajo-der)
+    "inset 0 0 0 1px rgba(0,0,0,0.28)", // contorno oscuro
+    "1px 3px 0 0 rgba(0,0,0,0.38)", // sombra proyectada (bloque)
+  ].join(", ");
+}
+
 export function PixelField() {
   const cells: React.ReactNode[] = [];
   for (let row = 0; row < ROWS; row++) {
@@ -32,65 +43,13 @@ export function PixelField() {
           className="block h-full w-full"
           style={{
             backgroundColor: tone,
-            boxShadow: "inset 0 0 0 1px rgba(141,196,163,0.10)",
+            boxShadow: blockShadow(),
             imageRendering: "pixelated",
           }}
         />,
       );
     }
   }
-
-  /** Haces horizontales: energía viajando por cada fila del grid. */
-  const rowBeams = Array.from({ length: ROWS }).map((_, row) => (
-    <motion.span
-      key={`row-beam-${row}`}
-      className="pointer-events-none absolute block"
-      style={{
-        left: 0,
-        top: `${(row / ROWS) * 100}%`,
-        width: 16,
-        height: `${100 / ROWS}%`,
-        background:
-          "linear-gradient(to right, transparent, rgba(141,196,163,0.45), rgba(169,216,191,0.8), transparent)",
-        boxShadow: "0 0 12px 2px rgba(141,196,163,0.35)",
-        imageRendering: "pixelated",
-      }}
-      initial={{ x: "-20%" }}
-      animate={{ x: "calc(100vw)" }}
-      transition={{
-        duration: 2.6,
-        repeat: Infinity,
-        ease: "linear",
-        delay: row * 0.32,
-      }}
-    />
-  ));
-
-  /** Haces verticales: cruzan en el sentido opuesto (circuito). */
-  const colBeams = [2, 7].map((col, idx) => (
-    <motion.span
-      key={`col-beam-${col}`}
-      className="pointer-events-none absolute block"
-      style={{
-        left: `${(col / COLUMNS) * 100}%`,
-        top: 0,
-        width: `${100 / COLUMNS}%`,
-        height: 16,
-        background:
-          "linear-gradient(to bottom, transparent, rgba(141,196,163,0.35), rgba(169,216,191,0.6), transparent)",
-        boxShadow: "0 0 12px 2px rgba(141,196,163,0.25)",
-        imageRendering: "pixelated",
-      }}
-      initial={{ y: "-20%" }}
-      animate={{ y: "calc(100vh)" }}
-      transition={{
-        duration: 3.4,
-        repeat: Infinity,
-        ease: "linear",
-        delay: 0.6 + idx * 1.1,
-      }}
-    />
-  ));
 
   return (
     <div
@@ -102,11 +61,7 @@ export function PixelField() {
         imageRendering: "pixelated",
       }}
     >
-      {/* Grilla verde estática */}
       {cells}
-      {/* Energía viajando por los bordes del retículo */}
-      {rowBeams}
-      {colBeams}
     </div>
   );
 }
