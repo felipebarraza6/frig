@@ -56,7 +56,7 @@ Abre [http://localhost:3000](http://localhost:3000) y prueba con:
 - Correo: `admin@example.com`
 - Contraseña: `admin123`
 
-La primera sucursal configurada es **Clínica WM Odontología** (sucursal 5), así que el tema, logo y colores que veas corresponden a ella.
+La sucursal por defecto del login es **Bizantni Gelato** (branch 1, `login/bizantni-gelato`), así que el tema, logo y colores que veas corresponden a ella. El seed `seed_bizantni_gelato` (backend) crea sus métodos de pago y abre la caja del día.
 
 ## Comandos útiles
 
@@ -78,7 +78,7 @@ npx next build
 El proyecto incluye verificación de punta a punta:
 
 1. **Lint + TypeScript + Build** pasan sin errores.
-2. **Flujo E2E** (producto → venta → pago) se valida con un script de Playwright que crea un producto, lo vende en el POS y registra el pago.
+2. **Flujo E2E** (producto → venta → pago) se valida contra la API viva (barrido curl de los endpoints del POS, finanzas y exportaciones) y cubre: login, catálogo `for-sale`, creación de orden, cobro con método de pago y caja, y estado `PAID` de la orden. Los hallazgos de la auditoría E2E y los fixes quedan documentados en el historial de la sesión de revisión.
 
 ## Detalles técnicos importantes
 
