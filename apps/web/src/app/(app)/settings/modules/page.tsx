@@ -41,6 +41,7 @@ const MODULE_LABELS: Partial<Record<ModuleName, string>> = {
   inventory: "Bodegas y control de stock",
   nutrition: "Etiquetado nutricional",
   public_catalog: "Menús digitales con QR",
+  invoices: "Documentos tributarios",
 };
 
 /** Categoría en castellano por módulo visible en Frig. */
@@ -63,6 +64,7 @@ const MODULE_DESCRIPTIONS: Partial<Record<ModuleName, string>> = {
   inventory: "Controla bodegas, stock disponible, movimientos y alertas de inventario.",
   nutrition: "Muestra información nutricional en productos. Recetas e ingredientes siempre están disponibles.",
   public_catalog: "Menús digitales con QR para que tus clientes vean y compartan.",
+  invoices: "Genera boletas, facturas y notas de crédito/débito electrónicas. Al activar, habilita la página de Documentos tributarios en el menú de Finanzas.",
 };
 
 /** Orden de las secciones en la vista. */
