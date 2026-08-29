@@ -43,6 +43,7 @@
   --radius-sm: calc(var(--radius) - 4px);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-pixel: var(--font-pixelify), ui-sans-serif, sans-serif;
 }
 
 :root,
@@ -108,4 +109,89 @@ body {
 
 .animate-bump {
   animation: bump 200ms ease-out;
+}
+
+@keyframes landing-pixel-bob {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -9px, 0);
+  }
+}
+
+@keyframes landing-pixel-wind {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(16px, 5px, 0);
+  }
+}
+
+@keyframes landing-pixel-steam {
+  0% {
+    transform: translate3d(0, 0, 0) scale(0.8);
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.42;
+  }
+  100% {
+    transform: translate3d(-22px, -56px, 0) scale(1.15);
+    opacity: 0;
+  }
+}
+
+.landing-pixel-drift {
+  animation-name: landing-pixel-bob, landing-pixel-wind;
+  animation-timing-function: ease-in-out, ease-in-out;
+  animation-iteration-count: infinite, infinite;
+}
+
+.landing-pixel-steam {
+  animation: landing-pixel-steam 5s ease-out infinite;
+}
+
+.landing-pixel-glow {
+  animation: landing-pixel-bob 6s ease-in-out infinite;
+}
+
+@keyframes frig-blink {
+  0%, 90%, 100% { transform: scale(1.85) scaleY(1); }
+  92%, 96% { transform: scale(1.85) scaleY(0.15); }
+}
+
+@keyframes frig-smoke-rise {
+  0% { transform: translateY(0) translateX(0); opacity: 0; }
+  12% { opacity: .82; }
+  35% { transform: translateY(-3px) translateX(.6px); opacity: .62; }
+  62% { transform: translateY(-6px) translateX(-.4px); opacity: .28; }
+  85% { transform: translateY(-9px) translateX(.3px); opacity: .08; }
+  100% { transform: translateY(-11px) translateX(-.6px); opacity: 0; }
+}
+
+.frig-eye {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: frig-blink 4.5s steps(1) infinite;
+}
+
+.frig-smoke {
+  animation: frig-smoke-rise 2.6s ease-out infinite;
+}
+
+.frig-smoke-2 { animation-delay: .5s; animation-duration: 3s; }
+.frig-smoke-3 { animation-delay: 1s; animation-duration: 2.8s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-pixel-drift,
+  .landing-pixel-steam,
+  .landing-pixel-glow,
+  .frig-eye,
+  .frig-smoke {
+    animation: none;
+  }
 }

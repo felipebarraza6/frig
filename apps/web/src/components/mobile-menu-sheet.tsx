@@ -99,18 +99,6 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
     [menuGroups]
   );
 
-  const quickAccess = useMemo(() => {
-    const starred = favorites
-      .map((href) => allItems.find((i) => i.href === href))
-      .filter(Boolean)
-      .slice(0, QUICK_ACCESS_LIMIT);
-
-    if (starred.length >= QUICK_ACCESS_LIMIT) return starred;
-
-    const defaults = allItems.filter((i) => !starred.some((s) => s?.href === i.href));
-    return [...starred, ...defaults].slice(0, QUICK_ACCESS_LIMIT);
-  }, [allItems, favorites]);
-
   const isAllowed = useCallback(
     (href: string): boolean => {
       if (isCashier)
@@ -125,6 +113,15 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
     },
     [isCashier, isWaiter, cashierAllowedPaths, waiterAllowedPaths]
   );
+
+  const quickAccess = useMemo(() => {
+    // Solo favoritos reales del usuario, sin relleno con defaults (igual que el sidebar web).
+    return favorites
+      .map((href) => allItems.find((i) => i.href === href))
+      .filter((item): item is NonNullable<typeof item> => Boolean(item))
+      .filter((item) => isAllowed(item.href))
+      .slice(0, QUICK_ACCESS_LIMIT);
+  }, [allItems, favorites, isAllowed]);
 
   const visibleGroups = useMemo(
     () =>
@@ -291,37 +288,39 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
               ) : (
                 <>
                   {/* Accesos directos */}
-                  {quickAccess.length > 0 && (
-                    <section className="mb-5">
-                      <div className="mb-3 flex items-center justify-between">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                          Accesos directos
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => setEditingQuickAccess(true)}
-                          className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium text-primary transition-colors hover:bg-primary/10"
-                        >
-                          <Settings2 className="h-3 w-3" />
-                          Editar
-                        </button>
-                      </div>
+                  <section className="mb-5">
+                    <div className="mb-3 flex items-center justify-between">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Accesos directos
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setEditingQuickAccess(true)}
+                        className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium text-primary transition-colors hover:bg-primary/10"
+                      >
+                        <Settings2 className="h-3 w-3" />
+                        Editar
+                      </button>
+                    </div>
+                    {quickAccess.length > 0 ? (
                       <div className="grid grid-cols-4 gap-3">
-                        {quickAccess.map((item) =>
-                          item ? (
-                            <QuickAccessButton
-                              key={item.href}
-                              href={item.href}
-                              label={item.label}
-                              icon={item.icon}
-                              active={pathname === item.href || pathname.startsWith(`${item.href}/`)}
-                              onClick={handleClose}
-                            />
-                          ) : null,
-                        )}
+                        {quickAccess.map((item) => (
+                          <QuickAccessButton
+                            key={item.href}
+                            href={item.href}
+                            label={item.label}
+                            icon={item.icon}
+                            active={pathname === item.href || pathname.startsWith(`${item.href}/`)}
+                            onClick={handleClose}
+                          />
+                        ))}
                       </div>
-                    </section>
-                  )}
+                    ) : (
+                      <p className="rounded-xl border border-dashed border-border bg-muted/40 px-3 py-4 text-center text-xs text-muted-foreground">
+                        Sin accesos todavía. Toca “Editar” para elegir tus atajos.
+                      </p>
+                    )}
+                  </section>
 
                   {/* Grupos como cuadrículas de acceso rápido */}
                   <section className="flex flex-col gap-5">

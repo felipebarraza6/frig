@@ -71,7 +71,10 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
       .filter((item): item is NonNullable<typeof item> => Boolean(item))
       .map((item) => ({ ...item, badge: item.badge })) as NavItem[];
 
-    // Defaults que siempre se muestran si hay espacio.
+    // Si el usuario definió favoritos, se muestran SOLO esos (sin mezclar con defaults).
+    if (starred.length > 0) return starred.slice(0, BOTTOM_NAV_SLOTS);
+
+    // Sin favoritos propios: defaults de descubrimiento.
     const defaults: NavItem[] = [
       { href: "/dashboard", label: "Inicio", icon: LayoutDashboard },
       { href: "/sales", label: "Ventas", icon: ShoppingBag, description: "Ventas y cuentas abiertas" },
@@ -79,11 +82,7 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
       ...(posEnabled ? [{ href: "/cash-register", label: "Caja", icon: Banknote }] : []),
     ];
 
-    // Evita duplicados: los defaults solo se agregan si no están ya en favoritos.
-    const starredHrefs = new Set(starred.map((i) => i.href));
-    const availableDefaults = defaults.filter((i) => !starredHrefs.has(i.href));
-
-    return [...starred, ...availableDefaults].slice(0, BOTTOM_NAV_SLOTS);
+    return defaults.slice(0, BOTTOM_NAV_SLOTS);
   }, [visibleMenuItems, favorites, posEnabled]);
 
   const items: (NavItem & { onClick?: () => void })[] = [
