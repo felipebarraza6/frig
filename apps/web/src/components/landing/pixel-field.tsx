@@ -3,48 +3,36 @@
 import { motion } from "framer-motion";
 
 /**
- * Fondo pixel-art eficiente: grilla densa 12x8 de celdas ESTÁTICAS
- * (sin animación por celda — ahorra recursos) + pocos sprites que
- * parpadean con glow. Nunca genera scroll (absolute inset-0).
+ * Fondo pixel-art en solo verdes oscuros: grilla 12x8 estática + "energía"
+ * que viaja por los bordes de las filas del retículo (corriente retro a lo
+ * largo de las líneas). Los haces son pocos (bajo consumo) y desfilan en
+ * cascada de arriba a abajo, con un par de columnas cruzando en vertical.
  */
 const COLUMNS = 12;
 const ROWS = 8;
 
-/** Degradado diagonal (celdas): más claro arriba-izquierda. */
-const TONES = [
-  "#143524",
-  "#102e1f",
-  "#0d281b",
-  "#0b2318",
-  "#0a2016",
-  "#091d14",
+/** Degradado diagonal en verdes oscuros (más claro arriba-izquierda). */
+const GREEN_TONES = [
+  "#143a26",
+  "#123524",
+  "#10301f",
+  "#0e2b1c",
+  "#0c271a",
+  "#0a2217",
 ] as const;
-
-/** Sprites tenues: solo estos parpadean (pocos → bajo consumo). */
-const SPRITES: ReadonlyArray<readonly [number, number, string]> = [
-  [1, 0, "#7f4626"], // tomate tenue
-  [10, 1, "#8a7a33"], // masa tenue
-  [1, 6, "#5b3a20"], // café tenue
-  [8, 5, "#4e7a5e"], // hoja tenue
-  [5, 3, "#6b3829"], // manzana tenue
-];
 
 export function PixelField() {
   const cells: React.ReactNode[] = [];
   for (let row = 0; row < ROWS; row++) {
     for (let col = 0; col < COLUMNS; col++) {
-      const sprite = SPRITES.find(([c, r]) => c === col && r === row);
-      const tone = TONES[Math.min(5, col + row)] ?? TONES[5];
-      // Celdas estáticas: un <span> plano, sin animación (barato).
+      const tone = GREEN_TONES[Math.min(5, col + row)] ?? GREEN_TONES[5];
       cells.push(
         <span
           key={`cell-${row}-${col}`}
           className="block h-full w-full"
           style={{
-            backgroundColor: sprite ? sprite[2] : tone,
-            boxShadow: sprite
-              ? "inset 0 0 18px 2px rgba(141,196,163,0.25)"
-              : "inset 0 0 0 1px rgba(141,196,163,0.04)",
+            backgroundColor: tone,
+            boxShadow: "inset 0 0 0 1px rgba(141,196,163,0.10)",
             imageRendering: "pixelated",
           }}
         />,
@@ -52,41 +40,73 @@ export function PixelField() {
     }
   }
 
+  /** Haces horizontales: energía viajando por cada fila del grid. */
+  const rowBeams = Array.from({ length: ROWS }).map((_, row) => (
+    <motion.span
+      key={`row-beam-${row}`}
+      className="pointer-events-none absolute block"
+      style={{
+        left: 0,
+        top: `${(row / ROWS) * 100}%`,
+        width: 16,
+        height: `${100 / ROWS}%`,
+        background:
+          "linear-gradient(to right, transparent, rgba(141,196,163,0.45), rgba(169,216,191,0.8), transparent)",
+        boxShadow: "0 0 12px 2px rgba(141,196,163,0.35)",
+        imageRendering: "pixelated",
+      }}
+      initial={{ x: "-20%" }}
+      animate={{ x: "calc(100vw)" }}
+      transition={{
+        duration: 2.6,
+        repeat: Infinity,
+        ease: "linear",
+        delay: row * 0.32,
+      }}
+    />
+  ));
+
+  /** Haces verticales: cruzan en el sentido opuesto (circuito). */
+  const colBeams = [2, 7].map((col, idx) => (
+    <motion.span
+      key={`col-beam-${col}`}
+      className="pointer-events-none absolute block"
+      style={{
+        left: `${(col / COLUMNS) * 100}%`,
+        top: 0,
+        width: `${100 / COLUMNS}%`,
+        height: 16,
+        background:
+          "linear-gradient(to bottom, transparent, rgba(141,196,163,0.35), rgba(169,216,191,0.6), transparent)",
+        boxShadow: "0 0 12px 2px rgba(141,196,163,0.25)",
+        imageRendering: "pixelated",
+      }}
+      initial={{ y: "-20%" }}
+      animate={{ y: "calc(100vh)" }}
+      transition={{
+        duration: 3.4,
+        repeat: Infinity,
+        ease: "linear",
+        delay: 0.6 + idx * 1.1,
+      }}
+    />
+  ));
+
   return (
     <div
       aria-hidden
-      className="absolute inset-0 z-0 grid"
+      className="absolute inset-0 z-0 grid overflow-hidden"
       style={{
         gridTemplateColumns: `repeat(${COLUMNS}, 1fr)`,
         gridTemplateRows: `repeat(${ROWS}, 1fr)`,
         imageRendering: "pixelated",
       }}
     >
-      {/* Grilla estática */}
+      {/* Grilla verde estática */}
       {cells}
-
-      {/* Capa de parpadeo solo sobre los sprites (5 elementos, baja carga). */}
-      {SPRITES.map(([col, row], idx) => (
-        <motion.span
-          key={`blink-${row}-${col}`}
-          className="pointer-events-none absolute block"
-          style={{
-            left: `${(col / COLUMNS) * 100}%`,
-            top: `${(row / ROWS) * 100}%`,
-            width: `${100 / COLUMNS}%`,
-            height: `${100 / ROWS}%`,
-            background:
-              "radial-gradient(circle at 50% 50%, rgba(141,196,163,0.35), transparent 70%)",
-          }}
-          animate={{ opacity: [0.25, 0.8, 0.25] }}
-          transition={{
-            duration: 2.6 + idx * 0.5,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: idx * 0.6,
-          }}
-        />
-      ))}
+      {/* Energía viajando por los bordes del retículo */}
+      {rowBeams}
+      {colBeams}
     </div>
   );
 }
