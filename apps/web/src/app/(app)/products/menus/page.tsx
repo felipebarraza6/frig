@@ -950,8 +950,9 @@ export default function MenusPage() {
           </div>
       </AnimatedOverlay>
 
+{qrCatalog && (
       <AnimatedOverlay
-        open={!!qrCatalog}
+        open={true}
         onClose={() => setQrCatalog(null)}
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
@@ -960,7 +961,7 @@ export default function MenusPage() {
               <div>
                 <h2 className="text-base font-semibold">Código QR</h2>
                 <p className="text-xs text-muted-foreground">
-                  Menú: <span className="font-medium text-foreground">{qrCatalog!.title}</span>
+                  Menú: <span className="font-medium text-foreground">{qrCatalog.title}</span>
                 </p>
               </div>
               <button
@@ -975,19 +976,19 @@ export default function MenusPage() {
             <div className="flex flex-col items-center gap-3 overflow-y-auto p-4 md:p-6">
               <div className="rounded-xl border border-border bg-white p-3">
                 <QRCodeSVG
-                  value={`${window.location.origin}${publicMenuUrl(qrCatalog!.slug)}`}
+                  value={`${window.location.origin}${publicMenuUrl(qrCatalog.slug)}`}
                   size={256}
                   level="M"
                   includeMargin
                 />
               </div>
               <a
-                href={publicMenuUrl(qrCatalog!.slug)}
+                href={publicMenuUrl(qrCatalog.slug)}
                 target="_blank"
                 rel="noreferrer"
                 className="max-w-full truncate text-xs text-primary hover:underline"
               >
-                {window.location.origin}{publicMenuUrl(qrCatalog!.slug)}
+                {window.location.origin}{publicMenuUrl(qrCatalog.slug)}
               </a>
             </div>
 
@@ -996,7 +997,7 @@ export default function MenusPage() {
                 Cerrar
               </Button>
               <a
-                href={`/menu/${qrCatalog!.slug}/totem`}
+                href={`/menu/${qrCatalog.slug}/totem`}
                 target="_blank"
                 rel="noreferrer"
                 className={cn(buttonVariants({ variant: "default" }))}
@@ -1006,6 +1007,7 @@ export default function MenusPage() {
             </div>
           </div>
       </AnimatedOverlay>
+)}
 
 {confirmDelete && (
       <AnimatedOverlay

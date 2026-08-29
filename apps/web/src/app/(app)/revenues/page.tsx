@@ -1388,15 +1388,16 @@ export default function RevenuesPage() {
           </div>
       </AnimatedOverlay>
 
+{confirmDeleteCategory && (
       <AnimatedOverlay
-        open={!!confirmDeleteCategory}
+        open={true}
         onClose={() => setConfirmDeleteCategory(null)}
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
           <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">¿Eliminar categoría?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Se eliminará <span className="font-medium text-foreground">{confirmDeleteCategory!.name}</span>.
+              Se eliminará <span className="font-medium text-foreground">{confirmDeleteCategory.name}</span>.
             </p>
             {deleteCategory.isError && (
               <p className="mt-2 text-sm text-danger">
@@ -1409,7 +1410,7 @@ export default function RevenuesPage() {
               </Button>
               <Button
                 variant="danger"
-                onClick={() => deleteCategory.mutate(confirmDeleteCategory!.id)}
+                onClick={() => deleteCategory.mutate(confirmDeleteCategory.id)}
                 isLoading={deleteCategory.isPending}
               >
                 Eliminar
@@ -1417,6 +1418,7 @@ export default function RevenuesPage() {
             </div>
           </div>
       </AnimatedOverlay>
+)}
     </div>
   );
 }

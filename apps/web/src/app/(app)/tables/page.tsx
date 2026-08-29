@@ -854,14 +854,15 @@ export default function TablesPage() {
           </div>
       </AnimatedOverlay>
 
+{transferringTable && (
       <AnimatedOverlay
-        open={!!transferringTable}
+        open={true}
         onClose={() => setTransferringTable(null)}
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
           <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card p-0 shadow-lg md:h-auto md:max-h-[90vh] md:max-w-sm md:rounded-xl md:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
-              <h2 className="text-base font-semibold">Transferir mesa {transferringTable!.number}</h2>
+              <h2 className="text-base font-semibold">Transferir mesa {transferringTable.number}</h2>
               <button
                 onClick={() => setTransferringTable(null)}
                 aria-label="Cerrar"
@@ -876,7 +877,7 @@ export default function TablesPage() {
                 const form = e.currentTarget;
                 const waiterId = String(formDataFromForm(form).get("transfer_waiter") ?? "");
                 transferWaiter.mutate({
-                  id: transferringTable!.id,
+                  id: transferringTable.id,
                   waiterId: waiterId ? Number(waiterId) : null,
                 });
               }}
@@ -884,8 +885,8 @@ export default function TablesPage() {
             >
               <div className="flex-1 overflow-y-auto p-4">
                 <p className="mb-4 text-xs text-muted-foreground">
-                  {transferringTable!.assigned_waiter
-                    ? `Actual: ${transferringTable!.assigned_waiter_name ?? `Mesero #${transferringTable!.assigned_waiter}`}`
+                  {transferringTable.assigned_waiter
+                    ? `Actual: ${transferringTable.assigned_waiter_name ?? `Mesero #${transferringTable.assigned_waiter}`}`
                     : "Sin mesero asignado"}
                 </p>
                 <div className="flex flex-col gap-2">
@@ -920,6 +921,7 @@ export default function TablesPage() {
             </form>
           </div>
       </AnimatedOverlay>
+)}
     </div>
   );
 }
