@@ -16,6 +16,10 @@ import {
   AlertTriangle,
   FileText,
   FileSpreadsheet,
+  Percent,
+  TrendingDown,
+  Target,
+  BarChart,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -27,6 +31,7 @@ import {
 } from "@/lib/api/analytics";
 import { formatCLP, cn, paymentTypeLabel } from "@/lib/utils";
 import { useCurrentBranch } from "@/lib/store/session";
+import { fetchFinancialMetricsSummary, fetchProfitabilityComparison } from "@/lib/api/financial-metrics";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/page-header";
 
@@ -188,6 +193,19 @@ export default function ReportsPage() {
 
   const loading = loadingSummary || loadingIngredients || !branch;
   const error = summaryError;
+
+  // Financial metrics queries
+  const { data: finSummary, isLoading: loadingFin } = useQuery({
+    queryKey: ["finance", "profitability-summary", branchId],
+    queryFn: () => fetchFinancialMetricsSummary(branchId),
+    enabled: !!branchId,
+  });
+
+  const { data: comparison } = useQuery({
+    queryKey: ["finance", "profitability-comparison", branchId],
+    queryFn: () => fetchProfitabilityComparison(branchId, "MONTHLY", 6),
+    enabled: !!branchId,
+  });
 
   if (error) {
     return (
@@ -570,6 +588,217 @@ export default function ReportsPage() {
           )}
         </div>
       </motion.section>
+
+      {/* Rentabilidad financiera */}
+      <motion.section
+        variants={container}
+        initial="hidden"
+        animate="show"
+        className="grid gap-4"
+      >
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-sm font-semibold">
+              <Percent className="h-4 w-4 text-emerald-600" />
+              Rentabilidad financiera
+            </h2>
+            <span className="text-xs text-muted-foreground">
+              {loadingFin ? "Cargando..." : "Datos reales de finanzas"}
+            </span>
+          </div>
+
+          {loadingFin ? (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="rounded-xl border border-border bg-muted/30 p-3">
+                  <Skeleton className="mb-2 h-3 w-20" />
+                  <Skeleton className="h-6 w-28" />
+                </div>
+              ))}
+            </div>
+          ) : finSummary?.total_revenue ? (
+            <>
+              {/* KPIs financieros */}
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <FinKPICard
+                  label="Ingresos totales"
+                  value={formatCLP(parseFin(finSummary.total_revenue))}
+                  icon={TrendingUp}
+                  tone="emerald"
+                />
+                <FinKPICard
+                  label="Costos totales"
+                  value={formatCLP(parseFin(finSummary.total_expenses))}
+                  icon={TrendingDown}
+                  tone="rose"
+                />
+                <FinKPICard
+                  label="Utilidad neta"
+                  value={formatCLP(parseFin(finSummary.net_profit))}
+                  icon={Wallet}
+                  tone={parseFin(finSummary.net_profit) >= 0 ? "emerald" : "rose"}
+                />
+                <FinKPICard
+                  label="Margen neto"
+                  value={`${parseFin(finSummary.profit_margin).toFixed(1)}%`}
+                  icon={Target}
+                  tone={parseFin(finSummary.profit_margin) >= 10 ? "emerald" : parseFin(finSummary.profit_margin) >= 0 ? "amber" : "rose"}
+                />
+              </div>
+
+              {/* Breakdown */}
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-border bg-muted/20 p-3">
+                  <h3 className="mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">Desglose de ingresos</h3>
+                  <div className="space-y-1.5 text-sm">
+                    {(() => {
+                      const rb = finSummary.revenue_breakdown as Record<string, unknown> | undefined;
+                      if (!rb) return null;
+                      return (
+                        <>
+                          <div className="flex justify-between"><span className="text-muted-foreground">Ventas</span><span className="font-medium tabular-nums">{formatCLP(parseFin(rb.sales_revenue))}</span></div>
+                          <div className="flex justify-between"><span className="text-muted-foreground">Servicios</span><span className="font-medium tabular-nums">{formatCLP(parseFin(rb.service_revenue))}</span></div>
+                          <div className="flex justify-between"><span className="text-muted-foreground">Otros</span><span className="font-medium tabular-nums">{formatCLP(parseFin(rb.other_revenue))}</span></div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-border bg-muted/20 p-3">
+                  <h3 className="mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">Desglose de costos</h3>
+                  <div className="space-y-1.5 text-sm">
+                    {(() => {
+                      const eb = finSummary.expenses_breakdown as Record<string, unknown> | undefined;
+                      if (!eb) return null;
+                      return (
+                        <>
+                          <div className="flex justify-between"><span className="text-muted-foreground">Costo producto</span><span className="font-medium tabular-nums">{formatCLP(parseFin(eb.product_cost))}</span></div>
+                          <div className="flex justify-between"><span className="text-muted-foreground">Gastos fijos</span><span className="font-medium tabular-nums">{formatCLP(parseFin(eb.fixed_expenses))}</span></div>
+                          <div className="flex justify-between"><span className="text-muted-foreground">Gastos variables</span><span className="font-medium tabular-nums">{formatCLP(parseFin(eb.variable_expenses))}</span></div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Margen bruto y neto adicionales */}
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-border bg-muted/20 p-3">
+                  <h3 className="mb-1 text-xs font-medium text-muted-foreground uppercase tracking-wide">Margen bruto</h3>
+                  <p className={`text-xl font-bold tabular-nums ${parseFin(finSummary.gross_margin) >= 20 ? "text-emerald-600" : parseFin(finSummary.gross_margin) >= 10 ? "text-amber-600" : "text-rose-600"}`}>
+                    {parseFin(finSummary.gross_margin).toFixed(1)}%
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border bg-muted/20 p-3">
+                  <h3 className="mb-1 text-xs font-medium text-muted-foreground uppercase tracking-wide">Tendencia</h3>
+                  <p className={`text-xl font-bold tabular-nums ${
+                    finSummary.profit_trend === "EXCELLENT" ? "text-emerald-600" :
+                    finSummary.profit_trend === "GOOD" ? "text-emerald-500" :
+                    finSummary.profit_trend === "FAIR" ? "text-amber-600" : "text-rose-600"
+                  }`}>
+                    {finSummary.profit_trend === "EXCELLENT" ? "Excelente" :
+                     finSummary.profit_trend === "GOOD" ? "Buena" :
+                     finSummary.profit_trend === "FAIR" ? "Regular" : "Baja"}
+                  </p>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="grid h-44 place-items-center rounded-xl border border-dashed border-border bg-muted/30 text-center">
+              <div>
+                <Percent className="mx-auto h-8 w-8 text-muted-foreground" />
+                <p className="mt-2 text-sm font-medium">Sin datos de rentabilidad</p>
+                <p className="text-xs text-muted-foreground">Los reportes se generan automáticamente al registrar transacciones.</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </motion.section>
+
+      {/* Comparativo mensual */}
+      {comparison && comparison.length > 0 && (
+        <motion.section
+          variants={container}
+          initial="hidden"
+          animate="show"
+          className="grid gap-4"
+        >
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-sm font-semibold">
+                <BarChart className="h-4 w-4 text-primary" />
+                Comparativo mensual
+              </h2>
+              <span className="text-xs text-muted-foreground">Últimos {comparison.length} meses</span>
+            </div>
+
+            {/* Mobile: cards */}
+            <div className="space-y-2 sm:hidden">
+              {comparison.map((c, i) => (
+                <div key={i} className="rounded-xl border border-border bg-muted/20 p-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium">{c.period?.split(" - ")[0]}</span>
+                    <span className={`tabular-nums font-semibold ${parseFin(c.profit) >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                      {parseFin(c.profit) >= 0 ? "+" : ""}{formatCLP(parseFin(c.profit))}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex gap-4 text-xs text-muted-foreground">
+                    <span>Ingresos: {formatCLP(parseFin(c.revenue))}</span>
+                    <span>Margen: {parseFin(c.margin).toFixed(1)}%</span>
+                  </div>
+                  <div className="mt-2 h-2 w-full rounded-full bg-muted">
+                    <div
+                      className={`h-2 rounded-full ${parseFin(c.profit) >= 0 ? "bg-emerald-500" : "bg-rose-500"}`}
+                      style={{ width: `${Math.min(Math.abs(parseFin(c.margin)) * 2, 100)}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop: table */}
+            <div className="hidden overflow-x-auto sm:block">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+                    <th className="pb-2 font-medium">Período</th>
+                    <th className="pb-2 text-right font-medium">Ingresos</th>
+                    <th className="pb-2 text-right font-medium">Costos</th>
+                    <th className="pb-2 text-right font-medium">Utilidad</th>
+                    <th className="pb-2 text-right font-medium">Margen</th>
+                    <th className="pb-2 text-right font-medium">Visual</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {comparison.map((c, i) => {
+                    const maxRev = Math.max(...comparison.map(x => parseFin(x.revenue)), 1);
+                    const pct = (parseFin(c.revenue) / maxRev) * 100;
+                    return (
+                      <tr key={i} className="border-b border-border/50 last:border-0">
+                        <td className="py-2 font-medium">{c.period?.split(" - ")[0]}</td>
+                        <td className="py-2 text-right tabular-nums">{formatCLP(parseFin(c.revenue))}</td>
+                        <td className="py-2 text-right tabular-nums text-muted-foreground">{formatCLP(parseFin(c.cost))}</td>
+                        <td className={`py-2 text-right tabular-nums font-semibold ${parseFin(c.profit) >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                          {parseFin(c.profit) >= 0 ? "+" : ""}{formatCLP(parseFin(c.profit))}
+                        </td>
+                        <td className={`py-2 text-right tabular-nums font-medium ${parseFin(c.margin) >= 10 ? "text-emerald-600" : "text-amber-600"}`}>
+                          {parseFin(c.margin).toFixed(1)}%
+                        </td>
+                        <td className="py-2">
+                          <div className="h-2 w-24 rounded-full bg-muted ml-auto">
+                            <div className="h-2 rounded-full bg-emerald-500" style={{ width: `${pct}%` }} />
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </motion.section>
+      )}
         </>
       )}
     </div>
@@ -622,6 +851,40 @@ function StatCard({
       <p className="text-lg font-semibold tabular-nums tracking-tight">{value}</p>
       <p className="text-[11px] text-muted-foreground">{sub}</p>
     </motion.div>
+  );
+}
+
+function parseFin(value: unknown): number {
+  if (value === undefined || value === null) return 0;
+  if (typeof value === "number") return value;
+  return parseFloat(String(value)) || 0;
+}
+
+function FinKPICard({ label, value, icon: Icon, tone = "default" }: {
+  label: string; value: string; icon: LucideIcon; tone?: "emerald" | "rose" | "amber" | "default";
+}) {
+  const tones = {
+    default: "bg-card border-border/60",
+    emerald: "bg-emerald-500/[0.06] border-emerald-500/15",
+    rose: "bg-rose-500/[0.06] border-rose-500/15",
+    amber: "bg-amber-500/[0.06] border-amber-500/15",
+  };
+  const iconBg = {
+    default: "bg-muted text-muted-foreground",
+    emerald: "bg-emerald-500/15 text-emerald-600",
+    rose: "bg-rose-500/15 text-rose-600",
+    amber: "bg-amber-500/15 text-amber-600",
+  };
+  return (
+    <div className={cn("rounded-xl border p-3 shadow-sm transition-all hover:shadow-md", tones[tone])}>
+      <div className="mb-1.5 flex items-center gap-2">
+        <div className={cn("flex h-7 w-7 items-center justify-center rounded-lg", iconBg[tone])}>
+          <Icon className="h-3.5 w-3.5" strokeWidth={2} />
+        </div>
+        <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
+      </div>
+      <p className="text-base font-semibold tabular-nums tracking-tight text-foreground sm:text-lg">{value}</p>
+    </div>
   );
 }
 
