@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSessionStore, normalizeDashboardRoute } from "@/lib/store/session";
@@ -23,6 +23,11 @@ const FOOD_ICONS: readonly { label: string; kind: FoodKind }[] = [
   { label: "Tallarines", kind: "tallarines" },
   { label: "Bebida", kind: "bebida" },
 ] as const;
+
+/** Easing de "frames" (efecto retro): arranca en 6 pasos discretos. */
+function stepEase(steps = 6) {
+  return (value: number) => Math.round(value * steps) / steps;
+}
 
 function FoodIcon({ kind }: { kind: FoodKind }) {
   const s = { width: 28, height: 28, imageRendering: "pixelated" } as const;
@@ -221,6 +226,15 @@ export default function LoginPage() {
             </div>
           </div>
 
+          <div className="relative">
+          <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={mode === "forgot" ? (forgotSent ? "forgot-sent" : "forgot") : "login"}
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -18 }}
+            transition={{ duration: 0.3, ease: stepEase(6) }}
+          >
           {mode === "forgot" ? (
             forgotSent ? (
               <div className="flex flex-col gap-4">
@@ -331,6 +345,19 @@ export default function LoginPage() {
               </div>
             </form>
           )}
+          </motion.div>
+          </AnimatePresence>
+
+          <motion.span
+            aria-hidden
+            key={`beam-${mode}-${forgotSent}`}
+            initial={{ x: "-40%" }}
+            animate={{ x: "140%" }}
+            transition={{ duration: 0.5, ease: "linear" }}
+            className="pointer-events-none absolute inset-y-0 left-0 z-10 w-1/3 bg-gradient-to-r from-transparent via-primary/15 to-transparent"
+            style={{ imageRendering: "pixelated" }}
+          />
+          </div>
 
           <p className={cn("mt-8 text-center text-xs text-muted-foreground")}>
             Gestión comercial y gastronómica por FRIG
