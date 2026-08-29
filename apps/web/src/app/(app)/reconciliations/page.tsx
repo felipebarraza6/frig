@@ -393,7 +393,7 @@ function CreateReconciliationModal({ open, onClose, accounts, onSubmit, isPendin
           <div className="flex-1 overflow-y-auto p-4">
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-1">
-                <label htmlFor="cr-account" className="text-sm font-medium">Cuenta bancaria</label>
+                <label htmlFor="cr-account" className="text-sm font-medium">Billetera digital</label>
                 <Select id="cr-account" value={accountId} onChange={(e) => { setAccountId(e.target.value); const a = accounts.find((x) => x.id === e.target.value); if (a) setSystemBalance(String(parseAmount(a.current_balance))); }} required>
                   <option value="">Seleccionar...</option>
                   {accounts.map((a) => (<option key={a.id} value={a.id}>{a.account_name}</option>))}

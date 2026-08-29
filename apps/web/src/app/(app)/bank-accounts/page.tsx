@@ -531,7 +531,7 @@ export default function BankAccountsPage() {
     <div className="flex min-h-full flex-col">
       <header className="flex flex-col gap-3 border-b border-border px-4 py-3 md:flex-row md:items-start md:justify-between md:px-6">
         <div>
-          <h1 className="text-lg font-semibold">Cuentas bancarias</h1>
+          <h1 className="text-lg font-semibold">Billeteras digitales</h1>
           <p className="text-xs text-muted-foreground">
             Gestiona las cuentas y sus conciliaciones
           </p>
@@ -633,12 +633,12 @@ export default function BankAccountsPage() {
             <div>
               <Landmark className="mx-auto h-10 w-10 text-muted-foreground" />
               <p className="mt-3 text-sm font-medium">
-                {search ? "No se encontraron cuentas" : "No hay cuentas bancarias"}
+                {search ? "No se encontraron billeteras" : "No hay billeteras digitales"}
               </p>
               <p className="text-xs text-muted-foreground">
                 {search
                   ? "Prueba con otro término de búsqueda."
-                  : "Agrega una nueva cuenta para comenzar."}
+                  : "Agrega una nueva billetera para comenzar."}
               </p>
             </div>
           </div>

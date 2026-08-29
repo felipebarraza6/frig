@@ -247,7 +247,7 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
     items: [
       { href: "/cash-register/stations", label: "Estaciones POS", icon: "Monitor", module: "cash_register" },
       { href: "/payment-methods", label: "Métodos de pago", icon: "CreditCard", module: "payment_methods" },
-      { href: "/bank-accounts", label: "Cuentas bancarias", icon: "Landmark", module: "bank_accounts" },
+      { href: "/bank-accounts", label: "Billeteras digitales", icon: "Landmark", module: "bank_accounts" },
       { href: "/reconciliations", label: "Conciliaciones", icon: "Scale", module: "bank_accounts" },
       { href: "/revenues", label: "Ingresos", icon: "ArrowDownLeft", module: "finance" },
       { href: "/expenses", label: "Egresos", icon: "ArrowUpRight", module: "finance" },
