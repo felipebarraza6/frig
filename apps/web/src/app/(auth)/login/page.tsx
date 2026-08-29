@@ -2,12 +2,11 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSessionStore, normalizeDashboardRoute } from "@/lib/store/session";
-import { loginComplete } from "@/lib/api/auth";
+import { loginComplete, forgotPassword } from "@/lib/api/auth";
 import { fetchFrontendConfig } from "@/lib/api/frontend-config";
 import { fetchBranchTheme, applyThemeConfig } from "@/lib/api/branches";
 import { setToken } from "@/lib/api/session-storage";
@@ -124,10 +123,16 @@ export default function LoginPage() {
   const setFrontendConfig = useSessionStore((s) => s.setFrontendConfig);
   const setTheme = useSessionStore((s) => s.setTheme);
 
+  const [mode, setMode] = useState<"login" | "forgot">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotError, setForgotError] = useState<string | null>(null);
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -162,6 +167,32 @@ export default function LoginPage() {
     }
   }
 
+  async function handleForgotSubmit(e: FormEvent) {
+    e.preventDefault();
+    setForgotError(null);
+    setForgotLoading(true);
+    try {
+      // Respuesta genérica del backend (anti-enumeración): el mensaje es el
+      // mismo exista o no el email.
+      await forgotPassword({ email: forgotEmail });
+      setForgotSent(true);
+    } catch (err) {
+      setForgotError(
+        err instanceof Error ? err.message : "No se pudo enviar la solicitud.",
+      );
+    } finally {
+      setForgotLoading(false);
+    }
+  }
+
+  function backToLogin() {
+    setMode("login");
+    setForgotSent(false);
+    setForgotError(null);
+    setForgotEmail("");
+    setError(null);
+  }
+
   return (
     <div className="flex min-h-dvh flex-1 flex-col lg:h-dvh lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)] lg:overflow-hidden">
       <section className="flex flex-1 flex-col items-center justify-center bg-background px-4 py-10 lg:col-start-2 lg:row-start-1 lg:h-dvh lg:overflow-hidden">
@@ -190,55 +221,116 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <label htmlFor="email" className="text-sm font-medium">
-                Correo
-              </label>
-              <Input
-                id="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="tu@negocio.cl"
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label htmlFor="password" className="text-sm font-medium">
-                Contraseña
-              </label>
-              <Input
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-              />
-            </div>
+          {mode === "forgot" ? (
+            forgotSent ? (
+              <div className="flex flex-col gap-4">
+                <div className="rounded-lg bg-emerald-500/10 px-3 py-3 text-sm text-emerald-700">
+                  <p className="font-medium">Revisa tu correo</p>
+                  <p className="mt-1 opacity-90">
+                    Si el email existe en nuestro sistema, recibirás un enlace
+                    para recuperar tu contraseña (válido por 24 horas).
+                  </p>
+                </div>
+                <Button type="button" size="lg" className="mt-2" onClick={backToLogin}>
+                  Volver al inicio de sesión
+                </Button>
+              </div>
+            ) : (
+              <form onSubmit={handleForgotSubmit} className="flex flex-col gap-4">
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="forgot-email" className="text-sm font-medium">
+                    Correo
+                  </label>
+                  <Input
+                    id="forgot-email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    placeholder="tu@negocio.cl"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Ingresa el correo con el que ingresas a FRIG.
+                  </p>
+                </div>
 
-            {error && (
-              <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
-                {error}
-              </p>
-            )}
+                {forgotError && (
+                  <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
+                    {forgotError}
+                  </p>
+                )}
 
-            <Button type="submit" size="lg" disabled={loading} className="mt-2">
-              {loading ? "Ingresando…" : "Ingresar"}
-            </Button>
+                <Button type="submit" size="lg" disabled={forgotLoading} className="mt-2">
+                  {forgotLoading ? "Enviando…" : "Enviar correo de recuperación"}
+                </Button>
 
-            <div className="mt-3 text-center">
-              <Link
-                href="/forgot-password"
-                className="text-xs text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
-              >
-                ¿Olvidaste tu contraseña? Recupérala aquí
-              </Link>
-            </div>
-          </form>
+                <div className="mt-3 text-center">
+                  <button
+                    type="button"
+                    onClick={backToLogin}
+                    className="cursor-pointer text-xs text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+                  >
+                    Volver al inicio de sesión
+                  </button>
+                </div>
+              </form>
+            )
+          ) : (
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-2">
+                <label htmlFor="email" className="text-sm font-medium">
+                  Correo
+                </label>
+                <Input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="tu@negocio.cl"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label htmlFor="password" className="text-sm font-medium">
+                  Contraseña
+                </label>
+                <Input
+                  id="password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                />
+              </div>
+
+              {error && (
+                <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
+                  {error}
+                </p>
+              )}
+
+              <Button type="submit" size="lg" disabled={loading} className="mt-2">
+                {loading ? "Ingresando…" : "Ingresar"}
+              </Button>
+
+              <div className="mt-3 text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode("forgot");
+                    setError(null);
+                  }}
+                  className="cursor-pointer text-xs text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+                >
+                  ¿Olvidaste tu contraseña? Recupérala aquí
+                </button>
+              </div>
+            </form>
+          )}
 
           <p className={cn("mt-8 text-center text-xs text-muted-foreground")}>
             Gestión comercial y gastronómica por FRIG
