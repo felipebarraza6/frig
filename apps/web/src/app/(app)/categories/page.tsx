@@ -449,8 +449,9 @@ export default function CategoriesPage() {
           </div>
       </AnimatedOverlay>
 
+{confirmDelete && (
       <AnimatedOverlay
-        open={!!confirmDelete}
+        open={true}
         onClose={() => setConfirmDelete(null)}
         zIndex="z-[60]"
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
@@ -458,7 +459,7 @@ export default function CategoriesPage() {
           <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">¿Eliminar categoría?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Se desactivará <span className="font-medium text-foreground">{confirmDelete!.name}</span>. Los productos asociados no se eliminan.
+              Se desactivará <span className="font-medium text-foreground">{confirmDelete.name}</span>. Los productos asociados no se eliminan.
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <Button variant="outline" onClick={() => setConfirmDelete(null)} disabled={remove.isPending}>
@@ -466,7 +467,7 @@ export default function CategoriesPage() {
               </Button>
               <Button
                 variant="danger"
-                onClick={() => remove.mutate(confirmDelete!.id)}
+                onClick={() => remove.mutate(confirmDelete.id)}
                 isLoading={remove.isPending}
               >
                 Eliminar
@@ -474,6 +475,7 @@ export default function CategoriesPage() {
             </div>
           </div>
       </AnimatedOverlay>
+)}
     </div>
   );
 }

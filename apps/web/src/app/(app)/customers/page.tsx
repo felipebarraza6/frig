@@ -812,8 +812,9 @@ export default function CustomersPage() {
           </div>
       </AnimatedOverlay>
 
+{confirmDelete && (
       <AnimatedOverlay
-        open={!!confirmDelete}
+        open={true}
         onClose={() => setConfirmDelete(null)}
         zIndex="z-[70]"
         panelClassName="flex items-end justify-center p-0 sm:items-center sm:p-4"
@@ -821,7 +822,7 @@ export default function CustomersPage() {
           <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg sm:max-w-md sm:rounded-xl sm:border sm:p-6">
             <h2 className="text-base font-semibold">¿Eliminar cliente?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Se eliminará <span className="font-medium text-foreground">{confirmDelete!.name}</span>.
+              Se eliminará <span className="font-medium text-foreground">{confirmDelete.name}</span>.
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <Button variant="outline" onClick={() => setConfirmDelete(null)} disabled={remove.isPending}>
@@ -829,7 +830,7 @@ export default function CustomersPage() {
               </Button>
               <Button
                 variant="danger"
-                onClick={() => remove.mutate(confirmDelete!.id)}
+                onClick={() => remove.mutate(confirmDelete.id)}
                 isLoading={remove.isPending}
               >
                 Eliminar
@@ -837,6 +838,7 @@ export default function CustomersPage() {
             </div>
           </div>
       </AnimatedOverlay>
+)}
     </div>
   );
 }

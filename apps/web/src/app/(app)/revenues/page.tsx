@@ -1187,26 +1187,28 @@ export default function RevenuesPage() {
           </div>
       </AnimatedOverlay>
 
+{confirmDelete && (
       <AnimatedOverlay
-        open={!!confirmDelete}
+        open={true}
         onClose={() => setConfirmDelete(null)}
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
           <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">¿Eliminar ingreso?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Se eliminará <span className="font-medium text-foreground">{confirmDelete!.title}</span>.
+              Se eliminará <span className="font-medium text-foreground">{confirmDelete.title}</span>.
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <Button variant="outline" onClick={() => setConfirmDelete(null)} disabled={remove.isPending}>
                 Cancelar
               </Button>
-              <Button variant="danger" onClick={() => remove.mutate(confirmDelete!.id)} isLoading={remove.isPending}>
+              <Button variant="danger" onClick={() => remove.mutate(confirmDelete.id)} isLoading={remove.isPending}>
                 Eliminar
               </Button>
             </div>
           </div>
       </AnimatedOverlay>
+)}
 
       <AnimatedOverlay
         open={categoriesModalOpen}

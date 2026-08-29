@@ -426,8 +426,9 @@ export default function CashRegisterStationsPage() {
           </div>
       </AnimatedOverlay>
 
+{confirmDelete && (
       <AnimatedOverlay
-        open={!!confirmDelete}
+        open={true}
         onClose={() => setConfirmDelete(null)}
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
@@ -435,7 +436,7 @@ export default function CashRegisterStationsPage() {
             <h2 className="text-base font-semibold">¿Eliminar estación?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Se eliminará{" "}
-              <span className="font-medium text-foreground">{confirmDelete!.name}</span>. Esta
+              <span className="font-medium text-foreground">{confirmDelete.name}</span>. Esta
               acción no se puede deshacer.
             </p>
             {deleteMutation.error && (
@@ -459,6 +460,7 @@ export default function CashRegisterStationsPage() {
             </div>
           </div>
       </AnimatedOverlay>
+)}
     </div>
   );
 }

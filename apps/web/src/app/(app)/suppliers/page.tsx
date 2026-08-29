@@ -662,15 +662,16 @@ export default function SuppliersPage() {
           </div>
       </AnimatedOverlay>
 
+{confirmDelete && (
       <AnimatedOverlay
-        open={!!confirmDelete}
+        open={true}
         onClose={() => setConfirmDelete(null)}
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
           <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">¿Eliminar proveedor?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Se eliminará <span className="font-medium text-foreground">{confirmDelete!.name}</span>.
+              Se eliminará <span className="font-medium text-foreground">{confirmDelete.name}</span>.
             </p>
             {remove.isError && (
               <p className="mt-2 text-sm text-danger">
@@ -681,12 +682,13 @@ export default function SuppliersPage() {
               <Button variant="outline" onClick={() => setConfirmDelete(null)} disabled={remove.isPending}>
                 Cancelar
               </Button>
-              <Button variant="danger" onClick={() => remove.mutate(confirmDelete!.id)} isLoading={remove.isPending}>
+              <Button variant="danger" onClick={() => remove.mutate(confirmDelete.id)} isLoading={remove.isPending}>
                 Eliminar
               </Button>
             </div>
           </div>
       </AnimatedOverlay>
+)}
     </div>
   );
 }

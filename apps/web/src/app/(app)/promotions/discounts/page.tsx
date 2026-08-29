@@ -1076,8 +1076,9 @@ export default function DiscountsPage() {
           </div>
       </AnimatedOverlay>
 
+{confirmDelete && (
       <AnimatedOverlay
-        open={!!confirmDelete}
+        open={true}
         onClose={() => setConfirmDelete(null)}
         zIndex="z-[70]"
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
@@ -1086,7 +1087,7 @@ export default function DiscountsPage() {
             <h2 className="text-base font-semibold">¿Eliminar descuento?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Se eliminará{" "}
-              <span className="font-medium text-foreground">{confirmDelete!.name}</span>. Esta
+              <span className="font-medium text-foreground">{confirmDelete.name}</span>. Esta
               acción no se puede deshacer.
             </p>
             <div className="mt-4 flex justify-end gap-2">
@@ -1107,6 +1108,7 @@ export default function DiscountsPage() {
             </div>
           </div>
       </AnimatedOverlay>
+)}
     </div>
   );
 }

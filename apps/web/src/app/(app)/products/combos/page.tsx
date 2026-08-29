@@ -897,8 +897,9 @@ export default function CombosPage() {
           </div>
       </AnimatedOverlay>
 
+{confirmDelete && (
       <AnimatedOverlay
-        open={!!confirmDelete}
+        open={true}
         onClose={() => setConfirmDelete(null)}
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
@@ -906,7 +907,7 @@ export default function CombosPage() {
             <h2 className="text-base font-semibold">¿Eliminar combo?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Se desactivará{" "}
-              <span className="font-medium text-foreground">{confirmDelete!.name}</span>. Esta
+              <span className="font-medium text-foreground">{confirmDelete.name}</span>. Esta
               acción no se puede deshacer.
             </p>
             <div className="mt-4 flex justify-end gap-2">
@@ -927,6 +928,7 @@ export default function CombosPage() {
             </div>
           </div>
       </AnimatedOverlay>
+)}
     </div>
   );
 }
