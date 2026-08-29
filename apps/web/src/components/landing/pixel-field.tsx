@@ -1,67 +1,64 @@
 "use client";
 
-/**
- * Fondo pixel-art en solo verdes oscuros: cada cuadrito tiene relieve de
- * bloque (bisel pixel: luz arriba-izquierda + sombra abajo-derecha) y una
- * sombra proyectada, como los bloques de los juegos retro. Todo el fondo
- * es píxeles con sombra; las celdas son estáticas (consumo mínimo).
- */
-const COLUMNS = 12;
-const ROWS = 8;
-
-/** Degradado diagonal en verdes oscuros (más claro arriba-izquierda). */
-const GREEN_TONES = [
-  "#143a26",
-  "#123524",
-  "#10301f",
-  "#0e2b1c",
-  "#0c271a",
-  "#0a2217",
-] as const;
+import { motion } from "framer-motion";
 
 /**
- * Sombra pixel-art por celda: bisel interior (luz arriba-izq, sombra
- * abajo-der) + sombra exterior proyectada hacia abajo-derecha.
+ * Fondo pixel-art ultra denso en SOLO verdes oscuros.
+ * MILLARES de cuadritos pintados con patrones de fondo CSS
+ * (repeating-linear-gradient en X e Y), costo DOM cero: ningún span por
+ * celda, solo 2 capas de background + unos pocos faros de parpadeo.
  */
-function blockShadow(): string {
-  return [
-    "inset 3px 3px 0 0 rgba(169,216,191,0.24)", // luz (arriba-izq)
-    "inset -3px -3px 0 0 rgba(0,0,0,0.48)", // sombra interior (abajo-der)
-    "inset 0 0 0 1px rgba(0,0,0,0.28)", // contorno oscuro
-    "1px 3px 0 0 rgba(0,0,0,0.38)", // sombra proyectada (bloque)
-  ].join(", ");
-}
+const CELL = 18; // tamaño en px de cada cuadrito (entre más chico, más cuadros)
 
 export function PixelField() {
-  const cells: React.ReactNode[] = [];
-  for (let row = 0; row < ROWS; row++) {
-    for (let col = 0; col < COLUMNS; col++) {
-      const tone = GREEN_TONES[Math.min(5, col + row)] ?? GREEN_TONES[5];
-      cells.push(
-        <span
-          key={`cell-${row}-${col}`}
-          className="block h-full w-full"
-          style={{
-            backgroundColor: tone,
-            boxShadow: blockShadow(),
-            imageRendering: "pixelated",
-          }}
-        />,
-      );
-    }
-  }
-
   return (
     <div
       aria-hidden
-      className="absolute inset-0 z-0 grid overflow-hidden"
+      className="absolute inset-0 z-0 overflow-hidden"
       style={{
-        gridTemplateColumns: `repeat(${COLUMNS}, 1fr)`,
-        gridTemplateRows: `repeat(${ROWS}, 1fr)`,
+        // Base: degradado diagonal de verdes oscuros.
+        backgroundColor: "#0a2217",
+        backgroundImage: [
+          // Cuadrícula vertical: líneas finas cada CELL px.
+          `repeating-linear-gradient(0deg, rgba(141,196,163,0.10) 0 1px, transparent 1px ${CELL}px)`,
+          // Cuadrícula horizontal: idem.
+          `repeating-linear-gradient(90deg, rgba(141,196,163,0.08) 0 1px, transparent 1px ${CELL}px)`,
+          // Degradado diagonal en verdes oscuros (más claro arriba-izquierda).
+          "linear-gradient(135deg, #143a26 0%, #0e2b1c 45%, #0a2217 100%)",
+        ].join(", "),
         imageRendering: "pixelated",
       }}
     >
-      {cells}
+      {/* Faros de parpadeo abstracto (pocos, posición fija determinista). */}
+      {(
+        [
+          [18, 20],
+          [70, 38],
+          [42, 60],
+          [86, 72],
+          [58, 26],
+        ] as const
+      ).map(([left, top], idx) => (
+        <motion.span
+          key={`beacon-${left}-${top}`}
+          className="pointer-events-none absolute block"
+          style={{
+            left: `${left}%`,
+            top: `${top}%`,
+            width: CELL + 6,
+            height: CELL + 6,
+            background:
+              "radial-gradient(circle at 50% 50%, rgba(141,196,163,0.5), rgba(141,196,163,0.10) 60%, transparent 80%)",
+          }}
+          animate={{ opacity: [0.2, 0.9, 0.2] }}
+          transition={{
+            duration: 2.6 + idx * 0.4,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: idx * 0.5,
+          }}
+        />
+      ))}
     </div>
   );
 }
