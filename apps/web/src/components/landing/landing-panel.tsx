@@ -7,6 +7,7 @@ import { DemoCta } from "@/components/landing/demo-form";
 import { PixelFoodMark } from "@/components/landing/pixel-food-mark";
 import { PixelField } from "@/components/landing/pixel-field";
 import { FlowDiagram } from "@/components/landing/flow-diagram";
+import { GridReveal } from "@/components/landing/grid-reveal";
 import { cn } from "@/lib/utils";
 
 type FrigScopeStyle = CSSProperties & {
@@ -37,6 +38,12 @@ function stepEase(steps = 6) {
 export function LandingPanel() {
   const reduceMotion = useReducedMotion();
   const [view, setView] = useState<"info" | "flow">("info");
+  const [viewSwitched, setViewSwitched] = useState(false);
+
+  function switchView(next: "info" | "flow") {
+    setViewSwitched(true);
+    setView(next);
+  }
 
   const container: Variants = {
     hidden: {},
@@ -87,7 +94,7 @@ export function LandingPanel() {
               type="button"
               role="tab"
               aria-selected={view === tab.key}
-              onClick={() => setView(tab.key)}
+              onClick={() => switchView(tab.key)}
               className={cn(
                 "cursor-pointer px-3 py-1 text-[11px] tracking-[0.14em] transition-colors",
                 view === tab.key
@@ -198,7 +205,7 @@ export function LandingPanel() {
               </p>
               <button
                 type="button"
-                onClick={() => setView("info")}
+                onClick={() => switchView("info")}
                 className="cursor-pointer rounded-md border-2 border-[var(--frig-line)] bg-[var(--frig-bg-soft)] px-3 py-1 text-[11px] tracking-[0.14em] text-[var(--frig-text-muted)] transition-colors hover:text-[var(--frig-text)]"
               >
                 ← Volver a la información
@@ -207,6 +214,9 @@ export function LandingPanel() {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Reveal futurista: se dispara solo al cambiar de vista (no en el 1er render). */}
+      {viewSwitched ? <GridReveal key={`reveal-${view}`} /> : null}
     </div>
   );
 }
