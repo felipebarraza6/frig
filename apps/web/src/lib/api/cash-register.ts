@@ -27,6 +27,7 @@ export type CashMovementPayload = {
   amount: string;
   reason: string;
   notes?: string;
+  purchase_order_id?: string | null;
 };
 
 export async function getCurrentCashRegister(

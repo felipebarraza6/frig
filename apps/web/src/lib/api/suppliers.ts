@@ -137,6 +137,7 @@ export interface PurchaseOrdersFilter {
   search?: string;
   supplier?: string;
   status?: string;
+  payment_status?: string;
   next?: string | null;
   previous?: string | null;
 }
@@ -154,6 +155,7 @@ export async function fetchPurchaseOrders(
   if (filter.search) qs.set("search", filter.search);
   if (filter.supplier) qs.set("supplier", filter.supplier);
   if (filter.status) qs.set("status", filter.status);
+  if (filter.payment_status) qs.set("payment_status", filter.payment_status);
   const q = qs.toString();
   return apiFetch<PaginatedPurchaseOrder>(`/suppliers/purchase-orders/${q ? `?${q}` : ""}`);
 }
