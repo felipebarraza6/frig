@@ -10,7 +10,9 @@ export interface CreateTaxTypeInput {
   description?: string;
   tax_calc: "PERCENTAGE" | "FIXED";
   rate: number;
-  applies_to?: string;
+  applies_to?: "ALL" | "CATEGORIES" | "PRODUCTS";
+  applicable_category_ids?: number[];
+  applicable_product_ids?: number[];
   is_included_in_price?: boolean;
   is_active?: boolean;
   is_default?: boolean;

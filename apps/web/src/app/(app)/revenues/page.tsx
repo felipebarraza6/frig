@@ -74,16 +74,6 @@ const STATUS_OPTIONS = [
   { value: "SCHEDULED", label: "Programado" },
 ];
 
-const REVENUE_TYPES = [
-  { value: "SALE", label: "Venta" },
-  { value: "SERVICE", label: "Servicio" },
-  { value: "RENTAL", label: "Alquiler" },
-  { value: "COMMISSION", label: "Comisión" },
-  { value: "INVESTMENT", label: "Inversión" },
-  { value: "REFUND", label: "Reembolso" },
-  { value: "OTHER", label: "Otro" },
-];
-
 const PERIOD_OPTIONS = [
   { value: "", label: "Personalizado" },
   { value: "today", label: "Hoy" },
@@ -139,7 +129,6 @@ export default function RevenuesPage() {
     description: "",
     branch: 0,
     category: "",
-    revenue_type: "SALE",
     amount: "",
     revenue_date: toISODate(new Date()),
     status: "PENDING",
@@ -374,7 +363,6 @@ export default function RevenuesPage() {
         description: revenue.description ?? "",
         branch: revenue.branch,
         category: revenue.category,
-        revenue_type: revenue.revenue_type,
         amount: revenue.amount,
         revenue_date: revenue.revenue_date,
         status: revenue.status ?? "PENDING",
@@ -385,7 +373,6 @@ export default function RevenuesPage() {
         description: "",
         branch: 0,
         category: "",
-        revenue_type: "SALE",
         amount: "",
         revenue_date: toISODate(new Date()),
         status: "PENDING",
@@ -1110,18 +1097,7 @@ export default function RevenuesPage() {
                         ))}
                       </Select>
                     </div>
-                    <div className="flex flex-col gap-2">
-                      <label htmlFor="revenue-type" className="text-sm font-medium">Tipo</label>
-                      <Select
-                        id="revenue-type"
-                        value={form.revenue_type}
-                        onChange={(e) => setForm({ ...form, revenue_type: e.target.value as RevenueRequest["revenue_type"] })}
-                      >
-                        {REVENUE_TYPES.map((t) => (
-                          <option key={t.value} value={t.value}>{t.label}</option>
-                        ))}
-                      </Select>
-                    </div>
+
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="flex flex-col gap-2">

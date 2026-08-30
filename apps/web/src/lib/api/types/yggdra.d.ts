@@ -29495,7 +29495,9 @@ export interface components {
             description?: string;
             tax_calc: "PERCENTAGE" | "FIXED";
             rate: string;
-            applies_to: string;
+            applies_to: "ALL" | "CATEGORIES" | "PRODUCTS";
+            applicable_categories?: { id: string | number; name: string }[];
+            applicable_products?: { id: string | number; name: string }[];
             is_included_in_price: boolean;
             is_active: boolean;
             is_default: boolean;
@@ -61924,8 +61926,8 @@ export interface components {
              *     * `OTHER` - Otro
              * @enum {string}
              */
-            revenue_type: "SALE" | "SERVICE" | "RENTAL" | "COMMISSION" | "INVESTMENT" | "REFUND" | "OTHER";
-            readonly revenue_type_display: string;
+            revenue_type?: "SALE" | "SERVICE" | "RENTAL" | "COMMISSION" | "INVESTMENT" | "REFUND" | "OTHER";
+            readonly revenue_type_display?: string;
             /**
              * Monto
              * Format: decimal
@@ -62139,7 +62141,7 @@ export interface components {
              *     * `OTHER` - Otro
              * @enum {string}
              */
-            revenue_type: "SALE" | "SERVICE" | "RENTAL" | "COMMISSION" | "INVESTMENT" | "REFUND" | "OTHER";
+            revenue_type?: "SALE" | "SERVICE" | "RENTAL" | "COMMISSION" | "INVESTMENT" | "REFUND" | "OTHER";
             /**
              * Monto
              * Format: decimal

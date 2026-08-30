@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -34,6 +34,9 @@ import {
   type TaxType,
   type CreateTaxTypeInput,
 } from "@/lib/api/tax-types";
+import { fetchCategoryList, type YggdraCategory } from "@/lib/api/categories";
+import { fetchProducts, type ProductsFilter } from "@/lib/api/products";
+import type { YggdraSchemas } from "@/lib/api/types";
 
 const THOUSAND_SEP_OPTIONS = [
   { value: ".", label: "Punto (.)" },
@@ -46,6 +49,20 @@ const DECIMAL_SEP_OPTIONS = [
   { value: ",", label: "Coma (,)" },
   { value: ".", label: "Punto (.)" },
 ];
+type AppliesToValue = "ALL" | "CATEGORIES" | "PRODUCTS";
+
+const APPLIES_TO_OPTIONS: { value: AppliesToValue; label: string }[] = [
+  { value: "ALL", label: "Todos los productos" },
+  { value: "CATEGORIES", label: "Categorías específicas" },
+  { value: "PRODUCTS", label: "Productos específicos" },
+];
+
+const APPLIES_TO_LABELS: Record<AppliesToValue, string> = {
+  ALL: "Todos los productos",
+  CATEGORIES: "Categorías específicas",
+  PRODUCTS: "Productos específicos",
+};
+
 
 export default function FinanceSettingsPage() {
   const queryClient = useQueryClient();
@@ -280,7 +297,7 @@ function TaxTypesSection({ branchId }: { branchId: number }) {
                   <p className="text-xs text-muted-foreground">
                     {t.tax_calc === "PERCENTAGE" ? `${t.rate}%` : `$${t.rate}`}
                     {" · "}
-                    {t.applies_to === "ALL" ? "Todos los productos" : t.applies_to}
+                    {APPLIES_TO_LABELS[t.applies_to as AppliesToValue] ?? t.applies_to}
                     {" · "}
                     {t.is_included_in_price ? "Incluido en precio" : "Se agrega al precio"}
                   </p>
@@ -314,6 +331,7 @@ function TaxTypesSection({ branchId }: { branchId: number }) {
       {(adding || editing) && (
         <TaxTypeModal
           taxType={editing}
+          branchId={branchId}
           onSubmit={(payload) => {
             if (editing) updateMut.mutate({ id: editing.id, ...payload });
             else createMut.mutate({ branch: branchId, ...payload } as CreateTaxTypeInput);
@@ -328,26 +346,56 @@ function TaxTypesSection({ branchId }: { branchId: number }) {
 
 /* ── TaxTypeModal: se renderiza vía createPortal al body, fuera de cualquier <form> ── */
 
-function TaxTypeModal({ taxType, onSubmit, onClose, isPending }: {
+function TaxTypeModal({ taxType, onSubmit, onClose, isPending, branchId }: {
   taxType: TaxType | null;
   onSubmit: (payload: Partial<CreateTaxTypeInput>) => void;
   onClose: () => void;
   isPending: boolean;
+  branchId: number;
 }) {
   const [name, setName] = useState(taxType?.name ?? "");
   const [code, setCode] = useState(taxType?.code ?? "");
   const [description, setDescription] = useState(taxType?.description ?? "");
   const [taxCalc, setTaxCalc] = useState<"PERCENTAGE" | "FIXED">(taxType?.tax_calc ?? "PERCENTAGE");
   const [rate, setRate] = useState(String(taxType?.rate ?? ""));
-  const [appliesTo, setAppliesTo] = useState(taxType?.applies_to ?? "ALL");
+  const [appliesTo, setAppliesTo] = useState<AppliesToValue>((taxType?.applies_to as AppliesToValue) ?? "ALL");
   const [isIncluded, setIsIncluded] = useState(taxType?.is_included_in_price ?? true);
   const [isDefault, setIsDefault] = useState(taxType?.is_default ?? false);
   const [isActive, setIsActive] = useState(taxType?.is_active ?? true);
 
+  const existingCategoryIds = useMemo(() =>
+    new Set((taxType?.applicable_categories ?? []).map((c) => typeof c === "object" ? c.id : c)),
+    [taxType?.applicable_categories]
+  );
+  const existingProductIds = useMemo(() =>
+    new Set((taxType?.applicable_products ?? []).map((p) => typeof p === "object" ? p.id : p)),
+    [taxType?.applicable_products]
+  );
+
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>(
+    Array.from(existingCategoryIds).filter((id): id is number => typeof id === "number")
+  );
+  const [selectedProductIds, setSelectedProductIds] = useState<number[]>(
+    Array.from(existingProductIds).filter((id): id is number => typeof id === "number")
+  );
+
+  const { data: categories = [] } = useQuery({
+    queryKey: ["categories-simple", branchId],
+    queryFn: fetchCategoryList,
+    enabled: appliesTo === "CATEGORIES",
+  });
+
+  const { data: productsData } = useQuery({
+    queryKey: ["products-for-sale", branchId],
+    queryFn: () => fetchProducts({ is_for_sale: true, page_size: 200 }),
+    enabled: appliesTo === "PRODUCTS",
+  });
+  const products = useMemo(() => productsData?.results ?? [], [productsData]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !rate) return;
-    onSubmit({
+    const payload: Partial<CreateTaxTypeInput> = {
       name,
       code: code || undefined,
       description: description || undefined,
@@ -357,17 +405,24 @@ function TaxTypeModal({ taxType, onSubmit, onClose, isPending }: {
       is_included_in_price: isIncluded,
       is_default: isDefault,
       is_active: isActive,
-    });
+    };
+    if (appliesTo === "CATEGORIES") {
+      payload.applicable_category_ids = selectedCategoryIds;
+    }
+    if (appliesTo === "PRODUCTS") {
+      payload.applicable_product_ids = selectedProductIds;
+    }
+    onSubmit(payload);
   };
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 md:items-center md:p-4" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="w-full rounded-t-xl border-x border-t border-border bg-card shadow-lg md:max-w-md md:rounded-xl md:border">
+      <div className="w-full rounded-t-xl border-x border-t border-border bg-card shadow-lg md:max-w-lg md:rounded-xl md:border max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <h3 className="text-sm font-semibold">{taxType ? "Editar impuesto" : "Nuevo impuesto"}</h3>
           <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">✕</button>
         </div>
-        <form onSubmit={handleSubmit} className="p-4 space-y-3">
+        <form onSubmit={handleSubmit} className="p-4 space-y-3 overflow-y-auto">
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium">Nombre *</label>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: IVA, ILA" required />
@@ -392,16 +447,68 @@ function TaxTypeModal({ taxType, onSubmit, onClose, isPending }: {
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium">Aplica a</label>
-              <Select value={appliesTo} onChange={(e) => setAppliesTo(e.target.value)}>
-                <option value="ALL">Todos los productos</option>
-                <option value="FOOD">Alimentos</option>
-                <option value="BEVERAGES">Bebidas</option>
-                <option value="ALCOHOL">Bebidas alcohólicas</option>
-                <option value="SERVICES">Servicios</option>
-                <option value="PRODUCTS">Productos (no alimentos)</option>
+              <Select value={appliesTo} onChange={(e) => setAppliesTo(e.target.value as AppliesToValue)}>
+                {APPLIES_TO_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
               </Select>
             </div>
           </div>
+
+          {appliesTo === "CATEGORIES" && (
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium">Categorías *</label>
+              <div className="max-h-40 overflow-y-auto rounded-lg border border-border bg-background p-2 space-y-1">
+                {categories.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No hay categorías disponibles.</p>
+                ) : (
+                  categories.map((c: YggdraCategory) => (
+                    <label key={c.id} className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={selectedCategoryIds.includes(c.id)}
+                        onChange={(e) => {
+                          setSelectedCategoryIds((prev) =>
+                            e.target.checked ? [...prev, c.id] : prev.filter((id) => id !== c.id)
+                          );
+                        }}
+                        className="rounded"
+                      />
+                      {c.name}
+                    </label>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
+          {appliesTo === "PRODUCTS" && (
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium">Productos *</label>
+              <div className="max-h-40 overflow-y-auto rounded-lg border border-border bg-background p-2 space-y-1">
+                {products.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No hay productos disponibles.</p>
+                ) : (
+                  products.map((p: YggdraSchemas["ProductList"]) => (
+                    <label key={p.id} className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={selectedProductIds.includes(p.id)}
+                        onChange={(e) => {
+                          setSelectedProductIds((prev) =>
+                            e.target.checked ? [...prev, p.id] : prev.filter((id) => id !== p.id)
+                          );
+                        }}
+                        className="rounded"
+                      />
+                      {p.name}
+                    </label>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium">Descripción</label>
             <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descripción del impuesto (opcional)" />
@@ -422,7 +529,7 @@ function TaxTypeModal({ taxType, onSubmit, onClose, isPending }: {
           </div>
           <div className="flex justify-end gap-2 pt-2 border-t border-border">
             <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>Cancelar</Button>
-            <Button type="submit" disabled={isPending || !name || !rate}>
+            <Button type="submit" disabled={isPending || !name || !rate || (appliesTo === "CATEGORIES" && selectedCategoryIds.length === 0) || (appliesTo === "PRODUCTS" && selectedProductIds.length === 0)}>
               {isPending ? <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />Guardando...</> : "Guardar"}
             </Button>
           </div>
