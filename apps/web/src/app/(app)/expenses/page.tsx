@@ -826,85 +826,62 @@ export default function ExpensesPage() {
           <>
             {/* Desktop table */}
             <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
-              <table className="w-full min-w-[900px] text-sm">
+              <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                    <th className="px-4 py-3">Gasto</th>
-                    <th className="px-4 py-3">Categoría</th>
-                    <th className="px-4 py-3">Proveedor</th>
-                    <th className="px-4 py-3">Frecuencia</th>
+                    <th className="px-3 py-2.5">Gasto</th>
+                    <th className="px-3 py-2.5">Categoría</th>
+                    <th className="px-3 py-2.5">Proveedor</th>
+                    <th className="hidden px-3 py-3 2xl:table-cell">Frecuencia</th>
                     <th className="px-4 py-3 text-right">Monto</th>
-                    <th className="px-4 py-3">Estado</th>
-                    <th className="px-4 py-3">Inicio</th>
+                    <th className="px-3 py-2.5">Estado</th>
+                    <th className="hidden px-3 py-3 2xl:table-cell">Inicio</th>
                     <th className="px-4 py-3 text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {expenses.map((e) => (
                     <tr key={e.id} className="border-b border-border last:border-0">
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-2.5">
                         <div className="flex items-center gap-2">
-                          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-secondary">
-                            <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
+                          <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-secondary">
+                            <TrendingUp className="h-3 w-3 text-muted-foreground" />
                           </div>
                           <div className="min-w-0">
-                            <p className="truncate font-medium">{e.name}</p>
-                            {e.description && <p className="text-xs text-muted-foreground">{e.description}</p>}
+                            <p className="max-w-[160px] truncate font-medium" title={e.name}>{e.name}</p>
+                            {e.description && <p className="truncate text-xs text-muted-foreground">{e.description}</p>}
                           </div>
                         </div>
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">{e.category_name}</td>
                       <td className="px-4 py-3 text-muted-foreground">{e.supplier_name || "—"}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{frequencyLabel(e.frequency)}</td>
+                      <td className="hidden px-3 py-3 text-muted-foreground 2xl:table-cell">{frequencyLabel(e.frequency)}</td>
                       <td className="px-4 py-3 text-right tabular-nums font-medium">{formatCLP(e.amount)}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-2.5">
                         <span className={statusBadgeClass(e.status)}>
                           {statusLabel(e.status)}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground">{e.start_date}</td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
+                      <td className="hidden px-3 py-3 text-muted-foreground 2xl:table-cell">{e.start_date}</td>
+                      <td className="px-3 py-3 text-right">
+                        <div className="flex items-center justify-end gap-0.5">
                           <ActionsMenu
                             ariaLabel="Comprobante"
                             items={[
-                              {
-                                label: "Ver PDF",
-                                icon: Eye,
-                                onClick: () => handleViewVoucher(e),
-                              },
-                              {
-                                label: "Descargar comprobante",
-                                icon: Download,
-                                onClick: () => handleDownloadVoucher(e),
-                              },
+                              { label: "Ver PDF", icon: Eye, onClick: () => handleViewVoucher(e) },
+                              { label: "Descargar comprobante", icon: Download, onClick: () => handleDownloadVoucher(e) },
                             ]}
                           />
-                          <Button variant="ghost" size="sm" onClick={() => openModal(e)}>
-                            <Pencil className="mr-1.5 h-3.5 w-3.5" />
-                            Editar
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openModal(e)} title="Editar">
+                            <Pencil className="h-3.5 w-3.5" />
                           </Button>
                           {e.status !== "CANCELLED" && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => cancel.mutate(e.id)}
-                              disabled={cancel.isPending}
-                            >
-                              <Ban className="mr-1.5 h-3.5 w-3.5" />
-                              Anular
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => cancel.mutate(e.id)} disabled={cancel.isPending} title="Anular">
+                              <Ban className="h-3.5 w-3.5" />
                             </Button>
                           )}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 text-danger hover:text-danger"
-                            onClick={() => setConfirmDelete(e)}
-                            title="Eliminar"
-                            aria-label="Eliminar"
-                          >
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-danger hover:text-danger" onClick={() => setConfirmDelete(e)} title="Eliminar">
                             <Trash2 className="h-3.5 w-3.5" />
-                            <span className="sr-only">Eliminar</span>
                           </Button>
                         </div>
                       </td>
@@ -927,7 +904,7 @@ export default function ExpensesPage() {
                         <TrendingUp className="h-5 w-5" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate font-medium">{e.name}</p>
+                        <p className="max-w-[160px] truncate font-medium" title={e.name}>{e.name}</p>
                         {e.description && (
                           <p className="break-words text-xs text-muted-foreground">{e.description}</p>
                         )}
@@ -1495,11 +1472,11 @@ function StatSkeleton() {
 function TableSkeleton() {
   return (
     <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
-      <table className="w-full min-w-[900px] text-sm">
+      <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border">
             {Array.from({ length: 8 }).map((_, i) => (
-              <th key={i} className="px-4 py-3">
+              <th key={i} className="px-3 py-2.5">
                 <Skeleton className="h-3.5 w-20" />
               </th>
             ))}
@@ -1509,7 +1486,7 @@ function TableSkeleton() {
           {Array.from({ length: 5 }).map((_, row) => (
             <tr key={row} className="border-b border-border last:border-0">
               {Array.from({ length: 8 }).map((__, col) => (
-                <td key={col} className="px-4 py-3">
+                <td key={col} className="px-3 py-2.5">
                   <Skeleton className="h-4 w-full max-w-[80px]" />
                 </td>
               ))}

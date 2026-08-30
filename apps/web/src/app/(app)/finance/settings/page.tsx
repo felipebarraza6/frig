@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Settings,
@@ -33,7 +34,6 @@ import {
   type TaxType,
   type CreateTaxTypeInput,
 } from "@/lib/api/tax-types";
-import { useCurrentBranch } from "@/lib/store/session";
 
 const THOUSAND_SEP_OPTIONS = [
   { value: ".", label: "Punto (.)" },
@@ -115,6 +115,7 @@ export default function FinanceSettingsPage() {
 
       <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
         <ConfigForm config={currentConfig} onUpdate={(payload) => updateMut.mutate({ id: currentConfig.id, ...payload })} isPending={updateMut.isPending} />
+        <TaxTypesSection branchId={currentConfig.branch} />
       </div>
     </div>
   );
@@ -150,7 +151,7 @@ function ConfigForm({ config, onUpdate, isPending }: {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-1 flex-col gap-6">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
       {/* Moneda */}
       <section className="rounded-xl border border-border bg-card p-4">
         <div className="flex items-center gap-2 mb-4">
@@ -187,9 +188,6 @@ function ConfigForm({ config, onUpdate, isPending }: {
         </div>
       </section>
 
-      {/* Impuestos dinámicos */}
-      <TaxTypesSection branchId={config.branch} />
-
       {/* Save */}
       <div className="flex justify-end">
         <Button type="submit" disabled={isPending}>
@@ -200,6 +198,7 @@ function ConfigForm({ config, onUpdate, isPending }: {
   );
 }
 
+/* ── TaxTypesSection: CRUD de impuestos por branch ── */
 
 function TaxTypesSection({ branchId }: { branchId: number }) {
   const toast = useToast();
@@ -313,9 +312,8 @@ function TaxTypesSection({ branchId }: { branchId: number }) {
       )}
 
       {(adding || editing) && (
-        <TaxTypeForm
+        <TaxTypeModal
           taxType={editing}
-          branchId={branchId}
           onSubmit={(payload) => {
             if (editing) updateMut.mutate({ id: editing.id, ...payload });
             else createMut.mutate({ branch: branchId, ...payload } as CreateTaxTypeInput);
@@ -328,9 +326,10 @@ function TaxTypesSection({ branchId }: { branchId: number }) {
   );
 }
 
-function TaxTypeForm({ taxType, branchId, onSubmit, onClose, isPending }: {
+/* ── TaxTypeModal: se renderiza vía createPortal al body, fuera de cualquier <form> ── */
+
+function TaxTypeModal({ taxType, onSubmit, onClose, isPending }: {
   taxType: TaxType | null;
-  branchId: number;
   onSubmit: (payload: Partial<CreateTaxTypeInput>) => void;
   onClose: () => void;
   isPending: boolean;
@@ -361,12 +360,12 @@ function TaxTypeForm({ taxType, branchId, onSubmit, onClose, isPending }: {
     });
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 md:items-center md:p-4" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="w-full rounded-t-xl border-x border-t border-border bg-card shadow-lg md:max-w-md md:rounded-xl md:border">
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <h3 className="text-sm font-semibold">{taxType ? "Editar impuesto" : "Nuevo impuesto"}</h3>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">✕</button>
+          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">✕</button>
         </div>
         <form onSubmit={handleSubmit} className="p-4 space-y-3">
           <div className="flex flex-col gap-1">
@@ -429,6 +428,7 @@ function TaxTypeForm({ taxType, branchId, onSubmit, onClose, isPending }: {
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

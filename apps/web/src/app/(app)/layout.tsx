@@ -164,7 +164,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
         <main
           className={cn(
-            "flex min-h-full flex-1 flex-col",
+            "flex min-h-full flex-1 flex-col min-w-0",
             !shouldHideSidebar && [
               // El pin reserva espacio; el hover expande como overlay sin mover el layout.
               sidebarExpanded ? "md:ml-60" : "md:ml-16",
