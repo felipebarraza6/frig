@@ -64,7 +64,7 @@ import {
   useIsSuperAdmin,
 } from "@/lib/store/session";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
-import { fetchExpenseCategories, createExpenseCategory, createExpense } from "@/lib/api/expenses";
+import { fetchExpenseCategoriesByName, createExpenseCategory, createExpense } from "@/lib/api/expenses";
 
 function numberValue(v: string): string {
   const cleaned = v.replace(/[^0-9]/g, "");
@@ -304,19 +304,33 @@ export default function CashRegisterPage() {
 
       if (payload.type === "CASH_OUT") {
         try {
-          const categories = await fetchExpenseCategories();
+          const categoryName = "Retiros de caja";
+          let categories = await fetchExpenseCategoriesByName(categoryName);
           let category = categories.find(
-            (c) => c.name.toLowerCase().includes("retiro"),
+            (c) => c.name.trim().toLowerCase() === categoryName.toLowerCase(),
           );
+
           if (!category) {
-            category = await createExpenseCategory({
-              name: "Retiros de caja",
-              category_type: "OTHER",
-              branch: Number(branch.branch_id),
-              description: "Egresos generados por retiros manuales de caja",
-              is_active: true,
-            });
+            try {
+              category = await createExpenseCategory({
+                name: categoryName,
+                category_type: "OTHER",
+                branch: Number(branch.branch_id),
+                description: "Egresos generados por retiros manuales de caja",
+                is_active: true,
+              });
+            } catch (err) {
+              const message = err instanceof Error ? err.message : "";
+              if (/unique|conjunto único|duplicado|already exists/i.test(message)) {
+                categories = await fetchExpenseCategoriesByName(categoryName);
+                category = categories.find(
+                  (c) => c.name.trim().toLowerCase() === categoryName.toLowerCase(),
+                );
+              }
+              if (!category) throw err;
+            }
           }
+
           await createExpense({
             name: payload.reason,
             description: `Retiro de caja registrado en ${activeStation?.name ?? "estación actual"}`,

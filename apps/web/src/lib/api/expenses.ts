@@ -41,6 +41,15 @@ export async function fetchExpenseCategories(): Promise<ExpenseCategory[]> {
   return data.results ?? [];
 }
 
+export async function fetchExpenseCategoriesByName(
+  search: string,
+): Promise<ExpenseCategory[]> {
+  const data = await apiFetch<PaginatedExpenseCategory>(
+    `/finance/expense-categories/?search=${encodeURIComponent(search)}`,
+  );
+  return data.results ?? [];
+}
+
 export async function createExpense(payload: FixedExpenseRequest): Promise<FixedExpense> {
   return apiFetch<FixedExpense>("/finance/fixed-expenses/", {
     method: "POST",
