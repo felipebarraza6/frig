@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   TrendingUp,
@@ -17,9 +17,14 @@ import {
   PiggyBank,
   CreditCard,
   Banknote,
+  Download,
+  FileText,
+  Settings,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   fetchFinancialMetricsSummary,
@@ -44,14 +49,62 @@ function formatShortDate(iso: string): string {
   return d.toLocaleDateString("es-CL", { day: "numeric", month: "short" });
 }
 
+const RANGE_PRESETS = [
+  { label: "Este mes", value: "current_month" },
+  { label: "Mes pasado", value: "last_month" },
+  { label: "Últimos 7 días", value: "last_7_days" },
+  { label: "Personalizado", value: "custom" },
+] as const;
+
+type RangePreset = (typeof RANGE_PRESETS)[number]["value"];
+
+function getPresetRange(preset: RangePreset): { start: string; end: string } {
+  const today = new Date();
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  switch (preset) {
+    case "current_month":
+      return {
+        start: fmt(new Date(today.getFullYear(), today.getMonth(), 1)),
+        end: fmt(new Date(today.getFullYear(), today.getMonth() + 1, 0)),
+      };
+    case "last_month":
+      return {
+        start: fmt(new Date(today.getFullYear(), today.getMonth() - 1, 1)),
+        end: fmt(new Date(today.getFullYear(), today.getMonth(), 0)),
+      };
+    case "last_7_days": {
+      const start = new Date(today);
+      start.setDate(today.getDate() - 6);
+      return { start: fmt(start), end: fmt(today) };
+    }
+    default:
+      return getCurrentMonthRange();
+  }
+}
+
+function downloadCsv(filename: string, rows: string[][]) {
+  const csv = rows.map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function FinanceDashboardPage() {
-  const monthRange = useMemo(() => getCurrentMonthRange(), []);
   const branch = useCurrentBranch();
   const branchId = branch?.branch_id;
-  const [range] = useState({
-    start: monthRange.start,
-    end: monthRange.end,
-  });
+  const [preset, setPreset] = useState<RangePreset>("current_month");
+  const [range, setRange] = useState(() => getPresetRange("current_month"));
+
+  useEffect(() => {
+    if (preset !== "custom") {
+      setRange(getPresetRange(preset));
+    }
+  }, [preset]);
 
   const {
     data: summary,
@@ -109,8 +162,75 @@ export default function FinanceDashboardPage() {
         <div>
           <h1 className="text-lg font-semibold">Finanzas</h1>
           <p className="text-xs text-muted-foreground">
-            Resumen financiero del mes y flujo de caja
+            Resumen financiero del período y flujo de caja
           </p>
+        </div>
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="flex flex-col gap-1">
+            <label htmlFor="finance-range-preset" className="text-xs text-muted-foreground">Período</label>
+            <Select
+              id="finance-range-preset"
+              value={preset}
+              onChange={(e) => setPreset(e.target.value as RangePreset)}
+              className="w-40"
+            >
+              {RANGE_PRESETS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </Select>
+          </div>
+          {preset === "custom" && (
+            <>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="finance-start" className="text-xs text-muted-foreground">Desde</label>
+                <Input
+                  id="finance-start"
+                  type="date"
+                  value={range.start}
+                  onChange={(e) => setRange((r) => ({ ...r, start: e.target.value }))}
+                  className="w-36"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="finance-end" className="text-xs text-muted-foreground">Hasta</label>
+                <Input
+                  id="finance-end"
+                  type="date"
+                  value={range.end}
+                  onChange={(e) => setRange((r) => ({ ...r, end: e.target.value }))}
+                  className="w-36"
+                />
+              </div>
+            </>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const rows = [
+                ["Métrica", "Valor"],
+                ["Ingresos", formatCLP(revenueTotal)],
+                ["Egresos", formatCLP(expenseTotal)],
+                ["Utilidad neta", formatCLP(netProfit)],
+                ["Margen", `${margin.toFixed(1)}%`],
+                ["Período", `${range.start} a ${range.end}`],
+              ];
+              const revenueRows = revenueItems.map((d) => [
+                d.date,
+                formatCLP(parseAmount(d.total)),
+              ]);
+              downloadCsv(`finanzas_${range.start}_${range.end}.csv`, [
+                ...rows,
+                [],
+                ["Fecha", "Ingreso"],
+                ...revenueRows,
+              ]);
+            }}
+            disabled={loadingSummary || loadingRevenueRange}
+          >
+            <Download className="mr-1.5 h-3.5 w-3.5" />
+            Exportar
+          </Button>
         </div>
       </header>
 
@@ -264,7 +384,7 @@ export default function FinanceDashboardPage() {
                 </div>
                 <h2 className="text-sm font-semibold">Acciones rápidas</h2>
               </div>
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <QuickAction
                   href="/revenues"
                   icon={Banknote}
@@ -283,8 +403,54 @@ export default function FinanceDashboardPage() {
                   href="/payments"
                   icon={Wallet}
                   title="Ver pagos"
-                  description="Revisa ingresos, egresos y pagos unificados."
+                  description="Ingresos, egresos y transacciones unificadas."
                   tone="teal"
+                />
+                <QuickAction
+                  href="/tax-documents"
+                  icon={FileText}
+                  title="Documentos SII"
+                  description="Boletas, facturas y notas de crédito."
+                  tone="slate"
+                />
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+              <div className="mb-4 flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <Settings className="h-4 w-4" />
+                </div>
+                <h2 className="text-sm font-semibold">Configuración financiera</h2>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <QuickAction
+                  href="/finance/settings"
+                  icon={Percent}
+                  title="Impuestos y moneda"
+                  description="Configura tasas, impuestos y ajustes."
+                  tone="slate"
+                />
+                <QuickAction
+                  href="/payment-methods"
+                  icon={CreditCard}
+                  title="Métodos de pago"
+                  description="Medios de pago de la sucursal."
+                  tone="slate"
+                />
+                <QuickAction
+                  href="/bank-accounts"
+                  icon={Wallet}
+                  title="Billeteras digitales"
+                  description="Cuentas y billeteras vinculadas."
+                  tone="slate"
+                />
+                <QuickAction
+                  href="/reconciliations"
+                  icon={ArrowRight}
+                  title="Conciliaciones"
+                  description="Cuadre de pagos y cuentas."
+                  tone="slate"
                 />
               </div>
             </section>
