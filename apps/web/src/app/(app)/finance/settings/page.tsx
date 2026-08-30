@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -395,6 +395,12 @@ function SiiSection({
     config.sii_document_preference ?? "AUTO",
   );
 
+  useEffect(() => {
+    setProviderInstallation(config.sii_provider_installation ?? null);
+    setTrigger(config.sii_generation_trigger ?? "MANUAL");
+    setDocumentPreference(config.sii_document_preference ?? "AUTO");
+  }, [config.sii_provider_installation, config.sii_generation_trigger, config.sii_document_preference]);
+
   const {
     data: installations = [],
     isLoading,
@@ -413,7 +419,7 @@ function SiiSection({
   const simpleApiAppId = externalApps.find((a) => a.slug === "simpleapi-sii")?.id;
 
   const { data: logs = [] } = useQuery({
-    queryKey: ["external-app-execution-logs", config.sii_provider_installation],
+    queryKey: ["external-app-execution-logs", providerInstallation],
     queryFn: () =>
       fetchExternalAppExecutionLogs(providerInstallation ?? undefined),
     enabled: !!providerInstallation,
