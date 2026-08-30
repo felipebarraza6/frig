@@ -64,6 +64,8 @@ export default function CustomersPage() {
     email: "",
     commercial_business: "",
     address: "",
+    receiver_type: "PERSONA_NATURAL",
+    default_document_type: "BOLETA",
     tags: [],
     is_active: true,
   });
@@ -161,6 +163,8 @@ export default function CustomersPage() {
         email: customer.email ?? "",
         commercial_business: customer.commercial_business ?? "",
         address: customer.address ?? "",
+        receiver_type: (customer as unknown as { receiver_type?: "PERSONA_NATURAL" | "EMPRESA" | null }).receiver_type ?? "PERSONA_NATURAL",
+        default_document_type: (customer as unknown as { default_document_type?: "BOLETA" | "FACTURA" | null }).default_document_type ?? "BOLETA",
         tags: (customer as unknown as { tags?: string[] }).tags ?? [],
         is_active: customer.is_active ?? true,
       });
@@ -172,6 +176,8 @@ export default function CustomersPage() {
         email: "",
         commercial_business: "",
         address: "",
+        receiver_type: "PERSONA_NATURAL",
+        default_document_type: "BOLETA",
         tags: [],
         is_active: true,
       });
@@ -739,6 +745,28 @@ export default function CustomersPage() {
                     onChange={(e) => setForm({ ...form, address: e.target.value })}
                     placeholder="Opcional"
                   />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="customer-receiver-type" className="text-sm font-medium">Tipo de receptor</label>
+                  <Select
+                    id="customer-receiver-type"
+                    value={form.receiver_type ?? "PERSONA_NATURAL"}
+                    onChange={(e) => setForm({ ...form, receiver_type: e.target.value as "PERSONA_NATURAL" | "EMPRESA" })}
+                  >
+                    <option value="PERSONA_NATURAL">Persona natural</option>
+                    <option value="EMPRESA">Empresa</option>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="customer-doc-type" className="text-sm font-medium">Documento por defecto</label>
+                  <Select
+                    id="customer-doc-type"
+                    value={form.default_document_type ?? "BOLETA"}
+                    onChange={(e) => setForm({ ...form, default_document_type: e.target.value as "BOLETA" | "FACTURA" })}
+                  >
+                    <option value="BOLETA">Boleta</option>
+                    <option value="FACTURA">Factura</option>
+                  </Select>
                 </div>
                 <div className="flex flex-col gap-2 sm:col-span-2">
                   <label className="text-sm font-medium">Tags</label>

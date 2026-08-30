@@ -33020,6 +33020,18 @@ export interface components {
              */
             readonly modified: string;
             commercial_business?: string | null;
+            /**
+             * Tipo de receptor
+             * @description Persona natural o empresa
+             * @enum {string}
+             */
+            receiver_type?: "PERSONA_NATURAL" | "EMPRESA" | null;
+            /**
+             * Documento por defecto
+             * @description Boleta o factura por defecto para este cliente
+             * @enum {string}
+             */
+            default_document_type?: "BOLETA" | "FACTURA" | null;
             region?: string | null;
             province?: string | null;
             commune?: string | null;
@@ -33663,6 +33675,18 @@ export interface components {
              */
             client_code?: string | null;
             commercial_business?: string | null;
+            /**
+             * Tipo de receptor
+             * @description Persona natural o empresa
+             * @enum {string}
+             */
+            receiver_type?: "PERSONA_NATURAL" | "EMPRESA" | null;
+            /**
+             * Documento por defecto
+             * @description Boleta o factura por defecto para este cliente
+             * @enum {string}
+             */
+            default_document_type?: "BOLETA" | "FACTURA" | null;
             region?: string | null;
             province?: string | null;
             commune?: string | null;
@@ -33722,6 +33746,18 @@ export interface components {
              */
             client_code?: string | null;
             commercial_business?: string | null;
+            /**
+             * Tipo de receptor
+             * @description Persona natural o empresa
+             * @enum {string}
+             */
+            receiver_type?: "PERSONA_NATURAL" | "EMPRESA" | null;
+            /**
+             * Documento por defecto
+             * @description Boleta o factura por defecto para este cliente
+             * @enum {string}
+             */
+            default_document_type?: "BOLETA" | "FACTURA" | null;
             region?: string | null;
             province?: string | null;
             commune?: string | null;
@@ -34160,6 +34196,18 @@ export interface components {
              */
             auto_create_meter: boolean;
             commercial_business?: string | null;
+            /**
+             * Tipo de receptor
+             * @description Persona natural o empresa
+             * @enum {string}
+             */
+            receiver_type?: "PERSONA_NATURAL" | "EMPRESA" | null;
+            /**
+             * Documento por defecto
+             * @description Boleta o factura por defecto para este cliente
+             * @enum {string}
+             */
+            default_document_type?: "BOLETA" | "FACTURA" | null;
             region?: string | null;
             province?: string | null;
             commune?: string | null;
@@ -43201,6 +43249,18 @@ export interface components {
              * @description RUT/DNI del cliente
              */
             dni?: string | null;
+            /**
+             * Tipo de receptor
+             * @description Persona natural o empresa
+             * @enum {string}
+             */
+            receiver_type?: "PERSONA_NATURAL" | "EMPRESA" | null;
+            /**
+             * Documento por defecto
+             * @description Boleta o factura por defecto para este cliente
+             * @enum {string}
+             */
+            default_document_type?: "BOLETA" | "FACTURA" | null;
         };
         /** @description Serializer simplificado para cliente dentro de órdenes. */
         OrderClientBriefRequest: {
@@ -49952,6 +50012,18 @@ export interface components {
              */
             auto_create_meter: boolean;
             commercial_business?: string | null;
+            /**
+             * Tipo de receptor
+             * @description Persona natural o empresa
+             * @enum {string}
+             */
+            receiver_type?: "PERSONA_NATURAL" | "EMPRESA" | null;
+            /**
+             * Documento por defecto
+             * @description Boleta o factura por defecto para este cliente
+             * @enum {string}
+             */
+            default_document_type?: "BOLETA" | "FACTURA" | null;
             region?: string | null;
             province?: string | null;
             commune?: string | null;

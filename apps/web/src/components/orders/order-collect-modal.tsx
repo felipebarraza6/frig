@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -27,6 +27,15 @@ interface PaymentLine {
   id: string;
   payment_method_id: string;
   amount: string;
+}
+
+
+function getDocumentTypeLabel(client?: { receiver_type?: string | null; default_document_type?: string | null } | null): { label: string; variant: string } {
+  if (!client) return { label: "Boleta", variant: "bg-muted text-muted-foreground" };
+  if (client.default_document_type === "FACTURA" || client.receiver_type === "EMPRESA") {
+    return { label: "Factura", variant: "bg-primary/10 text-primary" };
+  }
+  return { label: "Boleta", variant: "bg-muted text-muted-foreground" };
 }
 
 export default function OrderCollectModal({
@@ -125,6 +134,18 @@ export default function OrderCollectModal({
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-muted-foreground">Total a cobrar</span>
               <span className="text-lg font-semibold tabular-nums">{formatCLP(total)}</span>
+            </div>
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">Documento a generar</span>
+              {(() => {
+                const doc = getDocumentTypeLabel(order.client);
+                return (
+                  <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${doc.variant}`}>
+                    <FileText className="h-3 w-3" />
+                    {doc.label}
+                  </span>
+                );
+              })()}
             </div>
             {(order.net_amount || order.tax_amount || order.tax_rate) && (
               <div className="flex flex-col gap-1 border-t border-border/60 pt-1.5 text-xs text-muted-foreground">

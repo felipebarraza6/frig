@@ -80,6 +80,8 @@ export interface CustomerPayload {
   email?: string | null;
   commercial_business?: string | null;
   address?: string | null;
+  receiver_type?: "PERSONA_NATURAL" | "EMPRESA" | null;
+  default_document_type?: "BOLETA" | "FACTURA" | null;
   tags?: string[];
   is_active?: boolean;
 }
