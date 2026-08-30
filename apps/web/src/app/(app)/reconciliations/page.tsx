@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Scale,
+  ArrowLeftRight,
   Clock,
   CheckCircle2,
   AlertCircle,
@@ -153,7 +153,7 @@ const create = useMutation({
             <><StatSkeleton /><StatSkeleton /><StatSkeleton /><StatSkeleton /></>
           ) : (
             <>
-              <StatCard label="Total" value={summary?.total ?? 0} icon={Scale} sub="conciliaciones" tone="slate" />
+              <StatCard label="Total" value={summary?.total ?? 0} icon={ArrowLeftRight} sub="conciliaciones" tone="slate" />
               <StatCard label="Pendientes" value={summary?.pending ?? 0} icon={Clock} sub="por revisar" tone="amber" />
               <StatCard label="Completadas" value={summary?.completed ?? 0} icon={CheckCircle2} sub="balanceadas" tone="emerald" />
               <StatCard label="Discrepancias" value={summary?.discrepancy ?? 0} icon={AlertCircle} sub="requieren atención" tone="rose" />
@@ -231,7 +231,7 @@ const create = useMutation({
         ) : reconciliations.length === 0 ? (
           <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-border p-8 text-center">
             <div>
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-muted"><Scale className="h-7 w-7 text-muted-foreground" /></div>
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-muted"><ArrowLeftRight className="h-7 w-7 text-muted-foreground" /></div>
               <p className="mt-4 text-base font-medium">Sin conciliaciones</p>
               <p className="mx-auto mt-1 max-w-xs text-sm text-muted-foreground">Registra el saldo de tu extracto bancario para compararlo con el sistema.</p>
               <Button className="mt-4" size="sm" onClick={() => setCreateOpen(true)}><Plus className="mr-1.5 h-4 w-4" />Crear primera conciliación</Button>

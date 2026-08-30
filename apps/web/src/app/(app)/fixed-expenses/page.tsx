@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Repeat,
+  TrendingDown,
   Plus,
   Search,
   X,
@@ -152,7 +152,7 @@ export default function FixedExpensesPage() {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-border bg-card p-3">
             <div className="flex items-center gap-2 mb-1">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10"><Repeat className="h-3.5 w-3.5 text-primary" /></div>
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10"><TrendingDown className="h-3.5 w-3.5 text-primary" /></div>
               <span className="text-[11px] font-medium text-muted-foreground">Activos</span>
             </div>
             <p className="text-lg font-semibold tabular-nums">{expenses.filter((e) => e.status === "ACTIVE").length}</p>
@@ -198,7 +198,7 @@ export default function FixedExpensesPage() {
         ) : filtered.length === 0 ? (
           <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">
             <div>
-              <Repeat className="mx-auto h-10 w-10 text-muted-foreground" />
+              <TrendingDown className="mx-auto h-10 w-10 text-muted-foreground" />
               <p className="mt-3 text-sm font-medium">{search ? "Sin resultados" : "No hay gastos fijos"}</p>
               <p className="text-xs text-muted-foreground">Registra un gasto fijo para comenzar.</p>
             </div>

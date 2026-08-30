@@ -33,6 +33,9 @@ import {
   Utensils,
   PackageCheck,
   BoxesIcon,
+  Wallet,
+  ArrowLeftRight,
+  TrendingDown,
 } from "lucide-react";
 
 /**
@@ -74,6 +77,9 @@ export const ICON_MAP: Record<string, LucideIcon> = {
   Utensils,
   PackageCheck,
   BoxesIcon,
+  Wallet,
+  ArrowLeftRight,
+  TrendingDown,
 };
 
 export type IconName = keyof typeof ICON_MAP;

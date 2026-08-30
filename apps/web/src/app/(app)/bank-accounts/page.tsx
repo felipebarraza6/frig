@@ -7,7 +7,6 @@ import {
   Plus,
   Pencil,
   Trash2,
-  Landmark,
   X,
   Star,
   Search,
@@ -631,7 +630,7 @@ export default function BankAccountsPage() {
         ) : filteredAccounts.length === 0 ? (
           <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">
             <div>
-              <Landmark className="mx-auto h-10 w-10 text-muted-foreground" />
+              <Wallet className="mx-auto h-10 w-10 text-muted-foreground" />
               <p className="mt-3 text-sm font-medium">
                 {search ? "No se encontraron billeteras" : "No hay billeteras digitales"}
               </p>
@@ -1295,7 +1294,7 @@ function BankAccountCard({
       {/* Header: icono + nombre banco + nombre cuenta */}
       <div className="mb-3 flex items-start gap-3">
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-          <Landmark className="h-6 w-6" />
+          <Wallet className="h-6 w-6" />
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
