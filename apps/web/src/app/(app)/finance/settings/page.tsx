@@ -16,6 +16,8 @@ import {
   Pencil,
   Percent,
   CheckCircle2,
+  Cpu,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +26,7 @@ import {
   fetchBranchFinanceConfigs,
   updateBranchFinanceConfig,
   type BranchFinanceConfig,
+  type BranchFinanceConfigRequest,
 } from "@/lib/api/branch-finance-config";
 import { useToast } from "@/lib/store/toast";
 import {
@@ -35,7 +38,15 @@ import {
   type CreateTaxTypeInput,
 } from "@/lib/api/tax-types";
 import { fetchCategoryList, type YggdraCategory } from "@/lib/api/categories";
-import { fetchProducts, type ProductsFilter } from "@/lib/api/products";
+import {
+  fetchExternalAppInstallations,
+  createExternalAppInstallation,
+  fetchExternalApps,
+  type ExternalAppInstallation,
+  type CreateExternalAppInstallationInput,
+} from "@/lib/api/external-app-installations";
+import { fetchExternalAppExecutionLogs } from "@/lib/api/external-app-execution-logs";
+import { fetchProducts } from "@/lib/api/products";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 const THOUSAND_SEP_OPTIONS = [
@@ -133,6 +144,7 @@ export default function FinanceSettingsPage() {
       <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
         <ConfigForm config={currentConfig} onUpdate={(payload) => updateMut.mutate({ id: currentConfig.id, ...payload })} isPending={updateMut.isPending} />
         <TaxTypesSection branchId={currentConfig.branch} />
+        <SiiSection config={currentConfig} onUpdate={(payload) => updateMut.mutate({ id: currentConfig.id, ...payload })} isPending={updateMut.isPending} />
       </div>
     </div>
   );
@@ -339,6 +351,304 @@ function TaxTypesSection({ branchId }: { branchId: number }) {
           onClose={() => { setAdding(false); setEditing(null); }}
           isPending={createMut.isPending || updateMut.isPending}
         />
+      )}
+    </section>
+  );
+}
+
+const SII_TRIGGER_OPTIONS = [
+  { value: "MANUAL", label: "Manual (desde el detalle de orden)" },
+  { value: "ON_CREATION", label: "Al crear la orden" },
+  { value: "ON_COMPLETION", label: "Al completar la orden" },
+  { value: "ON_PAYMENT", label: "Al pagar la orden" },
+] as const;
+
+type SiiTrigger = (typeof SII_TRIGGER_OPTIONS)[number]["value"];
+
+const SII_DOCUMENT_OPTIONS = [
+  { value: "AUTO", label: "Automático según total" },
+  { value: "BOLETA", label: "Boleta electrónica (39)" },
+  { value: "FACTURA", label: "Factura electrónica (33)" },
+] as const;
+
+type SiiDocumentPreference = (typeof SII_DOCUMENT_OPTIONS)[number]["value"];
+
+function SiiSection({
+  config,
+  onUpdate,
+  isPending,
+}: {
+  config: BranchFinanceConfig;
+  onUpdate: (payload: Parameters<typeof updateBranchFinanceConfig>[1]) => void;
+  isPending: boolean;
+}) {
+  const toast = useToast();
+  const queryClient = useQueryClient();
+  const [isEditing, setIsEditing] = useState(false);
+  const [providerInstallation, setProviderInstallation] = useState<number | null>(
+    config.sii_provider_installation ?? null,
+  );
+  const [trigger, setTrigger] = useState<SiiTrigger>(
+    config.sii_generation_trigger ?? "MANUAL",
+  );
+  const [documentPreference, setDocumentPreference] = useState<SiiDocumentPreference>(
+    config.sii_document_preference ?? "AUTO",
+  );
+
+  const {
+    data: installations = [],
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: ["external-app-installations", config.branch],
+    queryFn: () => fetchExternalAppInstallations(config.branch),
+    enabled: !!config.branch,
+  });
+
+  const { data: externalApps = [] } = useQuery({
+    queryKey: ["external-apps"],
+    queryFn: fetchExternalApps,
+  });
+
+  const simpleApiAppId = externalApps.find((a) => a.slug === "simpleapi-sii")?.id;
+
+  const { data: logs = [] } = useQuery({
+    queryKey: ["external-app-execution-logs", config.sii_provider_installation],
+    queryFn: () =>
+      fetchExternalAppExecutionLogs(providerInstallation ?? undefined),
+    enabled: !!providerInstallation,
+  });
+
+  const createInstallationMut = useMutation({
+    mutationFn: createExternalAppInstallation,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["external-app-installations", config.branch] });
+      setProviderInstallation(data.id);
+      onUpdate({
+        sii_provider_installation: data.id,
+        sii_generation_trigger: trigger,
+        sii_document_preference: documentPreference,
+      });
+      toast.success("Proveedor SII configurado y seleccionado");
+      setIsEditing(false);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onUpdate({
+      sii_provider_installation: providerInstallation,
+      sii_generation_trigger: trigger as BranchFinanceConfigRequest["sii_generation_trigger"],
+      sii_document_preference: documentPreference as BranchFinanceConfigRequest["sii_document_preference"],
+    });
+  };
+
+  const simpleApiInstallation = installations.find(
+    (i) =>
+      i.external_app_name === "SimpleAPI" ||
+      i.external_app_name?.toLowerCase().includes("simpleapi"),
+  );
+
+  return (
+    <section className="rounded-xl border border-border bg-card p-4">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Cpu className="h-4 w-4 text-primary" />
+          <h2 className="text-sm font-semibold">Configuración SII / DTE</h2>
+        </div>
+        {!isEditing && (
+          <Button size="sm" variant="outline" onClick={() => setIsEditing(true)}>
+            <Pencil className="mr-1 h-3.5 w-3.5" />Editar
+          </Button>
+        )}
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-2">
+          <div className="h-12 animate-pulse rounded-lg bg-muted/30" />
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {!providerInstallation && installations.length > 0 && (
+            <div className="rounded-lg bg-muted/80 p-3 text-xs text-foreground">
+              <p>Hay {installations.length} proveedor(es) disponible(s). Edita la configuración para seleccionar uno.</p>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="mt-2"
+                onClick={() => setIsEditing(true)}
+              >
+                <Pencil className="mr-1.5 h-3.5 w-3.5" />Seleccionar proveedor
+              </Button>
+            </div>
+          )}
+
+          {!simpleApiInstallation && installations.length === 0 && (
+            <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
+              <p>No hay un proveedor SII configurado para esta sucursal.</p>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="mt-2"
+                disabled={createInstallationMut.isPending || !simpleApiAppId}
+                onClick={() =>
+                  simpleApiAppId &&
+                  createInstallationMut.mutate({
+                    external_app: simpleApiAppId,
+                    branch: config.branch,
+                    label: "SimpleAPI SII",
+                    description: "Proveedor SII por defecto",
+                    credentials: {},
+                    config_override: {},
+                    is_active: true,
+                  })
+                }
+              >
+                {createInstallationMut.isPending ? (
+                  <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />Configurando...</>
+                ) : (
+                  <><Plus className="mr-1.5 h-3.5 w-3.5" />Configurar SimpleAPI SII</>
+                )}
+              </Button>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground">Proveedor SII</label>
+              {isEditing ? (
+                <Select
+                  value={providerInstallation ? String(providerInstallation) : ""}
+                  onChange={(e) =>
+                    setProviderInstallation(e.target.value ? Number(e.target.value) : null)
+                  }
+                  className="h-9 text-sm"
+                >
+                  <option value="">Sin proveedor (módulo oculto)</option>
+                  {installations.map((i) => (
+                    <option key={i.id} value={i.id}>
+                      {i.label} {i.external_app_name ? `(${i.external_app_name})` : ""}
+                    </option>
+                  ))}
+                </Select>
+              ) : (
+                <p className="text-sm">
+                  {installations.find((i) => i.id === providerInstallation)?.label ??
+                    "Sin proveedor"}
+                </p>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground">Disparador de emisión</label>
+              {isEditing ? (
+                <Select
+                  value={trigger}
+                  onChange={(e) => setTrigger(e.target.value as SiiTrigger)}
+                  className="h-9 text-sm"
+                >
+                  {SII_TRIGGER_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </Select>
+              ) : (
+                <p className="text-sm">
+                  {SII_TRIGGER_OPTIONS.find((o) => o.value === trigger)?.label ?? trigger}
+                </p>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground">Tipo de documento preferido</label>
+              {isEditing ? (
+                <Select
+                  value={documentPreference}
+                  onChange={(e) => setDocumentPreference(e.target.value as SiiDocumentPreference)}
+                  className="h-9 text-sm"
+                >
+                  {SII_DOCUMENT_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </Select>
+              ) : (
+                <p className="text-sm">
+                  {SII_DOCUMENT_OPTIONS.find((o) => o.value === documentPreference)?.label ??
+                    documentPreference}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {isEditing && (
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setProviderInstallation(config.sii_provider_installation ?? null);
+                  setTrigger(config.sii_generation_trigger ?? "MANUAL");
+                  setDocumentPreference(config.sii_document_preference ?? "AUTO");
+                  setIsEditing(false);
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" size="sm" disabled={isPending}>
+                {isPending ? (
+                  <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />Guardando...</>
+                ) : (
+                  <><Save className="mr-1.5 h-3.5 w-3.5" />Guardar SII</>
+                )}
+              </Button>
+            </div>
+          )}
+
+          {providerInstallation && logs.length > 0 && (
+            <div className="rounded-lg border border-border bg-background p-3">
+              <div className="mb-2 flex items-center gap-2">
+                <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                <h3 className="text-xs font-medium">Últimas ejecuciones</h3>
+              </div>
+              <div className="max-h-48 space-y-2 overflow-y-auto">
+                {logs.slice(0, 20).map((log) => (
+                  <div
+                    key={log.id}
+                    className="flex items-start justify-between rounded-md border border-border p-2 text-xs"
+                  >
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-medium">
+                        {log.endpoint_name ?? log.request_method}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {new Date(log.created).toLocaleString("es-CL")}
+                      </span>
+                      {log.error_message && (
+                        <span className="text-danger">{log.error_message}</span>
+                      )}
+                    </div>
+                    <span
+                      className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                        log.success
+                          ? "bg-success/10 text-success"
+                          : "bg-danger/10 text-danger"
+                      }`}
+                    >
+                      {log.success ? "OK" : "Error"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </form>
       )}
     </section>
   );

@@ -1,7 +1,11 @@
 import { apiFetch } from "./client";
 import type { YggdraSchemas } from "@/lib/api/types";
 
-export type BranchFinanceConfig = YggdraSchemas["BranchFinanceConfig"];
+export type BranchFinanceConfig = YggdraSchemas["BranchFinanceConfig"] & {
+  sii_provider_installation?: number | null;
+  sii_generation_trigger?: "ON_CREATION" | "ON_COMPLETION" | "ON_PAYMENT" | "MANUAL";
+  sii_document_preference?: "AUTO" | "BOLETA" | "FACTURA";
+};
 type PaginatedBranchFinanceConfigList = YggdraSchemas["PaginatedBranchFinanceConfigList"];
 
 export interface BranchFinanceConfigRequest {
@@ -18,6 +22,9 @@ export interface BranchFinanceConfigRequest {
   default_revenue_category_sales?: string | null;
   default_payment_method?: string | null;
   default_bank_account?: string | null;
+  sii_provider_installation?: number | null;
+  sii_generation_trigger?: "ON_CREATION" | "ON_COMPLETION" | "ON_PAYMENT" | "MANUAL";
+  sii_document_preference?: "AUTO" | "BOLETA" | "FACTURA";
 }
 
 export async function fetchBranchFinanceConfigs(): Promise<BranchFinanceConfig[]> {
