@@ -1,7 +1,7 @@
 import { apiFetch } from "./client";
 
 export type ExternalApp = {
-  id: number;
+  id: string;
   name: string;
   slug: string;
   description?: string;
@@ -12,8 +12,8 @@ export type ExternalApp = {
 };
 
 export type ExternalAppInstallation = {
-  id: number;
-  external_app: number | { id: number; name: string; slug: string };
+  id: string;
+  external_app: string | { id: string; name: string; slug: string };
   external_app_name?: string;
   external_app_category?: string;
   branch: number;
@@ -29,7 +29,7 @@ export type ExternalAppInstallation = {
 };
 
 export interface CreateExternalAppInstallationInput {
-  external_app: number;
+  external_app: string;
   branch?: number;
   label: string;
   description?: string;
@@ -59,7 +59,7 @@ export async function createExternalAppInstallation(
     "/external-apps/external-app-installations/",
     {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: payload,
     },
   );
 }
@@ -72,7 +72,7 @@ export async function updateExternalAppInstallation(
     `/external-apps/external-app-installations/${id}/`,
     {
       method: "PATCH",
-      body: JSON.stringify(payload),
+      body: payload,
     },
   );
 }

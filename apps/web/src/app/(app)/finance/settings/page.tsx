@@ -385,7 +385,7 @@ function SiiSection({
   const toast = useToast();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
-  const [providerInstallation, setProviderInstallation] = useState<number | null>(
+  const [providerInstallation, setProviderInstallation] = useState<string | null>(
     config.sii_provider_installation ?? null,
   );
   const [trigger, setTrigger] = useState<SiiTrigger>(
@@ -521,9 +521,9 @@ function SiiSection({
               <label className="text-xs text-muted-foreground">Proveedor SII</label>
               {isEditing ? (
                 <Select
-                  value={providerInstallation ? String(providerInstallation) : ""}
+                  value={providerInstallation ?? ""}
                   onChange={(e) =>
-                    setProviderInstallation(e.target.value ? Number(e.target.value) : null)
+                    setProviderInstallation(e.target.value || null)
                   }
                   className="h-9 text-sm"
                 >

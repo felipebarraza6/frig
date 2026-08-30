@@ -21,7 +21,7 @@ export type ExternalAppExecutionLog = {
 };
 
 export async function fetchExternalAppExecutionLogs(
-  installationId?: number,
+  installationId?: string,
 ): Promise<ExternalAppExecutionLog[]> {
   const qs = installationId ? `?installation=${installationId}` : "";
   const data = await apiFetch<{ results?: ExternalAppExecutionLog[] }>(
