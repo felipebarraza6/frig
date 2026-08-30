@@ -10,7 +10,6 @@ import {
   RotateCcw,
   DollarSign,
   Receipt,
-  Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -118,7 +117,6 @@ function ConfigForm({ config, onUpdate, isPending }: {
   const [decimalSep, setDecimalSep] = useState<"," | ".">(config.decimal_separator ?? ",");
   const [taxRate, setTaxRate] = useState(String(config.default_tax_rate ?? 19));
   const [showTaxBreakdown, setShowTaxBreakdown] = useState(config.show_tax_breakdown ?? true);
-  const [autoReceipts, setAutoReceipts] = useState(config.auto_generate_receipts ?? false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,7 +127,6 @@ function ConfigForm({ config, onUpdate, isPending }: {
       decimal_separator: decimalSep,
       default_tax_rate: taxRate,
       show_tax_breakdown: showTaxBreakdown,
-      auto_generate_receipts: autoReceipts,
     });
   };
 
@@ -195,20 +192,6 @@ function ConfigForm({ config, onUpdate, isPending }: {
               <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${showTaxBreakdown ? "translate-x-6" : "translate-x-1"}`} />
             </button>
           </div>
-        </div>
-      </section>
-
-      {/* Comportamiento */}
-      <section className="rounded-xl border border-border bg-card p-4">
-        <div className="flex items-center gap-2 mb-4">
-          <Building2 className="h-4 w-4 text-primary" />
-          <h2 className="text-sm font-semibold">Comportamiento</h2>
-        </div>
-        <div className="flex items-center justify-between">
-          <label className="text-sm">Generar comprobantes automáticamente</label>
-          <button type="button" onClick={() => setAutoReceipts(!autoReceipts)} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${autoReceipts ? "bg-primary" : "bg-muted"}`}>
-            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${autoReceipts ? "translate-x-6" : "translate-x-1"}`} />
-          </button>
         </div>
       </section>
 

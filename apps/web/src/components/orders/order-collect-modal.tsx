@@ -121,9 +121,23 @@ export default function OrderCollectModal({
     >
       <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
         <ModalBody className="flex flex-col gap-4">
-          <div className="flex items-center justify-between rounded-lg border border-border p-3 text-sm">
-            <span className="text-muted-foreground">Total a cobrar</span>
-            <span className="text-lg font-semibold tabular-nums">{formatCLP(total)}</span>
+          <div className="rounded-lg border border-border p-3 text-sm">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-muted-foreground">Total a cobrar</span>
+              <span className="text-lg font-semibold tabular-nums">{formatCLP(total)}</span>
+            </div>
+            {(order.net_amount || order.tax_amount || order.tax_rate) && (
+              <div className="flex flex-col gap-1 border-t border-border/60 pt-1.5 text-xs text-muted-foreground">
+                <div className="flex justify-between">
+                  <span>Neto (sin IVA{order.tax_rate ? ` ${order.tax_rate}%` : ""})</span>
+                  <span className="tabular-nums">{formatCLP(parseFloat(order.net_amount ?? "0"))}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>IVA</span>
+                  <span className="tabular-nums">{formatCLP(parseFloat(order.tax_amount ?? "0"))}</span>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col gap-2">

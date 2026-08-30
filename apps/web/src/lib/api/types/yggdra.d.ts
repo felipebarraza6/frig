@@ -43042,6 +43042,12 @@ export interface components {
              * @description Use decimals for monetary precision
              */
             total_cost?: string;
+            /** Tasa de IVA (%) desde BranchFinanceConfig */
+            tax_rate?: string;
+            /** Monto neto (sin IVA) */
+            net_amount?: string;
+            /** Monto de IVA */
+            tax_amount?: string;
             payment_fees?: number;
             /** Payment Days */
             day_pay_fees?: number;
