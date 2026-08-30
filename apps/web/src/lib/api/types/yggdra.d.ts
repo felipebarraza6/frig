@@ -29486,6 +29486,23 @@ export interface components {
          * @description Serializer para configuración financiera de sucursal.
          *     Maneja formato de moneda, categorías por defecto e impuestos.
          */
+        TaxType: {
+            id: string;
+            branch: number;
+            branch_name?: string;
+            name: string;
+            code?: string;
+            description?: string;
+            tax_calc: "PERCENTAGE" | "FIXED";
+            rate: string;
+            applies_to: string;
+            is_included_in_price: boolean;
+            is_active: boolean;
+            is_default: boolean;
+            priority: number;
+            created?: string;
+            modified?: string;
+        };
         BranchFinanceConfig: {
             readonly id: number;
             /**

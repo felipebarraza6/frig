@@ -10,6 +10,11 @@ import {
   RotateCcw,
   DollarSign,
   Receipt,
+  Plus,
+  Trash2,
+  Pencil,
+  Percent,
+  CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +25,15 @@ import {
   type BranchFinanceConfig,
 } from "@/lib/api/branch-finance-config";
 import { useToast } from "@/lib/store/toast";
+import {
+  fetchTaxTypes,
+  createTaxType,
+  updateTaxType,
+  deleteTaxType,
+  type TaxType,
+  type CreateTaxTypeInput,
+} from "@/lib/api/tax-types";
+import { useCurrentBranch } from "@/lib/store/session";
 
 const THOUSAND_SEP_OPTIONS = [
   { value: ".", label: "Punto (.)" },
@@ -115,8 +129,6 @@ function ConfigForm({ config, onUpdate, isPending }: {
   const [decimalPlaces, setDecimalPlaces] = useState(String(config.decimal_places ?? 0));
   const [thousandSep, setThousandSep] = useState<"." | "," | " " | "">(config.thousand_separator ?? ".");
   const [decimalSep, setDecimalSep] = useState<"," | ".">(config.decimal_separator ?? ",");
-  const [taxRate, setTaxRate] = useState(String(config.default_tax_rate ?? 19));
-  const [showTaxBreakdown, setShowTaxBreakdown] = useState(config.show_tax_breakdown ?? true);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,8 +137,8 @@ function ConfigForm({ config, onUpdate, isPending }: {
       decimal_places: parseInt(decimalPlaces) || 0,
       thousand_separator: thousandSep,
       decimal_separator: decimalSep,
-      default_tax_rate: taxRate,
-      show_tax_breakdown: showTaxBreakdown,
+      default_tax_rate: "19",
+      show_tax_breakdown: true,
     });
   };
 
@@ -175,25 +187,8 @@ function ConfigForm({ config, onUpdate, isPending }: {
         </div>
       </section>
 
-      {/* Impuestos */}
-      <section className="rounded-xl border border-border bg-card p-4">
-        <div className="flex items-center gap-2 mb-4">
-          <Receipt className="h-4 w-4 text-primary" />
-          <h2 className="text-sm font-semibold">Impuestos</h2>
-        </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-muted-foreground">IVA por defecto (%)</label>
-            <Input type="number" step="0.01" min="0" max="100" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} className="h-9 text-sm" />
-          </div>
-          <div className="flex items-center gap-3 pt-5">
-            <label className="text-sm font-medium">Mostrar desglose IVA</label>
-            <button type="button" onClick={() => setShowTaxBreakdown(!showTaxBreakdown)} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${showTaxBreakdown ? "bg-primary" : "bg-muted"}`}>
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${showTaxBreakdown ? "translate-x-6" : "translate-x-1"}`} />
-            </button>
-          </div>
-        </div>
-      </section>
+      {/* Impuestos dinámicos */}
+      <TaxTypesSection branchId={config.branch} />
 
       {/* Save */}
       <div className="flex justify-end">
@@ -202,5 +197,238 @@ function ConfigForm({ config, onUpdate, isPending }: {
         </Button>
       </div>
     </form>
+  );
+}
+
+
+function TaxTypesSection({ branchId }: { branchId: number }) {
+  const toast = useToast();
+  const queryClient = useQueryClient();
+  const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<TaxType | null>(null);
+
+  const { data: taxTypes = [], isLoading } = useQuery({
+    queryKey: ["tax-types", branchId],
+    queryFn: () => fetchTaxTypes({ branch: branchId }),
+    enabled: !!branchId,
+  });
+
+  const createMut = useMutation({
+    mutationFn: createTaxType,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tax-types", branchId] });
+      setAdding(false);
+      toast.success("Impuesto creado");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const updateMut = useMutation({
+    mutationFn: ({ id, ...payload }: { id: string } & Partial<CreateTaxTypeInput>) =>
+      updateTaxType(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tax-types", branchId] });
+      setEditing(null);
+      toast.success("Impuesto actualizado");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: deleteTaxType,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tax-types", branchId] });
+      toast.success("Impuesto eliminado");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  return (
+    <section className="rounded-xl border border-border bg-card p-4">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Receipt className="h-4 w-4 text-primary" />
+          <h2 className="text-sm font-semibold">Impuestos configurados</h2>
+        </div>
+        <Button size="sm" variant="outline" onClick={() => { setAdding(true); setEditing(null); }}>
+          <Plus className="mr-1 h-3.5 w-3.5" />Agregar
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-2">
+          {[1, 2].map((i) => <div key={i} className="h-12 animate-pulse rounded-lg bg-muted/30" />)}
+        </div>
+      ) : taxTypes.length === 0 ? (
+        <p className="text-xs text-muted-foreground text-center py-4">No hay impuestos configurados. Agrega uno para comenzar.</p>
+      ) : (
+        <div className="space-y-2">
+          {taxTypes.map((t) => (
+            <div key={t.id} className="flex items-center justify-between rounded-lg border border-border p-3 text-sm">
+              <div className="flex items-center gap-3">
+                <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${t.is_active ? "bg-primary/10" : "bg-muted"}`}>
+                  <Percent className={`h-4 w-4 ${t.is_active ? "text-primary" : "text-muted-foreground"}`} />
+                </div>
+                <div>
+                  <p className="font-medium">
+                    {t.name}
+                    {t.is_default && (
+                      <span className="ml-1.5 inline-flex items-center gap-0.5 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                        <CheckCircle2 className="h-2.5 w-2.5" />Por defecto
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {t.tax_calc === "PERCENTAGE" ? `${t.rate}%` : `$${t.rate}`}
+                    {" · "}
+                    {t.applies_to === "ALL" ? "Todos los productos" : t.applies_to}
+                    {" · "}
+                    {t.is_included_in_price ? "Incluido en precio" : "Se agrega al precio"}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => { setEditing(t); setAdding(false); }}
+                  className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted"
+                  title="Editar"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+                {!t.is_default && (
+                  <button
+                    type="button"
+                    onClick={() => { if (confirm(`¿Eliminar impuesto "${t.name}"?`)) deleteMut.mutate(t.id); }}
+                    className="rounded-md p-1.5 text-muted-foreground hover:text-danger hover:bg-danger/10"
+                    title="Eliminar"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {(adding || editing) && (
+        <TaxTypeForm
+          taxType={editing}
+          branchId={branchId}
+          onSubmit={(payload) => {
+            if (editing) updateMut.mutate({ id: editing.id, ...payload });
+            else createMut.mutate({ branch: branchId, ...payload } as CreateTaxTypeInput);
+          }}
+          onClose={() => { setAdding(false); setEditing(null); }}
+          isPending={createMut.isPending || updateMut.isPending}
+        />
+      )}
+    </section>
+  );
+}
+
+function TaxTypeForm({ taxType, branchId, onSubmit, onClose, isPending }: {
+  taxType: TaxType | null;
+  branchId: number;
+  onSubmit: (payload: Partial<CreateTaxTypeInput>) => void;
+  onClose: () => void;
+  isPending: boolean;
+}) {
+  const [name, setName] = useState(taxType?.name ?? "");
+  const [code, setCode] = useState(taxType?.code ?? "");
+  const [description, setDescription] = useState(taxType?.description ?? "");
+  const [taxCalc, setTaxCalc] = useState<"PERCENTAGE" | "FIXED">(taxType?.tax_calc ?? "PERCENTAGE");
+  const [rate, setRate] = useState(String(taxType?.rate ?? ""));
+  const [appliesTo, setAppliesTo] = useState(taxType?.applies_to ?? "ALL");
+  const [isIncluded, setIsIncluded] = useState(taxType?.is_included_in_price ?? true);
+  const [isDefault, setIsDefault] = useState(taxType?.is_default ?? false);
+  const [isActive, setIsActive] = useState(taxType?.is_active ?? true);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name || !rate) return;
+    onSubmit({
+      name,
+      code: code || undefined,
+      description: description || undefined,
+      tax_calc: taxCalc,
+      rate: parseFloat(rate),
+      applies_to: appliesTo,
+      is_included_in_price: isIncluded,
+      is_default: isDefault,
+      is_active: isActive,
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 md:items-center md:p-4" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="w-full rounded-t-xl border-x border-t border-border bg-card shadow-lg md:max-w-md md:rounded-xl md:border">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <h3 className="text-sm font-semibold">{taxType ? "Editar impuesto" : "Nuevo impuesto"}</h3>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">✕</button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-4 space-y-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium">Nombre *</label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: IVA, ILA" required />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium">Código</label>
+              <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Ej: IVA" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium">Tipo *</label>
+              <Select value={taxCalc} onChange={(e) => setTaxCalc(e.target.value as typeof taxCalc)}>
+                <option value="PERCENTAGE">Porcentual (%)</option>
+                <option value="FIXED">Monto fijo ($)</option>
+              </Select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium">Tasa / Monto *</label>
+              <Input type="number" step="0.01" min="0" max="100" value={rate} onChange={(e) => setRate(e.target.value)} required placeholder={taxCalc === "PERCENTAGE" ? "Ej: 19" : "Ej: 500"} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium">Aplica a</label>
+              <Select value={appliesTo} onChange={(e) => setAppliesTo(e.target.value)}>
+                <option value="ALL">Todos los productos</option>
+                <option value="FOOD">Alimentos</option>
+                <option value="BEVERAGES">Bebidas</option>
+                <option value="ALCOHOL">Bebidas alcohólicas</option>
+                <option value="SERVICES">Servicios</option>
+                <option value="PRODUCTS">Productos (no alimentos)</option>
+              </Select>
+            </div>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium">Descripción</label>
+            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descripción del impuesto (opcional)" />
+          </div>
+          <div className="flex flex-wrap gap-4 text-sm">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={isIncluded} onChange={(e) => setIsIncluded(e.target.checked)} className="rounded" />
+              Incluido en precio
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} className="rounded" />
+              Por defecto
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="rounded" />
+              Activo
+            </label>
+          </div>
+          <div className="flex justify-end gap-2 pt-2 border-t border-border">
+            <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>Cancelar</Button>
+            <Button type="submit" disabled={isPending || !name || !rate}>
+              {isPending ? <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />Guardando...</> : "Guardar"}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }
