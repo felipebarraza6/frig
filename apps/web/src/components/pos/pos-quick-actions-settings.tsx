@@ -14,11 +14,13 @@ import {
   type POSQuickActionType,
   DEFAULT_POS_QUICK_ACTIONS,
   updateBranchPOSConfig,
+  createBranchPOSConfig,
 } from "@/lib/api/branches";
 
 interface PosQuickActionsSettingsProps {
   open: boolean;
   config: BranchPOSConfig | null | undefined;
+  branchId?: number | string | null;
   onClose: () => void;
 }
 
@@ -73,6 +75,7 @@ function Toggle({
 export default function PosQuickActionsSettings({
   open,
   config,
+  branchId,
   onClose,
 }: PosQuickActionsSettingsProps) {
   const toast = useToast();
@@ -109,10 +112,17 @@ export default function PosQuickActionsSettings({
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (!config?.id) throw new Error("No hay configuración para guardar");
-      return updateBranchPOSConfig(config.id, {
+      const payload = {
         enable_quick_actions: enableQuickActions,
         quick_actions: actions,
+      };
+      if (config?.id) {
+        return updateBranchPOSConfig(config.id, payload);
+      }
+      if (!branchId) throw new Error("No se pudo determinar la sucursal");
+      return createBranchPOSConfig({
+        branch: branchId,
+        ...payload,
       });
     },
     onSuccess: () => {
@@ -235,7 +245,7 @@ export default function PosQuickActionsSettings({
         </Button>
         <Button
           onClick={() => saveMutation.mutate()}
-          disabled={!config?.id || !hasChanges || saveMutation.isPending}
+          disabled={(!config?.id && !branchId) || !hasChanges || saveMutation.isPending}
           isLoading={saveMutation.isPending}
         >
           Guardar

@@ -300,6 +300,15 @@ export async function updateBranchPOSConfig(
   });
 }
 
+export async function createBranchPOSConfig(
+  payload: Partial<BranchPOSConfig>,
+): Promise<BranchPOSConfig> {
+  return apiFetch<BranchPOSConfig>("/branches/pos-config/", {
+    method: "POST",
+    body: payload,
+  });
+}
+
 export interface BranchThemeConfigPayload {
   app_name?: string;
   login_welcome_message?: string;

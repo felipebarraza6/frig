@@ -22,7 +22,7 @@ import { getCurrentCashRegister } from "@/lib/api/cash-register";
 import { cn } from "@/lib/utils";
 import PayPendingItemModal from "./pay-pending-item-modal";
 import PosQuickActionsSettings from "./pos-quick-actions-settings";
-import { useIsOwner, useIsSuperAdmin } from "@/lib/store/session";
+import { useIsOwner, useIsSuperAdmin, useCurrentBranch } from "@/lib/store/session";
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   Receipt,
@@ -46,6 +46,8 @@ interface PosQuickActionsProps {
 export default function PosQuickActions({ stationId }: PosQuickActionsProps) {
   const [activeType, setActiveType] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const branch = useCurrentBranch();
+  const branchId = branch?.branch_id ?? null;
   const isOwner = useIsOwner();
   const isSuperAdmin = useIsSuperAdmin();
   const canConfigure = isOwner || isSuperAdmin;
@@ -111,7 +113,7 @@ export default function PosQuickActions({ stationId }: PosQuickActionsProps) {
           );
         })
       )}
-      {canConfigure && config && (
+      {canConfigure && (
         <Button
           type="button"
           variant="ghost"
@@ -139,6 +141,7 @@ export default function PosQuickActions({ stationId }: PosQuickActionsProps) {
     <PosQuickActionsSettings
       open={settingsOpen}
       config={config}
+      branchId={branchId}
       onClose={() => setSettingsOpen(false)}
     />
   </>
