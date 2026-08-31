@@ -422,7 +422,6 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
   }
 
   const willBeOrder = !existingOrderId && defaultOrderType === "ORDER";
-  const willBeOpenAccount = !existingOrderId && payments.length === 0;
 
   const canRegister = existingOrderId
     ? items.length > 0 && !saving
@@ -430,7 +429,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
       !saving &&
       !cashRegisterMissing &&
       (payments.length === 0 || paidAmount >= total) &&
-      ((!willBeOrder && !willBeOpenAccount) || selectedClient != null);
+      (!willBeOrder || selectedClient != null);
 
   const hasPendingPayment = payments.length > 0 && paidAmount < total;
 
@@ -440,7 +439,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
         <div className="flex items-center justify-between">
           <label className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
             <User className="h-3 w-3" />
-            Cliente <span className="text-danger">*</span>
+            Cliente
           </label>
           {showCloseButton && (
             <button
@@ -762,7 +761,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
 
               {!existingOrderId && (
                 <>
-                  {(willBeOrder || willBeOpenAccount) ? (
+                  {willBeOrder ? (
                     renderClientField()
                   ) : selectedClient ? (
                     <div className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-2">
@@ -809,7 +808,17 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                     </button>
                   ) : (
                     <>
-                      <label className="text-[11px] font-medium text-muted-foreground">Código de descuento</label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-medium text-muted-foreground">Código de descuento</label>
+                        <button
+                          type="button"
+                          onClick={() => setShowDiscountSection(false)}
+                          className="inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                          aria-label="Cerrar"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                       <div className="flex items-center gap-2">
                         <Input
                           value={discountCode}
@@ -978,16 +987,12 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
         {items.length > 0 && (
           <div className={cn("rounded-lg px-3 py-2 text-xs", modeConfig.color.split(" ")[1], modeConfig.color.split(" ")[0])}>
             <span className="font-medium">{modeConfig.label}</span>
-            {" · "}
-            {existingOrderId
-              ? "Se agregarán los ítems a la orden existente."
-              : defaultOrderType === "ORDER"
-                ? "Se guardará como orden sin cobrar. Requiere cliente."
-                : payments.length > 0
-                  ? "Venta pagada al contado. Se generará comprobante."
-                  : isWaiter
-                    ? "Se guardará como pedido de mesa."
-                    : "Se guardará como cuenta abierta (sin cobrar)."}
+            {existingOrderId && (
+              <>{" · "}Se agregarán los ítems a la orden existente.</>
+            )}
+            {defaultOrderType === "ORDER" && !existingOrderId && (
+              <>{" · "}Requiere cliente.</>
+            )}
           </div>
         )}
 
