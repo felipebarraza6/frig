@@ -14,6 +14,7 @@ import {
   Search,
   Table,
   ClipboardList,
+  Receipt,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +28,7 @@ import {
   cartItemSubtotal,
   type CartItem,
 } from "@/lib/store/cart";
-import { formatCLP, paymentTypeLabel } from "@/lib/utils";
+import { formatCLP, paymentTypeLabel, cn } from "@/lib/utils";
 import { useToast } from "@/lib/store/toast";
 import { createOrder, addItemsToOrder, cartToOrderItems } from "@/lib/api/orders";
 import { fetchPaymentMethods, createPayment } from "@/lib/api/payments";
@@ -548,33 +549,49 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
     );
   }
 
+  const modeConfig = useMemo(() => {
+    if (existingOrderId && existingOrder) {
+      if (existingOrder.order_type === "ORDER") {
+        return { label: "Editando orden", icon: ClipboardList, color: "text-blue-600 bg-blue-500/10" };
+      }
+      if (existingOrder.order_type === "SALE" && !existingOrder.payment_status?.startsWith("PENDING")) {
+        return { label: "Editando venta", icon: Receipt, color: "text-emerald-600 bg-emerald-500/10" };
+      }
+      return { label: "Editando cuenta", icon: ClipboardList, color: "text-amber-600 bg-amber-500/10" };
+    }
+    if (defaultOrderType === "ORDER") {
+      return { label: "Nueva orden", icon: ClipboardList, color: "text-blue-600 bg-blue-500/10" };
+    }
+    if (payments.length > 0) {
+      return { label: "Venta al contado", icon: Receipt, color: "text-emerald-600 bg-emerald-500/10" };
+    }
+    if (isWaiter) {
+      return { label: "Nuevo pedido", icon: ClipboardList, color: "text-violet-600 bg-violet-500/10" };
+    }
+    return { label: "Nueva cuenta", icon: ClipboardList, color: "text-amber-600 bg-amber-500/10" };
+  }, [existingOrderId, existingOrder, defaultOrderType, payments.length, isWaiter]);
+
+  const ModeIcon = modeConfig.icon;
+
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-background">
       <div className="flex shrink-0 items-center justify-between border-b border-border/60 px-4 py-3">
         <div className="flex items-center gap-2">
-          <ShoppingCart className="h-4 w-4 text-primary" />
-          <h2 className="text-sm font-semibold">
-            {(() => {
-              if (existingOrderId && existingOrder) {
-                if (existingOrder.order_type === "ORDER") return `Editando orden #${existingOrder.order_number ?? ""}`;
-                if (existingOrder.order_type === "SALE" && !existingOrder.payment_status?.startsWith("PENDING")) {
-                  return `Editando venta #${existingOrder.order_number ?? ""}`;
-                }
-                return `Editando cuenta #${existingOrder.order_number ?? ""}`;
-              }
-              if (defaultOrderType === "ORDER") return "Nueva orden";
-              if (defaultOrderType === "SALE") return "Nueva venta";
-              return "Cuenta";
-            })()}
-          </h2>
+          <span className={cn("flex h-7 w-7 items-center justify-center rounded-lg", modeConfig.color.split(" ")[1])}>
+            <ModeIcon className={cn("h-4 w-4", modeConfig.color.split(" ")[0])} />
+          </span>
+          <div className="flex flex-col">
+            <h2 className="text-sm font-semibold leading-tight">
+              {existingOrderId && existingOrder
+                ? `${modeConfig.label} #${existingOrder.order_number ?? ""}`
+                : modeConfig.label}
+            </h2>
+            <span className="text-[10px] text-muted-foreground">
+              {displayItemCount} {displayItemCount === 1 ? "ítem" : "ítems"} · {formatCLP(total)}
+            </span>
+          </div>
         </div>
         <div className="flex items-center gap-2">
-          <span
-            key={displayItemCount}
-            className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
-          >
-            {displayItemCount} {displayItemCount === 1 ? "ítem" : "ítems"}
-          </span>
           {onClose && (
             <button
               type="button"
@@ -897,6 +914,22 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
           <p className="rounded-lg bg-amber-500/10 px-3 py-1.5 text-xs text-amber-700">
             Faltan {formatCLP(remaining)} para completar el pago.
           </p>
+        )}
+
+        {items.length > 0 && (
+          <div className={cn("rounded-lg px-3 py-2 text-xs", modeConfig.color.split(" ")[1], modeConfig.color.split(" ")[0])}>
+            <span className="font-medium">{modeConfig.label}</span>
+            {" · "}
+            {existingOrderId
+              ? "Se agregarán los ítems a la orden existente."
+              : defaultOrderType === "ORDER"
+                ? "Se guardará como orden sin cobrar. Requiere cliente."
+                : payments.length > 0
+                  ? "Venta pagada al contado. Se generará comprobante."
+                  : isWaiter
+                    ? "Se guardará como pedido de mesa."
+                    : "Se guardará como cuenta abierta (sin cobrar)."}
+          </div>
         )}
 
         <div className="flex flex-col gap-1 text-xs">

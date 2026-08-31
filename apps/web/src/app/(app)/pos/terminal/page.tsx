@@ -275,6 +275,9 @@ export default function PosPage() {
   function handlePostSaleOrder(order: Order, items?: CartItem[]) {
     setPostSaleOrder(order);
     setPostSaleItems(items ?? []);
+    queryClient.invalidateQueries({ queryKey: ["cash-register"] });
+    queryClient.invalidateQueries({ queryKey: ["orders", "open-accounts", "pos-terminal"] });
+    queryClient.invalidateQueries({ queryKey: ["orders", "pending-deliveries", "pos-terminal"] });
   }
 
   function handleClosePostSale() {
@@ -1245,68 +1248,80 @@ export default function PosPage() {
                   clearPosMode();
                 }
               }}
-              className="inline-flex h-8 items-center gap-1 rounded-md border border-border/60 bg-background px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border/60 bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               title={isEditingOrder ? "Cerrar orden y crear una venta nueva" : "Cambiar entre venta y orden"}
             >
-              {isEditingOrder ? <Plus className="h-3 w-3" /> : <ArrowLeftRight className="h-3 w-3" />}
-              <span className="hidden sm:inline">{isEditingOrder ? "Nueva venta" : "Cambiar"}</span>
+              {isEditingOrder ? <Plus className="h-3.5 w-3.5" /> : <ArrowLeftRight className="h-3.5 w-3.5" />}
             </button>
           )}
 
           {/* Estado de caja */}
           {!isWaiter && (
-            <button
-              type="button"
-              disabled={openCashRegisterMutation.isPending || closeCashRegisterMutation.isPending}
-              onClick={() => {
-                setShowCashRegisterModal(true);
-                setMovementType("CASH_IN");
-                setSupplierSearch("");
-                setSupplierOptions([]);
-                setSelectedSupplier(null);
-                setSupplierPaymentConcept("");
-                setMovementAmount("");
-                setMovementReason("");
-              }}
-              className={cn(
-                "inline-flex h-8 items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
-                cashRegisterError
-                  ? "bg-rose-500/10 text-rose-700 hover:bg-rose-500/20"
-                  : currentCashRegister
-                    ? "bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20"
-                    : "bg-amber-500/10 text-amber-700 hover:bg-amber-500/20"
+            <div className="group relative">
+              <button
+                type="button"
+                disabled={openCashRegisterMutation.isPending || closeCashRegisterMutation.isPending}
+                onClick={() => {
+                  setShowCashRegisterModal(true);
+                  setMovementType("CASH_IN");
+                  setSupplierSearch("");
+                  setSupplierOptions([]);
+                  setSelectedSupplier(null);
+                  setSupplierPaymentConcept("");
+                  setMovementAmount("");
+                  setMovementReason("");
+                }}
+                className={cn(
+                  "inline-flex h-8 items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
+                  cashRegisterError
+                    ? "bg-rose-500/10 text-rose-700 hover:bg-rose-500/20"
+                    : currentCashRegister
+                      ? "bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20"
+                      : "bg-amber-500/10 text-amber-700 hover:bg-amber-500/20"
+                )}
+                title={
+                  cashRegisterError
+                    ? "No se pudo consultar el estado de la caja - click para reintentar"
+                    : currentCashRegister
+                      ? "Caja abierta - click para ver resumen o cerrar"
+                      : "Caja cerrada - click para abrir"
+                }
+              >
+                {openCashRegisterMutation.isPending || closeCashRegisterMutation.isPending ? (
+                  <svg className="h-3 w-3 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                ) : cashRegisterError ? (
+                  <>
+                    <AlertTriangle className="h-3 w-3" />
+                    <span className="hidden sm:inline">Error de caja</span>
+                  </>
+                ) : currentCashRegister ? (
+                  <>
+                    <Banknote className="h-3 w-3" />
+                    <span className="hidden sm:inline">Caja abierta</span>
+                    <span className="hidden text-[10px] text-emerald-600/80 sm:inline">· Cerrar</span>
+                  </>
+                ) : (
+                  <>
+                    <Wallet className="h-3 w-3" />
+                    <span className="hidden sm:inline">Abrir caja</span>
+                  </>
+                )}
+              </button>
+              {currentCashRegister && (
+                <div className="pointer-events-none absolute right-0 top-full z-50 mt-2 hidden w-56 rounded-xl border border-border/80 bg-card p-3 shadow-xl group-hover:block">
+                  <p className="text-xs font-semibold">Resumen de caja</p>
+                  <div className="mt-2 flex flex-col gap-1 text-[11px] text-muted-foreground">
+                    <span>Abierta por <strong className="text-foreground">{(currentCashRegister as { opened_by_name?: string }).opened_by_name ?? "—"}</strong></span>
+                    <span>Apertura: <strong className="text-foreground">{formatCLP(parseFloat((currentCashRegister as { opening_amount?: string }).opening_amount ?? "0"))}</strong></span>
+                    <span>Saldo actual: <strong className="text-foreground">{formatCLP(parseFloat((currentCashRegister as { current_balance?: string; expected_amount?: string }).current_balance ?? (currentCashRegister as { expected_amount?: string }).expected_amount ?? "0"))}</strong></span>
+                    <span className="text-[10px] opacity-80">Haz click para ver movimientos o cerrar</span>
+                  </div>
+                </div>
               )}
-              title={
-                cashRegisterError
-                  ? "No se pudo consultar el estado de la caja - click para reintentar"
-                  : currentCashRegister
-                    ? "Caja abierta - click para ver resumen o cerrar"
-                    : "Caja cerrada - click para abrir"
-              }
-            >
-              {openCashRegisterMutation.isPending || closeCashRegisterMutation.isPending ? (
-                <svg className="h-3 w-3 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-              ) : cashRegisterError ? (
-                <>
-                  <AlertTriangle className="h-3 w-3" />
-                  <span className="hidden sm:inline">Error de caja</span>
-                </>
-              ) : currentCashRegister ? (
-                <>
-                  <Banknote className="h-3 w-3" />
-                  <span className="hidden sm:inline">Caja abierta</span>
-                  <span className="hidden text-[10px] text-emerald-600/80 sm:inline">· Cerrar</span>
-                </>
-              ) : (
-                <>
-                  <Wallet className="h-3 w-3" />
-                  <span className="hidden sm:inline">Abrir caja</span>
-                </>
-              )}
-            </button>
+            </div>
           )}
 
           {!isWaiter && (
@@ -1452,11 +1467,233 @@ export default function PosPage() {
           />
 
         ) : (
-        <div className="flex h-full flex-col">
-          {/* Header del catálogo */}
-          <div className="flex shrink-0 flex-col gap-1.5 border-b border-border/60 bg-muted/20 p-2">
+        <div className="flex h-full">
+          <aside className="hidden h-full w-56 shrink-0 flex-col border-r border-border/60 bg-muted/20 p-3 sm:flex">
+            <div className="relative mb-3">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="pos-catalog-search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onFocus={(e) => e.currentTarget.select()}
+                placeholder="Buscar producto…"
+                className="h-9 w-full rounded-lg border-border/60 bg-background pl-8 text-xs"
+                aria-label="Buscar producto"
+              />
+            </div>
+
+            {showTables && !isWaiter && (
+              <div className="mb-3 flex flex-col gap-2">
+                <div className="relative">
+                  <Table className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <select
+                    value={selectedTable?.id ?? ""}
+                    onChange={(e) => {
+                      const id = Number(e.target.value);
+                      setSelectedTable(myTables.find((t) => t.id === id) || null);
+                    }}
+                    className="h-8 w-full appearance-none rounded-lg border border-border/60 bg-background pl-8 pr-7 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    aria-label="Seleccionar mesa"
+                  >
+                    <option value="">Sin mesa</option>
+                    {myTables
+                      .filter(
+                        (t) =>
+                          t.status === "FREE" ||
+                          t.status === "RESERVED" ||
+                          t.id === selectedTable?.id,
+                      )
+                      .map((t) => (
+                        <option key={t.id} value={t.id}>
+                          Mesa {t.number} {t.area ? `· ${t.area}` : ""}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowTableMap(true)}
+                  className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-border/60 bg-background px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                >
+                  Mapa de mesas
+                </button>
+              </div>
+            )}
+
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Categorías
+              </p>
+              <div className="flex flex-col gap-1">
+                <button
+                  onClick={() => setActiveCategory(null)}
+                  className={cn(
+                    "flex items-center justify-between rounded-lg px-2.5 py-2 text-left text-xs font-medium transition-colors",
+                    activeCategory === null
+                      ? "bg-primary text-white"
+                      : "bg-transparent text-foreground hover:bg-muted",
+                  )}
+                >
+                  <span>Todos</span>
+                  <span className="text-[10px] opacity-80">{filtered.length}</span>
+                </button>
+                {categoriesLoading
+                  ? [0, 1, 2, 3, 4].map((i) => (
+                      <Skeleton key={i} className="h-8 w-full rounded-lg" />
+                    ))
+                  : categories?.map((cat) => (
+                      <button
+                        key={cat.id}
+                        onClick={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)}
+                        className={cn(
+                          "flex items-center justify-between rounded-lg px-2.5 py-2 text-left text-xs font-medium transition-colors",
+                          activeCategory === cat.id
+                            ? "bg-primary text-white"
+                            : "bg-transparent text-foreground hover:bg-muted",
+                        )}
+                      >
+                        <span className="truncate">{cat.name}</span>
+                      </button>
+                    ))}
+              </div>
+            </div>
+
+            {combos && combos.length > 0 && (
+              <div className="mt-3 border-t border-border/60 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setShowComboPicker(true)}
+                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+                >
+                  Combos
+                  <span className="text-[10px]">({combos.length})</span>
+                </button>
+              </div>
+            )}
+          </aside>
+
+          <div className="flex h-full min-w-0 flex-1 flex-col">
+            <div className="flex shrink-0 flex-col gap-1.5 border-b border-border/60 bg-muted/20 p-2 sm:hidden">
+              {isWaiter && selectedTable && (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={goToWaiterTablesView}
+                    className="inline-flex h-7 items-center gap-1 rounded-md border border-border/60 bg-background px-2 text-[11px] font-medium text-foreground transition-colors hover:bg-muted"
+                  >
+                    ← Volver a mesas
+                  </button>
+                  <span className="text-[11px] font-medium text-primary">
+                    Mesa {selectedTable.number} {selectedTable.area ? `· ${selectedTable.area}` : ""}
+                    {existingOrder && (
+                      <span className="ml-1.5 text-emerald-700">
+                        · {formatCLP(parseFloat(existingOrder.total_amount ?? "0"))}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              )}
+              <div className="flex flex-col gap-1.5">
+                {showTables && !isWaiter && (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <div className="relative shrink-0">
+                        <Table className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                        <select
+                          value={selectedTable?.id ?? ""}
+                          onChange={(e) => {
+                            const id = Number(e.target.value);
+                            setSelectedTable(myTables.find((t) => t.id === id) || null);
+                          }}
+                          className="h-8 appearance-none rounded-lg border border-border/60 bg-background pl-8 pr-7 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                          aria-label={isWaiter ? "Seleccionar mi mesa" : "Seleccionar mesa"}
+                        >
+                          <option value="">{isWaiter ? "Mi mesa" : "Sin mesa"}</option>
+                          {myTables
+                            .filter(
+                              (t) =>
+                                t.status === "FREE" ||
+                                t.status === "RESERVED" ||
+                                t.id === selectedTable?.id,
+                            )
+                            .map((t) => (
+                              <option key={t.id} value={t.id}>
+                                Mesa {t.number} {t.area ? `· ${t.area}` : ""}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowTableMap(true)}
+                        className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-border/60 bg-background px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                      >
+                        Mapa
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                  <button
+                    onClick={() => setActiveCategory(null)}
+                    className={cn(
+                      "shrink-0 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
+                      activeCategory === null
+                        ? "bg-primary text-white"
+                        : "bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
+                    )}
+                  >
+                    Todos
+                  </button>
+                  {categoriesLoading
+                    ? [0, 1, 2, 3, 4].map((i) => (
+                        <Skeleton key={i} className="h-6 w-16 shrink-0 rounded-md" />
+                      ))
+                    : categories?.map((cat) => (
+                        <button
+                          key={cat.id}
+                          onClick={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)}
+                          className={cn(
+                            "shrink-0 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
+                            activeCategory === cat.id
+                              ? "bg-primary text-white"
+                              : "bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
+                          )}
+                        >
+                          {cat.name}
+                        </button>
+                      ))}
+                </div>
+                <div className="flex flex-wrap items-center gap-2 border-t border-border/40 pt-1.5">
+                  <div className="relative min-w-0 flex-1">
+                    <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      onFocus={(e) => e.currentTarget.select()}
+                      placeholder="Buscar producto…"
+                      className="h-8 w-full rounded-lg border-border/60 bg-background pl-8 text-xs"
+                      aria-label="Buscar producto"
+                    />
+                  </div>
+                  {combos && combos.length > 0 && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setShowComboPicker(true)}
+                        className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-2.5 text-[11px] font-medium text-primary transition-colors hover:bg-primary/20"
+                      >
+                        Combos
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {isWaiter && selectedTable && (
-              <div className="flex items-center gap-2">
+              <div className="hidden shrink-0 items-center gap-2 border-b border-border/60 bg-muted/20 px-3 py-2 sm:flex">
                 <button
                   type="button"
                   onClick={goToWaiterTablesView}
@@ -1474,144 +1711,41 @@ export default function PosPage() {
                 </span>
               </div>
             )}
-            <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center">
-              {showTables && !isWaiter && (
-                <>
-                  <div className="relative shrink-0">
-                    <Table className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                    <select
-                      value={selectedTable?.id ?? ""}
-                      onChange={(e) => {
-                        const id = Number(e.target.value);
-                        setSelectedTable(myTables.find((t) => t.id === id) || null);
+
+            {/* Productos */}
+            <div className="min-h-0 flex-1 overflow-y-auto p-2">
+              {productsError ? (
+                <div className="grid h-full place-items-center rounded-xl border border-dashed border-border">
+                  <p className="text-sm text-muted-foreground">
+                    No se pudo cargar el catálogo. Revisa la conexión con Yggdra.
+                  </p>
+                </div>
+              ) : productsLoading || assignedMenuLoading ? (
+                <div className="grid h-full place-items-center rounded-xl border border-dashed border-border">
+                  <GridSkeleton count={12} />
+                </div>
+              ) : filtered.length === 0 ? (
+                <div className="grid h-full place-items-center rounded-xl border border-dashed border-border">
+                  <p className="text-sm text-muted-foreground">No hay productos que coincidan.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+                  {filtered.map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      onClick={handleAddProduct}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          handleAddProduct(product);
+                        }
                       }}
-                      className="h-8 appearance-none rounded-lg border border-border/60 bg-background pl-8 pr-7 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                      aria-label={isWaiter ? "Seleccionar mi mesa" : "Seleccionar mesa"}
-                    >
-                      <option value="">{isWaiter ? "Mi mesa" : "Sin mesa"}</option>
-                      {myTables
-                        .filter(
-                          (t) =>
-                            t.status === "FREE" ||
-                            t.status === "RESERVED" ||
-                            t.id === selectedTable?.id,
-                        )
-                        .map((t) => (
-                          <option key={t.id} value={t.id}>
-                            Mesa {t.number} {t.area ? `· ${t.area}` : ""}
-                          </option>
-                        ))}
-                    </select>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowTableMap(true)}
-                    className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-border/60 bg-background px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
-                  >
-                    Mapa
-                  </button>
-                  <div className="mx-1 hidden h-5 w-px bg-border sm:block" />
-                </>
-              )}
-
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-                <button
-                  onClick={() => setActiveCategory(null)}
-                  className={cn(
-                    "shrink-0 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
-                    activeCategory === null
-                      ? "bg-primary text-white"
-                      : "bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
-                  )}
-                >
-                  Todos
-                </button>
-                {categoriesLoading
-                  ? [0, 1, 2, 3, 4].map((i) => (
-                      <Skeleton
-                        key={i}
-                        className="h-6 w-16 shrink-0 rounded-md"
-                      />
-                    ))
-                  : categories?.map((cat) => (
-                  <button
-                    key={cat.id}
-                    onClick={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)}
-                    className={cn(
-                      "shrink-0 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
-                      activeCategory === cat.id
-                        ? "bg-primary text-white"
-                        : "bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
-                    )}
-                  >
-                    {cat.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 border-t border-border/40 pt-1.5">
-              <div className="relative min-w-0 flex-1 sm:flex-none sm:w-56">
-                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="pos-catalog-search"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onFocus={(e) => e.currentTarget.select()}
-                  placeholder="Buscar producto…"
-                  className="h-8 w-full rounded-lg border-border/60 bg-background pl-8 text-xs"
-                  aria-label="Buscar producto"
-                />
-              </div>
-              {combos && combos.length > 0 && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setShowComboPicker(true)}
-                    className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-2.5 text-[11px] font-medium text-primary transition-colors hover:bg-primary/20"
-                  >
-                    Combos
-                  </button>
-                  <span className="text-[10px] text-muted-foreground">
-                    {combos.length} disponible{combos.length === 1 ? "" : "s"}
-                  </span>
-                </>
+                    />
+                  ))}
+                </div>
               )}
             </div>
-          </div>
-
-          {/* Productos */}
-          <div className="min-h-0 flex-1 overflow-y-auto p-2">
-            {productsError ? (
-              <div className="grid h-full place-items-center rounded-xl border border-dashed border-border">
-                <p className="text-sm text-muted-foreground">
-                  No se pudo cargar el catálogo. Revisa la conexión con Yggdra.
-                </p>
-              </div>
-            ) : productsLoading || assignedMenuLoading ? (
-              <div className="grid h-full place-items-center rounded-xl border border-dashed border-border">
-                <GridSkeleton count={12} />
-              </div>
-            ) : filtered.length === 0 ? (
-              <div className="grid h-full place-items-center rounded-xl border border-dashed border-border">
-                <p className="text-sm text-muted-foreground">No hay productos que coincidan.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-                {filtered.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    onClick={handleAddProduct}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        handleAddProduct(product);
-                      }
-                    }}
-                  />
-                ))}
-              </div>
-            )}
           </div>
         </div>
         )}
@@ -1646,6 +1780,9 @@ export default function PosPage() {
                   clearCart();
                   startNewOrder(orderType ?? "SALE");
                 }
+                queryClient.invalidateQueries({ queryKey: ["cash-register"] });
+                queryClient.invalidateQueries({ queryKey: ["orders", "open-accounts", "pos-terminal"] });
+                queryClient.invalidateQueries({ queryKey: ["orders", "pending-deliveries", "pos-terminal"] });
               }}
               onPostSaleOrder={handlePostSaleOrder}
               isWaiter={isWaiter}
@@ -1690,6 +1827,9 @@ export default function PosPage() {
                   startNewOrder(orderType ?? "SALE");
                 }
                 setCartOpen(false);
+                queryClient.invalidateQueries({ queryKey: ["cash-register"] });
+                queryClient.invalidateQueries({ queryKey: ["orders", "open-accounts", "pos-terminal"] });
+                queryClient.invalidateQueries({ queryKey: ["orders", "pending-deliveries", "pos-terminal"] });
               }}
               onPostSaleOrder={handlePostSaleOrder}
               onClose={() => {
