@@ -260,12 +260,20 @@ export default function PayPendingItemModal({
         return (data.results ?? []) as Order[];
       }
       if (type === "pay_order") {
-        const data = await fetchOrders({
-          order_type: "ORDER",
-          status: ["PENDING", "IN_PROGRESS"],
-          page_size: 50,
-        });
-        return (data.results ?? []) as Order[];
+        const [byPayment, byDelivery] = await Promise.all([
+          fetchOrders({ order_type: "ORDER", payment_status: ["PENDING", "PARTIAL"], page_size: 50 }),
+          fetchOrders({ order_type: "ORDER", status: ["PENDING", "IN_PROGRESS"], page_size: 50 }),
+        ]);
+        const map = new Map<string, Order>();
+        for (const o of [...(byPayment.results ?? []), ...(byDelivery.results ?? [])] as Order[]) {
+          map.set(o.id, o);
+        }
+        const filtered = Array.from(map.values()).filter(
+          (o) =>
+            ["PENDING", "PARTIAL"].includes(o.payment_status ?? "") ||
+            ["PENDING", "IN_PROGRESS"].includes(o.status ?? ""),
+        );
+        return filtered;
       }
       return [];
     },
@@ -874,10 +882,41 @@ export default function PayPendingItemModal({
                   ? deliveryStatusLabel(o.delivery_status)
                   : paymentStatusLabel(o.payment_status)}
               </p>
+              {isPayOrder && (
+                <div className="flex gap-1.5 mt-1">
+                  <span className={cn("rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium", paymentStatusClass(o.payment_status))}>
+                    {(o as unknown as { payment_status_display?: string }).payment_status_display ?? o.payment_status ?? "-"}
+                  </span>
+                  <span className={cn("rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium", deliveryStatusClass(o.delivery_status))}>
+                    {(o as unknown as { delivery_status_display?: string }).delivery_status_display ?? o.delivery_status ?? "-"}
+                  </span>
+                </div>
+              )}
               <div className="mt-3 flex flex-wrap items-center gap-2">
-                <Button size="sm" onClick={() => handleSelectItem(o.id)}>
-                  {isPayOrder ? "Ver" : "Pagar"}
-                </Button>
+                {isPayOrder ? (
+                  <>
+                    {["PENDING", "PARTIAL"].includes(o.payment_status ?? "") && (
+                      <Button size="sm" onClick={() => handleSelectItem(o.id)}>
+                        Pagar
+                      </Button>
+                    )}
+                    {(["PENDING", "IN_PROGRESS"].includes(o.status ?? "") ||
+                      ["PENDING", "IN_PROGRESS", "PARTIAL"].includes(o.delivery_status ?? "")) && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => deliverMutation.mutate(o.id)}
+                        isLoading={deliverMutation.isPending}
+                      >
+                        Entregar
+                      </Button>
+                    )}
+                  </>
+                ) : (
+                  <Button size="sm" onClick={() => handleSelectItem(o.id)}>
+                    Pagar
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   variant="outline"
@@ -885,16 +924,6 @@ export default function PayPendingItemModal({
                 >
                   {isExpanded ? "Cerrar" : "Ver detalle"}
                 </Button>
-                {isPayOrder && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => deliverMutation.mutate(o.id)}
-                    isLoading={deliverMutation.isPending}
-                  >
-                    Entregar
-                  </Button>
-                )}
                 {!isPayOrder && showOrderActions && (
                   <>
                     <Button
