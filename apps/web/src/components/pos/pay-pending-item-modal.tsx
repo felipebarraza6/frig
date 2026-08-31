@@ -467,15 +467,15 @@ export default function PayPendingItemModal({
       if (loadingPurchaseOrders) return <p className="text-sm text-muted-foreground">Cargando...</p>;
       if (purchaseOrders.length === 0) return <p className="text-sm text-muted-foreground">No hay órdenes de compra pendientes.</p>;
       return (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-3">
           {purchaseOrders.map((o) => (
             <div
               key={o.id}
               className={cn(
-                "rounded-xl border p-3 transition-colors",
+                "rounded-xl border p-3 shadow-sm hover:shadow-md transition-shadow",
                 selectedItemId === o.id
                   ? "border-primary bg-primary/10"
-                  : "border-border bg-card",
+                  : "border-border/60 bg-card",
               )}
             >
               <div className="flex justify-between gap-3">
@@ -494,7 +494,7 @@ export default function PayPendingItemModal({
                   <p className="text-xs text-muted-foreground">de {formatCLP(toNum(o.total_amount))}</p>
                 </div>
               </div>
-              <div className="mt-2 flex gap-2">
+              <div className="mt-2 flex flex-wrap gap-2">
                 <Button size="sm" onClick={() => handleSelectItem(o.id)}>
                   Pagar
                 </Button>
@@ -548,7 +548,7 @@ export default function PayPendingItemModal({
       if (loadingExpenses) return <p className="text-sm text-muted-foreground">Cargando...</p>;
       if (expenses.length === 0) return <p className="text-sm text-muted-foreground">No hay gastos pendientes.</p>;
       return (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-3">
           {expenses.map((e) => {
             const remaining = toNum(e.amount) - toNum(e.total_paid);
             const pending = e.pending_amount != null ? toNum(e.pending_amount) : remaining;
@@ -556,10 +556,10 @@ export default function PayPendingItemModal({
               <div
                 key={e.id}
                 className={cn(
-                  "rounded-xl border p-3 transition-colors",
+                  "rounded-xl border p-3 shadow-sm hover:shadow-md transition-shadow",
                   selectedItemId === e.id
                     ? "border-primary bg-primary/10"
-                    : "border-border bg-card",
+                    : "border-border/60 bg-card",
                 )}
               >
                 <div className="flex justify-between gap-3">
@@ -586,7 +586,7 @@ export default function PayPendingItemModal({
                     )}
                   </div>
                 </div>
-                <div className="mt-2 flex gap-2">
+                <div className="mt-2 flex flex-wrap gap-2">
                   <Button size="sm" onClick={() => handleSelectItem(e.id)}>
                     Pagar
                   </Button>
@@ -701,7 +701,7 @@ export default function PayPendingItemModal({
                 <div
                   key={o.id}
                   className={cn(
-                    "rounded-xl border border-border bg-card p-3 shadow-sm transition-colors",
+                    "rounded-xl border border-border/60 bg-card p-3 shadow-sm hover:shadow-md transition-shadow",
                     selectedItemId === o.id && "border-primary bg-primary/5",
                   )}
                 >
@@ -845,7 +845,7 @@ export default function PayPendingItemModal({
             <div
               key={o.id}
               className={cn(
-                "rounded-xl border border-border bg-card p-3 shadow-sm transition-colors",
+                "rounded-xl border border-border/60 bg-card p-3 shadow-sm hover:shadow-md transition-shadow",
                 selectedItemId === o.id && "border-primary bg-primary/5",
               )}
             >
@@ -1081,8 +1081,8 @@ export default function PayPendingItemModal({
           )}
 
           <div className="flex flex-col gap-2">
-            <label className="text-xs font-medium text-muted-foreground">{cfg.listLabel}</label>
-            <div className="max-h-[24rem] overflow-y-auto rounded-lg border border-border p-2 sm:max-h-[28rem]">
+            <label className="text-sm font-medium text-muted-foreground mb-2 pt-1">{cfg.listLabel}</label>
+            <div className="flex flex-col gap-3 rounded-xl bg-muted/20 p-3 max-h-[28rem] overflow-y-auto">
               {renderItemList()}
             </div>
           </div>
