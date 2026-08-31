@@ -18,6 +18,9 @@ import {
 } from "@/lib/api/branches";
 import { fetchPaymentMethods } from "@/lib/api/payments";
 import { getCurrentCashRegister } from "@/lib/api/cash-register";
+import { fetchOrders } from "@/lib/api/orders";
+import { fetchPurchaseOrders } from "@/lib/api/suppliers";
+import { fetchExpenses } from "@/lib/api/expenses";
 import { cn } from "@/lib/utils";
 import type { YggdraSchemas } from "@/lib/api/types";
 import PayPendingItemModal from "./pay-pending-item-modal";
@@ -74,6 +77,106 @@ export default function PosQuickActions({
     retry: false,
   });
 
+  const { data: accountsCountData } = useQuery({
+    queryKey: ["pending-accounts-count"],
+    queryFn: async () => {
+      const data = await fetchOrders({ order_type: "SALE", payment_status: ["PENDING", "PARTIAL"], page_size: 1 });
+      return data.count ?? (data.results?.length ?? 0);
+    },
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+  });
+
+  const { data: ordersCountData } = useQuery({
+    queryKey: ["pending-orders-count"],
+    queryFn: async () => {
+      const [byPayment, byDelivery] = await Promise.all([
+        fetchOrders({ order_type: "ORDER", payment_status: ["PENDING", "PARTIAL"], page_size: 50 }),
+        fetchOrders({ order_type: "ORDER", status: ["PENDING", "IN_PROGRESS"], page_size: 50 }),
+      ]);
+      const map = new Map<string, Order>();
+      for (const o of [...(byPayment.results ?? []), ...(byDelivery.results ?? [])] as Order[]) {
+        map.set(o.id, o);
+      }
+      const filtered = Array.from(map.values()).filter(
+        (o) =>
+          ["PENDING", "PARTIAL"].includes(o.payment_status ?? "") ||
+          ["PENDING", "IN_PROGRESS"].includes(o.status ?? ""),
+      );
+      if (filtered.length >= 50) {
+        const c1 = byPayment.count ?? 0;
+        const c2 = byDelivery.count ?? 0;
+        return Math.max(c1, c2, filtered.length);
+      }
+      return filtered.length;
+    },
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+  });
+
+  const { data: collectCountData } = useQuery({
+    queryKey: ["pending-collect-count"],
+    queryFn: async () => {
+      const data = await fetchOrders({ order_type: "SALE", payment_status: ["PENDING", "PARTIAL"], page_size: 100 });
+      const ids = new Set<number | string>();
+      for (const o of (data.results ?? []) as Order[]) {
+        const cid = (o.client as unknown as { id?: number | string })?.id;
+        if (cid != null) ids.add(cid);
+      }
+      if ((data.results?.length ?? 0) >= 100 && data.count != null && data.count > 100) {
+        return ids.size > 0 ? ids.size : (data.count ?? 0);
+      }
+      return ids.size;
+    },
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+  });
+
+  const { data: purchaseOrdersCountData } = useQuery({
+    queryKey: ["pending-purchase-orders-count"],
+    queryFn: async () => {
+      const data = await fetchPurchaseOrders({ status: "SENT", payment_status: "PENDING", page_size: 1 });
+      return data.count ?? (data.results?.length ?? 0);
+    },
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+  });
+
+  const { data: expensesCountData } = useQuery({
+    queryKey: ["pending-expenses-count"],
+    queryFn: async () => {
+      const data = await fetchExpenses({ status: "ACTIVE", page_size: 50 });
+      const list = (data.results ?? []) as Array<{ amount?: string | number | null; total_paid?: string | number | null }>;
+      const toNum = (v: string | number | null | undefined) => {
+        if (v == null || v === "") return 0;
+        const n = typeof v === "number" ? v : parseFloat(v);
+        return Number.isNaN(n) ? 0 : n;
+      };
+      const pending = list.filter((e) => toNum(e.amount) - toNum(e.total_paid) > 0);
+      if (pending.length >= 50 && data.count != null) return pending.length;
+      return pending.length;
+    },
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+  });
+
+  function getCountForAction(type: string): number {
+    switch (type) {
+      case "pay_account":
+        return accountsCountData ?? 0;
+      case "pay_order":
+        return ordersCountData ?? 0;
+      case "collect":
+        return collectCountData ?? 0;
+      case "pay_purchase_order":
+        return purchaseOrdersCountData ?? 0;
+      case "pay_expense":
+        return expensesCountData ?? 0;
+      default:
+        return 0;
+    }
+  }
+
   const actions = useMemo(() => {
     const list = config?.quick_actions?.length
       ? config.quick_actions
@@ -92,12 +195,13 @@ export default function PosQuickActions({
 
   return (
     <>
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 overflow-visible">
         {loadingConfig && !config ? (
           <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
         ) : (
           actions.map((action) => {
             const Icon = ICON_MAP[action.icon] ?? Receipt;
+            const count = getCountForAction(action.type);
             return (
               <Button
                 key={action.id}
@@ -107,12 +211,17 @@ export default function PosQuickActions({
                 onClick={() => setActiveType(action.id)}
                 title={action.label}
                 className={cn(
-                  "h-7 gap-1 border-primary/20 px-2 text-[11px] text-foreground transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary",
+                  "relative h-7 gap-1 overflow-visible border-primary/20 px-2 text-[11px] text-foreground transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary",
                   "sm:h-8 sm:px-2.5",
                 )}
               >
                 <Icon className="h-3.5 w-3.5 shrink-0 text-primary/80" />
                 <span className="hidden whitespace-nowrap lg:inline">{action.label}</span>
+                {count > 0 && (
+                  <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-white">
+                    {count > 99 ? "99+" : count}
+                  </span>
+                )}
               </Button>
             );
           })
