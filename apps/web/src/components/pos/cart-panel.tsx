@@ -984,18 +984,6 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
           </p>
         )}
 
-        {items.length > 0 && (
-          <div className={cn("rounded-lg px-3 py-2 text-xs", modeConfig.color.split(" ")[1], modeConfig.color.split(" ")[0])}>
-            <span className="font-medium">{modeConfig.label}</span>
-            {existingOrderId && (
-              <>{" · "}Se agregarán los ítems a la orden existente.</>
-            )}
-            {defaultOrderType === "ORDER" && !existingOrderId && (
-              <>{" · "}Requiere cliente.</>
-            )}
-          </div>
-        )}
-
         <div className="flex flex-col gap-1 text-xs">
           <div className="flex items-center justify-between text-muted-foreground">
             <span>Subtotal</span>
