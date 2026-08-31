@@ -653,7 +653,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
             <div className="min-h-0 flex-1 overflow-y-auto p-3">
               <ul className="flex flex-col gap-2">
                 <AnimatePresence initial={false}>
-                  {items.map((item) => (
+                  {[...items].reverse().map((item) => (
                     <motion.li
                       key={item.id}
                       initial={{ opacity: 0, y: 6 }}
