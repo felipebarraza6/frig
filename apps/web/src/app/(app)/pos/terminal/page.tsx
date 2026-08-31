@@ -1060,7 +1060,7 @@ export default function PosPage() {
                 <div className="min-w-0">
                   <p className="text-sm font-semibold">Orden</p>
                   <p className="text-xs text-muted-foreground">
-                    Pedido sin cobrar. Requiere cliente y permite pagos parciales o cuotas.
+                    Orden sin cobrar. Requiere cliente y permite pagos parciales o cuotas.
                   </p>
                 </div>
                 <ArrowRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground" />

@@ -165,9 +165,9 @@ const TYPE_CONFIG: Record<
     listLabel: "Cuentas por cobrar (ventas)",
   },
   pay_order: {
-    title: "Retiros pendientes",
+    title: "Órdenes pendientes",
     icon: <Truck className="h-5 w-5" />,
-    listLabel: "Retiros pendientes",
+    listLabel: "Órdenes pendientes",
   },
   collect: {
     title: "Cobrar por cliente",
@@ -365,7 +365,7 @@ export default function PayPendingItemModal({
   const deliverMutation = useMutation({
     mutationFn: (orderId: string) => deliverOrder(orderId),
     onSuccess: () => {
-      toast.success("Pedido marcado como entregado");
+      toast.success("Orden marcada como entregada");
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       queryClient.invalidateQueries({ queryKey: ["pending-orders-for-pos"] });
       handleClose();

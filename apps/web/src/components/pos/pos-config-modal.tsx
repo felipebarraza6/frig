@@ -78,7 +78,7 @@ const SECTIONS: {
     ],
   },
   {
-    title: "Pedidos",
+    title: "Órdenes",
     items: [
       {
         key: "quotes",

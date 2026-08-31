@@ -35,7 +35,7 @@ const COLORS = [
 
 const TYPE_LABELS: Record<POSQuickActionType, string> = {
   pay_account: "Pagar ventas a crédito",
-  pay_order: "Pagar pedidos",
+  pay_order: "Órdenes pendientes",
   collect: "Cobrar por cliente",
   pay_purchase_order: "Pagar órdenes de compra",
   pay_expense: "Pagar gastos",

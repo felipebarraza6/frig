@@ -298,7 +298,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
         orderType = isWaiter ? "ORDER" : "SALE";
       }
       if ((orderType === "ORDER" || payments.length === 0) && !selectedClient) {
-        toast.error("Debes seleccionar un cliente para guardar el pedido / cuenta.");
+        toast.error("Debes seleccionar un cliente para guardar la orden / cuenta.");
         setSaving(false);
         return;
       }
@@ -321,7 +321,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
           toast.warning(
             isAlreadyOccupied
               ? "La mesa ya está ocupada. Abrila desde el mapa para agregar productos."
-              : `Pedido guardado, pero no se pudo ocupar la mesa: ${message}`,
+              : `Orden guardada, pero no se pudo ocupar la mesa: ${message}`,
           );
         }
       }
@@ -391,7 +391,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
       setSelectedClient(null);
       setDiscountCode("");
       setValidatedDiscount(null);
-      const actionLabel = payments.length > 0 ? "Venta registrada" : "Pedido guardado";
+      const actionLabel = payments.length > 0 ? "Venta registrada" : "Orden guardada";
       toast.success(`${actionLabel} (orden ${order.id.slice(0, 8)})`);
       onOrderRegistered?.(orderType === "AGREEMENT" ? "SALE" : orderType);
     } catch (err) {
