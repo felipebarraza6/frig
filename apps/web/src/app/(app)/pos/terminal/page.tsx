@@ -201,15 +201,6 @@ export default function PosPage() {
   const isWaiterSimulation = queryView === "waiter";
   const isWaiter = realIsWaiter || isWaiterSimulation;
 
-  // Si hay open_account=1 sin order_id, lo limpiamos para no confundir el modo por defecto.
-  useEffect(() => {
-    if (openAccountParam && !queryOrderId && !isWaiter) {
-      const url = new URL(window.location.href);
-      url.searchParams.delete("open_account");
-      router.replace(url.pathname + url.search);
-    }
-  }, [openAccountParam, queryOrderId, isWaiter, router]);
-
   const { data: stations = [] } = useQuery({
     queryKey: ["cash-register-stations", "pos-terminal"],
     queryFn: fetchCashRegisterStations,
@@ -296,7 +287,7 @@ export default function PosPage() {
 
   // Modo cuenta abierta: SALE creada desde "Abrir cuenta" (pending, sin pagos).
   // Modo orden explícita: ORDER. Se mantienen separados para no confundir casos.
-  const isOpenAccountMode = useMemo(() => openAccountParam, [openAccountParam]);
+  const isOpenAccountMode = useMemo(() => openAccountParam && Boolean(queryOrderId), [openAccountParam, queryOrderId]);
   const isOrderMode = useMemo(() => queryOrderType === "ORDER", [queryOrderType]);
 
   function handlePostSaleOrder(order: Order, items?: CartItem[]) {
@@ -1717,7 +1708,7 @@ export default function PosPage() {
       </section>
 
         {/* Carrito desktop */}
-        <aside className="hidden h-full w-[420px] min-w-0 shrink-0 overflow-hidden bg-background p-3 md:block">
+        <aside className="hidden h-full w-[360px] min-w-0 shrink-0 overflow-hidden bg-background p-3 md:block">
           {isWaiter && !selectedTable && !isEditingOrder ? (
             <div className="grid h-full place-items-center rounded-2xl border border-dashed border-border p-6 text-center">
               <div className="flex flex-col items-center gap-3">
