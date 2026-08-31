@@ -84,6 +84,8 @@ function parseAmount(value: string | number | undefined): number {
 export default function PaymentsPage() {
   const [direction, setDirection] = useState<"" | "INCOME" | "EXPENSE">("EXPENSE");
   const [source, setSource] = useState<YggdraPaymentList["payment_source"] | "">("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [search, setSearch] = useState("");
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [pageUrl, setPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
@@ -98,9 +100,11 @@ export default function PaymentsPage() {
     () => ({
       payment_direction: direction || undefined,
       payment_source: source || undefined,
+      payment_date__gte: dateFrom || undefined,
+      payment_date__lte: dateTo || undefined,
       ...pageUrl,
     }),
-    [direction, source, pageUrl],
+    [direction, source, dateFrom, dateTo, pageUrl],
   );
 
   const { data: page, isLoading, isError, refetch } = useQuery({
@@ -224,6 +228,17 @@ export default function PaymentsPage() {
                 {SOURCE_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
               </Select>
             </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="filter-date-from" className="text-xs text-muted-foreground">Desde</label>
+              <Input id="filter-date-from" type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPageUrl({}); }} className="h-10" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="filter-date-to" className="text-xs text-muted-foreground">Hasta</label>
+              <Input id="filter-date-to" type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPageUrl({}); }} className="h-10" />
+            </div>
+            <Button variant="ghost" size="sm" className="h-10 px-2 text-xs" onClick={() => { setDirection(""); setSource(""); setDateFrom(""); setDateTo(""); setPageUrl({}); }}>
+              Limpiar
+            </Button>
           </div>
           {/* Mobile filters */}
           <div className="flex flex-col gap-3 md:hidden">
@@ -256,6 +271,17 @@ export default function PaymentsPage() {
                     {SOURCE_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
                   </Select>
                 </div>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="filter-date-from-mobile" className="text-xs text-muted-foreground">Desde</label>
+                  <Input id="filter-date-from-mobile" type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPageUrl({}); }} className="h-10" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="filter-date-to-mobile" className="text-xs text-muted-foreground">Hasta</label>
+                  <Input id="filter-date-to-mobile" type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPageUrl({}); }} className="h-10" />
+                </div>
+                <Button variant="ghost" size="sm" className="h-10 px-2 text-xs" onClick={() => { setDirection(""); setSource(""); setDateFrom(""); setDateTo(""); setPageUrl({}); }}>
+                  Limpiar
+                </Button>
               </div>
             </div>
           </div>
