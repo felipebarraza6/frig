@@ -375,7 +375,8 @@ export default function WarehouseDetailPage() {
 
   const productSalePriceMap = useMemo(() => {
     const map = new Map<number, number>();
-    for (const p of catalog) {
+    const list = Array.isArray(catalog) ? catalog : [];
+    for (const p of list) {
       map.set(p.id, numValue(p.sale_price));
     }
     return map;
