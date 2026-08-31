@@ -100,7 +100,7 @@ export default function PosQuickActions({ stationId }: PosQuickActionsProps) {
                 )}
               >
                 <Icon className="h-3.5 w-3.5 shrink-0 text-primary/80" />
-                <span className="hidden max-w-[80px] truncate lg:inline">{action.label}</span>
+                <span className="hidden whitespace-nowrap lg:inline">{action.label}</span>
               </Button>
             );
           })
