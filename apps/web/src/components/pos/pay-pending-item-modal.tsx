@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
-  X,
   Search,
   Receipt,
   ClipboardList,
@@ -11,6 +10,7 @@ import {
   Truck,
   TrendingDown,
   Loader2,
+  Eye,
 } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
@@ -81,29 +81,29 @@ const TYPE_CONFIG: Record<
   { title: string; icon: React.ReactNode; listLabel: string }
 > = {
   pay_account: {
-    title: "Cuentas pendientes",
+    title: "Cuentas por cobrar",
     icon: <Receipt className="h-5 w-5" />,
-    listLabel: "Cuentas pendientes (SALE)",
+    listLabel: "Cuentas por cobrar (ventas)",
   },
   pay_order: {
-    title: "Órdenes pendientes",
+    title: "Pedidos pendientes",
     icon: <ClipboardList className="h-5 w-5" />,
-    listLabel: "Órdenes pendientes (ORDER)",
+    listLabel: "Pedidos pendientes",
   },
   collect: {
-    title: "Cobrar",
+    title: "Cobrar por cliente",
     icon: <UserSearch className="h-5 w-5" />,
     listLabel: "Órdenes del cliente",
   },
   pay_purchase_order: {
-    title: "Pagar orden de compra",
+    title: "Órdenes de compra por pagar",
     icon: <Truck className="h-5 w-5" />,
-    listLabel: "Órdenes de compra pendientes",
+    listLabel: "Órdenes de compra por pagar",
   },
   pay_expense: {
-    title: "Pagar gasto",
+    title: "Gastos por pagar",
     icon: <TrendingDown className="h-5 w-5" />,
-    listLabel: "Gastos pendientes",
+    listLabel: "Gastos por pagar",
   },
 };
 
@@ -142,7 +142,7 @@ export default function PayPendingItemModal({
         const orderType = type === "pay_account" ? "SALE" : "ORDER";
         const data = await fetchOrders({
           order_type: orderType,
-          payment_status: "PENDING,PARTIAL",
+          payment_status: ["PENDING", "PARTIAL"],
           page_size: 50,
         });
         return (data.results ?? []) as Order[];
@@ -272,22 +272,37 @@ export default function PayPendingItemModal({
       return (
         <div className="flex flex-col gap-2">
           {purchaseOrders.map((o) => (
-            <button
+            <div
               key={o.id}
-              type="button"
-              onClick={() => handleSelectItem(o.id)}
               className={cn(
-                "flex items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+                "flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors",
                 selectedItemId === o.id
                   ? "border-primary bg-primary/10"
                   : "border-border hover:bg-muted",
               )}
             >
-              <span className="font-medium">{o.order_number}</span>
-              <span className="text-xs text-muted-foreground">
-                {formatCLP(toNum(o.remaining_amount))}
-              </span>
-            </button>
+              <button
+                type="button"
+                onClick={() => handleSelectItem(o.id)}
+                className="flex flex-1 items-center justify-between text-left"
+              >
+                <span className="font-medium">{o.order_number}</span>
+                <span className="text-xs text-muted-foreground">
+                  {formatCLP(toNum(o.remaining_amount))}
+                </span>
+              </button>
+              <a
+                href={`/purchase-orders/${o.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ml-2 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted"
+                aria-label="Ver orden de compra"
+                title="Ver orden de compra"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Eye className="h-3.5 w-3.5" />
+              </a>
+            </div>
           ))}
         </div>
       );

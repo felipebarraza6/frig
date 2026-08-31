@@ -11,6 +11,7 @@ import { useToast } from "@/lib/store/toast";
 import {
   type BranchPOSConfig,
   type POSQuickAction,
+  type POSQuickActionType,
   DEFAULT_POS_QUICK_ACTIONS,
   updateBranchPOSConfig,
 } from "@/lib/api/branches";
@@ -29,6 +30,14 @@ const COLORS = [
   { value: "rose", label: "Rosa" },
   { value: "slate", label: "Gris" },
 ];
+
+const TYPE_LABELS: Record<POSQuickActionType, string> = {
+  pay_account: "Pagar ventas a crédito",
+  pay_order: "Pagar pedidos",
+  collect: "Cobrar por cliente",
+  pay_purchase_order: "Pagar órdenes de compra",
+  pay_expense: "Pagar gastos",
+};
 
 function Toggle({
   checked,
@@ -184,7 +193,7 @@ export default function PosQuickActionsSettings({
 
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{action.label}</p>
-                      <p className="text-xs text-muted-foreground">{action.type}</p>
+                      <p className="text-xs text-muted-foreground">{TYPE_LABELS[action.type]}</p>
                     </div>
 
                     <div className="w-28 shrink-0">
