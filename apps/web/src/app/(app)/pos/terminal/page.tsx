@@ -1324,10 +1324,26 @@ export default function PosPage() {
             </div>
           )}
 
+          {/* Acciones rápidas del POS */}
+          {!isWaiter && (
+            <div className="group/actions relative hidden items-center sm:flex">
+              <div className="flex max-w-[240px] items-center gap-1 overflow-x-auto scrollbar-hide px-0.5 md:max-w-[320px] lg:max-w-[420px]">
+                <PosQuickActions stationId={activeStationId} />
+              </div>
+            </div>
+          )}
+
         </div>
       </header>
 
-      <PosQuickActions stationId={activeStationId} />
+      {/* Acciones rápidas en móvil (debajo del header para mantener una fila usable) */}
+      {!isWaiter && (
+        <div className="flex border-b border-border/60 bg-background px-3 py-2 sm:hidden">
+          <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
+            <PosQuickActions stationId={activeStationId} />
+          </div>
+        </div>
+      )}
 
       {/* Banner: error al consultar la caja (distinto de "sin caja abierta") */}
       {cashRegisterError && !isWaiter && (

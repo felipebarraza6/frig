@@ -80,7 +80,7 @@ export default function PosQuickActions({ stationId }: PosQuickActionsProps) {
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2 border-b border-border/60 bg-background px-3 py-2">
+      <div className="flex items-center gap-1">
         {loadingConfig && !config ? (
           <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
         ) : (
@@ -93,18 +93,19 @@ export default function PosQuickActions({ stationId }: PosQuickActionsProps) {
                 variant="outline"
                 size="sm"
                 onClick={() => setActiveType(action.id)}
+                title={action.label}
                 className={cn(
-                  "gap-1.5 text-xs",
-                  action.color && `border-${action.color}-500/30 hover:bg-${action.color}-500/10`,
+                  "h-7 gap-1 border-primary/20 px-2 text-[11px] text-foreground transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary",
+                  "sm:h-8 sm:px-2.5",
                 )}
               >
-                <Icon className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{action.label}</span>
-            </Button>
-          );
-        })
-      )}
-    </div>
+                <Icon className="h-3.5 w-3.5 shrink-0 text-primary/80" />
+                <span className="hidden max-w-[80px] truncate lg:inline">{action.label}</span>
+              </Button>
+            );
+          })
+        )}
+      </div>
 
     {activeAction && (
       <PayPendingItemModal
