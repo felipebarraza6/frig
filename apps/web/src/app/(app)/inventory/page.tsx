@@ -19,10 +19,15 @@ import {
 import { fetchProducts } from "@/lib/api/products";
 import { fetchWarehouses } from "@/lib/api/warehouses";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
-import { cn } from "@/lib/utils";
+import { cn, formatCLP } from "@/lib/utils";
 import type { YggdraSchemas } from "@/lib/api/types";
 
-type InventoryHistory = YggdraSchemas["InventoryHistory"];
+type InventoryHistory = YggdraSchemas["InventoryHistory"] & {
+  unit_cost?: string | null;
+  sale_price?: string | null;
+  cost_value?: string | null;
+  sale_value?: string | null;
+};
 type ProductInventorySummary = YggdraSchemas["ProductInventorySummary"];
 
 const MOVEMENT_TYPES = [
@@ -76,6 +81,12 @@ function formatDateTime(v: string | null | undefined): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function parseAmount(value: unknown): number {
+  if (value === undefined || value === null) return 0;
+  if (typeof value === "number") return value;
+  return parseFloat(String(value)) || 0;
 }
 
 export default function InventoryPage() {
@@ -411,7 +422,7 @@ export default function InventoryPage() {
               <>
                 {/* Desktop table */}
                 <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
-                  <table className="w-full min-w-[760px] text-sm">
+                  <table className="w-full min-w-[980px] text-sm">
                     <thead>
                       <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
                         <th className="px-4 py-3">Producto</th>
@@ -419,6 +430,8 @@ export default function InventoryPage() {
                         <th className="px-4 py-3 text-right">Cantidad</th>
                         <th className="px-4 py-3 text-right">Stock previo</th>
                         <th className="px-4 py-3 text-right">Stock actual</th>
+                        <th className="px-4 py-3 text-right">Valor costo</th>
+                        <th className="px-4 py-3 text-right">Valor venta</th>
                         <th className="px-4 py-3">Usuario</th>
                         <th className="px-4 py-3">Fecha</th>
                       </tr>
@@ -440,6 +453,12 @@ export default function InventoryPage() {
                           <td className="px-4 py-3 text-right tabular-nums">{m.quantity}</td>
                           <td className="px-4 py-3 text-right tabular-nums">{m.previous_quantity}</td>
                           <td className="px-4 py-3 text-right tabular-nums">{m.current_quantity}</td>
+                          <td className="px-4 py-3 text-right tabular-nums font-medium text-foreground">
+                            {formatCLP(parseAmount(m.cost_value))}
+                          </td>
+                          <td className="px-4 py-3 text-right tabular-nums font-medium text-emerald-700">
+                            {formatCLP(parseAmount(m.sale_value))}
+                          </td>
                           <td className="px-4 py-3 text-muted-foreground">{m.user_name ?? "—"}</td>
                           <td className="px-4 py-3 text-muted-foreground">
                             {formatDateTime(m.created)}
@@ -471,24 +490,28 @@ export default function InventoryPage() {
                         </div>
                       </div>
 
-                      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                      <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
                         <div className="text-muted-foreground">
                           <span className="block text-[10px] uppercase tracking-wide">Cantidad</span>
                           <span className="font-medium tabular-nums text-foreground">{m.quantity}</span>
-                        </div>
-                        <div className="text-muted-foreground">
-                          <span className="block text-[10px] uppercase tracking-wide">Stock actual</span>
-                          <span className="font-medium tabular-nums text-foreground">{m.current_quantity}</span>
                         </div>
                         <div className="text-muted-foreground">
                           <span className="block text-[10px] uppercase tracking-wide">Stock previo</span>
                           <span className="font-medium tabular-nums text-foreground">{m.previous_quantity}</span>
                         </div>
                         <div className="text-muted-foreground">
-                          <span className="block text-[10px] uppercase tracking-wide">Usuario</span>
-                          <span className="font-medium text-foreground">{m.user_name ?? "—"}</span>
+                          <span className="block text-[10px] uppercase tracking-wide">Stock actual</span>
+                          <span className="font-medium tabular-nums text-foreground">{m.current_quantity}</span>
                         </div>
-                        <div className="col-span-2 flex items-center gap-1.5 text-muted-foreground">
+                        <div className="text-muted-foreground">
+                          <span className="block text-[10px] uppercase tracking-wide">Valor costo</span>
+                          <span className="font-medium tabular-nums text-foreground">{formatCLP(parseAmount(m.cost_value))}</span>
+                        </div>
+                        <div className="text-muted-foreground">
+                          <span className="block text-[10px] uppercase tracking-wide">Valor venta</span>
+                          <span className="font-medium tabular-nums text-emerald-700">{formatCLP(parseAmount(m.sale_value))}</span>
+                        </div>
+                        <div className="col-span-3 flex items-center gap-1.5 text-muted-foreground">
                           <Calendar className="h-3 w-3" />
                           <span>{formatDateTime(m.created)}</span>
                         </div>
