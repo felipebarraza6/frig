@@ -275,7 +275,7 @@ export const DEFAULT_POS_QUICK_ACTIONS: POSQuickAction[] = [
   { id: "pay-account", type: "pay_account", label: "Cuentas por cobrar", icon: "Receipt", color: "blue", enabled: true },
   { id: "pay-order", type: "pay_order", label: "Pedidos pendientes", icon: "ClipboardList", color: "amber", enabled: true },
   { id: "collect", type: "collect", label: "Cobrar por cliente", icon: "UserSearch", color: "emerald", enabled: true },
-  { id: "pay-purchase-order", type: "pay_purchase_order", label: "Órdenes de compra por pagar", icon: "Truck", color: "purple", enabled: true },
+  { id: "pay-purchase-order", type: "pay_purchase_order", label: "Órdenes de compra", icon: "Truck", color: "purple", enabled: true },
   { id: "pay-expense", type: "pay_expense", label: "Gastos por pagar", icon: "TrendingDown", color: "rose", enabled: true },
 ];
 

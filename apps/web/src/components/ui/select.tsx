@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, forwardRef, type SelectHTMLAttributes, Children, isValidElement } from "react";
 import { ChevronDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DropdownPortal } from "./dropdown-portal";
 
 export type SelectOption = { value: string; label: string };
 
@@ -12,6 +13,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
   ({ className, children, value, onChange, ...props }, ref) => {
     const [open, setOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
+    const triggerRef = useRef<HTMLButtonElement>(null);
 
     const opts: SelectOption[] =
       props.options ??
@@ -24,19 +26,10 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
 
     const selected = opts.find((o) => o.value === value) ?? opts[0];
 
-    useEffect(() => {
-      function handleClick(e: MouseEvent) {
-        if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-          setOpen(false);
-        }
-      }
-      if (open) document.addEventListener("mousedown", handleClick);
-      return () => document.removeEventListener("mousedown", handleClick);
-    }, [open]);
-
     return (
       <div ref={containerRef} className="relative">
         <button
+          ref={triggerRef}
           type="button"
           onClick={() => setOpen((v) => !v)}
           className={cn(
@@ -55,11 +48,13 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             )}
           />
         </button>
-        {open && (
-          <div
-            className="absolute z-50 mt-1.5 max-h-60 w-full min-w-[140px] overflow-auto rounded-xl border border-border/60 bg-background p-1 shadow-lg"
-            role="listbox"
-          >
+        <DropdownPortal
+          triggerRef={triggerRef}
+          open={open}
+          onClose={() => setOpen(false)}
+          className="max-h-60 overflow-auto rounded-xl border border-border/60 bg-background p-1 shadow-lg scrollbar-thin"
+        >
+          <div role="listbox">
             {opts.map((o) => (
               <button
                 key={o.value}
@@ -82,7 +77,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
               </button>
             ))}
           </div>
-        )}
+        </DropdownPortal>
         {/* Select nativo oculto para formularios / accesibilidad */}
         <select
           ref={ref}

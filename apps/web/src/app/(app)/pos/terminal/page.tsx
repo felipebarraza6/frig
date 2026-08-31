@@ -1139,7 +1139,7 @@ export default function PosPage() {
   const displayItemCount = itemCount + existingItemCount;
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-muted/30">
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-muted/30">
       {/* Header */}
       <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border/60 bg-background/95 px-3 backdrop-blur sm:h-12 sm:px-4">
         <div className="flex flex-1 min-w-0 items-center gap-2">
@@ -1324,26 +1324,8 @@ export default function PosPage() {
             </div>
           )}
 
-          {/* Acciones rápidas del POS */}
-          {!isWaiter && (
-            <div className="group/actions relative hidden items-center sm:flex">
-              <div className="flex max-w-[240px] items-center gap-1 overflow-x-auto scrollbar-hide px-0.5 md:max-w-[320px] lg:max-w-[420px]">
-                <PosQuickActions stationId={activeStationId} />
-              </div>
-            </div>
-          )}
-
         </div>
       </header>
-
-      {/* Acciones rápidas en móvil (debajo del header para mantener una fila usable) */}
-      {!isWaiter && (
-        <div className="flex border-b border-border/60 bg-background px-3 py-2 sm:hidden">
-          <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
-            <PosQuickActions stationId={activeStationId} />
-          </div>
-        </div>
-      )}
 
       {/* Banner: error al consultar la caja (distinto de "sin caja abierta") */}
       {cashRegisterError && !isWaiter && (
@@ -1697,8 +1679,18 @@ export default function PosPage() {
               </div>
             )}
 
+            {/* Acciones rápidas del POS (sobre el grid de productos) */}
+            {!isWaiter && (
+              <div className="flex shrink-0 items-center gap-1.5 border-b border-border/60 bg-muted/20 px-2 py-1.5">
+                <span className="hidden text-[10px] font-semibold uppercase tracking-wide text-muted-foreground lg:inline">
+                  Acciones
+                </span>
+                <PosQuickActions stationId={activeStationId} />
+              </div>
+            )}
+
             {/* Productos */}
-            <div className="min-h-0 flex-1 overflow-y-auto p-2">
+            <div className="min-h-0 flex-1 overflow-y-auto p-2 pb-6">
               {productsError ? (
                 <div className="grid h-full place-items-center rounded-xl border border-dashed border-border">
                   <p className="text-sm text-muted-foreground">
