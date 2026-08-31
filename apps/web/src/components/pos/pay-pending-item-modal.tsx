@@ -237,8 +237,8 @@ export default function PayPendingItemModal({
     paymentMethods[0]?.id ?? "",
   );
   const [notes, setNotes] = useState("");
-  const [orderDateFrom, setOrderDateFrom] = useState("");
-  const [orderDateTo, setOrderDateTo] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   const activeMethods = useMemo(
     () => paymentMethods.filter((m) => m.is_active && m.is_pos_enabled !== false),
@@ -249,9 +249,9 @@ export default function PayPendingItemModal({
   const [payingAll, setPayingAll] = useState(false);
 
   const { data: allPendingAccounts = [], isLoading: loadingAllPending } = useQuery({
-    queryKey: ["all-pending-accounts-for-collect"],
+    queryKey: ["all-pending-accounts-for-collect", dateFrom, dateTo],
     queryFn: async () => {
-      const data = await fetchOrders({ order_type: "SALE", payment_status: ["PENDING", "PARTIAL"], page_size: 100 });
+      const data = await fetchOrders({ order_type: "SALE", payment_status: ["PENDING", "PARTIAL"], start_date: dateFrom || undefined, end_date: dateTo || undefined, page_size: 100 });
       return (data.results ?? []) as Order[];
     },
     enabled: open && type === "collect",
@@ -278,7 +278,7 @@ export default function PayPendingItemModal({
   }, [clientsWithTotals, clientQuery]);
 
   const { data: orders = [], isLoading: loadingOrders } = useQuery({
-    queryKey: ["pending-orders-for-pos", type, selectedClient?.id, orderDateFrom, orderDateTo],
+    queryKey: ["pending-orders-for-pos", type, selectedClient?.id, dateFrom, dateTo],
     queryFn: async () => {
       if (type === "collect") {
         if (!selectedClient) return [];
@@ -288,14 +288,16 @@ export default function PayPendingItemModal({
         const data = await fetchOrders({
           order_type: "SALE",
           payment_status: ["PENDING", "PARTIAL"],
+          start_date: dateFrom || undefined,
+          end_date: dateTo || undefined,
           page_size: 50,
         });
         return (data.results ?? []) as Order[];
       }
       if (type === "pay_order") {
         const [byPayment, byDelivery] = await Promise.all([
-          fetchOrders({ order_type: "ORDER", payment_status: ["PENDING", "PARTIAL"], start_date: orderDateFrom || undefined, end_date: orderDateTo || undefined, page_size: 50 }),
-          fetchOrders({ order_type: "ORDER", status: ["PENDING", "IN_PROGRESS"], start_date: orderDateFrom || undefined, end_date: orderDateTo || undefined, page_size: 50 }),
+          fetchOrders({ order_type: "ORDER", payment_status: ["PENDING", "PARTIAL"], start_date: dateFrom || undefined, end_date: dateTo || undefined, page_size: 50 }),
+          fetchOrders({ order_type: "ORDER", status: ["PENDING", "IN_PROGRESS"], start_date: dateFrom || undefined, end_date: dateTo || undefined, page_size: 50 }),
         ]);
         const map = new Map<string, Order>();
         for (const o of [...(byPayment.results ?? []), ...(byDelivery.results ?? [])] as Order[]) {
@@ -314,16 +316,16 @@ export default function PayPendingItemModal({
   });
 
   const { data: purchaseOrdersData, isLoading: loadingPurchaseOrders } = useQuery({
-    queryKey: ["pending-purchase-orders-for-pos"],
+    queryKey: ["pending-purchase-orders-for-pos", dateFrom, dateTo],
     queryFn: () =>
-      fetchPurchaseOrders({ status: "SENT", payment_status: "PENDING", page_size: 50 }),
+      fetchPurchaseOrders({ status: "SENT", payment_status: "PENDING", start_date: dateFrom || undefined, end_date: dateTo || undefined, page_size: 50 }),
     enabled: open && type === "pay_purchase_order",
   });
   const purchaseOrders = (purchaseOrdersData?.results ?? []) as PurchaseOrder[];
 
   const { data: expensesData, isLoading: loadingExpenses } = useQuery({
-    queryKey: ["pending-expenses-for-pos"],
-    queryFn: () => fetchExpenses({ status: "ACTIVE", page_size: 50 }),
+    queryKey: ["pending-expenses-for-pos", dateFrom, dateTo],
+    queryFn: () => fetchExpenses({ status: "ACTIVE", startDate: dateFrom || undefined, endDate: dateTo || undefined, page_size: 50 }),
     enabled: open && type === "pay_expense",
   });
   const expenses = ((expensesData?.results ?? []) as FixedExpense[]).filter(
@@ -1141,15 +1143,13 @@ export default function PayPendingItemModal({
 
           <div className="flex flex-col gap-2">
             <p className="text-xs text-muted-foreground">Órdenes no pagadas o no entregadas</p>
-            {type === "pay_order" && (
-              <div className="flex gap-2 mb-3">
-                <Input type="date" value={orderDateFrom} onChange={e => setOrderDateFrom(e.target.value)} className="h-8 text-xs" />
-                <Input type="date" value={orderDateTo} onChange={e => setOrderDateTo(e.target.value)} className="h-8 text-xs" />
-                {(orderDateFrom || orderDateTo) && (
-                  <Button variant="ghost" size="sm" onClick={() => { setOrderDateFrom(""); setOrderDateTo(""); }} className="h-8 px-2 text-xs">Limpiar</Button>
-                )}
-              </div>
-            )}
+            <div className="flex gap-2 mb-3">
+              <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="h-8 text-xs flex-1" placeholder="Desde" />
+              <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="h-8 text-xs flex-1" placeholder="Hasta" />
+              {(dateFrom || dateTo) && (
+                <Button variant="ghost" size="sm" onClick={() => { setDateFrom(""); setDateTo(""); }} className="h-8 px-2 text-xs">Limpiar</Button>
+              )}
+            </div>
             <div className="flex flex-col gap-3 rounded-xl bg-muted/20 p-3 max-h-[28rem] overflow-y-auto">
               {renderItemList()}
             </div>
