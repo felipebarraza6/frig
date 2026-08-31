@@ -213,6 +213,36 @@ export default function PayPendingItemModal({
   );
 
   const isCollect = type === "collect";
+  const [payingAll, setPayingAll] = useState(false);
+
+  const { data: allPendingAccounts = [], isLoading: loadingAllPending } = useQuery({
+    queryKey: ["all-pending-accounts-for-collect"],
+    queryFn: async () => {
+      const data = await fetchOrders({ order_type: "SALE", payment_status: ["PENDING", "PARTIAL"], page_size: 100 });
+      return (data.results ?? []) as Order[];
+    },
+    enabled: open && type === "collect",
+    staleTime: 30_000,
+  });
+
+  const clientsWithTotals = useMemo(() => {
+    const map = new Map<number, { client: Order["client"]; totalPending: number; orders: Order[] }>();
+    for (const o of allPendingAccounts) {
+      const cid = (o.client as unknown as { id?: number })?.id;
+      if (!cid) continue;
+      const entry = map.get(cid) ?? { client: o.client, totalPending: 0, orders: [] };
+      entry.totalPending += toNum(o.total_amount) - toNum(o.paid_amount);
+      entry.orders.push(o);
+      map.set(cid, entry);
+    }
+    return Array.from(map.values()).sort((a, b) => b.totalPending - a.totalPending);
+  }, [allPendingAccounts]);
+
+  const filteredClientsWithTotals = useMemo(() => {
+    if (!clientQuery.trim()) return clientsWithTotals;
+    const q = clientQuery.toLowerCase();
+    return clientsWithTotals.filter((c) => (c.client?.name ?? "").toLowerCase().includes(q));
+  }, [clientsWithTotals, clientQuery]);
 
   const { data: orders = [], isLoading: loadingOrders } = useQuery({
     queryKey: ["pending-orders-for-pos", type, selectedClient?.id],
@@ -345,6 +375,7 @@ export default function PayPendingItemModal({
     setAmount("");
     setNotes("");
     setPaymentMethodId(activeMethods[0]?.id ?? "");
+    setPayingAll(false);
     onClose();
   }
 
@@ -385,6 +416,46 @@ export default function PayPendingItemModal({
           ? `Pago ${(item as FixedExpense).name}`
           : `Pago ${(item as Order).order_number ?? (item as Order).id.slice(0, 8)}`,
     );
+  }
+
+  async function handlePayAll() {
+    if (!selectedClient || orders.length === 0) return;
+    if (!paymentMethodId) {
+      toast.error("Selecciona un método de pago");
+      return;
+    }
+    if (!cashRegisterId) {
+      toast.error("No hay caja abierta");
+      return;
+    }
+    setPayingAll(true);
+    let success = 0;
+    let failed = 0;
+    for (const o of orders) {
+      const remaining = toNum(o.total_amount) - toNum(o.paid_amount);
+      if (remaining <= 0) continue;
+      try {
+        await payOrder(o.id, {
+          payment_method_id: paymentMethodId,
+          amount: toDecimal(remaining.toString()),
+          cash_register_id: cashRegisterId,
+          notes: notes || `Pago ${o.order_number ?? o.id.slice(0, 8)}`,
+        });
+        success++;
+      } catch {
+        failed++;
+      }
+    }
+    setPayingAll(false);
+    if (success > 0) {
+      toast.success(`${success} pago(s) registrado(s)${failed ? `, ${failed} fallaron` : ""}`);
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-orders-for-pos"] });
+      queryClient.invalidateQueries({ queryKey: ["all-pending-accounts-for-collect"] });
+      handleClose();
+    } else if (failed > 0) {
+      toast.error("No se pudo registrar ningún pago");
+    }
   }
 
   const cfg = TYPE_CONFIG[type];
@@ -564,54 +635,106 @@ export default function PayPendingItemModal({
       );
     }
 
-    if (loadingOrders) return <p className="text-sm text-muted-foreground">Cargando...</p>;
-    if (orders.length === 0) return <p className="text-sm text-muted-foreground">No hay órdenes pendientes.</p>;
     if (isCollect) {
-      return (
-        <div className="grid grid-cols-1 gap-3">
-          {orders.map((o) => {
-            const remaining = toNum(o.total_amount) - toNum(o.paid_amount);
-            const isExpanded = viewDetailId === o.id;
-            const detailOrder = (isExpanded ? orderDetail : null) ?? o;
-            const isDetailLoading = loadingOrderDetail && isExpanded;
-            return (
-              <div
-                key={o.id}
-                className={cn(
-                  "rounded-xl border border-border bg-card p-3 shadow-sm transition-colors",
-                  selectedItemId === o.id && "border-primary bg-primary/5",
-                )}
+      if (!selectedClient) {
+        if (loadingAllPending) return <p className="text-sm text-muted-foreground">Cargando...</p>;
+        if (filteredClientsWithTotals.length === 0) {
+          if (clientsWithTotals.length === 0) {
+            return <p className="text-sm text-muted-foreground">No hay clientes con cuentas pendientes</p>;
+          }
+          return <p className="text-sm text-muted-foreground">No se encontraron clientes</p>;
+        }
+        return (
+          <div className="grid grid-cols-1 gap-2">
+            {filteredClientsWithTotals.map((entry) => (
+              <button
+                key={String(entry.client.id)}
+                type="button"
+                onClick={() => {
+                  setSelectedClient(entry.client as unknown as Customer);
+                  setClientQuery("");
+                  setSelectedItemId(null);
+                  setViewDetailId(null);
+                }}
+                className="flex items-center justify-between rounded-xl border bg-card p-3 text-left transition-colors hover:bg-muted"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold">
-                      {o.order_number ?? o.id.slice(0, 8)}
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {shortDate(o.date)} · {paymentStatusLabel(o.payment_status)} ·{" "}
-                      {deliveryStatusLabel(o.delivery_status)}
-                    </p>
-                    {o.client?.name && (
-                      <p className="truncate text-[11px] text-muted-foreground">{o.client.name}</p>
-                    )}
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-semibold">
+                    {(entry.client?.name ?? "?").charAt(0).toUpperCase()}
                   </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-sm font-bold tabular-nums">{formatCLP(remaining)}</p>
-                    <p className="text-xs text-muted-foreground">de {formatCLP(toNum(o.total_amount))}</p>
+                  <div className="text-left min-w-0">
+                    <p className="truncate text-sm font-medium">{entry.client?.name ?? "Sin nombre"}</p>
+                    <p className="text-xs text-muted-foreground">{entry.orders.length} cuenta(s) pendiente(s)</p>
                   </div>
                 </div>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <Button size="sm" onClick={() => handleSelectItem(o.id)}>
-                    Pagar
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setViewDetailId(isExpanded ? null : o.id)}
-                  >
-                    {isExpanded ? "Cerrar" : "Ver detalle"}
-                  </Button>
-                </div>
+                <span className="ml-3 shrink-0 text-sm font-bold tabular-nums">{formatCLP(entry.totalPending)}</span>
+              </button>
+            ))}
+          </div>
+        );
+      }
+      if (loadingOrders) return <p className="text-sm text-muted-foreground">Cargando...</p>;
+      if (orders.length === 0) return <p className="text-sm text-muted-foreground">No hay órdenes pendientes.</p>;
+      return (
+        <div className="flex flex-col gap-3">
+          {orders.length > 1 && (
+            <div className="flex justify-end">
+              <Button size="sm" variant="outline" onClick={handlePayAll} disabled={payingAll || !paymentMethodId}>
+                {payingAll ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Pagando...
+                  </>
+                ) : (
+                  `Pagar todas (${orders.length})`
+                )}
+              </Button>
+            </div>
+          )}
+          <div className="grid grid-cols-1 gap-3">
+            {orders.map((o) => {
+              const remaining = toNum(o.total_amount) - toNum(o.paid_amount);
+              const isExpanded = viewDetailId === o.id;
+              const detailOrder = (isExpanded ? orderDetail : null) ?? o;
+              const isDetailLoading = loadingOrderDetail && isExpanded;
+              return (
+                <div
+                  key={o.id}
+                  className={cn(
+                    "rounded-xl border border-border bg-card p-3 shadow-sm transition-colors",
+                    selectedItemId === o.id && "border-primary bg-primary/5",
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold">
+                        {o.order_number ?? o.id.slice(0, 8)}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {shortDate(o.date)} · {paymentStatusLabel(o.payment_status)} ·{" "}
+                        {deliveryStatusLabel(o.delivery_status)}
+                      </p>
+                      {o.client?.name && (
+                        <p className="truncate text-[11px] text-muted-foreground">{o.client.name}</p>
+                      )}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-bold tabular-nums">{formatCLP(remaining)}</p>
+                      <p className="text-xs text-muted-foreground">de {formatCLP(toNum(o.total_amount))}</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <Button size="sm" onClick={() => handleSelectItem(o.id)}>
+                      Pagar
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setViewDetailId(isExpanded ? null : o.id)}
+                    >
+                      {isExpanded ? "Cerrar" : "Ver detalle"}
+                    </Button>
+                  </div>
 
                 {isExpanded && (
                   <div className="mt-3 border-t border-border pt-3">
@@ -701,10 +824,13 @@ export default function PayPendingItemModal({
                 )}
               </div>
             );
-          })}
+           })}
+          </div>
         </div>
       );
     }
+    if (loadingOrders) return <p className="text-sm text-muted-foreground">Cargando...</p>;
+    if (orders.length === 0) return <p className="text-sm text-muted-foreground">No hay órdenes pendientes.</p>;
     return (
       <div className="grid grid-cols-1 gap-3">
         {orders.map((o) => {
@@ -924,13 +1050,14 @@ export default function PayPendingItemModal({
                     onClick={() => {
                       setSelectedClient(null);
                       setSelectedItemId(null);
+                      setViewDetailId(null);
                     }}
                     className="text-xs text-primary hover:underline"
                   >
                     Cambiar
                   </button>
                 </div>
-              ) : (
+              ) : clientsWithTotals.length > 0 ? null : (
                 <div className="flex flex-col gap-1">
                   {customerResults.map((c) => (
                     <button
