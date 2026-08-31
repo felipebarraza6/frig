@@ -1310,39 +1310,8 @@ export default function PosPage() {
             </button>
           )}
 
-          {/* Open accounts */}
-          {effectiveConfig.order_history && !isWaiter && (
-            <button
-              type="button"
-              onClick={() => setShowOpenAccounts(true)}
-              className="relative inline-flex h-8 items-center gap-1.5 rounded-lg border border-border/60 bg-muted/40 px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
-            >
-              <ClipboardList className="h-3.5 w-3.5" />
-              <span className="hidden lg:inline">Cuentas</span>
-              {visibleOpenAccounts.length > 0 && (
-                <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-semibold text-white">
-                  {visibleOpenAccounts.length}
-                </span>
-              )}
-            </button>
-          )}
-
-          {/* Pending deliveries/pickups */}
-          {(effectiveConfig.delivery || effectiveConfig.pickup) && !isWaiter && (
-            <button
-              type="button"
-              onClick={() => setShowPendingDeliveries(true)}
-              className="relative inline-flex h-8 items-center gap-1.5 rounded-lg border border-border/60 bg-muted/40 px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
-            >
-              <Truck className="h-3.5 w-3.5" />
-              <span className="hidden lg:inline">Pendientes</span>
-              {pendingDeliveriesCount > 0 && (
-                <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-500 px-1 text-[9px] font-semibold text-white">
-                  {pendingDeliveriesCount}
-                </span>
-              )}
-            </button>
-          )}
+          {/* Definitive POS quick actions */}
+          {!isWaiter && <PosQuickActions stationId={activeStationId} />}
 
           {/* Search (mobile shortcut) */}
           <button
@@ -1696,16 +1665,6 @@ export default function PosPage() {
                     </span>
                   )}
                 </span>
-              </div>
-            )}
-
-            {/* Acciones rápidas del POS (sobre el grid de productos) */}
-            {!isWaiter && (
-              <div className="flex shrink-0 items-center gap-1.5 border-b border-border/60 bg-muted/20 px-2 py-1.5">
-                <span className="hidden text-[10px] font-semibold uppercase tracking-wide text-muted-foreground lg:inline">
-                  Acciones
-                </span>
-                <PosQuickActions stationId={activeStationId} />
               </div>
             )}
 
