@@ -568,7 +568,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
     if (isWaiter) {
       return { label: "Nuevo pedido", icon: ClipboardList, color: "text-violet-600 bg-violet-500/10" };
     }
-    return { label: "Nueva cuenta", icon: ClipboardList, color: "text-amber-600 bg-amber-500/10" };
+    return { label: "Nueva venta", icon: Receipt, color: "text-emerald-600 bg-emerald-500/10" };
   }, [existingOrderId, existingOrder, defaultOrderType, payments.length, isWaiter]);
 
   const ModeIcon = modeConfig.icon;
@@ -763,7 +763,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
 
                   {payments.length === 0 ? (
                     <p className="text-xs text-muted-foreground">
-                      Sin pagos se guardará como pedido / cuenta abierta.
+                      Sin pagos se guardará como cuenta abierta.
                     </p>
                   ) : (
                     <div className="flex flex-col gap-2">
@@ -977,7 +977,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
           ) : payments.length > 0 ? (
             `Cobrar ${formatCLP(total)}`
           ) : (
-            "Guardar cuenta"
+            "Guardar venta"
           )}
         </Button>
       </div>

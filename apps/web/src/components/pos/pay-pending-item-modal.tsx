@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Search,
   Receipt,
@@ -13,13 +13,14 @@ import {
   Eye,
   Pencil,
   Trash2,
+  Check,
 } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { ModalBody, ModalFooter } from "@/components/ui/modal";
-import { fetchOrders, payOrder, fetchPendingOrdersByClient } from "@/lib/api/orders";
+import { fetchOrders, payOrder, fetchPendingOrdersByClient, deliverOrder } from "@/lib/api/orders";
 import { fetchPurchaseOrders, payPurchaseOrder } from "@/lib/api/suppliers";
 import { fetchExpenses, payExpense } from "@/lib/api/expenses";
 import { searchCustomers } from "@/lib/api/customers";
@@ -70,6 +71,34 @@ type PaymentMethod = {
 
 type Customer = YggdraSchemas["Client"];
 
+function deliveryStatusLabel(status?: string | null) {
+  switch (status) {
+    case "IN_PROGRESS":
+      return "En preparación";
+    case "DELIVERED":
+      return "Entregado";
+    case "PARTIAL":
+      return "Parcial";
+    case "PENDING":
+    default:
+      return "Pendiente";
+  }
+}
+
+function deliveryStatusClass(status?: string | null) {
+  switch (status) {
+    case "IN_PROGRESS":
+      return "text-blue-600";
+    case "DELIVERED":
+      return "text-emerald-600";
+    case "PARTIAL":
+      return "text-violet-600";
+    case "PENDING":
+    default:
+      return "text-amber-600";
+  }
+}
+
 interface PayPendingItemModalProps {
   open: boolean;
   type: POSQuickActionType;
@@ -90,9 +119,9 @@ const TYPE_CONFIG: Record<
     listLabel: "Cuentas por cobrar (ventas)",
   },
   pay_order: {
-    title: "Pedidos pendientes",
+    title: "Pedidos pendientes por entregar",
     icon: <ClipboardList className="h-5 w-5" />,
-    listLabel: "Pedidos pendientes",
+    listLabel: "Pedidos pendientes por entregar",
   },
   collect: {
     title: "Cobrar por cliente",
@@ -121,6 +150,7 @@ export default function PayPendingItemModal({
   onCancelOrder,
 }: PayPendingItemModalProps) {
   const toast = useToast();
+  const queryClient = useQueryClient();
   const [clientQuery, setClientQuery] = useState("");
   const [selectedClient, setSelectedClient] = useState<Customer | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
@@ -144,11 +174,18 @@ export default function PayPendingItemModal({
         if (!selectedClient) return [];
         return fetchPendingOrdersByClient(String(selectedClient.id)) as Promise<Order[]>;
       }
-      if (type === "pay_account" || type === "pay_order") {
-        const orderType = type === "pay_account" ? "SALE" : "ORDER";
+      if (type === "pay_account") {
         const data = await fetchOrders({
-          order_type: orderType,
+          order_type: "SALE",
           payment_status: ["PENDING", "PARTIAL"],
+          page_size: 50,
+        });
+        return (data.results ?? []) as Order[];
+      }
+      if (type === "pay_order") {
+        const data = await fetchOrders({
+          order_type: "ORDER",
+          status: ["PENDING", "IN_PROGRESS"],
           page_size: 50,
         });
         return (data.results ?? []) as Order[];
@@ -229,6 +266,19 @@ export default function PayPendingItemModal({
     },
     onError: (err: Error) => {
       toast.error(err.message || "No se pudo registrar el pago");
+    },
+  });
+
+  const deliverMutation = useMutation({
+    mutationFn: (orderId: string) => deliverOrder(orderId),
+    onSuccess: () => {
+      toast.success("Pedido marcado como entregado");
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-orders-for-pos"] });
+      handleClose();
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "No se pudo marcar como entregado");
     },
   });
 
@@ -359,61 +409,105 @@ export default function PayPendingItemModal({
     if (orders.length === 0) return <p className="text-sm text-muted-foreground">No hay órdenes pendientes.</p>;
     return (
       <div className="flex flex-col gap-2">
-        {orders.map((o) => (
-          <div
-            key={o.id}
-            className={cn(
-              "flex items-center gap-1 rounded-lg border px-3 py-2 text-sm transition-colors",
-              selectedItemId === o.id
-                ? "border-primary bg-primary/10"
-                : "border-border hover:bg-muted",
-            )}
-          >
-            <button
-              type="button"
-              onClick={() => handleSelectItem(o.id)}
-              className="flex flex-1 flex-col gap-0.5 text-left"
+        {orders.map((o) => {
+          const isPayOrder = type === "pay_order";
+          return (
+            <div
+              key={o.id}
+              className={cn(
+                "flex items-center gap-1 rounded-lg border px-3 py-2 text-sm transition-colors",
+                selectedItemId === o.id
+                  ? "border-primary bg-primary/10"
+                  : "border-border hover:bg-muted",
+              )}
             >
-              <div className="flex items-center justify-between">
-                <span className="font-medium">
-                  {o.order_number ?? o.id.slice(0, 8)}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {formatCLP(toNum(o.total_amount) - toNum(o.paid_amount))}
-                </span>
-              </div>
-              <span className="text-xs text-muted-foreground">{o.client?.name ?? "Sin cliente"}</span>
-            </button>
-            {showOrderActions && (
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleContinueOrder(o);
-                  }}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
-                  title="Continuar agregando"
-                  aria-label="Continuar agregando"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleCancelOrder(o);
-                  }}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-rose-600"
-                  title="Anular"
-                  aria-label="Anular"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            )}
-          </div>
-        ))}
+              <button
+                type="button"
+                onClick={() => handleSelectItem(o.id)}
+                className="flex flex-1 flex-col gap-0.5 text-left"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">
+                    {o.order_number ?? o.id.slice(0, 8)}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {isPayOrder
+                      ? formatCLP(Number(o.total_amount || 0))
+                      : formatCLP(toNum(o.total_amount) - toNum(o.paid_amount))}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">{o.client?.name ?? "Sin cliente"}</span>
+                  {isPayOrder && (
+                    <span className={cn("text-[10px] font-medium uppercase tracking-wide", deliveryStatusClass(o.delivery_status))}>
+                      {deliveryStatusLabel(o.delivery_status)}
+                    </span>
+                  )}
+                </div>
+              </button>
+              {isPayOrder ? (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleContinueOrder(o);
+                    }}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
+                    title="Ver"
+                    aria-label="Ver"
+                  >
+                    <Eye className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deliverMutation.mutate(o.id);
+                    }}
+                    disabled={deliverMutation.isPending}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-emerald-600 disabled:opacity-50"
+                    title="Entregar"
+                    aria-label="Entregar"
+                  >
+                    {deliverMutation.isPending ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Check className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                </div>
+              ) : showOrderActions ? (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleContinueOrder(o);
+                    }}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
+                    title="Continuar agregando"
+                    aria-label="Continuar agregando"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCancelOrder(o);
+                    }}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-rose-600"
+                    title="Anular"
+                    aria-label="Anular"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
     );
   }
@@ -489,62 +583,120 @@ export default function PayPendingItemModal({
 
           {selectedItem && (
             <div className="flex flex-col gap-3 rounded-lg border border-border/60 bg-muted/30 p-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Saldo pendiente</span>
-                <span className="font-semibold">{formatCLP(remainingAmount)}</span>
-              </div>
-              {showOrderActions && (
-                <div className="flex items-center justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleContinueOrder(selectedItem as Order)}
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
-                    title="Continuar agregando"
-                    aria-label="Continuar agregando"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleCancelOrder(selectedItem as Order)}
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-rose-600"
-                    title="Anular"
-                    aria-label="Anular"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
+              {type === "pay_order" ? (
+                <>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Orden</span>
+                    <span className="font-semibold">
+                      {(selectedItem as Order).order_number ?? (selectedItem as Order).id.slice(0, 8)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Cliente</span>
+                    <span className="font-medium">{(selectedItem as Order).client?.name ?? "Sin cliente"}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Total</span>
+                    <span className="font-semibold">{formatCLP(Number((selectedItem as Order).total_amount || 0))}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Estado de entrega</span>
+                    <span className={cn("font-medium", deliveryStatusClass((selectedItem as Order).delivery_status))}>
+                      {deliveryStatusLabel((selectedItem as Order).delivery_status)}
+                    </span>
+                  </div>
+                  {(selectedItem as Order).delivery_address && (
+                    <div className="flex flex-col gap-0.5 text-sm">
+                      <span className="text-muted-foreground">Dirección de entrega</span>
+                      <span className="font-medium">{(selectedItem as Order).delivery_address}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleContinueOrder(selectedItem as Order)}
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
+                      title="Ver"
+                      aria-label="Ver"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deliverMutation.mutate((selectedItem as Order).id)}
+                      disabled={deliverMutation.isPending}
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-emerald-600 disabled:opacity-50"
+                      title="Entregar"
+                      aria-label="Entregar"
+                    >
+                      {deliverMutation.isPending ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Check className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Saldo pendiente</span>
+                    <span className="font-semibold">{formatCLP(remainingAmount)}</span>
+                  </div>
+                  {showOrderActions && (
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleContinueOrder(selectedItem as Order)}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
+                        title="Continuar agregando"
+                        aria-label="Continuar agregando"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleCancelOrder(selectedItem as Order)}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-rose-600"
+                        title="Anular"
+                        aria-label="Anular"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-medium text-muted-foreground">Monto</label>
+                      <Input
+                        value={amount ? formatCLP(parseFloat(toDecimal(amount))) : ""}
+                        onChange={(e) => setAmount(numberValue(e.target.value))}
+                        placeholder="Monto"
+                        className="tabular-nums"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-medium text-muted-foreground">Método de pago</label>
+                      <Select
+                        value={paymentMethodId}
+                        onChange={(e) => setPaymentMethodId(e.target.value)}
+                        options={activeMethods.map((m) => ({
+                          value: m.id,
+                          label: m.name,
+                        }))}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-medium text-muted-foreground">Notas / referencia</label>
+                    <Input
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="Opcional"
+                    />
+                  </div>
+                </>
               )}
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-medium text-muted-foreground">Monto</label>
-                  <Input
-                    value={amount ? formatCLP(parseFloat(toDecimal(amount))) : ""}
-                    onChange={(e) => setAmount(numberValue(e.target.value))}
-                    placeholder="Monto"
-                    className="tabular-nums"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-medium text-muted-foreground">Método de pago</label>
-                  <Select
-                    value={paymentMethodId}
-                    onChange={(e) => setPaymentMethodId(e.target.value)}
-                    options={activeMethods.map((m) => ({
-                      value: m.id,
-                      label: m.name,
-                    }))}
-                  />
-                </div>
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-muted-foreground">Notas / referencia</label>
-                <Input
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Opcional"
-                />
-              </div>
             </div>
           )}
         </div>
@@ -553,19 +705,29 @@ export default function PayPendingItemModal({
         <Button variant="outline" onClick={handleClose}>
           Cancelar
         </Button>
-        <Button
-          onClick={() => payMutation.mutate()}
-          disabled={
-            !selectedItem ||
-            !amount ||
-            !paymentMethodId ||
-            payMutation.isPending ||
-            parseFloat(toDecimal(amount)) > remainingAmount + 0.01
-          }
-          isLoading={payMutation.isPending}
-        >
-          Registrar pago
-        </Button>
+        {type === "pay_order" ? (
+          <Button
+            onClick={() => deliverMutation.mutate((selectedItem as Order).id)}
+            disabled={!selectedItem || deliverMutation.isPending}
+            isLoading={deliverMutation.isPending}
+          >
+            Entregar
+          </Button>
+        ) : (
+          <Button
+            onClick={() => payMutation.mutate()}
+            disabled={
+              !selectedItem ||
+              !amount ||
+              !paymentMethodId ||
+              payMutation.isPending ||
+              parseFloat(toDecimal(amount)) > remainingAmount + 0.01
+            }
+            isLoading={payMutation.isPending}
+          >
+            Registrar pago
+          </Button>
+        )}
       </ModalFooter>
     </Modal>
   );
