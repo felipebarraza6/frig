@@ -11,7 +11,6 @@ import {
   RefreshCcw,
   ArrowRight,
   ArrowLeft,
-  ArrowLeftRight,
   Table,
   Eye,
   Trash2,
@@ -27,6 +26,7 @@ import {
   Plus,
   Minus,
   Lock,
+  Unlock,
   Truck,
   Check,
   AlertTriangle,
@@ -106,6 +106,7 @@ import {
 import { useBranchModules } from "@/lib/hooks/useBranchModules";
 import { useBranchProductTypes } from "@/lib/hooks/useBranchProductTypes";
 import { branchName } from "@/lib/types";
+import { usePosConfig } from "@/lib/store/pos-config";
 import ModifierModal from "@/components/pos/modifier-modal";
 import PosQuickActions from "@/components/pos/pos-quick-actions";
 import { WaiterTablesView } from "@/components/pos/waiter-tables-view";
@@ -171,6 +172,23 @@ export default function PosPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
+  const stationId = searchParams.get("station_id");
+  const posConfig = usePosConfig(stationId);
+  const effectiveConfig = useMemo(
+    () => ({
+      ...posConfig.config,
+      ...(posConfig.config.self_service
+        ? {
+            cash_movements: false,
+            supplier_payments: false,
+            expenses: false,
+            quotes: false,
+            order_history: false,
+          }
+        : {}),
+    }),
+    [posConfig.config],
+  );
   const queryStationId = searchParams.get("station_id");
   const queryView = searchParams.get("view");
   const queryOrderId = searchParams.get("order_id");
@@ -407,7 +425,7 @@ export default function PosPage() {
   const { enabledModules, isLoading: modulesLoading } = useBranchModules();
   const tablesEnabled = !modulesLoading && enabledModules.has("tables");
   const publicCatalogEnabled = !modulesLoading && enabledModules.has("public_catalog");
-  const showTables = (canViewTables && tablesEnabled) || isWaiterSimulation;
+  const showTables = ((canViewTables && tablesEnabled) || isWaiterSimulation) && effectiveConfig.tables;
   const { options: productTypeOptions } = useBranchProductTypes();
   const allowedProductTypes = useMemo(
     () => new Set(productTypeOptions.map((o) => o.value)),
@@ -1164,168 +1182,182 @@ export default function PosPage() {
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center justify-end gap-1.5 sm:gap-2">
-          {!activeStationId && !isWaiter && (
-            <span className="hidden rounded-md bg-amber-500/10 px-2.5 py-1 text-[11px] text-amber-700 lg:inline-block">
-              Sin estación asignada
-            </span>
-          )}
+      </header>
 
-          {/* Tipo de operación actual */}
-          <span
+      {/* Top action bar */}
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border/60 bg-background px-3 py-2 sm:px-4">
+        {/* Left: operation mode selector */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              if (isEditingOrder) {
+                clearCart();
+                startNewOrder("SALE");
+              } else if (posMode) {
+                setShowModeSelector(true);
+                clearPosMode();
+              } else {
+                setShowModeSelector(true);
+              }
+            }}
             className={cn(
-              "inline-flex min-w-0 max-w-[140px] items-center gap-1 truncate rounded-md px-1.5 py-1 text-[11px] sm:max-w-[220px] sm:px-2",
+              "inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition-colors",
               effectiveOrderId && existingOrder
-                ? "bg-primary/10 text-primary"
+                ? "border-primary/30 bg-primary/10 text-primary hover:bg-primary/20"
                 : isOrderMode
-                  ? "bg-violet-500/10 text-violet-700"
+                  ? "border-violet-200 bg-violet-500/10 text-violet-700 hover:bg-violet-500/20"
                   : isOpenAccountMode
-                    ? "bg-blue-500/10 text-blue-700"
-                    : "bg-emerald-500/10 text-emerald-700"
+                    ? "border-blue-200 bg-blue-500/10 text-blue-700 hover:bg-blue-500/20"
+                    : "border-emerald-200 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20"
             )}
-            title={
-              effectiveOrderId && existingOrder
-                ? existingOrder.order_type === "ORDER"
-                  ? `Orden de ${existingOrder.client?.name ?? "sin cliente"} #${existingOrder.order_number ?? ""}`
-                  : existingOrder.order_type === "SALE" && !existingOrder.payment_status?.startsWith("PENDING")
-                    ? `Editando venta #${existingOrder.order_number ?? ""}`
-                    : `Cuenta de ${existingOrder.client?.name ?? "sin cliente"} #${existingOrder.order_number ?? ""}`
-                : isOrderMode
-                  ? "Nueva orden"
-                  : isOpenAccountMode
-                    ? "Abriendo una cuenta sin cobrar"
-                    : "Nueva venta al contado"
-            }
           >
             {effectiveOrderId && existingOrder ? (
               <>
-                <span className="hidden shrink-0 font-medium sm:inline">
+                <Receipt className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">
                   {existingOrder.order_type === "ORDER"
                     ? "Orden"
                     : existingOrder.order_type === "SALE" && !existingOrder.payment_status?.startsWith("PENDING")
                       ? "Editando venta"
                       : "Cuenta"}
                 </span>
-                {existingOrder.order_type === "ORDER" || existingOrder.payment_status?.startsWith("PENDING") ? (
-                  <span className="truncate font-normal opacity-90">
-                    · {existingOrder.client?.name ?? "sin cliente"}
-                  </span>
-                ) : (
-                  <span className="hidden text-primary/60 sm:inline">·</span>
-                )}
-                <span className="truncate font-semibold tabular-nums">
-                  #{existingOrder.order_number ?? ""}
-                </span>
+                <span>#{existingOrder.order_number ?? ""}</span>
               </>
             ) : isOrderMode ? (
               <>
-                <ClipboardList className="h-3 w-3 shrink-0" />
-                <span className="truncate font-medium">Nueva orden</span>
+                <ClipboardList className="h-3.5 w-3.5" />
+                <span>Nueva orden</span>
               </>
             ) : isOpenAccountMode ? (
               <>
-                <ClipboardList className="h-3 w-3 shrink-0" />
-                <span className="truncate font-medium">Nueva cuenta</span>
+                <ClipboardList className="h-3.5 w-3.5" />
+                <span>Nueva cuenta</span>
               </>
             ) : (
               <>
-                <Receipt className="h-3 w-3 shrink-0" />
-                <span className="truncate font-medium">Nueva venta</span>
+                <Receipt className="h-3.5 w-3.5" />
+                <span>Nueva venta</span>
               </>
             )}
-          </span>
+          </button>
 
-          {/* Cambiar modo / salir de orden en edición */}
-          {(posMode || isEditingOrder) && (
+          {/* Cash register status */}
+          {!isWaiter && (
             <button
               type="button"
+              disabled={openCashRegisterMutation.isPending || closeCashRegisterMutation.isPending}
               onClick={() => {
-                clearCart();
-                if (isEditingOrder) {
-                  startNewOrder("SALE");
-                } else {
-                  setShowModeSelector(true);
-                  clearPosMode();
-                }
+                setShowCashRegisterModal(true);
+                setMovementType("CASH_IN");
+                setSupplierSearch("");
+                setSupplierOptions([]);
+                setSelectedSupplier(null);
+                setSupplierPaymentConcept("");
+                setMovementAmount("");
+                setMovementReason("");
               }}
-              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border/60 bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              title={isEditingOrder ? "Cerrar orden y crear una venta nueva" : "Cambiar entre venta y orden"}
+              className={cn(
+                "inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition-colors",
+                cashRegisterError
+                  ? "border-rose-200 bg-rose-500/10 text-rose-700 hover:bg-rose-500/20"
+                  : currentCashRegister
+                    ? "border-emerald-200 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20"
+                    : "border-amber-200 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20"
+              )}
             >
-              {isEditingOrder ? <Plus className="h-3.5 w-3.5" /> : <ArrowLeftRight className="h-3.5 w-3.5" />}
+              {cashRegisterError ? (
+                <AlertTriangle className="h-3.5 w-3.5" />
+              ) : currentCashRegister ? (
+                <Unlock className="h-3.5 w-3.5" />
+              ) : (
+                <Lock className="h-3.5 w-3.5" />
+              )}
+              <span className="hidden sm:inline">
+                {cashRegisterError
+                  ? "Error caja"
+                  : currentCashRegister
+                    ? "Caja abierta"
+                    : "Caja cerrada"}
+              </span>
+            </button>
+          )}
+        </div>
+
+        {/* Right: quick action buttons */}
+        <div className="flex items-center gap-1.5">
+          {/* Combos button */}
+          {combos && combos.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowComboPicker(true)}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+            >
+              <Zap className="h-3.5 w-3.5" />
+              <span className="hidden lg:inline">Combos</span>
             </button>
           )}
 
-          {/* Estado de caja */}
-          {!isWaiter && (
-            <div className="group relative">
-              <button
-                type="button"
-                disabled={openCashRegisterMutation.isPending || closeCashRegisterMutation.isPending}
-                onClick={() => {
-                  setShowCashRegisterModal(true);
-                  setMovementType("CASH_IN");
-                  setSupplierSearch("");
-                  setSupplierOptions([]);
-                  setSelectedSupplier(null);
-                  setSupplierPaymentConcept("");
-                  setMovementAmount("");
-                  setMovementReason("");
-                }}
-                className={cn(
-                  "inline-flex h-8 items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
-                  cashRegisterError
-                    ? "bg-rose-500/10 text-rose-700 hover:bg-rose-500/20"
-                    : currentCashRegister
-                      ? "bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20"
-                      : "bg-amber-500/10 text-amber-700 hover:bg-amber-500/20"
-                )}
-                title={
-                  cashRegisterError
-                    ? "No se pudo consultar el estado de la caja - click para reintentar"
-                    : currentCashRegister
-                      ? "Caja abierta - click para ver resumen o cerrar"
-                      : "Caja cerrada - click para abrir"
-                }
-              >
-                {openCashRegisterMutation.isPending || closeCashRegisterMutation.isPending ? (
-                  <svg className="h-3 w-3 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                ) : cashRegisterError ? (
-                  <>
-                    <AlertTriangle className="h-3 w-3" />
-                    <span className="hidden sm:inline">Error de caja</span>
-                  </>
-                ) : currentCashRegister ? (
-                  <>
-                    <Banknote className="h-3 w-3" />
-                    <span className="hidden sm:inline">Caja abierta</span>
-                    <span className="hidden text-[10px] text-emerald-600/80 sm:inline">· Cerrar</span>
-                  </>
-                ) : (
-                  <>
-                    <Wallet className="h-3 w-3" />
-                    <span className="hidden sm:inline">Abrir caja</span>
-                  </>
-                )}
-              </button>
-              {currentCashRegister && (
-                <div className="pointer-events-none absolute right-0 top-full z-50 mt-2 hidden w-56 rounded-xl border border-border/80 bg-card p-3 shadow-xl group-hover:block">
-                  <p className="text-xs font-semibold">Resumen de caja</p>
-                  <div className="mt-2 flex flex-col gap-1 text-[11px] text-muted-foreground">
-                    <span>Abierta por <strong className="text-foreground">{(currentCashRegister as { opened_by_name?: string }).opened_by_name ?? "—"}</strong></span>
-                    <span>Apertura: <strong className="text-foreground">{formatCLP(parseFloat((currentCashRegister as { opening_amount?: string }).opening_amount ?? "0"))}</strong></span>
-                    <span>Saldo actual: <strong className="text-foreground">{formatCLP(parseFloat((currentCashRegister as { current_balance?: string; expected_amount?: string }).current_balance ?? (currentCashRegister as { expected_amount?: string }).expected_amount ?? "0"))}</strong></span>
-                    <span className="text-[10px] opacity-80">Haz click para ver movimientos o cerrar</span>
-                  </div>
-                </div>
-              )}
-            </div>
+          {/* Table map */}
+          {showTables && !isWaiter && (
+            <button
+              type="button"
+              onClick={() => setShowTableMap(true)}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border/60 bg-muted/40 px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+            >
+              <Table className="h-3.5 w-3.5" />
+              <span className="hidden lg:inline">Mapa mesas</span>
+            </button>
           )}
 
+          {/* Open accounts */}
+          {effectiveConfig.order_history && !isWaiter && (
+            <button
+              type="button"
+              onClick={() => setShowOpenAccounts(true)}
+              className="relative inline-flex h-8 items-center gap-1.5 rounded-lg border border-border/60 bg-muted/40 px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+            >
+              <ClipboardList className="h-3.5 w-3.5" />
+              <span className="hidden lg:inline">Cuentas</span>
+              {visibleOpenAccounts.length > 0 && (
+                <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-semibold text-white">
+                  {visibleOpenAccounts.length}
+                </span>
+              )}
+            </button>
+          )}
+
+          {/* Pending deliveries/pickups */}
+          {(effectiveConfig.delivery || effectiveConfig.pickup) && !isWaiter && (
+            <button
+              type="button"
+              onClick={() => setShowPendingDeliveries(true)}
+              className="relative inline-flex h-8 items-center gap-1.5 rounded-lg border border-border/60 bg-muted/40 px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+            >
+              <Truck className="h-3.5 w-3.5" />
+              <span className="hidden lg:inline">Pendientes</span>
+              {pendingDeliveriesCount > 0 && (
+                <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-500 px-1 text-[9px] font-semibold text-white">
+                  {pendingDeliveriesCount}
+                </span>
+              )}
+            </button>
+          )}
+
+          {/* Search (mobile shortcut) */}
+          <button
+            type="button"
+            onClick={() => {
+              const el = document.getElementById("pos-catalog-search");
+              el?.focus();
+            }}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border/60 bg-muted/40 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:hidden"
+            aria-label="Buscar producto"
+          >
+            <Search className="h-3.5 w-3.5" />
+          </button>
         </div>
-      </header>
+      </div>
 
       {/* Banner: error al consultar la caja (distinto de "sin caja abierta") */}
       {cashRegisterError && !isWaiter && (
@@ -1371,11 +1403,17 @@ export default function PosPage() {
             <div className="grid gap-3">
               <button
                 type="button"
+                disabled={!effectiveConfig.sales}
                 onClick={() => {
                   selectPosMode("SALE", rememberPosMode);
                   setShowModeSelector(false);
                 }}
-                className="flex items-center gap-4 rounded-xl border border-border bg-background p-4 text-left transition-colors hover:border-emerald-300 hover:bg-emerald-50/30"
+                className={cn(
+                  "flex items-center gap-4 rounded-xl border border-border bg-background p-4 text-left transition-colors",
+                  effectiveConfig.sales
+                    ? "hover:border-emerald-300 hover:bg-emerald-50/30"
+                    : "opacity-60 cursor-not-allowed",
+                )}
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10">
                   <Receipt className="h-5 w-5 text-emerald-600" />
@@ -1383,7 +1421,9 @@ export default function PosPage() {
                 <div className="min-w-0">
                   <p className="text-sm font-semibold">Venta</p>
                   <p className="text-xs text-muted-foreground">
-                    Venta inmediata al contado. El cliente paga ahora y se entrega el producto.
+                    {effectiveConfig.sales
+                      ? "Venta inmediata al contado. El cliente paga ahora y se entrega el producto."
+                      : "Las ventas están deshabilitadas para esta estación."}
                   </p>
                 </div>
                 <ArrowRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground" />
@@ -1477,13 +1517,6 @@ export default function PosPage() {
                       ))}
                   </select>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowTableMap(true)}
-                  className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-border/60 bg-background px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
-                >
-                  Mapa de mesas
-                </button>
               </div>
             )}
 
@@ -1524,19 +1557,6 @@ export default function PosPage() {
                     ))}
               </div>
             </div>
-
-            {combos && combos.length > 0 && (
-              <div className="mt-3 border-t border-border/60 pt-3">
-                <button
-                  type="button"
-                  onClick={() => setShowComboPicker(true)}
-                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
-                >
-                  Combos
-                  <span className="text-[10px]">({combos.length})</span>
-                </button>
-              </div>
-            )}
           </aside>
 
           <div className="flex h-full min-w-0 flex-1 flex-col">
@@ -1691,6 +1711,12 @@ export default function PosPage() {
 
             {/* Productos */}
             <div className="min-h-0 flex-1 overflow-y-auto p-2 pb-6">
+              {!effectiveConfig.sales && (
+                <div className="mb-2 flex items-center gap-2 rounded-lg border border-amber-200/60 bg-amber-500/10 p-2.5 text-xs text-amber-700">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <span className="font-medium">Las ventas están deshabilitadas para esta estación.</span>
+                </div>
+              )}
               {productsError ? (
                 <div className="grid h-full place-items-center rounded-xl border border-dashed border-border">
                   <p className="text-sm text-muted-foreground">
@@ -1869,32 +1895,36 @@ export default function PosPage() {
                   {cashRegisterError ? "Error caja" : currentCashRegister ? "Caja" : "Abrir caja"}
                 </span>
               </button>
-              <button
-                type="button"
-                onClick={() => setShowOpenAccounts(true)}
-                className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              >
-                <ClipboardList className="h-[18px] w-[18px]" />
-                <span className="truncate px-0.5">Cuentas</span>
-                {visibleOpenAccounts.length > 0 && (
-                  <span className="absolute right-2 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-semibold text-white">
-                    {visibleOpenAccounts.length}
-                  </span>
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowPendingDeliveries(true)}
-                className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              >
-                <Zap className="h-[18px] w-[18px]" />
-                <span className="truncate px-0.5">Pendientes</span>
-                {pendingDeliveriesCount > 0 && (
-                  <span className="absolute right-2 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-500 px-1 text-[9px] font-semibold text-white">
-                    {pendingDeliveriesCount}
-                  </span>
-                )}
-              </button>
+              {effectiveConfig.order_history && (
+                <button
+                  type="button"
+                  onClick={() => setShowOpenAccounts(true)}
+                  className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  <ClipboardList className="h-[18px] w-[18px]" />
+                  <span className="truncate px-0.5">Cuentas</span>
+                  {visibleOpenAccounts.length > 0 && (
+                    <span className="absolute right-2 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-semibold text-white">
+                      {visibleOpenAccounts.length}
+                    </span>
+                  )}
+                </button>
+              )}
+              {(effectiveConfig.delivery || effectiveConfig.pickup) && (
+                <button
+                  type="button"
+                  onClick={() => setShowPendingDeliveries(true)}
+                  className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  <Zap className="h-[18px] w-[18px]" />
+                  <span className="truncate px-0.5">Pendientes</span>
+                  {pendingDeliveriesCount > 0 && (
+                    <span className="absolute right-2 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-500 px-1 text-[9px] font-semibold text-white">
+                      {pendingDeliveriesCount}
+                    </span>
+                  )}
+                </button>
+              )}
             </>
           )}
 
@@ -1973,7 +2003,7 @@ export default function PosPage() {
         </div>
       )}
 
-      {showOpenAccounts && (
+      {effectiveConfig.order_history && showOpenAccounts && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/40" role="dialog" aria-modal="true">
           <motion.div
             initial={{ x: "100%" }}
@@ -2025,15 +2055,17 @@ export default function PosPage() {
               </div>
             </div>
             <div className="flex shrink-0 flex-col gap-2 border-b border-border p-3">
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={openAccountsQuery}
-                  onChange={(e) => setOpenAccountsQuery(e.target.value)}
-                  placeholder="Buscar por cliente, n° orden o mesa…"
-                  className="h-9 pl-8 text-xs"
-                />
-              </div>
+              {effectiveConfig.customer_search && (
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={openAccountsQuery}
+                    onChange={(e) => setOpenAccountsQuery(e.target.value)}
+                    placeholder="Buscar por cliente, n° orden o mesa…"
+                    className="h-9 pl-8 text-xs"
+                  />
+                </div>
+              )}
             </div>
             <div className="flex-1 overflow-y-auto p-4">
               {loadingOpenAccounts ? (
@@ -2196,51 +2228,63 @@ export default function PosPage() {
                 </label>
                 <div className="relative">
                   <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    id="pos-account-client"
-                    value={accountClientQuery}
-                    onChange={(e) => {
-                      setAccountClientQuery(e.target.value);
-                      setAccountSelectedClient(null);
-                      setAccountShowResults(true);
-                    }}
-                    onFocus={() => setAccountShowResults(true)}
-                    placeholder="Buscar cliente..."
-                    className="h-10 pl-8 text-sm"
-                  />
-                  {accountShowResults && accountDebouncedQuery.trim().length === 0 && !accountSelectedClient && (
-                    <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs text-muted-foreground shadow-md">
-                      Escribe para buscar clientes…
-                    </div>
-                  )}
-                  {accountShowResults && accountDebouncedQuery.trim().length > 0 && searchingAccountCustomers && (
-                    <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs text-muted-foreground shadow-md">
-                      Buscando…
-                    </div>
-                  )}
-                  {accountShowResults && accountDebouncedQuery.trim().length > 0 && !searchingAccountCustomers && accountClientResults.length > 0 && (
-                    <div className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-lg border border-border bg-background shadow-md">
-                      {accountClientResults.map((client) => (
-                        <button
-                          key={client.id}
-                          type="button"
-                          onClick={() => {
-                            setAccountSelectedClient(client);
-                            setAccountClientQuery(client.name ?? "");
-                            setAccountShowResults(false);
-                          }}
-                          className="w-full px-3 py-2 text-left text-sm hover:bg-muted"
-                        >
-                          {client.name}
-                          {client.email && <span className="ml-2 text-xs text-muted-foreground">{client.email}</span>}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {accountShowResults && accountDebouncedQuery.trim().length > 0 && !searchingAccountCustomers && accountClientResults.length === 0 && !accountSelectedClient && (
-                    <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs text-muted-foreground shadow-md">
-                      Sin resultados
-                    </div>
+                  {effectiveConfig.customer_search ? (
+                    <>
+                      <Input
+                        id="pos-account-client"
+                        value={accountClientQuery}
+                        onChange={(e) => {
+                          setAccountClientQuery(e.target.value);
+                          setAccountSelectedClient(null);
+                          setAccountShowResults(true);
+                        }}
+                        onFocus={() => setAccountShowResults(true)}
+                        placeholder="Buscar cliente..."
+                        className="h-10 pl-8 text-sm"
+                      />
+                      {accountShowResults && accountDebouncedQuery.trim().length === 0 && !accountSelectedClient && (
+                        <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs text-muted-foreground shadow-md">
+                          Escribe para buscar clientes…
+                        </div>
+                      )}
+                      {accountShowResults && accountDebouncedQuery.trim().length > 0 && searchingAccountCustomers && (
+                        <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs text-muted-foreground shadow-md">
+                          Buscando…
+                        </div>
+                      )}
+                      {accountShowResults && accountDebouncedQuery.trim().length > 0 && !searchingAccountCustomers && accountClientResults.length > 0 && (
+                        <div className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-lg border border-border bg-background shadow-md">
+                          {accountClientResults.map((client) => (
+                            <button
+                              key={client.id}
+                              type="button"
+                              onClick={() => {
+                                setAccountSelectedClient(client);
+                                setAccountClientQuery(client.name ?? "");
+                                setAccountShowResults(false);
+                              }}
+                              className="w-full px-3 py-2 text-left text-sm hover:bg-muted"
+                            >
+                              {client.name}
+                              {client.email && <span className="ml-2 text-xs text-muted-foreground">{client.email}</span>}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {accountShowResults && accountDebouncedQuery.trim().length > 0 && !searchingAccountCustomers && accountClientResults.length === 0 && !accountSelectedClient && (
+                        <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs text-muted-foreground shadow-md">
+                          Sin resultados
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <Input
+                      id="pos-account-client"
+                      value={accountSelectedClient?.name ?? ""}
+                      disabled
+                      placeholder="Búsqueda de clientes desactivada"
+                      className="h-10 pl-8 text-sm"
+                    />
                   )}
                 </div>
                 {!accountCreateName && !accountSelectedClient ? (
@@ -2304,7 +2348,7 @@ export default function PosPage() {
         </div>
       )}
 
-      {showPendingDeliveries && (
+      {(effectiveConfig.delivery || effectiveConfig.pickup) && showPendingDeliveries && (
         <div className="fixed inset-0 z-[60] flex justify-end bg-black/40" role="dialog" aria-modal="true">
           <motion.div
             initial={{ x: "100%" }}
@@ -2343,15 +2387,17 @@ export default function PosPage() {
               </div>
             </div>
             <div className="flex shrink-0 flex-col gap-3 border-b border-border p-3">
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={pendingDeliveriesQuery}
-                  onChange={(e) => setPendingDeliveriesQuery(e.target.value)}
-                  placeholder="Buscar por cliente, n° orden o dirección…"
-                  className="h-9 pl-8 text-xs"
-                />
-              </div>
+              {effectiveConfig.customer_search && (
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={pendingDeliveriesQuery}
+                    onChange={(e) => setPendingDeliveriesQuery(e.target.value)}
+                    placeholder="Buscar por cliente, n° orden o dirección…"
+                    className="h-9 pl-8 text-xs"
+                  />
+                </div>
+              )}
               <div className="flex flex-wrap items-center gap-2">
                 <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-1">
                   {([
@@ -2601,18 +2647,20 @@ export default function PosPage() {
                   >
                     Resumen
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setCashRegisterTab("movements")}
-                    className={cn(
-                      "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-                      cashRegisterTab === "movements"
-                        ? "bg-card text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    Movimientos
-                  </button>
+                  {effectiveConfig.cash_movements && (
+                    <button
+                      type="button"
+                      onClick={() => setCashRegisterTab("movements")}
+                      className={cn(
+                        "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                        cashRegisterTab === "movements"
+                          ? "bg-card text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      Movimientos
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -2700,24 +2748,28 @@ export default function PosPage() {
                       {formatCLP(parseFloat(String(dailySummary.other_sales || "0")))}
                     </p>
                   </div>
-                  <div className="rounded-lg border border-border/60 bg-muted/40 p-2.5">
-                    <div className="mb-1 flex items-center gap-1 text-[10px] text-muted-foreground">
-                      <ArrowDownLeft className="h-3 w-3" />
-                      Ingresos
+                  {effectiveConfig.cash_movements && (
+                    <div className="rounded-lg border border-border/60 bg-muted/40 p-2.5">
+                      <div className="mb-1 flex items-center gap-1 text-[10px] text-muted-foreground">
+                        <ArrowDownLeft className="h-3 w-3" />
+                        Ingresos
+                      </div>
+                      <p className="text-sm font-semibold tabular-nums">
+                        {formatCLP(parseFloat(String(dailySummary.cash_in || "0")))}
+                      </p>
                     </div>
-                    <p className="text-sm font-semibold tabular-nums">
-                      {formatCLP(parseFloat(String(dailySummary.cash_in || "0")))}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-border/60 bg-muted/40 p-2.5">
-                    <div className="mb-1 flex items-center gap-1 text-[10px] text-muted-foreground">
-                      <ArrowUpRight className="h-3 w-3" />
-                      Retiros / Egresos
+                  )}
+                  {effectiveConfig.expenses && (
+                    <div className="rounded-lg border border-border/60 bg-muted/40 p-2.5">
+                      <div className="mb-1 flex items-center gap-1 text-[10px] text-muted-foreground">
+                        <ArrowUpRight className="h-3 w-3" />
+                        Retiros / Egresos
+                      </div>
+                      <p className="text-sm font-semibold tabular-nums">
+                        {formatCLP(parseFloat(String(dailySummary.cash_out || "0")))}
+                      </p>
                     </div>
-                    <p className="text-sm font-semibold tabular-nums">
-                      {formatCLP(parseFloat(String(dailySummary.cash_out || "0")))}
-                    </p>
-                  </div>
+                  )}
                   <div className="rounded-lg border border-border/60 bg-emerald-500/10 p-2.5">
                     <div className="mb-1 flex items-center gap-1 text-[10px] text-emerald-700">
                       <Calculator className="h-3 w-3" />
@@ -2779,7 +2831,9 @@ export default function PosPage() {
                 </div>
               )}
 
-            {currentCashRegister && cashRegisterTab === "movements" && (
+            {currentCashRegister &&
+              cashRegisterTab === "movements" &&
+              effectiveConfig.cash_movements && (
               <div className="mt-4 flex flex-col gap-3 rounded-xl border border-border/60 bg-card p-4">
                 {!isRegisterController && (
                   <p className="flex items-center gap-2 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
@@ -2805,39 +2859,43 @@ export default function PosPage() {
                     <ArrowDownLeft className="mr-1 h-3.5 w-3.5" />
                     <span className="truncate">Ingreso</span>
                   </Button>
-                  <Button
-                    type="button"
-                    variant={movementType === "CASH_OUT" ? "danger" : "outline"}
-                    size="sm"
-                    onClick={() => {
-                      setMovementType("CASH_OUT");
-                      setSupplierSearch("");
-                      setSupplierOptions([]);
-                      setSelectedSupplier(null);
-                    }}
-                    disabled={!isRegisterController}
-                    className="h-10 flex-1 text-xs sm:h-8"
-                  >
-                    <ArrowUpRight className="mr-1 h-3.5 w-3.5" />
-                    <span className="truncate">Retiro / Egreso</span>
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={movementType === "SUPPLIER_PAYMENT" ? "danger" : "outline"}
-                    size="sm"
-                    onClick={() => {
-                      setMovementType("SUPPLIER_PAYMENT");
-                      setMovementReason("");
-                    }}
-                    disabled={!isRegisterController}
-                    className="h-10 flex-1 text-xs sm:h-8"
-                  >
-                    <Truck className="mr-1 h-3.5 w-3.5" />
-                    <span className="truncate">
-                      <span className="sm:hidden">Proveedor</span>
-                      <span className="hidden sm:inline">Pago a proveedor</span>
-                    </span>
-                  </Button>
+                  {effectiveConfig.expenses && (
+                    <Button
+                      type="button"
+                      variant={movementType === "CASH_OUT" ? "danger" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        setMovementType("CASH_OUT");
+                        setSupplierSearch("");
+                        setSupplierOptions([]);
+                        setSelectedSupplier(null);
+                      }}
+                      disabled={!isRegisterController}
+                      className="h-10 flex-1 text-xs sm:h-8"
+                    >
+                      <ArrowUpRight className="mr-1 h-3.5 w-3.5" />
+                      <span className="truncate">Retiro / Egreso</span>
+                    </Button>
+                  )}
+                  {effectiveConfig.supplier_payments && (
+                    <Button
+                      type="button"
+                      variant={movementType === "SUPPLIER_PAYMENT" ? "danger" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        setMovementType("SUPPLIER_PAYMENT");
+                        setMovementReason("");
+                      }}
+                      disabled={!isRegisterController}
+                      className="h-10 flex-1 text-xs sm:h-8"
+                    >
+                      <Truck className="mr-1 h-3.5 w-3.5" />
+                      <span className="truncate">
+                        <span className="sm:hidden">Proveedor</span>
+                        <span className="hidden sm:inline">Pago a proveedor</span>
+                      </span>
+                    </Button>
+                  )}
                 </div>
 
                 {movementType === "SUPPLIER_PAYMENT" ? (
