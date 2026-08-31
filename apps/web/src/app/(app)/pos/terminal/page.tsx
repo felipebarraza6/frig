@@ -201,6 +201,15 @@ export default function PosPage() {
   const isWaiterSimulation = queryView === "waiter";
   const isWaiter = realIsWaiter || isWaiterSimulation;
 
+  // Si hay open_account=1 sin order_id, lo limpiamos para no confundir el modo por defecto.
+  useEffect(() => {
+    if (openAccountParam && !queryOrderId && !isWaiter) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("open_account");
+      router.replace(url.pathname + url.search);
+    }
+  }, [openAccountParam, queryOrderId, isWaiter, router]);
+
   const { data: stations = [] } = useQuery({
     queryKey: ["cash-register-stations", "pos-terminal"],
     queryFn: fetchCashRegisterStations,
@@ -1182,7 +1191,7 @@ export default function PosPage() {
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
           {/* Operation mode */}
           <button
             type="button"
