@@ -6,7 +6,6 @@ import { persist } from "zustand/middleware";
 export interface PosConfig {
   sales: boolean;
   self_service: boolean;
-  supplier_payments: boolean;
   expenses: boolean;
   cash_movements: boolean;
   tables: boolean;
@@ -20,7 +19,6 @@ export interface PosConfig {
 export const DEFAULT_POS_CONFIG: PosConfig = {
   sales: true,
   self_service: false,
-  supplier_payments: true,
   expenses: true,
   cash_movements: true,
   tables: true,

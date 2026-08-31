@@ -43,12 +43,6 @@ const SECTIONS: {
     title: "Finanzas y pagos",
     items: [
       {
-        key: "supplier_payments",
-        label: "Pago a proveedores",
-        description:
-          "Registra egresos y órdenes de compra pagadas desde caja.",
-      },
-      {
         key: "expenses",
         label: "Gastos",
         description: "Permite registrar retiros y egresos de caja.",
