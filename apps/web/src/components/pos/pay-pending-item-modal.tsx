@@ -236,6 +236,8 @@ export default function PayPendingItemModal({
     paymentMethods[0]?.id ?? "",
   );
   const [notes, setNotes] = useState("");
+  const [orderDateFrom, setOrderDateFrom] = useState("");
+  const [orderDateTo, setOrderDateTo] = useState("");
 
   const activeMethods = useMemo(
     () => paymentMethods.filter((m) => m.is_active && m.is_pos_enabled !== false),
@@ -275,7 +277,7 @@ export default function PayPendingItemModal({
   }, [clientsWithTotals, clientQuery]);
 
   const { data: orders = [], isLoading: loadingOrders } = useQuery({
-    queryKey: ["pending-orders-for-pos", type, selectedClient?.id],
+    queryKey: ["pending-orders-for-pos", type, selectedClient?.id, orderDateFrom, orderDateTo],
     queryFn: async () => {
       if (type === "collect") {
         if (!selectedClient) return [];
@@ -291,8 +293,8 @@ export default function PayPendingItemModal({
       }
       if (type === "pay_order") {
         const [byPayment, byDelivery] = await Promise.all([
-          fetchOrders({ order_type: "ORDER", payment_status: ["PENDING", "PARTIAL"], page_size: 50 }),
-          fetchOrders({ order_type: "ORDER", status: ["PENDING", "IN_PROGRESS"], page_size: 50 }),
+          fetchOrders({ order_type: "ORDER", payment_status: ["PENDING", "PARTIAL"], start_date: orderDateFrom || undefined, end_date: orderDateTo || undefined, page_size: 50 }),
+          fetchOrders({ order_type: "ORDER", status: ["PENDING", "IN_PROGRESS"], start_date: orderDateFrom || undefined, end_date: orderDateTo || undefined, page_size: 50 }),
         ]);
         const map = new Map<string, Order>();
         for (const o of [...(byPayment.results ?? []), ...(byDelivery.results ?? [])] as Order[]) {
@@ -1131,7 +1133,16 @@ export default function PayPendingItemModal({
           )}
 
           <div className="flex flex-col gap-2">
-            <p className="text-xs text-muted-foreground">Toca una orden para ver acciones</p>
+            <p className="text-xs text-muted-foreground">Órdenes no pagadas o no entregadas</p>
+            {type === "pay_order" && (
+              <div className="flex gap-2 mb-3">
+                <Input type="date" value={orderDateFrom} onChange={e => setOrderDateFrom(e.target.value)} className="h-8 text-xs" />
+                <Input type="date" value={orderDateTo} onChange={e => setOrderDateTo(e.target.value)} className="h-8 text-xs" />
+                {(orderDateFrom || orderDateTo) && (
+                  <Button variant="ghost" size="sm" onClick={() => { setOrderDateFrom(""); setOrderDateTo(""); }} className="h-8 px-2 text-xs">Limpiar</Button>
+                )}
+              </div>
+            )}
             <div className="flex flex-col gap-3 rounded-xl bg-muted/20 p-3 max-h-[28rem] overflow-y-auto">
               {renderItemList()}
             </div>
