@@ -29,6 +29,7 @@ import {
   type BranchFinanceConfigRequest,
 } from "@/lib/api/branch-finance-config";
 import { useToast } from "@/lib/store/toast";
+import { useIsModuleEnabledFromConfig } from "@/lib/store/session";
 import {
   fetchTaxTypes,
   createTaxType,
@@ -382,6 +383,7 @@ function SiiSection({
   onUpdate: (payload: Parameters<typeof updateBranchFinanceConfig>[1]) => void;
   isPending: boolean;
 }) {
+  const isInvoicesEnabled = useIsModuleEnabledFromConfig("invoices");
   const toast = useToast();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
@@ -455,6 +457,8 @@ function SiiSection({
       i.external_app_name === "SimpleAPI" ||
       i.external_app_name?.toLowerCase().includes("simpleapi"),
   );
+
+  if (!isInvoicesEnabled) return null;
 
   return (
     <section className="rounded-xl border border-border bg-card p-4">
