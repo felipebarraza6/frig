@@ -242,7 +242,7 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
         onMouseEnter={() => setHovering(true)}
         onMouseLeave={() => setHovering(false)}
       >
-        <div className="flex shrink-0 items-center gap-2 px-3 py-3">
+        <div className="flex shrink-0 items-center gap-2 px-3 py-2">
           <BrandLogo src={theme?.logo} alt={appName} containerClassName="h-9 w-9 shrink-0" />
           <AnimatePresence>
             {effectivelyExpanded && (
@@ -278,7 +278,7 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
             type="button"
             onClick={() => setSearchOpen(true)}
             className={cn(
-              "flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+              "flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
               !effectivelyExpanded && "justify-center px-0"
             )}
           >
@@ -293,7 +293,7 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
 
           {favorites.length > 0 && effectivelyExpanded && (
             <nav className="flex flex-col gap-1">
-              <p className="px-3 py-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <p className="px-3 py-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">
                 Accesos directos
               </p>
               {favorites
@@ -327,7 +327,7 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
           {visibleMenuGroups.some((g) => g.title.toLowerCase() === "operaciones") && (
             <nav className="flex flex-col gap-1">
               {effectivelyExpanded && (
-                <p className="px-3 py-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                <p className="px-3 py-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">
                   Operaciones
                 </p>
               )}
@@ -417,11 +417,11 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
             })}
         </div>
 
-        <div className="flex shrink-0 flex-col gap-1 border-t border-border p-2">
+        <div className="flex shrink-0 flex-col gap-0.5 border-t border-border p-1.5">
           <Link
             href="/profile"
             className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2 transition-colors",
+              "flex items-center gap-2.5 rounded-lg px-3 py-1.5 transition-colors",
               pathname.startsWith("/profile")
                 ? "bg-primary text-white"
                 : "hover:bg-muted hover:text-foreground",
@@ -491,11 +491,11 @@ function NavGroup({
   }
 
   return (
-    <div className="flex flex-col gap-1 mt-3 pt-1">
+    <div className="flex flex-col gap-0.5 mt-1">
       <button
         type="button"
         onClick={onToggle}
-        className="flex items-center justify-between rounded-lg px-3 py-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+        className="flex items-center justify-between rounded-lg px-3 py-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70 transition-colors hover:text-muted-foreground"
       >
         {title}
         {isOpen ? <ChevronDown className="h-3 w-3 opacity-60" /> : <ChevronRight className="h-3 w-3 opacity-60" />}
@@ -543,19 +543,19 @@ function NavItem({
         href={href}
         onClick={onClick}
         className={cn(
-          "relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+          "relative flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           active
             ? "bg-primary text-primary-foreground"
             : "text-muted-foreground hover:bg-muted hover:text-foreground",
-          !expanded && "h-9 w-9 justify-center p-0"
+          !expanded && "h-8 w-8 justify-center p-0"
         )}
         title={description || (!expanded ? label : undefined)}
       >
         {active && (
-          <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-primary-foreground/80" />
+          <span className="absolute left-0 top-1/2 h-4 w-1 -translate-y-1/2 rounded-r-full bg-primary-foreground/80" />
         )}
-        <Icon className="h-5 w-5 shrink-0" />
+        <Icon className="h-4 w-4 shrink-0" />
         {expanded && (
           <>
             <span className="flex-1 truncate">{label}</span>

@@ -261,10 +261,15 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
       { href: "/revenues", label: "Ingresos", icon: "ArrowDownLeft", module: "finance" },
       { href: "/expenses", label: "Egresos", icon: "ArrowUpRight", module: "finance" },
       { href: "/fixed-expenses", label: "Gastos fijos", icon: "TrendingDown", module: "finance" },
-      { href: "/bank-accounts", label: "Billeteras digitales", icon: "Wallet", module: "bank_accounts" },
-      { href: "/reconciliations", label: "Conciliaciones", icon: "ArrowLeftRight", module: "bank_accounts" },
       { href: "/tax-documents", label: "Documentos tributarios", icon: "FileText", module: "invoices", description: "Boletas, facturas y SII" },
       { href: "/finance/settings", label: "Config. financiera", icon: "Settings", module: "finance" },
+    ],
+  },
+  {
+    title: "Billeteras",
+    items: [
+      { href: "/bank-accounts", label: "Cuentas bancarias", icon: "Wallet", module: "bank_accounts" },
+      { href: "/reconciliations", label: "Conciliaciones", icon: "ArrowLeftRight", module: "bank_accounts" },
     ],
   },
   {
