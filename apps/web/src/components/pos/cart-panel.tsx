@@ -15,6 +15,7 @@ import {
   Table,
   ClipboardList,
   Receipt,
+  Tag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -97,6 +98,8 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
   const clientSearchRef = useRef<HTMLDivElement>(null);
   const [discountCode, setDiscountCode] = useState("");
   const [validatedDiscount, setValidatedDiscount] = useState<ValidatedDiscount | null>(null);
+  const [showClientSection, setShowClientSection] = useState(false);
+  const [showDiscountSection, setShowDiscountSection] = useState(false);
 
   const debouncedClientQuery = useDebounce(clientQuery, 300);
 
@@ -743,7 +746,82 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
 
               {!existingOrderId && (
                 <>
-                  {renderClientField()}
+                  {(willBeOrder || willBeOpenAccount) ? (
+                    renderClientField()
+                  ) : selectedClient ? (
+                    <div className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium leading-tight">{selectedClient.name}</p>
+                        <p className="truncate text-[11px] text-muted-foreground">
+                          {selectedClient.dni ?? selectedClient.phone_number ?? selectedClient.email ?? "Sin datos adicionales"}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setSelectedClient(null)}
+                        aria-label="Quitar cliente"
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : showClientSection ? (
+                    renderClientField()
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowClientSection(true)}
+                      className="inline-flex items-center gap-1.5 text-[11px] font-medium text-primary hover:underline"
+                    >
+                      <User className="h-3 w-3" />
+                      Crear o elegir cliente
+                    </button>
+                  )}
+                </>
+              )}
+
+              {/* Descuentos */}
+              {!existingOrderId && (
+                <div className="flex flex-col gap-1.5">
+                  {!showDiscountSection ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowDiscountSection(true)}
+                      className="inline-flex items-center gap-1.5 self-start text-[11px] font-medium text-primary hover:underline"
+                    >
+                      <Tag className="h-3 w-3" />
+                      Descuento
+                    </button>
+                  ) : (
+                    <>
+                      <label className="text-[11px] font-medium text-muted-foreground">Código de descuento</label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={discountCode}
+                          onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
+                          placeholder="Ej: PROMO10"
+                          disabled={saving}
+                          className="h-9 text-xs"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleApplyDiscount}
+                          disabled={!discountCode.trim() || saving}
+                          className="h-9"
+                        >
+                          Aplicar
+                        </Button>
+                      </div>
+                      {validatedDiscount?.discount && (
+                        <p className="text-xs text-emerald-700">
+                          Descuento {validatedDiscount.discount.name} aplicado.
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
 
               {!isWaiter && (
                 <div className="flex flex-col gap-2">
@@ -867,37 +945,6 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                     </div>
                   )}
                 </div>
-              )}
-
-              {/* Descuentos */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-medium text-muted-foreground">Código de descuento</label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={discountCode}
-                    onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
-                    placeholder="Ej: PROMO10"
-                    disabled={saving}
-                    className="h-9 text-xs"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleApplyDiscount}
-                    disabled={!discountCode.trim() || saving}
-                    className="h-9"
-                  >
-                    Aplicar
-                  </Button>
-                </div>
-                {validatedDiscount?.discount && (
-                  <p className="text-xs text-emerald-700">
-                    Descuento {validatedDiscount.discount.name} aplicado.
-                  </p>
-                )}
-              </div>
-                </>
               )}
             </div>
           </>
