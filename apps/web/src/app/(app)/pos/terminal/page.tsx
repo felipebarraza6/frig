@@ -1203,9 +1203,7 @@ export default function PosPage() {
                 ? "border-primary/30 bg-primary/10 text-primary hover:bg-primary/20"
                 : isOrderMode
                   ? "border-violet-200 bg-violet-500/10 text-violet-700 hover:bg-violet-500/20"
-                  : isOpenAccountMode
-                    ? "border-blue-200 bg-blue-500/10 text-blue-700 hover:bg-blue-500/20"
-                    : "border-emerald-200 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20"
+                  : "border-emerald-200 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20"
             )}
           >
             {effectiveOrderId && existingOrder ? (
@@ -1224,11 +1222,6 @@ export default function PosPage() {
               <>
                 <ClipboardList className="h-3.5 w-3.5" />
                 <span>Nueva orden</span>
-              </>
-            ) : isOpenAccountMode ? (
-              <>
-                <ClipboardList className="h-3.5 w-3.5" />
-                <span>Nueva cuenta</span>
               </>
             ) : (
               <>
@@ -1708,7 +1701,7 @@ export default function PosPage() {
       </section>
 
         {/* Carrito desktop */}
-        <aside className="hidden h-full w-[360px] min-w-0 shrink-0 overflow-hidden bg-background p-3 md:block">
+        <aside className="hidden h-full w-[320px] min-w-0 shrink-0 overflow-hidden bg-background p-3 md:block">
           {isWaiter && !selectedTable && !isEditingOrder ? (
             <div className="grid h-full place-items-center rounded-2xl border border-dashed border-border p-6 text-center">
               <div className="flex flex-col items-center gap-3">
