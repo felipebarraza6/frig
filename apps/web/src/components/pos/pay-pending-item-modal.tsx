@@ -11,6 +11,8 @@ import {
   TrendingDown,
   Loader2,
   Eye,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
@@ -74,6 +76,8 @@ interface PayPendingItemModalProps {
   onClose: () => void;
   cashRegisterId: number | string | null;
   paymentMethods: PaymentMethod[];
+  onContinueOrder?: (order: Order) => void;
+  onCancelOrder?: (order: Order) => void;
 }
 
 const TYPE_CONFIG: Record<
@@ -113,6 +117,8 @@ export default function PayPendingItemModal({
   onClose,
   cashRegisterId,
   paymentMethods,
+  onContinueOrder,
+  onCancelOrder,
 }: PayPendingItemModalProps) {
   const toast = useToast();
   const [clientQuery, setClientQuery] = useState("");
@@ -236,6 +242,18 @@ export default function PayPendingItemModal({
     onClose();
   }
 
+  function handleContinueOrder(order: Order) {
+    onContinueOrder?.(order);
+    handleClose();
+  }
+
+  function handleCancelOrder(order: Order) {
+    if (window.confirm("¿Anular esta cuenta?")) {
+      onCancelOrder?.(order);
+      handleClose();
+    }
+  }
+
   function handleSelectItem(id: string) {
     setSelectedItemId(id);
     const item =
@@ -264,6 +282,8 @@ export default function PayPendingItemModal({
   }
 
   const cfg = TYPE_CONFIG[type];
+
+  const showOrderActions = type === "pay_account" || type === "pay_order";
 
   function renderItemList() {
     if (type === "pay_purchase_order") {
@@ -340,27 +360,59 @@ export default function PayPendingItemModal({
     return (
       <div className="flex flex-col gap-2">
         {orders.map((o) => (
-          <button
+          <div
             key={o.id}
-            type="button"
-            onClick={() => handleSelectItem(o.id)}
             className={cn(
-              "flex flex-col gap-0.5 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+              "flex items-center gap-1 rounded-lg border px-3 py-2 text-sm transition-colors",
               selectedItemId === o.id
                 ? "border-primary bg-primary/10"
                 : "border-border hover:bg-muted",
             )}
           >
-            <div className="flex items-center justify-between">
-              <span className="font-medium">
-                {o.order_number ?? o.id.slice(0, 8)}
-              </span>
-              <span className="text-xs text-muted-foreground">
-                {formatCLP(toNum(o.total_amount) - toNum(o.paid_amount))}
-              </span>
-            </div>
-            <span className="text-xs text-muted-foreground">{o.client?.name ?? "Sin cliente"}</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => handleSelectItem(o.id)}
+              className="flex flex-1 flex-col gap-0.5 text-left"
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-medium">
+                  {o.order_number ?? o.id.slice(0, 8)}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {formatCLP(toNum(o.total_amount) - toNum(o.paid_amount))}
+                </span>
+              </div>
+              <span className="text-xs text-muted-foreground">{o.client?.name ?? "Sin cliente"}</span>
+            </button>
+            {showOrderActions && (
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleContinueOrder(o);
+                  }}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
+                  title="Continuar agregando"
+                  aria-label="Continuar agregando"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCancelOrder(o);
+                  }}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-rose-600"
+                  title="Anular"
+                  aria-label="Anular"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+          </div>
         ))}
       </div>
     );
@@ -441,6 +493,28 @@ export default function PayPendingItemModal({
                 <span className="text-muted-foreground">Saldo pendiente</span>
                 <span className="font-semibold">{formatCLP(remainingAmount)}</span>
               </div>
+              {showOrderActions && (
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleContinueOrder(selectedItem as Order)}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
+                    title="Continuar agregando"
+                    aria-label="Continuar agregando"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleCancelOrder(selectedItem as Order)}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-rose-600"
+                    title="Anular"
+                    aria-label="Anular"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-medium text-muted-foreground">Monto</label>

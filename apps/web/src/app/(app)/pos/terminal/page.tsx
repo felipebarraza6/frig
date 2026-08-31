@@ -1297,7 +1297,13 @@ export default function PosPage() {
           )}
 
           {/* PosQuickActions */}
-          {!isWaiter && <PosQuickActions stationId={activeStationId} />}
+          {!isWaiter && (
+            <PosQuickActions
+              stationId={activeStationId}
+              onContinueOrder={handleEditOrder}
+              onCancelOrder={handleCancelOrder}
+            />
+          )}
 
           {/* Mobile search */}
           <button

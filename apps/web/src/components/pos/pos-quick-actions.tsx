@@ -19,7 +19,13 @@ import {
 import { fetchPaymentMethods } from "@/lib/api/payments";
 import { getCurrentCashRegister } from "@/lib/api/cash-register";
 import { cn } from "@/lib/utils";
+import type { YggdraSchemas } from "@/lib/api/types";
 import PayPendingItemModal from "./pay-pending-item-modal";
+
+type Order = YggdraSchemas["Order"] & {
+  order_number?: string | null;
+  paid_amount?: string | null;
+};
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   Receipt,
@@ -38,9 +44,15 @@ type PaymentMethodItem = {
 
 interface PosQuickActionsProps {
   stationId?: number | string | null;
+  onContinueOrder?: (order: Order) => void;
+  onCancelOrder?: (order: Order) => void;
 }
 
-export default function PosQuickActions({ stationId }: PosQuickActionsProps) {
+export default function PosQuickActions({
+  stationId,
+  onContinueOrder,
+  onCancelOrder,
+}: PosQuickActionsProps) {
   const [activeType, setActiveType] = useState<string | null>(null);
 
   const { data: config, isLoading: loadingConfig } = useQuery({
@@ -114,6 +126,8 @@ export default function PosQuickActions({ stationId }: PosQuickActionsProps) {
         onClose={() => setActiveType(null)}
         cashRegisterId={cashRegister?.id ?? null}
         paymentMethods={paymentMethods as PaymentMethodItem[]}
+        onContinueOrder={onContinueOrder}
+        onCancelOrder={onCancelOrder}
       />
     )}
   </>
