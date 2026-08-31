@@ -720,7 +720,8 @@ export default function PayPendingItemModal({
       if (orders.length === 0) return <p className="text-sm text-muted-foreground">No hay órdenes pendientes.</p>;
       return (
         <div className="flex flex-col gap-3">
-          {orders.length > 1 && (
+          {/* Pagar todas deshabilitado: el pago se hace en el flujo normal del POS */}
+          {false && orders.length > 1 && (
             <div className="flex justify-end">
               <Button size="sm" variant="outline" onClick={handlePayAll} disabled={payingAll || !paymentMethodId}>
                 {payingAll ? (
@@ -767,8 +768,15 @@ export default function PayPendingItemModal({
                     </div>
                   </div>
                   <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <Button size="sm" onClick={() => handleSelectItem(o.id)}>
-                      Pagar
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        onContinueOrder?.(o as Order);
+                        handleClose();
+                      }}
+                      className="h-7 gap-1 px-2 text-xs"
+                    >
+                      <Banknote className="h-3 w-3" /> Abrir
                     </Button>
                     <Button
                       size="sm"
@@ -923,8 +931,15 @@ export default function PayPendingItemModal({
                   {isPayOrder ? (
                     <>
                       {["PENDING", "PARTIAL"].includes(o.payment_status ?? "") && (
-                        <Button size="sm" onClick={() => handleSelectItem(o.id)} className="h-7 gap-1 px-2 text-xs">
-                          <Banknote className="h-3 w-3" /> Pagar
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            onContinueOrder?.(o as Order);
+                            handleClose();
+                          }}
+                          className="h-7 gap-1 px-2 text-xs"
+                        >
+                          <Banknote className="h-3 w-3" /> Abrir
                         </Button>
                       )}
                       {(["PENDING", "IN_PROGRESS"].includes(o.status ?? "") ||
@@ -941,8 +956,15 @@ export default function PayPendingItemModal({
                       )}
                     </>
                   ) : (
-                    <Button size="sm" onClick={() => handleSelectItem(o.id)} className="h-7 gap-1 px-2 text-xs">
-                      <Banknote className="h-3 w-3" /> Pagar
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        onContinueOrder?.(o as Order);
+                        handleClose();
+                      }}
+                      className="h-7 gap-1 px-2 text-xs"
+                    >
+                      <Banknote className="h-3 w-3" /> Abrir
                     </Button>
                   )}
                   <Button
@@ -1185,6 +1207,7 @@ export default function PayPendingItemModal({
                       <span className="font-medium">{(selectedItem as Order).delivery_address}</span>
                     </div>
                   )}
+                  <p className="text-xs text-muted-foreground">Se abrirá la orden para pagar en el flujo normal del POS.</p>
                   <div className="flex items-center justify-end gap-2">
                     <button
                       type="button"
@@ -1211,7 +1234,7 @@ export default function PayPendingItemModal({
                     </button>
                   </div>
                 </>
-              ) : (
+              ) : type === "pay_purchase_order" || type === "pay_expense" ? (
                 <>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Saldo pendiente</span>
@@ -1270,6 +1293,36 @@ export default function PayPendingItemModal({
                     />
                   </div>
                 </>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Saldo pendiente</span>
+                    <span className="font-semibold">{formatCLP(remainingAmount)}</span>
+                  </div>
+                  {showOrderActions && (
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleContinueOrder(selectedItem as Order)}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
+                        title="Continuar agregando"
+                        aria-label="Continuar agregando"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleCancelOrder(selectedItem as Order)}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-rose-600"
+                        title="Anular"
+                        aria-label="Anular"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground">Se abrirá la cuenta para pagar en el flujo normal del POS.</p>
+                </>
               )}
             </div>
           )}
@@ -1279,13 +1332,24 @@ export default function PayPendingItemModal({
         <Button variant="outline" onClick={handleClose}>
           Cancelar
         </Button>
-        {type === "pay_order" ? (
+        {type === "pay_account" || type === "pay_order" || type === "collect" ? (
           <Button
-            onClick={() => deliverMutation.mutate((selectedItem as Order).id)}
-            disabled={!selectedItem || deliverMutation.isPending}
-            isLoading={deliverMutation.isPending}
+            onClick={() => {
+              if (selectedItem) {
+                const order = selectedItem as Order;
+                onContinueOrder?.(order);
+                handleClose();
+              }
+            }}
+            disabled={!selectedItem}
           >
-            Entregar
+            {type === "pay_account"
+              ? "Abrir cuenta"
+              : type === "collect"
+                ? "Abrir cuenta"
+                : selectedItem && ["PENDING", "PARTIAL"].includes((selectedItem as Order).payment_status ?? "")
+                  ? "Abrir orden"
+                  : "Ver / Editar"}
           </Button>
         ) : (
           <Button
