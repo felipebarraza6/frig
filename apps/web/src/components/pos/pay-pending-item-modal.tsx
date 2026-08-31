@@ -52,15 +52,30 @@ type Order = YggdraSchemas["Order"] & {
 type PurchaseOrder = {
   id: string;
   order_number?: string | null;
-  remaining_amount?: string | null;
+  remaining_amount?: string | number | null;
+  supplier_name?: string | null;
+  total_amount?: string | number | null;
+  payment_status?: string | null;
+  payment_status_display?: string | null;
+  status_display?: string | null;
+  order_date?: string | null;
+  items_count?: string | number | null;
+  branch_name?: string | null;
   [key: string]: unknown;
 };
 
 type FixedExpense = {
   id: string;
   name?: string | null;
-  amount?: string | null;
-  total_paid?: string | null;
+  amount?: string | number | null;
+  total_paid?: string | number | null;
+  pending_amount?: string | number | null;
+  category_name?: string | null;
+  frequency_display?: string | null;
+  status_display?: string | null;
+  due_date?: string | null;
+  supplier_name?: string | null;
+  notes?: string | null;
   [key: string]: unknown;
 };
 
@@ -386,33 +401,72 @@ export default function PayPendingItemModal({
             <div
               key={o.id}
               className={cn(
-                "flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors",
+                "rounded-xl border p-3 transition-colors",
                 selectedItemId === o.id
                   ? "border-primary bg-primary/10"
-                  : "border-border hover:bg-muted",
+                  : "border-border bg-card",
               )}
             >
-              <button
-                type="button"
-                onClick={() => handleSelectItem(o.id)}
-                className="flex flex-1 items-center justify-between text-left"
-              >
-                <span className="font-medium">{o.order_number}</span>
-                <span className="text-xs text-muted-foreground">
-                  {formatCLP(toNum(o.remaining_amount))}
-                </span>
-              </button>
-              <a
-                href={`/purchase-orders/${o.id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="ml-2 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted"
-                aria-label="Ver orden de compra"
-                title="Ver orden de compra"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Eye className="h-3.5 w-3.5" />
-              </a>
+              <div className="flex justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">{o.order_number ?? o.id.slice(0, 8)}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {o.supplier_name ?? "Sin proveedor"} · {shortDate(o.order_date)}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {o.status_display ?? o.payment_status_display ?? ""}{" "}
+                    {o.items_count ? `· ${o.items_count} ítems` : ""}
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-sm font-bold">{formatCLP(toNum(o.remaining_amount))}</p>
+                  <p className="text-xs text-muted-foreground">de {formatCLP(toNum(o.total_amount))}</p>
+                </div>
+              </div>
+              <div className="mt-2 flex gap-2">
+                <Button size="sm" onClick={() => handleSelectItem(o.id)}>
+                  Pagar
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setViewDetailId(viewDetailId === o.id ? null : o.id)}
+                >
+                  {viewDetailId === o.id ? "Cerrar" : "Ver detalle"}
+                </Button>
+                <a
+                  href={`/purchase-orders/${o.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted"
+                  aria-label="Ver orden de compra"
+                  title="Ver orden de compra"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                </a>
+              </div>
+              {viewDetailId === o.id && (
+                <div className="mt-3 rounded-lg bg-muted/30 p-3 text-xs">
+                  <p>
+                    <span className="font-medium">Proveedor:</span> {o.supplier_name ?? "-"}
+                  </p>
+                  <p>
+                    <span className="font-medium">Total:</span> {formatCLP(toNum(o.total_amount))} ·{" "}
+                    <span className="font-medium">Pendiente:</span> {formatCLP(toNum(o.remaining_amount))}
+                  </p>
+                  <p>
+                    <span className="font-medium">Estado:</span> {o.status_display ?? "-"} ·{" "}
+                    {o.payment_status_display ?? o.payment_status ?? "-"}
+                  </p>
+                  <p>
+                    <span className="font-medium">Fecha:</span> {shortDate(o.order_date)}
+                  </p>
+                  <p>
+                    <span className="font-medium">Sucursal:</span> {o.branch_name ?? "-"}
+                  </p>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -424,24 +478,88 @@ export default function PayPendingItemModal({
       if (expenses.length === 0) return <p className="text-sm text-muted-foreground">No hay gastos pendientes.</p>;
       return (
         <div className="flex flex-col gap-2">
-          {expenses.map((e) => (
-            <button
-              key={e.id}
-              type="button"
-              onClick={() => handleSelectItem(e.id)}
-              className={cn(
-                "flex items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition-colors",
-                selectedItemId === e.id
-                  ? "border-primary bg-primary/10"
-                  : "border-border hover:bg-muted",
-              )}
-            >
-              <span className="font-medium">{e.name}</span>
-              <span className="text-xs text-muted-foreground">
-                {formatCLP(toNum(e.amount) - toNum(e.total_paid))}
-              </span>
-            </button>
-          ))}
+          {expenses.map((e) => {
+            const remaining = toNum(e.amount) - toNum(e.total_paid);
+            const pending = e.pending_amount != null ? toNum(e.pending_amount) : remaining;
+            return (
+              <div
+                key={e.id}
+                className={cn(
+                  "rounded-xl border p-3 transition-colors",
+                  selectedItemId === e.id
+                    ? "border-primary bg-primary/10"
+                    : "border-border bg-card",
+                )}
+              >
+                <div className="flex justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold truncate">{e.name ?? e.id.slice(0, 8)}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {e.category_name ?? "Sin categoría"}
+                      {e.frequency_display ? ` · ${e.frequency_display}` : ""}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {shortDate(e.due_date)}
+                      {e.status_display ? ` · ${e.status_display}` : ""}
+                      {e.supplier_name ? ` · ${e.supplier_name}` : ""}
+                    </p>
+                    {e.notes && (
+                      <p className="truncate text-[11px] text-muted-foreground">{e.notes}</p>
+                    )}
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-bold">{formatCLP(pending)}</p>
+                    <p className="text-xs text-muted-foreground">de {formatCLP(toNum(e.amount))}</p>
+                    {toNum(e.total_paid) > 0 && (
+                      <p className="text-[11px] text-muted-foreground">pagado {formatCLP(toNum(e.total_paid))}</p>
+                    )}
+                  </div>
+                </div>
+                <div className="mt-2 flex gap-2">
+                  <Button size="sm" onClick={() => handleSelectItem(e.id)}>
+                    Pagar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setViewDetailId(viewDetailId === e.id ? null : e.id)}
+                  >
+                    {viewDetailId === e.id ? "Cerrar" : "Ver detalle"}
+                  </Button>
+                </div>
+                {viewDetailId === e.id && (
+                  <div className="mt-3 rounded-lg bg-muted/30 p-3 text-xs">
+                    <p>
+                      <span className="font-medium">Nombre:</span> {e.name ?? "-"}
+                    </p>
+                    <p>
+                      <span className="font-medium">Categoría:</span> {e.category_name ?? "-"} ·{" "}
+                      <span className="font-medium">Frecuencia:</span> {e.frequency_display ?? "-"}
+                    </p>
+                    <p>
+                      <span className="font-medium">Monto:</span> {formatCLP(toNum(e.amount))} ·{" "}
+                      <span className="font-medium">Pagado:</span> {formatCLP(toNum(e.total_paid))} ·{" "}
+                      <span className="font-medium">Pendiente:</span> {formatCLP(pending)}
+                    </p>
+                    <p>
+                      <span className="font-medium">Vencimiento:</span> {shortDate(e.due_date)} ·{" "}
+                      <span className="font-medium">Estado:</span> {e.status_display ?? "-"}
+                    </p>
+                    {e.supplier_name && (
+                      <p>
+                        <span className="font-medium">Proveedor:</span> {e.supplier_name}
+                      </p>
+                    )}
+                    {e.notes && (
+                      <p>
+                        <span className="font-medium">Notas:</span> {e.notes}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       );
     }
@@ -450,25 +568,140 @@ export default function PayPendingItemModal({
     if (orders.length === 0) return <p className="text-sm text-muted-foreground">No hay órdenes pendientes.</p>;
     if (isCollect) {
       return (
-        <div className="flex flex-col gap-2">
-          {orders.map((o) => (
-            <button
-              key={o.id}
-              type="button"
-              onClick={() => handleSelectItem(o.id)}
-              className={cn(
-                "flex items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition-colors",
-                selectedItemId === o.id
-                  ? "border-primary bg-primary/10"
-                  : "border-border hover:bg-muted",
-              )}
-            >
-              <span className="font-medium">{o.order_number ?? o.id.slice(0, 8)}</span>
-              <span className="text-xs text-muted-foreground">
-                {formatCLP(toNum(o.total_amount) - toNum(o.paid_amount))}
-              </span>
-            </button>
-          ))}
+        <div className="grid grid-cols-1 gap-3">
+          {orders.map((o) => {
+            const remaining = toNum(o.total_amount) - toNum(o.paid_amount);
+            const isExpanded = viewDetailId === o.id;
+            const detailOrder = (isExpanded ? orderDetail : null) ?? o;
+            const isDetailLoading = loadingOrderDetail && isExpanded;
+            return (
+              <div
+                key={o.id}
+                className={cn(
+                  "rounded-xl border border-border bg-card p-3 shadow-sm transition-colors",
+                  selectedItemId === o.id && "border-primary bg-primary/5",
+                )}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">
+                      {o.order_number ?? o.id.slice(0, 8)}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {shortDate(o.date)} · {paymentStatusLabel(o.payment_status)} ·{" "}
+                      {deliveryStatusLabel(o.delivery_status)}
+                    </p>
+                    {o.client?.name && (
+                      <p className="truncate text-[11px] text-muted-foreground">{o.client.name}</p>
+                    )}
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-bold tabular-nums">{formatCLP(remaining)}</p>
+                    <p className="text-xs text-muted-foreground">de {formatCLP(toNum(o.total_amount))}</p>
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <Button size="sm" onClick={() => handleSelectItem(o.id)}>
+                    Pagar
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setViewDetailId(isExpanded ? null : o.id)}
+                  >
+                    {isExpanded ? "Cerrar" : "Ver detalle"}
+                  </Button>
+                </div>
+
+                {isExpanded && (
+                  <div className="mt-3 border-t border-border pt-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <p className="text-sm font-semibold">Detalle de la orden</p>
+                      <Button size="sm" variant="ghost" onClick={() => setViewDetailId(null)}>
+                        Cerrar
+                      </Button>
+                    </div>
+                    {isDetailLoading ? (
+                      <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Cargando detalle...
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+                          <div>
+                            <span className="text-muted-foreground">Total:</span>{" "}
+                            <span className="font-medium">
+                              {formatCLP(Number(detailOrder.total_amount ?? 0))}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Pagado:</span>{" "}
+                            <span className="font-medium">
+                              {formatCLP(Number(detailOrder.paid_amount ?? 0))}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Pago:</span>{" "}
+                            <span
+                              className={cn(
+                                "font-medium",
+                                paymentStatusClass(detailOrder.payment_status),
+                              )}
+                            >
+                              {paymentStatusLabel(detailOrder.payment_status)}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Entrega:</span>{" "}
+                            <span
+                              className={cn(
+                                "font-medium",
+                                deliveryStatusClass(detailOrder.delivery_status),
+                              )}
+                            >
+                              {deliveryStatusLabel(detailOrder.delivery_status)}
+                            </span>
+                          </div>
+                        </div>
+                        {detailOrder.delivery_address && (
+                          <p className="text-xs text-muted-foreground">
+                            <span className="font-medium">Dirección:</span>{" "}
+                            {detailOrder.delivery_address}
+                          </p>
+                        )}
+                        {(detailOrder.products ?? []).length > 0 && (
+                          <div className="rounded-lg border border-border bg-background p-2">
+                            <p className="mb-1 text-xs font-medium text-muted-foreground">Productos</p>
+                            <ul className="space-y-1">
+                              {(detailOrder.products ?? []).map((p) => (
+                                <li
+                                  key={p.id}
+                                  className="flex items-center justify-between gap-2 text-xs"
+                                >
+                                  <span className="truncate">
+                                    {p.quantity ?? 0} × {p.product_name}
+                                  </span>
+                                  <span className="shrink-0 tabular-nums">
+                                    {formatCLP(p.total_price ?? 0)}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {detailOrder.observation && (
+                          <p className="text-xs text-muted-foreground">
+                            <span className="font-medium">Notas:</span> {detailOrder.observation}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       );
     }
