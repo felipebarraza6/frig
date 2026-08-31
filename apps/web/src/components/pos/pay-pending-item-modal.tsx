@@ -13,6 +13,7 @@ import {
   Pencil,
   Trash2,
   Check,
+  Banknote,
 } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
@@ -898,6 +899,8 @@ export default function PayPendingItemModal({
                 <p className="text-xs text-muted-foreground">
                   {isPayOrder ? (o.delivery_address ? `Domicilio · ${shortDate(o.date)}` : `Retiro · ${shortDate(o.date)}`) : `${shortDate(o.date)}${o.observation ? ` · ${o.observation}` : ""}`}
                 </p>
+              </div>
+              <div className="mt-2 flex items-center justify-between gap-2">
                 <div className="flex gap-1.5">
                   {isPayOrder ? (
                     <>
@@ -914,59 +917,63 @@ export default function PayPendingItemModal({
                     </span>
                   )}
                 </div>
-              </div>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                {isPayOrder ? (
-                  <>
-                    {["PENDING", "PARTIAL"].includes(o.payment_status ?? "") && (
-                      <Button size="sm" onClick={() => handleSelectItem(o.id)}>
-                        Pagar
-                      </Button>
-                    )}
-                    {(["PENDING", "IN_PROGRESS"].includes(o.status ?? "") ||
-                      ["PENDING", "IN_PROGRESS", "PARTIAL"].includes(o.delivery_status ?? "")) && (
+                <div className="flex items-center gap-1.5 ml-auto">
+                  {isPayOrder ? (
+                    <>
+                      {["PENDING", "PARTIAL"].includes(o.payment_status ?? "") && (
+                        <Button size="sm" onClick={() => handleSelectItem(o.id)} className="h-7 gap-1 px-2 text-xs">
+                          <Banknote className="h-3 w-3" /> Pagar
+                        </Button>
+                      )}
+                      {(["PENDING", "IN_PROGRESS"].includes(o.status ?? "") ||
+                        ["PENDING", "IN_PROGRESS", "PARTIAL"].includes(o.delivery_status ?? "")) && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => deliverMutation.mutate(o.id)}
+                          isLoading={deliverMutation.isPending}
+                          className="h-7 gap-1 px-2 text-xs"
+                        >
+                          <Check className="h-3 w-3" /> Entregar
+                        </Button>
+                      )}
+                    </>
+                  ) : (
+                    <Button size="sm" onClick={() => handleSelectItem(o.id)} className="h-7 gap-1 px-2 text-xs">
+                      <Banknote className="h-3 w-3" /> Pagar
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setViewDetailId(isExpanded ? null : o.id)}
+                    className="h-7 gap-1 px-2 text-xs"
+                  >
+                    <Eye className="h-3 w-3" /> {isExpanded ? "Cerrar" : "Ver detalle"}
+                  </Button>
+                  {!isPayOrder && showOrderActions && (
+                    <>
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => deliverMutation.mutate(o.id)}
-                        isLoading={deliverMutation.isPending}
+                        onClick={() => handleContinueOrder(o)}
+                        title="Continuar agregando"
+                        className="h-7 w-7 p-0"
                       >
-                        Entregar
+                        <Pencil className="h-3.5 w-3.5" />
                       </Button>
-                    )}
-                  </>
-                ) : (
-                  <Button size="sm" onClick={() => handleSelectItem(o.id)}>
-                    Pagar
-                  </Button>
-                )}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setViewDetailId(isExpanded ? null : o.id)}
-                >
-                  {isExpanded ? "Cerrar" : "Ver detalle"}
-                </Button>
-                {!isPayOrder && showOrderActions && (
-                  <>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleContinueOrder(o)}
-                      title="Continuar agregando"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleCancelOrder(o)}
-                      title="Anular"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </>
-                )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleCancelOrder(o)}
+                        title="Anular"
+                        className="h-7 w-7 p-0"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
 
               {isExpanded && (
