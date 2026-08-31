@@ -434,13 +434,29 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
 
   const hasPendingPayment = payments.length > 0 && paidAmount < total;
 
-  function renderClientField() {
+  function renderClientField({ showCloseButton = false }: { showCloseButton?: boolean } = {}) {
     return (
       <div className="flex flex-col gap-1.5">
-        <label className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-          <User className="h-3 w-3" />
-          Cliente <span className="text-danger">*</span>
-        </label>
+        <div className="flex items-center justify-between">
+          <label className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+            <User className="h-3 w-3" />
+            Cliente <span className="text-danger">*</span>
+          </label>
+          {showCloseButton && (
+            <button
+              type="button"
+              onClick={() => {
+                setShowClientSection(false);
+                setClientQuery("");
+                setShowClientResults(false);
+              }}
+              className="inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label="Cerrar"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
         {selectedClient ? (
           <div className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-2">
             <div className="min-w-0">
@@ -765,7 +781,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                       </button>
                     </div>
                   ) : showClientSection ? (
-                    renderClientField()
+                    renderClientField({ showCloseButton: true })
                   ) : (
                     <button
                       type="button"
@@ -839,11 +855,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                     </button>
                   </div>
 
-                  {payments.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">
-                      Sin pagos se guardará como cuenta abierta.
-                    </p>
-                  ) : (
+                  {payments.length > 0 && (
                     <div className="flex flex-col gap-2">
                       {payments.map((payment) => {
                         const method = paymentMethods?.find((m) => m.id === payment.payment_method_id);
