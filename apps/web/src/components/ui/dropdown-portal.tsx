@@ -30,8 +30,8 @@ export function DropdownPortal({
     if (!trigger) return;
     const rect = trigger.getBoundingClientRect();
     const margin = 8;
-    let left = align === "left" ? rect.left : rect.right;
     const width = Math.max(rect.width, minWidth);
+    let left = align === "left" ? rect.left : rect.right - width;
 
     // Evitar que se salga por la derecha
     if (left + width > window.innerWidth - margin) {

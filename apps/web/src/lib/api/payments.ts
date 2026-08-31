@@ -1,4 +1,4 @@
-import { apiFetch } from "./client";
+import { apiFetch, apiFile } from "./client";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 export type YggdraPaymentMethod = YggdraSchemas["PaymentMethodList"];
@@ -18,6 +18,8 @@ export interface PaymentsFilter {
   payment_date__lte?: string;
   page?: number;
   page_size?: number;
+  next?: string | null;
+  previous?: string | null;
 }
 
 export interface PaymentStats {
@@ -98,6 +100,12 @@ function paymentsQueryString(filter: PaymentsFilter): string {
 }
 
 export async function fetchPayments(filter: PaymentsFilter = {}): Promise<PaginatedPayment> {
+  if (filter.next) {
+    return apiFetch<PaginatedPayment>(filter.next);
+  }
+  if (filter.previous) {
+    return apiFetch<PaginatedPayment>(filter.previous);
+  }
   return apiFetch<PaginatedPayment>(`/finance/payments/${paymentsQueryString(filter)}`);
 }
 
@@ -123,6 +131,6 @@ export async function downloadPaymentVoucher(
   id: string,
   format: "thermal" | "a4" = "thermal",
 ): Promise<Blob> {
-  const res = await apiFetch<Blob>(`/finance/payments/${id}/download-voucher/?pdf_format=${format}`);
-  return res;
+  const res = await apiFile(`/finance/payments/${id}/download-voucher/?pdf_format=${format}`);
+  return res.blob;
 }

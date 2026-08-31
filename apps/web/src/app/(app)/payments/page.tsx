@@ -20,12 +20,14 @@ import {
   Ban,
   FileText,
   Loader2,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
+import { ActionsMenu } from "@/components/ui/actions-menu";
 import {
   fetchPayments,
   fetchPaymentsByDirection,
@@ -43,14 +45,16 @@ import { formatCLP } from "@/lib/utils";
 const DIRECTION_OPTIONS = [
   { value: "", label: "Todos" },
   { value: "INCOME", label: "Ingresos" },
-  { value: "EXPENSE", label: "Egresos / Pagos" },
+  { value: "EXPENSE", label: "Egresos" },
 ];
 
+// TODO: cuando el backend agregue PURCHASE_ORDER a payment_source,
+// separar "Orden de compra / Gasto" en dos opciones distintas.
 const SOURCE_OPTIONS = [
   { value: "", label: "Todos los orígenes" },
   { value: "ORDER", label: "Orden de venta" },
-  { value: "EXPENSE", label: "Gasto" },
-  { value: "REVENUE", label: "Ingreso" },
+  { value: "EXPENSE", label: "Orden de compra / Gasto" },
+  { value: "REVENUE", label: "Ingreso directo" },
   { value: "REFUND", label: "Reembolso" },
   { value: "OTHER", label: "Otro" },
 ];
@@ -153,14 +157,17 @@ export default function PaymentsPage() {
   });
 
   // Download voucher handler
-  const handleDownloadVoucher = async (id: string) => {
+  const handleDownloadVoucher = async (id: string, format: "thermal" | "a4" = "thermal") => {
     setDownloading(id);
     try {
-      const blob = await downloadPaymentVoucher(id, "thermal");
+      const blob = await downloadPaymentVoucher(id, format);
+      if (!(blob instanceof Blob)) {
+        throw new Error("Respuesta no es un archivo válido");
+      }
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `comprobante_${id}.pdf`;
+      a.download = `comprobante_${id}_${format}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } finally {
@@ -321,9 +328,29 @@ export default function PaymentsPage() {
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1">
                             {canDownload && (
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownloadVoucher(p.id)} disabled={downloading === p.id} title="Descargar comprobante">
-                                {downloading === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                              </Button>
+                              <ActionsMenu
+                                ariaLabel="Descargar comprobante"
+                                trigger={
+                                  <>
+                                    <Download className="h-4 w-4" />
+                                    <span>Descargar</span>
+                                    <ChevronDown className="h-3 w-3 opacity-60" />
+                                  </>
+                                }
+                                className="h-8 gap-1 px-2 text-xs"
+                                items={[
+                                  {
+                                    label: "80mm",
+                                    icon: Receipt,
+                                    onClick: () => handleDownloadVoucher(p.id, "thermal"),
+                                  },
+                                  {
+                                    label: "A4",
+                                    icon: FileText,
+                                    onClick: () => handleDownloadVoucher(p.id, "a4"),
+                                  },
+                                ]}
+                              />
                             )}
                             {(p.status === "PENDING" || p.status === "PROCESSING") && (
                               <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-danger" title="Cancelar pago (próximamente)" disabled>
@@ -381,10 +408,29 @@ export default function PaymentsPage() {
                         </div>
                         {canDownload && (
                           <div className="mt-3 flex justify-end border-t border-border pt-3">
-                            <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => handleDownloadVoucher(p.id)} disabled={downloading === p.id}>
-                              {downloading === p.id ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Download className="mr-1 h-3 w-3" />}
-                              Comprobante
-                            </Button>
+                            <ActionsMenu
+                              ariaLabel="Descargar comprobante"
+                              trigger={
+                                <>
+                                  <Download className="h-3 w-3" />
+                                  <span>Descargar</span>
+                                  <ChevronDown className="h-3 w-3 opacity-60" />
+                                </>
+                              }
+                              className="h-8 gap-1 px-2 text-xs"
+                              items={[
+                                {
+                                  label: "80mm",
+                                  icon: Receipt,
+                                  onClick: () => handleDownloadVoucher(p.id, "thermal"),
+                                },
+                                {
+                                  label: "A4",
+                                  icon: FileText,
+                                  onClick: () => handleDownloadVoucher(p.id, "a4"),
+                                },
+                              ]}
+                            />
                           </div>
                         )}
                       </div>
