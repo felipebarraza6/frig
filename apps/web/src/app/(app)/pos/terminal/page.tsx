@@ -1182,12 +1182,8 @@ export default function PosPage() {
           </div>
         </div>
 
-      </header>
-
-      {/* Top action bar */}
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border/60 bg-background px-3 py-2 sm:px-4">
-        {/* Left: operation mode selector */}
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5">
+          {/* Operation mode */}
           <button
             type="button"
             onClick={() => {
@@ -1282,11 +1278,8 @@ export default function PosPage() {
               </span>
             </button>
           )}
-        </div>
 
-        {/* Right: quick action buttons */}
-        <div className="flex items-center gap-1.5">
-          {/* Combos button */}
+          {/* Combos */}
           {combos && combos.length > 0 && (
             <button
               type="button"
@@ -1298,7 +1291,7 @@ export default function PosPage() {
             </button>
           )}
 
-          {/* Table map */}
+          {/* Mapa mesas */}
           {showTables && !isWaiter && (
             <button
               type="button"
@@ -1310,10 +1303,10 @@ export default function PosPage() {
             </button>
           )}
 
-          {/* Definitive POS quick actions */}
+          {/* PosQuickActions */}
           {!isWaiter && <PosQuickActions stationId={activeStationId} />}
 
-          {/* Search (mobile shortcut) */}
+          {/* Mobile search */}
           <button
             type="button"
             onClick={() => {
@@ -1326,7 +1319,8 @@ export default function PosPage() {
             <Search className="h-3.5 w-3.5" />
           </button>
         </div>
-      </div>
+
+      </header>
 
       {/* Banner: error al consultar la caja (distinto de "sin caja abierta") */}
       {cashRegisterError && !isWaiter && (
