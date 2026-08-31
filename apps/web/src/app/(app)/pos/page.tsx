@@ -17,8 +17,12 @@ import {
   useCurrentBranch,
   useCurrentBranchStation,
   useCanViewCashRegisterHistory,
+  useIsOwner,
+  useIsAdminLocal,
 } from "@/lib/store/session";
 import { formatCLP, cn } from "@/lib/utils";
+import { PosConfigModal } from "@/components/pos/pos-config-modal";
+import { Settings2 } from "lucide-react";
 import { statusBadge } from "@/lib/status-styles";
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import {
@@ -62,6 +66,10 @@ export default function PosZenPage() {
   const [openingStationId, setOpeningStationId] = useState<number | null>(null);
   const [openingAmounts, setOpeningAmounts] = useState<Record<number, string>>({});
   const processingRef = useRef(false);
+  const [configStationId, setConfigStationId] = useState<number | null>(null);
+  const isOwner = useIsOwner();
+  const isAdminLocal = useIsAdminLocal();
+  const canConfigurePos = isOwner || isAdminLocal;
 
   const {
     data: stations = [],
@@ -200,13 +208,15 @@ export default function PosZenPage() {
         transition={{ duration: 0.4 }}
         className="w-full max-w-5xl"
       >
-        <div className="mb-8 text-center">
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            Puntos de venta
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Elige una estación para comenzar a vender
-          </p>
+        <div className="mb-8 flex flex-col items-center gap-4 text-center sm:flex-row sm:items-start sm:justify-between sm:text-left">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+              Puntos de venta
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Elige una estación para comenzar a vender
+            </p>
+          </div>
         </div>
 
         {stationsLoading ? (
@@ -301,19 +311,32 @@ export default function PosZenPage() {
                         </div>
                       </div>
 
-                      <span
-                        className={cn(
-                          "inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold shadow-xs",
-                          statusBadge(isOpen ? "OPEN" : "CLOSED"),
+                      <div className="flex shrink-0 items-start gap-2">
+                        <span
+                          className={cn(
+                            "inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold shadow-xs",
+                            statusBadge(isOpen ? "OPEN" : "CLOSED"),
+                          )}
+                        >
+                          {isOpen ? (
+                            <Unlock className="h-3.5 w-3.5" />
+                          ) : (
+                            <Lock className="h-3.5 w-3.5" />
+                          )}
+                          {isOpen ? "Abierta" : "Cerrada"}
+                        </span>
+                        {canConfigurePos && (
+                          <button
+                            type="button"
+                            onClick={() => setConfigStationId(station.id)}
+                            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            aria-label={`Configurar estación ${station.name}`}
+                            title="Configurar estación"
+                          >
+                            <Settings2 className="h-3.5 w-3.5" />
+                          </button>
                         )}
-                      >
-                        {isOpen ? (
-                          <Unlock className="h-3.5 w-3.5" />
-                        ) : (
-                          <Lock className="h-3.5 w-3.5" />
-                        )}
-                        {isOpen ? "Abierta" : "Cerrada"}
-                      </span>
+                      </div>
                     </div>
 
                     {/* Subtexto de turno */}
@@ -465,6 +488,11 @@ export default function PosZenPage() {
           </div>
         )}
 
+        <PosConfigModal
+          open={configStationId !== null}
+          onClose={() => setConfigStationId(null)}
+          stationId={configStationId}
+        />
       </motion.div>
     </div>
   );
