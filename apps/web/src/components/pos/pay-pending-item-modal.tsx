@@ -23,7 +23,7 @@ import { fetchOrders, fetchOrder, payOrder, fetchPendingOrdersByClient, deliverO
 import { fetchPurchaseOrders, payPurchaseOrder } from "@/lib/api/suppliers";
 import { fetchExpenses, payExpense } from "@/lib/api/expenses";
 import { searchCustomers } from "@/lib/api/customers";
-import { formatCLP, cn, paymentStatusLabel } from "@/lib/utils";
+import { formatCLP, cn } from "@/lib/utils";
 import { useToast } from "@/lib/store/toast";
 import type { POSQuickActionType } from "@/lib/api/branches";
 import type { YggdraSchemas } from "@/lib/api/types";
@@ -88,17 +88,47 @@ type PaymentMethod = {
 
 type Customer = YggdraSchemas["Client"];
 
-function deliveryStatusLabel(status?: string | null) {
-  switch (status) {
-    case "IN_PROGRESS":
-      return "En preparación";
-    case "DELIVERED":
-      return "Entregado";
+function paymentStatusLabel(status?: string | null): string {
+  switch (status?.toUpperCase()) {
+    case "PAID":
+    case "COMPLETED":
+      return "Pagado";
     case "PARTIAL":
       return "Parcial";
     case "PENDING":
+      return "Por pagar";
     default:
+      return status ?? "—";
+  }
+}
+
+function deliveryStatusLabel(status?: string | null): string {
+  switch (status?.toUpperCase()) {
+    case "DELIVERED":
+    case "COMPLETED":
+      return "Entregado";
+    case "IN_PROGRESS":
+    case "PREPARING":
+      return "En preparación";
+    case "PENDING":
       return "Pendiente";
+    default:
+      return status ?? "—";
+  }
+}
+
+function orderStatusLabel(status?: string | null): string {
+  switch (status?.toUpperCase()) {
+    case "PENDING":
+      return "Pendiente";
+    case "IN_PROGRESS":
+      return "En progreso";
+    case "COMPLETED":
+      return "Completado";
+    case "CANCELLED":
+      return "Anulado";
+    default:
+      return status ?? "—";
   }
 }
 
@@ -857,41 +887,32 @@ export default function PayPendingItemModal({
                 selectedItemId === o.id && "border-primary bg-primary/5",
               )}
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold">
-                    {o.order_number ?? o.id.slice(0, 8)}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {o.client?.name ?? "Sin cliente"}
-                  </p>
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="truncate text-sm font-semibold">{o.order_number ?? o.id.slice(0, 8)}</p>
+                  <span className="shrink-0 text-sm font-bold tabular-nums">{formatCLP(remaining)}</span>
                 </div>
-                <span className="shrink-0 text-sm font-bold tabular-nums">
-                  {formatCLP(remaining)}
-                </span>
+                <p className="truncate text-xs text-muted-foreground">{o.client?.name ?? "Sin cliente"}</p>
+                <p className="text-xs text-muted-foreground">
+                  {isPayOrder ? (o.delivery_address ? `Domicilio · ${shortDate(o.date)}` : `Retiro · ${shortDate(o.date)}`) : `${shortDate(o.date)}${o.observation ? ` · ${o.observation}` : ""}`}
+                </p>
+                <div className="flex gap-1.5">
+                  {isPayOrder ? (
+                    <>
+                      <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-medium", paymentStatusClass(o.payment_status))}>
+                        Pago: {paymentStatusLabel(o.payment_status)}
+                      </span>
+                      <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-medium", deliveryStatusClass(o.delivery_status))}>
+                        Entrega: {deliveryStatusLabel(o.delivery_status)}
+                      </span>
+                    </>
+                  ) : (
+                    <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-medium", paymentStatusClass(o.payment_status))}>
+                      Pago: {paymentStatusLabel(o.payment_status)}
+                    </span>
+                  )}
+                </div>
               </div>
-              <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                {isPayOrder
-                  ? (o.delivery_address ?? "Retiro en local")
-                  : (o.observation ?? "Sin notas")}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {shortDate(o.date)}
-                {" · "}
-                {isPayOrder
-                  ? deliveryStatusLabel(o.delivery_status)
-                  : paymentStatusLabel(o.payment_status)}
-              </p>
-              {isPayOrder && (
-                <div className="flex gap-1.5 mt-1">
-                  <span className={cn("rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium", paymentStatusClass(o.payment_status))}>
-                    {(o as unknown as { payment_status_display?: string }).payment_status_display ?? o.payment_status ?? "-"}
-                  </span>
-                  <span className={cn("rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium", deliveryStatusClass(o.delivery_status))}>
-                    {(o as unknown as { delivery_status_display?: string }).delivery_status_display ?? o.delivery_status ?? "-"}
-                  </span>
-                </div>
-              )}
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 {isPayOrder ? (
                   <>
@@ -1110,7 +1131,7 @@ export default function PayPendingItemModal({
           )}
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-muted-foreground mb-2 pt-1">{cfg.listLabel}</label>
+            <p className="text-xs text-muted-foreground">Toca una orden para ver acciones</p>
             <div className="flex flex-col gap-3 rounded-xl bg-muted/20 p-3 max-h-[28rem] overflow-y-auto">
               {renderItemList()}
             </div>
