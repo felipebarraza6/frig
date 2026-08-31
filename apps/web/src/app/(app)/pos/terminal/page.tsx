@@ -31,9 +31,10 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Skeleton, GridSkeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 import CartPanel from "@/components/pos/cart-panel";
 import { ProductCard } from "@/components/pos/product-card";
+import { ProductCardSkeletonGrid } from "@/components/pos/product-card-skeleton";
 import { PostSaleModal } from "@/components/pos/post-sale-modal";
 import OrderCollectModal from "@/components/orders/order-collect-modal";
 import {
@@ -1331,7 +1332,7 @@ export default function PosPage() {
                 </div>
               ) : productsLoading || assignedMenuLoading ? (
                 <div className="grid h-full place-items-center rounded-xl border border-dashed border-border">
-                  <GridSkeleton count={12} />
+                  <ProductCardSkeletonGrid count={12} />
                 </div>
               ) : filtered.length === 0 ? (
                 <div className="grid h-full place-items-center rounded-xl border border-dashed border-border">
