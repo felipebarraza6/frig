@@ -107,6 +107,7 @@ import { useBranchModules } from "@/lib/hooks/useBranchModules";
 import { useBranchProductTypes } from "@/lib/hooks/useBranchProductTypes";
 import { branchName } from "@/lib/types";
 import ModifierModal from "@/components/pos/modifier-modal";
+import PosQuickActions from "@/components/pos/pos-quick-actions";
 import { WaiterTablesView } from "@/components/pos/waiter-tables-view";
 import { ComboPickerModal } from "@/components/pos/combo-picker-modal";
 import { TablesCanvas } from "@/components/tables/tables-canvas";
@@ -842,9 +843,9 @@ export default function PosPage() {
       });
 
       await payPurchaseOrder(order.id, {
-        paid_amount: paidDecimal,
+        amount: paidDecimal,
+        payment_method_id: supplierPaymentMethod || "",
         notes: concept,
-        payment_method: supplierPaymentMethod || null,
       });
 
       if (paid >= total) {
@@ -1341,6 +1342,8 @@ export default function PosPage() {
 
         </div>
       </header>
+
+      <PosQuickActions stationId={activeStationId} />
 
       {/* Banner: error al consultar la caja (distinto de "sin caja abierta") */}
       {cashRegisterError && !isWaiter && (

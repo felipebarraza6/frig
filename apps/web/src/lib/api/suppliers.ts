@@ -19,9 +19,11 @@ export interface PurchaseOrderCreatePayload extends Omit<PurchaseOrderCreate, "i
 
 /** Payload mínimo para registrar un pago en pay_order (sin reenviar la orden completa). */
 export interface PayPurchaseOrderPayload {
-  paid_amount: string;
+  amount: string;
+  payment_method_id: string;
+  cash_register_id?: number | string | null;
   notes?: string | null;
-  payment_method?: string | null;
+  reference?: string | null;
 }
 
 /** Entrada individual del historial de pagos de una orden de compra. */
@@ -138,6 +140,7 @@ export interface PurchaseOrdersFilter {
   supplier?: string;
   status?: string;
   payment_status?: string;
+  page_size?: number;
   next?: string | null;
   previous?: string | null;
 }
@@ -156,6 +159,7 @@ export async function fetchPurchaseOrders(
   if (filter.supplier) qs.set("supplier", filter.supplier);
   if (filter.status) qs.set("status", filter.status);
   if (filter.payment_status) qs.set("payment_status", filter.payment_status);
+  if (filter.page_size) qs.set("page_size", String(filter.page_size));
   const q = qs.toString();
   return apiFetch<PaginatedPurchaseOrder>(`/suppliers/purchase-orders/${q ? `?${q}` : ""}`);
 }

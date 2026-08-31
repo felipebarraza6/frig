@@ -138,6 +138,29 @@ export async function fetchOrders(filter: OrdersFilter = {}): Promise<PaginatedO
   return apiFetch<PaginatedOrder>(`/sales/orders/${q ? `?${q}` : ""}`);
 }
 
+export interface PayOrderPayload {
+  payment_method_id: string;
+  amount: string;
+  cash_register_id?: number | string | null;
+  notes?: string | null;
+  reference?: string | null;
+}
+
+export async function payOrder(id: string, payload: PayOrderPayload): Promise<YggdraOrder> {
+  return apiFetch<YggdraOrder>(`/sales/orders/${id}/pay/`, {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export async function fetchPendingOrdersByClient(clientId: string): Promise<YggdraOrder[]> {
+  const data = await apiFetch<{ results?: YggdraOrder[] } | YggdraOrder[]>(
+    `/sales/orders/pending_by_client/?client=${encodeURIComponent(clientId)}`,
+  );
+  if (Array.isArray(data)) return data;
+  return data.results ?? [];
+}
+
 export async function fetchOrder(id: string): Promise<YggdraOrder> {
   return apiFetch<YggdraOrder>(`/sales/orders/${id}/`);
 }

@@ -243,6 +243,63 @@ export function applyThemeConfig(theme: BranchThemeConfig | null): void {
   }
 }
 
+export type POSQuickActionType =
+  | "pay_account"
+  | "pay_order"
+  | "collect"
+  | "pay_purchase_order"
+  | "pay_expense";
+
+export interface POSQuickAction {
+  id: string;
+  type: POSQuickActionType;
+  label: string;
+  icon: string;
+  color?: string;
+  enabled: boolean;
+}
+
+export interface BranchPOSConfig {
+  id: string | number;
+  branch: number | string;
+  show_price_in_selector: boolean;
+  show_product_images: boolean;
+  require_branch_selection: boolean;
+  auto_select_product: boolean;
+  default_measurement_unit: string;
+  enable_quick_actions: boolean;
+  quick_actions: POSQuickAction[];
+}
+
+export const DEFAULT_POS_QUICK_ACTIONS: POSQuickAction[] = [
+  { id: "pay-account", type: "pay_account", label: "Cuentas pendientes", icon: "Receipt", color: "blue", enabled: true },
+  { id: "pay-order", type: "pay_order", label: "Órdenes pendientes", icon: "ClipboardList", color: "amber", enabled: true },
+  { id: "collect", type: "collect", label: "Cobrar", icon: "UserSearch", color: "emerald", enabled: true },
+  { id: "pay-purchase-order", type: "pay_purchase_order", label: "Pagar orden de compra", icon: "Truck", color: "purple", enabled: true },
+  { id: "pay-expense", type: "pay_expense", label: "Pagar gasto", icon: "TrendingDown", color: "rose", enabled: true },
+];
+
+export async function fetchBranchPOSConfig(): Promise<BranchPOSConfig | null> {
+  const data = await apiFetch<{ results?: BranchPOSConfig[] } | BranchPOSConfig>("/branches/pos-config/");
+  const results = Array.isArray(data) ? data : ((data as { results?: BranchPOSConfig[] }).results ?? []);
+  const cfg = results[0] ?? (data as BranchPOSConfig);
+  if (!cfg || typeof cfg !== "object") return null;
+  return {
+    ...cfg,
+    quick_actions: cfg.quick_actions?.length ? cfg.quick_actions : DEFAULT_POS_QUICK_ACTIONS,
+  } as BranchPOSConfig;
+}
+
+export async function updateBranchPOSConfig(
+  id: ID,
+  payload: Partial<BranchPOSConfig>,
+): Promise<BranchPOSConfig> {
+  return apiFetch<BranchPOSConfig>(`/branches/pos-config/${id}/`, {
+    method: "PATCH",
+    body: payload,
+  });
+}
+
 export interface BranchThemeConfigPayload {
   app_name?: string;
   login_welcome_message?: string;

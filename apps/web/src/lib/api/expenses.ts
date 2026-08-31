@@ -15,6 +15,7 @@ export interface ExpensesFilter {
   status?: string;
   startDate?: string;
   endDate?: string;
+  page_size?: number;
   next?: string | null;
   previous?: string | null;
 }
@@ -32,6 +33,7 @@ export async function fetchExpenses(filter: ExpensesFilter = {}): Promise<Pagina
   if (filter.status) qs.set("status", filter.status);
   if (filter.startDate) qs.set("start_date", filter.startDate);
   if (filter.endDate) qs.set("end_date", filter.endDate);
+  if (filter.page_size) qs.set("page_size", String(filter.page_size));
   const q = qs.toString();
   return apiFetch<PaginatedFixedExpense>(`/finance/fixed-expenses/${q ? `?${q}` : ""}`);
 }
@@ -73,6 +75,21 @@ export async function deleteExpense(id: string): Promise<void> {
 
 export async function cancelExpense(id: string): Promise<FixedExpense> {
   return apiFetch<FixedExpense>(`/finance/fixed-expenses/${id}/cancel/`, { method: "POST" });
+}
+
+export interface PayExpensePayload {
+  payment_method_id: string;
+  amount: string;
+  cash_register_id?: number | string | null;
+  notes?: string | null;
+  reference?: string | null;
+}
+
+export async function payExpense(id: string, payload: PayExpensePayload): Promise<FixedExpense> {
+  return apiFetch<FixedExpense>(`/finance/fixed-expenses/${id}/pay/`, {
+    method: "POST",
+    body: payload,
+  });
 }
 
 export async function createExpenseCategory(payload: ExpenseCategoryRequest): Promise<ExpenseCategory> {

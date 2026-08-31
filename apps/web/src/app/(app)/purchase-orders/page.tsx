@@ -268,9 +268,9 @@ export default function PurchaseOrdersPage() {
     // podía registrar el pago dos veces y sobrescribir las notas.
     mutationFn: (target: PayTarget) =>
       payPurchaseOrder(target.order.id, {
-        paid_amount: target.amount,
+        amount: target.amount,
+        payment_method_id: target.paymentMethod || "",
         notes: target.notes || null,
-        payment_method: target.paymentMethod || null,
       }),
     onSuccess: (updated) => {
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
