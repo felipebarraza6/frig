@@ -9,7 +9,6 @@ import {
   Truck,
   TrendingDown,
   Loader2,
-  Settings,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,8 +20,6 @@ import { fetchPaymentMethods } from "@/lib/api/payments";
 import { getCurrentCashRegister } from "@/lib/api/cash-register";
 import { cn } from "@/lib/utils";
 import PayPendingItemModal from "./pay-pending-item-modal";
-import PosQuickActionsSettings from "./pos-quick-actions-settings";
-import { useIsOwner, useIsSuperAdmin, useCurrentBranch } from "@/lib/store/session";
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   Receipt,
@@ -45,12 +42,6 @@ interface PosQuickActionsProps {
 
 export default function PosQuickActions({ stationId }: PosQuickActionsProps) {
   const [activeType, setActiveType] = useState<string | null>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const branch = useCurrentBranch();
-  const branchId = branch?.branch_id ?? null;
-  const isOwner = useIsOwner();
-  const isSuperAdmin = useIsSuperAdmin();
-  const canConfigure = isOwner || isSuperAdmin;
 
   const { data: config, isLoading: loadingConfig } = useQuery({
     queryKey: ["branch-pos-config"],
@@ -113,19 +104,6 @@ export default function PosQuickActions({ stationId }: PosQuickActionsProps) {
           );
         })
       )}
-      {canConfigure && (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => setSettingsOpen(true)}
-          className="ml-auto gap-1.5 text-xs"
-          aria-label="Configurar acciones rápidas"
-        >
-          <Settings className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Configurar</span>
-        </Button>
-      )}
     </div>
 
     {activeAction && (
@@ -137,13 +115,6 @@ export default function PosQuickActions({ stationId }: PosQuickActionsProps) {
         paymentMethods={paymentMethods as PaymentMethodItem[]}
       />
     )}
-
-    <PosQuickActionsSettings
-      open={settingsOpen}
-      config={config}
-      branchId={branchId}
-      onClose={() => setSettingsOpen(false)}
-    />
   </>
   );
 }

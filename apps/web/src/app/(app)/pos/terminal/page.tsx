@@ -1324,37 +1324,6 @@ export default function PosPage() {
             </div>
           )}
 
-          {!isWaiter && (
-            <>
-              <button
-                type="button"
-                onClick={() => setShowOpenAccounts(true)}
-                className="relative hidden h-8 items-center gap-1.5 rounded-lg border border-border/60 bg-background px-2 text-xs font-medium text-foreground transition-colors hover:bg-muted sm:inline-flex sm:px-2.5"
-              >
-                <ClipboardList className="h-3.5 w-3.5" />
-                <span>Cuentas</span>
-                {visibleOpenAccounts.length > 0 && (
-                  <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-semibold text-white">
-                    {visibleOpenAccounts.length}
-                  </span>
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowPendingDeliveries(true)}
-                className="relative hidden h-8 items-center gap-1.5 rounded-lg border border-border/60 bg-background px-2 text-xs font-medium text-foreground transition-colors hover:bg-muted sm:inline-flex sm:px-2.5"
-              >
-                <Zap className="h-3.5 w-3.5" />
-                <span>Pendientes</span>
-                {pendingDeliveriesCount > 0 && (
-                  <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-500 px-1 text-[10px] font-semibold text-white">
-                    {pendingDeliveriesCount}
-                  </span>
-                )}
-              </button>
-            </>
-          )}
-
         </div>
       </header>
 

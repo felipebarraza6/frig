@@ -28,6 +28,7 @@ import {
   Smartphone,
   Bitcoin,
   Landmark,
+  Settings,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -67,6 +68,8 @@ import {
 import Link from "next/link";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
 import { fetchExpenseCategoriesByName, createExpenseCategory, createExpense } from "@/lib/api/expenses";
+import { fetchBranchPOSConfig } from "@/lib/api/branches";
+import PosQuickActionsSettings from "@/components/pos/pos-quick-actions-settings";
 
 function numberValue(v: string): string {
   const cleaned = v.replace(/[^0-9]/g, "");
@@ -116,6 +119,7 @@ export default function CashRegisterPage() {
   const [movementsDate, setMovementsDate] = useState(() => todayLocal());
   const { download: downloadFile, isLoading: isDownloading } = useDownloadFile();
   const [downloadingAuditMode, setDownloadingAuditMode] = useState<"simple" | "full" | null>(null);
+  const [posSettingsOpen, setPosSettingsOpen] = useState(false);
 
   const assignedStationId = station?.station_id ?? null;
   const [selectedStationId, setSelectedStationId] = useState<number | null>(
@@ -129,7 +133,14 @@ export default function CashRegisterPage() {
   const user = useSessionStore((s) => s.user);
   const isOwner = useIsOwner();
   const isSuperAdmin = useIsSuperAdmin();
+  const canConfigurePOS = isOwner || isSuperAdmin;
 
+  const { data: posConfig } = useQuery({
+    queryKey: ["branch-pos-config"],
+    queryFn: fetchBranchPOSConfig,
+    enabled: canConfigurePOS,
+    staleTime: 60_000,
+  });
   const [historyStatus, setHistoryStatus] = useState<"" | "OPEN" | "CLOSED">("");
   const [historyDate, setHistoryDate] = useState("");
   const [historyPage, setHistoryPage] = useState(1);
@@ -646,6 +657,18 @@ export default function CashRegisterPage() {
               )}
             </div>
           </div>
+          {canConfigurePOS && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setPosSettingsOpen(true)}
+              className="gap-2 self-start sm:self-auto"
+            >
+              <Settings className="h-4 w-4" />
+              Acciones rápidas
+            </Button>
+          )}
         </header>
 
         {/* Top POS panel: Cash + Movements */}
@@ -1844,6 +1867,13 @@ export default function CashRegisterPage() {
           )}
         </section>
       </div>
+
+      <PosQuickActionsSettings
+        open={posSettingsOpen}
+        config={posConfig}
+        branchId={branch?.branch_id}
+        onClose={() => setPosSettingsOpen(false)}
+      />
     </div>
   );
 }
