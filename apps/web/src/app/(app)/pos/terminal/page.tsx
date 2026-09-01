@@ -22,6 +22,7 @@ import {
   TrendingUp,
   ArrowDownLeft,
   ArrowUpRight,
+  ArrowLeftRight,
   Calculator,
   MapPin,
   Plus,
@@ -874,6 +875,7 @@ export default function PosPage() {
           {/* Operation mode */}
           <button
             type="button"
+            title={effectiveOrderId && existingOrder ? "Cambiar a nuevo modo" : isOrderMode ? "Cambiar a venta" : "Cambiar a orden"}
             onClick={() => {
               if (isEditingOrder) {
                 clearCart();
@@ -906,15 +908,10 @@ export default function PosPage() {
                 </span>
                 <span>#{existingOrder.order_number ?? ""}</span>
               </>
-            ) : isOrderMode ? (
-              <>
-                <ClipboardList className="h-3.5 w-3.5" />
-                <span>Nueva orden</span>
-              </>
             ) : (
               <>
-                <Receipt className="h-3.5 w-3.5" />
-                <span>Nueva venta</span>
+                <ArrowLeftRight className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Cambiar</span>
               </>
             )}
           </button>
