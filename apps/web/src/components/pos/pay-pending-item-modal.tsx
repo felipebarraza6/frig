@@ -458,14 +458,14 @@ export default function PayPendingItemModal({
           client__in: clientFilter ? String(clientFilter.id) : undefined,
           start_date: dateFrom || undefined,
           end_date: dateTo || undefined,
-          page_size: 50,
+          page_size: 100,
         });
         return (data.results ?? []) as Order[];
       }
       if (type === "pay_order") {
         const [byPayment, byDelivery] = await Promise.all([
-          fetchOrders({ order_type: "ORDER", payment_status: ["PENDING", "PARTIAL"], start_date: dateFrom || undefined, end_date: dateTo || undefined, page_size: 50 }),
-          fetchOrders({ order_type: "ORDER", status: ["PENDING", "IN_PROGRESS"], start_date: dateFrom || undefined, end_date: dateTo || undefined, page_size: 50 }),
+          fetchOrders({ order_type: "ORDER", payment_status: ["PENDING", "PARTIAL"], start_date: dateFrom || undefined, end_date: dateTo || undefined, page_size: 100 }),
+          fetchOrders({ order_type: "ORDER", status: ["PENDING", "IN_PROGRESS"], start_date: dateFrom || undefined, end_date: dateTo || undefined, page_size: 100 }),
         ]);
         const map = new Map<string, Order>();
         for (const o of [...(byPayment.results ?? []), ...(byDelivery.results ?? [])] as Order[]) {
@@ -486,7 +486,7 @@ export default function PayPendingItemModal({
   const { data: purchaseOrdersData, isLoading: loadingPurchaseOrders } = useQuery({
     queryKey: ["pending-purchase-orders-for-pos", dateFrom, dateTo],
     queryFn: () =>
-      fetchPurchaseOrders({ status: "SENT", payment_status__in: ["PENDING", "PARTIAL"], start_date: dateFrom || undefined, end_date: dateTo || undefined, page_size: 50 }),
+      fetchPurchaseOrders({ status: "SENT", payment_status__in: ["PENDING", "PARTIAL"], start_date: dateFrom || undefined, end_date: dateTo || undefined, page_size: 100 }),
     enabled: open && type === "pay_purchase_order",
   });
   const purchaseOrders = (purchaseOrdersData?.results ?? []) as PurchaseOrder[];
