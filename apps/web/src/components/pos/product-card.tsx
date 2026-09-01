@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 import { motion } from "framer-motion";
-import { AlertTriangle, Utensils } from "lucide-react";
+import { AlertTriangle, List } from "lucide-react";
 import type { PosProduct, YggdraSchemas } from "@/lib/api/types";
 import { formatCLP, cn } from "@/lib/utils";
 
@@ -43,7 +43,7 @@ function ProductTypeBadge({
       className="inline-flex max-w-full flex-wrap items-start gap-1 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary"
       title={recipe?.name || undefined}
     >
-      <Utensils className="h-2.5 w-2.5 shrink-0" />
+      <List className="h-2.5 w-2.5 shrink-0" />
       <span className="break-words leading-tight">
         {names.length > 0 ? names.join(", ") : recipe?.name || "Sin receta"}
       </span>
@@ -96,21 +96,21 @@ function ProductCardRaw({ product, recipe, ingredients, onClick, onKeyDown }: Pr
       whileTap={disabled ? undefined : { scale: 0.97 }}
       transition={{ type: "spring", stiffness: 500, damping: 20 }}
       className={cn(
-        "group flex cursor-pointer flex-col overflow-hidden rounded-2xl border bg-card p-2 shadow-sm transition-all",
-        "hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md",
-        "aria-disabled:cursor-not-allowed aria-disabled:opacity-55 aria-disabled:hover:translate-y-0 aria-disabled:hover:border-border/60 aria-disabled:hover:shadow-sm",
-        disabled ? "border-border/50" : "border-border/70",
+        "group flex cursor-pointer flex-col overflow-hidden rounded-2xl border bg-card p-3 transition-all",
+        "shadow-none hover:-translate-y-0.5 hover:border-primary/25 hover:bg-primary/[0.02] hover:shadow-sm",
+        "aria-disabled:cursor-not-allowed aria-disabled:opacity-55 aria-disabled:hover:translate-y-0 aria-disabled:hover:border-border/60 aria-disabled:hover:shadow-none aria-disabled:hover:bg-card",
+        disabled ? "border-border/40" : "border-border/50",
       )}
     >
       <ProductImage product={product} />
 
       <div
         className={cn(
-          "flex flex-1 flex-col justify-center items-center gap-2 text-center",
-          hasImage && "mt-2",
+          "flex flex-1 flex-col justify-center items-center gap-2.5 text-center",
+          hasImage && "mt-3",
         )}
       >
-        <div className="flex flex-col items-center gap-1">
+        <div className="flex flex-col items-center gap-1.5">
           <p className="line-clamp-2 text-[13px] font-semibold leading-tight text-foreground sm:text-sm">
             {product.name}
           </p>
