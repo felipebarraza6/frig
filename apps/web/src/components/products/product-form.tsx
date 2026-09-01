@@ -8,6 +8,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import { useCategoryOptions } from "@/lib/hooks/useCategoryOptions";
 import { fetchProducts } from "@/lib/api/products";
@@ -42,6 +43,16 @@ import {
   addProductToWarehouse,
   deleteWarehouseProduct,
 } from "@/lib/api/warehouses";
+import {
+  fetchModifierGroups,
+  fetchProductModifierGroups,
+  assignModifierGroupToProduct,
+  removeProductModifierGroup,
+  updateProductModifierGroup,
+  type ModifierGroupList,
+  type ProductModifierGroup,
+  type ProductModifierGroupWriteRequest,
+} from "@/lib/api/modifier-groups";
 import { useBranchProductTypes } from "@/lib/hooks/useBranchProductTypes";
 import { useDownloadFile } from "@/lib/hooks/useDownloadFile";
 import { useIsNutritionEnabled, useIsModuleEnabledFromConfig } from "@/lib/store/session";
@@ -89,6 +100,13 @@ interface IngredientDraft {
   preparation_notes?: string;
 }
 
+interface ModifierAssignmentDraft {
+  id?: number;
+  modifier_group: number;
+  is_required: boolean;
+  groupName?: string;
+}
+
 interface YggdraProductDetail extends Omit<YggdraProduct, "category" | "branch" | "history_product"> {
   /** El listado trae la categoría expandida; el retrieve trae el id numérico. */
   category?: number | null | { id: number; name?: string };
@@ -107,7 +125,7 @@ interface YggdraProductDetail extends Omit<YggdraProduct, "category" | "branch" 
   sodium_mg?: string | null;
 }
 
-export type FormTab = "basic" | "pricing" | "recipe" | "warehouses" | "nutrition";
+export type FormTab = "basic" | "pricing" | "recipe" | "warehouses" | "nutrition" | "modifiers";
 
 interface ProductFormProps {
   product?: YggdraProductDetail;
@@ -274,6 +292,17 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
     [productWarehouses],
   );
 
+  const { data: modifierGroups = [], isLoading: loadingModifierGroups } = useQuery({
+    queryKey: ["modifier-groups"],
+    queryFn: fetchModifierGroups,
+  });
+
+  const { data: productModifierGroups = [], isLoading: loadingProductModifierGroups } = useQuery({
+    queryKey: ["product-modifier-groups", product?.id],
+    queryFn: () => fetchProductModifierGroups(product!.id),
+    enabled: !!product?.id,
+  });
+
   const branch = useCurrentBranch();
   const toast = useToast();
 
@@ -329,6 +358,21 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
   const [selectedLocation, setSelectedLocation] = useState("");
   const [removingWarehouseId, setRemovingWarehouseId] = useState<number | null>(null);
 
+  const [modifierAssignments, setModifierAssignments] = useState<ModifierAssignmentDraft[]>([]);
+
+  useEffect(() => {
+    if (productModifierGroups.length > 0) {
+      setModifierAssignments(
+        productModifierGroups.map((pmg) => ({
+          id: pmg.id,
+          modifier_group: pmg.modifier_group.id,
+          is_required: pmg.is_required ?? false,
+          groupName: pmg.modifier_group_name,
+        })),
+      );
+    }
+  }, [productModifierGroups]);
+
   const [recipe, setRecipe] = useState<{
     id?: string;
     name: string;
@@ -381,6 +425,7 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
       { id: "pricing", label: "Precios y venta", enabled: true },
       { id: "recipe", label: "Receta", enabled: isCompound },
       { id: "warehouses", label: "Bodegas", enabled: true },
+      { id: "modifiers", label: "Modificadores", enabled: true },
     ];
     if (nutritionEnabled) {
       list.push({ id: "nutrition", label: "Nutrición", enabled: true });
@@ -589,6 +634,37 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
     }
   }
 
+  function isGroupAssigned(groupId: number) {
+    return modifierAssignments.some((a) => a.modifier_group === groupId);
+  }
+
+  function getAssignment(groupId: number) {
+    return modifierAssignments.find((a) => a.modifier_group === groupId);
+  }
+
+  function toggleGroupAssignment(group: ModifierGroupList) {
+    setModifierAssignments((prev) => {
+      const exists = prev.some((a) => a.modifier_group === group.id);
+      if (exists) {
+        return prev.filter((a) => a.modifier_group !== group.id);
+      }
+      return [
+        ...prev,
+        {
+          modifier_group: group.id,
+          is_required: group.is_required ?? false,
+          groupName: group.name,
+        },
+      ];
+    });
+  }
+
+  function updateAssignmentRequired(groupId: number, is_required: boolean) {
+    setModifierAssignments((prev) =>
+      prev.map((a) => (a.modifier_group === groupId ? { ...a, is_required } : a)),
+    );
+  }
+
   async function saveWarehouseAssignments(productId: number) {
     await Promise.all(
       warehouseAssignments.map((a) =>
@@ -679,6 +755,45 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
     );
   }
 
+  async function saveModifierGroups(productId: number) {
+    const originalByGroup = new Map<number, ProductModifierGroup>(
+      productModifierGroups.map((pmg) => [pmg.modifier_group.id, pmg]),
+    );
+
+    try {
+      await Promise.all(
+        modifierAssignments.map(async (assignment) => {
+          const original = originalByGroup.get(assignment.modifier_group);
+
+          if (assignment.id) {
+            if (original && original.is_required !== assignment.is_required) {
+              await updateProductModifierGroup(assignment.id, {
+                is_required: assignment.is_required,
+              });
+            }
+          } else if (!original) {
+            await assignModifierGroupToProduct({
+              product: productId,
+              modifier_group: assignment.modifier_group,
+              is_required: assignment.is_required,
+            } as ProductModifierGroupWriteRequest);
+          }
+        }),
+      );
+
+      const assignmentGroupIds = new Set(modifierAssignments.map((a) => a.modifier_group));
+      const toRemove = productModifierGroups.filter(
+        (pmg) => !assignmentGroupIds.has(pmg.modifier_group.id),
+      );
+
+      await Promise.all(toRemove.map((pmg) => removeProductModifierGroup(pmg.id)));
+
+      queryClient.invalidateQueries({ queryKey: ["product-modifier-groups", productId] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudieron guardar los modificadores.");
+    }
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -749,6 +864,8 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
         await saveRecipeAndIngredients(savedProduct.id);
         queryClient.invalidateQueries({ queryKey: ["recipes"] });
       }
+
+      await saveModifierGroups(savedProduct.id);
 
       if (tracksWarehouseStock && warehouseAssignments.length > 0) {
         await saveWarehouseAssignments(savedProduct.id);
@@ -1534,6 +1651,62 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
                   }}
                 />
               )}
+            </div>
+          )}
+
+          {activeTab === "modifiers" && (
+            <div className="flex flex-col gap-5">
+              <div className="rounded-xl border border-border bg-muted/40 p-5">
+                <h3 className="mb-1 text-sm font-semibold">Grupos de modificadores</h3>
+                <p className="mb-3 text-xs text-muted-foreground">
+                  Los grupos seleccionados aparecerán como opciones en el POS al vender este producto.
+                </p>
+
+                {loadingModifierGroups || loadingProductModifierGroups ? (
+                  <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
+                    <svg className="animate-spin h-4 w-4 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Cargando modificadores…
+                  </div>
+                ) : modifierGroups.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No hay grupos de modificadores disponibles.
+                  </p>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    {modifierGroups.map((group) => {
+                      const assignment = getAssignment(group.id);
+                      return (
+                        <div
+                          key={group.id}
+                          className={`flex flex-col gap-2 rounded-lg border border-border bg-background px-4 py-3 ${assignment ? "" : "opacity-80"}`}
+                        >
+                          <label className="flex cursor-pointer items-center gap-3 text-sm font-medium">
+                            <input
+                              type="checkbox"
+                              checked={!!assignment}
+                              onChange={() => toggleGroupAssignment(group)}
+                              className="h-4 w-4 accent-primary"
+                            />
+                            <span className="flex-1">{group.name}</span>
+                          </label>
+                          {assignment && (
+                            <div className="flex items-center justify-between gap-3 pl-7">
+                              <span className="text-xs text-muted-foreground">Requerido</span>
+                              <Switch
+                                checked={assignment.is_required}
+                                onCheckedChange={(checked) => updateAssignmentRequired(group.id, checked)}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

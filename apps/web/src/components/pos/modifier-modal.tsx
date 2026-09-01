@@ -15,12 +15,25 @@ interface ModifierModalProps {
 }
 
 export default function ModifierModal({ productName, groups, onConfirm, onCancel }: ModifierModalProps) {
-  const [selected, setSelected] = useState<Record<number, number[]>>({});
-
   const availableGroups = useMemo(
     () => groups.filter((g) => g.modifier_group?.options?.length),
     [groups],
   );
+
+  const defaultSelected = useMemo(() => {
+    const map: Record<number, number[]> = {};
+    for (const group of availableGroups) {
+      const defaults = group.modifier_group.options
+        .filter((o) => o.is_default)
+        .map((o) => o.id);
+      if (defaults.length > 0) {
+        map[group.modifier_group.id] = defaults;
+      }
+    }
+    return map;
+  }, [availableGroups]);
+
+  const [selected, setSelected] = useState<Record<number, number[]>>(defaultSelected);
 
   const toggleOption = (groupId: number, optionId: number, maxSelections: number) => {
     setSelected((prev) => {
@@ -41,6 +54,20 @@ export default function ModifierModal({ productName, groups, onConfirm, onCancel
     const count = selected[g.modifier_group.id]?.length ?? 0;
     return count >= min;
   });
+
+  const totalSurcharge = useMemo(() => {
+    let total = 0;
+    for (const group of availableGroups) {
+      const optionIds = selected[group.modifier_group.id] ?? [];
+      for (const optionId of optionIds) {
+        const option = group.modifier_group.options.find((o) => o.id === optionId);
+        if (option) {
+          total += parseFloat(option.surcharge ?? "0") || 0;
+        }
+      }
+    }
+    return Math.round(total);
+  }, [availableGroups, selected]);
 
   const handleConfirm = () => {
     const modifiers: CartItemModifier[] = [];
@@ -73,11 +100,15 @@ export default function ModifierModal({ productName, groups, onConfirm, onCancel
             <div key={groupData.id} className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-medium">{groupData.name}</h3>
-                {group.is_required && <span className="text-[10px] text-danger">Requerido</span>}
+                <span className="text-[10px] text-muted-foreground">
+                  {selectedIds.length}
+                  {max > 0 ? ` / ${max}` : min > 0 ? ` / mín. ${min}` : " seleccionados"}
+                  {group.is_required && <span className="ml-1 text-danger">• req.</span>}
+                </span>
               </div>
-              {min > 0 && (
+              {group.is_required && min > 0 && (
                 <p className="text-[10px] text-muted-foreground">
-                  Selecciona al menos {min} {max > 0 ? `(máx. ${max})` : ""}
+                  Mínimo {min} {max > 0 ? `• máximo ${max}` : ""}
                 </p>
               )}
               <div className="flex flex-col gap-1.5">
@@ -110,13 +141,18 @@ export default function ModifierModal({ productName, groups, onConfirm, onCancel
         })}
       </div>
 
-      <div className="mt-4 flex justify-end gap-2 border-t border-border pt-4">
-        <Button variant="outline" onClick={onCancel}>
-          Cancelar
-        </Button>
-        <Button onClick={handleConfirm} disabled={!canConfirm}>
-          Agregar
-        </Button>
+      <div className="mt-4 flex items-center justify-between gap-2 border-t border-border pt-4">
+        <span className="text-sm text-muted-foreground">
+          Recargo total: <span className="font-semibold text-foreground">{formatCLP(totalSurcharge)}</span>
+        </span>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={onCancel}>
+            Cancelar
+          </Button>
+          <Button onClick={handleConfirm} disabled={!canConfirm}>
+            Agregar
+          </Button>
+        </div>
       </div>
     </Modal>
   );
