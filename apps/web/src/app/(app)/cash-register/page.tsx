@@ -67,7 +67,7 @@ import {
 } from "@/lib/store/session";
 import Link from "next/link";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
-import { fetchExpenseCategoriesByName, createExpenseCategory, createExpense } from "@/lib/api/expenses";
+
 import { fetchBranchPOSConfig } from "@/lib/api/branches";
 import PosQuickActionsSettings from "@/components/pos/pos-quick-actions-settings";
 
@@ -346,51 +346,6 @@ export default function CashRegisterPage() {
       const result = await (payload.type === "CASH_IN"
         ? cashIn(cashRegister!.id, base)
         : cashOut(cashRegister!.id, base));
-
-      if (payload.type === "CASH_OUT" && !payload.purchase_order_id) {
-        try {
-          const categoryName = "Retiros de caja";
-          let categories = await fetchExpenseCategoriesByName(categoryName);
-          let category = categories.find(
-            (c) => c.name.trim().toLowerCase() === categoryName.toLowerCase(),
-          );
-
-          if (!category) {
-            try {
-              category = await createExpenseCategory({
-                name: categoryName,
-                category_type: "OTHER",
-                branch: Number(branch.branch_id),
-                description: "Egresos generados por retiros manuales de caja",
-                is_active: true,
-              });
-            } catch (err) {
-              const message = err instanceof Error ? err.message : "";
-              if (/unique|conjunto único|duplicado|already exists/i.test(message)) {
-                categories = await fetchExpenseCategoriesByName(categoryName);
-                category = categories.find(
-                  (c) => c.name.trim().toLowerCase() === categoryName.toLowerCase(),
-                );
-              }
-              if (!category) throw err;
-            }
-          }
-
-          await createExpense({
-            name: payload.reason,
-            description: `Retiro de caja registrado en ${activeStation?.name ?? "estación actual"}`,
-            branch: Number(branch.branch_id),
-            category: category.id,
-            created_by: Number(user.id),
-            amount: payload.amount,
-            frequency: "ONE_TIME",
-            start_date: new Date().toISOString().split("T")[0],
-            status: "ACTIVE",
-          });
-        } catch {
-          // No bloqueamos el retiro si falla el egreso; se puede conciliar después.
-        }
-      }
 
       return result;
     },
