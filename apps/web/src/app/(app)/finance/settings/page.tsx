@@ -160,6 +160,8 @@ function ConfigForm({ config, onUpdate, isPending }: {
   const [decimalPlaces, setDecimalPlaces] = useState(String(config.decimal_places ?? 0));
   const [thousandSep, setThousandSep] = useState<"." | "," | " " | "">(config.thousand_separator ?? ".");
   const [decimalSep, setDecimalSep] = useState<"," | ".">(config.decimal_separator ?? ",");
+  const [taxRate, setTaxRate] = useState(String(config.default_tax_rate ?? "0"));
+  const [showTaxBreakdown, setShowTaxBreakdown] = useState(config.show_tax_breakdown ?? false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -168,8 +170,8 @@ function ConfigForm({ config, onUpdate, isPending }: {
       decimal_places: parseInt(decimalPlaces) || 0,
       thousand_separator: thousandSep,
       decimal_separator: decimalSep,
-      default_tax_rate: "19",
-      show_tax_breakdown: true,
+      default_tax_rate: taxRate || "0",
+      show_tax_breakdown: showTaxBreakdown,
     });
   };
 
@@ -215,6 +217,42 @@ function ConfigForm({ config, onUpdate, isPending }: {
         </div>
         <div className="mt-3 rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
           Vista previa: <span className="font-semibold text-foreground">{preview()}</span>
+        </div>
+      </section>
+
+      {/* Impuestos */}
+      <section className="rounded-xl border border-border bg-card p-4">
+        <div className="flex items-center gap-2 mb-4">
+          <Percent className="h-4 w-4 text-primary" />
+          <h2 className="text-sm font-semibold">Impuestos en POS</h2>
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-muted-foreground">Tasa de impuesto por defecto (%)</label>
+            <Input
+              type="number"
+              min="0"
+              max="100"
+              step="0.01"
+              value={taxRate}
+              onChange={(e) => setTaxRate(e.target.value)}
+              placeholder="0"
+              className="h-9 text-sm"
+            />
+            <p className="text-[10px] text-muted-foreground">Usa 0 para no aplicar impuesto.</p>
+          </div>
+          <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2">
+            <input
+              id="show-tax-breakdown"
+              type="checkbox"
+              checked={showTaxBreakdown}
+              onChange={(e) => setShowTaxBreakdown(e.target.checked)}
+              className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+            />
+            <label htmlFor="show-tax-breakdown" className="text-xs text-muted-foreground">
+              Mostrar desglose de impuesto en el carrito
+            </label>
+          </div>
         </div>
       </section>
 
