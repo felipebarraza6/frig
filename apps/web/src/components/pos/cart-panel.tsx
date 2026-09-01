@@ -105,6 +105,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
 
   const [payments, setPayments] = useState<PaymentLine[]>([]);
   const [editingNotesItemId, setEditingNotesItemId] = useState<string | null>(null);
+  const [draftNotes, setDraftNotes] = useState("");
   const [selectedClient, setSelectedClient] = useState<Customer | null>(null);
   const [clientQuery, setClientQuery] = useState("");
   const [showClientResults, setShowClientResults] = useState(false);
@@ -967,38 +968,86 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                               ))}
                             </div>
                           )}
-                          {editingNotesItemId === item.id ? (
-                            <input
-                              autoFocus
-                              type="text"
-                              value={item.notes ?? ""}
-                              onChange={(e) => setItemNotes(item.id, e.target.value)}
-                              onBlur={() => setEditingNotesItemId(null)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") setEditingNotesItemId(null);
-                              }}
-                              placeholder="Ej: sin cebolla"
-                              className="mt-1 h-7 w-full rounded-md border border-primary/60 bg-background px-2 text-[11px] text-foreground placeholder:text-muted-foreground/70 focus:border-primary focus:outline-none"
-                            />
-                          ) : item.notes ? (
-                            <button
-                              type="button"
-                              onClick={() => setEditingNotesItemId(item.id)}
-                              className="mt-1 inline-flex items-start gap-1 text-left text-[11px] text-primary hover:underline"
-                            >
-                              <Pencil className="mt-0.5 h-3 w-3 shrink-0" />
-                              <span className="line-clamp-2">{item.notes}</span>
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => setEditingNotesItemId(item.id)}
-                              className="mt-1 inline-flex items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-primary"
-                            >
-                              <Pencil className="h-3 w-3" />
-                              Agregar nota
-                            </button>
-                          )}
+                          <div className="mt-1.5">
+                            {editingNotesItemId === item.id ? (
+                              <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
+                                exit={{ opacity: 0, height: 0 }}
+                                transition={{ duration: 0.15 }}
+                                className="overflow-hidden"
+                              >
+                                <div className="rounded-lg border border-primary/20 bg-primary/5 p-2">
+                                  <textarea
+                                    autoFocus
+                                    rows={2}
+                                    value={draftNotes}
+                                    onChange={(e) => setDraftNotes(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                                        e.preventDefault();
+                                        setItemNotes(item.id, draftNotes);
+                                        setEditingNotesItemId(null);
+                                      }
+                                      if (e.key === "Escape") {
+                                        setEditingNotesItemId(null);
+                                      }
+                                    }}
+                                    placeholder="Ej: sin cebolla, bien cocido..."
+                                    className="w-full resize-none bg-transparent text-xs text-foreground placeholder:text-muted-foreground/70 focus:outline-none"
+                                  />
+                                  <div className="mt-1.5 flex items-center justify-between">
+                                    <span className="text-[10px] text-muted-foreground">
+                                      Ctrl + Enter para guardar
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => setEditingNotesItemId(null)}
+                                        className="text-[11px] text-muted-foreground hover:text-foreground"
+                                      >
+                                        Cancelar
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setItemNotes(item.id, draftNotes);
+                                          setEditingNotesItemId(null);
+                                        }}
+                                        className="text-[11px] font-medium text-primary hover:underline"
+                                      >
+                                        Guardar
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </motion.div>
+                            ) : item.notes ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setDraftNotes(item.notes ?? "");
+                                  setEditingNotesItemId(item.id);
+                                }}
+                                className="group inline-flex w-full items-start gap-1.5 rounded-md bg-muted/40 px-2 py-1.5 text-left text-[11px] text-foreground transition-colors hover:bg-muted/60"
+                              >
+                                <Pencil className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground group-hover:text-primary" />
+                                <span className="line-clamp-3 flex-1">{item.notes}</span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setDraftNotes("");
+                                  setEditingNotesItemId(item.id);
+                                }}
+                                className="inline-flex items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-primary"
+                              >
+                                <Pencil className="h-3 w-3" />
+                                Agregar nota
+                              </button>
+                            )}
+                          </div>
                         </div>
                         <div className="flex flex-col items-end gap-1.5">
                           <div className="inline-flex items-center overflow-hidden rounded-lg border border-border/60 bg-background">

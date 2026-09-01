@@ -18,7 +18,6 @@ import { Button } from "@/components/ui/button";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import {
   fetchProducts,
-  fetchProduct,
   updateProduct,
   type ProductPayload,
 } from "@/lib/api/products";
@@ -80,11 +79,10 @@ function isRecipeBased(product: ProductDetail): boolean {
 
 export default function ProductNutritionPage() {
   const queryClient = useQueryClient();
-  const toast = useToast();
   const nutritionEnabled = useIsNutritionEnabled();
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<ProductDetail | null>(null);
-  const [editing, setEditing] = useState<ProductDetail | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
 
   const { data: page, isLoading, error } = useQuery({
     queryKey: ["products", "nutrition", search],
@@ -105,13 +103,8 @@ export default function ProductNutritionPage() {
   };
 
   function handleEditDetail(product: ProductDetail) {
-    // El listado no trae nutrición ni is_public: al editar hay que cargar el
-    // detalle o se borran esos datos al re-guardar.
-    fetchProduct(product.id)
-      .then((detail) => setEditing(detail as unknown as ProductDetail))
-      .catch((err) => {
-        toast.error(err instanceof Error ? err.message : "No se pudo cargar el producto.");
-      });
+    // El modal se encarga de cargar el detalle y mostrar el skeleton interno.
+    setEditingId(product.id);
   }
 
   if (!nutritionEnabled) {
@@ -234,10 +227,13 @@ export default function ProductNutritionPage() {
         />
       )}
 
-      {editing && (
+      {editingId && (
         <ProductForm
-          product={editing}
-          onClose={() => setEditing(null)}
+          productId={editingId}
+          onClose={() => {
+            queryClient.removeQueries({ queryKey: ["products", "detail", editingId] });
+            setEditingId(null);
+          }}
           onSubmit={onSubmit}
         />
       )}

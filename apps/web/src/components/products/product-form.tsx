@@ -9,9 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import { useCategoryOptions } from "@/lib/hooks/useCategoryOptions";
-import { fetchProducts } from "@/lib/api/products";
+import { fetchProducts, fetchProduct } from "@/lib/api/products";
 import type { ProductPayload } from "@/lib/api/products";
 import type { YggdraProduct } from "@/lib/api/types";
 import {
@@ -129,6 +130,7 @@ export type FormTab = "basic" | "pricing" | "recipe" | "warehouses" | "nutrition
 
 interface ProductFormProps {
   product?: YggdraProductDetail;
+  productId?: number;
   initialTab?: FormTab;
   onClose: () => void;
   onSubmit: (payload: ProductPayload, id?: number) => Promise<YggdraProduct>;
@@ -191,15 +193,128 @@ function groupProductWarehousesByWarehouse(items: WarehouseProduct[]): Warehouse
   });
 }
 
-export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductFormProps) {
+function buildInitialForm(product?: YggdraProductDetail, defaultProductType?: string) {
+  return {
+    name: product?.name ?? "",
+    code: product?.code ?? "",
+    description: product?.description ?? "",
+    price: product?.sale_price ?? product?.price ?? "",
+    costPrice: product?.cost_price ?? "",
+    priceInternal: product?.price_internal ?? "",
+    wholesalePrice: product?.wholesale_price ?? "",
+    stock: product?.quantity !== undefined ? String(product.quantity) : "",
+    minimumStock: product?.minimum_stock !== undefined ? String(product.minimum_stock) : "",
+    measurementUnit: product?.measurement_unit ?? "",
+    category:
+      product?.category && typeof product.category === "object"
+        ? String(product.category.id)
+        : typeof product?.category === "number"
+          ? String(product.category)
+          : "",
+    supplier: "",
+    productType: product?.product_type ?? defaultProductType ?? "DIRECT_SALE",
+    isForSale: product?.is_for_sale ?? true,
+    isForInternalUse: product?.is_for_internal_use ?? false,
+    isPublic: product?.is_public ?? false,
+    isActive: product?.is_active ?? true,
+    isNutritionalIngredient: product?.is_nutritional_ingredient ?? false,
+    energyKcal: product?.energy_kcal ?? "",
+    proteinsG: product?.proteins_g ?? "",
+    totalFatsG: product?.total_fats_g ?? "",
+    saturatedFatsG: product?.saturated_fats_g ?? "",
+    monounsaturatedFatsG: product?.monounsaturated_fats_g ?? "",
+    polyunsaturatedFatsG: product?.polyunsaturated_fats_g ?? "",
+    transFatsG: product?.trans_fats_g ?? "",
+    cholesterolMg: product?.cholesterol_mg ?? "",
+    carbohydratesG: product?.carbohydrates_g ?? "",
+    totalSugarsG: product?.total_sugars_g ?? "",
+    sodiumMg: product?.sodium_mg ?? "",
+  };
+}
+
+function ProductFormSkeleton() {
+  return (
+    <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg sm:h-auto sm:max-h-[90vh] sm:max-w-3xl sm:rounded-xl sm:border">
+      <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 sm:px-6">
+        <Skeleton className="h-5 w-40" />
+        <Skeleton className="h-8 w-8 rounded-lg" />
+      </div>
+
+      <div className="flex min-h-0 flex-1 flex-col p-4 sm:p-6">
+        <div className="overflow-x-auto rounded-lg bg-muted p-1">
+          <div className="flex min-w-max gap-1 sm:min-w-0 sm:flex-wrap">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-7 flex-1 rounded-md" />
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-6 space-y-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-9 w-full" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-9 w-full" />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-9 w-full" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-24 w-full" />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-9 w-full" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-9 w-full" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border px-4 py-3 sm:px-6">
+        <Skeleton className="h-9 w-24" />
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-9 w-24" />
+          <Skeleton className="h-9 w-32" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ProductForm({ product, productId, initialTab, onClose, onSubmit }: ProductFormProps) {
   const queryClient = useQueryClient();
-  const { options: productTypeOptions, defaultType } = useBranchProductTypes();
+  const { data: loadedProduct, isLoading: loadingProduct } = useQuery<YggdraProductDetail>({
+    queryKey: ["products", "detail", productId],
+    queryFn: () => fetchProduct(productId!) as Promise<YggdraProductDetail>,
+    enabled: !!productId,
+  });
+  const effectiveProduct = product ?? loadedProduct;
+
+  const { options: productTypeOptions, defaultType, isLoading: loadingProductTypes } = useBranchProductTypes();
   const nutritionEnabled = useIsNutritionEnabled();
   // El check "Público en menú QR" depende del módulo Menús digitales
   // (public_catalog), igual que el tab Nutrición depende de `nutrition`.
   const publicCatalogEnabled = useIsModuleEnabledFromConfig("public_catalog");
   const { download: downloadNutritionPdf, isLoading: downloadingNutritionPdf } = useDownloadFile();
   const { options: categories, isLoading: loadingCategories } = useCategoryOptions();
+
+  // Mostramos un skeleton dentro del modal mientras llegan los datos mínimos
+  // necesarios para no pintar selects vacíos ni mezclar valores antiguos.
+  const isInitializing =
+    (productId ? loadingProduct : false) || loadingProductTypes || loadingCategories;
 
   const [form, setForm] = useState<{
     name: string;
@@ -231,45 +346,17 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
     carbohydratesG: string;
     totalSugarsG: string;
     sodiumMg: string;
-  }>({
-    name: product?.name ?? "",
-    code: product?.code ?? "",
-    description: product?.description ?? "",
-    price: product?.sale_price ?? product?.price ?? "",
-    costPrice: product?.cost_price ?? "",
-    priceInternal: product?.price_internal ?? "",
-    wholesalePrice: product?.wholesale_price ?? "",
-    stock: product?.quantity !== undefined ? String(product.quantity) : "",
-    minimumStock: product?.minimum_stock !== undefined ? String(product.minimum_stock) : "",
-    measurementUnit: product?.measurement_unit ?? "",
-    category:
-      product?.category && typeof product.category === "object"
-        ? String(product.category.id)
-        : typeof product?.category === "number"
-          ? String(product.category)
-          : "",
-    supplier: "",
-    // El default se resuelve acá sin `productTypeOptions[0]`: al abrir el form la
-    // query de tipos puede estar en vuelo y ese array estar vacío. Un efecto
-    // corrige el valor cuando las opciones llegan (ver abajo).
-    productType: product?.product_type ?? defaultType ?? "DIRECT_SALE",
-    isForSale: product?.is_for_sale ?? true,
-    isForInternalUse: product?.is_for_internal_use ?? false,
-    isPublic: product?.is_public ?? false,
-    isActive: product?.is_active ?? true,
-    isNutritionalIngredient: product?.is_nutritional_ingredient ?? false,
-    energyKcal: product?.energy_kcal ?? "",
-    proteinsG: product?.proteins_g ?? "",
-    totalFatsG: product?.total_fats_g ?? "",
-    saturatedFatsG: product?.saturated_fats_g ?? "",
-    monounsaturatedFatsG: product?.monounsaturated_fats_g ?? "",
-    polyunsaturatedFatsG: product?.polyunsaturated_fats_g ?? "",
-    transFatsG: product?.trans_fats_g ?? "",
-    cholesterolMg: product?.cholesterol_mg ?? "",
-    carbohydratesG: product?.carbohydrates_g ?? "",
-    totalSugarsG: product?.total_sugars_g ?? "",
-    sodiumMg: product?.sodium_mg ?? "",
-  });
+  }>(buildInitialForm(product, defaultType));
+
+  // Al abrir en edición el producto se carga asíncronamente (productId); al
+  // llegar el detalle, o si cambia el producto recibido por prop, reseteamos
+  // el formulario para evitar valores vacíos o mezclados.
+  // Solo nos interesa el id: no queremos re-resetear en cada render si la
+  // referencia del objeto cambia.
+  useEffect(() => {
+    setForm(buildInitialForm(effectiveProduct, defaultType));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveProduct?.id, defaultType]);
 
   const [existingSupplierProduct, setExistingSupplierProduct] = useState<SupplierProduct | null>(null);
 
@@ -282,9 +369,9 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
   });
 
   const { data: productWarehouses = [], isLoading: loadingProductWarehouses } = useQuery({
-    queryKey: ["warehouse-products", "product", product?.id],
-    queryFn: () => fetchProductWarehouses(product!.id),
-    enabled: !!product?.id,
+    queryKey: ["warehouse-products", "product", effectiveProduct?.id],
+    queryFn: () => fetchProductWarehouses(effectiveProduct!.id),
+    enabled: !!effectiveProduct?.id,
   });
 
   const groupedProductWarehouses = useMemo(
@@ -298,9 +385,9 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
   });
 
   const { data: productModifierGroups = [], isLoading: loadingProductModifierGroups } = useQuery({
-    queryKey: ["product-modifier-groups", product?.id],
-    queryFn: () => fetchProductModifierGroups(product!.id),
-    enabled: !!product?.id,
+    queryKey: ["product-modifier-groups", effectiveProduct?.id],
+    queryFn: () => fetchProductModifierGroups(effectiveProduct!.id),
+    enabled: !!effectiveProduct?.id,
   });
 
   const branch = useCurrentBranch();
@@ -324,9 +411,9 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
   });
 
   const { data: supplierProductsForProduct = [], isLoading: loadingSupplierProduct } = useQuery({
-    queryKey: ["supplier-products", "by-product", product?.id],
-    queryFn: () => fetchSupplierProductsByProduct(product!.id),
-    enabled: !!product?.id,
+    queryKey: ["supplier-products", "by-product", effectiveProduct?.id],
+    queryFn: () => fetchSupplierProductsByProduct(effectiveProduct!.id),
+    enabled: !!effectiveProduct?.id,
     staleTime: 30_000,
   });
 
@@ -385,7 +472,7 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
     servings: string;
     notes: string;
   }>({
-    name: product ? `${product.name} - Receta` : "",
+    name: effectiveProduct ? `${effectiveProduct.name} - Receta` : "",
     instructions: "",
     recipe_type: "SIMPLE",
     preparation_time_minutes: "",
@@ -447,10 +534,10 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
 
   // Las materias primas no se venden por defecto (solo se usan en recetas).
   useEffect(() => {
-    if (isRawMaterial && !product && (form.isForSale || form.isPublic)) {
+    if (isRawMaterial && !effectiveProduct && (form.isForSale || form.isPublic)) {
       setForm((prev) => ({ ...prev, isForSale: false, isPublic: false }));
     }
-  }, [isRawMaterial, product, form.isForSale, form.isPublic]);
+  }, [isRawMaterial, effectiveProduct, form.isForSale, form.isPublic]);
 
   // Si se desmarca la gestión por bodega, limpiar las asignaciones pendientes.
   useEffect(() => {
@@ -471,9 +558,9 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
     isLoading: loadingRecipes,
     error: recipesError,
   } = useQuery({
-    queryKey: ["recipes", "by-product", product?.id],
-    queryFn: () => fetchRecipesByProduct(product!.id),
-    enabled: !!product && isCompound,
+    queryKey: ["recipes", "by-product", effectiveProduct?.id],
+    queryFn: () => fetchRecipesByProduct(effectiveProduct!.id),
+    enabled: !!effectiveProduct && isCompound,
   });
 
   useEffect(() => {
@@ -620,22 +707,18 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
   }
 
   async function removeExistingWarehouseProduct(id: number) {
-    if (!product?.id) return;
+    if (!effectiveProduct?.id) return;
     setRemovingWarehouseId(id);
     try {
       await deleteWarehouseProduct(id);
       toast.success("Bodega eliminada del producto");
-      queryClient.invalidateQueries({ queryKey: ["warehouse-products", "product", product.id] });
-      queryClient.invalidateQueries({ queryKey: ["products", product.id, "warehouses"] });
+      queryClient.invalidateQueries({ queryKey: ["warehouse-products", "product", effectiveProduct.id] });
+      queryClient.invalidateQueries({ queryKey: ["products", effectiveProduct.id, "warehouses"] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "No se pudo eliminar la bodega");
     } finally {
       setRemovingWarehouseId(null);
     }
-  }
-
-  function isGroupAssigned(groupId: number) {
-    return modifierAssignments.some((a) => a.modifier_group === groupId);
   }
 
   function getAssignment(groupId: number) {
@@ -687,7 +770,7 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
     if (!supplierId || !branchId) return;
 
     const costPrice = form.costPrice || "0";
-    const supplierName = form.name.trim() || product?.name || "Producto";
+    const supplierName = form.name.trim() || effectiveProduct?.name || "Producto";
 
     try {
       if (existingSupplierProduct && existingSupplierProduct.supplier !== supplierId) {
@@ -789,6 +872,7 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
       await Promise.all(toRemove.map((pmg) => removeProductModifierGroup(pmg.id)));
 
       queryClient.invalidateQueries({ queryKey: ["product-modifier-groups", productId] });
+      queryClient.invalidateQueries({ queryKey: ["product-modifier-groups"] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "No se pudieron guardar los modificadores.");
     }
@@ -834,8 +918,8 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
         wholesale_price: form.wholesalePrice || undefined,
         // En creación no enviamos stock general: si se gestiona por bodega se
         // asigna abajo; si no, el producto se crea sin stock inicial.
-        quantity: product?.id ? (form.stock ? Number(form.stock) : undefined) : undefined,
-        minimum_stock: product?.id ? (form.minimumStock ? Number(form.minimumStock) : undefined) : undefined,
+        quantity: effectiveProduct?.id ? (form.stock ? Number(form.stock) : undefined) : undefined,
+        minimum_stock: effectiveProduct?.id ? (form.minimumStock ? Number(form.minimumStock) : undefined) : undefined,
         measurement_unit: form.measurementUnit || null,
         category: form.category ? Number(form.category) : null,
         product_type: form.productType as unknown as ProductPayload["product_type"],
@@ -856,7 +940,7 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
         total_sugars_g: form.totalSugarsG || null,
         sodium_mg: form.sodiumMg || null,
       };
-      const savedProduct = await onSubmit(payload, product?.id);
+      const savedProduct = await onSubmit(payload, effectiveProduct?.id);
 
       await saveSupplierRelation(savedProduct.id);
 
@@ -870,7 +954,7 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
       if (tracksWarehouseStock && warehouseAssignments.length > 0) {
         await saveWarehouseAssignments(savedProduct.id);
         queryClient.invalidateQueries({ queryKey: ["warehouses"] });
-        queryClient.invalidateQueries({ queryKey: ["warehouse-products", "product", product?.id] });
+        queryClient.invalidateQueries({ queryKey: ["warehouse-products", "product", effectiveProduct?.id] });
         // Actualiza el stock del listado de productos (suma por bodega).
         queryClient.invalidateQueries({ queryKey: ["warehouse-products", "branch"] });
       }
@@ -895,10 +979,13 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
       zIndex="z-[60]"
       panelClassName="flex items-end justify-center overflow-hidden p-0 sm:items-center sm:p-4"
     >
+      {isInitializing ? (
+        <ProductFormSkeleton />
+      ) : (
       <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg sm:h-auto sm:max-h-[90vh] sm:max-w-3xl sm:rounded-xl sm:border">
         <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 sm:px-6">
           <h2 className="text-base font-semibold">
-            {product ? "Editar producto" : "Nuevo producto"}
+            {effectiveProduct ? "Editar producto" : "Nuevo producto"}
           </h2>
           <button onClick={onClose} aria-label="Cerrar" className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground">
             <X className="h-5 w-5" />
@@ -1153,7 +1240,7 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
 
           {activeTab === "warehouses" && (
             <div className="flex flex-col gap-5">
-              {product?.id && (
+              {effectiveProduct?.id && (
                 <div className="rounded-xl border border-border bg-muted/40 p-5">
                   <h3 className="mb-3 text-sm font-semibold">Bodegas configuradas</h3>
                   {loadingProductWarehouses ? (
@@ -1222,7 +1309,7 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
               <div className="rounded-xl border border-border bg-muted/40 p-5">
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <h3 className="text-sm font-semibold">
-                    {product ? "Agregar a nueva bodega" : "Asignación a bodegas"}
+                    {effectiveProduct ? "Agregar a nueva bodega" : "Asignación a bodegas"}
                   </h3>
                   <p className="text-xs text-muted-foreground">
                     Entraste a Bodegas: el stock de este producto se gestionará por bodega.
@@ -1746,13 +1833,14 @@ export function ProductForm({ product, initialTab, onClose, onSubmit }: ProductF
                 </Button>
               ) : (
                 <Button type="submit" isLoading={loading}>
-                  {product ? "Guardar cambios" : "Crear producto"}
+                  {effectiveProduct ? "Guardar cambios" : "Crear producto"}
                 </Button>
               )}
             </div>
           </div>
         </form>
       </div>
+      )}
     </AnimatedOverlay>
   );
 }

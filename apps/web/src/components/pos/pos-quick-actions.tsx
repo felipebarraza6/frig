@@ -16,7 +16,7 @@ import {
   DEFAULT_POS_QUICK_ACTIONS,
   type POSQuickAction,
 } from "@/lib/api/branches";
-import { fetchPaymentMethods } from "@/lib/api/payments";
+import { fetchPaymentMethods, type YggdraPaymentMethod } from "@/lib/api/payments";
 import { getCurrentCashRegister } from "@/lib/api/cash-register";
 import { fetchOrders } from "@/lib/api/orders";
 import { fetchPurchaseOrders } from "@/lib/api/suppliers";
@@ -43,23 +43,33 @@ const TYPE_LABELS: Record<POSQuickAction["type"], string> = {
   pay_purchase_order: "Órdenes de compra",
 };
 
+const TYPE_LABELS_SHORT: Record<POSQuickAction["type"], string> = {
+  pay_account: "Cuentas",
+  pay_order: "Órdenes",
+  collect: "Cobrar",
+  pay_purchase_order: "OC",
+};
+
 type PaymentMethodItem = {
   id: string;
   name: string;
   is_active: boolean;
   is_pos_enabled?: boolean;
+  payment_type: YggdraPaymentMethod["payment_type"];
 };
 
 interface PosQuickActionsProps {
   stationId?: number | string | null;
   onContinueOrder?: (order: Order) => void;
   onCancelOrder?: (order: Order) => void;
+  layout?: "header" | "bottom";
 }
 
 export default function PosQuickActions({
   stationId,
   onContinueOrder,
   onCancelOrder,
+  layout = "header",
 }: PosQuickActionsProps) {
   const [activeType, setActiveType] = useState<string | null>(null);
 
@@ -183,9 +193,56 @@ export default function PosQuickActions({
     return null;
   }
 
+  if (layout === "bottom") {
+    return (
+      <>
+        {loadingConfig && !config ? (
+          <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-muted-foreground">
+            <Loader2 className="h-[18px] w-[18px] animate-spin" />
+            <span className="text-[10px] font-medium">Cargando</span>
+          </div>
+        ) : (
+          actions.map((action) => {
+            const Icon = ICON_MAP[action.icon] ?? Receipt;
+            const count = getCountForAction(action.type);
+            return (
+              <button
+                key={action.id}
+                type="button"
+                onClick={() => setActiveType(action.id)}
+                title={TYPE_LABELS[action.type]}
+                className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <Icon className="h-[18px] w-[18px] shrink-0" />
+                <span className="truncate px-0.5">{TYPE_LABELS_SHORT[action.type]}</span>
+                {count > 0 && (
+                  <span className="absolute right-0.5 top-0 inline-flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-primary px-0.5 text-[8px] font-semibold text-white">
+                    {count > 99 ? "99+" : count}
+                  </span>
+                )}
+              </button>
+            );
+          })
+        )}
+
+        {activeAction && (
+          <PayPendingItemModal
+            open={!!activeAction}
+            type={activeAction.type}
+            onClose={() => setActiveType(null)}
+            cashRegisterId={cashRegister?.id ?? null}
+            paymentMethods={posPaymentMethods as PaymentMethodItem[]}
+            onContinueOrder={onContinueOrder}
+            onCancelOrder={onCancelOrder}
+          />
+        )}
+      </>
+    );
+  }
+
   return (
     <>
-      <div className="flex items-center gap-1 overflow-visible">
+      <div className="hidden items-center gap-1 overflow-visible sm:flex">
         {loadingConfig && !config ? (
           <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
         ) : (
@@ -218,17 +275,17 @@ export default function PosQuickActions({
         )}
       </div>
 
-    {activeAction && (
-      <PayPendingItemModal
-        open={!!activeAction}
-        type={activeAction.type}
-        onClose={() => setActiveType(null)}
-        cashRegisterId={cashRegister?.id ?? null}
-        paymentMethods={posPaymentMethods as PaymentMethodItem[]}
-        onContinueOrder={onContinueOrder}
-        onCancelOrder={onCancelOrder}
-      />
-    )}
-  </>
+      {activeAction && (
+        <PayPendingItemModal
+          open={!!activeAction}
+          type={activeAction.type}
+          onClose={() => setActiveType(null)}
+          cashRegisterId={cashRegister?.id ?? null}
+          paymentMethods={posPaymentMethods as PaymentMethodItem[]}
+          onContinueOrder={onContinueOrder}
+          onCancelOrder={onCancelOrder}
+        />
+      )}
+    </>
   );
 }

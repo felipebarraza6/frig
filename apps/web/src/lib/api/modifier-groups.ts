@@ -95,6 +95,15 @@ export async function fetchProductModifierGroups(
   return data.results;
 }
 
+export async function fetchProductModifierGroupsByGroup(
+  groupId: number,
+): Promise<ProductModifierGroup[]> {
+  const data = await apiFetch<PaginatedProductModifierGroup>(
+    `/inventory/product-modifier-groups/?modifier_group=${groupId}&page_size=500`,
+  );
+  return data.results;
+}
+
 export async function assignModifierGroupToProduct(
   payload: ProductModifierGroupWriteRequest,
 ): Promise<ProductModifierGroup> {

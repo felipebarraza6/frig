@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   Plus,
   Search,
@@ -22,7 +23,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
-import { Skeleton, TableSkeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn, formatCLP } from "@/lib/utils";
 import {
   fetchProducts,
@@ -338,15 +339,21 @@ export function ProductsClient() {
   const [creating, setCreating] = useState(false);
   // Para editar se carga el detalle completo: el listado no trae
   // is_public ni nutrición y re-guardar desde ahí borra esos datos.
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const editParam = searchParams.get("edit");
+  const [editingId, setEditingId] = useState<number | null>(
+    editParam ? Number(editParam) || null : null,
+  );
   const [editInitialTab, setEditInitialTab] = useState<FormTab>("basic");
   const [confirmDelete, setConfirmDelete] = useState<YggdraProduct | null>(null);
 
-  const { data: editingProduct, isLoading: loadingEditing } = useQuery({
-    queryKey: ["products", "detail", editingId],
-    queryFn: () => fetchProduct(editingId!),
-    enabled: !!editingId,
-  });
+  function clearEditParam() {
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete("edit");
+    const query = next.toString();
+    router.replace(`/products${query ? `?${query}` : ""}`, { scroll: false });
+  }
 
   const filter = useMemo<ProductsFilter>(
     () => ({
@@ -1059,12 +1066,6 @@ export function ProductsClient() {
         )}
       </div>
 
-      {loadingEditing && editingId && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
-          <TableSkeleton rows={3} columns={2} />
-        </div>
-      )}
-
       {creating && (
         <ProductForm
           onClose={() => setCreating(false)}
@@ -1072,14 +1073,15 @@ export function ProductsClient() {
         />
       )}
 
-      {editingProduct && (
+      {editingId && (
         <ProductForm
-          product={editingProduct}
+          productId={editingId}
           initialTab={editInitialTab}
           onClose={() => {
-            if (editingId) queryClient.removeQueries({ queryKey: ["products", "detail", editingId] });
+            queryClient.removeQueries({ queryKey: ["products", "detail", editingId] });
             setEditingId(null);
             setEditInitialTab("basic");
+            clearEditParam();
           }}
           onSubmit={onSubmit}
         />

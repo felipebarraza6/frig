@@ -974,17 +974,20 @@ export default function PosPage() {
             />
           )}
 
-          {/* Mobile search */}
+          {/* Mobile cart summary */}
           <button
             type="button"
-            onClick={() => {
-              const el = document.getElementById("pos-catalog-search");
-              el?.focus();
-            }}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border/60 bg-muted/40 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:hidden"
-            aria-label="Buscar producto"
+            onClick={() => setCartOpen(true)}
+            className="relative inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary px-2.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 sm:hidden"
+            aria-label="Ver cuenta"
           >
-            <Search className="h-3.5 w-3.5" />
+            <ShoppingBag className="h-3.5 w-3.5" />
+            <span className="font-bold tabular-nums">{formatCLP(displayCartTotal)}</span>
+            {displayItemCount > 0 && (
+              <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-500 px-1 text-[9px] font-semibold text-white">
+                {displayItemCount}
+              </span>
+            )}
           </button>
         </div>
 
@@ -1328,7 +1331,7 @@ export default function PosPage() {
                   <div className="relative min-w-0 flex-1">
                     <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                     <Input
-                      id="pos-catalog-search"
+                      id="pos-catalog-search-mobile"
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
                       onFocus={(e) => e.currentTarget.select()}
@@ -1577,91 +1580,44 @@ export default function PosPage() {
 
       {/* Bottom bar móvil */}
       {!cartOpen && !(isWaiter && !selectedTable && !isEditingOrder) && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 flex items-center gap-0.5 border-t border-border/60 bg-background px-1 py-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-lg md:hidden">
-          <button
-            type="button"
-            onClick={() => {
-              const el = document.getElementById("pos-catalog-search");
-              el?.focus();
-            }}
-            className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <Search className="h-[18px] w-[18px]" />
-            <span className="text-[10px] font-medium">Buscar</span>
-          </button>
-
+        <div className="fixed bottom-0 left-0 right-0 z-40 flex items-center gap-1.5 border-t border-border/60 bg-background px-2 py-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-lg md:hidden">
           {!isWaiter && (
-            <>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowCashRegisterModal(true);
-                  setMovementType("CASH_IN");
-                  setMovementAmount("");
-                  setMovementReason("");
-                }}
-                className={cn(
-                  "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium transition-colors",
-                  cashRegisterError
-                    ? "text-rose-700 hover:bg-rose-500/10"
-                    : currentCashRegister
-                      ? "text-emerald-700 hover:bg-emerald-500/10"
-                      : "text-amber-700 hover:bg-amber-500/10"
-                )}
-              >
-                {cashRegisterError ? (
-                  <AlertTriangle className="h-[18px] w-[18px]" />
-                ) : (
-                  <Banknote className="h-[18px] w-[18px]" />
-                )}
-                <span className="truncate px-0.5">
-                  {cashRegisterError ? "Error caja" : currentCashRegister ? "Caja" : "Abrir caja"}
-                </span>
-              </button>
-              {effectiveConfig.order_history && (
-                <button
-                  type="button"
-                  onClick={() => setShowOpenAccounts(true)}
-                  className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                >
-                  <ClipboardList className="h-[18px] w-[18px]" />
-                  <span className="truncate px-0.5">Cuentas</span>
-                  {visibleOpenAccounts.length > 0 && (
-                    <span className="absolute right-1 top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-semibold text-white">
-                      {visibleOpenAccounts.length}
-                    </span>
-                  )}
-                </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowCashRegisterModal(true);
+                setMovementType("CASH_IN");
+                setMovementAmount("");
+                setMovementReason("");
+              }}
+              className={cn(
+                "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium transition-colors",
+                cashRegisterError
+                  ? "text-rose-700 hover:bg-rose-500/10"
+                  : currentCashRegister
+                    ? "text-emerald-700 hover:bg-emerald-500/10"
+                    : "text-amber-700 hover:bg-amber-500/10"
               )}
-              {(effectiveConfig.delivery || effectiveConfig.pickup) && (
-                <button
-                  type="button"
-                  onClick={() => setShowPendingDeliveries(true)}
-                  className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                >
-                  <Zap className="h-[18px] w-[18px]" />
-                  <span className="truncate px-0.5">Pendientes</span>
-                  {pendingDeliveriesCount > 0 && (
-                    <span className="absolute right-1 top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-500 px-1 text-[9px] font-semibold text-white">
-                      {pendingDeliveriesCount}
-                    </span>
-                  )}
-                </button>
+            >
+              {cashRegisterError ? (
+                <AlertTriangle className="h-[18px] w-[18px]" />
+              ) : (
+                <Banknote className="h-[18px] w-[18px]" />
               )}
-            </>
+              <span className="truncate px-0.5">
+                {cashRegisterError ? "Error caja" : currentCashRegister ? "Caja" : "Abrir caja"}
+              </span>
+            </button>
           )}
 
-          <button
-            type="button"
-            onClick={() => setCartOpen(true)}
-            className="relative flex min-w-0 flex-[1.5] flex-col items-center justify-center gap-0.5 rounded-lg bg-primary py-1 text-[10px] font-medium text-white transition-colors hover:bg-primary/90"
-          >
-            <span className="inline-flex items-center gap-1">
-              <ShoppingBag className="h-[18px] w-[18px]" />
-              <span className="font-bold tabular-nums">{formatCLP(displayCartTotal)}</span>
-            </span>
-            <span className="truncate px-0.5">{displayItemCount} ítem{displayItemCount === 1 ? "" : "s"} · {isWaiter ? "Pedido" : "Cuenta"}</span>
-          </button>
+          {!isWaiter && (
+            <PosQuickActions
+              stationId={activeStationId}
+              layout="bottom"
+              onContinueOrder={handleEditOrder}
+              onCancelOrder={handleCancelOrder}
+            />
+          )}
         </div>
       )}
 

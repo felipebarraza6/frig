@@ -49,6 +49,7 @@ export interface ProductsFilter {
   page_size?: number;
   next?: string | null;
   previous?: string | null;
+  ids?: number[];
 }
 
 export async function fetchProducts(filter: ProductsFilter = {}): Promise<YggdraPaginated> {
@@ -65,6 +66,7 @@ export async function fetchProducts(filter: ProductsFilter = {}): Promise<Yggdra
   if (filter.is_for_sale !== undefined) qs.set("is_for_sale", String(filter.is_for_sale));
   if (filter.is_active !== undefined) qs.set("is_active", String(filter.is_active));
   if (filter.page_size) qs.set("page_size", String(filter.page_size));
+  if (filter.ids?.length) qs.set("id__in", filter.ids.join(","));
   const q = qs.toString();
   return apiFetch<YggdraPaginated>(`/inventory/products/${q ? `?${q}` : ""}`);
 }

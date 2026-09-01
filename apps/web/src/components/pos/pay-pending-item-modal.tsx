@@ -80,6 +80,15 @@ type PaymentMethod = {
   name: string;
   is_active: boolean;
   is_pos_enabled?: boolean;
+  payment_type:
+    | "CASH"
+    | "BANK_TRANSFER"
+    | "CHECK"
+    | "CREDIT_CARD"
+    | "DEBIT_CARD"
+    | "DIGITAL_WALLET"
+    | "CRYPTO"
+    | "OTHER";
 };
 
 type Customer = YggdraSchemas["Client"];
@@ -550,6 +559,12 @@ export default function PayPendingItemModal({
     return toNum(o.total_amount) - toNum(o.paid_amount);
   }, [selectedItem, type]);
 
+  const selectedMethod = useMemo(
+    () => activeMethods.find((m) => m.id === paymentMethodId),
+    [activeMethods, paymentMethodId],
+  );
+  const isCashMethod = selectedMethod?.payment_type === "CASH";
+
   const payMutation = useMutation({
     mutationFn: async () => {
       if (!selectedItem) throw new Error("Selecciona un ítem");
@@ -558,7 +573,7 @@ export default function PayPendingItemModal({
         const purchasePayload = {
           payment_method_id: paymentMethodId,
           amount: toDecimal(amount),
-          cash_register_id: cashRegisterId,
+          cash_register_id: isCashMethod ? cashRegisterId : null,
           reference: notes || null,
         };
         return payPurchaseOrder(selectedItem.id, purchasePayload);
@@ -1664,9 +1679,9 @@ export default function PayPendingItemModal({
                       <AlertTriangle className="h-3.5 w-3.5" /> Esta orden no tiene saldo pendiente por pagar.
                     </p>
                   )}
-                  {!cashRegisterId && (
+                  {!cashRegisterId && isCashMethod && (
                     <p className="flex items-center gap-1.5 text-xs text-amber-700">
-                      <AlertTriangle className="h-3.5 w-3.5" /> No hay caja abierta. El pago se registrará sin movimiento de caja.
+                      <AlertTriangle className="h-3.5 w-3.5" /> No hay caja abierta. Abre una caja para registrar este pago en efectivo.
                     </p>
                   )}
                   {selectedItem && amount && parseFloat(toDecimal(amount)) > remainingAmount + 0.01 && (
@@ -1738,7 +1753,8 @@ export default function PayPendingItemModal({
               !paymentMethodId ||
               remainingAmount <= 0 ||
               payMutation.isPending ||
-              parseFloat(toDecimal(amount)) > remainingAmount + 0.01
+              parseFloat(toDecimal(amount)) > remainingAmount + 0.01 ||
+              (isCashMethod && !cashRegisterId)
             }
             isLoading={payMutation.isPending}
           >

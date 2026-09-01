@@ -74,15 +74,6 @@ const STATUS_OPTIONS = [
   { value: "SCHEDULED", label: "Programado" },
 ];
 
-const PERIOD_OPTIONS = [
-  { value: "", label: "Personalizado" },
-  { value: "today", label: "Hoy" },
-  { value: "this_week", label: "Esta semana" },
-  { value: "this_month", label: "Este mes" },
-  { value: "last_month", label: "Mes pasado" },
-  { value: "last_3_months", label: "Últimos 3 meses" },
-];
-
 function statusLabel(value?: string | null): string {
   return STATUS_OPTIONS.find((o) => o.value === value)?.label ?? (value ?? "—");
 }
@@ -101,24 +92,22 @@ function toISODate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-function startOfWeek(date: Date): Date {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
+function startOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
 }
 
 export default function RevenuesPage() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const defaultStartDate = toISODate(startOfMonth(today));
+  const defaultEndDate = toISODate(today);
   const queryClient = useQueryClient();
   const toast = useToast();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
   const [status, setStatus] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [period, setPeriod] = useState("");
+  const [startDate, setStartDate] = useState(defaultStartDate);
+  const [endDate, setEndDate] = useState(defaultEndDate);
   const [pageUrl, setPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Revenue | null>(null);
@@ -144,17 +133,19 @@ export default function RevenuesPage() {
     branch: Number(branch?.branch_id ?? 0),
   });
 
+  const dateFilter = startDate && endDate ? { startDate, endDate } : {};
+
   const {
     data: page,
     isLoading: isLoadingPage,
     isError: isPageError,
     refetch: refetchPage,
   } = useQuery({
-    queryKey: ["revenues", { search, category, status, startDate, endDate, pageUrl }],
-    queryFn: () => fetchRevenues({ search, category, status, startDate, endDate, ...pageUrl }),
+    queryKey: ["revenues", { search, category, status, ...dateFilter, pageUrl }],
+    queryFn: () => fetchRevenues({ search, category, status, ...dateFilter, ...pageUrl }),
   });
 
-  const summaryFilter = { search, category, status, startDate, endDate };
+  const summaryFilter = { search, category, status, ...dateFilter };
   const {
     data: summary,
     isLoading: isLoadingSummary,
@@ -166,7 +157,7 @@ export default function RevenuesPage() {
   });
 
   const { download: downloadFile, isLoading: isDownloading } = useDownloadFile();
-  const filter = { search, category, status, startDate, endDate };
+  const filter = { search, category, status, ...dateFilter };
 
   async function handleExportExcel() {
     await downloadFile(() => exportRevenuesExcel(filter), {
@@ -231,7 +222,12 @@ export default function RevenuesPage() {
     [revenues],
   );
 
-  const hasActiveFilters = search || category || status || startDate || endDate;
+  const hasActiveFilters =
+    search ||
+    category ||
+    status ||
+    startDate !== defaultStartDate ||
+    endDate !== defaultEndDate;
 
   const save = useMutation({
     mutationFn: async () => {
@@ -391,62 +387,27 @@ export default function RevenuesPage() {
     setPageUrl({});
   }
 
-  function applyPeriod(value: string) {
-    setPeriod(value);
+  function handleStartDateChange(value: string) {
+    setStartDate(value);
     setPageUrl({});
-
     if (!value) {
-      setStartDate("");
       setEndDate("");
       return;
     }
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    switch (value) {
-      case "today": {
-        const d = toISODate(today);
-        setStartDate(d);
-        setEndDate(d);
-        break;
-      }
-      case "this_week": {
-        setStartDate(toISODate(startOfWeek(today)));
-        setEndDate(toISODate(today));
-        break;
-      }
-      case "this_month": {
-        const start = new Date(today.getFullYear(), today.getMonth(), 1);
-        setStartDate(toISODate(start));
-        setEndDate(toISODate(today));
-        break;
-      }
-      case "last_month": {
-        const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-        const end = new Date(today.getFullYear(), today.getMonth(), 0);
-        setStartDate(toISODate(start));
-        setEndDate(toISODate(end));
-        break;
-      }
-      case "last_3_months": {
-        const start = new Date(today.getFullYear(), today.getMonth() - 3, 1);
-        setStartDate(toISODate(start));
-        setEndDate(toISODate(today));
-        break;
-      }
+    if (endDate && endDate < value) {
+      setEndDate(value);
     }
   }
 
-  function handleStartDateChange(value: string) {
-    setStartDate(value);
-    setPeriod("");
-    setPageUrl({});
-  }
-
   function handleEndDateChange(value: string) {
+    if (!startDate) return;
+    if (!value) {
+      setEndDate("");
+      setPageUrl({});
+      return;
+    }
+    if (value < startDate) return;
     setEndDate(value);
-    setPeriod("");
     setPageUrl({});
   }
 
@@ -454,9 +415,8 @@ export default function RevenuesPage() {
     setSearch("");
     setCategory("");
     setStatus("");
-    setStartDate("");
-    setEndDate("");
-    setPeriod("");
+    setStartDate(defaultStartDate);
+    setEndDate(defaultEndDate);
     setPageUrl({});
   }
 
@@ -515,18 +475,18 @@ export default function RevenuesPage() {
       <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
         <div className="flex flex-col gap-3">
           {/* Desktop filters */}
-          <div className="hidden flex-wrap items-end gap-3 md:flex">
-            <div className="relative w-full max-w-xs">
+          <div className="hidden flex-nowrap items-end gap-2 overflow-x-auto md:flex">
+            <div className="relative w-40 shrink-0">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
                 onChange={(e) => updateFilter(setSearch, e.target.value)}
-                placeholder="Buscar ingreso…"
+                placeholder="Buscar…"
                 className="pl-9"
                 aria-label="Buscar ingreso"
               />
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex w-36 shrink-0 flex-col gap-1">
               <label htmlFor="filter-category" className="text-xs text-muted-foreground">Categoría</label>
               <Select
                 id="filter-category"
@@ -539,7 +499,7 @@ export default function RevenuesPage() {
                 ))}
               </Select>
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex w-32 shrink-0 flex-col gap-1">
               <label htmlFor="filter-status" className="text-xs text-muted-foreground">Estado</label>
               <Select
                 id="filter-status"
@@ -551,33 +511,25 @@ export default function RevenuesPage() {
                 ))}
               </Select>
             </div>
-            <div className="flex flex-col gap-1">
-              <label htmlFor="filter-period" className="text-xs text-muted-foreground">Período</label>
-              <Select
-                id="filter-period"
-                value={period}
-                onChange={(e) => applyPeriod(e.target.value)}
-              >
-                {PERIOD_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </Select>
-            </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex w-40 shrink-0 flex-col gap-1">
               <label htmlFor="filter-start" className="text-xs text-muted-foreground">Desde</label>
               <Input
                 id="filter-start"
                 type="date"
                 value={startDate}
+                className="pr-10"
                 onChange={(e) => handleStartDateChange(e.target.value)}
               />
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex w-40 shrink-0 flex-col gap-1">
               <label htmlFor="filter-end" className="text-xs text-muted-foreground">Hasta</label>
               <Input
                 id="filter-end"
                 type="date"
                 value={endDate}
+                min={startDate}
+                disabled={!startDate}
+                className="pr-10"
                 onChange={(e) => handleEndDateChange(e.target.value)}
               />
             </div>
@@ -586,10 +538,11 @@ export default function RevenuesPage() {
               size="sm"
               onClick={clearFilters}
               disabled={!hasActiveFilters}
-              className="h-10"
+              className="h-10 w-10 shrink-0 p-0"
+              title="Limpiar filtros"
+              aria-label="Limpiar filtros"
             >
-              <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-              Limpiar filtros
+              <RotateCcw className="h-4 w-4" />
             </Button>
           </div>
 
@@ -601,7 +554,7 @@ export default function RevenuesPage() {
                 <Input
                   value={search}
                   onChange={(e) => updateFilter(setSearch, e.target.value)}
-                  placeholder="Buscar ingreso…"
+                  placeholder="Buscar…"
                   className="h-10 pl-9"
                   aria-label="Buscar ingreso"
                 />
@@ -609,13 +562,14 @@ export default function RevenuesPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className="h-10 px-3"
+                className="h-10 w-10 shrink-0 p-0"
                 onClick={() => setShowMobileFilters((v) => !v)}
                 aria-expanded={showMobileFilters}
                 aria-controls="mobile-filters-panel"
+                title="Filtros"
+                aria-label="Filtros"
               >
                 <SlidersHorizontal className="h-4 w-4" />
-                <span className="ml-2">Filtros</span>
               </Button>
             </div>
 
@@ -628,58 +582,50 @@ export default function RevenuesPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-8 px-2 text-xs"
+                  className="h-8 w-8 p-0 text-xs"
                   onClick={() => setShowMobileFilters(false)}
+                  title="Cerrar filtros"
+                  aria-label="Cerrar filtros"
                 >
                   <X className="h-4 w-4" />
-                  <span className="sr-only">Cerrar filtros</span>
                 </Button>
               </div>
               <div className="grid gap-3">
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="filter-category-mobile" className="text-xs text-muted-foreground">Categoría</label>
-                  <Select
-                    id="filter-category-mobile"
-                    value={category}
-                    onChange={(e) => updateFilter(setCategory, e.target.value)}
-                  >
-                    <option value="">Todas</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </Select>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor="filter-category-mobile" className="text-xs text-muted-foreground">Categoría</label>
+                    <Select
+                      id="filter-category-mobile"
+                      value={category}
+                      onChange={(e) => updateFilter(setCategory, e.target.value)}
+                    >
+                      <option value="">Todas</option>
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </Select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor="filter-status-mobile" className="text-xs text-muted-foreground">Estado</label>
+                    <Select
+                      id="filter-status-mobile"
+                      value={status}
+                      onChange={(e) => updateFilter(setStatus, e.target.value)}
+                    >
+                      {STATUS_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </Select>
+                  </div>
                 </div>
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="filter-status-mobile" className="text-xs text-muted-foreground">Estado</label>
-                  <Select
-                    id="filter-status-mobile"
-                    value={status}
-                    onChange={(e) => updateFilter(setStatus, e.target.value)}
-                  >
-                    {STATUS_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
-                    ))}
-                  </Select>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="filter-period-mobile" className="text-xs text-muted-foreground">Período</label>
-                  <Select
-                    id="filter-period-mobile"
-                    value={period}
-                    onChange={(e) => applyPeriod(e.target.value)}
-                  >
-                    {PERIOD_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
-                    ))}
-                  </Select>
-                </div>
-                <div className="grid grid-cols-1 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div className="flex flex-col gap-1">
                     <label htmlFor="filter-start-mobile" className="text-xs text-muted-foreground">Desde</label>
                     <Input
                       id="filter-start-mobile"
                       type="date"
                       value={startDate}
+                      className="pr-10"
                       onChange={(e) => handleStartDateChange(e.target.value)}
                     />
                   </div>
@@ -689,6 +635,9 @@ export default function RevenuesPage() {
                       id="filter-end-mobile"
                       type="date"
                       value={endDate}
+                      min={startDate}
+                      disabled={!startDate}
+                      className="pr-10"
                       onChange={(e) => handleEndDateChange(e.target.value)}
                     />
                   </div>
@@ -698,10 +647,11 @@ export default function RevenuesPage() {
                   size="sm"
                   onClick={clearFilters}
                   disabled={!hasActiveFilters}
-                  className="h-10"
+                  className="h-10 w-full p-0"
+                  title="Limpiar filtros"
+                  aria-label="Limpiar filtros"
                 >
-                  <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-                  Limpiar filtros
+                  <RotateCcw className="h-4 w-4" />
                 </Button>
               </div>
             </div>

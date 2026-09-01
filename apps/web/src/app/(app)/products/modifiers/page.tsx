@@ -6,6 +6,7 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
+import Link from "next/link";
 import {
   Plus,
   Search,
@@ -20,7 +21,7 @@ import {
   ListChecks,
   ChevronDown,
   ChevronUp,
-  GripVertical,
+  Package,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -28,8 +29,10 @@ import { TableSkeleton } from "@/components/ui/skeleton";
 import { ActionsMenu } from "@/components/ui/actions-menu";
 import { Switch } from "@/components/ui/switch";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { formatCLP, cn } from "@/lib/utils";
 import { useToast } from "@/lib/store/toast";
+import { fetchProducts } from "@/lib/api/products";
 import {
   fetchModifierGroups,
   fetchModifierGroup,
@@ -40,11 +43,17 @@ import {
   createModifierOption,
   updateModifierOption,
   deleteModifierOption,
+  fetchProductModifierGroups,
+  fetchProductModifierGroupsByGroup,
+  assignModifierGroupToProduct,
+  removeProductModifierGroup,
   type ModifierGroup,
   type ModifierGroupList,
   type ModifierOption,
   type ModifierGroupWriteRequest,
   type ModifierOptionWriteRequest,
+  type ProductModifierGroup,
+  type ProductModifierGroupWriteRequest,
 } from "@/lib/api/modifier-groups";
 
 interface GroupFormState {
@@ -157,6 +166,7 @@ function OptionsEditor({ groupId }: { groupId: number }) {
   const toast = useToast();
   const [editingId, setEditingId] = useState<number | "new" | null>(null);
   const [draft, setDraft] = useState<OptionDraft | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<ModifierOption | null>(null);
 
   const {
     data: options = [],
@@ -248,10 +258,15 @@ function OptionsEditor({ groupId }: { groupId: number }) {
     }
   }
 
-  function handleDelete(id: number) {
-    if (confirm("¿Eliminar esta opción? Esta acción no se puede deshacer.")) {
-      deleteOptionMutation.mutate(id);
-    }
+  function handleDelete(option: ModifierOption) {
+    setConfirmDelete(option);
+  }
+
+  function confirmDeleteOption() {
+    if (!confirmDelete) return;
+    deleteOptionMutation.mutate(confirmDelete.id, {
+      onSuccess: () => setConfirmDelete(null),
+    });
   }
 
   if (isLoading) {
@@ -374,7 +389,7 @@ function OptionsEditor({ groupId }: { groupId: number }) {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-danger hover:text-danger"
-                          onClick={() => handleDelete(option.id)}
+                          onClick={() => handleDelete(option)}
                           disabled={isMutating}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -388,6 +403,29 @@ function OptionsEditor({ groupId }: { groupId: number }) {
           </table>
         </div>
       )}
+
+      <Modal
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        title="¿Eliminar opción?"
+        size="sm"
+      >
+        <ModalBody>
+          <p className="text-sm text-muted-foreground">
+            Se desactivará{" "}
+            <span className="font-medium text-foreground">{confirmDelete?.name}</span>.
+            La opción dejará de aparecer en el POS, pero puede volver a activarse más adelante.
+          </p>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="outline" onClick={() => setConfirmDelete(null)} disabled={deleteOptionMutation.isPending}>
+            Cancelar
+          </Button>
+          <Button variant="danger" onClick={confirmDeleteOption} isLoading={deleteOptionMutation.isPending}>
+            Eliminar
+          </Button>
+        </ModalFooter>
+      </Modal>
     </div>
   );
 }
@@ -480,6 +518,253 @@ function OptionEditRow({ draft, onChange, onSave, onCancel, isSaving }: OptionEd
   );
 }
 
+function GroupProducts({ groupId }: { groupId: number }) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const [selectedProductId, setSelectedProductId] = useState<string>("");
+  const [confirmRemove, setConfirmRemove] = useState<ProductModifierGroup | null>(null);
+
+  const {
+    data: assignments = [],
+    isLoading: assignmentsLoading,
+    error: assignmentsError,
+  } = useQuery<ProductModifierGroup[]>({
+    queryKey: ["product-modifier-groups", "by-group", groupId],
+    queryFn: () => fetchProductModifierGroupsByGroup(groupId),
+  });
+
+  const assignedProductIds = useMemo(
+    () => new Set(assignments.map((a) => a.product)),
+    [assignments],
+  );
+
+  const productIds = useMemo(
+    () => assignments.map((a) => a.product),
+    [assignments],
+  );
+
+  const { data: assignedProductsData, isLoading: assignedProductsLoading } = useQuery({
+    queryKey: ["products", "by-ids", productIds],
+    queryFn: () => fetchProducts({ ids: productIds, page_size: productIds.length }),
+    enabled: productIds.length > 0,
+  });
+
+  const productsById = useMemo(() => {
+    const map = new Map<number, { name: string; code?: string | null }>();
+    for (const product of assignedProductsData?.results ?? []) {
+      map.set(product.id, { name: product.name, code: product.code });
+    }
+    return map;
+  }, [assignedProductsData]);
+
+  const { data: availableProductsData, isLoading: availableProductsLoading } = useQuery({
+    queryKey: ["products", "for-sale", "all"],
+    queryFn: () =>
+      fetchProducts({
+        is_for_sale: true,
+        is_active: true,
+        page_size: 1000,
+      }),
+  });
+
+  const assignMutation = useMutation({
+    mutationFn: (payload: ProductModifierGroupWriteRequest) =>
+      assignModifierGroupToProduct(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["product-modifier-groups", "by-group", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["product-modifier-groups"] });
+      queryClient.invalidateQueries({ queryKey: ["product-modifier-groups", selectedProductId] });
+      toast.success("Producto asignado al grupo");
+      setSelectedProductId("");
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "No se pudo asignar el producto");
+    },
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: (id: number) => removeProductModifierGroup(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["product-modifier-groups", "by-group", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["product-modifier-groups"] });
+      toast.success("Producto desasignado del grupo");
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "No se pudo desasignar el producto");
+    },
+  });
+
+  const availableOptions = useMemo(() => {
+    const products = availableProductsData?.results ?? [];
+    return products
+      .filter((p) => !assignedProductIds.has(p.id))
+      .map((p) => ({
+        value: String(p.id),
+        label: `${p.name}${p.code ? ` (${p.code})` : ""}`,
+      }));
+  }, [availableProductsData, assignedProductIds]);
+
+  function handleAssign() {
+    if (!selectedProductId) return;
+    assignMutation.mutate({
+      product: Number(selectedProductId),
+      modifier_group: groupId,
+      is_required: false,
+    });
+  }
+
+  function handleRemove(assignment: ProductModifierGroup) {
+    setConfirmRemove(assignment);
+  }
+
+  function confirmRemoveProduct() {
+    if (!confirmRemove) return;
+    removeMutation.mutate(confirmRemove.id, {
+      onSuccess: () => setConfirmRemove(null),
+    });
+  }
+
+  if (assignmentsLoading) {
+    return (
+      <div className="py-4">
+        <TableSkeleton rows={2} columns={2} />
+      </div>
+    );
+  }
+
+  if (assignmentsError) {
+    return (
+      <p className="py-4 text-sm text-danger">
+        No se pudieron cargar los productos asignados.
+      </p>
+    );
+  }
+
+  return (
+    <div className="py-4">
+      <div className="mb-3 flex items-center justify-between">
+        <h4 className="text-sm font-semibold">
+          Productos asignados
+          <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+            {assignments.length}
+          </span>
+        </h4>
+      </div>
+
+      <div className="mb-4 rounded-lg border border-border bg-muted/40 p-3">
+        <p className="mb-2 text-xs text-muted-foreground">
+          Busca un producto activo y haz clic en Asignar para vincularlo a este grupo.
+        </p>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+          <div className="flex-1">
+            <SearchableSelect
+              options={availableOptions}
+              value={selectedProductId}
+              onChange={setSelectedProductId}
+              placeholder="Buscar producto…"
+              searchPlaceholder="Escribe al menos 2 caracteres…"
+              emptyMessage={availableProductsLoading ? "Cargando…" : "Sin coincidencias"}
+              disabled={assignMutation.isPending}
+            />
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            onClick={handleAssign}
+            isLoading={assignMutation.isPending}
+            disabled={!selectedProductId || assignMutation.isPending}
+          >
+            <Plus className="mr-1 h-4 w-4" />
+            Asignar
+          </Button>
+        </div>
+      </div>
+
+      {assignments.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-border px-3 py-4 text-center text-sm text-muted-foreground">
+          Este grupo no está asignado a ningún producto.
+        </p>
+      ) : assignedProductsLoading ? (
+        <TableSkeleton rows={2} columns={2} />
+      ) : (
+        <div className="flex flex-col gap-2">
+          {assignments.map((assignment) => {
+            const product = productsById.get(assignment.product);
+            return (
+              <div
+                key={assignment.id}
+                className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              >
+                <Link
+                  href={`/products?edit=${assignment.product}`}
+                  className="flex min-w-0 flex-1 items-center gap-2 transition-colors hover:text-primary"
+                >
+                  <Package className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span className="min-w-0 truncate">
+                    {product?.name ?? `Producto #${assignment.product}`}
+                    {product?.code && (
+                      <span className="ml-1 text-xs text-muted-foreground">
+                        ({product.code})
+                      </span>
+                    )}
+                  </span>
+                </Link>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    {assignment.is_required ? (
+                      <span className="text-amber-600">Requerido</span>
+                    ) : (
+                      "Opcional"
+                    )}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-danger hover:text-danger"
+                    onClick={() => handleRemove(assignment)}
+                    disabled={removeMutation.isPending}
+                    aria-label="Desasignar producto"
+                  >
+                    {removeMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <Modal
+        open={!!confirmRemove}
+        onClose={() => setConfirmRemove(null)}
+        title="¿Desasignar producto?"
+        size="sm"
+      >
+        <ModalBody>
+          <p className="text-sm text-muted-foreground">
+            Este producto dejará de tener el grupo{" "}
+            <span className="font-medium text-foreground">{confirmRemove?.modifier_group_name}</span>.
+            Puedes volver a asignarlo más adelante.
+          </p>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="outline" onClick={() => setConfirmRemove(null)} disabled={removeMutation.isPending}>
+            Cancelar
+          </Button>
+          <Button variant="danger" onClick={confirmRemoveProduct} isLoading={removeMutation.isPending}>
+            Desasignar
+          </Button>
+        </ModalFooter>
+      </Modal>
+    </div>
+  );
+}
+
 export default function ModifiersPage() {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -491,11 +776,26 @@ export default function ModifiersPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [expandedGroupId, setExpandedGroupId] = useState<number | null>(null);
+  const [modalTab, setModalTab] = useState<"general" | "options" | "products">("general");
 
   const { data: groups = [], isLoading, error } = useQuery({
     queryKey: ["modifier-groups"],
     queryFn: fetchModifierGroups,
   });
+
+  const { data: allAssignments = [] } = useQuery<ProductModifierGroup[]>({
+    queryKey: ["product-modifier-groups"],
+    queryFn: () => fetchProductModifierGroups(),
+  });
+
+  const productCountByGroup = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const assignment of allAssignments) {
+      const groupId = assignment.modifier_group.id;
+      map.set(groupId, (map.get(groupId) ?? 0) + 1);
+    }
+    return map;
+  }, [allAssignments]);
 
   const filteredGroups = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -539,6 +839,7 @@ export default function ModifiersPage() {
 
   async function openModal(group?: ModifierGroupList) {
     setEditingGroup(group ?? null);
+    setModalTab("general");
     setFormError(null);
     if (group) {
       setLoadingDetails(true);
@@ -564,6 +865,7 @@ export default function ModifiersPage() {
     setEditingGroup(null);
     setForm(emptyGroupForm());
     setFormError(null);
+    setModalTab("general");
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -758,6 +1060,7 @@ export default function ModifiersPage() {
                     <th className="px-4 py-3 text-center">Selecciones</th>
                     <th className="px-4 py-3 text-center">Requerido</th>
                     <th className="px-4 py-3 text-center">Opciones</th>
+                    <th className="px-4 py-3 text-center">Productos</th>
                     <th className="px-4 py-3 text-center">Estado</th>
                     <th className="px-4 py-3 text-right">Acciones</th>
                   </tr>
@@ -804,6 +1107,13 @@ export default function ModifiersPage() {
                               <ListChecks className="h-3 w-3" />
                               {Number(group.options_count)} opción
                               {Number(group.options_count) === 1 ? "" : "es"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                              <Package className="h-3 w-3" />
+                              {productCountByGroup.get(group.id) ?? 0} producto
+                              {(productCountByGroup.get(group.id) ?? 0) === 1 ? "" : "s"}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-center">
@@ -854,7 +1164,7 @@ export default function ModifiersPage() {
                         </tr>
                         {isExpanded && (
                           <tr key={`${group.id}-expanded`}>
-                            <td colSpan={6} className="bg-muted/20 px-4 py-0">
+                            <td colSpan={7} className="bg-muted/20 px-4 py-0">
                               <OptionsEditor groupId={group.id} />
                             </td>
                           </tr>
@@ -927,6 +1237,13 @@ export default function ModifiersPage() {
                         </p>
                       </div>
                       <div className="min-w-0">
+                        <p className="text-xs text-muted-foreground">Productos</p>
+                        <p className="truncate font-medium">
+                          {productCountByGroup.get(group.id) ?? 0} producto
+                          {(productCountByGroup.get(group.id) ?? 0) === 1 ? "" : "s"}
+                        </p>
+                      </div>
+                      <div className="min-w-0">
                         <p className="text-xs text-muted-foreground">Estado</p>
                         <span
                           className={cn(
@@ -947,17 +1264,22 @@ export default function ModifiersPage() {
                       {isExpanded ? (
                         <>
                           <ChevronUp className="h-3.5 w-3.5" />
-                          Ocultar opciones
+                          Ocultar detalle
                         </>
                       ) : (
                         <>
                           <ChevronDown className="h-3.5 w-3.5" />
-                          Ver opciones
+                          Ver opciones y productos
                         </>
                       )}
                     </button>
 
-                    {isExpanded && <OptionsEditor groupId={group.id} />}
+                    {isExpanded && (
+                      <div className="flex flex-col gap-4">
+                        <OptionsEditor groupId={group.id} />
+                        <GroupProducts groupId={group.id} />
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -974,124 +1296,157 @@ export default function ModifiersPage() {
 
       {/* Modal de grupo */}
       <Modal open={modalOpen} onClose={closeModal} title={editingGroup ? "Editar grupo" : "Nuevo grupo"} size="lg">
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="flex h-full flex-col">
+          {editingGroup && (
+            <div className="shrink-0 border-b border-border bg-muted/30 px-6 pt-4">
+              <div className="flex gap-1">
+                {[
+                  { id: "general" as const, label: "General" },
+                  { id: "options" as const, label: "Opciones" },
+                  { id: "products" as const, label: "Productos" },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setModalTab(tab.id)}
+                    className={cn(
+                      "relative rounded-t-lg px-4 py-2 text-sm font-medium transition-colors",
+                      modalTab === tab.id
+                        ? "text-foreground"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {tab.label}
+                    {modalTab === tab.id && (
+                      <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <ModalBody>
-            {loadingDetails && (
+            {loadingDetails && modalTab === "general" && (
               <div className="mb-4 grid place-items-center rounded-lg border border-border bg-muted/20 py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
             )}
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="flex flex-col gap-2 sm:col-span-2">
-                <label htmlFor="group-name" className="text-sm font-medium">
-                  Nombre
-                </label>
-                <Input
-                  id="group-name"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="Ej: Tamaño de bebida"
-                  required
-                />
-              </div>
-
-              <div className="flex flex-col gap-2 sm:col-span-2">
-                <label htmlFor="group-description" className="text-sm font-medium">
-                  Descripción
-                </label>
-                <Input
-                  id="group-description"
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  placeholder="Opcional"
-                />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label htmlFor="group-min" className="text-sm font-medium">
-                  Selecciones mínimas
-                </label>
-                <Input
-                  id="group-min"
-                  type="number"
-                  min={0}
-                  value={form.min_selections}
-                  onChange={(e) => setForm({ ...form, min_selections: e.target.value })}
-                  className="tabular-nums"
-                />
-                <p className="text-xs text-muted-foreground">0 = opcional</p>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label htmlFor="group-max" className="text-sm font-medium">
-                  Selecciones máximas
-                </label>
-                <Input
-                  id="group-max"
-                  type="number"
-                  min={0}
-                  value={form.max_selections}
-                  onChange={(e) => setForm({ ...form, max_selections: e.target.value })}
-                  className="tabular-nums"
-                />
-                <p className="text-xs text-muted-foreground">0 = ilimitado</p>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label htmlFor="group-order" className="text-sm font-medium">
-                  Orden
-                </label>
-                <Input
-                  id="group-order"
-                  type="number"
-                  min={0}
-                  value={form.order}
-                  onChange={(e) => setForm({ ...form, order: e.target.value })}
-                  className="tabular-nums"
-                />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-medium">Estado</label>
-                <div className="flex h-10 items-center gap-3">
-                  <Switch
-                    checked={form.is_active}
-                    onCheckedChange={(v) => setForm({ ...form, is_active: v })}
+            {modalTab === "general" && (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="flex flex-col gap-2 sm:col-span-2">
+                  <label htmlFor="group-name" className="text-sm font-medium">
+                    Nombre
+                  </label>
+                  <Input
+                    id="group-name"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder="Ej: Tamaño de bebida"
+                    required
                   />
-                  <span className="text-sm text-muted-foreground">
-                    {form.is_active ? "Activo" : "Inactivo"}
-                  </span>
                 </div>
-              </div>
 
-              <div className="flex flex-col gap-2 sm:col-span-2">
-                <label className="text-sm font-medium">Requerido</label>
-                <div className="flex h-10 items-center gap-3">
-                  <Switch
-                    checked={form.is_required}
-                    onCheckedChange={(v) => setForm({ ...form, is_required: v })}
+                <div className="flex flex-col gap-2 sm:col-span-2">
+                  <label htmlFor="group-description" className="text-sm font-medium">
+                    Descripción
+                  </label>
+                  <Input
+                    id="group-description"
+                    value={form.description}
+                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                    placeholder="Opcional"
                   />
-                  <span className="text-sm text-muted-foreground">
-                    {form.is_required
-                      ? "El cliente debe seleccionar al menos una opción"
-                      : "El cliente puede omitir este grupo"}
-                  </span>
                 </div>
-              </div>
-            </div>
 
-            {formError && (
-              <div className="mt-4 flex items-start gap-2 rounded-lg bg-danger/10 p-3 text-sm text-danger">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                {formError}
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="group-min" className="text-sm font-medium">
+                    Selecciones mínimas
+                  </label>
+                  <Input
+                    id="group-min"
+                    type="number"
+                    min={0}
+                    value={form.min_selections}
+                    onChange={(e) => setForm({ ...form, min_selections: e.target.value })}
+                    className="tabular-nums"
+                  />
+                  <p className="text-xs text-muted-foreground">0 = opcional</p>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="group-max" className="text-sm font-medium">
+                    Selecciones máximas
+                  </label>
+                  <Input
+                    id="group-max"
+                    type="number"
+                    min={0}
+                    value={form.max_selections}
+                    onChange={(e) => setForm({ ...form, max_selections: e.target.value })}
+                    className="tabular-nums"
+                  />
+                  <p className="text-xs text-muted-foreground">0 = ilimitado</p>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="group-order" className="text-sm font-medium">
+                    Orden
+                  </label>
+                  <Input
+                    id="group-order"
+                    type="number"
+                    min={0}
+                    value={form.order}
+                    onChange={(e) => setForm({ ...form, order: e.target.value })}
+                    className="tabular-nums"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-medium">Estado</label>
+                  <div className="flex h-10 items-center gap-3">
+                    <Switch
+                      checked={form.is_active}
+                      onCheckedChange={(v) => setForm({ ...form, is_active: v })}
+                    />
+                    <span className="text-sm text-muted-foreground">
+                      {form.is_active ? "Activo" : "Inactivo"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2 sm:col-span-2">
+                  <label className="text-sm font-medium">Requerido</label>
+                  <div className="flex h-10 items-center gap-3">
+                    <Switch
+                      checked={form.is_required}
+                      onCheckedChange={(v) => setForm({ ...form, is_required: v })}
+                    />
+                    <span className="text-sm text-muted-foreground">
+                      {form.is_required
+                        ? "El cliente debe seleccionar al menos una opción"
+                        : "El cliente puede omitir este grupo"}
+                    </span>
+                  </div>
+                </div>
+
+                {formError && (
+                  <div className="sm:col-span-2 mt-4 flex items-start gap-2 rounded-lg bg-danger/10 p-3 text-sm text-danger">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                    {formError}
+                  </div>
+                )}
               </div>
             )}
 
-            {editingGroup && (
-              <div className="mt-6 border-t border-border pt-4">
-                <OptionsEditor groupId={editingGroup.id} />
-              </div>
+            {editingGroup && modalTab === "options" && (
+              <OptionsEditor groupId={editingGroup.id} />
+            )}
+
+            {editingGroup && modalTab === "products" && (
+              <GroupProducts groupId={editingGroup.id} />
             )}
           </ModalBody>
 
@@ -1110,9 +1465,9 @@ export default function ModifiersPage() {
       <Modal open={!!confirmDelete} onClose={() => setConfirmDelete(null)} title="¿Eliminar grupo?" size="sm">
         <ModalBody>
           <p className="text-sm text-muted-foreground">
-            Se eliminará{" "}
-            <span className="font-medium text-foreground">{confirmDelete?.name}</span>. Esta
-            acción no se puede deshacer.
+            Se desactivará{" "}
+            <span className="font-medium text-foreground">{confirmDelete?.name}</span>. El grupo
+            dejará de aparecer en el POS, pero puede volver a activarse más adelante.
           </p>
         </ModalBody>
         <ModalFooter>

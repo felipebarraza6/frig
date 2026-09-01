@@ -113,6 +113,18 @@ La app está funcionalmente sólida (tipos OpenAPI generados, realtime por WebSo
 - **`/settings/modules` no avisa al usuario operativo**: si un cajero tiene sesión abierta y un admin desactiva POS desde otro dispositivo, el cajero verá la UI rota hasta refrescar. El WS ahora invalida la query pero falta un toast o banner explícito.
 - **`useIsRecipesEnabled` siempre devuelve true**: oculto en la observación H/I; documentar la decisión de que recetas son core.
 
+## 7. Pagos y caja (POS)
+
+### Corregido
+
+- **[CORREGIDO] Pago de órdenes de compra (OC) desde POS generaba egreso en caja para cualquier método de pago.** El modal `PayPendingItemModal` enviaba `cash_register_id` al backend en `/suppliers/purchase-orders/{id}/pay_order/` sin importar si el método era efectivo u otro. Yggdra registraba entonces un movimiento `CASH_OUT` que reducía el efectivo esperado en caja, aunque el pago se hiciera con transferencia/tarjeta/etc.
+  - Fix (2026-09-01):
+    - `pos-quick-actions.tsx` ahora pasa `payment_type` junto con los métodos de pago activos.
+    - `pay-pending-item-modal.tsx` determina `isCashMethod = selectedMethod?.payment_type === "CASH"` y envía `cash_register_id` solo cuando el método es efectivo.
+    - Para métodos no efectivos el pago se registra contra la OC sin tocar la caja del POS.
+    - El botón "Registrar pago" se deshabilita si el método es efectivo y no hay caja abierta; el mensaje de advertencia solo se muestra en ese caso.
+  - Archivos: `apps/web/src/components/pos/pos-quick-actions.tsx`, `apps/web/src/components/pos/pay-pending-item-modal.tsx`.
+
 ## 6. Verificación post-cambios
 
 - `tsc --noEmit`: 0 errores.
