@@ -837,34 +837,34 @@ export function ProductsClient() {
         {error ? (
           <p className="text-sm text-danger">No se pudo cargar el catálogo.</p>
         ) : isLoading ? (
-          <div className="grid flex-1 content-start gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid w-full gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {Array.from({ length: 8 }).map((_, i) => (
               <div
                 key={i}
-                className="flex flex-col rounded-2xl border border-border bg-card p-4 shadow-sm"
+                className="flex h-full w-full flex-col rounded-2xl border border-border bg-card p-4 shadow-sm"
               >
                 <div className="mb-4 flex items-start gap-3">
                   <Skeleton className="h-14 w-14 shrink-0 rounded-xl" />
-                  <div className="min-w-0 flex-1 space-y-2">
-                    <Skeleton className="h-4 w-3/4" />
-                    <Skeleton className="h-3 w-1/2" />
+                  <div className="flex min-w-0 flex-1 flex-col gap-2">
+                    <Skeleton className="h-4 w-full max-w-[75%]" />
+                    <Skeleton className="h-3 w-full max-w-[50%]" />
                   </div>
                 </div>
-                <div className="mb-3 flex gap-2">
+                <div className="mb-3 flex flex-wrap gap-2">
                   <Skeleton className="h-5 w-20 rounded-full" />
                   <Skeleton className="h-5 w-16 rounded-full" />
                 </div>
-                <div className="mb-4 flex items-end justify-between">
-                  <div className="space-y-1.5">
+                <div className="mb-4 flex flex-1 items-end justify-between gap-2">
+                  <div className="flex flex-col gap-1.5">
                     <Skeleton className="h-3 w-20" />
                     <Skeleton className="h-6 w-24" />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="flex flex-col gap-1.5">
                     <Skeleton className="ml-auto h-3 w-10" />
                     <Skeleton className="ml-auto h-5 w-12" />
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Skeleton className="h-5 w-16 rounded-full" />
                   <Skeleton className="h-5 w-14 rounded-full" />
                 </div>
