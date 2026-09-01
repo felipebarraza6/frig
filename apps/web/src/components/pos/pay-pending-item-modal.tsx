@@ -655,7 +655,7 @@ export default function PayPendingItemModal({
     } else {
       remaining = toNum((item as Order).total_amount) - toNum((item as Order).paid_amount);
     }
-    setAmount(remaining ? Math.round(remaining).toString() : "");
+    setAmount(remaining ? Math.floor(remaining).toString() : "");
     setNotes(
       type === "pay_purchase_order"
         ? `Pago OC ${(item as PurchaseOrder).order_number}`
@@ -1669,7 +1669,7 @@ export default function PayPendingItemModal({
                       <AlertTriangle className="h-3.5 w-3.5" /> No hay caja abierta. El pago se registrará sin movimiento de caja.
                     </p>
                   )}
-                  {selectedItem && amount && parseFloat(toDecimal(amount)) > Math.round(remainingAmount) + 0.01 && (
+                  {selectedItem && amount && parseFloat(toDecimal(amount)) > remainingAmount + 0.01 && (
                     <p className="flex items-center gap-1.5 text-xs text-rose-700">
                       <AlertTriangle className="h-3.5 w-3.5" /> El monto supera el saldo pendiente de {formatCLP(remainingAmount)}.
                     </p>
@@ -1738,7 +1738,7 @@ export default function PayPendingItemModal({
               !paymentMethodId ||
               remainingAmount <= 0 ||
               payMutation.isPending ||
-              parseFloat(toDecimal(amount)) > Math.round(remainingAmount) + 0.01
+              parseFloat(toDecimal(amount)) > remainingAmount + 0.01
             }
             isLoading={payMutation.isPending}
           >
