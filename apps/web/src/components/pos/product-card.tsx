@@ -106,11 +106,6 @@ function ProductCardRaw({ product, onClick, onKeyDown }: ProductCardProps) {
           <p className="text-sm font-bold tabular-nums text-foreground sm:text-base">
             {formatCLP(product.price)}
           </p>
-          {product.measurement_unit && (
-            <span className="text-[10px] font-medium text-muted-foreground">
-              / {product.measurement_unit}
-            </span>
-          )}
         </div>
       </div>
     </motion.div>
