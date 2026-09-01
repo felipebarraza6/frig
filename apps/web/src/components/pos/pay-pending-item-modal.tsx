@@ -1658,6 +1658,16 @@ export default function PayPendingItemModal({
                       <AlertTriangle className="h-3.5 w-3.5" /> Esta orden no tiene saldo pendiente por pagar.
                     </p>
                   )}
+                  {!cashRegisterId && (
+                    <p className="flex items-center gap-1.5 text-xs text-amber-700">
+                      <AlertTriangle className="h-3.5 w-3.5" /> No hay caja abierta. El pago se registrará sin movimiento de caja.
+                    </p>
+                  )}
+                  {selectedItem && amount && parseFloat(toDecimal(amount)) > Math.round(remainingAmount) + 0.01 && (
+                    <p className="flex items-center gap-1.5 text-xs text-rose-700">
+                      <AlertTriangle className="h-3.5 w-3.5" /> El monto supera el saldo pendiente de {formatCLP(remainingAmount)}.
+                    </p>
+                  )}
                 </>
               ) : (
                 <>
@@ -1720,10 +1730,9 @@ export default function PayPendingItemModal({
               !selectedItem ||
               !amount ||
               !paymentMethodId ||
-              !cashRegisterId ||
               remainingAmount <= 0 ||
               payMutation.isPending ||
-              parseFloat(toDecimal(amount)) > remainingAmount + 0.01
+              parseFloat(toDecimal(amount)) > Math.round(remainingAmount) + 0.01
             }
             isLoading={payMutation.isPending}
           >
