@@ -25,7 +25,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Modal } from "@/components/ui/modal";
 
 import {
   useCartStore,
@@ -105,7 +104,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
   }
 
   const [payments, setPayments] = useState<PaymentLine[]>([]);
-  const [itemNotesModalId, setItemNotesModalId] = useState<string | null>(null);
+  const [editingNotesItemId, setEditingNotesItemId] = useState<string | null>(null);
   const [selectedClient, setSelectedClient] = useState<Customer | null>(null);
   const [clientQuery, setClientQuery] = useState("");
   const [showClientResults, setShowClientResults] = useState(false);
@@ -951,19 +950,32 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                               ))}
                             </div>
                           )}
-                          {item.notes ? (
+                          {editingNotesItemId === item.id ? (
+                            <input
+                              autoFocus
+                              type="text"
+                              value={item.notes ?? ""}
+                              onChange={(e) => setItemNotes(item.id, e.target.value)}
+                              onBlur={() => setEditingNotesItemId(null)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") setEditingNotesItemId(null);
+                              }}
+                              placeholder="Ej: sin cebolla"
+                              className="mt-1 h-7 w-full rounded-md border border-primary/60 bg-background px-2 text-[11px] text-foreground placeholder:text-muted-foreground/70 focus:border-primary focus:outline-none"
+                            />
+                          ) : item.notes ? (
                             <button
                               type="button"
-                              onClick={() => setItemNotesModalId(item.id)}
-                              className="mt-1 inline-flex items-center gap-1 text-left text-[11px] text-primary hover:underline"
+                              onClick={() => setEditingNotesItemId(item.id)}
+                              className="mt-1 inline-flex items-start gap-1 text-left text-[11px] text-primary hover:underline"
                             >
-                              <Pencil className="h-3 w-3" />
+                              <Pencil className="mt-0.5 h-3 w-3 shrink-0" />
                               <span className="line-clamp-2">{item.notes}</span>
                             </button>
                           ) : (
                             <button
                               type="button"
-                              onClick={() => setItemNotesModalId(item.id)}
+                              onClick={() => setEditingNotesItemId(item.id)}
                               className="mt-1 inline-flex items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-primary"
                             >
                               <Pencil className="h-3 w-3" />
@@ -972,23 +984,23 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                           )}
                         </div>
                         <div className="flex flex-col items-end gap-1.5">
-                          <div className="flex flex-col items-center overflow-hidden rounded-lg border border-border/60 bg-background">
-                            <button
-                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                              aria-label="Aumentar cantidad"
-                              className="flex h-7 w-8 items-center justify-center text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                            >
-                              <Plus className="h-3.5 w-3.5" />
-                            </button>
-                            <span className="py-0.5 text-xs font-semibold tabular-nums">
-                              {item.quantity}
-                            </span>
+                          <div className="inline-flex items-center overflow-hidden rounded-lg border border-border/60 bg-background">
                             <button
                               onClick={() => updateQuantity(item.id, item.quantity - 1)}
                               aria-label="Disminuir cantidad"
-                              className="flex h-7 w-8 items-center justify-center text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                              className="flex h-8 w-8 items-center justify-center text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                             >
                               <Minus className="h-3.5 w-3.5" />
+                            </button>
+                            <span className="w-8 text-center text-xs font-semibold tabular-nums">
+                              {item.quantity}
+                            </span>
+                            <button
+                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                              aria-label="Aumentar cantidad"
+                              className="flex h-8 w-8 items-center justify-center text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                            >
+                              <Plus className="h-3.5 w-3.5" />
                             </button>
                           </div>
                           <div className="flex items-center gap-2">
@@ -1391,34 +1403,6 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
           error={createCustomerMutation.error}
         />
       )}
-
-      <Modal
-        open={itemNotesModalId !== null}
-        onClose={() => setItemNotesModalId(null)}
-        title="Nota del producto"
-        size="sm"
-      >
-        {(() => {
-          const item = items.find((i) => i.id === itemNotesModalId);
-          if (!item) return null;
-          return (
-            <div className="flex flex-col gap-3">
-              <p className="text-sm font-medium">{item.product.name}</p>
-              <textarea
-                value={item.notes ?? ""}
-                onChange={(e) => setItemNotes(item.id, e.target.value)}
-                placeholder="Ej: sin cebolla, bien cocido..."
-                className="min-h-[100px] w-full resize-none rounded-lg border border-border/60 bg-background p-3 text-sm text-foreground placeholder:text-muted-foreground/70 focus:border-primary focus:outline-none"
-              />
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setItemNotesModalId(null)}>
-                  Cerrar
-                </Button>
-              </div>
-            </div>
-          );
-        })()}
-      </Modal>
 
     </div>
   );
