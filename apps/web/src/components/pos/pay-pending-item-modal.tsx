@@ -554,15 +554,21 @@ export default function PayPendingItemModal({
     mutationFn: async () => {
       if (!selectedItem) throw new Error("Selecciona un ítem");
       if (!paymentMethodId) throw new Error("Selecciona un método de pago");
+      if (type === "pay_purchase_order") {
+        const purchasePayload = {
+          payment_method_id: paymentMethodId,
+          amount: toDecimal(amount),
+          cash_register_id: cashRegisterId,
+          reference: notes || null,
+        };
+        return payPurchaseOrder(selectedItem.id, purchasePayload);
+      }
       const payload = {
         payment_method_id: paymentMethodId,
         amount: toDecimal(amount),
         cash_register_id: cashRegisterId,
         notes: notes || null,
       };
-      if (type === "pay_purchase_order") {
-        return payPurchaseOrder(selectedItem.id, payload);
-      }
       return payOrder(selectedItem.id, payload);
     },
     onSuccess: () => {
