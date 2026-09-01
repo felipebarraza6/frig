@@ -890,8 +890,8 @@ export default function PosPage() {
               effectiveOrderId && existingOrder
                 ? "border-primary/30 bg-primary/10 text-primary hover:bg-primary/20"
                 : isOrderMode
-                  ? "border-violet-200 bg-violet-500/10 text-violet-700 hover:bg-violet-500/20"
-                  : "border-emerald-200 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20"
+                  ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90"
+                  : "border-primary/30 bg-primary/10 text-primary hover:bg-primary/20"
             )}
           >
             {effectiveOrderId && existingOrder ? (
@@ -1045,12 +1045,12 @@ export default function PosPage() {
                 className={cn(
                   "flex items-center gap-4 rounded-xl border border-border bg-background p-4 text-left transition-colors",
                   effectiveConfig.sales
-                    ? "hover:border-emerald-300 hover:bg-emerald-50/30"
+                    ? "hover:border-primary/40 hover:bg-primary/5"
                     : "opacity-60 cursor-not-allowed",
                 )}
               >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10">
-                  <Receipt className="h-5 w-5 text-emerald-600" />
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                  <Receipt className="h-5 w-5 text-primary" />
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-semibold">Venta</p>
@@ -1069,10 +1069,10 @@ export default function PosPage() {
                   selectPosMode("ORDER", rememberPosMode);
                   setShowModeSelector(false);
                 }}
-                className="flex items-center gap-4 rounded-xl border border-border bg-background p-4 text-left transition-colors hover:border-blue-300 hover:bg-blue-50/30"
+                className="flex items-center gap-4 rounded-xl border border-border bg-background p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/5"
               >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-500/10">
-                  <ClipboardList className="h-5 w-5 text-blue-600" />
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                  <ClipboardList className="h-5 w-5 text-primary" />
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-semibold">Orden</p>
