@@ -540,20 +540,20 @@ export default function PosPage() {
         try {
           const categories = await fetchExpenseCategories();
           let category = categories.find(
-            (c) => c.name.toLowerCase().includes("retiro"),
+            (c) => c.name.toLowerCase().includes("egreso"),
           );
           if (!category) {
             category = await createExpenseCategory({
-              name: "Retiros de caja",
+              name: "Egresos de caja",
               category_type: "OTHER",
               branch: Number(branch.branch_id),
-              description: "Egresos generados por retiros manuales de caja desde el POS",
+              description: "Egresos generados por egresos manuales de caja desde el POS",
               is_active: true,
             });
           }
           await createExpense({
             name: payload.reason,
-            description: `Retiro de caja registrado en ${activeStation?.name ?? "estación actual"}`,
+            description: `Egreso de caja registrado en ${activeStation?.name ?? "estación actual"}`,
             branch: Number(branch.branch_id),
             category: category.id,
             created_by: Number(user.id),
@@ -574,7 +574,7 @@ export default function PosPage() {
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
       setMovementAmount("");
       setMovementReason("");
-      toast.success(payload.type === "CASH_IN" ? "Ingreso registrado" : "Retiro registrado");
+      toast.success(payload.type === "CASH_IN" ? "Ingreso registrado" : "Egreso registrado");
     },
     onError: (err: Error) => {
       toast.error(err.message || "No se pudo registrar el movimiento");
@@ -2449,7 +2449,7 @@ export default function PosPage() {
                     <div className="rounded-lg border border-border/60 bg-muted/40 p-2.5">
                       <div className="mb-1 flex items-center gap-1 text-[10px] text-muted-foreground">
                         <ArrowUpRight className="h-3 w-3" />
-                        Retiros / Egresos
+                        Egresos
                       </div>
                       <p className="text-sm font-semibold tabular-nums">
                         {formatCLP(parseFloat(String(dailySummary.cash_out || "0")))}
@@ -2554,7 +2554,7 @@ export default function PosPage() {
                       className="h-10 flex-1 text-xs sm:h-8"
                     >
                       <ArrowUpRight className="mr-1 h-3.5 w-3.5" />
-                      <span className="truncate">Retiro / Egreso</span>
+                      <span className="truncate">Egreso</span>
                     </Button>
                   )}
                 </div>
@@ -2594,7 +2594,7 @@ export default function PosPage() {
                       <Minus className="mr-1.5 h-3.5 w-3.5" />
                     )}
                     <span className="truncate">
-                      Registrar {movementType === "CASH_IN" ? "ingreso" : "retiro / egreso"}
+                      Registrar {movementType === "CASH_IN" ? "ingreso" : "egreso"}
                     </span>
                   </Button>
                 </div>
