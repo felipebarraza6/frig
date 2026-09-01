@@ -120,7 +120,16 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryDate, setDeliveryDate] = useState("");
   const [removedOrderProductIds, setRemovedOrderProductIds] = useState<number[]>([]);
+  const [showEmpty, setShowEmpty] = useState(items.length === 0);
   const deliveryInitializedRef = useRef(false);
+
+  useEffect(() => {
+    if (items.length === 0) {
+      const timer = setTimeout(() => setShowEmpty(true), 220);
+      return () => clearTimeout(timer);
+    }
+    setShowEmpty(false);
+  }, [items.length]);
 
   function handleRemoveItem(cartItemId: string) {
     const item = items.find((i) => i.id === cartItemId);
@@ -886,7 +895,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
           </div>
         )}
 
-        {items.length === 0 ? (
+        {showEmpty ? (
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-3">
             {!existingOrderId && (
               <div className="grid flex-1 place-items-center p-6">
@@ -921,7 +930,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
           <>
             <div className="min-h-0 flex-1 overflow-y-auto p-3">
               <ul className="flex flex-col gap-2">
-                <AnimatePresence initial={false}>
+                <AnimatePresence>
                   {[...items].reverse().map((item, index) => (
                     <motion.li
                       key={item.id}
