@@ -67,6 +67,7 @@ type PurchaseOrder = {
   total_amount?: string | number | null;
   payment_status?: string | null;
   payment_status_display?: string | null;
+  status?: string | null;
   status_display?: string | null;
   order_date?: string | null;
   items_count?: string | number | null;
@@ -232,6 +233,62 @@ function orderTypeMeta(type?: string | null) {
         label: "Cuenta",
         className: "bg-muted text-muted-foreground",
       };
+  }
+}
+
+function purchaseOrderStatusBadgeClass(status?: string | null) {
+  switch (status?.toUpperCase()) {
+    case "SENT":
+      return "bg-primary/10 text-primary";
+    case "RECEIVED":
+    case "COMPLETED":
+      return "bg-emerald-500/10 text-emerald-700";
+    case "CANCELLED":
+      return "bg-rose-500/10 text-rose-700";
+    default:
+      return "bg-muted text-muted-foreground";
+  }
+}
+
+function purchaseOrderPaymentBadgeClass(status?: string | null) {
+  switch (status?.toUpperCase()) {
+    case "PAID":
+      return "bg-emerald-500/10 text-emerald-700";
+    case "PARTIAL":
+      return "bg-violet-500/10 text-violet-700";
+    case "PENDING":
+    default:
+      return "bg-amber-500/10 text-amber-700";
+  }
+}
+
+function purchaseOrderStatusLabel(status?: string | null) {
+  switch (status?.toUpperCase()) {
+    case "SENT":
+      return "Enviada";
+    case "RECEIVED":
+      return "Recibida";
+    case "COMPLETED":
+      return "Completada";
+    case "CANCELLED":
+      return "Cancelada";
+    case "PENDING":
+      return "Pendiente";
+    default:
+      return status ?? "—";
+  }
+}
+
+function purchaseOrderPaymentLabel(status?: string | null) {
+  switch (status?.toUpperCase()) {
+    case "PAID":
+      return "Pagada";
+    case "PARTIAL":
+      return "Parcial";
+    case "PENDING":
+      return "Pendiente";
+    default:
+      return status ?? "—";
   }
 }
 
@@ -662,27 +719,42 @@ export default function PayPendingItemModal({
               className={cn(
                 "rounded-xl border p-3 shadow-sm hover:shadow-md transition-shadow",
                 selectedItemId === o.id
-                  ? "border-primary bg-primary/10"
+                  ? "border-primary bg-primary/5"
                   : "border-border/60 bg-card",
               )}
             >
-              <div className="flex justify-between gap-3">
+              <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold">{o.order_number ?? o.id.slice(0, 8)}</p>
-                  <p className="truncate text-xs text-muted-foreground">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <p className="text-sm font-semibold">{o.order_number ?? o.id.slice(0, 8)}</p>
+                    <span
+                      className={cn(
+                        "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium",
+                        purchaseOrderStatusBadgeClass(o.status_display ?? o.status),
+                      )}
+                    >
+                      {purchaseOrderStatusLabel(o.status_display ?? o.status)}
+                    </span>
+                    <span
+                      className={cn(
+                        "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium",
+                        purchaseOrderPaymentBadgeClass(o.payment_status_display ?? o.payment_status),
+                      )}
+                    >
+                      {purchaseOrderPaymentLabel(o.payment_status_display ?? o.payment_status)}
+                    </span>
+                  </div>
+                  <p className="mt-1 truncate text-xs text-muted-foreground">
                     {o.supplier_name ?? "Sin proveedor"} · {shortDate(o.order_date)}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {o.status_display ?? o.payment_status_display ?? ""}{" "}
-                    {o.items_count ? `· ${o.items_count} ítems` : ""}
+                    {o.items_count ? ` · ${o.items_count} ítems` : ""}
                   </p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-sm font-bold">{formatCLP(toNum(o.remaining_amount))}</p>
+                  <p className="text-sm font-bold tabular-nums">{formatCLP(toNum(o.remaining_amount))}</p>
                   <p className="text-xs text-muted-foreground">de {formatCLP(toNum(o.total_amount))}</p>
                 </div>
               </div>
-              <div className="mt-2 flex flex-wrap gap-2">
+              <div className="mt-2 flex flex-wrap items-center gap-2">
                 <Button size="sm" onClick={() => handleSelectItem(o.id)}>
                   Pagar
                 </Button>
@@ -706,24 +778,35 @@ export default function PayPendingItemModal({
                 </a>
               </div>
               {viewDetailId === o.id && (
-                <div className="mt-3 rounded-lg bg-muted/30 p-3 text-xs">
-                  <p>
-                    <span className="font-medium">Proveedor:</span> {o.supplier_name ?? "-"}
-                  </p>
-                  <p>
-                    <span className="font-medium">Total:</span> {formatCLP(toNum(o.total_amount))} ·{" "}
-                    <span className="font-medium">Pendiente:</span> {formatCLP(toNum(o.remaining_amount))}
-                  </p>
-                  <p>
-                    <span className="font-medium">Estado:</span> {o.status_display ?? "-"} ·{" "}
-                    {o.payment_status_display ?? o.payment_status ?? "-"}
-                  </p>
-                  <p>
-                    <span className="font-medium">Fecha:</span> {shortDate(o.order_date)}
-                  </p>
-                  <p>
-                    <span className="font-medium">Sucursal:</span> {o.branch_name ?? "-"}
-                  </p>
+                <div className="mt-3 grid grid-cols-2 gap-2 rounded-lg bg-muted/30 p-3 text-xs sm:grid-cols-3">
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Proveedor</p>
+                    <p className="font-medium">{o.supplier_name ?? "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Total</p>
+                    <p className="font-medium tabular-nums">{formatCLP(toNum(o.total_amount))}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Pendiente</p>
+                    <p className="font-medium tabular-nums">{formatCLP(toNum(o.remaining_amount))}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Estado orden</p>
+                    <p className="font-medium">{purchaseOrderStatusLabel(o.status_display ?? o.status)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Estado pago</p>
+                    <p className="font-medium">{purchaseOrderPaymentLabel(o.payment_status_display ?? o.payment_status)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Fecha</p>
+                    <p className="font-medium">{shortDate(o.order_date)}</p>
+                  </div>
+                  <div className="col-span-2 sm:col-span-3">
+                    <p className="text-[10px] text-muted-foreground">Sucursal</p>
+                    <p className="font-medium">{o.branch_name ?? "—"}</p>
+                  </div>
                 </div>
               )}
             </div>
