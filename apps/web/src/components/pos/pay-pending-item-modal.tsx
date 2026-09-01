@@ -57,6 +57,8 @@ function numberValue(v: string): string {
 type Order = YggdraSchemas["Order"] & {
   order_number?: string | null;
   paid_amount?: string | null;
+  delivery_address?: string | null;
+  delivery_status?: string | null;
 };
 
 type PurchaseOrder = {

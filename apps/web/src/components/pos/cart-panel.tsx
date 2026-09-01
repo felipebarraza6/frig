@@ -53,6 +53,8 @@ type Customer = YggdraSchemas["Client"];
 type Order = YggdraSchemas["Order"] & {
   order_number?: string | null;
   paid_amount?: string | number | null;
+  delivery_address?: string | null;
+  delivery_date?: string | null;
 };
 type OrderProduct = YggdraSchemas["OrderProduct"];
 
@@ -160,7 +162,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
         modifierOptionId: m.modifier_option,
         name: m.modifier_option_name,
         groupName: m.modifier_group_name,
-        surcharge: m.surcharge_applied ?? 0,
+        surcharge: Number(m.surcharge_applied ?? 0),
       }));
       return {
         id: `existing-${op.id}`,
@@ -168,7 +170,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
         product,
         quantity: op.quantity ?? 1,
         modifiers,
-        discountPercentage: op.discount_percentage ?? 0,
+        discountPercentage: Number(op.discount_percentage ?? 0),
         notes: op.notes ?? undefined,
       };
     });
