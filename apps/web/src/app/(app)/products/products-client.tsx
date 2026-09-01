@@ -44,10 +44,7 @@ import { useCategoryOptions } from "@/lib/hooks/useCategoryOptions";
 import { useToast } from "@/lib/store/toast";
 import { useCurrentBranch } from "@/lib/store/session";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
-import {
-  fetchBranchRecipes,
-  fetchBranchRecipeIngredients,
-} from "@/lib/api/recipes";
+import { useBranchRecipeMaps } from "@/lib/hooks/useBranchRecipeMaps";
 import type { YggdraProduct, YggdraSchemas } from "@/lib/api/types";
 
 function productStock(p: YggdraProduct): number {
@@ -379,40 +376,9 @@ export function ProductsClient() {
     [products],
   );
 
-  const { data: branchRecipes = [] } = useQuery({
-    queryKey: ["recipes", "branch", branch?.branch_id],
-    queryFn: fetchBranchRecipes,
-    enabled: !!branch?.branch_id && compoundProductIds.length > 0,
-    staleTime: 5 * 60_000,
-  });
-
-  const { data: branchRecipeIngredients = [] } = useQuery({
-    queryKey: ["recipe-ingredients", "branch", branch?.branch_id],
-    queryFn: fetchBranchRecipeIngredients,
-    enabled: !!branch?.branch_id && compoundProductIds.length > 0,
-    staleTime: 5 * 60_000,
-  });
-
-  const recipesByProductId = useMemo(() => {
-    const map = new Map<number, YggdraSchemas["Recipe"]>();
-    for (const recipe of branchRecipes) {
-      if (recipe.resulting_product == null) continue;
-      if (!map.has(recipe.resulting_product)) {
-        map.set(recipe.resulting_product, recipe);
-      }
-    }
-    return map;
-  }, [branchRecipes]);
-
-  const ingredientsByRecipeId = useMemo(() => {
-    const map = new Map<string, YggdraSchemas["RecipeIngredient"][]>();
-    for (const ing of branchRecipeIngredients) {
-      const list = map.get(ing.recipe) ?? [];
-      list.push(ing);
-      map.set(ing.recipe, list);
-    }
-    return map;
-  }, [branchRecipeIngredients]);
+  const { recipesByProductId, ingredientsByRecipeId } = useBranchRecipeMaps(
+    !!branch?.branch_id && compoundProductIds.length > 0,
+  );
 
   const toggleActive = useMutation({
     mutationFn: ({ id, isActive }: { id: number; isActive: boolean }) =>

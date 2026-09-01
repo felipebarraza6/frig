@@ -3,12 +3,14 @@
 import { memo } from "react";
 import { motion } from "framer-motion";
 import { AlertTriangle, Utensils, Package } from "lucide-react";
-import type { PosProduct } from "@/lib/api/types";
+import type { PosProduct, YggdraSchemas } from "@/lib/api/types";
 import { useBranchProductTypes } from "@/lib/hooks/useBranchProductTypes";
 import { formatCLP, cn } from "@/lib/utils";
 
 interface ProductCardProps {
   product: PosProduct;
+  recipe?: YggdraSchemas["Recipe"] | null;
+  ingredients?: YggdraSchemas["RecipeIngredient"][];
   onClick: (product: PosProduct) => void;
   onKeyDown?: (e: React.KeyboardEvent, product: PosProduct) => void;
 }
@@ -26,12 +28,39 @@ function stockStatus(product: PosProduct): {
   return { text: `${qty}${unit} disp.`, shortText: `${qty}${unit}`, variant: "ok" };
 }
 
-function ProductTypeBadge({ product }: { product: PosProduct }) {
+function ProductTypeBadge({
+  product,
+  recipe,
+  ingredients,
+}: {
+  product: PosProduct;
+  recipe?: YggdraSchemas["Recipe"] | null;
+  ingredients?: YggdraSchemas["RecipeIngredient"][];
+}) {
   const { labelFor: productTypeLabel } = useBranchProductTypes();
   const isRecipe = product.product_type === "RECIPE_BASED";
+
+  if (isRecipe) {
+    const names = (ingredients ?? [])
+      .map((i) => i.ingredient_name)
+      .filter(Boolean)
+      .slice(0, 3);
+    return (
+      <span
+        className="inline-flex max-w-full items-center gap-1 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary"
+        title={recipe?.name || undefined}
+      >
+        <Utensils className="h-2.5 w-2.5 shrink-0" />
+        <span className="truncate">
+          {names.length > 0 ? names.join(", ") : recipe?.name || "Sin receta"}
+        </span>
+      </span>
+    );
+  }
+
   return (
     <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
-      {isRecipe ? <Utensils className="h-2.5 w-2.5" /> : <Package className="h-2.5 w-2.5" />}
+      <Package className="h-2.5 w-2.5" />
       {productTypeLabel(product.product_type)}
     </span>
   );
@@ -68,7 +97,7 @@ function ProductImage({ product }: { product: PosProduct }) {
   );
 }
 
-function ProductCardRaw({ product, onClick, onKeyDown }: ProductCardProps) {
+function ProductCardRaw({ product, recipe, ingredients, onClick, onKeyDown }: ProductCardProps) {
   const disabled = (product.quantity ?? 0) === 0;
   const hasImage = Boolean(product.image);
 
@@ -97,7 +126,7 @@ function ProductCardRaw({ product, onClick, onKeyDown }: ProductCardProps) {
             {product.name}
           </p>
           <div className="flex flex-wrap items-center gap-1">
-            <ProductTypeBadge product={product} />
+            <ProductTypeBadge product={product} recipe={recipe} ingredients={ingredients} />
             <StockBadge product={product} />
           </div>
         </div>

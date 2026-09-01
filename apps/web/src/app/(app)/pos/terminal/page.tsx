@@ -47,6 +47,7 @@ import {
   type ComboList,
   type ProductModifierGroup,
 } from "@/lib/hooks/useCatalog";
+import { useBranchRecipeMaps } from "@/lib/hooks/useBranchRecipeMaps";
 import { fetchCombo } from "@/lib/api/combos";
 import {
   fetchPublicCatalogs,
@@ -381,6 +382,11 @@ export default function PosPage() {
   const { data: categories, isLoading: categoriesLoading } = useCategories();
   const { data: productModifierGroups } = useProductModifierGroups();
   const { data: combos } = useCombos();
+
+  const hasCompoundProducts =
+    products?.some((p) => p.product_type === "RECIPE_BASED") ?? false;
+  const { recipesByProductId, ingredientsByRecipeId } =
+    useBranchRecipeMaps(hasCompoundProducts);
 
   const { data: openAccountsPage, isLoading: loadingOpenAccounts } = useQuery({
     queryKey: ["orders", "open-accounts", "pos-terminal"],
@@ -1420,6 +1426,10 @@ export default function PosPage() {
                     <ProductCard
                       key={product.id}
                       product={product}
+                      recipe={recipesByProductId.get(product.id)}
+                      ingredients={ingredientsByRecipeId.get(
+                        recipesByProductId.get(product.id)?.id ?? "",
+                      )}
                       onClick={handleAddProduct}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {

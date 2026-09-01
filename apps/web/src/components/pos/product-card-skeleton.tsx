@@ -4,13 +4,13 @@ import { SkeletonText } from "@/components/ui/skeleton";
 
 export function ProductCardSkeleton() {
   return (
-    <div className="flex flex-col overflow-hidden rounded-2xl border border-border/70 bg-card p-2 shadow-sm">
+    <div className="flex h-full w-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-card p-2 shadow-sm">
       <div className="aspect-[4/3] w-full overflow-hidden rounded-lg bg-muted" />
       <div className="mt-2 flex flex-1 flex-col justify-between gap-2">
         <div className="flex flex-col gap-1.5">
           <SkeletonText width="90%" height="md" className="bg-muted" />
           <div className="flex flex-wrap items-center gap-1">
-            <SkeletonText width="35%" height="sm" className="bg-muted" />
+            <SkeletonText width="55%" height="sm" className="bg-muted" />
             <SkeletonText width="30%" height="sm" className="bg-muted" />
           </div>
         </div>
