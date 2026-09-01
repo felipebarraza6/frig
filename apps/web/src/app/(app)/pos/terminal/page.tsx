@@ -1156,7 +1156,9 @@ export default function PosPage() {
                 Categorías
               </p>
               <div className="flex flex-col gap-1">
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
                   onClick={() => setActiveCategory(null)}
                   className={cn(
                     "flex items-center justify-between rounded-lg px-2.5 py-2 text-left text-xs font-medium transition-colors",
@@ -1167,14 +1169,16 @@ export default function PosPage() {
                 >
                   <span>Todos</span>
                   <span className="text-[10px] opacity-80">{baseFiltered.length}</span>
-                </button>
+                </motion.button>
                 {categoriesLoading
                   ? [0, 1, 2, 3, 4].map((i) => (
                       <Skeleton key={i} className="h-8 w-full rounded-lg" />
                     ))
                   : categories?.map((cat) => (
-                      <button
+                      <motion.button
                         key={cat.id}
+                        whileHover={{ scale: 1.03 }}
+                        whileTap={{ scale: 0.97 }}
                         onClick={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)}
                         className={cn(
                           "flex items-center justify-between rounded-lg px-2.5 py-2 text-left text-xs font-medium transition-colors",
@@ -1185,10 +1189,12 @@ export default function PosPage() {
                       >
                         <span className="truncate">{cat.name}</span>
                         <span className="text-[10px] opacity-80">{categoryCounts.get(cat.id) ?? 0}</span>
-                      </button>
+                      </motion.button>
                     ))}
                 {combos && combos.length > 0 && (
-                  <button
+                  <motion.button
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
                     onClick={() => setActiveCategory(activeCategory === "combos" ? null : "combos")}
                     className={cn(
                       "flex items-center justify-between rounded-lg px-2.5 py-2 text-left text-xs font-medium transition-colors",
@@ -1199,7 +1205,7 @@ export default function PosPage() {
                   >
                     <span className="truncate">Combos</span>
                     <span className="text-[10px] opacity-80">{filteredCombos.length}</span>
-                  </button>
+                  </motion.button>
                 )}
               </div>
             </div>
@@ -1268,7 +1274,9 @@ export default function PosPage() {
                 )}
 
                 <div className="flex items-center gap-1 overflow-x-auto pb-1">
-                  <button
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => setActiveCategory(null)}
                     className={cn(
                       "shrink-0 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
@@ -1278,14 +1286,16 @@ export default function PosPage() {
                     )}
                   >
                     Todos ({baseFiltered.length})
-                  </button>
+                  </motion.button>
                   {categoriesLoading
                     ? [0, 1, 2, 3, 4].map((i) => (
                         <Skeleton key={i} className="h-6 w-16 shrink-0 rounded-md" />
                       ))
                     : categories?.map((cat) => (
-                        <button
+                        <motion.button
                           key={cat.id}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
                           onClick={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)}
                           className={cn(
                             "shrink-0 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
@@ -1295,11 +1305,13 @@ export default function PosPage() {
                           )}
                         >
                           {cat.name} ({categoryCounts.get(cat.id) ?? 0})
-                        </button>
+                        </motion.button>
                       ))}
                   {combos && combos.length > 0 && (
-                    <button
+                    <motion.button
                       type="button"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                       onClick={() => setActiveCategory(activeCategory === "combos" ? null : "combos")}
                       className={cn(
                         "shrink-0 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
@@ -1309,7 +1321,7 @@ export default function PosPage() {
                       )}
                     >
                       Combos ({filteredCombos.length})
-                    </button>
+                    </motion.button>
                   )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2 border-t border-border/40 pt-1.5">
