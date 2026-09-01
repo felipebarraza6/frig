@@ -26,6 +26,7 @@ import {
   FileText,
   CircleDollarSign,
   MoreHorizontal,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1191,7 +1192,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                             className="flex flex-col gap-2 rounded-lg bg-muted/30 p-2.5"
                           >
                             <div className="flex flex-wrap items-end gap-2">
-                              <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">
+                              <div className="flex min-w-0 flex-1 flex-wrap gap-2">
                                 {posPaymentMethods.map((m) => {
                                     const Icon = paymentMethodIcon(m.payment_type);
                                     const selected = payment.payment_method_id === m.id;
@@ -1206,16 +1207,22 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                                           })
                                         }
                                         className={cn(
-                                          "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition-colors",
+                                          "group inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold shadow-sm transition-all active:scale-95",
                                           selected
-                                            ? "border-primary bg-primary/10 text-primary"
-                                            : "border-border/60 bg-background text-foreground hover:bg-muted",
+                                            ? "border-primary bg-primary text-primary-foreground shadow-primary/20"
+                                            : "border-border/80 bg-card text-foreground hover:border-primary/60 hover:bg-primary/5",
                                         )}
                                       >
-                                        <Icon className="h-3.5 w-3.5 shrink-0" />
+                                        <Icon
+                                          className={cn(
+                                            "h-4 w-4 shrink-0 transition-colors",
+                                            selected ? "text-primary-foreground" : "text-primary/80 group-hover:text-primary",
+                                          )}
+                                        />
                                         <span className="truncate">
                                           {paymentTypeLabel(m.payment_type) || m.name || m.payment_type}
                                         </span>
+                                        {selected && <Check className="ml-0.5 h-3.5 w-3.5 shrink-0" />}
                                       </button>
                                     );
                                   })}
