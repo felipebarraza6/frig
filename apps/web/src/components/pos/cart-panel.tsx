@@ -1191,8 +1191,8 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                             key={payment.id}
                             className="flex flex-col gap-2 rounded-lg bg-muted/30 p-2.5"
                           >
-                            <div className="flex flex-wrap items-end gap-2">
-                              <div className="flex min-w-0 flex-1 flex-wrap gap-2">
+                            <div className="flex items-start gap-2">
+                              <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1 scrollbar-thin">
                                 {posPaymentMethods.map((m) => {
                                     const Icon = paymentMethodIcon(m.payment_type);
                                     const selected = payment.payment_method_id === m.id;
@@ -1207,7 +1207,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                                           })
                                         }
                                         className={cn(
-                                          "group inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold shadow-sm transition-all active:scale-95",
+                                          "group inline-flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold shadow-sm transition-all active:scale-95",
                                           selected
                                             ? "border-primary bg-primary text-primary-foreground shadow-primary/20"
                                             : "border-border/80 bg-card text-foreground hover:border-primary/60 hover:bg-primary/5",
@@ -1227,7 +1227,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                                     );
                                   })}
                               </div>
-                              <div className="flex items-end gap-2">
+                              <div className="flex shrink-0 items-start gap-2">
                                 <div className="flex w-24 flex-col gap-0.5">
                                   <Input
                                     type="number"

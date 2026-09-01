@@ -1448,7 +1448,7 @@ export default function PosPage() {
       </section>
 
         {/* Carrito desktop */}
-        <aside className="hidden h-full w-[320px] min-w-0 shrink-0 overflow-hidden bg-background p-3 md:block">
+        <aside className="hidden h-full w-[360px] min-w-0 shrink-0 overflow-hidden bg-background p-3 md:block">
           {isWaiter && !selectedTable && !isEditingOrder ? (
             <div className="grid h-full place-items-center rounded-2xl border border-dashed border-border p-6 text-center">
               <div className="flex flex-col items-center gap-3">
