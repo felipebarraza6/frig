@@ -21,9 +21,11 @@ import {
   Truck,
   Clock,
   ChevronDown,
+  Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
 
 import {
   useCartStore,
@@ -103,6 +105,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
   }
 
   const [payments, setPayments] = useState<PaymentLine[]>([]);
+  const [itemNotesModalId, setItemNotesModalId] = useState<string | null>(null);
   const [selectedClient, setSelectedClient] = useState<Customer | null>(null);
   const [clientQuery, setClientQuery] = useState("");
   const [showClientResults, setShowClientResults] = useState(false);
@@ -927,7 +930,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                       transition={{ duration: 0.12 }}
                       className="border-b border-border/40 py-2.5 last:border-b-0"
                     >
-                      <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium leading-tight">{item.product.name}</p>
                           <p className="text-[11px] text-muted-foreground">
@@ -948,46 +951,59 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                               ))}
                             </div>
                           )}
-                          <input
-                            type="text"
-                            value={item.notes ?? ""}
-                            onChange={(e) => setItemNotes(item.id, e.target.value)}
-                            placeholder="Nota"
-                            className="mt-2 h-7 w-full rounded-md border border-border/60 bg-background px-2 text-[11px] text-foreground placeholder:text-muted-foreground/70 focus:border-primary focus:outline-none"
-                          />
+                          {item.notes ? (
+                            <button
+                              type="button"
+                              onClick={() => setItemNotesModalId(item.id)}
+                              className="mt-1 inline-flex items-center gap-1 text-left text-[11px] text-primary hover:underline"
+                            >
+                              <Pencil className="h-3 w-3" />
+                              <span className="line-clamp-2">{item.notes}</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setItemNotesModalId(item.id)}
+                              className="mt-1 inline-flex items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-primary"
+                            >
+                              <Pencil className="h-3 w-3" />
+                              Agregar nota
+                            </button>
+                          )}
                         </div>
-                        <button
-                          onClick={() => handleRemoveItem(item.id)}
-                          aria-label={`Quitar ${item.product.name}`}
-                          className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-danger"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-
-                      <div className="mt-2 flex items-center justify-between">
-                        <div className="inline-flex items-center rounded-lg border border-border/60 bg-background">
-                          <button
-                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                            aria-label="Disminuir cantidad"
-                            className="flex h-9 w-9 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
-                          >
-                            <Minus className="h-4 w-4" />
-                          </button>
-                          <span className="w-9 text-center text-xs font-semibold tabular-nums">
-                            {item.quantity}
-                          </span>
-                          <button
-                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                            aria-label="Aumentar cantidad"
-                            className="flex h-9 w-9 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
-                          >
-                            <Plus className="h-4 w-4" />
-                          </button>
+                        <div className="flex flex-col items-end gap-1.5">
+                          <div className="flex flex-col items-center overflow-hidden rounded-lg border border-border/60 bg-background">
+                            <button
+                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                              aria-label="Aumentar cantidad"
+                              className="flex h-7 w-8 items-center justify-center text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                            </button>
+                            <span className="py-0.5 text-xs font-semibold tabular-nums">
+                              {item.quantity}
+                            </span>
+                            <button
+                              onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                              aria-label="Disminuir cantidad"
+                              className="flex h-7 w-8 items-center justify-center text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                            >
+                              <Minus className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold tabular-nums">
+                              {formatCLP(cartItemTotal(item))}
+                            </span>
+                            <button
+                              onClick={() => handleRemoveItem(item.id)}
+                              aria-label={`Quitar ${item.product.name}`}
+                              className="inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-danger"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
                         </div>
-                        <span className="text-sm font-semibold tabular-nums">
-                          {formatCLP(cartItemTotal(item))}
-                        </span>
                       </div>
                     </motion.li>
                   ))}
@@ -1375,6 +1391,34 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
           error={createCustomerMutation.error}
         />
       )}
+
+      <Modal
+        open={itemNotesModalId !== null}
+        onClose={() => setItemNotesModalId(null)}
+        title="Nota del producto"
+        size="sm"
+      >
+        {(() => {
+          const item = items.find((i) => i.id === itemNotesModalId);
+          if (!item) return null;
+          return (
+            <div className="flex flex-col gap-3">
+              <p className="text-sm font-medium">{item.product.name}</p>
+              <textarea
+                value={item.notes ?? ""}
+                onChange={(e) => setItemNotes(item.id, e.target.value)}
+                placeholder="Ej: sin cebolla, bien cocido..."
+                className="min-h-[100px] w-full resize-none rounded-lg border border-border/60 bg-background p-3 text-sm text-foreground placeholder:text-muted-foreground/70 focus:border-primary focus:outline-none"
+              />
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setItemNotesModalId(null)}>
+                  Cerrar
+                </Button>
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
 
     </div>
   );
