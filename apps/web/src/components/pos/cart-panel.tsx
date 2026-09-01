@@ -26,9 +26,11 @@ import {
   FileText,
   CircleDollarSign,
   MoreHorizontal,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
 
 import {
   useCartStore,
@@ -123,6 +125,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
   }
 
   const [payments, setPayments] = useState<PaymentLine[]>([]);
+  const [paymentMethodModalPaymentId, setPaymentMethodModalPaymentId] = useState<string | null>(null);
   const [selectedClient, setSelectedClient] = useState<Customer | null>(null);
   const [clientQuery, setClientQuery] = useState("");
   const [showClientResults, setShowClientResults] = useState(false);
@@ -1191,45 +1194,27 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                             className="flex flex-col gap-2 rounded-lg bg-muted/30 p-2.5"
                           >
                             <div className="flex items-start gap-2">
-                              <div className="isolate inline-flex min-w-0 flex-1 overflow-x-auto rounded-lg pb-1 shadow-sm scrollbar-thin">
-                                {posPaymentMethods.map((m, idx) => {
-                                    const Icon = paymentMethodIcon(m.payment_type);
-                                    const selected = payment.payment_method_id === m.id;
-                                    const isFirst = idx === 0;
-                                    const isLast = idx === posPaymentMethods.length - 1;
+                              <button
+                                type="button"
+                                onClick={() => setPaymentMethodModalPaymentId(payment.id)}
+                                className="inline-flex min-w-0 flex-1 items-center justify-between gap-2 rounded-lg border border-border/80 bg-card px-3 py-2 text-left text-xs font-semibold text-foreground transition-colors hover:bg-muted"
+                              >
+                                <span className="inline-flex items-center gap-2 truncate">
+                                  {(() => {
+                                    const m = posPaymentMethods.find((pm) => pm.id === payment.payment_method_id);
+                                    const Icon = paymentMethodIcon(m?.payment_type);
                                     return (
-                                      <button
-                                        key={m.id}
-                                        type="button"
-                                        onClick={() =>
-                                          updatePayment(payment.id, {
-                                            payment_method_id: m.id,
-                                            cash_received: undefined,
-                                          })
-                                        }
-                                        className={cn(
-                                          "relative inline-flex shrink-0 items-center gap-2 px-3 py-2 text-xs font-semibold ring-1 ring-inset ring-border/80 transition-colors focus:z-10",
-                                          isFirst && "rounded-l-lg",
-                                          isLast && "rounded-r-lg",
-                                          !isFirst && "-ml-px",
-                                          selected
-                                            ? "z-10 bg-primary text-primary-foreground ring-primary"
-                                            : "bg-card text-foreground hover:bg-primary/5 hover:text-primary",
-                                        )}
-                                      >
-                                        <Icon
-                                          className={cn(
-                                            "h-4 w-4 shrink-0 transition-colors",
-                                            selected ? "text-primary-foreground" : "text-primary/80",
-                                          )}
-                                        />
+                                      <>
+                                        <Icon className="h-4 w-4 shrink-0 text-primary" />
                                         <span className="truncate">
-                                          {paymentTypeLabel(m.payment_type) || m.name || m.payment_type}
+                                          {paymentTypeLabel(m?.payment_type) || m?.name || "Seleccionar"}
                                         </span>
-                                      </button>
+                                      </>
                                     );
-                                  })}
-                              </div>
+                                  })()}
+                                </span>
+                                <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                              </button>
                               <div className="flex shrink-0 items-start gap-2">
                                 <div className="flex w-24 flex-col gap-0.5">
                                   <Input
@@ -1413,6 +1398,54 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
           error={createCustomerMutation.error}
         />
       )}
+
+      <Modal
+        open={paymentMethodModalPaymentId !== null}
+        onClose={() => setPaymentMethodModalPaymentId(null)}
+        title="Método de pago"
+        description="Selecciona cómo se realizará este pago."
+        size="sm"
+      >
+        {(() => {
+          const editingPayment = payments.find((p) => p.id === paymentMethodModalPaymentId);
+          return (
+            <div className="grid grid-cols-2 gap-3 p-1">
+              {posPaymentMethods.map((m) => {
+                const Icon = paymentMethodIcon(m.payment_type);
+                const selected = editingPayment?.payment_method_id === m.id;
+                const label = paymentTypeLabel(m.payment_type) || m.name || m.payment_type;
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => {
+                      if (paymentMethodModalPaymentId) {
+                        updatePayment(paymentMethodModalPaymentId, {
+                          payment_method_id: m.id,
+                          cash_received: undefined,
+                        });
+                      }
+                      setPaymentMethodModalPaymentId(null);
+                    }}
+                    className={cn(
+                      "flex flex-col items-center gap-2 rounded-xl border p-4 text-center transition-colors",
+                      selected
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-card text-foreground hover:border-primary/40 hover:bg-primary/5",
+                    )}
+                  >
+                    <Icon className="h-8 w-8" />
+                    <span className="text-sm font-semibold">{label}</span>
+                    {m.name && m.name !== label && (
+                      <span className="text-xs text-muted-foreground">{m.name}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })()}
+      </Modal>
 
     </div>
   );
