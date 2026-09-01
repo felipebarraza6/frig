@@ -922,13 +922,19 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
             <div className="min-h-0 flex-1 overflow-y-auto p-3">
               <ul className="flex flex-col gap-2">
                 <AnimatePresence initial={false}>
-                  {[...items].reverse().map((item) => (
+                  {[...items].reverse().map((item, index) => (
                     <motion.li
                       key={item.id}
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-                      transition={{ duration: 0.12 }}
+                      layout
+                      initial={{ opacity: 0, y: 16, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, x: 24, height: 0, marginBottom: 0, paddingTop: 0, paddingBottom: 0 }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 420,
+                        damping: 26,
+                        delay: index * 0.02,
+                      }}
                       className="border-b border-border/40 py-2.5 last:border-b-0"
                     >
                       <div className="flex items-start justify-between gap-3">
