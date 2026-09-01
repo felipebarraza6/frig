@@ -121,7 +121,7 @@ export default function PosQuickActions({
   const { data: collectCountData } = useQuery({
     queryKey: ["pending-collect-count"],
     queryFn: async () => {
-      const data = await fetchOrders({ order_type: "SALE", payment_status: ["PENDING", "PARTIAL"], page_size: 100 });
+      const data = await fetchOrders({ order_type: ["SALE", "ORDER"], payment_status: ["PENDING", "PARTIAL"], page_size: 100 });
       const ids = new Set<number | string>();
       for (const o of (data.results ?? []) as Order[]) {
         const cid = (o.client as unknown as { id?: number | string })?.id;

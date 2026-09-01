@@ -28,7 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { ModalBody, ModalFooter } from "@/components/ui/modal";
-import { fetchOrders, fetchOrder, payOrder, fetchPendingOrdersByClient, deliverOrder } from "@/lib/api/orders";
+import { fetchOrders, fetchOrder, payOrder, deliverOrder } from "@/lib/api/orders";
 import { fetchPurchaseOrders, payPurchaseOrder } from "@/lib/api/suppliers";
 import { searchCustomers } from "@/lib/api/customers";
 import { formatCLP, cn } from "@/lib/utils";
@@ -283,7 +283,7 @@ const TYPE_CONFIG: Record<
   collect: {
     title: "Cobrar por cliente",
     icon: <UserSearch className="h-5 w-5" />,
-    listLabel: "Órdenes del cliente",
+    listLabel: "Deudas del cliente",
   },
   pay_purchase_order: {
     title: "Órdenes de compra",
@@ -331,7 +331,7 @@ export default function PayPendingItemModal({
   const { data: allPendingAccounts = [], isLoading: loadingAllPending } = useQuery({
     queryKey: ["all-pending-accounts-for-collect", dateFrom, dateTo],
     queryFn: async () => {
-      const data = await fetchOrders({ order_type: "SALE", payment_status: ["PENDING", "PARTIAL"], start_date: dateFrom || undefined, end_date: dateTo || undefined, page_size: 100 });
+      const data = await fetchOrders({ order_type: ["SALE", "ORDER"], payment_status: ["PENDING", "PARTIAL"], start_date: dateFrom || undefined, end_date: dateTo || undefined, page_size: 100 });
       return (data.results ?? []) as Order[];
     },
     enabled: open && type === "collect",
@@ -362,7 +362,15 @@ export default function PayPendingItemModal({
     queryFn: async () => {
       if (type === "collect") {
         if (!selectedClient) return [];
-        return fetchPendingOrdersByClient(String(selectedClient.id)) as Promise<Order[]>;
+        const data = await fetchOrders({
+          order_type: ["SALE", "ORDER"],
+          payment_status: ["PENDING", "PARTIAL"],
+          client__in: String(selectedClient.id),
+          start_date: dateFrom || undefined,
+          end_date: dateTo || undefined,
+          page_size: 100,
+        });
+        return (data.results ?? []) as Order[];
       }
       if (type === "pay_account") {
         const data = await fetchOrders({
@@ -697,7 +705,7 @@ export default function PayPendingItemModal({
             return (
               <EmptyState
                 icon={UserSearch}
-                title="No hay clientes con cuentas pendientes"
+                title="No hay clientes con deudas pendientes"
                 description="Ajusta el rango de fechas si esperas ver más resultados."
               />
             );
@@ -730,7 +738,7 @@ export default function PayPendingItemModal({
                   </div>
                   <div className="text-left min-w-0">
                     <p className="truncate text-sm font-medium">{entry.client?.name ?? "Sin nombre"}</p>
-                    <p className="text-xs text-muted-foreground">{entry.orders.length} cuenta(s) pendiente(s)</p>
+                    <p className="text-xs text-muted-foreground">{entry.orders.length} deuda(s) pendiente(s)</p>
                   </div>
                 </div>
                 <span className="ml-3 shrink-0 text-sm font-bold tabular-nums">{formatCLP(entry.totalPending)}</span>
