@@ -88,7 +88,7 @@ const SECTIONS: {
       {
         key: "order_history",
         label: "Historial de órdenes",
-        description: "Muestra cuentas abiertas y órdenes pendientes.",
+        description: "Muestra cuentas abiertas y órdenes.",
       },
       {
         key: "customer_search",

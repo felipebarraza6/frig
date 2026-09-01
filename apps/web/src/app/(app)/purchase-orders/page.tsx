@@ -41,8 +41,15 @@ const STATUS_OPTIONS = [
   { value: "CANCELLED", label: "Anulada" },
 ];
 
-function statusLabel(value?: string | null): string {
-  return STATUS_OPTIONS.find((o) => o.value === value)?.label ?? (value ?? "—");
+function statusLabel(value?: string | null, display?: string | null): string {
+  if (display) return display;
+  const found = STATUS_OPTIONS.find(
+    (o) => o.value.toLowerCase() === (value ?? "").toLowerCase(),
+  );
+  return (
+    found?.label ??
+    (value ? value.charAt(0).toUpperCase() + value.slice(1).toLowerCase() : "—")
+  );
 }
 
 const STATUS_BADGE_CLASSES: Record<string, string> = {
@@ -70,7 +77,13 @@ const PAYMENT_STATUS_OPTIONS = [
 ];
 
 function paymentStatusLabel(value?: string | null): string {
-  return PAYMENT_STATUS_OPTIONS.find((o) => o.value === value)?.label ?? (value ?? "—");
+  const found = PAYMENT_STATUS_OPTIONS.find(
+    (o) => o.value.toLowerCase() === (value ?? "").toLowerCase(),
+  );
+  return (
+    found?.label ??
+    (value ? value.charAt(0).toUpperCase() + value.slice(1).toLowerCase() : "—")
+  );
 }
 
 function paymentStatusBadgeClass(status?: string | null) {
@@ -617,7 +630,7 @@ export default function PurchaseOrdersPage() {
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap items-center gap-1">
                           <span className={statusBadgeClass(order.status)}>
-                            {statusLabel(order.status)}
+                            {statusLabel(order.status, order.status_display)}
                           </span>
                           {order.payment_status && (
                             <span className={paymentStatusBadgeClass(order.payment_status)}>
@@ -714,7 +727,7 @@ export default function PurchaseOrdersPage() {
                       <p className="truncate font-medium">{order.order_number}</p>
                       <p className="text-xs text-muted-foreground">{order.supplier_name ?? "Sin proveedor"}</p>
                       <span className={`mt-1 inline-flex ${statusBadgeClass(order.status)}`}>
-                        {statusLabel(order.status)}
+                        {statusLabel(order.status, order.status_display)}
                       </span>
                       {order.payment_status && (
                         <span className={`ml-1 mt-1 inline-flex ${paymentStatusBadgeClass(order.payment_status)}`}>
@@ -1060,7 +1073,7 @@ export default function PurchaseOrdersPage() {
                 <p><span className="text-muted-foreground">Proveedor:</span> {detail.supplier_name ?? "—"}</p>
                 <p className="flex items-center gap-1">
                   <span className="text-muted-foreground">Estado:</span>
-                  <span className={statusBadgeClass(detail.status)}>{statusLabel(detail.status)}</span>
+                  <span className={statusBadgeClass(detail.status)}>{statusLabel(detail.status, detail.status_display)}</span>
                   {detail.payment_status && (
                     <span className={paymentStatusBadgeClass(detail.payment_status)}>
                       {paymentStatusLabel(detail.payment_status)}

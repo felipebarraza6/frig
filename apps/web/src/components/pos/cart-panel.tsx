@@ -16,6 +16,10 @@ import {
   ClipboardList,
   Receipt,
   Tag,
+  MapPin,
+  Store,
+  Truck,
+  Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,13 +32,15 @@ import {
   cartItemDiscount,
   cartItemSubtotal,
   type CartItem,
+  type CartItemModifier,
 } from "@/lib/store/cart";
 import { formatCLP, paymentTypeLabel, cn } from "@/lib/utils";
 import { useToast } from "@/lib/store/toast";
-import { createOrder, addItemsToOrder, cartToOrderItems } from "@/lib/api/orders";
+import { createOrder, editOrder, fetchOrder, cartToOrderItems, type EditOrderItemInput } from "@/lib/api/orders";
 import { fetchPaymentMethods, createPayment } from "@/lib/api/payments";
 import { searchCustomers, createCustomer, type CustomerPayload } from "@/lib/api/customers";
 import { getCurrentCashRegister } from "@/lib/api/cash-register";
+import { fetchBranchFinanceConfigByBranch } from "@/lib/api/branch-finance-config";
 import { occupyTable, freeTable } from "@/lib/api/tables";
 import { useCurrentBranch, useIsWaiter } from "@/lib/store/session";
 import {
@@ -42,9 +48,13 @@ import {
   applyDiscountToOrder,
   type ValidatedDiscount,
 } from "@/lib/api/discounts";
-import type { YggdraSchemas } from "@/lib/api/types";
+import type { YggdraSchemas, PosProduct } from "@/lib/api/types";
 type Customer = YggdraSchemas["Client"];
-type Order = YggdraSchemas["Order"] & { order_number?: string | null };
+type Order = YggdraSchemas["Order"] & {
+  order_number?: string | null;
+  paid_amount?: string | number | null;
+};
+type OrderProduct = YggdraSchemas["OrderProduct"];
 
 function useDebounce(value: string, delay = 300) {
   const [debounced, setDebounced] = useState(value);
@@ -79,6 +89,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
   const updateQuantity = useCartStore((s) => s.updateQuantity);
   const removeItem = useCartStore((s) => s.removeItem);
   const setItemNotes = useCartStore((s) => s.setItemNotes);
+  const setItems = useCartStore((s) => s.setItems);
   const clear = useCartStore((s) => s.clear);
 
   interface PaymentLine {
@@ -100,6 +111,19 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
   const [validatedDiscount, setValidatedDiscount] = useState<ValidatedDiscount | null>(null);
   const [showClientSection, setShowClientSection] = useState(false);
   const [showDiscountSection, setShowDiscountSection] = useState(false);
+  const [deliveryMode, setDeliveryMode] = useState<"pickup" | "delivery">("pickup");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [deliveryDate, setDeliveryDate] = useState("");
+  const [removedOrderProductIds, setRemovedOrderProductIds] = useState<number[]>([]);
+  const deliveryInitializedRef = useRef(false);
+
+  function handleRemoveItem(cartItemId: string) {
+    const item = items.find((i) => i.id === cartItemId);
+    if (item?.orderProductId) {
+      setRemovedOrderProductIds((prev) => [...prev, item.orderProductId!]);
+    }
+    removeItem(cartItemId);
+  }
 
   const debouncedClientQuery = useDebounce(clientQuery, 300);
 
@@ -115,6 +139,77 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
     }
   }, [showClientResults]);
 
+  function toDateTimeLocal(value?: string | null): string {
+    if (!value) return "";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "";
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function orderProductsToCartItems(orderProducts?: OrderProduct[] | null): CartItem[] {
+    if (!orderProducts) return [];
+    return orderProducts.map((op) => {
+      const product: PosProduct = {
+        id: op.product,
+        name: op.product_name,
+        code: op.product_code ?? null,
+        price: typeof op.unit_price === "number" ? op.unit_price : parseFloat(op.unit_price ?? "0"),
+      };
+      const modifiers: CartItemModifier[] = (op.modifiers ?? []).map((m) => ({
+        modifierOptionId: m.modifier_option,
+        name: m.modifier_option_name,
+        groupName: m.modifier_group_name,
+        surcharge: m.surcharge_applied ?? 0,
+      }));
+      return {
+        id: `existing-${op.id}`,
+        orderProductId: op.id,
+        product,
+        quantity: op.quantity ?? 1,
+        modifiers,
+        discountPercentage: op.discount_percentage ?? 0,
+        notes: op.notes ?? undefined,
+      };
+    });
+  }
+
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    deliveryInitializedRef.current = false;
+    setRemovedOrderProductIds([]);
+  }, [existingOrderId]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  /* eslint-disable react-hooks/set-state-in-effect */
+  // Al editar una orden existente, cargar cliente, productos y datos de entrega una sola vez.
+  useEffect(() => {
+    if (!existingOrder || deliveryInitializedRef.current) return;
+    deliveryInitializedRef.current = true;
+    if (existingOrder.client) {
+      setSelectedClient(existingOrder.client as unknown as Customer);
+    }
+    if (existingOrder.products && existingOrder.products.length > 0) {
+      setItems((prev) => (prev.length > 0 ? prev : orderProductsToCartItems(existingOrder.products)));
+    }
+    const hasDelivery = Boolean(existingOrder.delivery_address || existingOrder.delivery_date);
+    setDeliveryMode(hasDelivery ? "delivery" : "pickup");
+    setDeliveryAddress(existingOrder.delivery_address ?? "");
+    setDeliveryDate(toDateTimeLocal(existingOrder.delivery_date));
+  }, [existingOrder, setItems]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  /* eslint-disable react-hooks/set-state-in-effect */
+  // Si el modo es delivery y el cliente tiene dirección, precargarla cuando esté vacía.
+  useEffect(() => {
+    if (deliveryMode !== "delivery") return;
+    const clientAddress = selectedClient?.address;
+    if (clientAddress && deliveryAddress === "") {
+      setDeliveryAddress(clientAddress);
+    }
+  }, [deliveryMode, selectedClient, deliveryAddress]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
   const { data: paymentMethods } = useQuery({
     queryKey: ["payment-methods"],
     queryFn: fetchPaymentMethods,
@@ -127,6 +222,13 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
     staleTime: 30_000,
     retry: false,
     refetchInterval: 30_000,
+  });
+
+  const { data: financeConfig } = useQuery({
+    queryKey: ["branch-finance-config", branchId],
+    queryFn: () => fetchBranchFinanceConfigByBranch(Number(branchId)),
+    enabled: Boolean(branchId),
+    staleTime: 60_000,
   });
 
   const { data: customerResults = [], isLoading: searchingCustomers } = useQuery({
@@ -208,13 +310,11 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
     return Math.min(calculated, baseTotal);
   }
 
-  const existingOrderTotal = existingOrder
-    ? Math.max(0, parseFloat(existingOrder.total_amount ?? "0"))
+  const existingOrderPaid = existingOrder
+    ? parseFloat(String(existingOrder.paid_amount ?? "0"))
     : 0;
-  const existingItemCount =
-    existingOrder?.products?.reduce((sum, p) => sum + (p.quantity || 0), 0) ?? 0;
   const itemCount = items.reduce((sum, i) => sum + i.quantity, 0);
-  const displayItemCount = itemCount + existingItemCount;
+  const displayItemCount = itemCount;
   const cartSub = cartSubtotal(items);
   const lineDiscounts = cartDiscountTotal(items);
   const comboDiscounts = items
@@ -223,8 +323,23 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
   const manualLineDiscounts = lineDiscounts - comboDiscounts;
   const codeDiscount = calculateCodeDiscount(validatedDiscount, items, cartSub - lineDiscounts);
   const newItemsTotal = Math.max(0, cartSub - lineDiscounts - codeDiscount);
-  const subtotal = cartSub + existingOrderTotal;
-  const total = newItemsTotal + existingOrderTotal;
+  const subtotal = cartSub;
+  const total = Math.max(0, newItemsTotal - existingOrderPaid);
+
+  const taxRate = useMemo(() => {
+    const raw = financeConfig?.default_tax_rate;
+    if (raw === undefined || raw === null) return 0;
+    return parseFloat(String(raw)) || 0;
+  }, [financeConfig]);
+
+  const showTaxBreakdown = Boolean(financeConfig?.show_tax_breakdown) && taxRate > 0;
+
+  const { netAmount, taxAmount } = useMemo(() => {
+    if (!showTaxBreakdown || total <= 0) return { netAmount: 0, taxAmount: 0 };
+    const net = total / (1 + taxRate / 100);
+    const roundedNet = Math.round(net);
+    return { netAmount: roundedNet, taxAmount: total - roundedNet };
+  }, [showTaxBreakdown, total, taxRate]);
 
   const paidAmount = useMemo(
     () => payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0),
@@ -233,6 +348,11 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
   const remaining = Math.max(0, total - paidAmount);
   const overpaid = Math.max(0, paidAmount - total);
 
+  const canPayExistingOrder = Boolean(
+    existingOrderId &&
+      existingOrder &&
+      (existingOrder.payment_status === "PENDING" || existingOrder.payment_status === "PARTIAL"),
+  );
   const cashPayments = payments.filter((p) => {
     const method = paymentMethods?.find((m) => m.id === p.payment_method_id);
     return method?.payment_type === "CASH";
@@ -269,25 +389,140 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
     setPayments([]);
   }
 
-  async function handleRegister() {
-    if (items.length === 0 || saving) return;
+  function resetDelivery() {
+    setDeliveryMode("pickup");
+    setDeliveryAddress("");
+    setDeliveryDate("");
+  }
+
+  async function handleSaveExistingOrder(redirectToPay: boolean) {
+    if (!existingOrderId || saving) return;
+    if (items.length === 0) {
+      toast.error("La orden debe tener al menos un producto.");
+      return;
+    }
     setSaving(true);
     try {
-      if (existingOrderId) {
-        // Agregar ítems a una orden existente (desde mapa de mesas / drawer).
-        const order = await addItemsToOrder(
-          existingOrderId,
-          cartToOrderItems(items),
-        );
-        queryClient.invalidateQueries({ queryKey: ["tables"] });
-        queryClient.invalidateQueries({ queryKey: ["orders"] });
-        queryClient.invalidateQueries({ queryKey: ["products"], refetchType: "all" });
-        clear();
-        toast.success(`Productos agregados a orden ${order.id.slice(0, 8)}`);
-        onOrderRegistered?.(existingOrder?.order_type === "ORDER" ? "ORDER" : "SALE");
+      const activeItems: EditOrderItemInput[] = items.map((item) => ({
+        id: item.orderProductId,
+        product: item.product.id,
+        quantity: item.quantity,
+        unit_price: item.product.price.toFixed(2),
+        discount_percentage: item.discountPercentage,
+        notes: item.notes || null,
+        is_active: true,
+      }));
+      const removedItems: EditOrderItemInput[] = removedOrderProductIds.map((id) => ({
+        id,
+        is_active: false,
+      }));
+
+      const order = await editOrder(existingOrderId, {
+        client_id: selectedClient?.id ?? null,
+        table_id: selectedTable?.id ?? null,
+        delivery_address: deliveryMode === "delivery" ? deliveryAddress || null : null,
+        delivery_date: deliveryMode === "delivery" && deliveryDate ? new Date(deliveryDate).toISOString() : null,
+        items: [...activeItems, ...removedItems],
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["tables"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["products"], refetchType: "all" });
+
+      if (discountCode.trim()) {
+        try {
+          await applyDiscountToOrder(existingOrderId, discountCode.trim(), branchId);
+        } catch (discountErr) {
+          toast.warning(
+            discountErr instanceof Error
+              ? `Orden actualizada, pero el descuento falló: ${discountErr.message}`
+              : "Orden actualizada, pero el descuento no pudo aplicarse",
+          );
+        }
+      }
+
+      if (redirectToPay) {
+        await processExistingOrderPayments(existingOrderId);
         return;
       }
 
+      clear();
+      setRemovedOrderProductIds([]);
+      setDiscountCode("");
+      setValidatedDiscount(null);
+      toast.success(`Orden actualizada (${order.id.slice(0, 8)})`);
+      onOrderRegistered?.(order.order_type === "ORDER" ? "ORDER" : "SALE");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al actualizar la orden");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function processExistingOrderPayments(orderId: string) {
+    if (!currentCashRegister) {
+      toast.error("Debes abrir una caja antes de cobrar.");
+      return;
+    }
+    if (payments.length === 0) {
+      toast.error("Agrega al menos un pago.");
+      return;
+    }
+    const currentPaid = payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+    if (currentPaid < total) {
+      toast.error(`Faltan ${formatCLP(total - currentPaid)} para completar el pago.`);
+      return;
+    }
+
+    try {
+      for (const payment of payments) {
+        await createPayment({
+          payment_method_id: payment.payment_method_id,
+          order_id: orderId,
+          amount: Number(payment.amount).toFixed(2),
+          status: "COMPLETED",
+          cash_register_id: currentCashRegister.id,
+        });
+      }
+
+      if (existingOrder?.order_type === "SALE" && existingOrder.table) {
+        try {
+          await freeTable(existingOrder.table);
+          queryClient.invalidateQueries({ queryKey: ["tables"] });
+        } catch {
+          // Ignorar errores de liberación; la mesa puede liberarse manualmente.
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["orders", "open-accounts", "pos-terminal"] });
+      queryClient.invalidateQueries({ queryKey: ["orders", "pending-deliveries", "pos-terminal"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-register"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["products"], refetchType: "all" });
+
+      const updated = await fetchOrder(orderId);
+      onPostSaleOrder?.(updated, [...items]);
+      clear();
+      setRemovedOrderProductIds([]);
+      resetPayments();
+      setSelectedClient(null);
+      setDiscountCode("");
+      setValidatedDiscount(null);
+      resetDelivery();
+      onOrderRegistered?.();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al registrar el pago");
+    }
+  }
+
+  async function handleRegister() {
+    if (items.length === 0 || saving) return;
+    if (existingOrderId) {
+      await handleSaveExistingOrder(false);
+      return;
+    }
+    setSaving(true);
+    try {
       // Respetar el tipo explícito del POS. Si no hay tipo definido (mesero o
       // flujo legacy), el mesero siempre genera un pedido/cuenta abierta.
       // Una venta sin pagos se guarda como SALE pending (nueva cuenta), no ORDER.
@@ -307,6 +542,8 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
         client_id: selectedClient?.id ?? null,
         table_id: selectedTable?.id ?? null,
         order_type: orderType,
+        delivery_address: deliveryMode === "delivery" ? deliveryAddress || null : null,
+        delivery_date: deliveryMode === "delivery" && deliveryDate ? new Date(deliveryDate).toISOString() : null,
       });
 
       if (orderType === "ORDER" && selectedTable) {
@@ -381,6 +618,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
         setSelectedClient(null);
         setDiscountCode("");
         setValidatedDiscount(null);
+        resetDelivery();
         onOrderRegistered?.();
         return;
       }
@@ -391,6 +629,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
       setSelectedClient(null);
       setDiscountCode("");
       setValidatedDiscount(null);
+      resetDelivery();
       const actionLabel = payments.length > 0 ? "Venta registrada" : "Orden guardada";
       toast.success(`${actionLabel} (orden ${order.id.slice(0, 8)})`);
       onOrderRegistered?.(orderType === "AGREEMENT" ? "SALE" : orderType);
@@ -601,7 +840,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
           <div className="flex flex-col">
             <h2 className="text-sm font-semibold leading-tight">
               {existingOrderId && existingOrder
-                ? `${modeConfig.label} #${existingOrder.order_number ?? ""}`
+                ? `#${existingOrder.order_number ?? existingOrderId.slice(0, 8)}`
                 : modeConfig.label}
             </h2>
             <span className="text-[10px] text-muted-foreground">
@@ -705,12 +944,12 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                             type="text"
                             value={item.notes ?? ""}
                             onChange={(e) => setItemNotes(item.id, e.target.value)}
-                            placeholder="Nota para cocina…"
+                            placeholder="Nota"
                             className="mt-2 h-7 w-full rounded-md border border-border/60 bg-background px-2 text-[11px] text-foreground placeholder:text-muted-foreground/70 focus:border-primary focus:outline-none"
                           />
                         </div>
                         <button
-                          onClick={() => removeItem(item.id)}
+                          onClick={() => handleRemoveItem(item.id)}
                           aria-label={`Quitar ${item.product.name}`}
                           className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-danger"
                         >
@@ -759,96 +998,145 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                 </div>
               )}
 
-              {!existingOrderId && (
-                <>
-                  {willBeOrder ? (
-                    renderClientField()
-                  ) : selectedClient ? (
-                    <div className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-2">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium leading-tight">{selectedClient.name}</p>
-                        <p className="truncate text-[11px] text-muted-foreground">
-                          {selectedClient.dni ?? selectedClient.phone_number ?? selectedClient.email ?? "Sin datos adicionales"}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => setSelectedClient(null)}
-                        aria-label="Quitar cliente"
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ) : showClientSection ? (
-                    renderClientField({ showCloseButton: true })
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setShowClientSection(true)}
-                      className="inline-flex items-center gap-1.5 text-[11px] font-medium text-primary hover:underline"
-                    >
-                      <User className="h-3 w-3" />
-                      Crear o elegir cliente
-                    </button>
-                  )}
-                </>
+              {willBeOrder || existingOrderId ? (
+                renderClientField()
+              ) : selectedClient ? (
+                <div className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium leading-tight">{selectedClient.name}</p>
+                    <p className="truncate text-[11px] text-muted-foreground">
+                      {selectedClient.dni ?? selectedClient.phone_number ?? selectedClient.email ?? "Sin datos adicionales"}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setSelectedClient(null)}
+                    aria-label="Quitar cliente"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : showClientSection ? (
+                renderClientField({ showCloseButton: true })
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowClientSection(true)}
+                  className="inline-flex items-center gap-1.5 text-[11px] font-medium text-primary hover:underline"
+                >
+                  <User className="h-3 w-3" />
+                  Crear o elegir cliente
+                </button>
               )}
 
-              {/* Descuentos */}
-              {!existingOrderId && (
-                <div className="flex flex-col gap-1.5">
-                  {!showDiscountSection ? (
+              {/* Tipo de entrega */}
+              {(willBeOrder || (existingOrderId && existingOrder?.order_type !== "SALE")) && (
+                <div className="flex flex-col gap-2 rounded-lg border border-border/60 bg-muted/20 p-3">
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => setShowDiscountSection(true)}
-                      className="inline-flex items-center gap-1.5 self-start text-[11px] font-medium text-primary hover:underline"
-                    >
-                      <Tag className="h-3 w-3" />
-                      Descuento
-                    </button>
-                  ) : (
-                    <>
-                      <div className="flex items-center justify-between">
-                        <label className="text-[11px] font-medium text-muted-foreground">Código de descuento</label>
-                        <button
-                          type="button"
-                          onClick={() => setShowDiscountSection(false)}
-                          className="inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                          aria-label="Cerrar"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          value={discountCode}
-                          onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
-                          placeholder="Ej: PROMO10"
-                          disabled={saving}
-                          className="h-9 text-xs"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={handleApplyDiscount}
-                          disabled={!discountCode.trim() || saving}
-                          className="h-9"
-                        >
-                          Aplicar
-                        </Button>
-                      </div>
-                      {validatedDiscount?.discount && (
-                        <p className="text-xs text-emerald-700">
-                          Descuento {validatedDiscount.discount.name} aplicado.
-                        </p>
+                      onClick={() => setDeliveryMode("pickup")}
+                      className={cn(
+                        "flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 text-[11px] font-medium transition-colors",
+                        deliveryMode === "pickup"
+                          ? "bg-card text-foreground shadow-sm"
+                          : "text-muted-foreground hover:bg-muted/50",
                       )}
-                    </>
+                    >
+                      <Store className="h-3.5 w-3.5" /> Retiro
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeliveryMode("delivery")}
+                      className={cn(
+                        "flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 text-[11px] font-medium transition-colors",
+                        deliveryMode === "delivery"
+                          ? "bg-card text-foreground shadow-sm"
+                          : "text-muted-foreground hover:bg-muted/50",
+                      )}
+                    >
+                      <Truck className="h-3.5 w-3.5" /> Delivery
+                    </button>
+                  </div>
+                  {deliveryMode === "delivery" && (
+                    <div className="flex flex-col gap-2">
+                      <div className="relative">
+                        <MapPin className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          value={deliveryAddress}
+                          onChange={(e) => setDeliveryAddress(e.target.value)}
+                          placeholder="Dirección de entrega"
+                          className="h-8 pl-8 text-xs"
+                        />
+                      </div>
+                      <div className="relative">
+                        <Clock className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          type="datetime-local"
+                          value={deliveryDate}
+                          onChange={(e) => setDeliveryDate(e.target.value)}
+                          placeholder="Fecha y hora de entrega"
+                          className="h-8 pl-8 text-xs"
+                        />
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
 
-              {!isWaiter && (
+              {/* Descuentos */}
+              <div className="flex flex-col gap-1.5">
+                {!showDiscountSection ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowDiscountSection(true)}
+                    className="inline-flex items-center gap-1.5 self-start text-[11px] font-medium text-primary hover:underline"
+                  >
+                    <Tag className="h-3 w-3" />
+                    Descuento
+                  </button>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-medium text-muted-foreground">Código de descuento</label>
+                      <button
+                        type="button"
+                        onClick={() => setShowDiscountSection(false)}
+                        className="inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                        aria-label="Cerrar"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={discountCode}
+                        onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
+                        placeholder="Ej: PROMO10"
+                        disabled={saving}
+                        className="h-9 text-xs"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleApplyDiscount}
+                        disabled={!discountCode.trim() || saving}
+                        className="h-9"
+                      >
+                        Aplicar
+                      </Button>
+                    </div>
+                    {validatedDiscount?.discount && (
+                      <p className="text-xs text-emerald-700">
+                        Descuento {validatedDiscount.discount.name} aplicado.
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {!isWaiter && (!existingOrderId || canPayExistingOrder) && (
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between">
                     <label className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
@@ -973,12 +1261,12 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
       </div>
 
       <div className="flex shrink-0 flex-col gap-2 border-t border-border/60 bg-background p-4">
-        {!existingOrderId && cashRegisterMissing && (
+        {((!existingOrderId && cashRegisterMissing) || (canPayExistingOrder && !currentCashRegister)) && (
           <p className="rounded-lg bg-amber-500/10 px-3 py-1.5 text-xs text-amber-700">
             Debes abrir una caja antes de cobrar.
           </p>
         )}
-        {!existingOrderId && hasPendingPayment && (
+        {hasPendingPayment && (
           <p className="rounded-lg bg-amber-500/10 px-3 py-1.5 text-xs text-amber-700">
             Faltan {formatCLP(remaining)} para completar el pago.
           </p>
@@ -1007,31 +1295,63 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
               <span className="tabular-nums">-{formatCLP(codeDiscount)}</span>
             </div>
           )}
+          {showTaxBreakdown && (
+            <div className="flex flex-col gap-1 border-t border-border/60 pt-2 text-muted-foreground">
+              <div className="flex items-center justify-between">
+                <span>Neto (sin IVA {taxRate}%)</span>
+                <span className="tabular-nums">{formatCLP(netAmount)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>IVA</span>
+                <span className="tabular-nums">{formatCLP(taxAmount)}</span>
+              </div>
+            </div>
+          )}
           <div className="flex items-center justify-between border-t border-border/60 pt-2">
             <span className="text-sm font-medium">Total</span>
             <span className="text-xl font-bold tabular-nums">{formatCLP(total)}</span>
           </div>
         </div>
 
-        <Button size="lg" disabled={!canRegister} isLoading={saving} onClick={handleRegister} className="h-12 text-sm font-semibold">
-          {saving ? (
-            existingOrderId
-              ? "Agregando…"
-              : isWaiter || payments.length === 0
-                ? "Guardando…"
-                : "Cobrando…"
-          ) : existingOrderId ? (
-            "Agregar a la orden"
-          ) : defaultOrderType === "ORDER" ? (
-            "Guardar orden"
-          ) : isWaiter ? (
-            "Guardar pedido"
-          ) : payments.length > 0 ? (
-            `Cobrar ${formatCLP(total)}`
-          ) : (
-            "Guardar venta"
-          )}
-        </Button>
+        {existingOrderId ? (
+          <div className="flex flex-col gap-2">
+            {payments.length > 0 ? (
+              <Button
+                size="lg"
+                disabled={saving}
+                isLoading={saving}
+                onClick={() => handleSaveExistingOrder(true)}
+                className="h-12 text-sm font-semibold"
+              >
+                {saving ? "Guardando…" : canPayExistingOrder ? `Pagar ${formatCLP(total)}` : "Guardar y pagar"}
+              </Button>
+            ) : (
+              <Button
+                size="lg"
+                disabled={saving}
+                isLoading={saving}
+                onClick={() => handleSaveExistingOrder(false)}
+                className="h-12 text-sm font-semibold"
+              >
+                {saving ? "Guardando…" : "Guardar orden"}
+              </Button>
+            )}
+          </div>
+        ) : (
+          <Button size="lg" disabled={!canRegister} isLoading={saving} onClick={handleRegister} className="h-12 text-sm font-semibold">
+            {saving ? (
+              isWaiter || payments.length === 0 ? "Guardando…" : "Cobrando…"
+            ) : defaultOrderType === "ORDER" ? (
+              "Guardar orden"
+            ) : isWaiter ? (
+              "Guardar pedido"
+            ) : payments.length > 0 ? (
+              `Cobrar ${formatCLP(total)}`
+            ) : (
+              "Guardar venta"
+            )}
+          </Button>
+        )}
       </div>
 
       {createModalOpen && (
@@ -1179,6 +1499,15 @@ function CustomerCreateModal({
               value={form.email ?? ""}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
               placeholder="Opcional"
+            />
+          </div>
+          <div className="flex flex-col gap-2 sm:col-span-2">
+            <label htmlFor="quick-customer-address" className="text-sm font-medium">Dirección</label>
+            <Input
+              id="quick-customer-address"
+              value={form.address ?? ""}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+              placeholder="Ej: Av. Providencia 1234, Santiago"
             />
           </div>
           {error && (

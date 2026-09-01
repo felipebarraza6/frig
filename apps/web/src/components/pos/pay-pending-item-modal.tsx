@@ -10,10 +10,19 @@ import {
   TrendingDown,
   Loader2,
   Eye,
-  Pencil,
   Trash2,
   Check,
   Banknote,
+  Calendar,
+  User,
+  AlertTriangle,
+  CreditCard,
+  DollarSign,
+  Package,
+  FileText,
+  MapPin,
+  XCircle,
+  ClipboardList,
 } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
@@ -89,6 +98,35 @@ type PaymentMethod = {
 
 type Customer = YggdraSchemas["Client"];
 
+function effectivePaymentStatus(
+  status?: string | null,
+  paid?: string | number | null,
+  total?: string | number | null,
+): string | null | undefined {
+  const paidNum = toNum(paid);
+  const totalNum = toNum(total);
+  const s = status?.toUpperCase();
+
+  // Sin pagos registrados: nunca es parcial.
+  if (paidNum <= 0) {
+    if (s === "PARTIAL") return "PENDING";
+    return status;
+  }
+
+  // Pagado al 100%: mostrar como pagado aunque el backend diga parcial.
+  if (totalNum > 0 && paidNum >= totalNum) {
+    if (s === "PARTIAL" || s === "PENDING") return "PAID";
+    return status;
+  }
+
+  // Hay algún pago pero no cubre el total: parcial real.
+  if (paidNum > 0 && paidNum < totalNum) {
+    return "PARTIAL";
+  }
+
+  return status;
+}
+
 function paymentStatusLabel(status?: string | null): string {
   switch (status?.toUpperCase()) {
     case "PAID":
@@ -103,6 +141,20 @@ function paymentStatusLabel(status?: string | null): string {
   }
 }
 
+function paymentStatusDescription(
+  status?: string | null,
+  remaining?: number,
+): string {
+  const s = status?.toUpperCase();
+  const debtText = remaining && remaining > 0 ? ` · Adeuda ${formatCLP(remaining)}` : "";
+  if (s === "PAID" || s === "COMPLETED") {
+    return debtText ? `Pagado${debtText}` : "Pagado · Sin deuda";
+  }
+  if (s === "PARTIAL") return `Pago parcial${debtText || " · Adeuda 0"}`;
+  if (s === "PENDING") return `Por pagar${debtText || " · Adeuda 0"}`;
+  return status ?? "—";
+}
+
 function deliveryStatusLabel(status?: string | null): string {
   switch (status?.toUpperCase()) {
     case "DELIVERED":
@@ -113,21 +165,6 @@ function deliveryStatusLabel(status?: string | null): string {
       return "En preparación";
     case "PENDING":
       return "Pendiente";
-    default:
-      return status ?? "—";
-  }
-}
-
-function orderStatusLabel(status?: string | null): string {
-  switch (status?.toUpperCase()) {
-    case "PENDING":
-      return "Pendiente";
-    case "IN_PROGRESS":
-      return "En progreso";
-    case "COMPLETED":
-      return "Completado";
-    case "CANCELLED":
-      return "Anulado";
     default:
       return status ?? "—";
   }
@@ -163,6 +200,33 @@ function paymentStatusClass(status?: string | null) {
   }
 }
 
+function paymentStatusBadgeClass(status?: string | null) {
+  switch (status?.toUpperCase()) {
+    case "PAID":
+    case "COMPLETED":
+      return "bg-emerald-500/10 text-emerald-700";
+    case "PARTIAL":
+      return "bg-violet-500/10 text-violet-700";
+    case "PENDING":
+    default:
+      return "bg-amber-500/10 text-amber-700";
+  }
+}
+
+function deliveryStatusBadgeClass(status?: string | null) {
+  switch (status?.toUpperCase()) {
+    case "DELIVERED":
+    case "COMPLETED":
+      return "bg-emerald-500/10 text-emerald-700";
+    case "IN_PROGRESS":
+    case "PREPARING":
+      return "bg-blue-500/10 text-blue-700";
+    case "PENDING":
+    default:
+      return "bg-amber-500/10 text-amber-700";
+  }
+}
+
 function shortDate(iso?: string | null) {
   if (!iso) return "—";
   try {
@@ -174,6 +238,37 @@ function shortDate(iso?: string | null) {
   } catch {
     return iso;
   }
+}
+
+function LoadingState({ message = "Cargando..." }: { message?: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 py-8 text-muted-foreground">
+      <Loader2 className="h-6 w-6 animate-spin" />
+      <p className="text-sm">{message}</p>
+    </div>
+  );
+}
+
+function EmptyState({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  description?: string;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+        <Icon className="h-6 w-6 text-muted-foreground" />
+      </div>
+      <p className="text-sm font-medium">{title}</p>
+      {description && (
+        <p className="max-w-[16rem] text-xs text-muted-foreground">{description}</p>
+      )}
+    </div>
+  );
 }
 
 interface PayPendingItemModalProps {
@@ -191,14 +286,14 @@ const TYPE_CONFIG: Record<
   { title: string; icon: React.ReactNode; listLabel: string }
 > = {
   pay_account: {
-    title: "Cuentas por cobrar",
+    title: "Cuentas",
     icon: <Receipt className="h-5 w-5" />,
-    listLabel: "Cuentas por cobrar (ventas)",
+    listLabel: "Cuentas",
   },
   pay_order: {
-    title: "Órdenes pendientes",
+    title: "Órdenes",
     icon: <Truck className="h-5 w-5" />,
-    listLabel: "Órdenes pendientes",
+    listLabel: "Órdenes",
   },
   collect: {
     title: "Cobrar por cliente",
@@ -206,14 +301,14 @@ const TYPE_CONFIG: Record<
     listLabel: "Órdenes del cliente",
   },
   pay_purchase_order: {
-    title: "Órdenes de compra por pagar",
+    title: "Órdenes de compra",
     icon: <Truck className="h-5 w-5" />,
-    listLabel: "Órdenes de compra por pagar",
+    listLabel: "Órdenes de compra",
   },
   pay_expense: {
-    title: "Gastos por pagar",
+    title: "Gastos",
     icon: <TrendingDown className="h-5 w-5" />,
-    listLabel: "Gastos por pagar",
+    listLabel: "Gastos",
   },
 };
 
@@ -239,6 +334,11 @@ export default function PayPendingItemModal({
   const [notes, setNotes] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [confirmCancelItem, setConfirmCancelItem] = useState<Order | null>(null);
+  const [clientFilter, setClientFilter] = useState<{ id: number; name: string } | null>(null);
+  const [clientFilterQuery, setClientFilterQuery] = useState("");
+  const [deliveringOrderId, setDeliveringOrderId] = useState<string | null>(null);
+  const [orderQuery, setOrderQuery] = useState("");
 
   const activeMethods = useMemo(
     () => paymentMethods.filter((m) => m.is_active && m.is_pos_enabled !== false),
@@ -278,7 +378,7 @@ export default function PayPendingItemModal({
   }, [clientsWithTotals, clientQuery]);
 
   const { data: orders = [], isLoading: loadingOrders } = useQuery({
-    queryKey: ["pending-orders-for-pos", type, selectedClient?.id, dateFrom, dateTo],
+    queryKey: ["pending-orders-for-pos", type, selectedClient?.id, clientFilter?.id, dateFrom, dateTo],
     queryFn: async () => {
       if (type === "collect") {
         if (!selectedClient) return [];
@@ -288,6 +388,7 @@ export default function PayPendingItemModal({
         const data = await fetchOrders({
           order_type: "SALE",
           payment_status: ["PENDING", "PARTIAL"],
+          client__in: clientFilter ? String(clientFilter.id) : undefined,
           start_date: dateFrom || undefined,
           end_date: dateTo || undefined,
           page_size: 50,
@@ -338,6 +439,12 @@ export default function PayPendingItemModal({
     enabled: isCollect && open && clientQuery.trim().length >= 1,
   });
 
+  const { data: filterCustomerResults = [], isLoading: searchingFilterCustomers } = useQuery({
+    queryKey: ["customers", "search-filter", clientFilterQuery],
+    queryFn: () => searchCustomers(clientFilterQuery),
+    enabled: type === "pay_account" && open && clientFilterQuery.trim().length >= 1,
+  });
+
   const { data: orderDetail, isLoading: loadingOrderDetail } = useQuery({
     queryKey: ["order", "detail", viewDetailId],
     queryFn: () => fetchOrder(viewDetailId as string) as Promise<Order>,
@@ -356,6 +463,28 @@ export default function PayPendingItemModal({
     }
     return orders.find((o) => o.id === selectedItemId) ?? null;
   }, [selectedItemId, type, purchaseOrders, expenses, orders]);
+
+  const filteredOrders = useMemo(() => {
+    if (!orderQuery.trim()) return orders;
+    const q = orderQuery.toLowerCase().trim();
+    return orders.filter((o) => {
+      const client = o.client as unknown as { name?: string | null; dni?: string | null; phone_number?: string | null; email?: string | null } | null;
+      const orderNumber = (o.order_number ?? "").toLowerCase();
+      const clientName = (client?.name ?? "").toLowerCase();
+      const dni = (client?.dni ?? "").toLowerCase();
+      const phone = (client?.phone_number ?? "").toLowerCase();
+      const email = (client?.email ?? "").toLowerCase();
+      const address = (o.delivery_address ?? "").toLowerCase();
+      return (
+        orderNumber.includes(q) ||
+        clientName.includes(q) ||
+        dni.includes(q) ||
+        phone.includes(q) ||
+        email.includes(q) ||
+        address.includes(q)
+      );
+    });
+  }, [orders, orderQuery]);
 
   const remainingAmount = useMemo(() => {
     if (!selectedItem) return 0;
@@ -389,7 +518,6 @@ export default function PayPendingItemModal({
       return payOrder(selectedItem.id, payload);
     },
     onSuccess: () => {
-      toast.success("Pago registrado");
       handleClose();
     },
     onError: (err: Error) => {
@@ -399,11 +527,15 @@ export default function PayPendingItemModal({
 
   const deliverMutation = useMutation({
     mutationFn: (orderId: string) => deliverOrder(orderId),
+    onMutate: (orderId: string) => {
+      setDeliveringOrderId(orderId);
+    },
     onSuccess: () => {
-      toast.success("Orden marcada como entregada");
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       queryClient.invalidateQueries({ queryKey: ["pending-orders-for-pos"] });
-      handleClose();
+    },
+    onSettled: () => {
+      setDeliveringOrderId(null);
     },
     onError: (err: Error) => {
       toast.error(err.message || "No se pudo marcar como entregado");
@@ -413,6 +545,8 @@ export default function PayPendingItemModal({
   function handleClose() {
     setClientQuery("");
     setSelectedClient(null);
+    setClientFilter(null);
+    setClientFilterQuery("");
     setSelectedItemId(null);
     setViewDetailId(null);
     setAmount("");
@@ -428,9 +562,16 @@ export default function PayPendingItemModal({
   }
 
   function handleCancelOrder(order: Order) {
-    if (window.confirm("¿Anular esta cuenta?")) {
-      onCancelOrder?.(order);
-      handleClose();
+    setConfirmCancelItem(order);
+  }
+
+  function confirmCancelOrder() {
+    if (confirmCancelItem) {
+      onCancelOrder?.(confirmCancelItem);
+      setConfirmCancelItem(null);
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-orders-for-pos"] });
+      queryClient.invalidateQueries({ queryKey: ["all-pending-accounts-for-collect"] });
     }
   }
 
@@ -507,8 +648,14 @@ export default function PayPendingItemModal({
 
   function renderItemList() {
     if (type === "pay_purchase_order") {
-      if (loadingPurchaseOrders) return <p className="text-sm text-muted-foreground">Cargando...</p>;
-      if (purchaseOrders.length === 0) return <p className="text-sm text-muted-foreground">No hay órdenes de compra pendientes.</p>;
+      if (loadingPurchaseOrders) return <LoadingState message="Cargando órdenes de compra..." />;
+      if (purchaseOrders.length === 0) return (
+        <EmptyState
+          icon={Truck}
+          title="No hay órdenes de compra"
+          description="Ajusta el rango de fechas si esperas ver más resultados."
+        />
+      );
       return (
         <div className="flex flex-col gap-3">
           {purchaseOrders.map((o) => (
@@ -588,8 +735,14 @@ export default function PayPendingItemModal({
     }
 
     if (type === "pay_expense") {
-      if (loadingExpenses) return <p className="text-sm text-muted-foreground">Cargando...</p>;
-      if (expenses.length === 0) return <p className="text-sm text-muted-foreground">No hay gastos pendientes.</p>;
+      if (loadingExpenses) return <LoadingState message="Cargando gastos..." />;
+      if (expenses.length === 0) return (
+        <EmptyState
+          icon={TrendingDown}
+          title="No hay gastos"
+          description="Ajusta el rango de fechas si esperas ver más resultados."
+        />
+      );
       return (
         <div className="flex flex-col gap-3">
           {expenses.map((e) => {
@@ -680,12 +833,24 @@ export default function PayPendingItemModal({
 
     if (isCollect) {
       if (!selectedClient) {
-        if (loadingAllPending) return <p className="text-sm text-muted-foreground">Cargando...</p>;
+        if (loadingAllPending) return <LoadingState message="Cargando clientes..." />;
         if (filteredClientsWithTotals.length === 0) {
           if (clientsWithTotals.length === 0) {
-            return <p className="text-sm text-muted-foreground">No hay clientes con cuentas pendientes</p>;
+            return (
+              <EmptyState
+                icon={UserSearch}
+                title="No hay clientes con cuentas pendientes"
+                description="Ajusta el rango de fechas si esperas ver más resultados."
+              />
+            );
           }
-          return <p className="text-sm text-muted-foreground">No se encontraron clientes</p>;
+          return (
+            <EmptyState
+              icon={Search}
+              title="No se encontraron clientes"
+              description="Prueba con otro nombre, RUT, teléfono o email."
+            />
+          );
         }
         return (
           <div className="grid grid-cols-1 gap-2">
@@ -716,8 +881,14 @@ export default function PayPendingItemModal({
           </div>
         );
       }
-      if (loadingOrders) return <p className="text-sm text-muted-foreground">Cargando...</p>;
-      if (orders.length === 0) return <p className="text-sm text-muted-foreground">No hay órdenes pendientes.</p>;
+      if (loadingOrders) return <LoadingState message="Cargando cuentas..." />;
+      if (orders.length === 0) return (
+        <EmptyState
+          icon={Receipt}
+          title="No hay cuentas pendientes"
+          description="Este cliente no tiene deudas en el rango seleccionado."
+        />
+      );
       return (
         <div className="flex flex-col gap-3">
           {/* Pagar todas deshabilitado: el pago se hace en el flujo normal del POS */}
@@ -750,20 +921,44 @@ export default function PayPendingItemModal({
                   )}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold">
-                        {o.order_number ?? o.id.slice(0, 8)}
-                      </p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {shortDate(o.date)} · {paymentStatusLabel(o.payment_status)} ·{" "}
-                        {deliveryStatusLabel(o.delivery_status)}
-                      </p>
-                      {o.client?.name && (
-                        <p className="truncate text-[11px] text-muted-foreground">{o.client.name}</p>
-                      )}
+                    <div className="flex min-w-0 items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                        <Receipt className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold">
+                          {o.order_number ?? o.id.slice(0, 8)}
+                        </p>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
+                            <Calendar className="h-3 w-3" /> {shortDate(o.date)}
+                          </span>
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
+                              paymentStatusBadgeClass(effectivePaymentStatus(o.payment_status, o.paid_amount, o.total_amount)),
+                            )}
+                          >
+                            <DollarSign className="h-3 w-3" /> {paymentStatusLabel(effectivePaymentStatus(o.payment_status, o.paid_amount, o.total_amount))}
+                          </span>
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
+                              deliveryStatusBadgeClass(o.delivery_status),
+                            )}
+                          >
+                            <Truck className="h-3 w-3" /> {deliveryStatusLabel(o.delivery_status)}
+                          </span>
+                        </div>
+                        {o.client?.name && (
+                          <p className="mt-1 flex items-center gap-1 truncate text-[11px] text-muted-foreground">
+                            <User className="h-3 w-3" /> {o.client.name}
+                          </p>
+                        )}
+                      </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-sm font-bold tabular-nums">{formatCLP(remaining)}</p>
+                      <p className="text-base font-bold tabular-nums text-amber-700">{formatCLP(remaining)}</p>
                       <p className="text-xs text-muted-foreground">de {formatCLP(toNum(o.total_amount))}</p>
                     </div>
                   </div>
@@ -782,15 +977,18 @@ export default function PayPendingItemModal({
                       size="sm"
                       variant="outline"
                       onClick={() => setViewDetailId(isExpanded ? null : o.id)}
+                      className="h-7 gap-1 px-2 text-xs"
                     >
-                      {isExpanded ? "Cerrar" : "Ver detalle"}
+                      <Eye className="h-3 w-3" /> {isExpanded ? "Cerrar" : "Ver detalle"}
                     </Button>
                   </div>
 
                 {isExpanded && (
                   <div className="mt-3 border-t border-border pt-3">
                     <div className="mb-2 flex items-center justify-between">
-                      <p className="text-sm font-semibold">Detalle de la orden</p>
+                      <p className="flex items-center gap-1.5 text-sm font-semibold">
+                        <FileText className="h-4 w-4 text-primary" /> Detalle de la orden
+                      </p>
                       <Button size="sm" variant="ghost" onClick={() => setViewDetailId(null)}>
                         Cerrar
                       </Button>
@@ -803,34 +1001,42 @@ export default function PayPendingItemModal({
                     ) : (
                       <div className="space-y-2">
                         <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-                          <div>
-                            <span className="text-muted-foreground">Total:</span>{" "}
-                            <span className="font-medium">
+                          <div className="rounded-lg bg-muted/50 p-2">
+                            <span className="flex items-center gap-1 text-muted-foreground">
+                              <DollarSign className="h-3 w-3" /> Total
+                            </span>
+                            <span className="block font-medium">
                               {formatCLP(Number(detailOrder.total_amount ?? 0))}
                             </span>
                           </div>
-                          <div>
-                            <span className="text-muted-foreground">Pagado:</span>{" "}
-                            <span className="font-medium">
+                          <div className="rounded-lg bg-muted/50 p-2">
+                            <span className="flex items-center gap-1 text-muted-foreground">
+                              <Check className="h-3 w-3" /> Pagado
+                            </span>
+                            <span className="block font-medium">
                               {formatCLP(Number(detailOrder.paid_amount ?? 0))}
                             </span>
                           </div>
-                          <div>
-                            <span className="text-muted-foreground">Pago:</span>{" "}
+                          <div className="rounded-lg bg-muted/50 p-2">
+                            <span className="flex items-center gap-1 text-muted-foreground">
+                              <Banknote className="h-3 w-3" /> Pago
+                            </span>
                             <span
                               className={cn(
-                                "font-medium",
-                                paymentStatusClass(detailOrder.payment_status),
+                                "block font-medium",
+                                paymentStatusClass(effectivePaymentStatus(detailOrder.payment_status, detailOrder.paid_amount, detailOrder.total_amount)),
                               )}
                             >
-                              {paymentStatusLabel(detailOrder.payment_status)}
+                              {paymentStatusLabel(effectivePaymentStatus(detailOrder.payment_status, detailOrder.paid_amount, detailOrder.total_amount))}
                             </span>
                           </div>
-                          <div>
-                            <span className="text-muted-foreground">Entrega:</span>{" "}
+                          <div className="rounded-lg bg-muted/50 p-2">
+                            <span className="flex items-center gap-1 text-muted-foreground">
+                              <Truck className="h-3 w-3" /> Entrega
+                            </span>
                             <span
                               className={cn(
-                                "font-medium",
+                                "block font-medium",
                                 deliveryStatusClass(detailOrder.delivery_status),
                               )}
                             >
@@ -839,14 +1045,16 @@ export default function PayPendingItemModal({
                           </div>
                         </div>
                         {detailOrder.delivery_address && (
-                          <p className="text-xs text-muted-foreground">
-                            <span className="font-medium">Dirección:</span>{" "}
-                            {detailOrder.delivery_address}
+                          <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                            <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                            <span><span className="font-medium">Dirección:</span> {detailOrder.delivery_address}</span>
                           </p>
                         )}
                         {(detailOrder.products ?? []).length > 0 && (
                           <div className="rounded-lg border border-border bg-background p-2">
-                            <p className="mb-1 text-xs font-medium text-muted-foreground">Productos</p>
+                            <p className="mb-1 flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                              <Package className="h-3.5 w-3.5" /> Productos
+                            </p>
                             <ul className="space-y-1">
                               {(detailOrder.products ?? []).map((p) => (
                                 <li
@@ -880,11 +1088,17 @@ export default function PayPendingItemModal({
         </div>
       );
     }
-    if (loadingOrders) return <p className="text-sm text-muted-foreground">Cargando...</p>;
-    if (orders.length === 0) return <p className="text-sm text-muted-foreground">No hay órdenes pendientes.</p>;
+    if (loadingOrders) return <LoadingState message={type === "pay_order" ? "Cargando órdenes..." : "Cargando cuentas..."} />;
+    if (filteredOrders.length === 0) return (
+      <EmptyState
+        icon={type === "pay_order" ? ClipboardList : Receipt}
+        title={type === "pay_order" ? "No hay órdenes" : "No hay cuentas"}
+        description={orderQuery.trim() ? "No coinciden con la búsqueda." : "Ajusta el rango de fechas si esperas ver más resultados."}
+      />
+    );
     return (
       <div className="grid grid-cols-1 gap-3">
-        {orders.map((o) => {
+        {filteredOrders.map((o) => {
           const isPayOrder = type === "pay_order";
           const remaining = isPayOrder
             ? toNum(o.total_amount)
@@ -901,29 +1115,49 @@ export default function PayPendingItemModal({
               )}
             >
               <div className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="truncate text-sm font-semibold">{o.order_number ?? o.id.slice(0, 8)}</p>
-                  <span className="shrink-0 text-sm font-bold tabular-nums">{formatCLP(remaining)}</span>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-start gap-2.5">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                      {isPayOrder ? <ClipboardList className="h-4 w-4" /> : <Receipt className="h-4 w-4" />}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold">{o.order_number ?? o.id.slice(0, 8)}</p>
+                      <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
+                        <User className="h-3 w-3" /> {o.client?.name ?? "Sin cliente"}
+                      </p>
+                      <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Calendar className="h-3 w-3" />
+                        {isPayOrder
+                          ? (o.delivery_address ? `Domicilio · ${shortDate(o.date)}` : `Retiro · ${shortDate(o.date)}`)
+                          : `${shortDate(o.date)}${o.observation ? ` · ${o.observation}` : ""}`}
+                      </p>
+                      {o.delivery_address && (
+                        <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
+                          <MapPin className="h-3 w-3 shrink-0" /> {o.delivery_address}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className={cn("text-base font-bold tabular-nums", isPayOrder ? "text-foreground" : "text-amber-700")}>{formatCLP(remaining)}</p>
+                    {!isPayOrder && <p className="text-xs text-muted-foreground">de {formatCLP(toNum(o.total_amount))}</p>}
+                  </div>
                 </div>
-                <p className="truncate text-xs text-muted-foreground">{o.client?.name ?? "Sin cliente"}</p>
-                <p className="text-xs text-muted-foreground">
-                  {isPayOrder ? (o.delivery_address ? `Domicilio · ${shortDate(o.date)}` : `Retiro · ${shortDate(o.date)}`) : `${shortDate(o.date)}${o.observation ? ` · ${o.observation}` : ""}`}
-                </p>
               </div>
               <div className="mt-2 flex items-center justify-between gap-2">
-                <div className="flex gap-1.5">
+                <div className="flex flex-wrap gap-1.5">
                   {isPayOrder ? (
                     <>
-                      <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-medium", paymentStatusClass(o.payment_status))}>
-                        Pago: {paymentStatusLabel(o.payment_status)}
+                      <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium", paymentStatusBadgeClass(effectivePaymentStatus(o.payment_status, o.paid_amount, o.total_amount)))}>
+                        <DollarSign className="h-3 w-3" /> {paymentStatusLabel(effectivePaymentStatus(o.payment_status, o.paid_amount, o.total_amount))}
                       </span>
-                      <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-medium", deliveryStatusClass(o.delivery_status))}>
-                        Entrega: {deliveryStatusLabel(o.delivery_status)}
+                      <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium", deliveryStatusBadgeClass(o.delivery_status))}>
+                        <Check className="h-3 w-3" /> {deliveryStatusLabel(o.delivery_status)}
                       </span>
                     </>
                   ) : (
-                    <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-medium", paymentStatusClass(o.payment_status))}>
-                      Pago: {paymentStatusLabel(o.payment_status)}
+                    <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium", paymentStatusBadgeClass(effectivePaymentStatus(o.payment_status, o.paid_amount, o.total_amount)))}>
+                      <DollarSign className="h-3 w-3" /> {paymentStatusDescription(effectivePaymentStatus(o.payment_status, o.paid_amount, o.total_amount), remaining)}
                     </span>
                   )}
                 </div>
@@ -948,7 +1182,8 @@ export default function PayPendingItemModal({
                           size="sm"
                           variant="outline"
                           onClick={() => deliverMutation.mutate(o.id)}
-                          isLoading={deliverMutation.isPending}
+                          isLoading={deliveringOrderId === o.id}
+                          disabled={deliveringOrderId !== null}
                           className="h-7 gap-1 px-2 text-xs"
                         >
                           <Check className="h-3 w-3" /> Entregar
@@ -976,26 +1211,15 @@ export default function PayPendingItemModal({
                     <Eye className="h-3 w-3" /> {isExpanded ? "Cerrar" : "Ver detalle"}
                   </Button>
                   {!isPayOrder && showOrderActions && (
-                    <>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleContinueOrder(o)}
-                        title="Continuar agregando"
-                        className="h-7 w-7 p-0"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleCancelOrder(o)}
-                        title="Anular"
-                        className="h-7 w-7 p-0"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleCancelOrder(o)}
+                      title="Anular"
+                      className="h-7 w-7 p-0"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
                   )}
                 </div>
               </div>
@@ -1003,7 +1227,9 @@ export default function PayPendingItemModal({
               {isExpanded && (
                 <div className="mt-3 border-t border-border pt-3">
                   <div className="mb-2 flex items-center justify-between">
-                    <p className="text-sm font-semibold">Detalle de la orden</p>
+                    <p className="flex items-center gap-1.5 text-sm font-semibold">
+                      <FileText className="h-4 w-4 text-primary" /> Detalle de la orden
+                    </p>
                     <Button
                       size="sm"
                       variant="ghost"
@@ -1020,34 +1246,42 @@ export default function PayPendingItemModal({
                   ) : (
                     <div className="space-y-2">
                       <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-                        <div>
-                          <span className="text-muted-foreground">Total:</span>{" "}
-                          <span className="font-medium">
+                        <div className="rounded-lg bg-muted/50 p-2">
+                          <span className="flex items-center gap-1 text-muted-foreground">
+                            <DollarSign className="h-3 w-3" /> Total
+                          </span>
+                          <span className="block font-medium">
                             {formatCLP(Number(detailOrder.total_amount ?? 0))}
                           </span>
                         </div>
-                        <div>
-                          <span className="text-muted-foreground">Pagado:</span>{" "}
-                          <span className="font-medium">
+                        <div className="rounded-lg bg-muted/50 p-2">
+                          <span className="flex items-center gap-1 text-muted-foreground">
+                            <Check className="h-3 w-3" /> Pagado
+                          </span>
+                          <span className="block font-medium">
                             {formatCLP(Number(detailOrder.paid_amount ?? 0))}
                           </span>
                         </div>
-                        <div>
-                          <span className="text-muted-foreground">Pago:</span>{" "}
+                        <div className="rounded-lg bg-muted/50 p-2">
+                          <span className="flex items-center gap-1 text-muted-foreground">
+                            <Banknote className="h-3 w-3" /> Pago
+                          </span>
                           <span
                             className={cn(
-                              "font-medium",
-                              paymentStatusClass(detailOrder.payment_status),
+                              "block font-medium",
+                              paymentStatusClass(effectivePaymentStatus(detailOrder.payment_status, detailOrder.paid_amount, detailOrder.total_amount)),
                             )}
                           >
-                            {paymentStatusLabel(detailOrder.payment_status)}
+                            {paymentStatusLabel(effectivePaymentStatus(detailOrder.payment_status, detailOrder.paid_amount, detailOrder.total_amount))}
                           </span>
                         </div>
-                        <div>
-                          <span className="text-muted-foreground">Entrega:</span>{" "}
+                        <div className="rounded-lg bg-muted/50 p-2">
+                          <span className="flex items-center gap-1 text-muted-foreground">
+                            <Check className="h-3 w-3" /> Entrega
+                          </span>
                           <span
                             className={cn(
-                              "font-medium",
+                              "block font-medium",
                               deliveryStatusClass(detailOrder.delivery_status),
                             )}
                           >
@@ -1056,15 +1290,15 @@ export default function PayPendingItemModal({
                         </div>
                       </div>
                       {detailOrder.delivery_address && (
-                        <p className="text-xs text-muted-foreground">
-                          <span className="font-medium">Dirección:</span>{" "}
-                          {detailOrder.delivery_address}
+                        <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                          <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                          <span><span className="font-medium">Dirección:</span> {detailOrder.delivery_address}</span>
                         </p>
                       )}
                       {(detailOrder.products ?? []).length > 0 && (
                         <div className="rounded-lg border border-border bg-background p-2">
-                          <p className="mb-1 text-xs font-medium text-muted-foreground">
-                            Productos
+                          <p className="mb-1 flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                            <Package className="h-3.5 w-3.5" /> Productos
                           </p>
                           <ul className="space-y-1">
                             {(detailOrder.products ?? []).map((p) => (
@@ -1101,12 +1335,28 @@ export default function PayPendingItemModal({
   }
 
   return (
-    <Modal open={open} onClose={handleClose} title={cfg.title} size="lg">
+    <>
+      <Modal
+      open={open}
+      onClose={handleClose}
+      title={
+        <div className="flex items-center gap-2">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            {cfg.icon}
+          </span>
+          <span>{cfg.title}</span>
+        </div>
+      }
+      size="lg"
+    >
       <ModalBody>
         <div className="flex flex-col gap-4">
           {isCollect && (
             <div className="flex flex-col gap-2">
-              <label className="text-xs font-medium text-muted-foreground">Buscar cliente</label>
+              <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <UserSearch className="h-3.5 w-3.5" />
+                Buscar cliente
+              </label>
               <div className="relative">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -1123,11 +1373,19 @@ export default function PayPendingItemModal({
                 />
               </div>
               {searchingCustomers && (
-                <p className="text-xs text-muted-foreground">Buscando clientes...</p>
+                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Buscando clientes...
+                </p>
               )}
               {selectedClient ? (
-                <div className="flex items-center justify-between rounded-lg bg-muted px-3 py-2 text-sm">
-                  <span className="font-medium">{selectedClient.name}</span>
+                <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                      {(selectedClient.name ?? "?").charAt(0).toUpperCase()}
+                    </div>
+                    <span className="font-medium">{selectedClient.name ?? "Sin nombre"}</span>
+                  </div>
                   <button
                     type="button"
                     onClick={() => {
@@ -1163,13 +1421,103 @@ export default function PayPendingItemModal({
             </div>
           )}
 
+          {type === "pay_account" && (
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <UserSearch className="h-3.5 w-3.5" />
+                Filtrar por cliente
+              </label>
+              {clientFilter ? (
+                <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                      {clientFilter.name.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="font-medium">{clientFilter.name}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setClientFilter(null);
+                      setClientFilterQuery("");
+                      setSelectedItemId(null);
+                      setViewDetailId(null);
+                    }}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    Quitar
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={clientFilterQuery}
+                      onChange={(e) => setClientFilterQuery(e.target.value)}
+                      placeholder="Nombre, RUT, teléfono o email"
+                      className="pl-9"
+                    />
+                  </div>
+                  {searchingFilterCustomers && (
+                    <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Buscando clientes...
+                    </p>
+                  )}
+                  {clientFilterQuery.trim().length >= 1 && !searchingFilterCustomers && (
+                    <div className="flex flex-col gap-1">
+                      {filterCustomerResults.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => {
+                            setClientFilter({ id: Number(c.id), name: c.name ?? "Sin nombre" });
+                            setClientFilterQuery("");
+                          }}
+                          className="rounded-lg px-3 py-2 text-left text-sm hover:bg-muted"
+                        >
+                          <span className="font-medium">{c.name}</span>
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            {c.dni ?? c.phone_number ?? c.email}
+                          </span>
+                        </button>
+                      ))}
+                      {filterCustomerResults.length === 0 && (
+                        <p className="px-3 py-2 text-xs text-muted-foreground">No se encontraron clientes.</p>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
           <div className="flex flex-col gap-2">
-            <p className="text-xs text-muted-foreground">Órdenes no pagadas o no entregadas</p>
-            <div className="flex gap-2 mb-3">
-              <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="h-8 text-xs flex-1" placeholder="Desde" />
-              <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="h-8 text-xs flex-1" placeholder="Hasta" />
-              {(dateFrom || dateTo) && (
-                <Button variant="ghost" size="sm" onClick={() => { setDateFrom(""); setDateTo(""); }} className="h-8 px-2 text-xs">Limpiar</Button>
+            <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <Receipt className="h-3.5 w-3.5" />
+              {cfg.listLabel}
+            </p>
+            {type === "pay_order" && (
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={orderQuery}
+                  onChange={(e) => setOrderQuery(e.target.value)}
+                  placeholder="N° orden, cliente, RUT, teléfono, email o dirección"
+                  className="pl-9 h-9 text-xs"
+                />
+              </div>
+            )}
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 p-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <div className="flex flex-1 gap-2">
+                <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="h-8 text-xs flex-1" placeholder="Desde" />
+                <span className="self-center text-xs text-muted-foreground">→</span>
+                <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="h-8 text-xs flex-1" placeholder="Hasta" />
+              </div>
+              {(dateFrom || dateTo || orderQuery) && (
+                <Button variant="ghost" size="sm" onClick={() => { setDateFrom(""); setDateTo(""); setOrderQuery(""); }} className="h-8 px-2 text-xs">Limpiar</Button>
               )}
             </div>
             <div className="flex flex-col gap-3 rounded-xl bg-muted/20 p-3 max-h-[28rem] overflow-y-auto">
@@ -1182,32 +1530,44 @@ export default function PayPendingItemModal({
               {type === "pay_order" ? (
                 <>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Orden</span>
+                    <span className="flex items-center gap-1.5 text-muted-foreground">
+                      <Receipt className="h-3.5 w-3.5" /> Orden
+                    </span>
                     <span className="font-semibold">
                       {(selectedItem as Order).order_number ?? (selectedItem as Order).id.slice(0, 8)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Cliente</span>
+                    <span className="flex items-center gap-1.5 text-muted-foreground">
+                      <User className="h-3.5 w-3.5" /> Cliente
+                    </span>
                     <span className="font-medium">{(selectedItem as Order).client?.name ?? "Sin cliente"}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Total</span>
+                    <span className="flex items-center gap-1.5 text-muted-foreground">
+                      <DollarSign className="h-3.5 w-3.5" /> Total
+                    </span>
                     <span className="font-semibold">{formatCLP(Number((selectedItem as Order).total_amount || 0))}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Estado de entrega</span>
+                    <span className="flex items-center gap-1.5 text-muted-foreground">
+                      <Truck className="h-3.5 w-3.5" /> Estado de entrega
+                    </span>
                     <span className={cn("font-medium", deliveryStatusClass((selectedItem as Order).delivery_status))}>
                       {deliveryStatusLabel((selectedItem as Order).delivery_status)}
                     </span>
                   </div>
                   {(selectedItem as Order).delivery_address && (
                     <div className="flex flex-col gap-0.5 text-sm">
-                      <span className="text-muted-foreground">Dirección de entrega</span>
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <MapPin className="h-3.5 w-3.5" /> Dirección de entrega
+                      </span>
                       <span className="font-medium">{(selectedItem as Order).delivery_address}</span>
                     </div>
                   )}
-                  <p className="text-xs text-muted-foreground">Se abrirá la orden para pagar en el flujo normal del POS.</p>
+                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Banknote className="h-3.5 w-3.5" /> Se abrirá la orden para pagar en el flujo normal del POS.
+                  </p>
                   <div className="flex items-center justify-end gap-2">
                     <button
                       type="button"
@@ -1221,12 +1581,12 @@ export default function PayPendingItemModal({
                     <button
                       type="button"
                       onClick={() => deliverMutation.mutate((selectedItem as Order).id)}
-                      disabled={deliverMutation.isPending}
+                      disabled={deliveringOrderId !== null}
                       className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-emerald-600 disabled:opacity-50"
                       title="Entregar"
                       aria-label="Entregar"
                     >
-                      {deliverMutation.isPending ? (
+                      {deliveringOrderId === (selectedItem as Order).id ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : (
                         <Check className="h-3.5 w-3.5" />
@@ -1237,20 +1597,13 @@ export default function PayPendingItemModal({
               ) : type === "pay_purchase_order" || type === "pay_expense" ? (
                 <>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Saldo pendiente</span>
+                    <span className="flex items-center gap-1.5 text-muted-foreground">
+                      <DollarSign className="h-3.5 w-3.5" /> Saldo pendiente
+                    </span>
                     <span className="font-semibold">{formatCLP(remainingAmount)}</span>
                   </div>
                   {showOrderActions && (
                     <div className="flex items-center justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleContinueOrder(selectedItem as Order)}
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
-                        title="Continuar agregando"
-                        aria-label="Continuar agregando"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
                       <button
                         type="button"
                         onClick={() => handleCancelOrder(selectedItem as Order)}
@@ -1264,7 +1617,9 @@ export default function PayPendingItemModal({
                   )}
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div className="flex flex-col gap-1">
-                      <label className="text-xs font-medium text-muted-foreground">Monto</label>
+                      <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                        <DollarSign className="h-3 w-3" /> Monto
+                      </label>
                       <Input
                         value={amount ? formatCLP(parseFloat(toDecimal(amount))) : ""}
                         onChange={(e) => setAmount(numberValue(e.target.value))}
@@ -1273,7 +1628,9 @@ export default function PayPendingItemModal({
                       />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-xs font-medium text-muted-foreground">Método de pago</label>
+                      <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                        <CreditCard className="h-3 w-3" /> Método de pago
+                      </label>
                       <Select
                         value={paymentMethodId}
                         onChange={(e) => setPaymentMethodId(e.target.value)}
@@ -1285,7 +1642,9 @@ export default function PayPendingItemModal({
                     </div>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-xs font-medium text-muted-foreground">Notas / referencia</label>
+                    <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                      <FileText className="h-3 w-3" /> Notas / referencia
+                    </label>
                     <Input
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
@@ -1296,20 +1655,13 @@ export default function PayPendingItemModal({
               ) : (
                 <>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Saldo pendiente</span>
+                    <span className="flex items-center gap-1.5 text-muted-foreground">
+                      <DollarSign className="h-3.5 w-3.5" /> Saldo pendiente
+                    </span>
                     <span className="font-semibold">{formatCLP(remainingAmount)}</span>
                   </div>
                   {showOrderActions && (
                     <div className="flex items-center justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleContinueOrder(selectedItem as Order)}
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
-                        title="Continuar agregando"
-                        aria-label="Continuar agregando"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
                       <button
                         type="button"
                         onClick={() => handleCancelOrder(selectedItem as Order)}
@@ -1321,7 +1673,9 @@ export default function PayPendingItemModal({
                       </button>
                     </div>
                   )}
-                  <p className="text-xs text-muted-foreground">Se abrirá la cuenta para pagar en el flujo normal del POS.</p>
+                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Banknote className="h-3.5 w-3.5" /> Se abrirá la cuenta para pagar en el flujo normal del POS.
+                  </p>
                 </>
               )}
             </div>
@@ -1343,6 +1697,7 @@ export default function PayPendingItemModal({
             }}
             disabled={!selectedItem}
           >
+            <Banknote className="mr-1.5 h-4 w-4" />
             {type === "pay_account"
               ? "Abrir cuenta"
               : type === "collect"
@@ -1363,10 +1718,46 @@ export default function PayPendingItemModal({
             }
             isLoading={payMutation.isPending}
           >
+            <Check className="mr-1.5 h-4 w-4" />
             Registrar pago
           </Button>
         )}
       </ModalFooter>
     </Modal>
+
+    <Modal
+      open={Boolean(confirmCancelItem)}
+      onClose={() => setConfirmCancelItem(null)}
+      title={
+        <div className="flex items-center gap-2 text-danger">
+          <AlertTriangle className="h-5 w-5" />
+          <span>¿Anular cuenta?</span>
+        </div>
+      }
+      size="sm"
+    >
+      <ModalBody>
+        <div className="flex flex-col items-center gap-3 text-center sm:flex-row sm:text-left">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-danger/10">
+            <XCircle className="h-6 w-6 text-danger" />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            ¿Confirmas que quieres anular la cuenta{" "}
+            <strong className="text-foreground">
+              {confirmCancelItem?.order_number ?? confirmCancelItem?.id.slice(0, 8)}
+            </strong>? Esta acción no se puede deshacer.
+          </p>
+        </div>
+      </ModalBody>
+      <ModalFooter>
+        <Button variant="outline" onClick={() => setConfirmCancelItem(null)}>
+          Cancelar
+        </Button>
+        <Button variant="danger" onClick={confirmCancelOrder}>
+          Anular
+        </Button>
+      </ModalFooter>
+    </Modal>
+    </>
   );
 }

@@ -34,11 +34,11 @@ const COLORS = [
 ];
 
 const TYPE_LABELS: Record<POSQuickActionType, string> = {
-  pay_account: "Pagar ventas a crédito",
-  pay_order: "Órdenes pendientes",
+  pay_account: "Cuentas",
+  pay_order: "Órdenes",
   collect: "Cobrar por cliente",
-  pay_purchase_order: "Pagar órdenes de compra",
-  pay_expense: "Pagar gastos",
+  pay_purchase_order: "Órdenes de compra",
+  pay_expense: "Gastos",
 };
 
 function Toggle({
@@ -86,8 +86,12 @@ export default function PosQuickActionsSettings({
   useEffect(() => {
     if (!open) return;
     setEnableQuickActions(config?.enable_quick_actions ?? true);
+    const source = config?.quick_actions?.length ? config.quick_actions : DEFAULT_POS_QUICK_ACTIONS;
     setActions(
-      config?.quick_actions?.length ? config.quick_actions : DEFAULT_POS_QUICK_ACTIONS,
+      source.map((a) => ({
+        ...a,
+        label: TYPE_LABELS[a.type] ?? a.label,
+      })),
     );
   }, [open, config]);
 
@@ -202,8 +206,8 @@ export default function PosQuickActionsSettings({
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{action.label}</p>
-                      <p className="text-xs text-muted-foreground">{TYPE_LABELS[action.type]}</p>
+                      <p className="truncate text-sm font-medium">{TYPE_LABELS[action.type]}</p>
+                      <p className="text-xs text-muted-foreground">Acción rápida</p>
                     </div>
 
                     <div className="w-28 shrink-0">

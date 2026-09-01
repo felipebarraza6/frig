@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Plus, Trash2, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,9 @@ import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { formatCLP, paymentTypeLabel } from "@/lib/utils";
 import { createPayment } from "@/lib/api/payments";
 import { freeTable } from "@/lib/api/tables";
+import { fetchBranchFinanceConfigByBranch } from "@/lib/api/branch-finance-config";
+import { useCurrentBranch } from "@/lib/store/session";
+import { useQuery } from "@tanstack/react-query";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 type Order = YggdraSchemas["Order"] & { order_number?: string | null };
@@ -45,8 +48,34 @@ export default function OrderCollectModal({
   onClose,
   onSuccess,
 }: OrderCollectModalProps) {
+  const branch = useCurrentBranch();
+  const branchId = branch?.branch_id ?? null;
+
+  const { data: financeConfig } = useQuery({
+    queryKey: ["branch-finance-config", branchId],
+    queryFn: () => fetchBranchFinanceConfigByBranch(Number(branchId)),
+    enabled: Boolean(branchId),
+    staleTime: 60_000,
+  });
+
   const firstMethod = paymentMethods?.[0];
   const total = parseFloat(order.total_amount ?? "0");
+
+  const taxRate = useMemo(() => {
+    const raw = financeConfig?.default_tax_rate;
+    if (raw === undefined || raw === null) return 0;
+    return parseFloat(String(raw)) || 0;
+  }, [financeConfig]);
+
+  const showTaxBreakdown = Boolean(financeConfig?.show_tax_breakdown) && taxRate > 0;
+
+  const { netAmount, taxAmount } = useMemo(() => {
+    if (!showTaxBreakdown || total <= 0) return { netAmount: 0, taxAmount: 0 };
+    const net = total / (1 + taxRate / 100);
+    const roundedNet = Math.round(net);
+    return { netAmount: roundedNet, taxAmount: total - roundedNet };
+  }, [showTaxBreakdown, total, taxRate]);
+
   const [paymentLines, setPaymentLines] = useState<PaymentLine[]>([
     {
       id: "initial",
@@ -147,15 +176,15 @@ export default function OrderCollectModal({
                 );
               })()}
             </div>
-            {(order.net_amount || order.tax_amount || order.tax_rate) && (
+            {showTaxBreakdown && (
               <div className="flex flex-col gap-1 border-t border-border/60 pt-1.5 text-xs text-muted-foreground">
                 <div className="flex justify-between">
-                  <span>Neto (sin IVA{order.tax_rate ? ` ${order.tax_rate}%` : ""})</span>
-                  <span className="tabular-nums">{formatCLP(parseFloat(order.net_amount ?? "0"))}</span>
+                  <span>Neto (sin IVA {taxRate}%)</span>
+                  <span className="tabular-nums">{formatCLP(netAmount)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>IVA</span>
-                  <span className="tabular-nums">{formatCLP(parseFloat(order.tax_amount ?? "0"))}</span>
+                  <span className="tabular-nums">{formatCLP(taxAmount)}</span>
                 </div>
               </div>
             )}

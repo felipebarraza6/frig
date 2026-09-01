@@ -17,6 +17,8 @@ export interface CartItem {
   modifiers: CartItemModifier[];
   discountPercentage: number;
   notes?: string;
+  /** ID del OrderProduct existente cuando se edita una orden. */
+  orderProductId?: number;
 }
 
 interface AddItemOptions {
@@ -35,6 +37,7 @@ interface CartState {
   setItemDiscount: (cartItemId: string, percentage: number) => void;
   setGlobalDiscount: (percentage: number) => void;
   setItemNotes: (cartItemId: string, notes: string) => void;
+  setItems: (items: CartItem[] | ((prev: CartItem[]) => CartItem[])) => void;
   clear: () => void;
 }
 
@@ -150,6 +153,10 @@ export const useCartStore = create<CartState>((set) => ({
   setItemNotes: (cartItemId, notes) =>
     set((state) => ({
       items: state.items.map((i) => (i.id === cartItemId ? { ...i, notes } : i)),
+    })),
+  setItems: (items) =>
+    set((state) => ({
+      items: typeof items === "function" ? items(state.items) : items,
     })),
   clear: () => set({ items: [], globalDiscountPercentage: 0 }),
 }));

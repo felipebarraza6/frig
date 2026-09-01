@@ -18,6 +18,7 @@ import {
   Wallet,
   ShoppingBag,
   Zap,
+  Boxes,
   TrendingUp,
   ArrowDownLeft,
   ArrowUpRight,
@@ -164,7 +165,7 @@ export default function PosPage() {
   const [query, setQuery] = useState("");
   // Difiere el filtrado del catálogo para no bloquear el tipeo.
   const deferredQuery = useDeferredValue(query);
-  const [activeCategory, setActiveCategory] = useState<number | null>(null);
+  const [activeCategory, setActiveCategory] = useState<number | "combos" | null>(null);
   const [modifierProduct, setModifierProduct] = useState<PosProduct | null>(null);
   const [modifierGroups, setModifierGroups] = useState<ProductModifierGroup[]>([]);
   const [showOpenAccounts, setShowOpenAccounts] = useState(false);
@@ -672,7 +673,7 @@ export default function PosPage() {
     return new Set(assignedMenu.products.map((p) => p.id));
   }, [assignedMenu]);
 
-  const filtered = useMemo(() => {
+  const baseFiltered = useMemo(() => {
     if (!products) return [];
     const q = deferredQuery.trim().toLowerCase();
     return products.filter((p) => {
@@ -681,11 +682,33 @@ export default function PosPage() {
         return false;
       }
       if (allowedProductIds && !allowedProductIds.has(p.id)) return false;
-      if (activeCategory !== null && p.categoryId !== activeCategory) return false;
       if (q && !p.name.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [products, deferredQuery, activeCategory, allowedProductIds, allowedProductTypes]);
+  }, [products, deferredQuery, allowedProductIds, allowedProductTypes]);
+
+  const categoryCounts = useMemo(() => {
+    const counts = new Map<number, number>();
+    for (const p of baseFiltered) {
+      if (p.categoryId != null) {
+        counts.set(p.categoryId, (counts.get(p.categoryId) ?? 0) + 1);
+      }
+    }
+    return counts;
+  }, [baseFiltered]);
+
+  const filtered = useMemo(() => {
+    if (activeCategory === "combos") return [];
+    if (activeCategory === null) return baseFiltered;
+    return baseFiltered.filter((p) => p.categoryId === activeCategory);
+  }, [baseFiltered, activeCategory]);
+
+  const filteredCombos = useMemo(() => {
+    if (!combos) return [];
+    const q = deferredQuery.trim().toLowerCase();
+    if (!q) return combos;
+    return combos.filter((c) => c.name.toLowerCase().includes(q));
+  }, [combos, deferredQuery]);
 
   const handleAddProduct = useCallback(
     (product: PosProduct) => {
@@ -927,18 +950,6 @@ export default function PosPage() {
             </button>
           )}
 
-          {/* Combos */}
-          {combos && combos.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setShowComboPicker(true)}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
-            >
-              <Zap className="h-3.5 w-3.5" />
-              <span className="hidden lg:inline">Combos</span>
-            </button>
-          )}
-
           {/* Mapa mesas */}
           {showTables && !isWaiter && (
             <button
@@ -1092,7 +1103,7 @@ export default function PosPage() {
 
         ) : (
         <div className="flex h-full">
-          <aside className="hidden h-full w-56 shrink-0 flex-col border-r border-border/60 bg-muted/20 p-3 sm:flex">
+          <aside className="hidden h-full w-[204px] shrink-0 flex-col border-r border-border/60 bg-muted/20 p-3 sm:flex">
             <div className="relative mb-3">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -1152,7 +1163,7 @@ export default function PosPage() {
                   )}
                 >
                   <span>Todos</span>
-                  <span className="text-[10px] opacity-80">{filtered.length}</span>
+                  <span className="text-[10px] opacity-80">{baseFiltered.length}</span>
                 </button>
                 {categoriesLoading
                   ? [0, 1, 2, 3, 4].map((i) => (
@@ -1170,8 +1181,23 @@ export default function PosPage() {
                         )}
                       >
                         <span className="truncate">{cat.name}</span>
+                        <span className="text-[10px] opacity-80">{categoryCounts.get(cat.id) ?? 0}</span>
                       </button>
                     ))}
+                {combos && combos.length > 0 && (
+                  <button
+                    onClick={() => setActiveCategory(activeCategory === "combos" ? null : "combos")}
+                    className={cn(
+                      "flex items-center justify-between rounded-lg px-2.5 py-2 text-left text-xs font-medium transition-colors",
+                      activeCategory === "combos"
+                        ? "bg-primary text-white"
+                        : "bg-transparent text-foreground hover:bg-muted",
+                    )}
+                  >
+                    <span className="truncate">Combos</span>
+                    <span className="text-[10px] opacity-80">{filteredCombos.length}</span>
+                  </button>
+                )}
               </div>
             </div>
           </aside>
@@ -1238,17 +1264,17 @@ export default function PosPage() {
                   </>
                 )}
 
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                <div className="flex items-center gap-1 overflow-x-auto pb-1">
                   <button
                     onClick={() => setActiveCategory(null)}
                     className={cn(
-                      "shrink-0 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
+                      "shrink-0 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
                       activeCategory === null
                         ? "bg-primary text-white"
                         : "bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
                     )}
                   >
-                    Todos
+                    Todos ({baseFiltered.length})
                   </button>
                   {categoriesLoading
                     ? [0, 1, 2, 3, 4].map((i) => (
@@ -1259,20 +1285,35 @@ export default function PosPage() {
                           key={cat.id}
                           onClick={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)}
                           className={cn(
-                            "shrink-0 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
+                            "shrink-0 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
                             activeCategory === cat.id
                               ? "bg-primary text-white"
                               : "bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
                           )}
                         >
-                          {cat.name}
+                          {cat.name} ({categoryCounts.get(cat.id) ?? 0})
                         </button>
                       ))}
+                  {combos && combos.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveCategory(activeCategory === "combos" ? null : "combos")}
+                      className={cn(
+                        "shrink-0 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
+                        activeCategory === "combos"
+                          ? "bg-primary text-white"
+                          : "bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
+                      )}
+                    >
+                      Combos ({filteredCombos.length})
+                    </button>
+                  )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2 border-t border-border/40 pt-1.5">
                   <div className="relative min-w-0 flex-1">
                     <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                     <Input
+                      id="pos-catalog-search"
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
                       onFocus={(e) => e.currentTarget.select()}
@@ -1281,17 +1322,6 @@ export default function PosPage() {
                       aria-label="Buscar producto"
                     />
                   </div>
-                  {combos && combos.length > 0 && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => setShowComboPicker(true)}
-                        className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-2.5 text-[11px] font-medium text-primary transition-colors hover:bg-primary/20"
-                      >
-                        Combos
-                      </button>
-                    </>
-                  )}
                 </div>
               </div>
             </div>
@@ -1334,12 +1364,58 @@ export default function PosPage() {
                 <div className="grid h-full place-items-center rounded-xl border border-dashed border-border">
                   <ProductCardSkeletonGrid count={12} />
                 </div>
+              ) : activeCategory === "combos" ? (
+                filteredCombos.length === 0 ? (
+                  <div className="grid h-full place-items-center rounded-xl border border-dashed border-border">
+                    <p className="text-sm text-muted-foreground">No hay combos que coincidan.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5">
+                    {filteredCombos.map((combo) => (
+                      <motion.div
+                        key={combo.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => handleAddCombo(combo)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            handleAddCombo(combo);
+                          }
+                        }}
+                        whileTap={{ scale: 0.97 }}
+                        transition={{ type: "spring", stiffness: 500, damping: 20 }}
+                        className="group flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-primary/30 bg-primary/5 p-2 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary/10 hover:shadow-md"
+                      >
+                        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-gradient-to-br from-primary/20 to-primary/5">
+                          <div className="flex h-full w-full items-center justify-center">
+                            <Boxes className="h-8 w-8 text-primary/50" />
+                          </div>
+                        </div>
+                        <div className="mt-2 flex flex-1 flex-col justify-between gap-2">
+                          <div className="flex flex-col gap-1">
+                            <p className="line-clamp-2 text-[13px] font-semibold leading-tight text-primary sm:text-sm">
+                              {combo.name}
+                            </p>
+                            <span className="inline-flex w-fit items-center gap-0.5 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                              <Boxes className="h-2.5 w-2.5" />
+                              Combo
+                            </span>
+                          </div>
+                          <p className="self-start text-sm font-bold tabular-nums text-foreground sm:text-base">
+                            {formatCLP(parseFloat(combo.combo_price || "0"))}
+                          </p>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )
               ) : filtered.length === 0 ? (
                 <div className="grid h-full place-items-center rounded-xl border border-dashed border-border">
                   <p className="text-sm text-muted-foreground">No hay productos que coincidan.</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5">
                   {filtered.map((product) => (
                     <ProductCard
                       key={product.id}
@@ -1457,14 +1533,14 @@ export default function PosPage() {
 
       {/* Bottom bar móvil */}
       {!cartOpen && !(isWaiter && !selectedTable && !isEditingOrder) && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 flex items-center gap-1.5 border-t border-border/60 bg-background px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-lg md:hidden">
+        <div className="fixed bottom-0 left-0 right-0 z-40 flex items-center gap-0.5 border-t border-border/60 bg-background px-1 py-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-lg md:hidden">
           <button
             type="button"
             onClick={() => {
               const el = document.getElementById("pos-catalog-search");
               el?.focus();
             }}
-            className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <Search className="h-[18px] w-[18px]" />
             <span className="text-[10px] font-medium">Buscar</span>
@@ -1481,7 +1557,7 @@ export default function PosPage() {
                   setMovementReason("");
                 }}
                 className={cn(
-                  "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[10px] font-medium transition-colors",
+                  "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium transition-colors",
                   cashRegisterError
                     ? "text-rose-700 hover:bg-rose-500/10"
                     : currentCashRegister
@@ -1502,12 +1578,12 @@ export default function PosPage() {
                 <button
                   type="button"
                   onClick={() => setShowOpenAccounts(true)}
-                  className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
                   <ClipboardList className="h-[18px] w-[18px]" />
                   <span className="truncate px-0.5">Cuentas</span>
                   {visibleOpenAccounts.length > 0 && (
-                    <span className="absolute right-2 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-semibold text-white">
+                    <span className="absolute right-1 top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-semibold text-white">
                       {visibleOpenAccounts.length}
                     </span>
                   )}
@@ -1517,12 +1593,12 @@ export default function PosPage() {
                 <button
                   type="button"
                   onClick={() => setShowPendingDeliveries(true)}
-                  className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
                   <Zap className="h-[18px] w-[18px]" />
                   <span className="truncate px-0.5">Pendientes</span>
                   {pendingDeliveriesCount > 0 && (
-                    <span className="absolute right-2 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-500 px-1 text-[9px] font-semibold text-white">
+                    <span className="absolute right-1 top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-500 px-1 text-[9px] font-semibold text-white">
                       {pendingDeliveriesCount}
                     </span>
                   )}
@@ -1534,7 +1610,7 @@ export default function PosPage() {
           <button
             type="button"
             onClick={() => setCartOpen(true)}
-            className="relative flex min-w-0 flex-[1.5] flex-col items-center justify-center gap-0.5 rounded-lg bg-primary py-1.5 text-[10px] font-medium text-white transition-colors hover:bg-primary/90"
+            className="relative flex min-w-0 flex-[1.5] flex-col items-center justify-center gap-0.5 rounded-lg bg-primary py-1 text-[10px] font-medium text-white transition-colors hover:bg-primary/90"
           >
             <span className="inline-flex items-center gap-1">
               <ShoppingBag className="h-[18px] w-[18px]" />

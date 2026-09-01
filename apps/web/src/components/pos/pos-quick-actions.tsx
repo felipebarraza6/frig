@@ -38,6 +38,14 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   TrendingDown,
 };
 
+const TYPE_LABELS: Record<POSQuickAction["type"], string> = {
+  pay_account: "Cuentas",
+  pay_order: "Órdenes",
+  collect: "Cobrar por cliente",
+  pay_purchase_order: "Órdenes de compra",
+  pay_expense: "Gastos",
+};
+
 type PaymentMethodItem = {
   id: string;
   name: string;
@@ -209,14 +217,14 @@ export default function PosQuickActions({
                 variant="outline"
                 size="sm"
                 onClick={() => setActiveType(action.id)}
-                title={action.label}
+                title={TYPE_LABELS[action.type]}
                 className={cn(
                   "relative h-7 gap-1 overflow-visible border-primary/20 px-2 text-[11px] text-foreground transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary",
                   "sm:h-8 sm:px-2.5",
                 )}
               >
                 <Icon className="h-3.5 w-3.5 shrink-0 text-primary/80" />
-                <span className="hidden whitespace-nowrap lg:inline">{action.label}</span>
+                <span className="hidden whitespace-nowrap lg:inline">{TYPE_LABELS[action.type]}</span>
                 {count > 0 && (
                   <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-white">
                     {count > 99 ? "99+" : count}

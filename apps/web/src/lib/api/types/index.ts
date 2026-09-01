@@ -25,11 +25,13 @@ export interface PosProduct {
   quantity?: number;
   stock_available?: number | null;
   minimum_stock?: number;
+  measurement_unit?: string | null;
+  image?: string | null;
 }
 
 export function toPosProduct(p: YggdraProduct): PosProduct {
   const cat = p.category && typeof p.category === "object" ? p.category : null;
-  const rawPrice = parseFloat(p.sale_price ?? p.price ?? "0") || 0;
+  const rawPrice = parseFloat(String(p.sale_price ?? p.price ?? "0")) || 0;
   // stock_available viene anotado desde el endpoint de listado; puede no estar
   // presente en otros endpoints o en versiones anteriores del schema.
   const rawStockAvailable = (p as { stock_available?: number | null }).stock_available;
@@ -37,6 +39,13 @@ export function toPosProduct(p: YggdraProduct): PosProduct {
     rawStockAvailable !== undefined && rawStockAvailable !== null
       ? rawStockAvailable
       : p.quantity;
+  const withImage = p as { primary_image?: string | null; images?: Array<{ image?: string | null; is_primary?: boolean }> };
+  let imageUrl = withImage.primary_image;
+  if (!imageUrl && Array.isArray(withImage.images)) {
+    const primary = withImage.images.find((img) => img.is_primary)?.image;
+    imageUrl = primary ?? withImage.images[0]?.image;
+  }
+
   return {
     id: p.id,
     name: p.name,
@@ -51,5 +60,7 @@ export function toPosProduct(p: YggdraProduct): PosProduct {
     quantity: effectiveQuantity,
     stock_available: rawStockAvailable,
     minimum_stock: p.minimum_stock,
+    measurement_unit: p.measurement_unit,
+    image: imageUrl,
   };
 }

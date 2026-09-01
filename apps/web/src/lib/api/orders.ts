@@ -46,6 +46,8 @@ export interface CreateOrderInput {
   client_id?: number | null;
   table_id?: number | null;
   order_type?: "SALE" | "ORDER" | "AGREEMENT";
+  delivery_address?: string | null;
+  delivery_date?: string | null;
 }
 
 export interface EditOrderInput {
@@ -58,7 +60,7 @@ export interface EditOrderInput {
 }
 
 export interface EditOrderItemInput {
-  id?: string;
+  id?: string | number;
   product?: number;
   quantity?: number;
   unit_price?: string;
@@ -106,7 +108,9 @@ function buildOrdersQueryString(filter: OrdersFilter): string {
     if (value === undefined || value === null) return;
     const values = Array.isArray(value) ? value : [value];
     if (values.length === 0) return;
-    const suffix = values.length > 1 || key.endsWith("__in") ? "__in" : "";
+    // Solo agregamos el sufijo __in cuando la clave aún no lo tiene y hay varios valores.
+    // Si la clave ya termina en __in, se usa tal cual para evitar client__in__in.
+    const suffix = values.length > 1 && !key.endsWith("__in") ? "__in" : "";
     qs.set(`${key}${suffix}`, values.join(","));
   }
 
@@ -179,6 +183,8 @@ export async function createOrder(input: CreateOrderInput): Promise<YggdraOrder>
       client_id: input.client_id ?? null,
       table_id: input.table_id ?? null,
       items: input.items,
+      delivery_address: input.delivery_address ?? null,
+      delivery_date: input.delivery_date ?? null,
     },
   });
   return data;
