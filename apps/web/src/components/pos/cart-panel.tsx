@@ -20,17 +20,10 @@ import {
   Store,
   Truck,
   Clock,
-  CreditCard,
-  Wallet,
-  ArrowLeftRight,
-  FileText,
-  CircleDollarSign,
-  MoreHorizontal,
   ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Modal } from "@/components/ui/modal";
 
 import {
   useCartStore,
@@ -75,21 +68,6 @@ function useDebounce(value: string, delay = 300) {
   return debounced;
 }
 
-const PAYMENT_TYPE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  CASH: Banknote,
-  CREDIT_CARD: CreditCard,
-  DEBIT_CARD: CreditCard,
-  BANK_TRANSFER: ArrowLeftRight,
-  CHECK: FileText,
-  DIGITAL_WALLET: Wallet,
-  CRYPTO: CircleDollarSign,
-  OTHER: MoreHorizontal,
-};
-
-function paymentMethodIcon(type?: string | null) {
-  return PAYMENT_TYPE_ICONS[type ?? "OTHER"] ?? MoreHorizontal;
-}
-
 interface CartPanelProps {
   stationId?: number | string | null;
   selectedTable?: YggdraSchemas["Table"] | null;
@@ -125,7 +103,6 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
   }
 
   const [payments, setPayments] = useState<PaymentLine[]>([]);
-  const [paymentMethodModalPaymentId, setPaymentMethodModalPaymentId] = useState<string | null>(null);
   const [selectedClient, setSelectedClient] = useState<Customer | null>(null);
   const [clientQuery, setClientQuery] = useState("");
   const [showClientResults, setShowClientResults] = useState(false);
@@ -1193,51 +1170,51 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                             key={payment.id}
                             className="flex flex-col gap-2 rounded-lg bg-muted/30 p-2.5"
                           >
-                            <div className="flex items-start gap-2">
+                            <div className="flex items-end gap-2">
+                              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                                <label className="text-[10px] text-muted-foreground">Método</label>
+                                <div className="relative">
+                                  <select
+                                    value={payment.payment_method_id}
+                                    onChange={(e) =>
+                                      updatePayment(payment.id, {
+                                        payment_method_id: e.target.value,
+                                        cash_received: undefined,
+                                      })
+                                    }
+                                    className="h-8 w-full appearance-none rounded-lg border border-border/60 bg-background pl-2 pr-7 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                  >
+                                    {posPaymentMethods.map((m) => (
+                                      <option key={m.id} value={m.id}>
+                                        {paymentTypeLabel(m.payment_type) || m.name || m.payment_type}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                                </div>
+                              </div>
+                              <div className="flex w-24 flex-col gap-0.5">
+                                <label className="text-[10px] text-muted-foreground">Pago</label>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  step="1"
+                                  value={payment.amount ? Math.round(parseFloat(payment.amount)).toString() : ""}
+                                  onChange={(e) =>
+                                    updatePayment(payment.id, { amount: e.target.value })
+                                  }
+                                  placeholder="0"
+                                  className="h-8 text-xs tabular-nums"
+                                />
+                              </div>
                               <button
                                 type="button"
-                                onClick={() => setPaymentMethodModalPaymentId(payment.id)}
-                                className="inline-flex min-w-0 flex-1 items-center justify-between gap-2 rounded-lg border border-border/80 bg-card px-3 py-2 text-left text-xs font-semibold text-foreground transition-colors hover:bg-muted"
+                                onClick={() => removePayment(payment.id)}
+                                aria-label="Quitar pago"
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-danger"
                               >
-                                <span className="inline-flex items-center gap-2 truncate">
-                                  {(() => {
-                                    const m = posPaymentMethods.find((pm) => pm.id === payment.payment_method_id);
-                                    const Icon = paymentMethodIcon(m?.payment_type);
-                                    return (
-                                      <>
-                                        <Icon className="h-4 w-4 shrink-0 text-primary" />
-                                        <span className="truncate">
-                                          {paymentTypeLabel(m?.payment_type) || m?.name || "Seleccionar"}
-                                        </span>
-                                      </>
-                                    );
-                                  })()}
-                                </span>
-                                <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                <X className="h-4 w-4" />
                               </button>
-                              <div className="flex shrink-0 items-start gap-2">
-                                <div className="flex w-24 flex-col gap-0.5">
-                                  <Input
-                                    type="number"
-                                    min={0}
-                                    step="1"
-                                    value={payment.amount ? Math.round(parseFloat(payment.amount)).toString() : ""}
-                                    onChange={(e) =>
-                                      updatePayment(payment.id, { amount: e.target.value })
-                                    }
-                                    placeholder="0"
-                                    className="h-8 text-xs tabular-nums"
-                                  />
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => removePayment(payment.id)}
-                                  aria-label="Quitar pago"
-                                  className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-danger"
-                                >
-                                  <X className="h-4 w-4" />
-                                </button>
-                              </div>
                             </div>
                             {isCash && (
                               <div className="flex flex-col gap-0.5">
@@ -1398,54 +1375,6 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
           error={createCustomerMutation.error}
         />
       )}
-
-      <Modal
-        open={paymentMethodModalPaymentId !== null}
-        onClose={() => setPaymentMethodModalPaymentId(null)}
-        title="Método de pago"
-        description="Selecciona cómo se realizará este pago."
-        size="sm"
-      >
-        {(() => {
-          const editingPayment = payments.find((p) => p.id === paymentMethodModalPaymentId);
-          return (
-            <div className="grid grid-cols-2 gap-3 p-1">
-              {posPaymentMethods.map((m) => {
-                const Icon = paymentMethodIcon(m.payment_type);
-                const selected = editingPayment?.payment_method_id === m.id;
-                const label = paymentTypeLabel(m.payment_type) || m.name || m.payment_type;
-                return (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => {
-                      if (paymentMethodModalPaymentId) {
-                        updatePayment(paymentMethodModalPaymentId, {
-                          payment_method_id: m.id,
-                          cash_received: undefined,
-                        });
-                      }
-                      setPaymentMethodModalPaymentId(null);
-                    }}
-                    className={cn(
-                      "flex flex-col items-center gap-2 rounded-xl border p-4 text-center transition-colors",
-                      selected
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border bg-card text-foreground hover:border-primary/40 hover:bg-primary/5",
-                    )}
-                  >
-                    <Icon className="h-8 w-8" />
-                    <span className="text-sm font-semibold">{label}</span>
-                    {m.name && m.name !== label && (
-                      <span className="text-xs text-muted-foreground">{m.name}</span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          );
-        })()}
-      </Modal>
 
     </div>
   );
