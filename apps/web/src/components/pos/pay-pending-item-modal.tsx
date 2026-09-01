@@ -331,8 +331,12 @@ export default function PayPendingItemModal({
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [viewDetailId, setViewDetailId] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
+  const activeMethods = useMemo(
+    () => paymentMethods.filter((m) => m.is_active && m.is_pos_enabled !== false),
+    [paymentMethods],
+  );
   const [paymentMethodId, setPaymentMethodId] = useState<string>(
-    paymentMethods[0]?.id ?? "",
+    activeMethods[0]?.id ?? "",
   );
   const [notes, setNotes] = useState("");
   const [dateFrom, setDateFrom] = useState("");
@@ -342,11 +346,6 @@ export default function PayPendingItemModal({
   const [clientFilterQuery, setClientFilterQuery] = useState("");
   const [deliveringOrderId, setDeliveringOrderId] = useState<string | null>(null);
   const [orderQuery, setOrderQuery] = useState("");
-
-  const activeMethods = useMemo(
-    () => paymentMethods.filter((m) => m.is_active && m.is_pos_enabled !== false),
-    [paymentMethods],
-  );
 
   const isCollect = type === "collect";
   const [payingAll, setPayingAll] = useState(false);

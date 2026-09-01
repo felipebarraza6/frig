@@ -392,8 +392,13 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
 
   const cashRegisterMissing = payments.length > 0 && !currentCashRegister;
 
+  const posPaymentMethods = useMemo(
+    () => paymentMethods?.filter((m) => m.is_active && m.is_pos_enabled !== false) ?? [],
+    [paymentMethods],
+  );
+
   function addPayment() {
-    const firstMethod = paymentMethods?.[0];
+    const firstMethod = posPaymentMethods[0];
     setPayments((prev) => [
       ...prev,
       { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, payment_method_id: firstMethod?.id ?? "", amount: remaining.toFixed(0) },
@@ -1187,9 +1192,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                           >
                             <div className="flex flex-wrap items-end gap-2">
                               <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">
-                                {paymentMethods
-                                  ?.filter((m) => m.is_active && m.is_pos_enabled !== false)
-                                  .map((m) => {
+                                {posPaymentMethods.map((m) => {
                                     const Icon = paymentMethodIcon(m.payment_type);
                                     const selected = payment.payment_method_id === m.id;
                                     return (

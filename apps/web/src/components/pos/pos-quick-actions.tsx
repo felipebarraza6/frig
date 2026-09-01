@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+
 import { useQuery } from "@tanstack/react-query";
 import {
   Receipt,
@@ -73,6 +74,11 @@ export default function PosQuickActions({
     queryFn: fetchPaymentMethods,
     staleTime: 60_000,
   });
+
+  const posPaymentMethods = useMemo(
+    () => paymentMethods.filter((m) => m.is_active && m.is_pos_enabled !== false),
+    [paymentMethods],
+  );
 
   const { data: cashRegister } = useQuery({
     queryKey: ["cash-register", "current", stationId],
@@ -218,7 +224,7 @@ export default function PosQuickActions({
         type={activeAction.type}
         onClose={() => setActiveType(null)}
         cashRegisterId={cashRegister?.id ?? null}
-        paymentMethods={paymentMethods as PaymentMethodItem[]}
+        paymentMethods={posPaymentMethods as PaymentMethodItem[]}
         onContinueOrder={onContinueOrder}
         onCancelOrder={onCancelOrder}
       />
