@@ -7,7 +7,6 @@ import {
   ClipboardList,
   UserSearch,
   Truck,
-  TrendingDown,
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,7 +19,6 @@ import { fetchPaymentMethods } from "@/lib/api/payments";
 import { getCurrentCashRegister } from "@/lib/api/cash-register";
 import { fetchOrders } from "@/lib/api/orders";
 import { fetchPurchaseOrders } from "@/lib/api/suppliers";
-import { fetchExpenses } from "@/lib/api/expenses";
 import { cn } from "@/lib/utils";
 import type { YggdraSchemas } from "@/lib/api/types";
 import PayPendingItemModal from "./pay-pending-item-modal";
@@ -35,7 +33,6 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   ClipboardList,
   UserSearch,
   Truck,
-  TrendingDown,
 };
 
 const TYPE_LABELS: Record<POSQuickAction["type"], string> = {
@@ -43,7 +40,6 @@ const TYPE_LABELS: Record<POSQuickAction["type"], string> = {
   pay_order: "Órdenes",
   collect: "Cobrar por cliente",
   pay_purchase_order: "Órdenes de compra",
-  pay_expense: "Gastos",
 };
 
 type PaymentMethodItem = {
@@ -150,24 +146,6 @@ export default function PosQuickActions({
     refetchInterval: 30_000,
   });
 
-  const { data: expensesCountData } = useQuery({
-    queryKey: ["pending-expenses-count"],
-    queryFn: async () => {
-      const data = await fetchExpenses({ status: "ACTIVE", page_size: 50 });
-      const list = (data.results ?? []) as Array<{ amount?: string | number | null; total_paid?: string | number | null }>;
-      const toNum = (v: string | number | null | undefined) => {
-        if (v == null || v === "") return 0;
-        const n = typeof v === "number" ? v : parseFloat(v);
-        return Number.isNaN(n) ? 0 : n;
-      };
-      const pending = list.filter((e) => toNum(e.amount) - toNum(e.total_paid) > 0);
-      if (pending.length >= 50 && data.count != null) return pending.length;
-      return pending.length;
-    },
-    staleTime: 30_000,
-    refetchInterval: 30_000,
-  });
-
   function getCountForAction(type: string): number {
     switch (type) {
       case "pay_account":
@@ -178,8 +156,6 @@ export default function PosQuickActions({
         return collectCountData ?? 0;
       case "pay_purchase_order":
         return purchaseOrdersCountData ?? 0;
-      case "pay_expense":
-        return expensesCountData ?? 0;
       default:
         return 0;
     }

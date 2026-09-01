@@ -43,11 +43,6 @@ const SECTIONS: {
     title: "Finanzas y pagos",
     items: [
       {
-        key: "expenses",
-        label: "Gastos",
-        description: "Permite registrar retiros y egresos de caja.",
-      },
-      {
         key: "cash_movements",
         label: "Ingresos/retiros de caja",
         description:

@@ -7,7 +7,6 @@ import {
   Receipt,
   UserSearch,
   Truck,
-  TrendingDown,
   Loader2,
   Eye,
   Trash2,
@@ -31,7 +30,6 @@ import { Select } from "@/components/ui/select";
 import { ModalBody, ModalFooter } from "@/components/ui/modal";
 import { fetchOrders, fetchOrder, payOrder, fetchPendingOrdersByClient, deliverOrder } from "@/lib/api/orders";
 import { fetchPurchaseOrders, payPurchaseOrder } from "@/lib/api/suppliers";
-import { fetchExpenses, payExpense } from "@/lib/api/expenses";
 import { searchCustomers } from "@/lib/api/customers";
 import { formatCLP, cn } from "@/lib/utils";
 import { useToast } from "@/lib/store/toast";
@@ -73,21 +71,6 @@ type PurchaseOrder = {
   order_date?: string | null;
   items_count?: string | number | null;
   branch_name?: string | null;
-  [key: string]: unknown;
-};
-
-type FixedExpense = {
-  id: string;
-  name?: string | null;
-  amount?: string | number | null;
-  total_paid?: string | number | null;
-  pending_amount?: string | number | null;
-  category_name?: string | null;
-  frequency_display?: string | null;
-  status_display?: string | null;
-  due_date?: string | null;
-  supplier_name?: string | null;
-  notes?: string | null;
   [key: string]: unknown;
 };
 
@@ -307,11 +290,6 @@ const TYPE_CONFIG: Record<
     icon: <Truck className="h-5 w-5" />,
     listLabel: "Órdenes de compra",
   },
-  pay_expense: {
-    title: "Gastos",
-    icon: <TrendingDown className="h-5 w-5" />,
-    listLabel: "Gastos",
-  },
 };
 
 export default function PayPendingItemModal({
@@ -426,15 +404,6 @@ export default function PayPendingItemModal({
   });
   const purchaseOrders = (purchaseOrdersData?.results ?? []) as PurchaseOrder[];
 
-  const { data: expensesData, isLoading: loadingExpenses } = useQuery({
-    queryKey: ["pending-expenses-for-pos", dateFrom, dateTo],
-    queryFn: () => fetchExpenses({ status: "ACTIVE", startDate: dateFrom || undefined, endDate: dateTo || undefined, page_size: 50 }),
-    enabled: open && type === "pay_expense",
-  });
-  const expenses = ((expensesData?.results ?? []) as FixedExpense[]).filter(
-    (e) => toNum(e.amount) - toNum(e.total_paid) > 0,
-  );
-
   const { data: customerResults = [], isLoading: searchingCustomers } = useQuery({
     queryKey: ["customers", "search", clientQuery],
     queryFn: () => searchCustomers(clientQuery),
@@ -451,7 +420,7 @@ export default function PayPendingItemModal({
     queryKey: ["order", "detail", viewDetailId],
     queryFn: () => fetchOrder(viewDetailId as string) as Promise<Order>,
     enabled:
-      Boolean(viewDetailId) && type !== "pay_purchase_order" && type !== "pay_expense",
+      Boolean(viewDetailId) && type !== "pay_purchase_order",
     staleTime: 30_000,
   });
 
@@ -460,11 +429,8 @@ export default function PayPendingItemModal({
     if (type === "pay_purchase_order") {
       return purchaseOrders.find((o) => o.id === selectedItemId) ?? null;
     }
-    if (type === "pay_expense") {
-      return expenses.find((e) => e.id === selectedItemId) ?? null;
-    }
     return orders.find((o) => o.id === selectedItemId) ?? null;
-  }, [selectedItemId, type, purchaseOrders, expenses, orders]);
+  }, [selectedItemId, type, purchaseOrders, orders]);
 
   const filteredOrders = useMemo(() => {
     if (!orderQuery.trim()) return orders;
@@ -493,10 +459,6 @@ export default function PayPendingItemModal({
     if (type === "pay_purchase_order") {
       return toNum((selectedItem as PurchaseOrder).remaining_amount);
     }
-    if (type === "pay_expense") {
-      const e = selectedItem as FixedExpense;
-      return toNum(e.amount) - toNum(e.total_paid);
-    }
     const o = selectedItem as Order;
     return toNum(o.total_amount) - toNum(o.paid_amount);
   }, [selectedItem, type]);
@@ -513,9 +475,6 @@ export default function PayPendingItemModal({
       };
       if (type === "pay_purchase_order") {
         return payPurchaseOrder(selectedItem.id, payload);
-      }
-      if (type === "pay_expense") {
-        return payExpense(selectedItem.id, payload);
       }
       return payOrder(selectedItem.id, payload);
     },
@@ -582,15 +541,11 @@ export default function PayPendingItemModal({
     const item =
       type === "pay_purchase_order"
         ? purchaseOrders.find((o) => o.id === id)
-        : type === "pay_expense"
-          ? expenses.find((e) => e.id === id)
-          : orders.find((o) => o.id === id);
+        : orders.find((o) => o.id === id);
     if (!item) return;
     let remaining = 0;
     if (type === "pay_purchase_order") {
       remaining = toNum((item as PurchaseOrder).remaining_amount);
-    } else if (type === "pay_expense") {
-      remaining = toNum((item as FixedExpense).amount) - toNum((item as FixedExpense).total_paid);
     } else {
       remaining = toNum((item as Order).total_amount) - toNum((item as Order).paid_amount);
     }
@@ -598,9 +553,7 @@ export default function PayPendingItemModal({
     setNotes(
       type === "pay_purchase_order"
         ? `Pago OC ${(item as PurchaseOrder).order_number}`
-        : type === "pay_expense"
-          ? `Pago ${(item as FixedExpense).name}`
-          : `Pago ${(item as Order).order_number ?? (item as Order).id.slice(0, 8)}`,
+        : `Pago ${(item as Order).order_number ?? (item as Order).id.slice(0, 8)}`,
     );
   }
 
@@ -732,103 +685,6 @@ export default function PayPendingItemModal({
               )}
             </div>
           ))}
-        </div>
-      );
-    }
-
-    if (type === "pay_expense") {
-      if (loadingExpenses) return <LoadingState message="Cargando gastos..." />;
-      if (expenses.length === 0) return (
-        <EmptyState
-          icon={TrendingDown}
-          title="No hay gastos"
-          description="Ajusta el rango de fechas si esperas ver más resultados."
-        />
-      );
-      return (
-        <div className="flex flex-col gap-3">
-          {expenses.map((e) => {
-            const remaining = toNum(e.amount) - toNum(e.total_paid);
-            const pending = e.pending_amount != null ? toNum(e.pending_amount) : remaining;
-            return (
-              <div
-                key={e.id}
-                className={cn(
-                  "rounded-xl border p-3 shadow-sm hover:shadow-md transition-shadow",
-                  selectedItemId === e.id
-                    ? "border-primary bg-primary/10"
-                    : "border-border/60 bg-card",
-                )}
-              >
-                <div className="flex justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold truncate">{e.name ?? e.id.slice(0, 8)}</p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {e.category_name ?? "Sin categoría"}
-                      {e.frequency_display ? ` · ${e.frequency_display}` : ""}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {shortDate(e.due_date)}
-                      {e.status_display ? ` · ${e.status_display}` : ""}
-                      {e.supplier_name ? ` · ${e.supplier_name}` : ""}
-                    </p>
-                    {e.notes && (
-                      <p className="truncate text-[11px] text-muted-foreground">{e.notes}</p>
-                    )}
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-sm font-bold">{formatCLP(pending)}</p>
-                    <p className="text-xs text-muted-foreground">de {formatCLP(toNum(e.amount))}</p>
-                    {toNum(e.total_paid) > 0 && (
-                      <p className="text-[11px] text-muted-foreground">pagado {formatCLP(toNum(e.total_paid))}</p>
-                    )}
-                  </div>
-                </div>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <Button size="sm" onClick={() => handleSelectItem(e.id)}>
-                    Pagar
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setViewDetailId(viewDetailId === e.id ? null : e.id)}
-                  >
-                    {viewDetailId === e.id ? "Cerrar" : "Ver detalle"}
-                  </Button>
-                </div>
-                {viewDetailId === e.id && (
-                  <div className="mt-3 rounded-lg bg-muted/30 p-3 text-xs">
-                    <p>
-                      <span className="font-medium">Nombre:</span> {e.name ?? "-"}
-                    </p>
-                    <p>
-                      <span className="font-medium">Categoría:</span> {e.category_name ?? "-"} ·{" "}
-                      <span className="font-medium">Frecuencia:</span> {e.frequency_display ?? "-"}
-                    </p>
-                    <p>
-                      <span className="font-medium">Monto:</span> {formatCLP(toNum(e.amount))} ·{" "}
-                      <span className="font-medium">Pagado:</span> {formatCLP(toNum(e.total_paid))} ·{" "}
-                      <span className="font-medium">Pendiente:</span> {formatCLP(pending)}
-                    </p>
-                    <p>
-                      <span className="font-medium">Vencimiento:</span> {shortDate(e.due_date)} ·{" "}
-                      <span className="font-medium">Estado:</span> {e.status_display ?? "-"}
-                    </p>
-                    {e.supplier_name && (
-                      <p>
-                        <span className="font-medium">Proveedor:</span> {e.supplier_name}
-                      </p>
-                    )}
-                    {e.notes && (
-                      <p>
-                        <span className="font-medium">Notas:</span> {e.notes}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
         </div>
       );
     }
@@ -1596,7 +1452,7 @@ export default function PayPendingItemModal({
                     </button>
                   </div>
                 </>
-              ) : type === "pay_purchase_order" || type === "pay_expense" ? (
+              ) : type === "pay_purchase_order" ? (
                 <>
                   <div className="flex items-center justify-between text-sm">
                     <span className="flex items-center gap-1.5 text-muted-foreground">

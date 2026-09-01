@@ -247,8 +247,7 @@ export type POSQuickActionType =
   | "pay_account"
   | "pay_order"
   | "collect"
-  | "pay_purchase_order"
-  | "pay_expense";
+  | "pay_purchase_order";
 
 export interface POSQuickAction {
   id: string;
@@ -276,7 +275,6 @@ export const DEFAULT_POS_QUICK_ACTIONS: POSQuickAction[] = [
   { id: "pay-order", type: "pay_order", label: "Órdenes", icon: "ClipboardList", color: "amber", enabled: true },
   { id: "collect", type: "collect", label: "Cobrar por cliente", icon: "UserSearch", color: "emerald", enabled: true },
   { id: "pay-purchase-order", type: "pay_purchase_order", label: "Órdenes de compra", icon: "Truck", color: "purple", enabled: true },
-  { id: "pay-expense", type: "pay_expense", label: "Gastos", icon: "TrendingDown", color: "rose", enabled: true },
 ];
 
 export async function fetchBranchPOSConfig(): Promise<BranchPOSConfig | null> {
