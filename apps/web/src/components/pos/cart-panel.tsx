@@ -1474,10 +1474,10 @@ function CustomerCreateModal({
             e.preventDefault();
             onSubmit(form);
           }}
-          className="grid grid-cols-1 gap-4 sm:grid-cols-2"
+          className="grid grid-cols-1 gap-4"
         >
-          <div className="flex flex-col gap-2 sm:col-span-2">
-            <label htmlFor="quick-customer-name" className="text-sm font-medium">Nombre</label>
+          <div className="flex flex-col gap-2">
+            <label htmlFor="quick-customer-name" className="text-sm font-medium">Nombre *</label>
             <Input
               id="quick-customer-name"
               value={form.name}
@@ -1487,41 +1487,48 @@ function CustomerCreateModal({
             />
           </div>
           <div className="flex flex-col gap-2">
-            <label htmlFor="quick-customer-dni" className="text-sm font-medium">RUT/DNI</label>
-            <Input
-              id="quick-customer-dni"
-              value={form.dni ?? ""}
-              onChange={(e) => setForm({ ...form, dni: e.target.value })}
-              placeholder="Opcional"
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <label htmlFor="quick-customer-phone" className="text-sm font-medium">Teléfono</label>
+            <label htmlFor="quick-customer-phone" className="text-sm font-medium">Teléfono *</label>
             <Input
               id="quick-customer-phone"
               value={form.phone_number ?? ""}
               onChange={(e) => setForm({ ...form, phone_number: e.target.value })}
-              placeholder="Opcional"
+              required
+              placeholder="Ej: +56 9 1234 5678"
             />
           </div>
-          <div className="flex flex-col gap-2 sm:col-span-2">
-            <label htmlFor="quick-customer-email" className="text-sm font-medium">Email</label>
-            <Input
-              id="quick-customer-email"
-              type="email"
-              value={form.email ?? ""}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              placeholder="Opcional"
-            />
-          </div>
-          <div className="flex flex-col gap-2 sm:col-span-2">
-            <label htmlFor="quick-customer-address" className="text-sm font-medium">Dirección</label>
-            <Input
-              id="quick-customer-address"
-              value={form.address ?? ""}
-              onChange={(e) => setForm({ ...form, address: e.target.value })}
-              placeholder="Ej: Av. Providencia 1234, Santiago"
-            />
+
+          <div className="mt-1 border-t border-border/60 pt-3">
+            <p className="mb-3 text-xs font-medium text-muted-foreground">Información adicional (opcional)</p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <label htmlFor="quick-customer-dni" className="text-sm font-medium">RUT/DNI</label>
+                <Input
+                  id="quick-customer-dni"
+                  value={form.dni ?? ""}
+                  onChange={(e) => setForm({ ...form, dni: e.target.value })}
+                  placeholder="Opcional"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label htmlFor="quick-customer-email" className="text-sm font-medium">Email</label>
+                <Input
+                  id="quick-customer-email"
+                  type="email"
+                  value={form.email ?? ""}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  placeholder="Opcional"
+                />
+              </div>
+              <div className="flex flex-col gap-2 sm:col-span-2">
+                <label htmlFor="quick-customer-address" className="text-sm font-medium">Dirección</label>
+                <Input
+                  id="quick-customer-address"
+                  value={form.address ?? ""}
+                  onChange={(e) => setForm({ ...form, address: e.target.value })}
+                  placeholder="Ej: Av. Providencia 1234, Santiago"
+                />
+              </div>
+            </div>
           </div>
           {error && (
             <p className="text-sm text-danger sm:col-span-2">
