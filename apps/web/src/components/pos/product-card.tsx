@@ -96,8 +96,7 @@ function ProductCardRaw({ product, recipe, ingredients, onClick, onKeyDown }: Pr
       whileTap={disabled ? undefined : { scale: 0.97 }}
       transition={{ type: "spring", stiffness: 500, damping: 20 }}
       className={cn(
-        "group flex cursor-pointer overflow-hidden rounded-2xl border bg-card p-2 shadow-sm transition-all",
-        hasImage ? "flex-col" : "flex-row items-center gap-3",
+        "group flex cursor-pointer flex-col overflow-hidden rounded-2xl border bg-card p-2 shadow-sm transition-all",
         "hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md",
         "aria-disabled:cursor-not-allowed aria-disabled:opacity-55 aria-disabled:hover:translate-y-0 aria-disabled:hover:border-border/60 aria-disabled:hover:shadow-sm",
         disabled ? "border-border/50" : "border-border/70",
@@ -105,12 +104,17 @@ function ProductCardRaw({ product, recipe, ingredients, onClick, onKeyDown }: Pr
     >
       <ProductImage product={product} />
 
-      <div className={cn("flex flex-1 flex-col justify-between gap-2", hasImage && "mt-2")}>
-        <div className="flex flex-col gap-1">
+      <div
+        className={cn(
+          "flex flex-1 flex-col justify-center items-center gap-2 text-center",
+          hasImage && "mt-2",
+        )}
+      >
+        <div className="flex flex-col items-center gap-1">
           <p className="line-clamp-2 text-[13px] font-semibold leading-tight text-foreground sm:text-sm">
             {product.name}
           </p>
-          <div className="flex flex-wrap items-center gap-1">
+          <div className="flex flex-wrap items-center justify-center gap-1">
             {product.product_type === "RECIPE_BASED" && (
               <ProductTypeBadge recipe={recipe} ingredients={ingredients} />
             )}
@@ -118,11 +122,9 @@ function ProductCardRaw({ product, recipe, ingredients, onClick, onKeyDown }: Pr
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-sm font-bold tabular-nums text-foreground sm:text-base">
-            {formatCLP(product.price)}
-          </p>
-        </div>
+        <p className="text-sm font-bold tabular-nums text-foreground sm:text-base">
+          {formatCLP(product.price)}
+        </p>
       </div>
     </motion.div>
   );
