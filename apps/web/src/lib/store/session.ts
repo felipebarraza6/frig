@@ -28,6 +28,8 @@ interface SessionState {
   modules: Record<string, FrontendModuleState>;
   dashboard: string | null;
   featureFlags: Record<string, boolean>;
+  /** Sucursal para la cual ya se cargó frontend-config por última vez. */
+  frontendConfigBranchId: ID_STR | null;
   hasHydrated: boolean;
   setSession: (user: User, branches: Branch[], permissions?: SessionPermissions | null) => void;
   setFrontendConfig: (config: FrontendConfigResponse, branchId?: ID_STR) => void;
@@ -151,9 +153,10 @@ export const useSessionStore = create<SessionState>()(
       modules: {},
       dashboard: null,
       featureFlags: {},
+      frontendConfigBranchId: null,
       hasHydrated: false,
       setSession: (user, branches, permissions = null) =>
-        set({ user, branches, currentBranchId: null, permissions }),
+        set({ user, branches, currentBranchId: null, permissions, frontendConfigBranchId: null }),
       setFrontendConfig: (config, branchId) => {
         if (branchId) {
           setBranchId(branchId);
@@ -167,6 +170,7 @@ export const useSessionStore = create<SessionState>()(
           modules: normalizeModules(config.modules),
           dashboard: normalizeDashboardRoute(config.dashboard),
           featureFlags: config.feature_flags ?? {},
+          frontendConfigBranchId: branchId ?? String(config.current_branch?.branch_id ?? config.branches[0]?.branch_id ?? ""),
         });
       },
       setUser: (user) => set({ user }),
@@ -193,6 +197,7 @@ export const useSessionStore = create<SessionState>()(
           modules: {},
           dashboard: null,
           featureFlags: {},
+          frontendConfigBranchId: null,
         });
       },
       setHasHydrated: (v) => set({ hasHydrated: v }),

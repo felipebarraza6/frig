@@ -104,17 +104,19 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
 
   const branchId = branch?.id ? Number(branch.id) : null;
   const isProductionEnabled = useIsModuleEnabledFromConfig("production");
+  const frontendConfigBranchId = useSessionStore((s) => s.frontendConfigBranchId);
+  const modulesReady = !!branch?.id && String(branch.id) === frontendConfigBranchId;
   const { data: kitchenStations = [] } = useQuery({
     queryKey: ["kitchen-stations"],
     queryFn: fetchKitchenStations,
-    enabled: !!branchId && isProductionEnabled,
+    enabled: !!branchId && isProductionEnabled && modulesReady,
   });
 
   const { data: kitchenTickets = [] } = useQuery({
     queryKey: ["kitchen-tickets", "READY"],
     queryFn: () => fetchKitchenTickets("READY"),
     refetchInterval: 15_000,
-    enabled: !!branch && isProductionEnabled,
+    enabled: !!branch && isProductionEnabled && modulesReady,
   });
 
   const badges = useMemo(() => {
@@ -541,6 +543,7 @@ function NavItem({
     <div className={cn("group relative", !expanded && "flex justify-center")}>
       <Link
         href={href}
+        prefetch={false}
         onClick={onClick}
         className={cn(
           "relative flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
