@@ -33,14 +33,14 @@ export async function fetchTaxTypes(params?: { branch?: number; is_active?: bool
 export async function createTaxType(payload: CreateTaxTypeInput): Promise<TaxType> {
   return apiFetch<TaxType>("/finance/tax-types/", {
     method: "POST",
-    body: JSON.stringify(payload),
+    body: payload,
   });
 }
 
 export async function updateTaxType(id: string, payload: UpdateTaxTypeInput): Promise<TaxType> {
   return apiFetch<TaxType>(`/finance/tax-types/${id}/`, {
     method: "PATCH",
-    body: JSON.stringify(payload),
+    body: payload,
   });
 }
 
