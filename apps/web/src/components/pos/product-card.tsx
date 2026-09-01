@@ -40,11 +40,11 @@ function ProductTypeBadge({
     .slice(0, 3);
   return (
     <span
-      className="inline-flex max-w-full flex-wrap items-start gap-1 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary"
+      className="inline-flex max-w-full items-start gap-1 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary"
       title={recipe?.name || undefined}
     >
-      <List className="h-2.5 w-2.5 shrink-0" />
-      <span className="break-words leading-tight">
+      <List className="mt-0.5 h-2.5 w-2.5 shrink-0" />
+      <span className="min-w-0 break-words leading-tight">
         {names.length > 0 ? names.join(", ") : recipe?.name || "Sin receta"}
       </span>
     </span>
