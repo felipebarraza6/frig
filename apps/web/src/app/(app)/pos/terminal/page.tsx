@@ -1390,11 +1390,36 @@ export default function PosPage() {
                         transition={{ type: "spring", stiffness: 500, damping: 20 }}
                         className="group flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-primary/30 bg-primary/5 p-2 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary/10 hover:shadow-md"
                       >
-                        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-gradient-to-br from-primary/20 to-primary/5">
-                          <div className="flex h-full w-full items-center justify-center">
-                            <Boxes className="h-8 w-8 text-primary/50" />
+                        {combo.image ? (
+                          <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-muted">
+                            <img
+                              src={combo.image}
+                              alt={combo.name}
+                              loading="lazy"
+                              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                            />
                           </div>
-                        </div>
+                        ) : (
+                          <div className="flex aspect-[4/3] flex-col justify-center gap-1 overflow-hidden rounded-lg bg-gradient-to-br from-primary/15 to-primary/5 p-2">
+                            <p className="text-[10px] font-medium text-primary/80">Incluye:</p>
+                            <ul className="flex flex-col gap-0.5">
+                              {(combo.items ?? []).slice(0, 4).map((item) => (
+                                <li
+                                  key={item.id}
+                                  className="truncate text-[10px] text-primary/90"
+                                  title={`${item.quantity ?? 1}x ${item.product_name}`}
+                                >
+                                  {item.quantity ?? 1}x {item.product_name}
+                                </li>
+                              ))}
+                              {(combo.items?.length ?? 0) > 4 && (
+                                <li className="text-[10px] text-primary/70">
+                                  +{(combo.items!.length - 4)} más
+                                </li>
+                              )}
+                            </ul>
+                          </div>
+                        )}
                         <div className="mt-2 flex flex-1 flex-col justify-between gap-2">
                           <div className="flex flex-col gap-1">
                             <p className="line-clamp-2 text-[13px] font-semibold leading-tight text-primary sm:text-sm">
