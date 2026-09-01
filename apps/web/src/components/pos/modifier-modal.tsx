@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Modal } from "@/components/ui/modal";
+import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import type { ProductModifierGroup } from "@/lib/hooks/useCatalog";
 import type { CartItemModifier } from "@/lib/store/cart";
 import { cn, formatCLP } from "@/lib/utils";
@@ -90,16 +90,16 @@ export default function ModifierModal({ productName, groups, onConfirm, onCancel
 
   return (
     <Modal open onClose={onCancel} title="Personalizar" description={productName} size="md">
-      <div className="flex flex-col gap-4 py-2">
+      <ModalBody className="flex flex-col gap-5 py-5">
         {availableGroups.map((group) => {
           const groupData = group.modifier_group;
           const selectedIds = selected[groupData.id] ?? [];
           const min = groupData.min_selections ?? 0;
           const max = groupData.max_selections ?? 0;
           return (
-            <div key={groupData.id} className="flex flex-col gap-2">
+            <div key={groupData.id} className="flex flex-col gap-2.5">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium">{groupData.name}</h3>
+                <h3 className="text-sm font-semibold">{groupData.name}</h3>
                 <span className="text-[10px] text-muted-foreground">
                   {selectedIds.length}
                   {max > 0 ? ` / ${max}` : min > 0 ? ` / mín. ${min}` : " seleccionados"}
@@ -111,8 +111,10 @@ export default function ModifierModal({ productName, groups, onConfirm, onCancel
                   Mínimo {min} {max > 0 ? `• máximo ${max}` : ""}
                 </p>
               )}
-              <div className="flex flex-col gap-1.5">
-                {groupData.options.map((option) => {
+              <div className="flex flex-col gap-2">
+                {[...groupData.options]
+                  .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+                  .map((option) => {
                   const isSelected = selectedIds.includes(option.id);
                   return (
                     <button
@@ -120,13 +122,13 @@ export default function ModifierModal({ productName, groups, onConfirm, onCancel
                       type="button"
                       onClick={() => toggleOption(groupData.id, option.id, max)}
                       className={cn(
-                        "flex items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+                        "flex items-center justify-between rounded-xl border px-4 py-3 text-left text-sm transition-colors",
                         isSelected
                           ? "border-primary bg-primary/10 text-primary"
                           : "border-border bg-card hover:bg-muted",
                       )}
                     >
-                      <span>{option.name}</span>
+                      <span className="font-medium">{option.name}</span>
                       <span className="text-xs tabular-nums">
                         {parseFloat(option.surcharge ?? "0") > 0
                           ? `+${formatCLP(option.surcharge ?? 0)}`
@@ -139,9 +141,9 @@ export default function ModifierModal({ productName, groups, onConfirm, onCancel
             </div>
           );
         })}
-      </div>
+      </ModalBody>
 
-      <div className="mt-4 flex items-center justify-between gap-2 border-t border-border pt-4">
+      <ModalFooter className="flex-row items-center justify-between">
         <span className="text-sm text-muted-foreground">
           Recargo total: <span className="font-semibold text-foreground">{formatCLP(totalSurcharge)}</span>
         </span>
@@ -153,7 +155,7 @@ export default function ModifierModal({ productName, groups, onConfirm, onCancel
             Agregar
           </Button>
         </div>
-      </div>
+      </ModalFooter>
     </Modal>
   );
 }
