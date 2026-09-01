@@ -1368,7 +1368,7 @@ export default function PosPage() {
                 </div>
               ) : productsLoading || assignedMenuLoading ? (
                 <div className="h-full w-full">
-                  <ProductCardSkeletonGrid count={20} />
+                  <ProductCardSkeletonGrid count={30} />
                 </div>
               ) : activeCategory === "combos" ? (
                 filteredCombos.length === 0 ? (
