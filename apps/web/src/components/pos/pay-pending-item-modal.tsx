@@ -486,7 +486,7 @@ export default function PayPendingItemModal({
   const { data: purchaseOrdersData, isLoading: loadingPurchaseOrders } = useQuery({
     queryKey: ["pending-purchase-orders-for-pos", dateFrom, dateTo],
     queryFn: () =>
-      fetchPurchaseOrders({ status: "SENT", payment_status: "PENDING", start_date: dateFrom || undefined, end_date: dateTo || undefined, page_size: 50 }),
+      fetchPurchaseOrders({ status: "SENT", payment_status__in: ["PENDING", "PARTIAL"], start_date: dateFrom || undefined, end_date: dateTo || undefined, page_size: 50 }),
     enabled: open && type === "pay_purchase_order",
   });
   const purchaseOrders = (purchaseOrdersData?.results ?? []) as PurchaseOrder[];
@@ -1653,6 +1653,11 @@ export default function PayPendingItemModal({
                       placeholder="Opcional"
                     />
                   </div>
+                  {remainingAmount <= 0 && (
+                    <p className="flex items-center gap-1.5 text-xs text-amber-700">
+                      <AlertTriangle className="h-3.5 w-3.5" /> Esta orden no tiene saldo pendiente por pagar.
+                    </p>
+                  )}
                 </>
               ) : (
                 <>
@@ -1715,6 +1720,8 @@ export default function PayPendingItemModal({
               !selectedItem ||
               !amount ||
               !paymentMethodId ||
+              !cashRegisterId ||
+              remainingAmount <= 0 ||
               payMutation.isPending ||
               parseFloat(toDecimal(amount)) > remainingAmount + 0.01
             }

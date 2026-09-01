@@ -140,6 +140,7 @@ export interface PurchaseOrdersFilter {
   supplier?: string;
   status?: string;
   payment_status?: string;
+  payment_status__in?: string[];
   start_date?: string;
   end_date?: string;
   page_size?: number;
@@ -161,6 +162,9 @@ export async function fetchPurchaseOrders(
   if (filter.supplier) qs.set("supplier", filter.supplier);
   if (filter.status) qs.set("status", filter.status);
   if (filter.payment_status) qs.set("payment_status", filter.payment_status);
+  if (filter.payment_status__in && filter.payment_status__in.length > 0) {
+    qs.set("payment_status__in", filter.payment_status__in.join(","));
+  }
   if (filter.start_date) qs.set("start_date", filter.start_date);
   if (filter.end_date) qs.set("end_date", filter.end_date);
   if (filter.page_size) qs.set("page_size", String(filter.page_size));
