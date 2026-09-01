@@ -17,6 +17,7 @@ export const ROUTE_MODULE_MAP: Record<string, ModuleName | null> = {
   "/kds/terminal": "production",
   "/products": "product_catalog",
   "/products/combos": "product_catalog",
+  "/products/modifiers": "product_catalog",
   "/products/menus": "public_catalog",
   "/products/nutrition": "nutrition",
   "/categories": "product_catalog",
@@ -222,6 +223,7 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
     items: [
       { href: "/products", label: "Productos", icon: "Package", module: "product_catalog" },
       { href: "/products/combos", label: "Combos", icon: "Boxes", module: "product_catalog" },
+      { href: "/products/modifiers", label: "Modificadores", icon: "ListChecks", module: "product_catalog" },
       { href: "/categories", label: "Categorías", icon: "Tags", module: "product_catalog" },
       { href: "/products/nutrition", label: "Etiquetado nutricional", icon: "Apple", module: "nutrition" },
       { href: "/products/menus", label: "Menús digitales", icon: "QrCode", module: "public_catalog" },
