@@ -765,17 +765,20 @@ export default function PayPendingItemModal({
                 >
                   {viewDetailId === o.id ? "Cerrar" : "Ver detalle"}
                 </Button>
-                <a
-                  href={`/purchase-orders/${o.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted"
-                  aria-label="Ver orden de compra"
-                  title="Ver orden de compra"
-                  onClick={(e) => e.stopPropagation()}
+                <button
+                  type="button"
+                  onClick={() => setViewDetailId(viewDetailId === o.id ? null : o.id)}
+                  className={cn(
+                    "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border transition-colors",
+                    viewDetailId === o.id
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border bg-background text-muted-foreground hover:bg-muted",
+                  )}
+                  aria-label={viewDetailId === o.id ? "Cerrar detalle" : "Ver detalle"}
+                  title={viewDetailId === o.id ? "Cerrar detalle" : "Ver detalle"}
                 >
                   <Eye className="h-3.5 w-3.5" />
-                </a>
+                </button>
               </div>
               {viewDetailId === o.id && (
                 <div className="mt-3 grid grid-cols-2 gap-2 rounded-lg bg-muted/30 p-3 text-xs sm:grid-cols-3">
