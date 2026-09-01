@@ -2,9 +2,8 @@
 
 import { memo } from "react";
 import { motion } from "framer-motion";
-import { AlertTriangle, Utensils, Package } from "lucide-react";
+import { AlertTriangle, Utensils } from "lucide-react";
 import type { PosProduct, YggdraSchemas } from "@/lib/api/types";
-import { useBranchProductTypes } from "@/lib/hooks/useBranchProductTypes";
 import { formatCLP, cn } from "@/lib/utils";
 
 interface ProductCardProps {
@@ -29,39 +28,25 @@ function stockStatus(product: PosProduct): {
 }
 
 function ProductTypeBadge({
-  product,
   recipe,
   ingredients,
 }: {
-  product: PosProduct;
   recipe?: YggdraSchemas["Recipe"] | null;
   ingredients?: YggdraSchemas["RecipeIngredient"][];
 }) {
-  const { labelFor: productTypeLabel } = useBranchProductTypes();
-  const isRecipe = product.product_type === "RECIPE_BASED";
-
-  if (isRecipe) {
-    const names = (ingredients ?? [])
-      .map((i) => i.ingredient_name)
-      .filter(Boolean)
-      .slice(0, 3);
-    return (
-      <span
-        className="inline-flex max-w-full items-center gap-1 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary"
-        title={recipe?.name || undefined}
-      >
-        <Utensils className="h-2.5 w-2.5 shrink-0" />
-        <span className="truncate">
-          {names.length > 0 ? names.join(", ") : recipe?.name || "Sin receta"}
-        </span>
-      </span>
-    );
-  }
-
+  const names = (ingredients ?? [])
+    .map((i) => i.ingredient_name)
+    .filter(Boolean)
+    .slice(0, 3);
   return (
-    <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
-      <Package className="h-2.5 w-2.5" />
-      {productTypeLabel(product.product_type)}
+    <span
+      className="inline-flex max-w-full items-center gap-1 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary"
+      title={recipe?.name || undefined}
+    >
+      <Utensils className="h-2.5 w-2.5 shrink-0" />
+      <span className="truncate">
+        {names.length > 0 ? names.join(", ") : recipe?.name || "Sin receta"}
+      </span>
     </span>
   );
 }
@@ -126,7 +111,9 @@ function ProductCardRaw({ product, recipe, ingredients, onClick, onKeyDown }: Pr
             {product.name}
           </p>
           <div className="flex flex-wrap items-center gap-1">
-            <ProductTypeBadge product={product} recipe={recipe} ingredients={ingredients} />
+            {product.product_type === "RECIPE_BASED" && (
+              <ProductTypeBadge recipe={recipe} ingredients={ingredients} />
+            )}
             <StockBadge product={product} />
           </div>
         </div>
