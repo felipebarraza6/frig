@@ -840,23 +840,23 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
   const modeConfig = useMemo(() => {
     if (existingOrderId && existingOrder) {
       if (existingOrder.order_type === "ORDER") {
-        return { label: "Editando orden", icon: ClipboardList, color: "text-blue-600 bg-blue-500/10" };
+        return { label: "Editando orden", icon: ClipboardList, color: "text-primary bg-primary/10" };
       }
       if (existingOrder.order_type === "SALE" && !existingOrder.payment_status?.startsWith("PENDING")) {
-        return { label: "Editando venta", icon: Receipt, color: "text-emerald-600 bg-emerald-500/10" };
+        return { label: "Editando venta", icon: Receipt, color: "text-primary bg-primary/10" };
       }
-      return { label: "Editando cuenta", icon: ClipboardList, color: "text-amber-600 bg-amber-500/10" };
+      return { label: "Editando cuenta", icon: ClipboardList, color: "text-primary bg-primary/10" };
     }
     if (defaultOrderType === "ORDER") {
-      return { label: "Nueva orden", icon: ClipboardList, color: "text-blue-600 bg-blue-500/10" };
+      return { label: "Nueva orden", icon: ClipboardList, color: "text-primary bg-primary/10" };
     }
     if (payments.length > 0) {
-      return { label: "Venta al contado", icon: Receipt, color: "text-emerald-600 bg-emerald-500/10" };
+      return { label: "Venta al contado", icon: Receipt, color: "text-primary bg-primary/10" };
     }
     if (isWaiter) {
-      return { label: "Nuevo pedido", icon: ClipboardList, color: "text-violet-600 bg-violet-500/10" };
+      return { label: "Nuevo pedido", icon: ClipboardList, color: "text-primary bg-primary/10" };
     }
-    return { label: "Nueva venta", icon: Receipt, color: "text-emerald-600 bg-emerald-500/10" };
+    return { label: "Nueva venta", icon: Receipt, color: "text-primary bg-primary/10" };
   }, [existingOrderId, existingOrder, defaultOrderType, payments.length, isWaiter]);
 
   const ModeIcon = modeConfig.icon;
@@ -912,8 +912,8 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                 {defaultOrderType === "ORDER" ? (
                   <div className="flex w-full max-w-xs flex-col gap-4">
                     <div className="flex flex-col items-center gap-2 text-center">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/10">
-                        <ClipboardList className="h-5 w-5 text-blue-600" />
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                        <ClipboardList className="h-5 w-5 text-primary" />
                       </div>
                       <p className="text-sm font-medium">Nueva orden</p>
                       <p className="text-xs text-muted-foreground">
