@@ -44,7 +44,11 @@ import { useCategoryOptions } from "@/lib/hooks/useCategoryOptions";
 import { useToast } from "@/lib/store/toast";
 import { useCurrentBranch } from "@/lib/store/session";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
-import type { YggdraProduct } from "@/lib/api/types";
+import {
+  fetchBranchRecipes,
+  fetchBranchRecipeIngredients,
+} from "@/lib/api/recipes";
+import type { YggdraProduct, YggdraSchemas } from "@/lib/api/types";
 
 function productStock(p: YggdraProduct): number {
   // El backend anota stock_available (stock efectivo, incluido el de bowls
@@ -86,6 +90,8 @@ function colorFor(value: string): { bg: string; text: string } {
 
 interface ProductCardProps {
   product: YggdraProduct;
+  recipe?: YggdraSchemas["Recipe"] | null;
+  ingredients?: YggdraSchemas["RecipeIngredient"][];
   colorClass: { bg: string; text: string };
   productTypeLabel: (type?: string) => string;
   onEdit: () => void;
@@ -98,6 +104,8 @@ interface ProductCardProps {
 
 function ProductCard({
   product,
+  recipe,
+  ingredients,
   colorClass,
   productTypeLabel,
   onEdit,
@@ -151,10 +159,28 @@ function ProductCard({
             Sin categoría
           </span>
         )}
-        <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground">
-          {productTypeLabel(product.product_type)}
-        </span>
+        {product.product_type === "RECIPE_BASED" ? (
+          <span
+            className="inline-flex max-w-full items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-700"
+            title={recipe ? recipe.name : "Sin receta"}
+          >
+            <span className="truncate">{recipe ? recipe.name : "Sin receta"}</span>
+          </span>
+        ) : (
+          <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground">
+            {productTypeLabel(product.product_type)}
+          </span>
+        )}
       </div>
+      {product.product_type === "RECIPE_BASED" && ingredients && ingredients.length > 0 && (
+        <p className="mb-3 text-xs text-muted-foreground">
+          <span className="font-medium">Ingredientes:</span>{" "}
+          {ingredients.map((i) => i.ingredient_name).join(", ")}
+        </p>
+      )}
+      {product.description && (
+        <p className="mb-3 line-clamp-2 text-xs text-muted-foreground">{product.description}</p>
+      )}
 
       <div className="mb-4 flex items-end justify-between">
         <div>
@@ -346,6 +372,47 @@ export function ProductsClient() {
 
   const products = page?.results ?? [];
   const totalProducts = page?.count ?? 0;
+
+  // Recetas e ingredientes de productos compuestos visibles.
+  const compoundProductIds = useMemo(
+    () => products.filter((p) => p.product_type === "RECIPE_BASED").map((p) => p.id),
+    [products],
+  );
+
+  const { data: branchRecipes = [] } = useQuery({
+    queryKey: ["recipes", "branch", branch?.branch_id],
+    queryFn: fetchBranchRecipes,
+    enabled: !!branch?.branch_id && compoundProductIds.length > 0,
+    staleTime: 5 * 60_000,
+  });
+
+  const { data: branchRecipeIngredients = [] } = useQuery({
+    queryKey: ["recipe-ingredients", "branch", branch?.branch_id],
+    queryFn: fetchBranchRecipeIngredients,
+    enabled: !!branch?.branch_id && compoundProductIds.length > 0,
+    staleTime: 5 * 60_000,
+  });
+
+  const recipesByProductId = useMemo(() => {
+    const map = new Map<number, YggdraSchemas["Recipe"]>();
+    for (const recipe of branchRecipes) {
+      if (recipe.resulting_product == null) continue;
+      if (!map.has(recipe.resulting_product)) {
+        map.set(recipe.resulting_product, recipe);
+      }
+    }
+    return map;
+  }, [branchRecipes]);
+
+  const ingredientsByRecipeId = useMemo(() => {
+    const map = new Map<string, YggdraSchemas["RecipeIngredient"][]>();
+    for (const ing of branchRecipeIngredients) {
+      const list = map.get(ing.recipe) ?? [];
+      list.push(ing);
+      map.set(ing.recipe, list);
+    }
+    return map;
+  }, [branchRecipeIngredients]);
 
   const toggleActive = useMutation({
     mutationFn: ({ id, isActive }: { id: number; isActive: boolean }) =>
@@ -852,6 +919,8 @@ export function ProductsClient() {
                       <ProductCard
                         key={p.id}
                         product={p}
+                        recipe={recipesByProductId.get(p.id)}
+                        ingredients={ingredientsByRecipeId.get(recipesByProductId.get(p.id)?.id ?? "")}
                         colorClass={colorFor(seed)}
                         productTypeLabel={productTypeLabel}
                         onEdit={() => {
@@ -913,7 +982,23 @@ export function ProductsClient() {
                             {p.category && typeof p.category === "object" ? p.category.name : "—"}
                           </td>
                           <td className="px-4 py-3 text-muted-foreground">
-                            {productTypeLabel(p.product_type)}
+                            {p.product_type === "RECIPE_BASED" ? (
+                              <div className="max-w-[200px]">
+                                <span className="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                                  {recipesByProductId.get(p.id)?.name ?? "Sin receta"}
+                                </span>
+                                {ingredientsByRecipeId.get(recipesByProductId.get(p.id)?.id ?? "")?.length ? (
+                                  <p className="mt-1 truncate text-xs">
+                                    {ingredientsByRecipeId
+                                      .get(recipesByProductId.get(p.id)?.id ?? "")
+                                      ?.map((i) => i.ingredient_name)
+                                      .join(", ")}
+                                  </p>
+                                ) : null}
+                              </div>
+                            ) : (
+                              productTypeLabel(p.product_type)
+                            )}
                           </td>
                           <td className="px-4 py-3 text-right tabular-nums">
                             {formatCLP(p.sale_price ?? p.price ?? "0")}

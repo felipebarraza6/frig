@@ -123,3 +123,33 @@ export function downloadRecipeNutritionLabel(id: string): Promise<ApiFileResult>
 export async function fetchRecipeNutritionLabel(id: string): Promise<Record<string, unknown>> {
   return apiFetch<Record<string, unknown>>(`/recipes/recipes/${id}/nutrition_label/`);
 }
+
+/** Carga todas las recetas activas de la sucursal actual. */
+export async function fetchBranchRecipes(): Promise<Recipe[]> {
+  const recipes: Recipe[] = [];
+  let url: string = "/recipes/recipes/?page_size=500&status=ACTIVE";
+  for (;;) {
+    const data: PaginatedRecipeList = await apiFetch<PaginatedRecipeList>(url);
+    recipes.push(...data.results);
+    if (!data.next) break;
+    const nextUrl = new URL(data.next, API_BASE);
+    url = `${nextUrl.pathname}${nextUrl.search}`;
+  }
+  return recipes;
+}
+
+type PaginatedRecipeIngredientList = YggdraSchemas["PaginatedRecipeIngredientList"];
+
+/** Carga todos los ingredientes de recetas de la sucursal actual. */
+export async function fetchBranchRecipeIngredients(): Promise<RecipeIngredient[]> {
+  const ingredients: RecipeIngredient[] = [];
+  let url: string = "/recipes/ingredients/?page_size=1000";
+  for (;;) {
+    const data: PaginatedRecipeIngredientList = await apiFetch<PaginatedRecipeIngredientList>(url);
+    ingredients.push(...data.results);
+    if (!data.next) break;
+    const nextUrl = new URL(data.next, API_BASE);
+    url = `${nextUrl.pathname}${nextUrl.search}`;
+  }
+  return ingredients;
+}
