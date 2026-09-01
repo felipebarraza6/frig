@@ -20,10 +20,16 @@ import {
   Store,
   Truck,
   Clock,
+  CreditCard,
+  Wallet,
+  ArrowLeftRight,
+  FileText,
+  CircleDollarSign,
+  MoreHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+
 import {
   useCartStore,
   cartSubtotal,
@@ -65,6 +71,21 @@ function useDebounce(value: string, delay = 300) {
     return () => clearTimeout(t);
   }, [value, delay]);
   return debounced;
+}
+
+const PAYMENT_TYPE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  CASH: Banknote,
+  CREDIT_CARD: CreditCard,
+  DEBIT_CARD: CreditCard,
+  BANK_TRANSFER: ArrowLeftRight,
+  CHECK: FileText,
+  DIGITAL_WALLET: Wallet,
+  CRYPTO: CircleDollarSign,
+  OTHER: MoreHorizontal,
+};
+
+function paymentMethodIcon(type?: string | null) {
+  return PAYMENT_TYPE_ICONS[type ?? "OTHER"] ?? MoreHorizontal;
 }
 
 interface CartPanelProps {
@@ -1162,48 +1183,63 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                         return (
                           <div
                             key={payment.id}
-                            className="flex flex-col gap-1.5 rounded-lg bg-muted/30 p-2.5"
+                            className="flex flex-col gap-2 rounded-lg bg-muted/30 p-2.5"
                           >
-                            <div className="flex items-end gap-2">
-                              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                                <Select
-                                  value={payment.payment_method_id}
-                                  onChange={(e) =>
-                                    updatePayment(payment.id, {
-                                      payment_method_id: e.target.value,
-                                      cash_received: undefined,
-                                    })
-                                  }
-                                  className="h-8 text-xs"
+                            <div className="flex flex-wrap items-end gap-2">
+                              <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">
+                                {paymentMethods
+                                  ?.filter((m) => m.is_active && m.is_pos_enabled !== false)
+                                  .map((m) => {
+                                    const Icon = paymentMethodIcon(m.payment_type);
+                                    const selected = payment.payment_method_id === m.id;
+                                    return (
+                                      <button
+                                        key={m.id}
+                                        type="button"
+                                        onClick={() =>
+                                          updatePayment(payment.id, {
+                                            payment_method_id: m.id,
+                                            cash_received: undefined,
+                                          })
+                                        }
+                                        className={cn(
+                                          "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition-colors",
+                                          selected
+                                            ? "border-primary bg-primary/10 text-primary"
+                                            : "border-border/60 bg-background text-foreground hover:bg-muted",
+                                        )}
+                                      >
+                                        <Icon className="h-3.5 w-3.5 shrink-0" />
+                                        <span className="truncate">
+                                          {paymentTypeLabel(m.payment_type) || m.name || m.payment_type}
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+                              </div>
+                              <div className="flex items-end gap-2">
+                                <div className="flex w-24 flex-col gap-0.5">
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    step="1"
+                                    value={payment.amount ? Math.round(parseFloat(payment.amount)).toString() : ""}
+                                    onChange={(e) =>
+                                      updatePayment(payment.id, { amount: e.target.value })
+                                    }
+                                    placeholder="0"
+                                    className="h-8 text-xs tabular-nums"
+                                  />
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => removePayment(payment.id)}
+                                  aria-label="Quitar pago"
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-danger"
                                 >
-                                  {paymentMethods?.map((m) => (
-                                    <option key={m.id} value={m.id}>
-                                      {paymentTypeLabel(m.payment_type) || m.name || m.payment_type}
-                                    </option>
-                                  ))}
-                                </Select>
+                                  <X className="h-4 w-4" />
+                                </button>
                               </div>
-                              <div className="flex w-24 flex-col gap-0.5">
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  step="1"
-                                  value={payment.amount ? Math.round(parseFloat(payment.amount)).toString() : ""}
-                                  onChange={(e) =>
-                                    updatePayment(payment.id, { amount: e.target.value })
-                                  }
-                                  placeholder="0"
-                                  className="h-8 text-xs tabular-nums"
-                                />
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => removePayment(payment.id)}
-                                aria-label="Quitar pago"
-                                className="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-danger"
-                              >
-                                <X className="h-4 w-4" />
-                              </button>
                             </div>
                             {isCash && (
                               <div className="flex flex-col gap-0.5">
