@@ -212,6 +212,29 @@ function deliveryStatusBadgeClass(status?: string | null) {
   }
 }
 
+function orderTypeMeta(type?: string | null) {
+  switch (type?.toUpperCase()) {
+    case "SALE":
+      return {
+        icon: Receipt,
+        label: "Venta",
+        className: "bg-blue-500/10 text-blue-700",
+      };
+    case "ORDER":
+      return {
+        icon: ClipboardList,
+        label: "Orden",
+        className: "bg-amber-500/10 text-amber-700",
+      };
+    default:
+      return {
+        icon: Receipt,
+        label: "Cuenta",
+        className: "bg-muted text-muted-foreground",
+      };
+  }
+}
+
 function shortDate(iso?: string | null) {
   if (!iso) return "—";
   try {
@@ -778,6 +801,8 @@ export default function PayPendingItemModal({
               const isExpanded = viewDetailId === o.id;
               const detailOrder = (isExpanded ? orderDetail : null) ?? o;
               const isDetailLoading = loadingOrderDetail && isExpanded;
+              const orderMeta = orderTypeMeta(o.order_type);
+              const OrderIcon = orderMeta.icon;
               return (
                 <div
                   key={o.id}
@@ -788,14 +813,27 @@ export default function PayPendingItemModal({
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-start gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                        <Receipt className="h-5 w-5" />
+                      <div
+                        className={cn(
+                          "flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
+                          orderMeta.className,
+                        )}
+                      >
+                        <OrderIcon className="h-5 w-5" />
                       </div>
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold">
                           {o.order_number ?? o.id.slice(0, 8)}
                         </p>
                         <div className="mt-1 flex flex-wrap gap-1">
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
+                              orderMeta.className,
+                            )}
+                          >
+                            <OrderIcon className="h-3 w-3" /> {orderMeta.label}
+                          </span>
                           <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
                             <Calendar className="h-3 w-3" /> {shortDate(o.date)}
                           </span>
