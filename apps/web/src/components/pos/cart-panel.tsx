@@ -1356,11 +1356,11 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
           {showTaxBreakdown && (
             <div className="flex flex-col gap-1 border-t border-border/60 pt-2 text-muted-foreground">
               <div className="flex items-center justify-between">
-                <span>Neto (sin IVA {taxRate}%)</span>
+                <span>Neto</span>
                 <span className="tabular-nums">{formatCLP(netAmount)}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span>IVA</span>
+                <span>Impuesto ({taxRate}%)</span>
                 <span className="tabular-nums">{formatCLP(taxAmount)}</span>
               </div>
             </div>
