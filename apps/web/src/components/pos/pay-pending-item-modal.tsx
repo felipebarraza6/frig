@@ -509,6 +509,19 @@ export default function PayPendingItemModal({
       return payOrder(selectedItem.id, payload);
     },
     onSuccess: () => {
+      if (type === "pay_purchase_order") {
+        queryClient.invalidateQueries({ queryKey: ["pending-purchase-orders-for-pos"] });
+        queryClient.invalidateQueries({ queryKey: ["pending-purchase-orders-count"] });
+        queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["orders"] });
+        queryClient.invalidateQueries({ queryKey: ["pending-orders-for-pos"] });
+        queryClient.invalidateQueries({ queryKey: ["all-pending-accounts-for-collect"] });
+        queryClient.invalidateQueries({ queryKey: ["pending-accounts-count"] });
+        queryClient.invalidateQueries({ queryKey: ["pending-collect-count"] });
+      }
+      queryClient.invalidateQueries({ queryKey: ["cash-register"] });
+      toast.success("Pago registrado");
       handleClose();
     },
     onError: (err: Error) => {
