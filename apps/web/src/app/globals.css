@@ -233,6 +233,26 @@ body {
 .frig-smoke-2 { animation-delay: .5s; animation-duration: 3s; }
 .frig-smoke-3 { animation-delay: 1s; animation-duration: 2.8s; }
 
+/* ── Landing pixel-game (estilo juego medieval) ─────────────────────────── */
+
+/* Marco chunky: borde duro + sombra offset, sin radios (look retro). */
+.pixel-frame {
+  border: 2px solid color-mix(in srgb, var(--brand-foreground) 34%, transparent);
+  border-radius: 0;
+  background: var(--card);
+  box-shadow: 5px 5px 0 0 color-mix(in srgb, var(--brand-foreground) 16%, transparent);
+}
+
+.pixel-btn {
+  border-radius: 0;
+  box-shadow: 3px 3px 0 0 rgba(0, 0, 0, 0.45);
+  transition: transform 60ms steps(2), box-shadow 60ms steps(2);
+}
+.pixel-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 0 rgba(0, 0, 0, 0.45);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .landing-pixel-drift,
   .landing-pixel-steam,

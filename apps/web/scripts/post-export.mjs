@@ -18,6 +18,7 @@ const outDir = join(dirname(fileURLToPath(import.meta.url)), "..", "out");
 const dynamicRewrites = [
   ["^menu/[^/]+/totem/?$", "/menu/__/totem.html"],
   ["^menu/[^/]+/?$", "/menu/__.html"],
+  ["^login/[^/]+/?$", "/login/__.html"],
   ["^warehouses/[^/]+/?$", "/warehouses/__.html"],
   ["^kds/station/[^/]+/?$", "/kds/station/__.html"],
   ["^reset-password/[^/]+/?$", "/reset-password/__.html"],
