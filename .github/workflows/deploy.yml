@@ -1,9 +1,13 @@
-# Deploy automático de FRIG web al hosting estático por FTP.
+# Deploy automático de FRIG web a los dos hostings por FTP:
+#   - frig.yggdra.cl      (producción)
+#   - intranet.macanuobowl.cl (intranet Macanuo Bowl)
 #
 # Requisitos en GitHub → Settings → Secrets and variables → Actions:
 #   Secrets:
-#     FTP_PASSWORD    contraseña FTP
-#     FTP_TARGET_DIR  carpeta destino (ej. /public_html/ o /htdocs/frig/)
+#     FTP_PASSWORD          contraseña FTP de frig_cd@yggdra.cl
+#     FTP_TARGET_DIR        carpeta destino yggdra ("/")
+#     MACANUO_FTP_PASSWORD  contraseña FTP de cd@macanuobowl.cl
+#     MACANUO_FTP_TARGET_DIR carpeta destino macanuo ("/")
 #
 # Nota: el frontend se compila a HTML estático (next.config.ts usa output:"export").
 # Las rutas dinámicas se sirven mediante .htaccess generado por scripts/post-export.mjs.
@@ -25,6 +29,7 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: "1"
       # Se inyecta en build time: NEXT_PUBLIC_* se sustituye en el bundle.
+      # El mismo build sirve para ambos servidores (misma API).
       NEXT_PUBLIC_YGGDRA_API_BASE: "https://api.yggdra.cl/api"
     steps:
       - uses: actions/checkout@v4
@@ -44,7 +49,7 @@ jobs:
       - name: Generar .htaccess para rutas dinámicas
         run: node scripts/post-export.mjs
 
-      - name: Subir a servidor por FTP
+      - name: Subir a frig.yggdra.cl por FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ftp.yggdra.cl
@@ -55,3 +60,14 @@ jobs:
           server-dir: ${{ secrets.FTP_TARGET_DIR }}
           # Sin dangerous-clean-slate: la raíz del hosting contiene cgi-bin/
           # y .well-known/ (renovación SSL) que no deben borrarse.
+
+      - name: Subir a intranet.macanuobowl.cl por FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ftp.macanuobowl.cl
+          port: 21
+          username: cd@macanuobowl.cl
+          password: ${{ secrets.MACANUO_FTP_PASSWORD }}
+          local-dir: apps/web/out/
+          server-dir: ${{ secrets.MACANUO_FTP_TARGET_DIR }}
+          # Sin dangerous-clean-slate por el mismo motivo (.well-known de SSL).
