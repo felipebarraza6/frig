@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Monitor, Save } from "lucide-react";
-import { Modal } from "@/components/ui/modal";
+import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -79,12 +79,13 @@ export function StationFormModal({ open, onClose, station }: StationFormModalPro
       }
     >
       <form
-        className="flex flex-col gap-4"
+        className="flex min-h-0 flex-1 flex-col"
         onSubmit={(e) => {
           e.preventDefault();
           if (canSubmit) save.mutate();
         }}
       >
+        <ModalBody className="flex flex-col gap-4">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <Monitor className="h-5 w-5" />
@@ -136,8 +137,9 @@ export function StationFormModal({ open, onClose, station }: StationFormModalPro
           </div>
           <Switch checked={isActive} onCheckedChange={setIsActive} label="Estación activa" />
         </div>
+        </ModalBody>
 
-        <div className="mt-1 flex justify-end gap-2">
+        <ModalFooter>
           <Button type="button" variant="outline" onClick={onClose}>
             Cancelar
           </Button>
@@ -145,7 +147,7 @@ export function StationFormModal({ open, onClose, station }: StationFormModalPro
             <Save className="mr-2 h-4 w-4" />
             {editing ? "Guardar cambios" : "Crear estación"}
           </Button>
-        </div>
+        </ModalFooter>
       </form>
     </Modal>
   );
