@@ -3,6 +3,8 @@ import type { YggdraSchemas } from "@/lib/api/types";
 
 type BranchModuleConfiguration = YggdraSchemas["BranchModuleConfiguration"];
 
+export type { BranchModuleConfiguration };
+
 export type ModuleName = YggdraSchemas["BranchModuleConfiguration"]["module_name"];
 
 /** Configuración de submódulos opcionales (el backend la devuelve como objeto JSON). */
@@ -118,6 +120,46 @@ export async function syncBranchModules(branchId: number): Promise<{ message: st
     `/branches/modules/by_branch/sync/?${qs.toString()}`,
     { method: "POST" },
   );
+}
+
+export interface UpdateModuleConfigurationPayload {
+  /** ID de la configuración del módulo (BranchModuleConfiguration.id). */
+  moduleConfigId: number;
+  /** Nuevo valor completo de configuration_data (JSON libre por módulo). */
+  configurationData: Record<string, unknown>;
+}
+
+/**
+ * Actualiza el JSON libre `configuration_data` de un módulo de la sucursal.
+ * El caller es responsable de hacer merge con el valor previo para no
+ * pisar otras claves que el módulo use.
+ */
+export async function updateBranchModuleConfiguration({
+  moduleConfigId,
+  configurationData,
+}: UpdateModuleConfigurationPayload): Promise<BranchModuleConfiguration> {
+  return apiFetch<BranchModuleConfiguration>(`/branches/modules/${moduleConfigId}/`, {
+    method: "PATCH",
+    body: { configuration_data: configurationData },
+  });
+}
+
+/** Parsea de forma defensiva el campo configuration_data que el backend entrega como objeto JSON. */
+export function parseConfigurationData(value: unknown): Record<string, unknown> {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  if (typeof value === "string" && value.trim()) {
+    try {
+      const parsed = JSON.parse(value);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      // fallthrough
+    }
+  }
+  return {};
 }
 
 /** Parsea de forma defensiva el campo submodule_config que el backend entrega como objeto JSON. */

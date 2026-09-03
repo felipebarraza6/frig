@@ -16,6 +16,17 @@ export interface BankAccountTransaction {
   description?: string | null;
   reference?: string | null;
   payment_method_name?: string;
+  payment_method?: {
+    id?: string;
+    name?: string;
+    payment_type?: string;
+    payment_type_display?: string;
+  } | null;
+  order?: {
+    id?: string;
+    order_number?: string;
+    order_type?: "SALE" | "ORDER" | string;
+  } | null;
   [key: string]: unknown;
 }
 

@@ -60,21 +60,20 @@ function isLowStock(p: YggdraProduct): boolean {
 }
 
 const CATEGORY_PALETTE = [
-  { bg: "bg-red-100", text: "text-red-700" },
-  { bg: "bg-orange-100", text: "text-orange-700" },
-  { bg: "bg-amber-100", text: "text-amber-700" },
-  { bg: "bg-green-100", text: "text-green-700" },
-  { bg: "bg-emerald-100", text: "text-emerald-700" },
-  { bg: "bg-teal-100", text: "text-teal-700" },
-  { bg: "bg-cyan-100", text: "text-cyan-700" },
-  { bg: "bg-sky-100", text: "text-sky-700" },
-  { bg: "bg-blue-100", text: "text-blue-700" },
-  { bg: "bg-indigo-100", text: "text-indigo-700" },
-  { bg: "bg-violet-100", text: "text-violet-700" },
-  { bg: "bg-purple-100", text: "text-purple-700" },
-  { bg: "bg-fuchsia-100", text: "text-fuchsia-700" },
-  { bg: "bg-pink-100", text: "text-pink-700" },
-  { bg: "bg-rose-100", text: "text-rose-700" },
+  { bg: "bg-primary/5", text: "text-primary" },
+  { bg: "bg-primary/10", text: "text-primary" },
+  { bg: "bg-primary/15", text: "text-primary" },
+  { bg: "bg-primary/20", text: "text-primary" },
+  { bg: "bg-primary/5", text: "text-primary" },
+  { bg: "bg-primary/10", text: "text-primary" },
+  { bg: "bg-primary/15", text: "text-primary" },
+  { bg: "bg-primary/20", text: "text-primary" },
+  { bg: "bg-primary/5", text: "text-primary" },
+  { bg: "bg-primary/10", text: "text-primary" },
+  { bg: "bg-primary/15", text: "text-primary" },
+  { bg: "bg-primary/20", text: "text-primary" },
+  { bg: "bg-primary/5", text: "text-primary" },
+  { bg: "bg-primary/10", text: "text-primary" },
 ];
 
 function colorFor(value: string): { bg: string; text: string } {
@@ -118,7 +117,7 @@ function ProductCard({
   const categoryName = product.category && typeof product.category === "object" ? product.category.name : null;
 
   return (
-    <div className="group flex flex-col rounded-2xl border border-border bg-card p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+    <div className="group flex flex-col rounded-2xl border border-border bg-muted/30 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
       <div className="mb-4 flex items-start gap-3">
         <div
           className={cn(
@@ -159,7 +158,7 @@ function ProductCard({
         )}
         {product.product_type === "RECIPE_BASED" ? (
           <span
-            className="inline-flex max-w-full items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-700"
+            className="inline-flex max-w-full items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary"
             title={recipe ? recipe.name : "Sin receta"}
           >
             <span className="truncate">{recipe ? recipe.name : "Sin receta"}</span>
@@ -814,7 +813,7 @@ export function ProductsClient() {
             {Array.from({ length: 8 }).map((_, i) => (
               <div
                 key={i}
-                className="flex h-full w-full flex-col rounded-2xl border border-border bg-card p-4 shadow-sm"
+                className="flex h-full w-full flex-col rounded-2xl border border-border bg-muted/30 p-4 shadow-sm"
               >
                 <div className="mb-4 flex items-start gap-3">
                   <Skeleton className="h-14 w-14 shrink-0 rounded-xl" />
@@ -957,7 +956,7 @@ export function ProductsClient() {
                           <td className="px-4 py-3 text-muted-foreground">
                             {p.product_type === "RECIPE_BASED" ? (
                               <div className="max-w-[200px]">
-                                <span className="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                                <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                                   {recipesByProductId.get(p.id)?.name ?? "Sin receta"}
                                 </span>
                                 {ingredientsByRecipeId.get(recipesByProductId.get(p.id)?.id ?? "")?.length ? (

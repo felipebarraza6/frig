@@ -10,9 +10,9 @@ type TableItem = YggdraSchemas["Table"];
 
 const STATUS_STYLES: Record<string, string> = {
   FREE: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700",
-  OCCUPIED: "border-rose-500/40 bg-rose-500/10 text-rose-700",
+  OCCUPIED: "border-primary/40 bg-primary/10 text-primary",
   RESERVED: "border-amber-500/40 bg-amber-500/10 text-amber-700",
-  CLEANING: "border-blue-500/40 bg-blue-500/10 text-blue-700",
+  CLEANING: "border-primary/40 bg-primary/10 text-primary",
   OUT_OF_SERVICE: "border-slate-500/40 bg-slate-500/10 text-slate-700",
 };
 

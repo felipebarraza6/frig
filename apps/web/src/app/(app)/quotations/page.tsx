@@ -251,7 +251,7 @@ export default function QuotationsPage() {
               {quotations.map((quotation) => (
                 <div
                   key={quotation.id}
-                  className="rounded-2xl border border-border bg-card p-4 shadow-sm"
+                  className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Children, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -14,8 +14,6 @@ import {
   PanelLeft,
   Pin,
   PinOff,
-  ChevronDown,
-  ChevronRight,
   Store,
   User as UserIcon,
 } from "lucide-react";
@@ -88,19 +86,23 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
     return allowedPaths.some((p) => href === p || href.startsWith(`${p}/`));
   }
 
-  const visibleMenuGroups = menuGroups
-    .map((group) => ({
-      ...group,
-      items: group.items.filter((item) => {
-        if (isCashier) return isAllowedPath(item.href, cashierAllowedPaths);
-        if (isWaiter) {
-          if (item.href === "/pos") return true;
-          return isAllowedPath(item.href, waiterAllowedPaths);
-        }
-        return true;
-      }),
-    }))
-    .filter((group) => group.items.length > 0);
+  const visibleMenuGroups = useMemo(
+    () =>
+      menuGroups
+        .map((group) => ({
+          ...group,
+          items: group.items.filter((item) => {
+            if (isCashier) return isAllowedPath(item.href, cashierAllowedPaths);
+            if (isWaiter) {
+              if (item.href === "/pos") return true;
+              return isAllowedPath(item.href, waiterAllowedPaths);
+            }
+            return true;
+          }),
+        }))
+        .filter((group) => group.items.length > 0),
+    [menuGroups, isCashier, isWaiter, cashierAllowedPaths, waiterAllowedPaths],
+  );
 
   const branchId = branch?.id ? Number(branch.id) : null;
   const isProductionEnabled = useIsModuleEnabledFromConfig("production");
@@ -201,6 +203,19 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
   const activeHref = getActiveHref(allNavHrefs, pathname);
   const stationActiveHref = getActiveHref(stationItems, pathname);
 
+  // Auto-abrir el grupo que contiene la página activa. El usuario SÍ puede
+  // volver a cerrarlo: este efecto solo corre al cambiar de ruta.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (stationActiveHref) {
+      setOpenGroup("Estaciones");
+      return;
+    }
+    const active = visibleMenuGroups.find((g) => getActiveHref(g.items, pathname));
+    if (active) setOpenGroup(active.title);
+  }, [pathname, stationActiveHref, visibleMenuGroups]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
   async function handleLogout() {
     try {
       await logout();
@@ -238,7 +253,7 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
       <CommandPalette items={allItems} open={searchOpen} onClose={() => setSearchOpen(false)} />
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex flex-col overflow-hidden border-r border-border bg-card transition-all duration-300 ease-out",
+          "app-sidebar fixed inset-y-0 left-0 z-50 flex flex-col overflow-hidden text-white transition-[width,box-shadow] duration-300 ease-out",
           widthClass
         )}
         onMouseEnter={() => setHovering(true)}
@@ -255,9 +270,11 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
                 transition={{ duration: 0.2 }}
                 className="min-w-0"
               >
-                <p className="truncate text-sm font-semibold">{appName}</p>
-                {branch && (
-                  <p className="truncate text-xs text-muted-foreground">{branchName(branch)}</p>
+                <p className="truncate text-sm font-semibold text-white">
+                  {branch ? branchName(branch) : appName}
+                </p>
+                {branch && branchName(branch) !== appName && (
+                  <p className="truncate text-xs text-white/70">{appName}</p>
                 )}
               </m.div>
             )}
@@ -266,7 +283,7 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
             type="button"
             onClick={toggleExpanded}
             className={cn(
-              "ml-auto rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+              "ml-auto rounded-lg p-1.5 text-white/70 transition-colors hover:bg-white/10 hover:text-white",
               !effectivelyExpanded && "ml-0"
             )}
             title={expanded ? "Colapsar menú" : "Expandir menú"}
@@ -275,12 +292,12 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
           </button>
         </div>
 
-        <div className="flex flex-1 flex-col gap-2 overflow-y-auto px-2 py-2">
+        <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-2.5 py-3 scrollbar-hide">
           <button
             type="button"
             onClick={() => setSearchOpen(true)}
             className={cn(
-              "flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+              "flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-sm text-white/80 transition-colors hover:bg-white/15 hover:text-white",
               !effectivelyExpanded && "justify-center px-0"
             )}
           >
@@ -288,14 +305,14 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
             {effectivelyExpanded && (
               <>
                 <span className="flex-1 text-left">Buscar...</span>
-                <span className="rounded border border-border px-1 text-[10px]">⌘K</span>
+                <span className="rounded border border-white/20 px-1 text-[10px]">⌘K</span>
               </>
             )}
           </button>
 
           {favorites.length > 0 && effectivelyExpanded && (
             <nav className="flex flex-col gap-1">
-              <p className="px-3 py-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">
+              <p className="px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/60">
                 Accesos directos
               </p>
               {favorites
@@ -329,7 +346,7 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
           {visibleMenuGroups.some((g) => g.title.toLowerCase() === "operaciones") && (
             <nav className="flex flex-col gap-1">
               {effectivelyExpanded && (
-                <p className="px-3 py-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">
+                <p className="px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/60">
                   Operaciones
                 </p>
               )}
@@ -351,7 +368,6 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
                     onToggleFavorite={() => toggleFavorite(item.href)}
                     favorited={isFavorite(item.href)}
                     onClick={onNavigate}
-                    description={item.description}
                   />
                 ))}
             </nav>
@@ -360,10 +376,10 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
           {branchId && isProductionEnabled && stationItems.length > 0 && (
             <NavGroup
               title="Estaciones"
+              icon={ChefHat}
               expanded={effectivelyExpanded}
-              isOpen={isGroupOpen("Estaciones") || !!stationActiveHref}
+              isOpen={isGroupOpen("Estaciones")}
               onToggle={() =>
-                !stationActiveHref &&
                 setOpenGroup((prev) => (prev === "Estaciones" ? null : "Estaciones"))
               }
             >
@@ -378,7 +394,6 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
                   onToggleFavorite={() => toggleFavorite(item.href)}
                   favorited={isFavorite(item.href)}
                   onClick={onNavigate}
-                  description={item.description}
                 />
               ))}
             </NavGroup>
@@ -388,15 +403,14 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
             .filter((g) => g.title.toLowerCase() !== "operaciones")
             .map((group) => {
               const groupActiveHref = getActiveHref(group.items, pathname);
-              const forceOpen = !!groupActiveHref;
               return (
                 <NavGroup
                   key={group.title}
                   title={group.title}
+                  icon={group.icon}
                   expanded={effectivelyExpanded}
-                  isOpen={isGroupOpen(group.title) || forceOpen}
+                  isOpen={isGroupOpen(group.title)}
                   onToggle={() =>
-                    !forceOpen &&
                     setOpenGroup((prev) => (prev === group.title ? null : group.title))
                   }
                 >
@@ -411,7 +425,6 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
                       onToggleFavorite={() => toggleFavorite(item.href)}
                       favorited={isFavorite(item.href)}
                       onClick={onNavigate}
-                      description={item.description}
                     />
                   ))}
                 </NavGroup>
@@ -419,25 +432,25 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
             })}
         </div>
 
-        <div className="flex shrink-0 flex-col gap-0.5 border-t border-border p-1.5">
+        <div className="flex shrink-0 flex-col gap-0.5 border-t border-white/15 p-1.5">
           <Link
             href="/profile"
             className={cn(
               "flex items-center gap-2.5 rounded-lg px-3 py-1.5 transition-colors",
               pathname.startsWith("/profile")
-                ? "bg-primary text-white"
-                : "hover:bg-muted hover:text-foreground",
+                ? "bg-white text-[color:var(--brand-primary)]"
+                : "text-white/80 hover:bg-white/10 hover:text-white",
               !effectivelyExpanded && "justify-center px-0"
             )}
             title={!effectivelyExpanded ? "Perfil" : undefined}
           >
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/15">
               <UserIcon className="h-4 w-4" />
             </div>
             {effectivelyExpanded && (
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">{user?.first_name ?? user?.email}</p>
-                <p className="truncate text-xs opacity-80">{user?.email}</p>
+                <p className="truncate text-xs opacity-75">{user?.email}</p>
               </div>
             )}
           </Link>
@@ -446,14 +459,14 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
               {canSwitchBranch && (
                 <Link
                   href="/select-branch"
-                  className="rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="rounded-lg px-3 py-1.5 text-xs font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white"
                 >
                   Cambiar sucursal
                 </Link>
               )}
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white"
               >
                 <LogOut className="h-4 w-4" />
                 Cerrar sesión
@@ -463,7 +476,7 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
           {!effectivelyExpanded && (
             <button
               onClick={handleLogout}
-              className="flex items-center justify-center rounded-lg px-0 py-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="flex items-center justify-center rounded-lg px-0 py-2 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
               title="Cerrar sesión"
             >
               <LogOut className="h-4 w-4" />
@@ -477,12 +490,14 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
 
 function NavGroup({
   title,
+  icon: Icon,
   children,
   expanded,
   isOpen,
   onToggle,
 }: {
   title: string;
+  icon: React.ComponentType<{ className?: string }>;
   children: ReactNode;
   expanded: boolean;
   isOpen: boolean;
@@ -493,23 +508,51 @@ function NavGroup({
   }
 
   return (
-    <div className="flex flex-col gap-0.5 mt-1">
+    <div
+      className={cn(
+        "flex flex-col rounded-xl transition-colors duration-200",
+        isOpen ? "bg-white/[0.08] p-1.5" : "p-0"
+      )}
+    >
       <button
         type="button"
         onClick={onToggle}
-        className="flex items-center justify-between rounded-lg px-3 py-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70 transition-colors hover:text-muted-foreground"
-      >
-        {title}
-        {isOpen ? <ChevronDown className="h-3 w-3 opacity-60" /> : <ChevronRight className="h-3 w-3 opacity-60" />}
-      </button>
-      <div
         className={cn(
-          "grid transition-all duration-200 ease-out",
-          isOpen ? "grid-rows-[1fr] opacity-100" : "invisible grid-rows-[0fr] opacity-0"
+          "flex items-center gap-2 rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] transition-colors",
+          isOpen
+            ? "text-white"
+            : "text-white/60 hover:bg-white/10 hover:text-white"
         )}
       >
-        <div className="flex min-h-0 flex-col gap-1 overflow-hidden">{children}</div>
-      </div>
+        {/* Icono del grupo: solo cerrado, porque abierto sus ítems ya tienen icono. */}
+        {!isOpen && <Icon className="h-3.5 w-3.5 shrink-0" />}
+        {title}
+      </button>
+      <AnimatePresence initial={false}>
+        {isOpen && (
+          <m.div
+            key="content"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="flex min-h-0 flex-col gap-0.5 pb-0.5 pl-2 pt-0.5">
+              {Children.map(children, (child, i) => (
+                <m.div
+                  key={i}
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.2, delay: 0.04 * i, ease: "easeOut" }}
+                >
+                  {child}
+                </m.div>
+              ))}
+            </div>
+          </m.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -524,7 +567,6 @@ interface NavItemProps {
   favorited?: boolean;
   onToggleFavorite?: () => void;
   onClick?: () => void;
-  description?: string;
 }
 
 function NavItem({
@@ -537,7 +579,6 @@ function NavItem({
   favorited,
   onToggleFavorite,
   onClick,
-  description,
 }: NavItemProps) {
   return (
     <div className={cn("group relative", !expanded && "flex justify-center")}>
@@ -546,21 +587,21 @@ function NavItem({
         prefetch={false}
         onClick={onClick}
         className={cn(
-          "relative flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
           active
-            ? "bg-primary text-primary-foreground"
-            : "text-muted-foreground hover:bg-muted hover:text-foreground",
-          !expanded && "h-8 w-8 justify-center p-0"
+            ? "bg-white text-[color:var(--brand-primary)] shadow-sm shadow-black/20"
+            : "text-white/80 hover:bg-white/10 hover:text-white",
+          !expanded && "h-9 w-9 justify-center p-0"
         )}
-        title={description || (!expanded ? label : undefined)}
+        title={!expanded ? label : undefined}
       >
         {active && (
-          <span className="absolute left-0 top-1/2 h-4 w-1 -translate-y-1/2 rounded-r-full bg-primary-foreground/80" />
+          <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-[color:var(--brand-primary)]" />
         )}
         <Icon className="h-4 w-4 shrink-0" />
         {expanded && (
-          <>
+          <span className="flex min-w-0 flex-1 items-center">
             <span className="flex-1 truncate">{label}</span>
             {badge !== undefined && (
               <span
@@ -568,13 +609,13 @@ function NavItem({
                   "ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold",
                   typeof badge === "number"
                     ? "bg-danger text-white"
-                    : "border border-border bg-background text-muted-foreground"
+                    : "border border-white/20 bg-white/10 text-white/80"
                 )}
               >
                 {badge}
               </span>
             )}
-          </>
+          </span>
         )}
         {!expanded && badge !== undefined && typeof badge === "number" && badge > 0 && (
           <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[9px] font-bold text-white">
@@ -591,7 +632,7 @@ function NavItem({
           }}
           className={cn(
             "absolute right-1 top-1/2 z-10 -translate-y-1/2 rounded p-1 opacity-0 transition-opacity group-hover:opacity-100",
-            favorited ? "text-primary opacity-100" : "text-muted-foreground hover:text-primary"
+            favorited ? "text-white opacity-100" : "text-white/70 hover:text-white"
           )}
           title={favorited ? "Quitar de favoritos" : "Añadir a favoritos"}
         >

@@ -8,8 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
   usePosConfig,
+  POS_CONFIG_MODULE_REQUIREMENTS,
   type PosConfig,
 } from "@/lib/store/pos-config";
+import { useBranchModules } from "@/lib/hooks/useBranchModules";
 import { fetchCashRegisterStations } from "@/lib/api/cash-register-stations";
 import { cn } from "@/lib/utils";
 
@@ -75,11 +77,9 @@ const SECTIONS: {
   {
     title: "Órdenes",
     items: [
-      {
-        key: "quotes",
-        label: "Cotizaciones",
-        description: "Permite trabajar con cotizaciones en el terminal.",
-      },
+      // Nota: el toggle "quotes" no se ofrece hasta que el terminal implemente
+      // el flujo de cotizaciones (hoy la clave existe en PosConfig pero nadie
+      // la consume fuera del mask de self_service).
       {
         key: "order_history",
         label: "Historial de órdenes",
@@ -100,13 +100,37 @@ export function PosConfigModal({
   onClose,
   stationId,
 }: PosConfigModalProps) {
-  const { config, setConfig, resetConfig } = usePosConfig(stationId ?? undefined);
+  const { config, setConfig, resetConfig, isSaving } = usePosConfig(stationId ?? undefined);
+  const { enabledModules, isLoading: modulesLoading } = useBranchModules();
 
   const { data: stations = [] } = useQuery({
     queryKey: ["cash-register-stations", "pos-config-modal"],
     queryFn: fetchCashRegisterStations,
     staleTime: 60_000,
   });
+
+  /** Una opción está disponible si el módulo que la respalda está activado.
+   *  Mientras cargan los módulos se muestran todas (evita parpadeo). */
+  function isOptionAvailable(key: keyof PosConfig): boolean {
+    const requirement = POS_CONFIG_MODULE_REQUIREMENTS[key];
+    if (!requirement) return true;
+    if (modulesLoading) return true;
+    return enabledModules.has(requirement);
+  }
+
+  // Se ocultan las opciones cuyo módulo no está activado en la sucursal
+  // (mientras cargan los módulos se muestran todas, para evitar parpadeo).
+  const visibleSections = useMemo(
+    () =>
+      SECTIONS.map((section) => ({
+        ...section,
+        items: modulesLoading
+          ? section.items
+          : section.items.filter((item) => isOptionAvailable(item.key)),
+      })).filter((section) => section.items.length > 0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [modulesLoading, enabledModules],
+  );
 
   const station = useMemo(() => {
     if (!stationId) return null;
@@ -147,7 +171,7 @@ export function PosConfigModal({
             No se ha seleccionado una estación. Cierra este diálogo y elige una estación para configurar.
           </p>
         )}
-        {SECTIONS.map((section) => (
+        {visibleSections.map((section) => (
           <div key={section.title}>
             <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {section.title}
@@ -180,7 +204,7 @@ export function PosConfigModal({
                     <Switch
                       checked={checked}
                       onCheckedChange={(v) => update(item.key, v)}
-                      disabled={!stationId}
+                      disabled={!stationId || isSaving}
                       aria-label={item.label}
                     />
                   </div>
@@ -191,11 +215,14 @@ export function PosConfigModal({
         ))}
       </ModalBody>
       <ModalFooter>
+        <span className="mr-auto text-xs text-muted-foreground">
+          {isSaving ? "Guardando…" : "Los cambios se guardan automáticamente."}
+        </span>
         <Button
           type="button"
           variant="outline"
           onClick={handleReset}
-          disabled={!stationId}
+          disabled={!stationId || isSaving}
         >
           Restablecer valores
         </Button>

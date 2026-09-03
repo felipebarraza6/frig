@@ -97,8 +97,8 @@ function emptyForm(): PublicCatalogPayload {
     station: null,
     target_audience: "PUBLIC",
     order_type: "SALE",
-    theme_color: "#1890ff",
-    secondary_color: "#f0f0f0",
+    theme_color: "#2f6b3c",
+    secondary_color: "#f2e8cf",
     show_prices: true,
     show_descriptions: true,
     show_categories: true,
@@ -129,8 +129,8 @@ function catalogToForm(catalog: PublicCatalog): PublicCatalogPayload {
     station: catalog.station ?? null,
     target_audience: catalog.target_audience ?? "PUBLIC",
     order_type: catalog.order_type ?? "SALE",
-    theme_color: catalog.theme_color ?? "#1890ff",
-    secondary_color: catalog.secondary_color ?? "#f0f0f0",
+    theme_color: catalog.theme_color ?? "#2f6b3c",
+    secondary_color: catalog.secondary_color ?? "#f2e8cf",
     show_prices: catalog.show_prices ?? true,
     show_descriptions: catalog.show_descriptions ?? true,
     show_categories: catalog.show_categories ?? true,
@@ -471,7 +471,7 @@ export default function MenusPage() {
               {filtered.map((catalog) => (
                 <div
                   key={catalog.id}
-                  className="rounded-2xl border border-border bg-card p-4 shadow-sm"
+                  className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
@@ -974,7 +974,7 @@ export default function MenusPage() {
             </div>
 
             <div className="flex flex-col items-center gap-3 overflow-y-auto p-4 md:p-6">
-              <div className="rounded-xl border border-border bg-white p-3">
+              <div className="rounded-2xl border border-border bg-card p-3">
                 <QRCodeSVG
                   value={`${window.location.origin}${publicMenuUrl(qrCatalog.slug)}`}
                   size={256}

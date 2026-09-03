@@ -62,7 +62,7 @@ function movementBadgeClass(movementType?: string | null) {
     case "DAMAGE":
       return "bg-danger/10 text-danger";
     case "TRANSFER":
-      return "bg-blue-500/10 text-blue-700";
+      return "bg-primary/10 text-primary";
     case "ADJUSTMENT":
       return "bg-amber-500/10 text-amber-700";
     default:
@@ -474,7 +474,7 @@ export default function InventoryPage() {
                   {movements.map((m: InventoryHistory) => (
                     <div
                       key={m.id}
-                      className="rounded-2xl border border-border bg-card p-4 shadow-sm"
+                      className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex min-w-0 items-center gap-3">
@@ -553,21 +553,21 @@ export default function InventoryPage() {
         {tab === "alerts" && (
           <>
             <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-xl border border-border bg-card p-4">
+              <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <AlertCircle className="h-4 w-4 text-danger" />
                   Sin stock
                 </div>
                 <p className="mt-1 text-2xl font-semibold">{outOfStock.length}</p>
               </div>
-              <div className="rounded-xl border border-border bg-card p-4">
+              <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <TrendingDown className="h-4 w-4 text-amber-500" />
                   Stock bajo
                 </div>
                 <p className="mt-1 text-2xl font-semibold">{lowStock.length}</p>
               </div>
-              <div className="rounded-xl border border-border bg-card p-4">
+              <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Package className="h-4 w-4 text-primary" />
                   Total alertas

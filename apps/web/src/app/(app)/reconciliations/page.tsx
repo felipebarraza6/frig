@@ -193,7 +193,7 @@ const create = useMutation({
                 <SlidersHorizontal className="h-4 w-4" /><span className="ml-2">Filtros</span>
               </Button>
             </div>
-            <div className={`rounded-2xl border border-border bg-card p-4 shadow-sm ${showMobileFilters ? "" : "hidden"}`}>
+            <div className={`rounded-2xl border border-border bg-muted/30 p-4 shadow-sm ${showMobileFilters ? "" : "hidden"}`}>
               <div className="mb-3 flex items-center justify-between">
                 <span className="text-sm font-medium">Filtros</span>
                 <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => setShowMobileFilters(false)}>
@@ -299,7 +299,7 @@ const create = useMutation({
               {reconciliations.map((rec) => {
                 const diff = parseAmount(rec.system_balance) - parseAmount(rec.bank_statement_balance);
                 return (
-                  <div key={rec.id} className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                  <div key={rec.id} className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-medium">{rec.bank_account_name ?? rec.bank_account}</p>
@@ -362,7 +362,7 @@ function CreateReconciliationModal({ open, onClose, accounts, onSubmit, isPendin
   open: boolean;
   onClose: () => void;
   accounts: Array<{ id: string; account_name: string; current_balance: string | number }>;
-  onSubmit: (payload: { bank_account: string; system_balance: string; bank_statement_balance: string; reconciliation_date: string; notes?: string }) => void;
+  onSubmit: (payload: { bank_account: string; system_balance: number; bank_statement_balance: number; reconciliation_date: string; notes?: string }) => void;
   isPending: boolean;
   error: string | null;
 }) {
@@ -377,7 +377,7 @@ function CreateReconciliationModal({ open, onClose, accounts, onSubmit, isPendin
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!accountId || !systemBalance || !bankStatementBalance) return;
-    onSubmit({ bank_account: accountId, system_balance: systemBalance, bank_statement_balance: bankStatementBalance, reconciliation_date: date, ...(notes.trim() ? { notes: notes.trim() } : {}) });
+    onSubmit({ bank_account: accountId, system_balance: Number(systemBalance), bank_statement_balance: Number(bankStatementBalance), reconciliation_date: date, ...(notes.trim() ? { notes: notes.trim() } : {}) });
   };
 
   const handleClose = () => { setAccountId(""); setSystemBalance(""); setBankStatementBalance(""); setDate(new Date().toISOString().split("T")[0]); setNotes(""); onClose(); };
@@ -439,10 +439,10 @@ function CreateReconciliationModal({ open, onClose, accounts, onSubmit, isPendin
 function StatCard({ label, value, icon: Icon, sub, tone = "slate" }: {
   label: string; value: number; icon: React.ComponentType<{ className?: string }>; sub: string; tone?: "emerald" | "rose" | "amber" | "slate";
 }) {
-  const tones = { slate: "bg-card", emerald: "bg-emerald-500/[0.06] border-emerald-500/15", rose: "bg-rose-500/[0.06] border-rose-500/15", amber: "bg-amber-500/[0.06] border-amber-500/15" };
+  const tones = { slate: "bg-muted/30", emerald: "bg-emerald-500/[0.06] border-emerald-500/15", rose: "bg-rose-500/[0.06] border-rose-500/15", amber: "bg-amber-500/[0.06] border-amber-500/15" };
   const icons = { slate: "bg-muted text-muted-foreground", emerald: "bg-emerald-500/15 text-emerald-600", rose: "bg-rose-500/15 text-rose-600", amber: "bg-amber-500/15 text-amber-600" };
   return (
-    <div className={`rounded-xl border border-border/60 p-3 shadow-sm ${tones[tone]}`}>
+    <div className={`rounded-2xl border border-border p-3 shadow-sm ${tones[tone]}`}>
       <div className="mb-1.5 flex items-center gap-2">
         <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${icons[tone]}`}><Icon className="h-3.5 w-3.5" /></div>
         <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
@@ -454,7 +454,7 @@ function StatCard({ label, value, icon: Icon, sub, tone = "slate" }: {
 }
 
 function StatSkeleton() {
-  return (<div className="rounded-xl border border-border/60 bg-muted/30 p-3 shadow-sm"><div className="mb-1.5 flex items-center gap-2"><Skeleton className="h-7 w-7 rounded-lg" /><Skeleton className="h-3 w-20" /></div><Skeleton className="h-6 w-16" /><Skeleton className="mt-1 h-3 w-14" /></div>);
+  return (<div className="rounded-2xl border border-border bg-muted/30 p-3 shadow-sm"><div className="mb-1.5 flex items-center gap-2"><Skeleton className="h-7 w-7 rounded-lg" /><Skeleton className="h-3 w-20" /></div><Skeleton className="h-6 w-16" /><Skeleton className="mt-1 h-3 w-14" /></div>);
 }
 
 function TableSkeleton() {

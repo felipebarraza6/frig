@@ -2,7 +2,10 @@ import { apiFetch, apiFile, type ApiFileResult } from "./client";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 export type FixedExpense = YggdraSchemas["FixedExpense"];
-export type FixedExpenseRequest = YggdraSchemas["FixedExpenseRequest"];
+export type FixedExpenseRequest = YggdraSchemas["FixedExpenseRequest"] & {
+  /** Orden de compra libre a vincular (write-only en el backend). */
+  purchase_order?: string | null;
+};
 export type ExpenseCategory = YggdraSchemas["ExpenseCategory"];
 export type ExpenseCategoryRequest = YggdraSchemas["ExpenseCategoryRequest"];
 
@@ -39,7 +42,12 @@ export async function fetchExpenses(filter: ExpensesFilter = {}): Promise<Pagina
 }
 
 export async function fetchExpenseCategories(): Promise<ExpenseCategory[]> {
-  const data = await apiFetch<PaginatedExpenseCategory>("/finance/expense-categories/");
+  // show_inactive=true: el gestor permite reactivar las inactivas
+  // (p. ej. la categoría que usan las órdenes de compra).
+  // page_size=100: el endpoint pagina por defecto a 10 y cortaría la lista.
+  const data = await apiFetch<PaginatedExpenseCategory>(
+    "/finance/expense-categories/?show_inactive=true&page_size=100",
+  );
   return data.results ?? [];
 }
 
@@ -47,7 +55,7 @@ export async function fetchExpenseCategoriesByName(
   search: string,
 ): Promise<ExpenseCategory[]> {
   const data = await apiFetch<PaginatedExpenseCategory>(
-    `/finance/expense-categories/?search=${encodeURIComponent(search)}`,
+    `/finance/expense-categories/?search=${encodeURIComponent(search)}&page_size=100`,
   );
   return data.results ?? [];
 }

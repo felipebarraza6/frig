@@ -4,6 +4,7 @@ import type { YggdraSchemas } from "@/lib/api/types";
 export type YggdraPaymentMethod = YggdraSchemas["PaymentMethodList"];
 export type YggdraPayment = YggdraSchemas["Payment"];
 export type YggdraPaymentList = YggdraSchemas["PaymentList"];
+export type YggdraPaymentUpdate = YggdraSchemas["PatchedPaymentRequest"];
 export type YggdraPaymentCreate = YggdraSchemas["PaymentCreateRequest"] & {
   /** ID de la caja abierta a la que se asocia el pago (efectivo). */
   cash_register_id?: number | null;
@@ -16,6 +17,7 @@ export interface PaymentsFilter {
   payment_source?: YggdraPayment["payment_source"];
   payment_date__gte?: string;
   payment_date__lte?: string;
+  search?: string;
   page?: number;
   page_size?: number;
   next?: string | null;
@@ -87,12 +89,49 @@ export async function createPayment(
   });
 }
 
+export async function fetchPayment(id: string): Promise<YggdraPayment> {
+  return apiFetch<YggdraPayment>(`/finance/payments/${id}/`);
+}
+
+export async function updatePayment(
+  id: string,
+  payload: YggdraPaymentUpdate,
+): Promise<YggdraPayment> {
+  return apiFetch<YggdraPayment>(`/finance/payments/${id}/`, {
+    method: "PATCH",
+    body: payload,
+  });
+}
+
+/** Payload para procesar (marcar como completado) un pago pendiente. */
+export interface ProcessPaymentPayload {
+  payment_method_id: string;
+  amount: number;
+  payment_source: YggdraPayment["payment_source"];
+  payment_date: string;
+  status: "COMPLETED";
+  revenue_id?: string | null;
+  expense_id?: string | null;
+  reference?: string | null;
+}
+
+export async function processPayment(
+  id: string,
+  payload: ProcessPaymentPayload,
+): Promise<YggdraPayment> {
+  return apiFetch<YggdraPayment>(`/finance/payments/${id}/process/`, {
+    method: "POST",
+    body: payload,
+  });
+}
+
 function paymentsQueryString(filter: PaymentsFilter): string {
   const qs = new URLSearchParams();
   if (filter.payment_direction) qs.set("payment_direction", filter.payment_direction);
   if (filter.payment_source) qs.set("payment_source", filter.payment_source);
   if (filter.payment_date__gte) qs.set("payment_date__gte", filter.payment_date__gte);
   if (filter.payment_date__lte) qs.set("payment_date__lte", filter.payment_date__lte);
+  if (filter.search) qs.set("search", filter.search);
   if (filter.page) qs.set("page", String(filter.page));
   if (filter.page_size) qs.set("page_size", String(filter.page_size));
   const q = qs.toString();

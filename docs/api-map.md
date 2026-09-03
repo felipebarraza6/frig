@@ -209,8 +209,8 @@ Ver routers específicos en Fase 4 del plan.
 ## 10. Realtime / websockets
 
 - Yggdra tiene **Django Channels** configurado con Redis en producción y memoria en dev (`CHANNEL_LAYERS` en settings).
-- El uso actual de Channels es para `ai_agents` (chat/webhooks), **no hay un canal específico para KDS**.
-- **Decisión Frig v1**: polling HTTP cada 5s sobre `/api/sales/kitchen-tickets/?status=PENDING`. Para v1.1 se evaluará un channel group `branch-{id}-kitchen` para push de nuevas comandas.
+- **Verificado 2026-09-03**: existe el canal por sucursal `/ws/branch/{branch_id}/?token=<key>` (handshake rechaza con 403 sin token válido). Frig lo consume vía `RealtimeProvider` y suscribe scopes (`pos`, `order`, `cash_register`, `dashboard`, `modules`) que invalidan queries de TanStack.
+- El uso legacy de Channels para `ai_agents` (chat/webhooks) sigue existiendo; **no hay canal específico de KDS** — el KDS sigue con polling HTTP cada 10s sobre `/api/sales/kitchen-tickets/`, complementado por las invalidaciones del canal de sucursal.
 
 ## 11. Impresión de comandas
 

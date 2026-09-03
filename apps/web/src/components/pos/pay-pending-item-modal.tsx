@@ -15,7 +15,6 @@ import {
   Calendar,
   User,
   AlertTriangle,
-  CreditCard,
   DollarSign,
   Package,
   FileText,
@@ -26,10 +25,8 @@ import {
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { ModalBody, ModalFooter } from "@/components/ui/modal";
 import { fetchOrders, fetchOrder, payOrder, deliverOrder } from "@/lib/api/orders";
-import { fetchPurchaseOrders, payPurchaseOrder } from "@/lib/api/suppliers";
 import { searchCustomers } from "@/lib/api/customers";
 import { formatCLP, cn } from "@/lib/utils";
 import { useToast } from "@/lib/store/toast";
@@ -47,32 +44,11 @@ function toNum(v: string | number | null | undefined): number {
   return Number.isNaN(parsed) ? 0 : parsed;
 }
 
-function numberValue(v: string): string {
-  const cleaned = v.replace(/[^0-9]/g, "");
-  return cleaned ? (parseInt(cleaned, 10) || 0).toString() : "";
-}
-
 type Order = YggdraSchemas["Order"] & {
   order_number?: string | null;
   paid_amount?: string | null;
   delivery_address?: string | null;
   delivery_status?: string | null;
-};
-
-type PurchaseOrder = {
-  id: string;
-  order_number?: string | null;
-  remaining_amount?: string | number | null;
-  supplier_name?: string | null;
-  total_amount?: string | number | null;
-  payment_status?: string | null;
-  payment_status_display?: string | null;
-  status?: string | null;
-  status_display?: string | null;
-  order_date?: string | null;
-  items_count?: string | number | null;
-  branch_name?: string | null;
-  [key: string]: unknown;
 };
 
 type PaymentMethod = {
@@ -168,11 +144,11 @@ function deliveryStatusLabel(status?: string | null): string {
 function deliveryStatusClass(status?: string | null) {
   switch (status) {
     case "IN_PROGRESS":
-      return "text-blue-600";
+      return "text-primary";
     case "DELIVERED":
       return "text-emerald-600";
     case "PARTIAL":
-      return "text-violet-600";
+      return "text-primary/80";
     case "PENDING":
     default:
       return "text-amber-600";
@@ -184,9 +160,9 @@ function paymentStatusClass(status?: string | null) {
     case "PAID":
       return "text-emerald-600";
     case "PARTIAL":
-      return "text-violet-600";
+      return "text-primary/80";
     case "INVOICED":
-      return "text-blue-600";
+      return "text-primary";
     case "REFUNDED":
       return "text-rose-600";
     case "PENDING":
@@ -201,7 +177,7 @@ function paymentStatusBadgeClass(status?: string | null) {
     case "COMPLETED":
       return "bg-emerald-500/10 text-emerald-700";
     case "PARTIAL":
-      return "bg-violet-500/10 text-violet-700";
+      return "bg-primary/10 text-primary";
     case "PENDING":
     default:
       return "bg-amber-500/10 text-amber-700";
@@ -215,7 +191,7 @@ function deliveryStatusBadgeClass(status?: string | null) {
       return "bg-emerald-500/10 text-emerald-700";
     case "IN_PROGRESS":
     case "PREPARING":
-      return "bg-blue-500/10 text-blue-700";
+      return "bg-primary/10 text-primary";
     case "PENDING":
     default:
       return "bg-amber-500/10 text-amber-700";
@@ -228,7 +204,7 @@ function orderTypeMeta(type?: string | null) {
       return {
         icon: Receipt,
         label: "Venta",
-        className: "bg-blue-500/10 text-blue-700",
+        className: "bg-primary/10 text-primary",
       };
     case "ORDER":
       return {
@@ -242,62 +218,6 @@ function orderTypeMeta(type?: string | null) {
         label: "Cuenta",
         className: "bg-muted text-muted-foreground",
       };
-  }
-}
-
-function purchaseOrderStatusBadgeClass(status?: string | null) {
-  switch (status?.toUpperCase()) {
-    case "SENT":
-      return "bg-primary/10 text-primary";
-    case "RECEIVED":
-    case "COMPLETED":
-      return "bg-emerald-500/10 text-emerald-700";
-    case "CANCELLED":
-      return "bg-rose-500/10 text-rose-700";
-    default:
-      return "bg-muted text-muted-foreground";
-  }
-}
-
-function purchaseOrderPaymentBadgeClass(status?: string | null) {
-  switch (status?.toUpperCase()) {
-    case "PAID":
-      return "bg-emerald-500/10 text-emerald-700";
-    case "PARTIAL":
-      return "bg-violet-500/10 text-violet-700";
-    case "PENDING":
-    default:
-      return "bg-amber-500/10 text-amber-700";
-  }
-}
-
-function purchaseOrderStatusLabel(status?: string | null) {
-  switch (status?.toUpperCase()) {
-    case "SENT":
-      return "Enviada";
-    case "RECEIVED":
-      return "Recibida";
-    case "COMPLETED":
-      return "Completada";
-    case "CANCELLED":
-      return "Cancelada";
-    case "PENDING":
-      return "Pendiente";
-    default:
-      return status ?? "—";
-  }
-}
-
-function purchaseOrderPaymentLabel(status?: string | null) {
-  switch (status?.toUpperCase()) {
-    case "PAID":
-      return "Pagada";
-    case "PARTIAL":
-      return "Parcial";
-    case "PENDING":
-      return "Pendiente";
-    default:
-      return status ?? "—";
   }
 }
 
@@ -374,11 +294,6 @@ const TYPE_CONFIG: Record<
     icon: <UserSearch className="h-5 w-5" />,
     listLabel: "Deudas del cliente",
   },
-  pay_purchase_order: {
-    title: "Órdenes de compra",
-    icon: <Truck className="h-5 w-5" />,
-    listLabel: "Órdenes de compra",
-  },
 };
 
 export default function PayPendingItemModal({
@@ -396,7 +311,6 @@ export default function PayPendingItemModal({
   const [selectedClient, setSelectedClient] = useState<Customer | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [viewDetailId, setViewDetailId] = useState<string | null>(null);
-  const [amount, setAmount] = useState("");
   const activeMethods = useMemo(
     () => paymentMethods.filter((m) => m.is_active && m.is_pos_enabled !== false),
     [paymentMethods],
@@ -492,14 +406,6 @@ export default function PayPendingItemModal({
     enabled: open && (type === "pay_account" || type === "pay_order" || (type === "collect" && !!selectedClient)),
   });
 
-  const { data: purchaseOrdersData, isLoading: loadingPurchaseOrders } = useQuery({
-    queryKey: ["pending-purchase-orders-for-pos", dateFrom, dateTo],
-    queryFn: () =>
-      fetchPurchaseOrders({ status: "SENT", payment_status__in: ["PENDING", "PARTIAL"], start_date: dateFrom || undefined, end_date: dateTo || undefined, page_size: 100 }),
-    enabled: open && type === "pay_purchase_order",
-  });
-  const purchaseOrders = (purchaseOrdersData?.results ?? []) as PurchaseOrder[];
-
   const { data: customerResults = [], isLoading: searchingCustomers } = useQuery({
     queryKey: ["customers", "search", clientQuery],
     queryFn: () => searchCustomers(clientQuery),
@@ -515,18 +421,14 @@ export default function PayPendingItemModal({
   const { data: orderDetail, isLoading: loadingOrderDetail } = useQuery({
     queryKey: ["order", "detail", viewDetailId],
     queryFn: () => fetchOrder(viewDetailId as string) as Promise<Order>,
-    enabled:
-      Boolean(viewDetailId) && type !== "pay_purchase_order",
+    enabled: Boolean(viewDetailId),
     staleTime: 30_000,
   });
 
   const selectedItem = useMemo(() => {
     if (!selectedItemId) return null;
-    if (type === "pay_purchase_order") {
-      return purchaseOrders.find((o) => o.id === selectedItemId) ?? null;
-    }
     return orders.find((o) => o.id === selectedItemId) ?? null;
-  }, [selectedItemId, type, purchaseOrders, orders]);
+  }, [selectedItemId, orders]);
 
   const filteredOrders = useMemo(() => {
     if (!orderQuery.trim()) return orders;
@@ -552,60 +454,9 @@ export default function PayPendingItemModal({
 
   const remainingAmount = useMemo(() => {
     if (!selectedItem) return 0;
-    if (type === "pay_purchase_order") {
-      return toNum((selectedItem as PurchaseOrder).remaining_amount);
-    }
     const o = selectedItem as Order;
     return toNum(o.total_amount) - toNum(o.paid_amount);
-  }, [selectedItem, type]);
-
-  const selectedMethod = useMemo(
-    () => activeMethods.find((m) => m.id === paymentMethodId),
-    [activeMethods, paymentMethodId],
-  );
-  const isCashMethod = selectedMethod?.payment_type === "CASH";
-
-  const payMutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedItem) throw new Error("Selecciona un ítem");
-      if (!paymentMethodId) throw new Error("Selecciona un método de pago");
-      if (type === "pay_purchase_order") {
-        const purchasePayload = {
-          payment_method_id: paymentMethodId,
-          amount: toDecimal(amount),
-          cash_register_id: isCashMethod ? cashRegisterId : null,
-          reference: notes || null,
-        };
-        return payPurchaseOrder(selectedItem.id, purchasePayload);
-      }
-      const payload = {
-        payment_method_id: paymentMethodId,
-        amount: toDecimal(amount),
-        cash_register_id: cashRegisterId,
-        notes: notes || null,
-      };
-      return payOrder(selectedItem.id, payload);
-    },
-    onSuccess: () => {
-      if (type === "pay_purchase_order") {
-        queryClient.invalidateQueries({ queryKey: ["pending-purchase-orders-for-pos"] });
-        queryClient.invalidateQueries({ queryKey: ["pending-purchase-orders-count"] });
-        queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
-      } else {
-        queryClient.invalidateQueries({ queryKey: ["orders"] });
-        queryClient.invalidateQueries({ queryKey: ["pending-orders-for-pos"] });
-        queryClient.invalidateQueries({ queryKey: ["all-pending-accounts-for-collect"] });
-        queryClient.invalidateQueries({ queryKey: ["pending-accounts-count"] });
-        queryClient.invalidateQueries({ queryKey: ["pending-collect-count"] });
-      }
-      queryClient.invalidateQueries({ queryKey: ["cash-register"] });
-      toast.success("Pago registrado");
-      handleClose();
-    },
-    onError: (err: Error) => {
-      toast.error(err.message || "No se pudo registrar el pago");
-    },
-  });
+  }, [selectedItem]);
 
   const deliverMutation = useMutation({
     mutationFn: (orderId: string) => deliverOrder(orderId),
@@ -631,7 +482,6 @@ export default function PayPendingItemModal({
     setClientFilterQuery("");
     setSelectedItemId(null);
     setViewDetailId(null);
-    setAmount("");
     setNotes("");
     setPaymentMethodId(activeMethods[0]?.id ?? "");
     setPayingAll(false);
@@ -655,27 +505,6 @@ export default function PayPendingItemModal({
       queryClient.invalidateQueries({ queryKey: ["pending-orders-for-pos"] });
       queryClient.invalidateQueries({ queryKey: ["all-pending-accounts-for-collect"] });
     }
-  }
-
-  function handleSelectItem(id: string) {
-    setSelectedItemId(id);
-    const item =
-      type === "pay_purchase_order"
-        ? purchaseOrders.find((o) => o.id === id)
-        : orders.find((o) => o.id === id);
-    if (!item) return;
-    let remaining = 0;
-    if (type === "pay_purchase_order") {
-      remaining = toNum((item as PurchaseOrder).remaining_amount);
-    } else {
-      remaining = toNum((item as Order).total_amount) - toNum((item as Order).paid_amount);
-    }
-    setAmount(remaining ? Math.floor(remaining).toString() : "");
-    setNotes(
-      type === "pay_purchase_order"
-        ? `Pago OC ${(item as PurchaseOrder).order_number}`
-        : `Pago ${(item as Order).order_number ?? (item as Order).id.slice(0, 8)}`,
-    );
   }
 
   async function handlePayAll() {
@@ -723,122 +552,6 @@ export default function PayPendingItemModal({
   const showOrderActions = type === "pay_account" || type === "pay_order";
 
   function renderItemList() {
-    if (type === "pay_purchase_order") {
-      if (loadingPurchaseOrders) return <LoadingState message="Cargando órdenes de compra..." />;
-      if (purchaseOrders.length === 0) return (
-        <EmptyState
-          icon={Truck}
-          title="No hay órdenes de compra"
-          description="Ajusta el rango de fechas si esperas ver más resultados."
-        />
-      );
-      return (
-        <div className="flex flex-col gap-3">
-          {purchaseOrders.map((o) => (
-            <div
-              key={o.id}
-              className={cn(
-                "rounded-xl border p-3 shadow-sm hover:shadow-md transition-shadow",
-                selectedItemId === o.id
-                  ? "border-primary bg-primary/5"
-                  : "border-border/60 bg-card",
-              )}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <p className="text-sm font-semibold">{o.order_number ?? o.id.slice(0, 8)}</p>
-                    <span
-                      className={cn(
-                        "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium",
-                        purchaseOrderStatusBadgeClass(o.status_display ?? o.status),
-                      )}
-                    >
-                      {purchaseOrderStatusLabel(o.status_display ?? o.status)}
-                    </span>
-                    <span
-                      className={cn(
-                        "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium",
-                        purchaseOrderPaymentBadgeClass(o.payment_status_display ?? o.payment_status),
-                      )}
-                    >
-                      {purchaseOrderPaymentLabel(o.payment_status_display ?? o.payment_status)}
-                    </span>
-                  </div>
-                  <p className="mt-1 truncate text-xs text-muted-foreground">
-                    {o.supplier_name ?? "Sin proveedor"} · {shortDate(o.order_date)}
-                    {o.items_count ? ` · ${o.items_count} ítems` : ""}
-                  </p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-sm font-bold tabular-nums">{formatCLP(toNum(o.remaining_amount))}</p>
-                  <p className="text-xs text-muted-foreground">de {formatCLP(toNum(o.total_amount))}</p>
-                </div>
-              </div>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <Button size="sm" onClick={() => handleSelectItem(o.id)}>
-                  Pagar
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setViewDetailId(viewDetailId === o.id ? null : o.id)}
-                >
-                  {viewDetailId === o.id ? "Cerrar" : "Ver detalle"}
-                </Button>
-                <button
-                  type="button"
-                  onClick={() => setViewDetailId(viewDetailId === o.id ? null : o.id)}
-                  className={cn(
-                    "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border transition-colors",
-                    viewDetailId === o.id
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border bg-background text-muted-foreground hover:bg-muted",
-                  )}
-                  aria-label={viewDetailId === o.id ? "Cerrar detalle" : "Ver detalle"}
-                  title={viewDetailId === o.id ? "Cerrar detalle" : "Ver detalle"}
-                >
-                  <Eye className="h-3.5 w-3.5" />
-                </button>
-              </div>
-              {viewDetailId === o.id && (
-                <div className="mt-3 grid grid-cols-2 gap-2 rounded-lg bg-muted/30 p-3 text-xs sm:grid-cols-3">
-                  <div>
-                    <p className="text-[10px] text-muted-foreground">Proveedor</p>
-                    <p className="font-medium">{o.supplier_name ?? "—"}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-muted-foreground">Total</p>
-                    <p className="font-medium tabular-nums">{formatCLP(toNum(o.total_amount))}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-muted-foreground">Pendiente</p>
-                    <p className="font-medium tabular-nums">{formatCLP(toNum(o.remaining_amount))}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-muted-foreground">Estado orden</p>
-                    <p className="font-medium">{purchaseOrderStatusLabel(o.status_display ?? o.status)}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-muted-foreground">Estado pago</p>
-                    <p className="font-medium">{purchaseOrderPaymentLabel(o.payment_status_display ?? o.payment_status)}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-muted-foreground">Fecha</p>
-                    <p className="font-medium">{shortDate(o.order_date)}</p>
-                  </div>
-                  <div className="col-span-2 sm:col-span-3">
-                    <p className="text-[10px] text-muted-foreground">Sucursal</p>
-                    <p className="font-medium">{o.branch_name ?? "—"}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      );
-    }
-
     if (isCollect) {
       if (!selectedClient) {
         if (loadingAllPending) return <LoadingState message="Cargando clientes..." />;
@@ -1617,79 +1330,6 @@ export default function PayPendingItemModal({
                     </button>
                   </div>
                 </>
-              ) : type === "pay_purchase_order" ? (
-                <>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="flex items-center gap-1.5 text-muted-foreground">
-                      <DollarSign className="h-3.5 w-3.5" /> Saldo pendiente
-                    </span>
-                    <span className="font-semibold">{formatCLP(remainingAmount)}</span>
-                  </div>
-                  {showOrderActions && (
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleCancelOrder(selectedItem as Order)}
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-rose-600"
-                        title="Anular"
-                        aria-label="Anular"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  )}
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div className="flex flex-col gap-1">
-                      <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                        <DollarSign className="h-3 w-3" /> Monto
-                      </label>
-                      <Input
-                        value={amount ? formatCLP(parseFloat(toDecimal(amount))) : ""}
-                        onChange={(e) => setAmount(numberValue(e.target.value))}
-                        placeholder="Monto"
-                        className="tabular-nums"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                        <CreditCard className="h-3 w-3" /> Método de pago
-                      </label>
-                      <Select
-                        value={paymentMethodId}
-                        onChange={(e) => setPaymentMethodId(e.target.value)}
-                        options={activeMethods.map((m) => ({
-                          value: m.id,
-                          label: m.name,
-                        }))}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                      <FileText className="h-3 w-3" /> Notas / referencia
-                    </label>
-                    <Input
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      placeholder="Opcional"
-                    />
-                  </div>
-                  {remainingAmount <= 0 && (
-                    <p className="flex items-center gap-1.5 text-xs text-amber-700">
-                      <AlertTriangle className="h-3.5 w-3.5" /> Esta orden no tiene saldo pendiente por pagar.
-                    </p>
-                  )}
-                  {!cashRegisterId && isCashMethod && (
-                    <p className="flex items-center gap-1.5 text-xs text-amber-700">
-                      <AlertTriangle className="h-3.5 w-3.5" /> No hay caja abierta. Abre una caja para registrar este pago en efectivo.
-                    </p>
-                  )}
-                  {selectedItem && amount && parseFloat(toDecimal(amount)) > remainingAmount + 0.01 && (
-                    <p className="flex items-center gap-1.5 text-xs text-rose-700">
-                      <AlertTriangle className="h-3.5 w-3.5" /> El monto supera el saldo pendiente de {formatCLP(remainingAmount)}.
-                    </p>
-                  )}
-                </>
               ) : (
                 <>
                   <div className="flex items-center justify-between text-sm">
@@ -1724,44 +1364,25 @@ export default function PayPendingItemModal({
         <Button variant="outline" onClick={handleClose}>
           Cancelar
         </Button>
-        {type === "pay_account" || type === "pay_order" || type === "collect" ? (
-          <Button
-            onClick={() => {
-              if (selectedItem) {
-                const order = selectedItem as Order;
-                onContinueOrder?.(order);
-                handleClose();
-              }
-            }}
-            disabled={!selectedItem}
-          >
-            <Banknote className="mr-1.5 h-4 w-4" />
-            {type === "pay_account"
-              ? "Abrir cuenta"
-              : type === "collect"
-                ? "Abrir cuenta"
-                : selectedItem && ["PENDING", "PARTIAL"].includes((selectedItem as Order).payment_status ?? "")
-                  ? "Abrir orden"
-                  : "Ver / Editar"}
-          </Button>
-        ) : (
-          <Button
-            onClick={() => payMutation.mutate()}
-            disabled={
-              !selectedItem ||
-              !amount ||
-              !paymentMethodId ||
-              remainingAmount <= 0 ||
-              payMutation.isPending ||
-              parseFloat(toDecimal(amount)) > remainingAmount + 0.01 ||
-              (isCashMethod && !cashRegisterId)
+        <Button
+          onClick={() => {
+            if (selectedItem) {
+              const order = selectedItem as Order;
+              onContinueOrder?.(order);
+              handleClose();
             }
-            isLoading={payMutation.isPending}
-          >
-            <Check className="mr-1.5 h-4 w-4" />
-            Registrar pago
-          </Button>
-        )}
+          }}
+          disabled={!selectedItem}
+        >
+          <Banknote className="mr-1.5 h-4 w-4" />
+          {type === "pay_account"
+            ? "Abrir cuenta"
+            : type === "collect"
+              ? "Abrir cuenta"
+              : selectedItem && ["PENDING", "PARTIAL"].includes((selectedItem as Order).payment_status ?? "")
+                ? "Abrir orden"
+                : "Ver / Editar"}
+        </Button>
       </ModalFooter>
     </Modal>
 

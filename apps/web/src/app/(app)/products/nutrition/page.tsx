@@ -159,7 +159,7 @@ export default function ProductNutritionPage() {
         ) : isLoading ? (
           <TableSkeleton rows={5} columns={4} />
         ) : filtered.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card p-8 text-center">
+          <div className="rounded-2xl border border-dashed border-border p-8 text-center">
             <Apple className="mx-auto h-10 w-10 text-muted-foreground" />
             <p className="mt-3 font-medium text-foreground">
               No hay productos con información nutricional.
@@ -174,7 +174,7 @@ export default function ProductNutritionPage() {
               <article
                 key={product.id}
                 onClick={() => setSelected(product)}
-                className="cursor-pointer rounded-xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md"
+                className="cursor-pointer rounded-2xl border border-border bg-muted/30 p-4 shadow-sm transition-shadow hover:shadow-md"
               >
                 <div className="mb-3 flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2">

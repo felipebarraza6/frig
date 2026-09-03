@@ -2,6 +2,7 @@
 
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
@@ -14,10 +15,7 @@ import {
   CheckCircle2,
   Clock,
   AlertCircle,
-  RefreshCw,
   Calendar,
-  DollarSign,
-  FileText,
   ArrowDownLeft,
   ArrowUpRight,
   Receipt,
@@ -28,6 +26,12 @@ import {
   RotateCcw,
   CalendarRange,
   Download,
+  Landmark,
+  CreditCard,
+  Settings2,
+  MoreHorizontal,
+  ArrowLeft,
+  ChevronDown,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -51,16 +55,9 @@ import {
 import {
   fetchBankReconciliations,
   fetchBankReconciliationsSummary,
-  createBankReconciliation,
-  updateBankReconciliation,
-  deleteBankReconciliation,
-  markBankReconciliationBalanced,
-  markBankReconciliationPending,
-  validateBankReconciliation,
   type BankReconciliation,
-  type BankReconciliationRequest,
 } from "@/lib/api/bank-reconciliations";
-import { formatCLP } from "@/lib/utils";
+import { formatCLP, cn } from "@/lib/utils";
 
 const ACCOUNT_TYPES = [
   { value: "CHECKING", label: "Cuenta corriente" },
@@ -124,49 +121,28 @@ function todayDateInput(): string {
   return new Date().toISOString().split("T")[0];
 }
 
-type TxPreset = "today" | "week" | "month" | "last30";
-
-/**
- * Devuelve el rango [from, to] en formato YYYY-MM-DD para un preset de fechas
- * usado en el filtro de movimientos.
- */
-function presetRange(
-  preset: TxPreset,
-): { from: string; to: string; label: string } {
+function firstDayOfMonthInput(): string {
   const today = new Date();
-  const todayIso = today.toISOString().split("T")[0];
-  const fmt = (d: Date) => d.toISOString().split("T")[0];
-  const addDays = (d: Date, n: number) => {
-    const c = new Date(d);
-    c.setDate(c.getDate() + n);
-    return c;
-  };
-  switch (preset) {
-    case "today":
-      return { from: todayIso, to: todayIso, label: "Hoy" };
-    case "week": {
-      const dow = today.getDay();
-      const monday = addDays(today, dow === 0 ? -6 : 1 - dow);
-      return { from: fmt(monday), to: todayIso, label: "Esta semana" };
-    }
-    case "month": {
-      const first = new Date(today.getFullYear(), today.getMonth(), 1);
-      return { from: fmt(first), to: todayIso, label: "Este mes" };
-    }
-    case "last30":
-    default: {
-      const from = addDays(today, -29);
-      return { from: fmt(from), to: todayIso, label: "Últimos 30 días" };
-    }
-  }
+  return new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0];
 }
 
-const TX_PRESET_OPTIONS: { value: TxPreset; label: string }[] = [
-  { value: "last30", label: "Últimos 30 días" },
-  { value: "today", label: "Hoy" },
-  { value: "week", label: "Esta semana" },
-  { value: "month", label: "Este mes" },
-];
+function lastNDaysInput(n: number): string {
+  const today = new Date();
+  return new Date(today.getFullYear(), today.getMonth(), today.getDate() - n).toISOString().split("T")[0];
+}
+
+function formatDateLabel(iso?: string): string {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleDateString("es-CL", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return iso;
+  }
+}
 
 function maskAccountNumber(number?: string | null): string {
   if (!number) return "**** 0000";
@@ -183,19 +159,12 @@ const EMPTY_FORM: BankAccountRequest = {
   branch: 0,
   holder_name: "",
   currency: "CLP",
-  initial_balance: "0",
+  initial_balance: 0,
   is_default: false,
   is_active: true,
 };
 
-const EMPTY_RECONCILIATION_FORM: BankReconciliationRequest = {
-  bank_account: "",
-  reconciliation_date: todayDateInput(),
-  bank_statement_balance: "",
-  system_balance: "0",
-  status: "PENDING",
-  notes: "",
-};
+
 
 export default function BankAccountsPage() {
   const queryClient = useQueryClient();
@@ -208,10 +177,7 @@ export default function BankAccountsPage() {
   // Reconciliations modal state
   const [recModalOpen, setRecModalOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<BankAccountSummary | null>(null);
-  const [recEditingId, setRecEditingId] = useState<string | null>(null);
-  const [recForm, setRecForm] = useState<BankReconciliationRequest>(EMPTY_RECONCILIATION_FORM);
   const [recStatusFilter, setRecStatusFilter] = useState<BankReconciliation["status"] | "">("");
-  const [recConfirmDelete, setRecConfirmDelete] = useState<BankReconciliation | null>(null);
 
   const {
     data: accounts = [],
@@ -262,16 +228,16 @@ export default function BankAccountsPage() {
   const [txModalOpen, setTxModalOpen] = useState(false);
   const [txAccount, setTxAccount] = useState<BankAccountSummary | null>(null);
   const [txFilter, setTxFilter] = useState<"ALL" | "INCOME" | "EXPENSE">("ALL");
-  const [txPreset, setTxPreset] = useState<TxPreset>("last30");
+  const [txDateFrom, setTxDateFrom] = useState<string>(firstDayOfMonthInput());
+  const [txDateTo, setTxDateTo] = useState<string>(todayDateInput());
 
   const txFilterParams = useMemo(() => {
-    const range = presetRange(txPreset);
     return {
-      startDate: range.from,
-      endDate: range.to,
+      startDate: txDateFrom,
+      endDate: txDateTo,
       direction: txFilter === "ALL" ? undefined : txFilter,
     };
-  }, [txPreset, txFilter]);
+  }, [txDateFrom, txDateTo, txFilter]);
 
   const {
     data: transactions = [],
@@ -282,6 +248,8 @@ export default function BankAccountsPage() {
     queryKey: ["bank-accounts", txAccount?.id, "transactions", txFilterParams],
     queryFn: () => fetchBankAccountTransactions(txAccount!.id, txFilterParams),
     enabled: txModalOpen && Boolean(txAccount?.id),
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
   });
 
   const {
@@ -291,6 +259,8 @@ export default function BankAccountsPage() {
     queryKey: ["bank-accounts", txAccount?.id, "balance-summary", txFilterParams],
     queryFn: () => fetchBankAccountBalanceSummary(txAccount!.id, txFilterParams),
     enabled: txModalOpen && Boolean(txAccount?.id),
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
   });
 
   const reconciliations = useMemo(
@@ -324,7 +294,7 @@ export default function BankAccountsPage() {
         branch: editingAccount.branch,
         holder_name: editingAccount.holder_name,
         currency: editingAccount.currency ?? "CLP",
-        initial_balance: editingAccount.initial_balance ?? "0",
+        initial_balance: editingAccount.initial_balance ?? 0,
         is_default: editingAccount.is_default ?? false,
         is_active: editingAccount.is_active ?? true,
       });
@@ -360,43 +330,7 @@ export default function BankAccountsPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["bank-accounts"] }),
   });
 
-  const recSave = useMutation({
-    mutationFn: async () => {
-      const payload = { ...recForm, bank_account: selectedAccount!.id };
-      if (recEditingId) {
-        await updateBankReconciliation(recEditingId, payload);
-      } else {
-        await createBankReconciliation(payload);
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["bank-reconciliations"] });
-      resetRecForm();
-    },
-  });
 
-  const recRemove = useMutation({
-    mutationFn: (id: string) => deleteBankReconciliation(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["bank-reconciliations"] });
-      setRecConfirmDelete(null);
-    },
-  });
-
-  const recMarkBalanced = useMutation({
-    mutationFn: (id: string) => markBankReconciliationBalanced(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["bank-reconciliations"] }),
-  });
-
-  const recMarkPending = useMutation({
-    mutationFn: (id: string) => markBankReconciliationPending(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["bank-reconciliations"] }),
-  });
-
-  const recValidate = useMutation({
-    mutationFn: (id: string) => validateBankReconciliation(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["bank-reconciliations"] }),
-  });
 
   function openModal(account?: BankAccountSummary) {
     setEditingId(account?.id ?? null);
@@ -414,29 +348,19 @@ export default function BankAccountsPage() {
   function openReconciliations(account: BankAccountSummary) {
     setSelectedAccount(account);
     setRecModalOpen(true);
-    resetRecForm(account);
   }
 
   function closeReconciliations() {
     setRecModalOpen(false);
     setSelectedAccount(null);
-    setRecEditingId(null);
     setRecStatusFilter("");
-  }
-
-  function resetRecForm(account: BankAccountSummary | null = selectedAccount) {
-    setRecEditingId(null);
-    setRecForm({
-      ...EMPTY_RECONCILIATION_FORM,
-      bank_account: account?.id ?? "",
-      system_balance: account?.current_balance ?? "0",
-    });
   }
 
   function openTransactions(account: BankAccountSummary) {
     setTxAccount(account);
     setTxFilter("ALL");
-    setTxPreset("last30");
+    setTxDateFrom(lastNDaysInput(6));
+    setTxDateTo(todayDateInput());
     setTxModalOpen(true);
   }
 
@@ -444,15 +368,11 @@ export default function BankAccountsPage() {
     setTxModalOpen(false);
     setTxAccount(null);
     setTxFilter("ALL");
-    setTxPreset("last30");
+    setTxDateFrom(lastNDaysInput(6));
+    setTxDateTo(todayDateInput());
   }
 
-  const txRange = useMemo(
-    () => presetRange(txPreset),
-    [txPreset],
-  );
-
-  const txPeriodLabel = txRange.label;
+  const txPeriodLabel = `${formatDateLabel(txDateFrom)} - ${formatDateLabel(txDateTo)}`;
 
   const periodIncome = useMemo(
     () =>
@@ -475,12 +395,14 @@ export default function BankAccountsPage() {
     const rows = transactions.map((t) => {
       const amount = parseFloat(t.amount) || 0;
       const signed = t.payment_direction === "INCOME" ? amount : -amount;
+      const description = getTransactionTitle(t).replace(/[\r\n,;]/g, " ");
+      const method = (t.payment_method?.name ?? t.payment_method_name ?? "").replace(/[\r\n,;]/g, " ");
       return [
         t.payment_date,
         t.payment_direction === "INCOME" ? "Ingreso" : "Egreso",
-        (t.description ?? t.payment_source ?? "").replace(/[\r\n,;]/g, " "),
+        description,
         (t.reference ?? "").replace(/[\r\n,;]/g, " "),
-        (t.payment_method_name ?? "").replace(/[\r\n,;]/g, " "),
+        method,
         signed.toString(),
       ];
     });
@@ -498,36 +420,17 @@ export default function BankAccountsPage() {
     window.URL.revokeObjectURL(url);
   }
 
-  function startEditReconciliation(rec: BankReconciliation) {
-    setRecEditingId(rec.id);
-    setRecForm({
-      bank_account: rec.bank_account,
-      reconciliation_date: rec.reconciliation_date,
-      bank_statement_balance: rec.bank_statement_balance,
-      system_balance: rec.system_balance,
-      status: rec.status ?? "PENDING",
-      notes: rec.notes ?? "",
-    });
-  }
-
-  function cancelEditReconciliation() {
-    resetRecForm();
-  }
-
   const summary = useMemo(() => {
     if (!selectedAccount || reconciliations.length === 0) return null;
     const last = reconciliations[0];
-    const system = parseFloat(selectedAccount.current_balance ?? "0");
-    const statement = parseFloat(last.bank_statement_balance ?? "0");
+    const system = selectedAccount.current_balance ?? 0;
+    const statement = last.bank_statement_balance ?? 0;
     const difference = system - statement;
     return { system, statement, difference, lastStatus: last.status };
   }, [selectedAccount, reconciliations]);
 
-  const anyRecActionPending =
-    recMarkBalanced.isPending || recMarkPending.isPending || recValidate.isPending;
-
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
       <header className="flex flex-col gap-3 border-b border-border px-4 py-3 md:flex-row md:items-start md:justify-between md:px-6">
         <div>
           <h1 className="text-lg font-semibold">Billeteras digitales</h1>
@@ -693,108 +596,168 @@ export default function BankAccountsPage() {
                 id="bank-account-form"
               >
                 <div className="flex-1 overflow-y-auto p-4">
-                  <div className="flex flex-col gap-4">
-                    <div className="flex flex-col gap-2">
-                      <label htmlFor="ba-name" className="text-sm font-medium">Nombre de la cuenta</label>
-                      <Input
-                        id="ba-name"
-                        value={form.account_name}
-                        onChange={(e) => setForm({ ...form, account_name: e.target.value })}
-                        required
-                        placeholder="Ej: Cuenta principal"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="flex flex-col gap-2">
-                        <label htmlFor="ba-bank" className="text-sm font-medium">Banco</label>
-                        <Select
-                          id="ba-bank"
-                          value={form.bank}
-                          onChange={(e) => setForm({ ...form, bank: e.target.value })}
-                          required
-                        >
-                          <option value="">Selecciona</option>
-                          {banks.map((b) => (
-                            <option key={b.id} value={b.id}>{b.display_name}</option>
-                          ))}
-                        </Select>
+                  <div className="flex flex-col gap-5">
+                    {/* Preview card */}
+                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-primary/80 p-5 text-primary-foreground shadow-md">
+                      <div className="pointer-events-none absolute -right-6 -top-6 h-28 w-28 rounded-full bg-white/10" />
+                      <div className="relative flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[11px] font-medium uppercase tracking-wider text-primary-foreground/80">
+                            {banks.find((b) => String(b.id) === form.bank)?.display_name || "Banco"}
+                          </p>
+                          <p className="truncate text-lg font-semibold">
+                            {form.account_name || "Nombre de la cuenta"}
+                          </p>
+                        </div>
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/15">
+                          <CreditCard className="h-5 w-5" />
+                        </div>
                       </div>
-                      <div className="flex flex-col gap-2">
-                        <label htmlFor="ba-type" className="text-sm font-medium">Tipo</label>
-                        <Select
-                          id="ba-type"
-                          value={form.account_type}
-                          onChange={(e) => setForm({ ...form, account_type: e.target.value as BankAccountRequest["account_type"] })}
-                        >
-                          {ACCOUNT_TYPES.map((t) => (
-                            <option key={t.value} value={t.value}>{t.label}</option>
-                          ))}
-                        </Select>
+                      <div className="relative mt-4">
+                        <p className="text-xs text-primary-foreground/70">Saldo inicial</p>
+                        <p className="text-2xl font-bold tabular-nums">
+                          {formatCLP(form.initial_balance ?? 0)}
+                        </p>
+                      </div>
+                      <div className="relative mt-3 flex items-center justify-between text-xs text-primary-foreground/80">
+                        <span>{maskAccountNumber(form.account_number) || "•••• •••• •••• ••••"}</span>
+                        <span>{accountTypeLabel(form.account_type)} · {currencyLabel(form.currency)}</span>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+
+                    {/* Section: Account info */}
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        <CreditCard className="h-3.5 w-3.5" />
+                        Información de la cuenta
+                      </div>
                       <div className="flex flex-col gap-2">
-                        <label htmlFor="ba-number" className="text-sm font-medium">Número de cuenta</label>
+                        <label htmlFor="ba-name" className="text-sm font-medium">Nombre de la cuenta</label>
                         <Input
-                          id="ba-number"
-                          value={form.account_number}
-                          onChange={(e) => setForm({ ...form, account_number: e.target.value })}
+                          id="ba-name"
+                          value={form.account_name}
+                          onChange={(e) => setForm({ ...form, account_name: e.target.value })}
                           required
+                          placeholder="Ej: Cuenta principal"
                         />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex flex-col gap-2">
+                          <label htmlFor="ba-bank" className="text-sm font-medium">Banco</label>
+                          <Select
+                            id="ba-bank"
+                            value={form.bank}
+                            onChange={(e) => setForm({ ...form, bank: e.target.value })}
+                            required
+                          >
+                            <option value="">Selecciona un banco</option>
+                            {banks.map((b) => (
+                              <option key={b.id} value={b.id}>{b.display_name}</option>
+                            ))}
+                          </Select>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <label htmlFor="ba-type" className="text-sm font-medium">Tipo de cuenta</label>
+                          <Select
+                            id="ba-type"
+                            value={form.account_type}
+                            onChange={(e) => setForm({ ...form, account_type: e.target.value as BankAccountRequest["account_type"] })}
+                          >
+                            {ACCOUNT_TYPES.map((t) => (
+                              <option key={t.value} value={t.value}>{t.label}</option>
+                            ))}
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Section: Bank details */}
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        <Landmark className="h-3.5 w-3.5" />
+                        Detalles bancarios
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex flex-col gap-2">
+                          <label htmlFor="ba-number" className="text-sm font-medium">Número de cuenta</label>
+                          <Input
+                            id="ba-number"
+                            value={form.account_number}
+                            onChange={(e) => setForm({ ...form, account_number: e.target.value })}
+                            required
+                            placeholder="Ej: 123456789"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <label htmlFor="ba-currency" className="text-sm font-medium">Moneda</label>
+                          <Select
+                            id="ba-currency"
+                            value={form.currency}
+                            onChange={(e) => setForm({ ...form, currency: e.target.value as BankAccountRequest["currency"] })}
+                          >
+                            {CURRENCIES.map((c) => (
+                              <option key={c.value} value={c.value}>{c.label}</option>
+                            ))}
+                          </Select>
+                        </div>
                       </div>
                       <div className="flex flex-col gap-2">
-                        <label htmlFor="ba-currency" className="text-sm font-medium">Moneda</label>
-                        <Select
-                          id="ba-currency"
-                          value={form.currency}
-                          onChange={(e) => setForm({ ...form, currency: e.target.value as BankAccountRequest["currency"] })}
-                        >
-                          {CURRENCIES.map((c) => (
-                            <option key={c.value} value={c.value}>{c.label}</option>
-                          ))}
-                        </Select>
+                        <label htmlFor="ba-holder" className="text-sm font-medium">Titular de la cuenta</label>
+                        <Input
+                          id="ba-holder"
+                          value={form.holder_name}
+                          onChange={(e) => setForm({ ...form, holder_name: e.target.value })}
+                          required
+                          placeholder="Nombre del titular"
+                        />
                       </div>
                     </div>
-                    <div className="flex flex-col gap-2">
-                      <label htmlFor="ba-holder" className="text-sm font-medium">Titular</label>
-                      <Input
-                        id="ba-holder"
-                        value={form.holder_name}
-                        onChange={(e) => setForm({ ...form, holder_name: e.target.value })}
-                        required
-                      />
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <label htmlFor="ba-balance" className="text-sm font-medium">Saldo inicial</label>
-                      <Input
-                        id="ba-balance"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={form.initial_balance}
-                        onChange={(e) => setForm({ ...form, initial_balance: e.target.value })}
-                      />
-                    </div>
-                    <div className="flex flex-wrap items-center gap-6">
-                      <label className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={form.is_default}
-                          onChange={(e) => setForm({ ...form, is_default: e.target.checked })}
-                          className="h-4 w-4 accent-primary"
+
+                    {/* Section: Settings */}
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        <Settings2 className="h-3.5 w-3.5" />
+                        Configuración
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <label htmlFor="ba-balance" className="text-sm font-medium">Saldo inicial</label>
+                        <Input
+                          id="ba-balance"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={form.initial_balance}
+                          onChange={(e) => setForm({ ...form, initial_balance: Number(e.target.value) })}
+                          placeholder="0"
                         />
-                        Cuenta principal
-                      </label>
-                      <label className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={form.is_active}
-                          onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
-                          className="h-4 w-4 accent-primary"
-                        />
-                        Activa
-                      </label>
+                        <p className="text-xs text-muted-foreground">
+                          Solo al crear la cuenta. Usa el saldo real con el que comienza.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-6 rounded-xl border border-border bg-muted/50 p-3">
+                        <label className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={form.is_default}
+                            onChange={(e) => setForm({ ...form, is_default: e.target.checked })}
+                            className="h-4 w-4 accent-primary"
+                          />
+                          <Star className="h-3.5 w-3.5 text-muted-foreground" />
+                          Cuenta principal
+                        </label>
+                        <label className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={form.is_active}
+                            onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
+                            className="h-4 w-4 accent-primary"
+                          />
+                          <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground" />
+                          Activa
+                        </label>
+                      </div>
                     </div>
+
                     {save.isError && (
                       <p className="text-sm text-danger">
                         {save.error instanceof Error ? save.error.message : "Error al guardar"}
@@ -807,7 +770,7 @@ export default function BankAccountsPage() {
                     Cancelar
                   </Button>
                   <Button type="submit" isLoading={save.isPending}>
-                    Guardar
+                    {editingId ? "Guardar cambios" : "Crear cuenta"}
                   </Button>
                 </div>
               </form>
@@ -879,81 +842,16 @@ export default function BankAccountsPage() {
                 </div>
               )}
 
-              {/* Form */}
-              <div className="border-b border-border p-4">
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    recSave.mutate();
-                  }}
-                  className="flex flex-col gap-3"
-                >
-                  <div className="grid gap-3 sm:grid-cols-4">
-                    <div className="flex flex-col gap-1.5 sm:col-span-1">
-                      <label htmlFor="rec-date" className="text-xs font-medium">Fecha</label>
-                      <div className="relative">
-                        <Calendar className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                          id="rec-date"
-                          type="date"
-                          value={recForm.reconciliation_date}
-                          onChange={(e) => setRecForm({ ...recForm, reconciliation_date: e.target.value })}
-                          required
-                          className="pl-8"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-1.5 sm:col-span-1">
-                      <label htmlFor="rec-balance" className="text-xs font-medium">Saldo extracto</label>
-                      <div className="relative">
-                        <DollarSign className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                          id="rec-balance"
-                          type="number"
-                          step="0.01"
-                          value={recForm.bank_statement_balance}
-                          onChange={(e) => setRecForm({ ...recForm, bank_statement_balance: e.target.value })}
-                          required
-                          placeholder="0"
-                          className="pl-8"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-1.5 sm:col-span-2">
-                      <label htmlFor="rec-notes" className="text-xs font-medium">Notas</label>
-                      <div className="relative">
-                        <FileText className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                          id="rec-notes"
-                          value={recForm.notes ?? ""}
-                          onChange={(e) => setRecForm({ ...recForm, notes: e.target.value })}
-                          placeholder="Opcional"
-                          className="pl-8"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="text-xs text-muted-foreground">
-                      {recEditingId ? "Editando conciliación existente" : "Nueva conciliación"}
-                    </div>
-                    <div className="flex gap-2">
-                      {recEditingId && (
-                        <Button type="button" variant="outline" size="sm" onClick={cancelEditReconciliation}>
-                          Cancelar
-                        </Button>
-                      )}
-                      <Button type="submit" size="sm" isLoading={recSave.isPending}>
-                        {recEditingId ? "Guardar cambios" : "Agregar conciliación"}
-                      </Button>
-                    </div>
-                  </div>
-                  {recSave.isError && (
-                    <p className="text-sm text-danger">
-                      {recSave.error instanceof Error ? recSave.error.message : "Error al guardar"}
-                    </p>
-                  )}
-                </form>
+              {/* Header */}
+              <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+                <p className="text-xs text-muted-foreground">
+                  Solo historial. Crea y gestiona conciliaciones desde la página dedicada.
+                </p>
+                <Link href="/reconciliations">
+                  <Button type="button" variant="outline" size="sm">
+                    Gestionar conciliaciones
+                  </Button>
+                </Link>
               </div>
 
               {/* Filter */}
@@ -1022,47 +920,11 @@ export default function BankAccountsPage() {
                         rec={rec}
                         isLast={idx === 0}
                         isFirst={idx === arr.length - 1}
-                        anyActionPending={anyRecActionPending}
-                        onMarkBalanced={() => recMarkBalanced.mutate(rec.id)}
-                        onMarkPending={() => recMarkPending.mutate(rec.id)}
-                        onValidate={() => recValidate.mutate(rec.id)}
-                        onEdit={() => startEditReconciliation(rec)}
-                        onDelete={() => setRecConfirmDelete(rec)}
                       />
                     ))}
                   </div>
                 )}
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {recConfirmDelete && (
-        <div
-          className="fixed inset-0 z-[70] flex items-end justify-center overflow-hidden bg-black/40 p-0 md:items-center md:p-4"
-          role="dialog"
-          aria-modal="true"
-        >
-          <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-danger/10">
-                <AlertCircle className="h-5 w-5 text-danger" />
-              </div>
-              <div>
-                <h2 className="text-base font-semibold">¿Eliminar conciliación?</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Se eliminará la conciliación del <span className="font-medium text-foreground">{recConfirmDelete.reconciliation_date}</span>.
-                </p>
-              </div>
-            </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setRecConfirmDelete(null)} disabled={recRemove.isPending}>
-                Cancelar
-              </Button>
-              <Button variant="danger" onClick={() => recRemove.mutate(recConfirmDelete.id)} isLoading={recRemove.isPending}>
-                Eliminar
-              </Button>
             </div>
           </div>
         </div>
@@ -1087,7 +949,7 @@ export default function BankAccountsPage() {
                   Ingresos del período
                 </p>
                 <p className="text-sm font-semibold tabular-nums text-success">
-                  {formatCLP(balanceSummary?.total_income ?? periodIncome)}
+                  {formatCLP(periodIncome)}
                 </p>
               </div>
               <div>
@@ -1095,7 +957,7 @@ export default function BankAccountsPage() {
                   Egresos del período
                 </p>
                 <p className="text-sm font-semibold tabular-nums text-danger">
-                  {formatCLP(balanceSummary?.total_expenses ?? periodExpense)}
+                  {formatCLP(periodExpense)}
                 </p>
               </div>
             </div>
@@ -1105,19 +967,52 @@ export default function BankAccountsPage() {
           </div>
 
           <div className="flex flex-col gap-3 border-b border-border px-6 py-3 sm:flex-row sm:flex-wrap sm:items-center">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <CalendarRange className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="text-xs font-medium text-muted-foreground">Período:</span>
-              <Select
-                value={txPreset}
-                onChange={(e) => setTxPreset(e.target.value as TxPreset)}
-                className="h-8 w-44 text-xs"
-                aria-label="Período de movimientos"
-              >
-                {TX_PRESET_OPTIONS.map((p) => (
-                  <option key={p.value} value={p.value}>{p.label}</option>
-                ))}
-              </Select>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="date"
+                  value={txDateFrom}
+                  onChange={(e) => setTxDateFrom(e.target.value)}
+                  className="h-8 w-36 text-xs"
+                  aria-label="Desde"
+                />
+                <span className="text-xs text-muted-foreground">hasta</span>
+                <Input
+                  type="date"
+                  value={txDateTo}
+                  onChange={(e) => setTxDateTo(e.target.value)}
+                  className="h-8 w-36 text-xs"
+                  aria-label="Hasta"
+                />
+              </div>
+              <div className="flex items-center gap-1">
+                {[
+                  { label: "Hoy", from: todayDateInput(), to: todayDateInput() },
+                  { label: "7 días", from: lastNDaysInput(6), to: todayDateInput() },
+                  { label: "Este mes", from: firstDayOfMonthInput(), to: todayDateInput() },
+                ].map((p) => {
+                  const active = txDateFrom === p.from && txDateTo === p.to;
+                  return (
+                    <button
+                      key={p.label}
+                      type="button"
+                      onClick={() => {
+                        setTxDateFrom(p.from);
+                        setTxDateTo(p.to);
+                      }}
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                        active
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground hover:bg-muted/80"
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
             <div className="flex items-center gap-1 sm:ml-auto">
               <Filter className="h-3.5 w-3.5 text-muted-foreground" />
@@ -1157,16 +1052,26 @@ export default function BankAccountsPage() {
 
           <ModalBody>
             {loadingTransactions || loadingBalanceSummary ? (
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-3">
                 {Array.from({ length: 6 }).map((_, i) => (
                   <div
                     key={i}
-                    className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5"
+                    className="rounded-xl border border-border bg-card p-3"
                   >
-                    <Skeleton className="h-7 w-7 rounded-md" />
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="hidden h-3 w-20 sm:block" />
-                    <Skeleton className="ml-auto h-4 w-20" />
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 items-start gap-3">
+                        <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
+                        <div className="min-w-0 space-y-2">
+                          <Skeleton className="h-4 w-36" />
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <Skeleton className="h-4 w-16 rounded-full" />
+                            <Skeleton className="h-3 w-20" />
+                            <Skeleton className="hidden h-3 w-24 sm:block" />
+                          </div>
+                        </div>
+                      </div>
+                      <Skeleton className="h-4 w-20" />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1197,9 +1102,12 @@ export default function BankAccountsPage() {
                   variant="outline"
                   size="sm"
                   className="mt-3"
-                  onClick={() => setTxPreset("last30")}
+                  onClick={() => {
+                    setTxDateFrom(firstDayOfMonthInput());
+                    setTxDateTo(todayDateInput());
+                  }}
                 >
-                  Ver últimos 30 días
+                  Ver este mes
                 </Button>
               </div>
             ) : filteredTransactions.length === 0 ? (
@@ -1248,7 +1156,7 @@ function StatCard({
   sub: string;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
       <div className="mb-2 flex items-center gap-2 text-muted-foreground">
         <Icon className="h-4 w-4" />
         <span className="text-xs font-medium">{label}</span>
@@ -1261,7 +1169,7 @@ function StatCard({
 
 function StatSkeleton() {
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
       <div className="mb-2 flex items-center gap-2">
         <Skeleton className="h-4 w-4 rounded-full" />
         <Skeleton className="h-3.5 w-24" />
@@ -1289,123 +1197,168 @@ function BankAccountCard({
   onSetDefault: (id: string) => void;
   isSetDefaultPending: boolean;
 }) {
+  const [showOptions, setShowOptions] = useState(false);
+  const isInactive = account.is_active === false;
+  const textMuted = isInactive ? "text-muted-foreground" : "text-primary-foreground/80";
+  const pillClass = isInactive ? "bg-muted text-muted-foreground" : "bg-white/10 text-primary-foreground/90";
+  const primaryPillClass = isInactive ? "bg-primary/10 text-primary" : "bg-white/15 text-white";
+  const cardClass = isInactive
+    ? "border-border bg-muted/30"
+    : "border-transparent bg-gradient-to-br from-primary/90 to-primary text-primary-foreground";
+
   return (
-    <div className="group flex flex-col rounded-2xl border border-border bg-card p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-      {/* Header: icono + nombre banco + nombre cuenta */}
-      <div className="mb-3 flex items-start gap-3">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-          <Wallet className="h-6 w-6" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-            {account.bank_name || "Banco"}
-          </p>
-          <p className="truncate text-base font-semibold leading-tight" title={account.account_name}>
-            {account.account_name}
-          </p>
-          <p className="mt-0.5 truncate text-xs text-muted-foreground tabular-nums">
-            {maskAccountNumber(account.account_number)} · {accountTypeLabel(account.account_type)} · {currencyLabel(account.currency)}
-          </p>
-        </div>
-      </div>
-
-      {/* Pills: badges de estado */}
-      <div className="mb-3 flex flex-wrap gap-2">
-        {account.is_default ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-            <Star className="h-3 w-3 fill-current" />
-            Principal
-          </span>
-        ) : (
-          <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-            No principal
-          </span>
-        )}
-        {account.is_active === false ? (
-          <span className="inline-flex items-center rounded-full bg-danger/10 px-2.5 py-0.5 text-xs font-medium text-danger">
-            Inactiva
-          </span>
-        ) : (
-          <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
-            Activa
-          </span>
-        )}
-      </div>
-
-      {/* Stats inline (mismo patrón 2-col que ProductCard: precio + stock) */}
-      <div className="mb-4 flex items-end justify-between">
-        <div>
-          <p className="text-xs text-muted-foreground">Saldo actual</p>
-          <p className="text-xl font-bold tabular-nums tracking-tight">
-            {formatCLP(account.current_balance)}
-          </p>
-        </div>
-        <div className="text-right">
-          <p className="text-xs text-muted-foreground">Sucursal</p>
-          <p className="truncate text-sm font-medium" title={account.branch_name ?? undefined}>
-            {account.branch_name || "—"}
-          </p>
-        </div>
-      </div>
-
-      {/* Actions: mismo patrón icon-only con sr-only que ProductCard */}
-      <div className="mt-auto flex items-center justify-between border-t border-border pt-3">
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-            onClick={() => onTransactions(account)}
-            title="Movimientos"
-            aria-label={`Movimientos de ${account.account_name}`}
-          >
-            <Receipt className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-            onClick={() => onReconciliations(account)}
-            title="Conciliaciones"
-            aria-label={`Conciliaciones de ${account.account_name}`}
-          >
-            <Scale className="h-4 w-4" />
-          </Button>
-          {!account.is_default && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-foreground"
-              onClick={() => onSetDefault(account.id)}
-              disabled={isSetDefaultPending}
-              title="Marcar como principal"
-              aria-label={`Marcar como principal ${account.account_name}`}
-            >
-              <Star className="h-4 w-4" />
-            </Button>
+    <div
+      className="group relative h-[280px]"
+      style={{ perspective: "1000px" }}
+    >
+      <div
+        className="relative h-full w-full rounded-2xl border shadow-sm transition-all duration-500 hover:-translate-y-0.5 hover:shadow-md"
+        style={{
+          transformStyle: "preserve-3d",
+          transform: showOptions ? "rotateY(180deg)" : "rotateY(0deg)",
+        }}
+      >
+        {/* Front face */}
+        <div
+          className={cn("absolute inset-0 flex flex-col overflow-hidden rounded-2xl p-5", cardClass)}
+          style={{ backfaceVisibility: "hidden" }}
+        >
+          {/* Decorative card pattern */}
+          {!isInactive && (
+            <div className="pointer-events-none absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white/10" />
           )}
+
+          {/* Header: banco + nombre cuenta */}
+          <div className="relative mb-4 flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <p className={cn("truncate text-[11px] font-medium uppercase tracking-wider", textMuted)}>
+                {account.bank_name || "Banco"}
+              </p>
+              <p className={cn("truncate text-lg font-semibold leading-tight", isInactive && "text-foreground")} title={account.account_name}>
+                {account.account_name}
+              </p>
+              <p className={cn("mt-0.5 truncate text-xs tabular-nums", textMuted)}>
+                {maskAccountNumber(account.account_number)} · {accountTypeLabel(account.account_type)} · {currencyLabel(account.currency)}
+              </p>
+            </div>
+            <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-full", isInactive ? "bg-muted text-muted-foreground" : "bg-white/15 text-white")}>
+              <Wallet className="h-5 w-5" />
+            </div>
+          </div>
+
+          {/* Saldo */}
+          <div className="relative mb-4">
+            <p className={cn("text-xs", textMuted)}>Saldo actual</p>
+            <p className="text-2xl font-bold tabular-nums tracking-tight">
+              {formatCLP(account.current_balance)}
+            </p>
+          </div>
+
+          {/* Pills + sucursal */}
+          <div className="relative mb-4 flex flex-wrap items-center gap-2">
+            {account.is_default ? (
+              <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium", primaryPillClass)}>
+                <Star className="h-3 w-3 fill-current" />
+                Principal
+              </span>
+            ) : (
+              <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium", pillClass)}>
+                No principal
+              </span>
+            )}
+            {isInactive ? (
+              <span className="inline-flex items-center rounded-full bg-danger/10 px-2.5 py-0.5 text-xs font-medium text-danger">
+                Inactiva
+              </span>
+            ) : (
+              <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium", pillClass)}>
+                Activa
+              </span>
+            )}
+            <span className={cn("ml-auto truncate text-xs", textMuted)}>
+              {account.branch_name || "—"}
+            </span>
+          </div>
+
+          {/* Options toggle */}
+          <div className="mt-auto border-t border-border pt-3">
+            <button
+              type="button"
+              onClick={() => setShowOptions(true)}
+              className={cn("flex w-full items-center justify-center gap-2 rounded-lg py-2 text-sm font-medium transition-colors", isInactive ? "bg-muted text-foreground hover:bg-muted/80" : "bg-white/10 text-white hover:bg-white/20")}
+            >
+              <MoreHorizontal className="h-4 w-4" />
+              Opciones
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-            onClick={() => onEdit(account)}
-            title="Editar"
-            aria-label={`Editar ${account.account_name}`}
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-danger"
-            onClick={() => onDelete(account)}
-            title="Eliminar"
-            aria-label={`Eliminar ${account.account_name}`}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+
+        {/* Back face: opciones */}
+        <div
+          className={cn("absolute inset-0 flex flex-col overflow-hidden rounded-2xl p-5", cardClass)}
+          style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
+        >
+          {/* Decorative card pattern */}
+          {!isInactive && (
+            <div className="pointer-events-none absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white/10" />
+          )}
+
+          <div className="relative mb-4 flex items-center justify-between">
+            <p className="text-sm font-semibold">Opciones de cuenta</p>
+            <button
+              type="button"
+              onClick={() => setShowOptions(false)}
+              className={cn("rounded-full p-1.5 transition-colors", isInactive ? "hover:bg-muted" : "bg-white/10 hover:bg-white/20")}
+              aria-label="Volver"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="relative flex flex-1 flex-col gap-2">
+            <button
+              type="button"
+              onClick={() => { setShowOptions(false); onTransactions(account); }}
+              className={cn("flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors", isInactive ? "hover:bg-muted" : "bg-white/10 hover:bg-white/20")}
+            >
+              <Receipt className="h-4 w-4" />
+              Ver movimientos
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowOptions(false); onReconciliations(account); }}
+              className={cn("flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors", isInactive ? "hover:bg-muted" : "bg-white/10 hover:bg-white/20")}
+            >
+              <Scale className="h-4 w-4" />
+              Conciliaciones
+            </button>
+            {!account.is_default && (
+              <button
+                type="button"
+                onClick={() => { setShowOptions(false); onSetDefault(account.id); }}
+                disabled={isSetDefaultPending}
+                className={cn("flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors", isInactive ? "hover:bg-muted" : "bg-white/10 hover:bg-white/20")}
+              >
+                <Star className="h-4 w-4" />
+                Marcar como principal
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => { setShowOptions(false); onEdit(account); }}
+              className={cn("flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors", isInactive ? "hover:bg-muted" : "bg-white/10 hover:bg-white/20")}
+            >
+              <Pencil className="h-4 w-4" />
+              Editar cuenta
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowOptions(false); onDelete(account); }}
+              className={cn("flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors", isInactive ? "text-danger hover:bg-danger/10" : "text-white/80 hover:bg-white/20")}
+            >
+              <Trash2 className="h-4 w-4" />
+              Eliminar cuenta
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -1414,7 +1367,7 @@ function BankAccountCard({
 
 function BankAccountCardSkeleton() {
   return (
-    <div className="flex flex-col rounded-2xl border border-border bg-card p-4 shadow-sm">
+    <div className="flex flex-col rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
       <div className="mb-3 flex items-start gap-3">
         <Skeleton className="h-12 w-12 shrink-0 rounded-xl" />
         <div className="min-w-0 flex-1 space-y-2">
@@ -1451,15 +1404,68 @@ function BankAccountCardSkeleton() {
   );
 }
 
+function getTransactionTitle(tx: BankAccountTransaction): string {
+  const source = tx.payment_source?.toUpperCase();
+  if (source === "ORDER" && tx.order) {
+    const orderType = tx.order.order_type?.toUpperCase();
+    const doc = tx.order.order_number ? ` #${tx.order.order_number}` : "";
+    if (orderType === "SALE") return `Venta${doc}`;
+    if (orderType === "ORDER") return `Pedido${doc}`;
+    return `Orden${doc}`;
+  }
+  return translateTransactionSource(tx.description ?? tx.payment_source) ?? "Movimiento";
+}
+
 function translateTransactionSource(value?: string | null): string | undefined {
   if (!value) return undefined;
+  const upper = value.trim().toUpperCase().replace(/[_\s]+/g, "_");
+  const map: Record<string, string> = {
+    EXPENSE: "Egreso",
+    EGRESO: "Egreso",
+    REVENUE: "Ingreso",
+    INCOME: "Ingreso",
+    INGRESO: "Ingreso",
+    SALE: "Venta",
+    VENTA: "Venta",
+    ORDER: "Pedido",
+    PEDIDO: "Pedido",
+    DEPOSIT: "Depósito",
+    DEPOSITO: "Depósito",
+    WITHDRAWAL: "Retiro",
+    RETIRO: "Retiro",
+    TRANSFER: "Transferencia",
+    TRANSFERENCIA: "Transferencia",
+    ADJUSTMENT: "Ajuste",
+    AJUSTE: "Ajuste",
+    POS_SALE: "Venta POS",
+    ORDER_PAYMENT: "Pago de pedido",
+    EXPENSE_PAYMENT: "Pago de gasto",
+    CASH_REGISTER: "Caja",
+    CAJA: "Caja",
+    BANK_TRANSFER: "Transferencia bancaria",
+    RECONCILIATION: "Conciliación",
+    CONCILIACION: "Conciliación",
+  };
+  return map[upper] ?? value;
+}
+
+function translateTransactionStatus(value?: string | null): string | undefined {
+  if (!value) return undefined;
   const upper = value.trim().toUpperCase();
-  if (upper === "EXPENSE" || upper === "EGRESO") return "Egreso";
-  if (upper === "REVENUE" || upper === "INCOME" || upper === "INGRESO") return "Ingreso";
-  return value;
+  const map: Record<string, string> = {
+    PENDING: "Pendiente",
+    COMPLETED: "Completado",
+    CONFIRMED: "Confirmado",
+    CANCELLED: "Cancelado",
+    FAILED: "Fallido",
+    REVERSED: "Reversado",
+    DISCREPANCY: "Con discrepancia",
+  };
+  return map[upper] ?? value;
 }
 
 function TransactionCard({ tx }: { tx: BankAccountTransaction }) {
+  const [expanded, setExpanded] = useState(false);
   const isIncome = tx.payment_direction === "INCOME";
   const amount = parseFloat(tx.amount) || 0;
   const date = useMemo(() => {
@@ -1474,10 +1480,18 @@ function TransactionCard({ tx }: { tx: BankAccountTransaction }) {
     }
   }, [tx.payment_date]);
 
-  const title = translateTransactionSource(tx.description ?? tx.payment_source) ?? "Movimiento";
+  const methodName = tx.payment_method?.name ?? tx.payment_method_name;
+  const methodType = tx.payment_method?.payment_type_display ?? tx.payment_method?.payment_type;
+  const title = useMemo(() => getTransactionTitle(tx), [tx]);
+  const source = translateTransactionSource(tx.payment_source) ?? tx.payment_source ?? "—";
+  const status = translateTransactionStatus(tx.status) ?? tx.status ?? "—";
 
   return (
-    <div className="rounded-xl border border-border bg-card p-3 transition-colors hover:border-primary/20">
+    <button
+      type="button"
+      onClick={() => setExpanded((v) => !v)}
+      className="w-full rounded-xl border border-border bg-card p-3 text-left transition-colors hover:border-primary/20"
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
           <div
@@ -1501,21 +1515,12 @@ function TransactionCard({ tx }: { tx: BankAccountTransaction }) {
                 <Calendar className="h-3 w-3" />
                 {date}
               </span>
-              {tx.payment_method_name && (
+              {methodName && (
                 <>
                   <span>·</span>
-                  <span className="inline-flex items-center gap-1">
+                  <span className="inline-flex items-center gap-1" title={methodType}>
                     <Wallet className="h-3 w-3" />
-                    {tx.payment_method_name}
-                  </span>
-                </>
-              )}
-              {tx.reference && (
-                <>
-                  <span>·</span>
-                  <span className="inline-flex items-center gap-1">
-                    <FileText className="h-3 w-3" />
-                    Ref: {tx.reference}
+                    {methodName}
                   </span>
                 </>
               )}
@@ -1526,12 +1531,49 @@ function TransactionCard({ tx }: { tx: BankAccountTransaction }) {
           <p className={`text-sm font-semibold tabular-nums ${isIncome ? "text-emerald-700" : "text-rose-700"}`}>
             {isIncome ? "+" : "-"}{formatCLP(amount)}
           </p>
-          {tx.status && (
-            <p className="text-xs capitalize text-muted-foreground">{tx.status.toLowerCase()}</p>
-          )}
+          <ChevronDown className={cn("ml-auto h-3.5 w-3.5 text-muted-foreground transition-transform", expanded && "rotate-180")} />
         </div>
       </div>
-    </div>
+
+      {expanded && (
+        <div className="mt-3 border-t border-border pt-3">
+          <div className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
+            <div>
+              <p className="text-muted-foreground">Origen</p>
+              <p className="font-medium">{source}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Estado</p>
+              <p className="font-medium">{status}</p>
+            </div>
+            {tx.order?.order_number && (
+              <div>
+                <p className="text-muted-foreground">Documento</p>
+                <p className="font-medium">{tx.order.order_number}</p>
+              </div>
+            )}
+            {methodName && (
+              <div>
+                <p className="text-muted-foreground">Método de pago</p>
+                <p className="font-medium">{methodName}</p>
+              </div>
+            )}
+            {tx.reference && (
+              <div className="sm:col-span-2">
+                <p className="text-muted-foreground">Referencia</p>
+                <p className="font-medium">{tx.reference}</p>
+              </div>
+            )}
+            {tx.description && tx.description !== tx.payment_source && (
+              <div className="sm:col-span-2">
+                <p className="text-muted-foreground">Descripción</p>
+                <p className="font-medium">{tx.description}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </button>
   );
 }
 
@@ -1539,26 +1581,14 @@ function ReconciliationCard({
   rec,
   isLast,
   isFirst,
-  anyActionPending,
-  onMarkBalanced,
-  onMarkPending,
-  onValidate,
-  onEdit,
-  onDelete,
 }: {
   rec: BankReconciliation;
   isLast: boolean;
   isFirst: boolean;
-  anyActionPending: boolean;
-  onMarkBalanced: () => void;
-  onMarkPending: () => void;
-  onValidate: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
 }) {
-  const statement = parseFloat(rec.bank_statement_balance ?? "0");
-  const system = parseFloat(rec.system_balance ?? "0");
-  const diff = parseFloat(rec.difference ?? "0");
+  const statement = rec.bank_statement_balance;
+  const system = rec.system_balance;
+  const diff = rec.difference;
 
   return (
     <div className="relative rounded-xl border border-border bg-card p-3 transition-colors hover:border-primary/20">
@@ -1606,72 +1636,6 @@ function ReconciliationCard({
               Por: {rec.reconciled_by_name}
             </p>
           )}
-        </div>
-        <div className="flex flex-wrap items-center gap-1 sm:flex-col sm:items-end">
-          {rec.status !== "COMPLETED" && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 w-8 p-0 text-success hover:text-success"
-              onClick={onMarkBalanced}
-              disabled={anyActionPending}
-              title="Marcar balanceada"
-              aria-label="Marcar balanceada"
-            >
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              <span className="sr-only">Balanceada</span>
-            </Button>
-          )}
-          {rec.status !== "PENDING" && rec.status !== "COMPLETED" && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 w-8 p-0 text-warning hover:text-warning"
-              onClick={onMarkPending}
-              disabled={anyActionPending}
-              title="Marcar pendiente"
-              aria-label="Marcar pendiente"
-            >
-              <Clock className="h-3.5 w-3.5" />
-              <span className="sr-only">Pendiente</span>
-            </Button>
-          )}
-          {rec.status !== "COMPLETED" && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 w-8 p-0 text-primary hover:text-primary"
-              onClick={onValidate}
-              disabled={anyActionPending}
-              title="Validar"
-              aria-label="Validar"
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              <span className="sr-only">Validar</span>
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 p-0"
-            onClick={onEdit}
-            title="Editar"
-            aria-label="Editar"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-            <span className="sr-only">Editar</span>
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 p-0 text-danger hover:text-danger"
-            onClick={onDelete}
-            title="Eliminar"
-            aria-label="Eliminar"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            <span className="sr-only">Eliminar</span>
-          </Button>
         </div>
       </div>
       {!isFirst && (

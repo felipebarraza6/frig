@@ -12,9 +12,21 @@ export type PurchaseOrderList = YggdraSchemas["PurchaseOrderList"];
 export type PurchaseOrderCreate = YggdraSchemas["PurchaseOrderCreate"];
 export type PurchaseOrderItemRequest = YggdraSchemas["PurchaseOrderItemRequest"];
 export type PurchaseOrderRequest = YggdraSchemas["PurchaseOrderRequest"];
+export type PurchaseOrderItem = YggdraSchemas["PurchaseOrderItem"];
+export type PatchedPurchaseOrderRequest = YggdraSchemas["PatchedPurchaseOrderRequest"];
+export type PatchedPurchaseOrderItemRequest = YggdraSchemas["PatchedPurchaseOrderItemRequest"];
 
 export interface PurchaseOrderCreatePayload extends Omit<PurchaseOrderCreate, "items"> {
   items: PurchaseOrderItemRequest[];
+}
+
+/**
+ * Body de POST /suppliers/purchase-order-items/: el tipo generado
+ * (PurchaseOrderItemRequest) omite el campo purchase_order que el
+ * serializer exige para asociar el ítem a su orden.
+ */
+export interface PurchaseOrderItemCreatePayload extends PurchaseOrderItemRequest {
+  purchase_order: string;
 }
 
 /** Payload mínimo para registrar un pago en pay_order (sin reenviar la orden completa). */
@@ -26,27 +38,66 @@ export interface PayPurchaseOrderPayload {
   reference?: string | null;
 }
 
-/** Entrada individual del historial de pagos de una orden de compra. */
-export interface PurchaseOrderPaymentEntry {
-  id?: string | number;
-  amount?: string;
-  paid_amount?: string;
-  payment_method?: string | number | null;
-  payment_method_name?: string | null;
-  date?: string | null;
-  payment_date?: string | null;
-  created?: string | null;
-  notes?: string | null;
-  reference?: string | null;
+/**
+ * Respuesta real de POST /suppliers/purchase-orders/{id}/pay_order/.
+ * NO es un PurchaseOrder: el viewset devuelve el resultado del servicio
+ * de pagos con la orden anidada en "purchase_order".
+ */
+export interface PayPurchaseOrderResult {
+  success: boolean;
+  expense_payment: {
+    id: string;
+    amount: number;
+    payment_date: string;
+    payment_method: string;
+    reference: string | null;
+  };
+  purchase_order: {
+    id: string;
+    order_number: string;
+    status: PurchaseOrderList["status"];
+    total_amount: number;
+    paid_amount: number;
+    remaining_amount: number;
+    is_fully_paid: boolean;
+  };
+  message: string;
+  movement_id?: string;
 }
 
-/** Resumen de pagos de una OC (GET pay_order/payment_summary). */
+/** Entrada individual del historial de pagos de una orden de compra. */
+export interface PurchaseOrderPaymentEntry {
+  id: string;
+  amount: number;
+  payment_date: string | null;
+  /** Nombre del método de pago (viene resuelto desde el backend). */
+  payment_method: string | null;
+  reference: string | null;
+  status: string;
+  paid_by: string | null;
+}
+
+/** Resumen de pagos de una OC (GET /suppliers/purchase-orders/{id}/payment_summary/). */
 export interface PurchaseOrderPaymentSummary {
-  total_amount?: string;
-  paid_amount?: string;
-  remaining_amount?: string;
-  payment_status?: string;
-  payments?: PurchaseOrderPaymentEntry[];
+  purchase_order: {
+    id: string;
+    order_number: string;
+    total_amount: number;
+    subtotal: number;
+    tax_amount: number;
+    discount_amount: number;
+    status: string;
+    status_display: string;
+  };
+  items: unknown[];
+  payments: PurchaseOrderPaymentEntry[];
+  summary: {
+    total_paid: number;
+    remaining: number;
+    is_fully_paid: boolean;
+    payment_count: number;
+    items_count: number;
+  };
 }
 
 export type PaginatedSupplier = YggdraSchemas["PaginatedSupplierListList"];
@@ -60,6 +111,15 @@ export interface SuppliersFilter {
   previous?: string | null;
 }
 
+/** ID de la sucursal activa (persistida en localStorage por el store de auth). */
+function getStoredBranchId(): number | undefined {
+  if (typeof window === "undefined") return undefined;
+  const raw = window.localStorage.getItem("frig.branch_id");
+  if (!raw) return undefined;
+  const n = Number(raw);
+  return Number.isNaN(n) || n <= 0 ? undefined : n;
+}
+
 export async function fetchSuppliers(filter: SuppliersFilter = {}): Promise<PaginatedSupplier> {
   if (filter.next) {
     return apiFetch<PaginatedSupplier>(filter.next);
@@ -68,6 +128,9 @@ export async function fetchSuppliers(filter: SuppliersFilter = {}): Promise<Pagi
     return apiFetch<PaginatedSupplier>(filter.previous);
   }
   const qs = new URLSearchParams();
+  // El backend pagina de 10 en 10 por defecto (PAGE_SIZE=10, MAX_PAGE_SIZE=200):
+  // se pide el máximo para no cortar la lista en páginas mínimas.
+  qs.set("page_size", "200");
   if (filter.search) qs.set("search", filter.search);
   if (filter.status) qs.set("status", filter.status);
   const q = qs.toString();
@@ -78,10 +141,24 @@ export async function fetchSupplier(id: string): Promise<Supplier> {
   return apiFetch<Supplier>(`/suppliers/suppliers/${id}/`);
 }
 
+/** Contadores del módulo (total, activos, con contacto). */
+export interface SupplierStats {
+  total_suppliers: number;
+  active_suppliers: number;
+  total_contacts: number;
+}
+
+export async function fetchSupplierStats(): Promise<SupplierStats> {
+  return apiFetch<SupplierStats>("/suppliers/suppliers/stats/");
+}
+
 export async function createSupplier(payload: SupplierRequest): Promise<Supplier> {
+  // El backend valida `branch`/`branches` desde request.data en perform_create
+  // (no basta el header X-Branch-ID): sin sucursal en el body rechaza con 400.
+  const body = { ...payload, branch: getStoredBranchId() } as SupplierRequest;
   return apiFetch<Supplier>("/suppliers/suppliers/", {
     method: "POST",
-    body: payload,
+    body,
   });
 }
 
@@ -141,6 +218,7 @@ export interface PurchaseOrdersFilter {
   status?: string;
   payment_status?: string;
   payment_status__in?: string[];
+  has_expense?: boolean;
   start_date?: string;
   end_date?: string;
   page_size?: number;
@@ -165,6 +243,9 @@ export async function fetchPurchaseOrders(
   if (filter.payment_status__in && filter.payment_status__in.length > 0) {
     qs.set("payment_status__in", filter.payment_status__in.join(","));
   }
+  if (filter.has_expense !== undefined) {
+    qs.set("has_expense", filter.has_expense ? "true" : "false");
+  }
   if (filter.start_date) qs.set("start_date", filter.start_date);
   if (filter.end_date) qs.set("end_date", filter.end_date);
   if (filter.page_size) qs.set("page_size", String(filter.page_size));
@@ -183,6 +264,40 @@ export async function fetchPurchaseOrder(id: string): Promise<PurchaseOrder> {
   return apiFetch<PurchaseOrder>(`/suppliers/purchase-orders/${id}/`);
 }
 
+/** PATCH del encabezado de una OC. Los ítems se sincronizan por separado. */
+export async function updatePurchaseOrder(
+  id: string,
+  payload: PatchedPurchaseOrderRequest,
+): Promise<PurchaseOrder> {
+  return apiFetch<PurchaseOrder>(`/suppliers/purchase-orders/${id}/`, {
+    method: "PATCH",
+    body: payload,
+  });
+}
+
+export async function createPurchaseOrderItem(
+  payload: PurchaseOrderItemCreatePayload,
+): Promise<PurchaseOrderItem> {
+  return apiFetch<PurchaseOrderItem>("/suppliers/purchase-order-items/", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export async function updatePurchaseOrderItem(
+  id: number,
+  payload: PatchedPurchaseOrderItemRequest,
+): Promise<PurchaseOrderItem> {
+  return apiFetch<PurchaseOrderItem>(`/suppliers/purchase-order-items/${id}/`, {
+    method: "PATCH",
+    body: payload,
+  });
+}
+
+export async function deletePurchaseOrderItem(id: number): Promise<void> {
+  await apiFetch(`/suppliers/purchase-order-items/${id}/`, { method: "DELETE" });
+}
+
 export async function cancelPurchaseOrder(id: string): Promise<PurchaseOrder> {
   return apiFetch<PurchaseOrder>(`/suppliers/purchase-orders/${id}/cancel_order/`, {
     method: "POST",
@@ -195,13 +310,23 @@ export async function markPurchaseOrderCompleted(id: string): Promise<PurchaseOr
   });
 }
 
+export async function updatePurchaseOrderReceivedQuantities(
+  id: string,
+  itemUpdates: Record<string, number>,
+): Promise<PurchaseOrder> {
+  return apiFetch<PurchaseOrder>(`/suppliers/purchase-orders/${id}/update_received_quantities/`, {
+    method: "POST",
+    body: { item_updates: itemUpdates },
+  });
+}
+
 export async function payPurchaseOrder(
   id: string,
   payload: PayPurchaseOrderPayload,
-): Promise<PurchaseOrder> {
-  return apiFetch<PurchaseOrder>(`/suppliers/purchase-orders/${id}/pay_order/`, {
+): Promise<PayPurchaseOrderResult> {
+  return apiFetch<PayPurchaseOrderResult>(`/suppliers/purchase-orders/${id}/pay_order/`, {
     method: "POST",
-    body: payload as unknown as PurchaseOrderRequest,
+    body: payload,
   });
 }
 

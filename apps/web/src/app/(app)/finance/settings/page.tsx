@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -14,10 +14,10 @@ import {
   Plus,
   Trash2,
   Pencil,
-  Percent,
   CheckCircle2,
   Cpu,
   FileText,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,8 +43,6 @@ import {
   fetchExternalAppInstallations,
   createExternalAppInstallation,
   fetchExternalApps,
-  type ExternalAppInstallation,
-  type CreateExternalAppInstallationInput,
 } from "@/lib/api/external-app-installations";
 import { fetchExternalAppExecutionLogs } from "@/lib/api/external-app-execution-logs";
 import { fetchProducts } from "@/lib/api/products";
@@ -74,6 +72,45 @@ const APPLIES_TO_LABELS: Record<AppliesToValue, string> = {
   CATEGORIES: "Categorías específicas",
   PRODUCTS: "Productos específicos",
 };
+
+/* ── Secciones de configuración ─────────────────────────────────────────── */
+
+type SettingsSectionId = "fin-general" | "fin-taxes" | "fin-sii";
+
+/** Encabezado minimal de sección: título con ícono tenue, descripción y acción. */
+function SectionCard({ id, icon: Icon, title, description, action, children }: {
+  id: SettingsSectionId;
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  description: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section id={id} className="flex scroll-mt-20 flex-col gap-4 rounded-2xl border border-border bg-muted/30 p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="flex items-center gap-2 text-sm font-semibold">
+            <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+            {title}
+          </h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+        </div>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/** Etiqueta minimal que agrupa campos relacionados dentro de una sección. */
+function SubSectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+      {children}
+    </p>
+  );
+}
 
 
 export default function FinanceSettingsPage() {
@@ -130,19 +167,21 @@ export default function FinanceSettingsPage() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <div>
-          <h1 className="text-lg font-semibold">Configuración financiera</h1>
-          <p className="text-xs text-muted-foreground">{currentConfig.branch_name ?? "Sucursal"}</p>
+      <header className="border-b border-border px-4 py-4 sm:px-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-lg font-semibold">Configuración financiera</h1>
+            <p className="text-xs text-muted-foreground">{currentConfig.branch_name ?? "Sucursal"}</p>
+          </div>
+          {configs.length > 1 && (
+            <Select value={String(selectedIdx)} onChange={(e) => setSelectedIdx(Number(e.target.value))} className="h-9 w-48 text-xs">
+              {configs.map((c, idx) => (<option key={c.id} value={idx}>{c.branch_name ?? `Sucursal ${c.branch}`}</option>))}
+            </Select>
+          )}
         </div>
-        {configs.length > 1 && (
-          <Select value={String(selectedIdx)} onChange={(e) => setSelectedIdx(Number(e.target.value))} className="h-9 w-48 text-xs">
-            {configs.map((c, idx) => (<option key={c.id} value={idx}>{c.branch_name ?? `Sucursal ${c.branch}`}</option>))}
-          </Select>
-        )}
       </header>
 
-      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-4 sm:p-6">
         <ConfigForm config={currentConfig} onUpdate={(payload) => updateMut.mutate({ id: currentConfig.id, ...payload })} isPending={updateMut.isPending} />
         <TaxTypesSection branchId={currentConfig.branch} />
         <SiiSection config={currentConfig} onUpdate={(payload) => updateMut.mutate({ id: currentConfig.id, ...payload })} isPending={updateMut.isPending} />
@@ -183,86 +222,87 @@ function ConfigForm({ config, onUpdate, isPending }: {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-      {/* Moneda */}
-      <section className="rounded-xl border border-border bg-card p-4">
-        <div className="flex items-center gap-2 mb-4">
-          <DollarSign className="h-4 w-4 text-primary" />
-          <h2 className="text-sm font-semibold">Formato de moneda</h2>
+    <SectionCard
+      id="fin-general"
+      icon={DollarSign}
+      title="General"
+      description="Formato de moneda y comportamiento de impuestos en el POS"
+    >
+      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+        {/* Moneda */}
+        <div className="flex flex-col gap-4">
+          <SubSectionTitle>Formato de moneda</SubSectionTitle>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground">Símbolo</label>
+              <Input value={currencySymbol} onChange={(e) => setCurrencySymbol(e.target.value)} className="h-9 text-sm" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground">Decimales</label>
+              <Select value={decimalPlaces} onChange={(e) => setDecimalPlaces(e.target.value)} className="h-9 text-sm">
+                <option value="0">0 (enteros)</option>
+                <option value="2">2 (centavos)</option>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground">Separador miles</label>
+              <Select value={thousandSep} onChange={(e) => setThousandSep(e.target.value as typeof thousandSep)} className="h-9 text-sm">
+                {THOUSAND_SEP_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground">Separador decimal</label>
+              <Select value={decimalSep} onChange={(e) => setDecimalSep(e.target.value as typeof decimalSep)} className="h-9 text-sm">
+                {DECIMAL_SEP_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
+              </Select>
+            </div>
+          </div>
+          <div className="rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+            Vista previa: <span className="font-semibold text-foreground">{preview()}</span>
+          </div>
         </div>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-muted-foreground">Símbolo</label>
-            <Input value={currencySymbol} onChange={(e) => setCurrencySymbol(e.target.value)} className="h-9 text-sm" />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-muted-foreground">Decimales</label>
-            <Select value={decimalPlaces} onChange={(e) => setDecimalPlaces(e.target.value)} className="h-9 text-sm">
-              <option value="0">0 (enteros)</option>
-              <option value="2">2 (centavos)</option>
-            </Select>
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-muted-foreground">Separador miles</label>
-            <Select value={thousandSep} onChange={(e) => setThousandSep(e.target.value as typeof thousandSep)} className="h-9 text-sm">
-              {THOUSAND_SEP_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
-            </Select>
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-muted-foreground">Separador decimal</label>
-            <Select value={decimalSep} onChange={(e) => setDecimalSep(e.target.value as typeof decimalSep)} className="h-9 text-sm">
-              {DECIMAL_SEP_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
-            </Select>
-          </div>
-        </div>
-        <div className="mt-3 rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
-          Vista previa: <span className="font-semibold text-foreground">{preview()}</span>
-        </div>
-      </section>
 
-      {/* Impuestos */}
-      <section className="rounded-xl border border-border bg-card p-4">
-        <div className="flex items-center gap-2 mb-4">
-          <Percent className="h-4 w-4 text-primary" />
-          <h2 className="text-sm font-semibold">Impuestos en POS</h2>
-        </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-muted-foreground">Tasa de impuesto por defecto (%)</label>
-            <Input
-              type="number"
-              min="0"
-              max="100"
-              step="0.01"
-              value={taxRate}
-              onChange={(e) => setTaxRate(e.target.value)}
-              placeholder="0"
-              className="h-9 text-sm"
-            />
-            <p className="text-[10px] text-muted-foreground">Usa 0 para no aplicar impuesto.</p>
-          </div>
-          <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2">
-            <input
-              id="show-tax-breakdown"
-              type="checkbox"
-              checked={showTaxBreakdown}
-              onChange={(e) => setShowTaxBreakdown(e.target.checked)}
-              className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-            />
-            <label htmlFor="show-tax-breakdown" className="text-xs text-muted-foreground">
-              Mostrar desglose de impuesto en el carrito
-            </label>
+        {/* Impuestos */}
+        <div className="flex flex-col gap-4">
+          <SubSectionTitle>Impuestos en el POS</SubSectionTitle>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground">Tasa de impuesto por defecto (%)</label>
+              <Input
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                value={taxRate}
+                onChange={(e) => setTaxRate(e.target.value)}
+                placeholder="0"
+                className="h-9 text-sm"
+              />
+              <p className="text-[10px] text-muted-foreground">Usa 0 para no aplicar impuesto.</p>
+            </div>
+            <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2">
+              <input
+                id="show-tax-breakdown"
+                type="checkbox"
+                checked={showTaxBreakdown}
+                onChange={(e) => setShowTaxBreakdown(e.target.checked)}
+                className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+              />
+              <label htmlFor="show-tax-breakdown" className="text-xs text-muted-foreground">
+                Mostrar desglose de impuesto en el carrito
+              </label>
+            </div>
           </div>
         </div>
-      </section>
 
-      {/* Save */}
-      <div className="flex justify-end">
-        <Button type="submit" disabled={isPending}>
-          {isPending ? <><Loader2 className="mr-1.5 h-4 w-4 animate-spin" />Guardando...</> : <><Save className="mr-1.5 h-4 w-4" />Guardar configuración</>}
-        </Button>
-      </div>
-    </form>
+        {/* Save */}
+        <div className="flex justify-end">
+          <Button type="submit" disabled={isPending}>
+            {isPending ? <><Loader2 className="mr-1.5 h-4 w-4 animate-spin" />Guardando...</> : <><Save className="mr-1.5 h-4 w-4" />Guardar configuración</>}
+          </Button>
+        </div>
+      </form>
+    </SectionCard>
   );
 }
 
@@ -311,30 +351,36 @@ function TaxTypesSection({ branchId }: { branchId: number }) {
   });
 
   return (
-    <section className="rounded-xl border border-border bg-card p-4">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Receipt className="h-4 w-4 text-primary" />
-          <h2 className="text-sm font-semibold">Impuestos configurados</h2>
-        </div>
+    <SectionCard
+      id="fin-taxes"
+      icon={Receipt}
+      title="Impuestos"
+      description="Impuestos disponibles para productos y categorías (IVA, ILA, etc.)"
+      action={
         <Button size="sm" variant="outline" onClick={() => { setAdding(true); setEditing(null); }}>
           <Plus className="mr-1 h-3.5 w-3.5" />Agregar
         </Button>
-      </div>
-
+      }
+    >
       {isLoading ? (
         <div className="space-y-2">
           {[1, 2].map((i) => <div key={i} className="h-12 animate-pulse rounded-lg bg-muted/30" />)}
         </div>
       ) : taxTypes.length === 0 ? (
-        <p className="text-xs text-muted-foreground text-center py-4">No hay impuestos configurados. Agrega uno para comenzar.</p>
+        <div className="flex flex-col items-center gap-3 py-6 text-center">
+          <Receipt className="h-8 w-8 text-muted-foreground" />
+          <p className="text-xs text-muted-foreground">No hay impuestos configurados. Agrega uno para comenzar.</p>
+          <Button size="sm" variant="outline" onClick={() => { setAdding(true); setEditing(null); }}>
+            <Plus className="mr-1 h-3.5 w-3.5" />Agregar impuesto
+          </Button>
+        </div>
       ) : (
         <div className="space-y-2">
           {taxTypes.map((t) => (
             <div key={t.id} className="flex items-center justify-between rounded-lg border border-border p-3 text-sm">
               <div className="flex items-center gap-3">
-                <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${t.is_active ? "bg-primary/10" : "bg-muted"}`}>
-                  <Percent className={`h-4 w-4 ${t.is_active ? "text-primary" : "text-muted-foreground"}`} />
+                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm font-bold text-primary ${!t.is_active ? "opacity-50" : ""}`}>
+                  {t.tax_calc === "PERCENTAGE" ? "%" : "$"}
                 </div>
                 <div>
                   <p className="font-medium">
@@ -344,13 +390,21 @@ function TaxTypesSection({ branchId }: { branchId: number }) {
                         <CheckCircle2 className="h-2.5 w-2.5" />Por defecto
                       </span>
                     )}
+                    {t.is_included_in_price && (
+                      <span className="ml-1.5 inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                        Incluido en precio
+                      </span>
+                    )}
+                    {!t.is_active && (
+                      <span className="ml-1.5 inline-flex items-center rounded-full bg-danger/10 px-1.5 py-0.5 text-[10px] font-medium text-danger">
+                        Inactivo
+                      </span>
+                    )}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {t.tax_calc === "PERCENTAGE" ? `${t.rate}%` : `$${t.rate}`}
                     {" · "}
                     {APPLIES_TO_LABELS[t.applies_to as AppliesToValue] ?? t.applies_to}
-                    {" · "}
-                    {t.is_included_in_price ? "Incluido en precio" : "Se agrega al precio"}
                   </p>
                 </div>
               </div>
@@ -391,18 +445,9 @@ function TaxTypesSection({ branchId }: { branchId: number }) {
           isPending={createMut.isPending || updateMut.isPending}
         />
       )}
-    </section>
+    </SectionCard>
   );
 }
-
-const SII_TRIGGER_OPTIONS = [
-  { value: "MANUAL", label: "Manual (desde el detalle de orden)" },
-  { value: "ON_CREATION", label: "Al crear la orden" },
-  { value: "ON_COMPLETION", label: "Al completar la orden" },
-  { value: "ON_PAYMENT", label: "Al pagar la orden" },
-] as const;
-
-type SiiTrigger = (typeof SII_TRIGGER_OPTIONS)[number]["value"];
 
 const SII_DOCUMENT_OPTIONS = [
   { value: "AUTO", label: "Automático según total" },
@@ -424,27 +469,25 @@ function SiiSection({
   const isInvoicesEnabled = useIsModuleEnabledFromConfig("invoices");
   const toast = useToast();
   const queryClient = useQueryClient();
-  const [isEditing, setIsEditing] = useState(false);
   const [providerInstallation, setProviderInstallation] = useState<string | null>(
     config.sii_provider_installation ?? null,
-  );
-  const [trigger, setTrigger] = useState<SiiTrigger>(
-    config.sii_generation_trigger ?? "MANUAL",
   );
   const [documentPreference, setDocumentPreference] = useState<SiiDocumentPreference>(
     config.sii_document_preference ?? "AUTO",
   );
 
-  useEffect(() => {
+  // Sincroniza el estado local cuando cambia la configuración recibida (ajuste durante el render,
+  // patrón recomendado en lugar de setState en un efecto).
+  const [syncedConfig, setSyncedConfig] = useState(config);
+  if (syncedConfig !== config) {
+    setSyncedConfig(config);
     setProviderInstallation(config.sii_provider_installation ?? null);
-    setTrigger(config.sii_generation_trigger ?? "MANUAL");
     setDocumentPreference(config.sii_document_preference ?? "AUTO");
-  }, [config.sii_provider_installation, config.sii_generation_trigger, config.sii_document_preference]);
+  }
 
   const {
     data: installations = [],
     isLoading,
-    refetch,
   } = useQuery({
     queryKey: ["external-app-installations", config.branch],
     queryFn: () => fetchExternalAppInstallations(config.branch),
@@ -472,75 +515,47 @@ function SiiSection({
       setProviderInstallation(data.id);
       onUpdate({
         sii_provider_installation: data.id,
-        sii_generation_trigger: trigger,
+        sii_generation_trigger: config.sii_generation_trigger ?? "MANUAL",
         sii_document_preference: documentPreference,
       });
       toast.success("Proveedor SII configurado y seleccionado");
-      setIsEditing(false);
     },
     onError: (err: Error) => toast.error(err.message),
   });
 
+  // La emisión es inmediata (al pagar), por lo que el disparador no es configurable
+  // desde acá: se conserva el valor actual de la configuración.
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onUpdate({
       sii_provider_installation: providerInstallation,
-      sii_generation_trigger: trigger as BranchFinanceConfigRequest["sii_generation_trigger"],
+      sii_generation_trigger: config.sii_generation_trigger ?? "MANUAL",
       sii_document_preference: documentPreference as BranchFinanceConfigRequest["sii_document_preference"],
     });
   };
 
-  const simpleApiInstallation = installations.find(
-    (i) =>
-      i.external_app_name === "SimpleAPI" ||
-      i.external_app_name?.toLowerCase().includes("simpleapi"),
-  );
-
   if (!isInvoicesEnabled) return null;
 
   return (
-    <section className="rounded-xl border border-border bg-card p-4">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Cpu className="h-4 w-4 text-primary" />
-          <h2 className="text-sm font-semibold">Configuración SII / DTE</h2>
-        </div>
-        {!isEditing && (
-          <Button size="sm" variant="outline" onClick={() => setIsEditing(true)}>
-            <Pencil className="mr-1 h-3.5 w-3.5" />Editar
-          </Button>
-        )}
-      </div>
-
+    <SectionCard
+      id="fin-sii"
+      icon={Cpu}
+      title="Facturación electrónica"
+      description="Proveedor SII y documento tributario por defecto (se emite al pagar)"
+    >
       {isLoading ? (
         <div className="space-y-2">
           <div className="h-12 animate-pulse rounded-lg bg-muted/30" />
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {!providerInstallation && installations.length > 0 && (
-            <div className="rounded-lg bg-muted/80 p-3 text-xs text-foreground">
-              <p>Hay {installations.length} proveedor(es) disponible(s). Edita la configuración para seleccionar uno.</p>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          {!providerInstallation && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-border bg-muted/30 px-4 py-3">
+              <p className="text-xs text-muted-foreground">No hay un proveedor SII configurado para esta sucursal.</p>
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
-                className="mt-2"
-                onClick={() => setIsEditing(true)}
-              >
-                <Pencil className="mr-1.5 h-3.5 w-3.5" />Seleccionar proveedor
-              </Button>
-            </div>
-          )}
-
-          {!simpleApiInstallation && installations.length === 0 && (
-            <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
-              <p>No hay un proveedor SII configurado para esta sucursal.</p>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="mt-2"
                 disabled={createInstallationMut.isPending || !simpleApiAppId}
                 onClick={() =>
                   simpleApiAppId &&
@@ -564,100 +579,48 @@ function SiiSection({
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1">
               <label className="text-xs text-muted-foreground">Proveedor SII</label>
-              {isEditing ? (
-                <Select
-                  value={providerInstallation ?? ""}
-                  onChange={(e) =>
-                    setProviderInstallation(e.target.value || null)
-                  }
-                  className="h-9 text-sm"
-                >
-                  <option value="">Sin proveedor (módulo oculto)</option>
-                  {installations.map((i) => (
-                    <option key={i.id} value={i.id}>
-                      {i.label} {i.external_app_name ? `(${i.external_app_name})` : ""}
-                    </option>
-                  ))}
-                </Select>
-              ) : (
-                <p className="text-sm">
-                  {installations.find((i) => i.id === providerInstallation)?.label ??
-                    "Sin proveedor"}
-                </p>
-              )}
+              <Select
+                value={providerInstallation ?? ""}
+                onChange={(e) => setProviderInstallation(e.target.value || null)}
+                className="h-9 text-sm"
+              >
+                <option value="">Sin proveedor</option>
+                {installations.map((i) => (
+                  <option key={i.id} value={i.id}>
+                    {i.label} {i.external_app_name ? `(${i.external_app_name})` : ""}
+                  </option>
+                ))}
+              </Select>
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-muted-foreground">Disparador de emisión</label>
-              {isEditing ? (
-                <Select
-                  value={trigger}
-                  onChange={(e) => setTrigger(e.target.value as SiiTrigger)}
-                  className="h-9 text-sm"
-                >
-                  {SII_TRIGGER_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </Select>
-              ) : (
-                <p className="text-sm">
-                  {SII_TRIGGER_OPTIONS.find((o) => o.value === trigger)?.label ?? trigger}
-                </p>
-              )}
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-muted-foreground">Tipo de documento preferido</label>
-              {isEditing ? (
-                <Select
-                  value={documentPreference}
-                  onChange={(e) => setDocumentPreference(e.target.value as SiiDocumentPreference)}
-                  className="h-9 text-sm"
-                >
-                  {SII_DOCUMENT_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </Select>
-              ) : (
-                <p className="text-sm">
-                  {SII_DOCUMENT_OPTIONS.find((o) => o.value === documentPreference)?.label ??
-                    documentPreference}
-                </p>
-              )}
+              <label className="text-xs text-muted-foreground">Documento por defecto</label>
+              <Select
+                value={documentPreference}
+                onChange={(e) => setDocumentPreference(e.target.value as SiiDocumentPreference)}
+                className="h-9 text-sm"
+              >
+                {SII_DOCUMENT_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </Select>
             </div>
           </div>
 
-          {isEditing && (
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setProviderInstallation(config.sii_provider_installation ?? null);
-                  setTrigger(config.sii_generation_trigger ?? "MANUAL");
-                  setDocumentPreference(config.sii_document_preference ?? "AUTO");
-                  setIsEditing(false);
-                }}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" size="sm" disabled={isPending}>
-                {isPending ? (
-                  <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />Guardando...</>
-                ) : (
-                  <><Save className="mr-1.5 h-3.5 w-3.5" />Guardar SII</>
-                )}
-              </Button>
-            </div>
-          )}
+          <div className="flex justify-end">
+            <Button type="submit" size="sm" disabled={isPending}>
+              {isPending ? (
+                <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />Guardando...</>
+              ) : (
+                <><Save className="mr-1.5 h-3.5 w-3.5" />Guardar</>
+              )}
+            </Button>
+          </div>
 
           {providerInstallation && logs.length > 0 && (
             <div className="rounded-lg border border-border bg-background p-3">
@@ -698,11 +661,36 @@ function SiiSection({
           )}
         </form>
       )}
-    </section>
+    </SectionCard>
   );
 }
 
 /* ── TaxTypeModal: se renderiza vía createPortal al body, fuera de cualquier <form> ── */
+
+/** El backend entrega applicable_categories/applicable_products como string; se acepta
+ *  también el formato antiguo (array de ids u objetos con id) por compatibilidad. */
+function parseApplicableIds(raw: unknown): number[] {
+  let items: unknown[] = [];
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    if (trimmed.startsWith("[")) {
+      try {
+        const parsed: unknown = JSON.parse(trimmed);
+        items = Array.isArray(parsed) ? parsed : [];
+      } catch {
+        items = [];
+      }
+    } else if (trimmed) {
+      items = trimmed.split(",");
+    }
+  } else if (Array.isArray(raw)) {
+    items = raw;
+  }
+  return items
+    .map((item) => (typeof item === "object" && item !== null ? (item as { id?: unknown }).id : item))
+    .map((id) => (typeof id === "string" ? Number(id.trim()) : id))
+    .filter((id): id is number => typeof id === "number" && Number.isFinite(id));
+}
 
 function TaxTypeModal({ taxType, onSubmit, onClose, isPending, branchId }: {
   taxType: TaxType | null;
@@ -722,11 +710,11 @@ function TaxTypeModal({ taxType, onSubmit, onClose, isPending, branchId }: {
   const [isActive, setIsActive] = useState(taxType?.is_active ?? true);
 
   const existingCategoryIds = useMemo(() =>
-    new Set((taxType?.applicable_categories ?? []).map((c) => typeof c === "object" ? c.id : c)),
+    new Set(parseApplicableIds(taxType?.applicable_categories)),
     [taxType?.applicable_categories]
   );
   const existingProductIds = useMemo(() =>
-    new Set((taxType?.applicable_products ?? []).map((p) => typeof p === "object" ? p.id : p)),
+    new Set(parseApplicableIds(taxType?.applicable_products)),
     [taxType?.applicable_products]
   );
 
@@ -778,7 +766,9 @@ function TaxTypeModal({ taxType, onSubmit, onClose, isPending, branchId }: {
       <div className="w-full rounded-t-xl border-x border-t border-border bg-card shadow-lg md:max-w-lg md:rounded-xl md:border max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <h3 className="text-sm font-semibold">{taxType ? "Editar impuesto" : "Nuevo impuesto"}</h3>
-          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">✕</button>
+          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <X className="h-4 w-4" />
+          </button>
         </div>
         <form onSubmit={handleSubmit} className="p-4 space-y-3 overflow-y-auto">
           <div className="flex flex-col gap-1">

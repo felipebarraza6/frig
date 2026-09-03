@@ -37,7 +37,6 @@ const TYPE_LABELS: Record<POSQuickActionType, string> = {
   pay_account: "Cuentas",
   pay_order: "Órdenes",
   collect: "Cobrar por cliente",
-  pay_purchase_order: "Órdenes de compra",
 };
 
 function Toggle({

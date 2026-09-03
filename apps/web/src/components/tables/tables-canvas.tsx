@@ -13,9 +13,9 @@ type TableItem = YggdraSchemas["Table"];
 
 const STATUS_STYLES: Record<string, string> = {
   FREE: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700",
-  OCCUPIED: "border-rose-500/40 bg-rose-500/10 text-rose-700",
+  OCCUPIED: "border-primary/40 bg-primary/10 text-primary",
   RESERVED: "border-amber-500/40 bg-amber-500/10 text-amber-700",
-  CLEANING: "border-blue-500/40 bg-blue-500/10 text-blue-700",
+  CLEANING: "border-primary/40 bg-primary/10 text-primary",
   OUT_OF_SERVICE: "border-slate-500/40 bg-slate-500/10 text-slate-700",
 };
 
@@ -373,7 +373,7 @@ export function TablesCanvas({
               {isOccupied && (
                 <motion.span
                   className={cn(
-                    "pointer-events-none absolute inset-0 rounded-[inherit] border-2 border-rose-500/60",
+                    "pointer-events-none absolute inset-0 rounded-[inherit] border-2 border-primary/60",
                   )}
                   animate={{
                     opacity: [0.45, 0.85, 0.45],
@@ -434,7 +434,7 @@ function TableTooltip({
     staleTime: 30_000,
   });
 
-  const total = order ? parseFloat(order.total_amount ?? "0") : 0;
+  const total = order ? Number(order.total_amount ?? 0) : 0;
 
   return (
     <div
@@ -443,7 +443,7 @@ function TableTooltip({
     >
       <p className="font-semibold">Mesa {table.number}</p>
       <p className="text-muted-foreground">{table.area || "Sin área"}</p>
-      <p className="mt-1 flex items-center gap-1 font-medium text-rose-700">
+      <p className="mt-1 flex items-center gap-1 font-medium text-primary">
         <Clock className="h-3 w-3" />
         {elapsed.text} en consumo
       </p>

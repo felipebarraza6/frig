@@ -59,7 +59,7 @@ export default function OrderCollectModal({
   });
 
   const firstMethod = paymentMethods?.[0];
-  const total = parseFloat(order.total_amount ?? "0");
+  const total = Number(order.total_amount ?? 0);
 
   const taxRate = useMemo(() => {
     const raw = financeConfig?.default_tax_rate;
@@ -126,7 +126,7 @@ export default function OrderCollectModal({
         await createPayment({
           payment_method_id: payment.payment_method_id,
           order_id: order.id,
-          amount: Number(payment.amount).toFixed(2),
+          amount: Number(payment.amount),
           status: "COMPLETED",
           cash_register_id: currentCashRegister.id,
         });

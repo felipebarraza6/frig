@@ -7,7 +7,6 @@ import {
   Receipt,
   ClipboardList,
   UserSearch,
-  Truck,
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,7 +18,6 @@ import {
 import { fetchPaymentMethods, type YggdraPaymentMethod } from "@/lib/api/payments";
 import { getCurrentCashRegister } from "@/lib/api/cash-register";
 import { fetchOrders } from "@/lib/api/orders";
-import { fetchPurchaseOrders } from "@/lib/api/suppliers";
 import { cn } from "@/lib/utils";
 import type { YggdraSchemas } from "@/lib/api/types";
 import PayPendingItemModal from "./pay-pending-item-modal";
@@ -33,21 +31,18 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   Receipt,
   ClipboardList,
   UserSearch,
-  Truck,
 };
 
 const TYPE_LABELS: Record<POSQuickAction["type"], string> = {
   pay_account: "Cuentas",
   pay_order: "Órdenes",
   collect: "Cobrar por cliente",
-  pay_purchase_order: "Órdenes de compra",
 };
 
 const TYPE_LABELS_SHORT: Record<POSQuickAction["type"], string> = {
   pay_account: "Cuentas",
   pay_order: "Órdenes",
   collect: "Cobrar",
-  pay_purchase_order: "OC",
 };
 
 type PaymentMethodItem = {
@@ -63,6 +58,10 @@ interface PosQuickActionsProps {
   onContinueOrder?: (order: Order) => void;
   onCancelOrder?: (order: Order) => void;
   layout?: "header" | "bottom";
+  /** Muestra Cuentas/Órdenes (config order_history del terminal). Por defecto true. */
+  showAccounts?: boolean;
+  /** Muestra Cobrar por cliente (config customer_search del terminal). Por defecto true. */
+  showCollect?: boolean;
 }
 
 export default function PosQuickActions({
@@ -70,8 +69,11 @@ export default function PosQuickActions({
   onContinueOrder,
   onCancelOrder,
   layout = "header",
+  showAccounts = true,
+  showCollect = true,
 }: PosQuickActionsProps) {
   const [activeType, setActiveType] = useState<string | null>(null);
+  const showActions = showAccounts || showCollect;
 
   const { data: config, isLoading: loadingConfig } = useQuery({
     queryKey: ["branch-pos-config"],
@@ -105,6 +107,7 @@ export default function PosQuickActions({
     },
     staleTime: 30_000,
     refetchInterval: 30_000,
+    enabled: showAccounts,
   });
 
   const { data: ordersCountData } = useQuery({
@@ -132,6 +135,7 @@ export default function PosQuickActions({
     },
     staleTime: 30_000,
     refetchInterval: 30_000,
+    enabled: showAccounts,
   });
 
   const { data: collectCountData } = useQuery({
@@ -150,16 +154,7 @@ export default function PosQuickActions({
     },
     staleTime: 30_000,
     refetchInterval: 30_000,
-  });
-
-  const { data: purchaseOrdersCountData } = useQuery({
-    queryKey: ["pending-purchase-orders-count"],
-    queryFn: async () => {
-      const data = await fetchPurchaseOrders({ status: "SENT", payment_status: "PENDING", page_size: 1 });
-      return data.count ?? (data.results?.length ?? 0);
-    },
-    staleTime: 30_000,
-    refetchInterval: 30_000,
+    enabled: showCollect,
   });
 
   function getCountForAction(type: string): number {
@@ -170,8 +165,6 @@ export default function PosQuickActions({
         return ordersCountData ?? 0;
       case "collect":
         return collectCountData ?? 0;
-      case "pay_purchase_order":
-        return purchaseOrdersCountData ?? 0;
       default:
         return 0;
     }
@@ -181,15 +174,23 @@ export default function PosQuickActions({
     const list = config?.quick_actions?.length
       ? config.quick_actions
       : DEFAULT_POS_QUICK_ACTIONS;
-    return list.filter((a) => a.enabled);
-  }, [config]);
+    const knownTypes = Object.keys(TYPE_LABELS) as POSQuickAction["type"][];
+    return list.filter((a) => {
+      if (!a.enabled || !knownTypes.includes(a.type)) return false;
+      // Respeta la config efectiva del terminal (ya enmascarada por módulo):
+      // sin order_history no hay Cuentas/Órdenes; sin customer_search no hay Cobrar.
+      if (!showAccounts && (a.type === "pay_account" || a.type === "pay_order")) return false;
+      if (!showCollect && a.type === "collect") return false;
+      return true;
+    });
+  }, [config, showAccounts, showCollect]);
 
   const activeAction = useMemo(
     () => actions.find((a) => a.id === activeType) ?? null,
     [actions, activeType],
   );
 
-  if (config?.enable_quick_actions === false || actions.length === 0) {
+  if (!showActions || config?.enable_quick_actions === false || actions.length === 0) {
     return null;
   }
 

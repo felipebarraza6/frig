@@ -75,7 +75,7 @@ export function TableOrderDrawer({ table, isWaiter, onClose }: TableOrderDrawerP
           <div className="flex items-center gap-3">
             {order && (
               <span className="text-base font-bold tabular-nums text-emerald-700">
-                {formatCLP(parseFloat(order.total_amount ?? "0"))}
+                {formatCLP(order.total_amount ?? 0)}
               </span>
             )}
             <button
@@ -189,7 +189,7 @@ function OrderDetail({ order }: { order: Order }) {
               )}
             </div>
             <span className="shrink-0 text-sm font-semibold tabular-nums">
-              {formatCLP(parseFloat(item.final_price ?? item.total_price ?? "0"))}
+              {formatCLP(item.final_price ?? item.total_price ?? 0)}
             </span>
           </li>
         ))}
@@ -198,7 +198,7 @@ function OrderDetail({ order }: { order: Order }) {
       <div className="flex items-center justify-between border-t border-border/60 pt-3">
         <span className="text-sm font-medium">Total</span>
         <span className="text-lg font-bold tabular-nums">
-          {formatCLP(parseFloat(order.total_amount ?? "0"))}
+          {formatCLP(order.total_amount ?? 0)}
         </span>
       </div>
     </div>

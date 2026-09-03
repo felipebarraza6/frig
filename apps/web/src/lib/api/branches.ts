@@ -6,6 +6,7 @@ import type {
   BranchPayload,
   BranchThemeConfig,
   BranchThemeConfigInline,
+  BranchUser,
   ID,
   RoleDefinition,
   UserResponse,
@@ -82,8 +83,8 @@ export async function updateBranch(id: ID, payload: Partial<BranchPayload>): Pro
 }
 
 /** GET /api/branches/{id}/users/ — usuarios de la sucursal. */
-export async function fetchBranchUsers(id: ID): Promise<UserResponse[]> {
-  const data = await apiFetch<{ results?: UserResponse[] } | UserResponse[]>(
+export async function fetchBranchUsers(id: ID): Promise<BranchUser[]> {
+  const data = await apiFetch<{ results?: BranchUser[] } | BranchUser[]>(
     `/branches/${id}/users/`,
   );
   return Array.isArray(data) ? data : (data.results ?? []);
@@ -185,13 +186,59 @@ export async function fetchPublicLoginTheme(
   slug: string,
 ): Promise<BranchThemeConfig | null> {
   try {
-    return await apiFetch<BranchThemeConfig>(
-      `/branches/public-login-theme/${slug}/`,
+    const data = await apiFetch<Record<string, unknown>>(
+      `/branches/public-login-theme/${encodeURIComponent(slug)}/`,
       { auth: "none", branch: "none" },
     );
+    return normalizePublicLoginTheme(data);
   } catch {
     return null;
   }
+}
+
+/**
+ * GET /api/branches/public-login-theme/by-host/ — branding público del login
+ * según el Host de la petición (el dominio de la sucursal gana sobre el de
+ * la organización). Público: no requiere auth ni sucursal. Devuelve null si
+ * el host no tiene branding (p. ej. localhost en desarrollo).
+ */
+export async function fetchPublicLoginThemeByHost(): Promise<BranchThemeConfig | null> {
+  try {
+    const data = await apiFetch<Record<string, unknown>>(
+      "/branches/public-login-theme/by-host/",
+      { auth: "none", branch: "none" },
+    );
+    return normalizePublicLoginTheme(data);
+  } catch {
+    return null;
+  }
+}
+
+/** Mapea la respuesta pública (PublicLoginTheme) a BranchThemeConfig. */
+function normalizePublicLoginTheme(data: Record<string, unknown> | null): BranchThemeConfig | null {
+  if (!data || typeof data !== "object") return null;
+  const hasBranding = data.app_name || data.logo_url || data.primary_color;
+  if (!hasBranding) return null;
+  return {
+    app_name: typeof data.app_name === "string" ? data.app_name : undefined,
+    tagline:
+      typeof data.login_subtitle === "string" && data.login_subtitle
+        ? data.login_subtitle
+        : undefined,
+    logo: typeof data.logo_url === "string" && data.logo_url ? data.logo_url : null,
+    favicon:
+      typeof data.favicon_url === "string" && data.favicon_url ? data.favicon_url : null,
+    primary_color:
+      typeof data.primary_color === "string" ? data.primary_color : undefined,
+    secondary_color:
+      typeof data.secondary_color === "string" ? data.secondary_color : undefined,
+    algorithm:
+      data.algorithm === "dark" || data.algorithm === "light" ? data.algorithm : undefined,
+    login_welcome_message:
+      typeof data.login_welcome_message === "string"
+        ? data.login_welcome_message
+        : undefined,
+  };
 }
 
 /** Foreground oscuro del tema, usado como texto sobre colores de marca claros. */
@@ -246,8 +293,7 @@ export function applyThemeConfig(theme: BranchThemeConfig | null): void {
 export type POSQuickActionType =
   | "pay_account"
   | "pay_order"
-  | "collect"
-  | "pay_purchase_order";
+  | "collect";
 
 export interface POSQuickAction {
   id: string;
@@ -274,7 +320,6 @@ export const DEFAULT_POS_QUICK_ACTIONS: POSQuickAction[] = [
   { id: "pay-account", type: "pay_account", label: "Cuentas", icon: "Receipt", color: "blue", enabled: true },
   { id: "pay-order", type: "pay_order", label: "Órdenes", icon: "ClipboardList", color: "amber", enabled: true },
   { id: "collect", type: "collect", label: "Cobrar por cliente", icon: "UserSearch", color: "emerald", enabled: true },
-  { id: "pay-purchase-order", type: "pay_purchase_order", label: "Órdenes de compra", icon: "Truck", color: "purple", enabled: true },
 ];
 
 export async function fetchBranchPOSConfig(): Promise<BranchPOSConfig | null> {

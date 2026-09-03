@@ -19,6 +19,7 @@ export interface FrigNavItem {
 /** Grupo de navegación con ítems resueltos. */
 export interface FrigNavGroup {
   title: string;
+  icon: LucideIcon;
   items: FrigNavItem[];
 }
 
@@ -64,7 +65,7 @@ export function useFrigMenu(): FrigNavGroup[] {
         });
       }
       if (items.length > 0) {
-        groups.push({ title: group.title, items });
+        groups.push({ title: group.title, icon: getIcon(group.icon as IconName), items });
       }
     }
     return groups;

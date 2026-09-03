@@ -169,6 +169,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               // El pin reserva espacio; el hover expande como overlay sin mover el layout.
               sidebarExpanded ? "md:ml-60" : "md:ml-16",
               "pb-24 md:pb-0",
+              // Transición para que el contenido acompañe el ancho del sidebar
+              // sin saltos al fijar/soltar el pin.
+              "transition-[margin] duration-300 ease-out",
             ]
           )}
         >

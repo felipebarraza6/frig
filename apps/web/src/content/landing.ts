@@ -1,12 +1,15 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  BookOpen,
+  Banknote,
+  Bike,
   ChefHat,
   CreditCard,
+  FileText,
   LayoutGrid,
-  Leaf,
-  Palette,
+  QrCode,
+  ShieldCheck,
   Store,
+  Truck,
   Warehouse,
   Zap,
 } from "lucide-react";
@@ -25,54 +28,73 @@ export interface LandingValueProp {
 export const LANDING_VALUE_PROP: LandingValueProp = {
   headline: "Gestión comercial y gastronómica, todo incluido.",
   subhead:
-    "Desde un punto de venta hasta un restaurante completo. FRIG es la app para vender, sentar mesas, cocinar y ver tus números — sin pagar módulo por módulo.",
+    "Punto de venta, mesas, cocina, delivery, inventario y finanzas en una sola app. Activa solo los módulos que tu negocio necesita — sin pagar de más.",
 };
 
+/**
+ * Funcionalidades reales de FRIG (alineadas a los módulos de la app).
+ * Cada ítem describe algo que el sistema hace hoy, no promesas.
+ */
 export const LANDING_FEATURES: LandingFeature[] = [
   {
     icon: Zap,
-    title: "Caja rápida y táctil",
-    description: "Busca, arma el pedido y cobra en segundos.",
+    title: "Punto de venta táctil",
+    description: "Cobra en segundos con modificadores, combos y descuentos.",
   },
   {
-    icon: Store,
-    title: "Varias sucursales, una cuenta",
-    description: "Cada local opera con su equipo, en el mismo sistema.",
-  },
-  {
-    icon: Palette,
-    title: "Marca propia en cada local",
-    description: "Logo, colores y bienvenida por sucursal.",
+    icon: Banknote,
+    title: "Caja y arqueo",
+    description: "Apertura, movimientos, cierre y cuadratura del día.",
   },
   {
     icon: LayoutGrid,
-    title: "Gestión de mesas",
-    description: "Mapa del salón, estados y transferencias.",
+    title: "Mesas y salón",
+    description: "Mapa del local, cuentas por mesa y modo garzón.",
+  },
+  {
+    icon: Bike,
+    title: "Delivery y retiro",
+    description: "Pedidos con despacho y panel de pendientes.",
   },
   {
     icon: ChefHat,
-    title: "Cocina en tiempo real",
-    description: "Comandas y monitor de cocina incluidos.",
+    title: "Cocina en vivo",
+    description: "Comandas por estación en la pantalla KDS, sin papeles.",
   },
   {
     icon: Warehouse,
-    title: "Inventario de verdad",
-    description: "Bodegas, movimientos y stock bajo control.",
+    title: "Inventario multi-bodega",
+    description: "Stock, movimientos y alertas en tiempo real.",
   },
   {
-    icon: BookOpen,
-    title: "Gestión de recetas",
-    description: "Fichas, costos e insumos de cada plato.",
-  },
-  {
-    icon: Leaf,
-    title: "Etiquetado nutricional",
-    description: "Etiquetas de tus recetas, listas para imprimir.",
+    icon: Truck,
+    title: "Compras y proveedores",
+    description: "Órdenes de compra y pagos integrados a la caja.",
   },
   {
     icon: CreditCard,
-    title: "Finanzas y reportes",
-    description: "Cobros, ingresos, egresos y números claros.",
+    title: "Finanzas claras",
+    description: "Pagos, métodos, cuentas bancarias y conciliación.",
+  },
+  {
+    icon: FileText,
+    title: "Documentos tributarios",
+    description: "Boletas y facturas electrónicas listas para el SII.",
+  },
+  {
+    icon: QrCode,
+    title: "Menú QR público",
+    description: "Tu carta digital para que los clientes vean y compartan.",
+  },
+  {
+    icon: Store,
+    title: "Multi-sucursal con tu marca",
+    description: "Logo, colores, equipo y módulos por cada local.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Roles y permisos",
+    description: "Cajero, garzón y administrador: cada uno ve lo suyo.",
   },
 ];
 

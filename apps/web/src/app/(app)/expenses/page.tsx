@@ -1,16 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
   Search,
   Pencil,
   Trash2,
-
   X,
   Ban,
-  TrendingUp,
+  TrendingDown,
   FileDown,
   SlidersHorizontal,
   DollarSign,
@@ -19,21 +18,20 @@ import {
   RotateCcw,
   Tags,
   AlertCircle,
-  Eye,
-  Download,
+  FileText,
+  Package,
+  Lock,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import {
   fetchExpenses,
-  fetchExpenseSummary,
   fetchExpenseCategories,
   createExpense,
   updateExpense,
   deleteExpense,
   cancelExpense,
-  exportExpensesExcel,
   downloadExpenseVoucher,
   createExpenseCategory,
   updateExpenseCategory,
@@ -43,108 +41,269 @@ import {
   type FixedExpenseRequest,
   type ExpenseCategory,
   type ExpenseCategoryRequest,
-  type ExpenseSummary,
 } from "@/lib/api/expenses";
 import { useCurrentBranch } from "@/lib/store/session";
-import { formatCLP, expenseFrequencyLabel, expenseCategoryTypeLabel } from "@/lib/utils";
-import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
-import { useViewFile } from "@/lib/hooks/useViewFile";
 import { useToast } from "@/lib/store/toast";
+import { formatCLP, expenseCategoryTypeLabel } from "@/lib/utils";
+import { fetchPurchaseOrder, fetchPurchaseOrderPaymentSummary } from "@/lib/api/suppliers";
+import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
+import { generateExcelBlob } from "@/lib/export-excel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ActionsMenu } from "@/components/ui/actions-menu";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 
-const EXPENSE_CATEGORY_TYPES = [
-  { value: "RENT", label: "Renta" },
-  { value: "UTILITIES", label: "Servicios Públicos" },
-  { value: "SALARIES", label: "Salarios" },
-  { value: "INSURANCE", label: "Seguros" },
-  { value: "MAINTENANCE", label: "Mantenimiento" },
-  { value: "MARKETING", label: "Marketing" },
-  { value: "LICENSES", label: "Licencias" },
-  { value: "EQUIPMENT", label: "Equipos" },
-  { value: "SUPPLIES", label: "Suministros" },
-  { value: "OTHER", label: "Otros" },
+const EXPENSE_CATEGORY_TYPES: { value: string; label: string; hint: string }[] = [
+  {
+    value: "RENT",
+    label: "Renta",
+    hint: "Arriendo del local o de equipos. Uso manual; se agrupa en los reportes financieros.",
+  },
+  {
+    value: "UTILITIES",
+    label: "Servicios Públicos",
+    hint: "Luz, agua, gas e internet. Uso manual; se agrupa en los reportes financieros.",
+  },
+  {
+    value: "SALARIES",
+    label: "Salarios",
+    hint: "La usan automáticamente las nóminas de empleados. Se agrupa en los reportes de costos de personal.",
+  },
+  {
+    value: "INSURANCE",
+    label: "Seguros",
+    hint: "Primas de seguros. Uso manual; se agrupa en los reportes financieros.",
+  },
+  {
+    value: "MAINTENANCE",
+    label: "Mantenimiento",
+    hint: "Reparaciones y mantención. Uso manual; se agrupa en los reportes financieros.",
+  },
+  {
+    value: "MARKETING",
+    label: "Marketing",
+    hint: "Publicidad y promoción. Uso manual; se agrupa en los reportes financieros.",
+  },
+  {
+    value: "LICENSES",
+    label: "Licencias",
+    hint: "Permisos y licencias de software. Uso manual; se agrupa en los reportes financieros.",
+  },
+  {
+    value: "EQUIPMENT",
+    label: "Equipos",
+    hint: "Compra o arriendo de equipos. Uso manual; se agrupa en los reportes financieros.",
+  },
+  {
+    value: "SUPPLIES",
+    label: "Suministros",
+    hint: "Insumos y materiales. Las órdenes de compra usan la categoría marcada como predeterminada para proveedores.",
+  },
+  {
+    value: "OTHER",
+    label: "Otros",
+    hint: "La usan automáticamente los retiros de caja y como respaldo para los egresos de órdenes de compra.",
+  },
 ];
 
-const STATUS_OPTIONS = [
+/** Filtro de estado derivado (igual que el badge de la tabla): pagado / parcial /
+ *  pendiente / atrasado / cancelado. */
+type DerivedStatus = "pagado" | "parcial" | "pendiente" | "atrasado" | "cancelado";
+
+const STATUS_FILTER_OPTIONS: { value: "" | DerivedStatus; label: string }[] = [
   { value: "", label: "Todos" },
-  { value: "ACTIVE", label: "Activo" },
-  { value: "INACTIVE", label: "Inactivo" },
-  { value: "PENDING", label: "Pendiente" },
-  { value: "CANCELLED", label: "Cancelado" },
+  { value: "pagado", label: "Pagado" },
+  { value: "parcial", label: "Parcial" },
+  { value: "pendiente", label: "Pendiente" },
+  { value: "atrasado", label: "Atrasado" },
+  { value: "cancelado", label: "Cancelado" },
 ];
 
 const FORM_STATUS_OPTIONS = [
+  { value: "PENDING", label: "Pendiente" },
   { value: "ACTIVE", label: "Activo" },
   { value: "INACTIVE", label: "Inactivo" },
-  { value: "PENDING", label: "Pendiente" },
   { value: "CANCELLED", label: "Cancelado" },
 ];
 
-const FREQUENCY_OPTIONS = [
-  { value: "ONE_TIME", label: "Una vez" },
-  { value: "MONTHLY", label: "Mensual" },
-  { value: "QUARTERLY", label: "Trimestral" },
-  { value: "SEMI_ANNUAL", label: "Semestral" },
-  { value: "ANNUAL", label: "Anual" },
-];
+/** Estado del formulario: los inputs manejan strings y se convierte al enviar.
+ *  `purchase_order` se excluye: la vinculación a una orden de compra la hace
+ *  el sistema, no el formulario de creación. */
+type ExpenseFormState = Omit<FixedExpenseRequest, "amount" | "purchase_order"> & {
+  amount: string;
+};
 
-const PERIOD_OPTIONS = [
-  { value: "", label: "Personalizado" },
-  { value: "today", label: "Hoy" },
-  { value: "this_week", label: "Esta semana" },
-  { value: "this_month", label: "Este mes" },
-  { value: "last_month", label: "Mes pasado" },
-  { value: "last_3_months", label: "Últimos 3 meses" },
-];
-
-function statusLabel(value?: string | null): string {
-  return STATUS_OPTIONS.find((o) => o.value === value)?.label ?? (value ?? "—");
+/** Estado derivado de un egreso según su pago y fecha de inicio. */
+function derivedStatus(e: FixedExpense, today: string): DerivedStatus {
+  if (e.status === "CANCELLED") return "cancelado";
+  const paid = e.total_paid || 0;
+  const pending = Math.max(e.pending_amount || 0, 0);
+  if (e.is_fully_paid || (paid > 0 && pending <= 0)) return "pagado";
+  // Parcial antes que atrasado: si ya hubo un pago y queda saldo, es "Parcial"
+  // aunque la fecha haya pasado; "atrasado" queda para lo nunca pagado.
+  if (paid > 0 && pending > 0) return "parcial";
+  if (pending > 0 && e.start_date < today) return "atrasado";
+  return "pendiente";
 }
 
-function frequencyLabel(value?: string | null): string {
-  return FREQUENCY_OPTIONS.find((o) => o.value === value)?.label ?? expenseFrequencyLabel(value);
-}
+function paymentStatus(e: FixedExpense, today: string): {
+  label: string;
+  className: string;
+  total: number;
+  paid: number;
+  pending: number;
+  pct: number;
+} {
+  const total = e.amount || 0;
+  const paid = e.total_paid || 0;
+  // Nunca negativo: en gastos recurrentes el pagado acumula varios períodos.
+  const pending = Math.max(e.pending_amount || 0, 0);
+  const pct = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0;
+  const base = { total, paid, pending, pct };
 
-function statusBadgeClass(status?: string | null) {
-  if (status === "ACTIVE") {
-    return "rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-700";
+  switch (derivedStatus(e, today)) {
+    case "cancelado":
+      return { label: "Cancelado", className: "rounded-full bg-danger/10 px-2 py-0.5 text-xs font-medium text-danger", ...base };
+    case "pagado":
+      return { label: "Pagado", className: "rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success", ...base };
+    case "atrasado":
+      return { label: "Atrasado", className: "rounded-full bg-danger/10 px-2 py-0.5 text-xs font-medium text-danger", ...base };
+    case "parcial":
+      return { label: "Parcial", className: "rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning", ...base };
+    default:
+      return { label: "Pendiente", className: "rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground", ...base };
   }
-  if (status === "CANCELLED") {
-    return "rounded-full bg-danger/10 px-2 py-0.5 text-xs font-medium text-danger";
-  }
-  return "rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700";
 }
 
 function toISODate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-function startOfWeek(date: Date): Date {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
+/** Formato de fecha corto es-CL; tolera ISO con hora (toma solo la parte de fecha). */
+function formatDateCL(value?: string | null): string {
+  if (!value) return "—";
+  const date = new Date(`${value.slice(0, 10)}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("es-CL");
+}
+
+/** Filtros que persisten entre visitas al módulo. */
+const EXPENSE_FILTERS_KEY = "frig.expenses.filters";
+const PAGE_SIZE = 10;
+
+interface PersistedExpenseFilters {
+  startDate?: string;
+  endDate?: string;
+  category?: string;
+  status?: string;
+}
+
+function loadPersistedFilters(): PersistedExpenseFilters {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(EXPENSE_FILTERS_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as PersistedExpenseFilters;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+type PurchaseOrderDetail = Awaited<ReturnType<typeof fetchPurchaseOrder>>;
+
+/** Datos de la orden de compra asociada. Query con caché propia por orden. */
+function usePurchaseOrderDetail(orderId: string | null | undefined) {
+  return useQuery({
+    queryKey: ["purchase-order", orderId],
+    queryFn: () => fetchPurchaseOrder(orderId!),
+    enabled: Boolean(orderId),
+    staleTime: 60_000,
+  });
+}
+
+/** Historial de pagos de la orden de compra (método, fecha, monto, referencia). */
+function usePurchaseOrderPaymentSummary(orderId: string | null | undefined) {
+  return useQuery({
+    queryKey: ["purchase-order-payment-summary", orderId],
+    queryFn: () => fetchPurchaseOrderPaymentSummary(orderId!),
+    enabled: Boolean(orderId),
+    staleTime: 60_000,
+  });
+}
+
+/** Tono semántico del badge de estado de la orden de compra. */
+function purchaseOrderTone(status: PurchaseOrderDetail["status"]): {
+  label: string;
+  tone: "success" | "info" | "warning" | "danger" | "muted";
+} {
+  switch (status) {
+    case "COMPLETED":
+    case "RECEIVED":
+      return { label: "Completada", tone: "success" };
+    case "PARTIAL_RECEIVED":
+      return { label: "Recepción parcial", tone: "warning" };
+    case "CANCELLED":
+      return { label: "Anulada", tone: "danger" };
+    case "SENT":
+      return { label: "Enviada", tone: "info" };
+    case "CONFIRMED":
+      return { label: "Confirmada", tone: "info" };
+    default:
+      return { label: "Borrador", tone: "muted" };
+  }
+}
+
+/** Título para egresos con orden de compra: el correlativo es el identificador principal. */
+function PurchaseOrderLinkedTitle({
+  orderId,
+  orderNumber,
+  onView,
+}: {
+  orderId: string;
+  orderNumber?: string | null;
+  onView: (orderId: string) => void;
+}) {
+  const { data: order } = usePurchaseOrderDetail(orderId);
+  return (
+    <button
+      type="button"
+      onClick={() => onView(orderId)}
+      className="block max-w-full truncate text-left font-mono font-medium text-primary hover:underline"
+      title="Ver orden de compra asociada"
+    >
+      #{order?.order_number ?? orderNumber ?? orderId.slice(0, 8).toUpperCase()}
+    </button>
+  );
 }
 
 export default function ExpensesPage() {
   const queryClient = useQueryClient();
   const toast = useToast();
+  const [persistedFilters] = useState(loadPersistedFilters);
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("");
-  const [status, setStatus] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [period, setPeriod] = useState("");
-  const [pageUrl, setPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
+  const [category, setCategory] = useState(persistedFilters.category ?? "");
+  const [status, setStatus] = useState(persistedFilters.status ?? "");
+  const [startDate, setStartDate] = useState(persistedFilters.startDate ?? "");
+  const [endDate, setEndDate] = useState(persistedFilters.endDate ?? "");
+  const [pageNum, setPageNum] = useState(0);
+
+  // Persistir rango de fechas, categoría y estado para que el usuario retome sus filtros.
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        EXPENSE_FILTERS_KEY,
+        JSON.stringify({ startDate, endDate, category, status }),
+      );
+    } catch {
+      // sin almacenamiento disponible: los filtros solo viven en la sesión
+    }
+  }, [startDate, endDate, category, status]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<FixedExpense | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<FixedExpense | null>(null);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
-  const [form, setForm] = useState<FixedExpenseRequest>({
+  const [viewingPurchaseOrderId, setViewingPurchaseOrderId] = useState<string | null>(null);
+  const [form, setForm] = useState<ExpenseFormState>({
     name: "",
     description: "",
     branch: 0,
@@ -152,7 +311,7 @@ export default function ExpensesPage() {
     amount: "",
     frequency: "ONE_TIME",
     start_date: toISODate(new Date()),
-    status: "ACTIVE",
+    status: "PENDING",
     is_recurring: false,
     supplier: "",
     notes: "",
@@ -169,47 +328,21 @@ export default function ExpensesPage() {
   });
 
   const {
-    data: page,
+    data: listPage,
     isLoading: isLoadingPage,
     isError: isPageError,
     refetch: refetchPage,
   } = useQuery({
-    queryKey: ["expenses", { search, category, status, startDate, endDate, pageUrl }],
-    queryFn: () => fetchExpenses({ search, category, status, startDate, endDate, ...pageUrl }),
-  });
-
-  const summaryFilter = { search, category, status, startDate, endDate };
-  const {
-    data: summary,
-    isLoading: isLoadingSummary,
-    isError: isSummaryError,
-    refetch: refetchSummary,
-  } = useQuery({
-    queryKey: ["expenses", "summary", summaryFilter],
-    queryFn: () => fetchExpenseSummary(summaryFilter),
+    queryKey: ["expenses", "list", { search, category, startDate, endDate }],
+    queryFn: () =>
+      fetchExpenses({ search, category, startDate, endDate, page_size: 500 }),
   });
 
   const { download: downloadFile, isLoading: isDownloading } = useDownloadFile();
-  const filter = { search, category, status, startDate, endDate };
-
-  async function handleExportExcel() {
-    await downloadFile(() => exportExpensesExcel(filter), {
-      filename: exportFilename("egresos", "xlsx"),
-      extension: "xlsx",
-    });
-  }
 
   async function handleDownloadVoucher(expense: FixedExpense) {
     await downloadFile(() => downloadExpenseVoucher(expense.id), {
       filename: `comprobante_${expense.id.slice(0, 8)}.pdf`,
-    });
-  }
-
-  const { view: viewFile } = useViewFile();
-
-  async function handleViewVoucher(expense: FixedExpense) {
-    await viewFile(() => downloadExpenseVoucher(expense.id), {
-      onError: (err) => toast.error(err.message || "No se pudo previsualizar el comprobante"),
     });
   }
 
@@ -218,49 +351,157 @@ export default function ExpensesPage() {
     queryFn: fetchExpenseCategories,
   });
 
-  const expenses = useMemo(() => page?.results ?? [], [page]);
-  const totalExpenses = page?.count ?? 0;
+  const {
+    data: purchaseOrderDetail,
+    isLoading: isLoadingPurchaseOrder,
+    isError: isPurchaseOrderError,
+  } = usePurchaseOrderDetail(viewingPurchaseOrderId);
+  const { data: purchaseOrderPayments } = usePurchaseOrderPaymentSummary(
+    viewingPurchaseOrderId,
+  );
 
-  const stats = useMemo(() => {
-    const amount = (field: keyof ExpenseSummary): number => {
-      const raw = summary?.[field];
-      if (raw === undefined || raw === null) return 0;
-      return parseFloat(String(raw)) || 0;
-    };
-    let total = amount("total_amount") || amount("total");
-    let active = amount("active_amount") || amount("active");
-    let pending = amount("pending_amount") || amount("pending");
-    let cancelled = amount("cancelled_amount") || amount("cancelled");
+  /** Solo los egresos manuales son editables: los generados automáticamente
+   *  (orden de compra asociada o categoría de sistema) se gestionan desde su módulo origen. */
+  const isManualExpense = (e: FixedExpense) =>
+    !e.purchase_order_id && !categories.find((c) => c.id === e.category)?.is_system;
 
-    // Fallback: calcular desde los items de la página si el summary está vacío
-    if (total === 0 && active === 0 && pending === 0 && cancelled === 0 && expenses.length > 0) {
-      total = expenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
-      active = expenses.filter((e) => e.status === "ACTIVE").reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
-      pending = expenses.filter((e) => e.status === "PENDING").reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
-      cancelled = expenses.filter((e) => e.status === "CANCELLED").reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+  /** En el gestor solo se listan las categorías creadas por el usuario;
+   *  las de sistema se ocultan porque no se pueden administrar. */
+  const userCategories = categories.filter((c) => !c.is_system);
+
+  /** Categorías seleccionables en el formulario: manuales y activas. Si el egreso
+   *  en edición usa una categoría inactiva, se incluye para no perder el valor. */
+  const formCategoryOptions = categories.filter(
+    (c) => (!c.is_system && c.is_active) || c.id === form.category,
+  );
+
+  /** Categorías ordenadas para los filtros: primero las de sistema, luego activas
+   *  y al final las inactivas (se marcan en el label). */
+  const sortedCategories = [...categories].sort((a, b) => {
+    if (Boolean(a.is_system) !== Boolean(b.is_system)) {
+      return a.is_system ? -1 : 1;
     }
+    if (Boolean(a.is_active) !== Boolean(b.is_active)) {
+      return a.is_active ? -1 : 1;
+    }
+    return a.name.localeCompare(b.name, "es");
+  });
 
-    return { total, active, pending, cancelled };
-  }, [summary, expenses]);
+  /** Extras del filtro de categoría: las de sistema se marcan con ícono y negrita. */
+  const categoryOptionExtras = Object.fromEntries(
+    categories.map((c) => [
+      c.id,
+      c.is_system ? { icon: Lock, bold: true } : {},
+    ]),
+  );
+
+  const todayStr = toISODate(new Date());
+  // Los egresos generados por una orden de compra NO se listan aquí: viven en
+  // el módulo Órdenes de compra. Gastos muestra solo egresos manuales.
+  const allExpenses = useMemo(
+    () => (listPage?.results ?? []).filter((e) => !e.purchase_order_id),
+    [listPage],
+  );
+  // El filtro de estado es derivado (pagado/parcial/pendiente/atrasado/cancelado)
+  // y se resuelve en cliente sobre el conjunto traído del servidor.
+  const expenses = useMemo(
+    () =>
+      status
+        ? allExpenses.filter((e) => derivedStatus(e, todayStr) === status)
+        : allExpenses,
+    [allExpenses, status, todayStr],
+  );
+
+  // Paginación en cliente sobre el conjunto filtrado.
+  const totalExpenses = expenses.length;
+  const pageCount = Math.max(1, Math.ceil(totalExpenses / PAGE_SIZE));
+  const currentPage = Math.min(pageNum, pageCount - 1);
+  const pageItems = useMemo(
+    () => expenses.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE),
+    [expenses, currentPage],
+  );
+
+  // Stats calculados sobre el conjunto filtrado en cliente.
+  const stats = useMemo(() => {
+    let total = 0;
+    let paid = 0;
+    let pending = 0;
+    let overdue = 0;
+    for (const e of expenses) {
+      if (e.status === "CANCELLED") continue;
+      total += e.amount || 0;
+      paid += e.total_paid || 0;
+      // Nunca negativo: en recurrentes el pagado acumula varios períodos.
+      const pendingAmount = Math.max(e.pending_amount || 0, 0);
+      pending += pendingAmount;
+      // Pendiente real: lo pendiente cuya fecha de inicio ya pasó
+      if (pendingAmount > 0 && e.start_date < todayStr) overdue += pendingAmount;
+    }
+    return { total, paid, pending, overdue };
+  }, [expenses, todayStr]);
 
   const pageTotal = useMemo(
-    () => expenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0),
-    [expenses],
+    () => pageItems.reduce((sum, e) => sum + (e.amount || 0), 0),
+    [pageItems],
   );
 
   const hasActiveFilters = search || category || status || startDate || endDate;
 
+  async function handleExportExcel() {
+    // Exporta exactamente lo visible en pantalla (egresos manuales, sin los
+    // generados por órdenes de compra), con el estado derivado resuelto.
+    const headers = [
+      "Nombre",
+      "Descripción",
+      "Categoría",
+      "Monto",
+      "Fecha inicio",
+      "Estado",
+      "Pagado",
+      "Pendiente",
+    ];
+    const rows = expenses.map((e) => {
+      const ps = paymentStatus(e, todayStr);
+      return [
+        e.name,
+        e.description ?? "",
+        e.category_name ?? "",
+        e.amount,
+        formatDateCL(e.start_date),
+        ps.label,
+        ps.paid,
+        ps.pending,
+      ];
+    });
+    const blob = await generateExcelBlob("Egresos", headers, rows);
+    await downloadFile(async () => ({ blob }), {
+      filename: exportFilename("egresos", "xlsx"),
+      extension: "xlsx",
+    });
+  }
+
   const save = useMutation({
     mutationFn: async () => {
+      // is_recurring se deriva de la frecuencia para no depender de dos
+      // campos que puedan contradecirse.
+      const payload = {
+        ...form,
+        amount: Number(form.amount),
+        is_recurring: form.frequency !== "ONE_TIME",
+      };
       if (editing) {
-        await updateExpense(editing.id, form);
+        await updateExpense(editing.id, payload);
       } else {
-        await createExpense(form);
+        await createExpense(payload);
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      toast.success(editing ? "Gasto actualizado" : "Gasto creado");
       closeModal();
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Error al guardar el gasto");
     },
   });
 
@@ -269,12 +510,22 @@ export default function ExpensesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
       setConfirmDelete(null);
+      toast.success("Gasto eliminado");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Error al eliminar el gasto");
     },
   });
 
   const cancel = useMutation({
     mutationFn: (id: string) => cancelExpense(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["expenses"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      toast.success("Gasto cancelado");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Error al cancelar el gasto");
+    },
   });
 
   const createCategory = useMutation({
@@ -368,18 +619,21 @@ export default function ExpensesPage() {
   }
 
   function openModal(expense?: FixedExpense) {
+    save.reset();
     setEditing(expense ?? null);
     if (expense) {
+      // Preservar frecuencia/recurrencia reales: forzar ONE_TIME aquí
+      // convertía silenciosamente un gasto recurrente en único al editar.
       setForm({
         name: expense.name,
         description: expense.description ?? "",
         branch: expense.branch,
         category: expense.category,
-        amount: expense.amount,
+        amount: String(expense.amount),
         frequency: expense.frequency ?? "ONE_TIME",
         start_date: expense.start_date,
         end_date: expense.end_date ?? undefined,
-        status: expense.status ?? "ACTIVE",
+        status: expense.status ?? "PENDING",
         is_recurring: expense.is_recurring ?? false,
         supplier: expense.supplier ?? "",
         notes: expense.notes ?? "",
@@ -388,12 +642,12 @@ export default function ExpensesPage() {
       setForm({
         name: "",
         description: "",
-        branch: 0,
+        branch: Number(branch?.branch_id ?? 0),
         category: "",
         amount: "",
         frequency: "ONE_TIME",
         start_date: toISODate(new Date()),
-        status: "ACTIVE",
+        status: "PENDING",
         is_recurring: false,
         supplier: "",
         notes: "",
@@ -405,70 +659,36 @@ export default function ExpensesPage() {
   function closeModal() {
     setModalOpen(false);
     setEditing(null);
+    save.reset();
   }
 
   function updateFilter<T extends string>(setter: (v: T) => void, value: T) {
     setter(value);
-    setPageUrl({});
-  }
-
-  function applyPeriod(value: string) {
-    setPeriod(value);
-    setPageUrl({});
-
-    if (!value) {
-      setStartDate("");
-      setEndDate("");
-      return;
-    }
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    switch (value) {
-      case "today": {
-        const d = toISODate(today);
-        setStartDate(d);
-        setEndDate(d);
-        break;
-      }
-      case "this_week": {
-        setStartDate(toISODate(startOfWeek(today)));
-        setEndDate(toISODate(today));
-        break;
-      }
-      case "this_month": {
-        const start = new Date(today.getFullYear(), today.getMonth(), 1);
-        setStartDate(toISODate(start));
-        setEndDate(toISODate(today));
-        break;
-      }
-      case "last_month": {
-        const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-        const end = new Date(today.getFullYear(), today.getMonth(), 0);
-        setStartDate(toISODate(start));
-        setEndDate(toISODate(end));
-        break;
-      }
-      case "last_3_months": {
-        const start = new Date(today.getFullYear(), today.getMonth() - 3, 1);
-        setStartDate(toISODate(start));
-        setEndDate(toISODate(today));
-        break;
-      }
-    }
+    setPageNum(0);
   }
 
   function handleStartDateChange(value: string) {
     setStartDate(value);
-    setPeriod("");
-    setPageUrl({});
+    setPageNum(0);
+    if (!value) {
+      setEndDate("");
+      return;
+    }
+    if (endDate && endDate < value) {
+      setEndDate(value);
+    }
   }
 
   function handleEndDateChange(value: string) {
+    if (!startDate) return;
+    if (!value) {
+      setEndDate("");
+      setPageNum(0);
+      return;
+    }
+    if (value < startDate) return;
     setEndDate(value);
-    setPeriod("");
-    setPageUrl({});
+    setPageNum(0);
   }
 
   function clearFilters() {
@@ -477,8 +697,7 @@ export default function ExpensesPage() {
     setStatus("");
     setStartDate("");
     setEndDate("");
-    setPeriod("");
-    setPageUrl({});
+    setPageNum(0);
   }
 
   return (
@@ -487,7 +706,7 @@ export default function ExpensesPage() {
         <div>
           <h1 className="text-lg font-semibold">Egresos</h1>
           <p className="text-xs text-muted-foreground">
-            Gastos, proveedores y pagos recurrentes
+            Gastos, proveedores y pagos del negocio
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -536,69 +755,64 @@ export default function ExpensesPage() {
       <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
         <div className="flex flex-col gap-3">
           {/* Desktop filters */}
-          <div className="hidden flex-wrap items-end gap-3 md:flex">
-            <div className="relative w-full max-w-xs">
+          <div className="hidden flex-nowrap items-end gap-2 md:flex">
+            <div className="relative min-w-40 flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
                 onChange={(e) => updateFilter(setSearch, e.target.value)}
-                placeholder="Buscar gasto…"
+                placeholder="Buscar…"
                 className="pl-9"
                 aria-label="Buscar gasto"
               />
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex w-36 shrink-0 flex-col gap-1">
               <label htmlFor="filter-category" className="text-xs text-muted-foreground">Categoría</label>
               <Select
                 id="filter-category"
                 value={category}
                 onChange={(e) => updateFilter(setCategory, e.target.value)}
+                optionExtras={categoryOptionExtras}
               >
                 <option value="">Todas</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
+                {sortedCategories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.is_active ? c.name : `${c.name} (inactiva)`}
+                  </option>
                 ))}
               </Select>
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex w-32 shrink-0 flex-col gap-1">
               <label htmlFor="filter-status" className="text-xs text-muted-foreground">Estado</label>
               <Select
                 id="filter-status"
                 value={status}
                 onChange={(e) => updateFilter(setStatus, e.target.value)}
               >
-                {STATUS_OPTIONS.map((o) => (
+                {STATUS_FILTER_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </Select>
             </div>
-            <div className="flex flex-col gap-1">
-              <label htmlFor="filter-period" className="text-xs text-muted-foreground">Período</label>
-              <Select
-                id="filter-period"
-                value={period}
-                onChange={(e) => applyPeriod(e.target.value)}
-              >
-                {PERIOD_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </Select>
-            </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex w-40 shrink-0 flex-col gap-1">
               <label htmlFor="filter-start" className="text-xs text-muted-foreground">Desde</label>
               <Input
                 id="filter-start"
                 type="date"
                 value={startDate}
+                className="pr-10"
                 onChange={(e) => handleStartDateChange(e.target.value)}
               />
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex w-40 shrink-0 flex-col gap-1">
               <label htmlFor="filter-end" className="text-xs text-muted-foreground">Hasta</label>
               <Input
                 id="filter-end"
                 type="date"
                 value={endDate}
+                min={startDate}
+                disabled={!startDate}
+                className="pr-10"
                 onChange={(e) => handleEndDateChange(e.target.value)}
               />
             </div>
@@ -607,10 +821,11 @@ export default function ExpensesPage() {
               size="sm"
               onClick={clearFilters}
               disabled={!hasActiveFilters}
-              className="h-10"
+              className="h-10 w-10 shrink-0 p-0"
+              title="Limpiar filtros"
+              aria-label="Limpiar filtros"
             >
-              <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-              Limpiar filtros
+              <RotateCcw className="h-4 w-4" />
             </Button>
           </div>
 
@@ -622,7 +837,7 @@ export default function ExpensesPage() {
                 <Input
                   value={search}
                   onChange={(e) => updateFilter(setSearch, e.target.value)}
-                  placeholder="Buscar gasto…"
+                  placeholder="Buscar…"
                   className="h-10 pl-9"
                   aria-label="Buscar gasto"
                 />
@@ -630,77 +845,73 @@ export default function ExpensesPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className="h-10 px-3"
+                className="h-10 w-10 shrink-0 p-0"
                 onClick={() => setShowMobileFilters((v) => !v)}
                 aria-expanded={showMobileFilters}
                 aria-controls="mobile-filters-panel"
+                title="Filtros"
+                aria-label="Filtros"
               >
                 <SlidersHorizontal className="h-4 w-4" />
-                <span className="ml-2">Filtros</span>
               </Button>
             </div>
 
             <div
               id="mobile-filters-panel"
-              className={`rounded-2xl border border-border bg-card p-4 shadow-sm ${showMobileFilters ? "" : "hidden"}`}
+              className={`rounded-2xl border border-border bg-muted/30 p-4 shadow-sm ${showMobileFilters ? "" : "hidden"}`}
             >
               <div className="mb-3 flex items-center justify-between">
                 <span className="text-sm font-medium">Filtros avanzados</span>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-8 px-2 text-xs"
+                  className="h-8 w-8 p-0 text-xs"
                   onClick={() => setShowMobileFilters(false)}
+                  title="Cerrar filtros"
+                  aria-label="Cerrar filtros"
                 >
                   <X className="h-4 w-4" />
-                  <span className="sr-only">Cerrar filtros</span>
                 </Button>
               </div>
               <div className="grid gap-3">
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="filter-category-mobile" className="text-xs text-muted-foreground">Categoría</label>
-                  <Select
-                    id="filter-category-mobile"
-                    value={category}
-                    onChange={(e) => updateFilter(setCategory, e.target.value)}
-                  >
-                    <option value="">Todas</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </Select>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor="filter-category-mobile" className="text-xs text-muted-foreground">Categoría</label>
+                    <Select
+                      id="filter-category-mobile"
+                      value={category}
+                      onChange={(e) => updateFilter(setCategory, e.target.value)}
+                      optionExtras={categoryOptionExtras}
+                    >
+                      <option value="">Todas</option>
+                      {sortedCategories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.is_active ? c.name : `${c.name} (inactiva)`}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor="filter-status-mobile" className="text-xs text-muted-foreground">Estado</label>
+                    <Select
+                      id="filter-status-mobile"
+                      value={status}
+                      onChange={(e) => updateFilter(setStatus, e.target.value)}
+                    >
+                      {STATUS_FILTER_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </Select>
+                  </div>
                 </div>
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="filter-status-mobile" className="text-xs text-muted-foreground">Estado</label>
-                  <Select
-                    id="filter-status-mobile"
-                    value={status}
-                    onChange={(e) => updateFilter(setStatus, e.target.value)}
-                  >
-                    {STATUS_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
-                    ))}
-                  </Select>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="filter-period-mobile" className="text-xs text-muted-foreground">Período</label>
-                  <Select
-                    id="filter-period-mobile"
-                    value={period}
-                    onChange={(e) => applyPeriod(e.target.value)}
-                  >
-                    {PERIOD_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
-                    ))}
-                  </Select>
-                </div>
-                <div className="grid grid-cols-1 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div className="flex flex-col gap-1">
                     <label htmlFor="filter-start-mobile" className="text-xs text-muted-foreground">Desde</label>
                     <Input
                       id="filter-start-mobile"
                       type="date"
                       value={startDate}
+                      className="pr-10"
                       onChange={(e) => handleStartDateChange(e.target.value)}
                     />
                   </div>
@@ -710,6 +921,9 @@ export default function ExpensesPage() {
                       id="filter-end-mobile"
                       type="date"
                       value={endDate}
+                      min={startDate}
+                      disabled={!startDate}
+                      className="pr-10"
                       onChange={(e) => handleEndDateChange(e.target.value)}
                     />
                   </div>
@@ -719,10 +933,11 @@ export default function ExpensesPage() {
                   size="sm"
                   onClick={clearFilters}
                   disabled={!hasActiveFilters}
-                  className="h-10"
+                  className="h-10 w-full p-0"
+                  title="Limpiar filtros"
+                  aria-label="Limpiar filtros"
                 >
-                  <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-                  Limpiar filtros
+                  <RotateCcw className="h-4 w-4" />
                 </Button>
               </div>
             </div>
@@ -730,7 +945,7 @@ export default function ExpensesPage() {
         </div>
 
         <section className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-          {isLoadingSummary ? (
+          {isLoadingPage ? (
             <>
               <StatSkeleton />
               <StatSkeleton />
@@ -744,51 +959,44 @@ export default function ExpensesPage() {
                 value={formatCLP(stats.total)}
                 icon={DollarSign}
                 sub={`${totalExpenses} registros`}
-                tone="rose"
+                tone="slate"
               />
               <StatCard
-                label="Activos"
-                value={formatCLP(stats.active)}
+                label="Pagados"
+                value={formatCLP(stats.paid)}
                 icon={CheckCircle2}
-                sub="gastos vigentes"
-                tone="emerald"
+                sub="monto efectivamente pagado"
+                tone="success"
               />
               <StatCard
-                label="Pendientes"
+                label="Por pagar"
                 value={formatCLP(stats.pending)}
                 icon={Clock}
-                sub="por pagar"
-                tone="amber"
+                sub="saldo pendiente"
+                tone="warning"
               />
               <StatCard
-                label="Cancelados"
-                value={formatCLP(stats.cancelled)}
-                icon={Ban}
-                sub="anulados"
-                tone="rose"
+                label="Atrasados"
+                value={formatCLP(stats.overdue)}
+                icon={AlertCircle}
+                sub="vencido · fecha anterior a hoy"
+                tone="danger"
               />
             </>
           )}
         </section>
 
-        {isPageError || isSummaryError ? (
+        {isPageError ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border p-8 text-center">
             <AlertCircle className="h-10 w-10 text-danger" />
             <p className="text-sm font-medium">No se pudieron cargar los egresos</p>
             <p className="max-w-md text-xs text-muted-foreground">
-              {isPageError && isSummaryError
-                ? "Ocurrió un error al consultar el listado y el resumen."
-                : isPageError
-                  ? "Ocurrió un error al consultar el listado."
-                  : "Ocurrió un error al consultar el resumen."}
+              Ocurrió un error al consultar el listado.
             </p>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                if (isPageError) refetchPage();
-                if (isSummaryError) refetchSummary();
-              }}
+              onClick={() => refetchPage()}
             >
               <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
               Reintentar
@@ -806,7 +1014,7 @@ export default function ExpensesPage() {
           <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-border p-8 text-center">
             <div>
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-muted">
-                <TrendingUp className="h-7 w-7 text-muted-foreground" />
+                <TrendingDown className="h-7 w-7 text-muted-foreground" />
               </div>
               <p className="mt-4 text-base font-medium">No se encontraron egresos</p>
               <p className="mx-auto mt-1 max-w-xs text-sm text-muted-foreground">
@@ -829,60 +1037,124 @@ export default function ExpensesPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                    <th className="px-3 py-2.5">Gasto</th>
+                    <th className="px-3 py-2.5">Egreso</th>
                     <th className="px-3 py-2.5">Categoría</th>
                     <th className="px-3 py-2.5">Proveedor</th>
-                    <th className="hidden px-3 py-3 2xl:table-cell">Frecuencia</th>
                     <th className="px-4 py-3 text-right">Monto</th>
-                    <th className="px-3 py-2.5">Estado</th>
+                    <th className="px-3 py-2.5">Estado de pago</th>
                     <th className="hidden px-3 py-3 2xl:table-cell">Inicio</th>
                     <th className="px-4 py-3 text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {expenses.map((e) => (
+                  {pageItems.map((e) => (
                     <tr key={e.id} className="border-b border-border last:border-0">
                       <td className="px-3 py-2.5">
                         <div className="flex items-center gap-2">
-                          <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-secondary">
-                            <TrendingUp className="h-3 w-3 text-muted-foreground" />
-                          </div>
                           <div className="min-w-0">
-                            <p className="max-w-[160px] truncate font-medium" title={e.name}>{e.name}</p>
-                            {e.description && <p className="truncate text-xs text-muted-foreground">{e.description}</p>}
+                            {e.purchase_order_id ? (
+                              <PurchaseOrderLinkedTitle
+                                orderId={e.purchase_order_id}
+                                orderNumber={e.purchase_order_number}
+                                onView={setViewingPurchaseOrderId}
+                              />
+                            ) : (
+                              <p className="max-w-[160px] truncate font-medium" title={e.name}>{e.name}</p>
+                            )}
+                            <p
+                              className="font-mono text-[11px] text-muted-foreground"
+                              title={`ID egreso: ${e.id}`}
+                            >
+                              #{e.id.slice(0, 8).toUpperCase()}
+                            </p>
+                            {e.description && !e.purchase_order_id && (
+                              <p className="truncate text-xs text-muted-foreground">{e.description}</p>
+                            )}
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground">{e.category_name}</td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {e.purchase_order_id ? "Orden de compra" : e.category_name}
+                      </td>
                       <td className="px-4 py-3 text-muted-foreground">{e.supplier_name || "—"}</td>
-                      <td className="hidden px-3 py-3 text-muted-foreground 2xl:table-cell">{frequencyLabel(e.frequency)}</td>
                       <td className="px-4 py-3 text-right tabular-nums font-medium">{formatCLP(e.amount)}</td>
                       <td className="px-3 py-2.5">
-                        <span className={statusBadgeClass(e.status)}>
-                          {statusLabel(e.status)}
-                        </span>
+                        {(() => {
+                          const ps = paymentStatus(e, todayStr);
+                          const showDetail = e.status !== "CANCELLED";
+                          return (
+                            <div className="flex min-w-[8rem] flex-col gap-1">
+                              <span className={`inline-flex w-fit items-center gap-1 whitespace-nowrap ${ps.className}`}>
+                                {ps.label}
+                                {ps.pct > 0 && ps.pct < 100 && (
+                                  <span className="text-[10px] opacity-80">({ps.pct}%)</span>
+                                )}
+                              </span>
+                              {showDetail && (
+                                <div className="flex flex-col gap-0.5 text-[11px]">
+                                  {ps.pending > 0 ? (
+                                    <span className="text-muted-foreground">
+                                      {formatCLP(ps.paid)} / {formatCLP(ps.total)}
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 font-medium text-success">
+                                      <CheckCircle2 className="h-3 w-3" />
+                                      {formatCLP(ps.total)}
+                                    </span>
+                                  )}
+                                  {ps.pending > 0 && (
+                                    <span className="text-warning">
+                                      Faltan {formatCLP(ps.pending)}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="hidden px-3 py-3 text-muted-foreground 2xl:table-cell">{e.start_date}</td>
                       <td className="px-3 py-3 text-right">
-                        <div className="flex items-center justify-end gap-0.5">
-                          <ActionsMenu
-                            ariaLabel="Comprobante"
-                            items={[
-                              { label: "Ver PDF", icon: Eye, onClick: () => handleViewVoucher(e) },
-                              { label: "Descargar comprobante", icon: Download, onClick: () => handleDownloadVoucher(e) },
-                            ]}
-                          />
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openModal(e)} title="Editar">
-                            <Pencil className="h-3.5 w-3.5" />
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 gap-1 px-2 text-xs"
+                            onClick={() => handleDownloadVoucher(e)}
+                            title="Descargar comprobante A4"
+                          >
+                            <FileText className="h-4 w-4" />
+                            A4
                           </Button>
-                          {e.status !== "CANCELLED" && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => cancel.mutate(e.id)} disabled={cancel.isPending} title="Anular">
-                              <Ban className="h-3.5 w-3.5" />
-                            </Button>
+                          {/* Los egresos automáticos (orden de compra o categoría de sistema)
+                              no se tocan desde aquí: solo se puede descargar el comprobante. */}
+                          {isManualExpense(e) && (
+                            <ActionsMenu
+                              ariaLabel="Acciones"
+                              items={[
+                                {
+                                  label: "Editar",
+                                  icon: Pencil,
+                                  onClick: () => openModal(e),
+                                },
+                                ...(e.status !== "CANCELLED"
+                                  ? [
+                                      {
+                                        label: "Cancelar",
+                                        icon: X,
+                                        onClick: () => cancel.mutate(e.id),
+                                      },
+                                    ]
+                                  : []),
+                                {
+                                  label: "Eliminar",
+                                  icon: Trash2,
+                                  onClick: () => setConfirmDelete(e),
+                                  danger: true,
+                                },
+                              ]}
+                            />
                           )}
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-danger hover:text-danger" onClick={() => setConfirmDelete(e)} title="Eliminar">
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -893,28 +1165,47 @@ export default function ExpensesPage() {
 
             {/* Mobile cards */}
             <div className="grid gap-3 md:hidden">
-              {expenses.map((e) => (
+              {pageItems.map((e) => (
                 <div
                   key={e.id}
-                  className="rounded-2xl border border-border bg-card p-4 shadow-sm"
+                  className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="flex min-w-0 flex-1 items-start gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-500/10 text-rose-600">
-                        <TrendingUp className="h-5 w-5" />
-                      </div>
                       <div className="min-w-0 flex-1">
-                        <p className="max-w-[160px] truncate font-medium" title={e.name}>{e.name}</p>
-                        {e.description && (
+                        {e.purchase_order_id ? (
+                          <PurchaseOrderLinkedTitle
+                            orderId={e.purchase_order_id}
+                            orderNumber={e.purchase_order_number}
+                            onView={setViewingPurchaseOrderId}
+                          />
+                        ) : (
+                          <p className="max-w-[160px] truncate font-medium" title={e.name}>{e.name}</p>
+                        )}
+                        <p
+                          className="font-mono text-[10px] text-muted-foreground"
+                          title={`ID egreso: ${e.id}`}
+                        >
+                          #{e.id.slice(0, 8).toUpperCase()}
+                        </p>
+                        {e.description && !e.purchase_order_id && (
                           <p className="break-words text-xs text-muted-foreground">{e.description}</p>
                         )}
-                        <span className={`mt-1 inline-flex ${statusBadgeClass(e.status)}`}>
-                          {statusLabel(e.status)}
-                        </span>
+                        {(() => {
+                          const ps = paymentStatus(e, todayStr);
+                          return (
+                            <span className={`mt-1 inline-flex w-fit items-center gap-1 whitespace-nowrap ${ps.className}`}>
+                              {ps.label}
+                              {ps.pct > 0 && ps.pct < 100 && (
+                                <span className="text-[10px] opacity-80">({ps.pct}%)</span>
+                              )}
+                            </span>
+                          );
+                        })()}
                       </div>
                     </div>
                     <div className="shrink-0 text-right">
-                      <p className="text-base font-bold tabular-nums text-rose-700">{formatCLP(e.amount)}</p>
+                      <p className="text-base font-bold tabular-nums text-foreground">{formatCLP(e.amount)}</p>
                       <p className="text-[10px] text-muted-foreground">{e.start_date}</p>
                     </div>
                   </div>
@@ -922,19 +1213,46 @@ export default function ExpensesPage() {
                   <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-3 text-xs">
                     <div className="min-w-0">
                       <span className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Categoría</span>
-                      <span className="block truncate font-medium text-foreground">{e.category_name}</span>
-                    </div>
-                    <div className="min-w-0">
-                      <span className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Frecuencia</span>
-                      <span className="block truncate font-medium text-foreground">{frequencyLabel(e.frequency)}</span>
+                      <span className="block truncate font-medium text-foreground">
+                        {e.purchase_order_id ? "Orden de compra" : e.category_name}
+                      </span>
                     </div>
                     <div className="min-w-0">
                       <span className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Inicio</span>
                       <span className="block truncate font-medium text-foreground">{e.start_date}</span>
                     </div>
                     <div className="min-w-0">
-                      <span className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Estado</span>
-                      <span className="block truncate font-medium text-foreground">{statusLabel(e.status)}</span>
+                      <span className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Estado de pago</span>
+                      {(() => {
+                        const ps = paymentStatus(e, todayStr);
+                        const showDetail = e.status !== "CANCELLED";
+                        return (
+                          <div className="flex flex-col gap-0.5">
+                            <span className={`inline-flex w-fit items-center gap-1 whitespace-nowrap ${ps.className}`}>
+                              {ps.label}
+                              {ps.pct > 0 && ps.pct < 100 && (
+                                <span className="text-[10px] opacity-80">({ps.pct}%)</span>
+                              )}
+                            </span>
+                            {showDetail && ps.pending > 0 && (
+                              <span className="text-[10px] text-muted-foreground">
+                                {formatCLP(ps.paid)} / {formatCLP(ps.total)}
+                              </span>
+                            )}
+                            {showDetail && ps.pending > 0 && (
+                              <span className="text-[10px] font-medium text-warning">
+                                Faltan {formatCLP(ps.pending)}
+                              </span>
+                            )}
+                            {showDetail && ps.pending <= 0 && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-medium text-success">
+                                <CheckCircle2 className="h-3 w-3" />
+                                {formatCLP(ps.total)}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                     {e.supplier_name && (
                       <div className="col-span-2 min-w-0">
@@ -945,54 +1263,45 @@ export default function ExpensesPage() {
                   </div>
 
                   <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
-                    <ActionsMenu
-                      ariaLabel="Comprobante"
-                      items={[
-                        {
-                          label: "Ver PDF",
-                          icon: Eye,
-                          onClick: () => handleViewVoucher(e),
-                        },
-                        {
-                          label: "Descargar comprobante",
-                          icon: Download,
-                          onClick: () => handleDownloadVoucher(e),
-                        },
-                      ]}
-                    />
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-10 w-10 shrink-0 p-0"
-                      onClick={() => openModal(e)}
-                      title="Editar"
-                      aria-label="Editar"
+                      className="h-8 gap-1 px-2 text-xs"
+                      onClick={() => handleDownloadVoucher(e)}
+                      title="Descargar comprobante A4"
                     >
-                      <Pencil className="h-4 w-4" />
+                      <FileText className="h-4 w-4" />
+                      A4
                     </Button>
-                    {e.status !== "CANCELLED" && (
-                      <Button
+                    {isManualExpense(e) && (
+                      <ActionsMenu
+                        ariaLabel="Acciones"
                         variant="outline"
-                        size="sm"
-                        className="h-10 w-10 shrink-0 p-0 text-amber-600 hover:text-amber-600"
-                        onClick={() => cancel.mutate(e.id)}
-                        disabled={cancel.isPending}
-                        title="Anular"
-                        aria-label="Anular"
-                      >
-                        <Ban className="h-4 w-4" />
-                      </Button>
+                        size="icon"
+                        items={[
+                          {
+                            label: "Editar",
+                            icon: Pencil,
+                            onClick: () => openModal(e),
+                          },
+                          ...(e.status !== "CANCELLED"
+                            ? [
+                                {
+                                  label: "Cancelar",
+                                  icon: X,
+                                  onClick: () => cancel.mutate(e.id),
+                                },
+                              ]
+                            : []),
+                          {
+                            label: "Eliminar",
+                            icon: Trash2,
+                            onClick: () => setConfirmDelete(e),
+                            danger: true,
+                          },
+                        ]}
+                      />
                     )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-10 w-10 shrink-0 p-0 text-danger hover:text-danger"
-                      onClick={() => setConfirmDelete(e)}
-                      title="Eliminar"
-                      aria-label="Eliminar"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
                   </div>
                 </div>
               ))}
@@ -1009,17 +1318,20 @@ export default function ExpensesPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setPageUrl({ previous: page?.previous })}
-                  disabled={!page?.previous}
+                  onClick={() => setPageNum(currentPage - 1)}
+                  disabled={currentPage <= 0}
                 >
                   <span className="sm:hidden">Ant.</span>
                   <span className="hidden sm:inline">Anterior</span>
                 </Button>
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {currentPage + 1}/{pageCount}
+                </span>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setPageUrl({ next: page?.next })}
-                  disabled={!page?.next}
+                  onClick={() => setPageNum(currentPage + 1)}
+                  disabled={currentPage >= pageCount - 1}
                 >
                   <span className="sm:hidden">Sig.</span>
                   <span className="hidden sm:inline">Siguiente</span>
@@ -1029,6 +1341,221 @@ export default function ExpensesPage() {
           </>
         )}
       </div>
+
+      {/* Detalle de la orden de compra asociada al egreso */}
+      <AnimatedOverlay
+        open={!!viewingPurchaseOrderId}
+        onClose={() => setViewingPurchaseOrderId(null)}
+        panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
+      >
+        <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-lg md:rounded-xl md:border">
+          <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
+            <div>
+              <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                Orden de compra
+              </p>
+              <h2 className="text-base font-semibold tabular-nums">
+                {purchaseOrderDetail?.order_number ?? viewingPurchaseOrderId?.slice(0, 8)}
+              </h2>
+            </div>
+            <button
+              onClick={() => setViewingPurchaseOrderId(null)}
+              aria-label="Cerrar"
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4">
+            {isLoadingPurchaseOrder ? (
+              <div className="flex flex-col gap-3">
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-32 w-full" />
+              </div>
+            ) : isPurchaseOrderError || !purchaseOrderDetail ? (
+              <div className="flex flex-col items-center gap-2 py-8 text-center">
+                <AlertCircle className="h-8 w-8 text-danger" />
+                <p className="text-sm font-medium">No se pudo cargar la orden de compra</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setViewingPurchaseOrderId(null)}
+                >
+                  Cerrar
+                </Button>
+              </div>
+            ) : (
+              (() => {
+                const status = purchaseOrderTone(purchaseOrderDetail.status);
+                const toneBadge: Record<string, string> = {
+                  success: "bg-success/10 text-success ring-success/20",
+                  info: "bg-primary/10 text-primary ring-primary/20",
+                  warning: "bg-warning/10 text-warning ring-warning/20",
+                  danger: "bg-danger/10 text-danger ring-danger/20",
+                  muted: "bg-muted text-muted-foreground ring-border",
+                };
+                const paymentBadge = purchaseOrderDetail.is_fully_paid
+                  ? "bg-success/10 text-success ring-success/20"
+                  : purchaseOrderDetail.is_partially_paid
+                    ? "bg-warning/10 text-warning ring-warning/20"
+                    : "bg-muted text-muted-foreground ring-border";
+                const paymentLabel = purchaseOrderDetail.is_fully_paid
+                  ? "Pagada"
+                  : purchaseOrderDetail.is_partially_paid
+                    ? "Pago parcial"
+                    : "Sin pagar";
+                return (
+                  <div className="flex flex-col gap-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${toneBadge[status.tone]}`}>
+                        {status.label}
+                      </span>
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${paymentBadge}`}>
+                        {paymentLabel}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="rounded-xl border border-border bg-background p-3">
+                        <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Proveedor</p>
+                        <p className="mt-1 truncate text-sm font-semibold">
+                          {purchaseOrderDetail.supplier_name ?? "Gasto común"}
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-border bg-background p-3">
+                        <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Fecha</p>
+                        <p className="mt-1 text-sm font-semibold">{purchaseOrderDetail.order_date}</p>
+                      </div>
+                      <div className="rounded-xl border border-border bg-background p-3">
+                        <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Entrega esperada</p>
+                        <p className="mt-1 text-sm font-semibold">{purchaseOrderDetail.expected_delivery_date}</p>
+                      </div>
+                      {purchaseOrderDetail.actual_delivery_date && (
+                        <div className="rounded-xl border border-border bg-background p-3">
+                          <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Entrega real</p>
+                          <p className="mt-1 text-sm font-semibold">{purchaseOrderDetail.actual_delivery_date}</p>
+                        </div>
+                      )}
+                      <div className="col-span-2 rounded-xl border border-primary/20 bg-primary/5 p-3">
+                        <p className="text-[10px] font-medium uppercase tracking-wide text-primary/80">Total</p>
+                        <p className="mt-1 text-lg font-extrabold tabular-nums">
+                          {formatCLP(purchaseOrderDetail.total_amount ?? 0)}
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          Pagado: <span className="font-medium text-success">{formatCLP(purchaseOrderDetail.paid_amount ?? 0)}</span>
+                          {" · "}Por pagar: <span className="font-medium text-warning">{formatCLP(purchaseOrderDetail.remaining_amount ?? 0)}</span>
+                        </p>
+                      </div>
+                      {(purchaseOrderDetail.subtotal !== undefined ||
+                        (purchaseOrderDetail.tax_amount ?? 0) > 0 ||
+                        (purchaseOrderDetail.discount_amount ?? 0) > 0) && (
+                        <div className="col-span-2 flex flex-wrap gap-x-4 gap-y-1 rounded-xl border border-border bg-background p-3 text-xs text-muted-foreground">
+                          {purchaseOrderDetail.subtotal !== undefined && (
+                            <span>Subtotal: <span className="font-medium text-foreground">{formatCLP(purchaseOrderDetail.subtotal)}</span></span>
+                          )}
+                          {(purchaseOrderDetail.tax_amount ?? 0) > 0 && (
+                            <span>Impuestos: <span className="font-medium text-foreground">{formatCLP(purchaseOrderDetail.tax_amount ?? 0)}</span></span>
+                          )}
+                          {(purchaseOrderDetail.discount_amount ?? 0) > 0 && (
+                            <span>Descuento: <span className="font-medium text-foreground">{formatCLP(purchaseOrderDetail.discount_amount ?? 0)}</span></span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Historial de pagos: cómo se llegó al total pagado */}
+                    {purchaseOrderPayments && (
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          Pagos ({purchaseOrderPayments.summary.payment_count})
+                        </p>
+                        {purchaseOrderPayments.payments.length === 0 ? (
+                          <div className="mt-2 rounded-xl border border-border bg-background p-3 text-sm text-muted-foreground">
+                            Sin pagos registrados
+                          </div>
+                        ) : (
+                          <div className="mt-2 flex flex-col divide-y divide-border rounded-xl border border-border bg-background">
+                            {purchaseOrderPayments.payments.map((p) => (
+                              <div
+                                key={p.id}
+                                className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm"
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate font-medium">
+                                    {p.payment_method ?? "Pago"}
+                                  </p>
+                                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                                    {formatDateCL(p.payment_date)}
+                                    {p.reference && ` · ${p.reference}`}
+                                    {p.paid_by && ` · por ${p.paid_by}`}
+                                  </p>
+                                </div>
+                                <div className="flex shrink-0 flex-col items-end gap-1">
+                                  <p className="font-semibold tabular-nums">
+                                    {formatCLP(p.amount ?? 0)}
+                                  </p>
+                                  <span
+                                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${
+                                      p.status === "COMPLETED"
+                                        ? "bg-success/10 text-success ring-success/20"
+                                        : "bg-warning/10 text-warning ring-warning/20"
+                                    }`}
+                                  >
+                                    {p.status === "COMPLETED" ? "Completado" : "Pendiente"}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {purchaseOrderDetail.items && purchaseOrderDetail.items.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          Ítems ({purchaseOrderDetail.items.length})
+                        </p>
+                        <div className="mt-2 flex flex-col divide-y divide-border rounded-xl border border-border bg-background">
+                          {purchaseOrderDetail.items.map((item) => (
+                            <div key={item.id} className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm">
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate font-medium">
+                                  {item.supplier_product_name || item.product_name || item.description || "Ítem"}
+                                </p>
+                                <p className="mt-0.5 text-xs text-muted-foreground">
+                                  x{item.quantity_ordered ?? 0} · {formatCLP(item.unit_price ?? 0)} c/u
+                                  {(item.quantity_received ?? 0) > 0 && ` · recibido: ${item.quantity_received}`}
+                                </p>
+                              </div>
+                              <p className="shrink-0 font-semibold tabular-nums">
+                                {formatCLP(item.total_price ?? 0)}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {purchaseOrderDetail.notes && (
+                      <div className="rounded-xl border border-border bg-background p-3 text-sm">
+                        <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Notas</p>
+                        <p className="mt-1">{purchaseOrderDetail.notes}</p>
+                      </div>
+                    )}
+                    {purchaseOrderDetail.supplier_notes && (
+                      <div className="rounded-xl border border-border bg-background p-3 text-sm">
+                        <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Notas del proveedor</p>
+                        <p className="mt-1">{purchaseOrderDetail.supplier_notes}</p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()
+            )}
+          </div>
+        </div>
+      </AnimatedOverlay>
 
       <AnimatedOverlay
         open={modalOpen}
@@ -1051,17 +1578,39 @@ export default function ExpensesPage() {
               id="expense-form"
             >
               <div className="flex-1 overflow-y-auto p-4">
-                <div className="flex flex-col gap-4">
-                  <div className="flex flex-col gap-2">
-                    <label htmlFor="expense-name" className="text-sm font-medium">Nombre</label>
-                    <Input
-                      id="expense-name"
-                      value={form.name}
-                      onChange={(e) => setForm({ ...form, name: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-5">
+                  {/* General */}
+                  <section className="flex flex-col gap-3">
+                    <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      <Package className="h-3.5 w-3.5" />
+                      Información general
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label htmlFor="expense-name" className="text-sm font-medium">Nombre</label>
+                      <Input
+                        id="expense-name"
+                        value={form.name}
+                        onChange={(e) => setForm({ ...form, name: e.target.value })}
+                        placeholder="Ej: Pago proveedor #1234"
+                        required
+                      />
+                      {!editing && (
+                        <p className="text-[11px] text-muted-foreground">
+                          El egreso se crea por defecto como <strong>Pendiente</strong>; la fecha define cuándo está proyectado o atrasado.
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label htmlFor="expense-desc" className="text-sm font-medium">Descripción</label>
+                      <textarea
+                        id="expense-desc"
+                        value={form.description ?? ""}
+                        onChange={(e) => setForm({ ...form, description: e.target.value || null })}
+                        placeholder="Describe el origen del egreso…"
+                        rows={3}
+                        className="w-full resize-none rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus:border-primary/40 focus:bg-background focus:outline-none focus:ring-2 focus:ring-ring/50"
+                      />
+                    </div>
                     <div className="flex flex-col gap-2">
                       <label htmlFor="expense-category" className="text-sm font-medium">Categoría</label>
                       <Select
@@ -1070,43 +1619,30 @@ export default function ExpensesPage() {
                         onChange={(e) => setForm({ ...form, category: e.target.value })}
                         required
                       >
-                        <option value="">Selecciona</option>
-                        {categories.map((c) => (
+                        <option value="">Selecciona una categoría</option>
+                        {formCategoryOptions.map((c) => (
                           <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
                       </Select>
                     </div>
+                  </section>
+
+                  {/* Monto y fecha */}
+                  <section className="grid grid-cols-2 gap-3">
                     <div className="flex flex-col gap-2">
                       <label htmlFor="expense-amount" className="text-sm font-medium">Monto</label>
                       <Input
                         id="expense-amount"
                         type="number"
                         step="0.01"
-                        min="0"
+                        min="0.01"
                         value={form.amount}
                         onChange={(e) => setForm({ ...form, amount: e.target.value })}
                         required
                       />
                     </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
                     <div className="flex flex-col gap-2">
-                      <label htmlFor="expense-frequency" className="text-sm font-medium">Frecuencia</label>
-                      <Select
-                        id="expense-frequency"
-                        value={form.frequency}
-                        onChange={(e) => {
-                          const freq = e.target.value as FixedExpenseRequest["frequency"];
-                          setForm({ ...form, frequency: freq, is_recurring: freq !== "ONE_TIME" });
-                        }}
-                      >
-                        {FREQUENCY_OPTIONS.map((o) => (
-                          <option key={o.value} value={o.value}>{o.label}</option>
-                        ))}
-                      </Select>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <label htmlFor="expense-date" className="text-sm font-medium">Fecha inicio</label>
+                      <label htmlFor="expense-date" className="text-sm font-medium">Fecha</label>
                       <Input
                         id="expense-date"
                         type="date"
@@ -1115,37 +1651,27 @@ export default function ExpensesPage() {
                         required
                       />
                     </div>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label htmlFor="expense-status" className="text-sm font-medium">Estado</label>
-                    <Select
-                      id="expense-status"
-                      value={form.status ?? "ACTIVE"}
-                      onChange={(e) => setForm({ ...form, status: e.target.value as FixedExpenseRequest["status"] })}
-                    >
-                      {FORM_STATUS_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
-                      ))}
-                    </Select>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label htmlFor="expense-supplier" className="text-sm font-medium">Proveedor</label>
-                    <Input
-                      id="expense-supplier"
-                      value={form.supplier ?? ""}
-                      onChange={(e) => setForm({ ...form, supplier: e.target.value || null })}
-                      placeholder="Opcional"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label htmlFor="expense-notes" className="text-sm font-medium">Notas</label>
-                    <Input
-                      id="expense-notes"
-                      value={form.notes ?? ""}
-                      onChange={(e) => setForm({ ...form, notes: e.target.value || null })}
-                      placeholder="Opcional"
-                    />
-                  </div>
+                  </section>
+
+                  {/* Estado: solo al editar. Al crear siempre es Pendiente; la fecha define cuándo está proyectado o atrasado. */}
+                  {editing && (
+                    <section className="flex flex-col gap-2">
+                      <label htmlFor="expense-status" className="text-sm font-medium">Estado</label>
+                      <Select
+                        id="expense-status"
+                        value={form.status ?? "PENDING"}
+                        onChange={(e) => setForm({ ...form, status: e.target.value as FixedExpenseRequest["status"] })}
+                      >
+                        {FORM_STATUS_OPTIONS.map((o) => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                      </Select>
+                      <p className="text-[11px] text-muted-foreground">
+                        <strong>Pagado</strong> se marca automáticamente cuando el egreso está totalmente pagado. Para pagarlo ve a <em>Pagos</em> o paga la orden de compra asociada.
+                      </p>
+                    </section>
+                  )}
+
                   {save.isError && (
                     <p className="text-sm text-danger">
                       {save.error instanceof Error ? save.error.message : "Error al guardar"}
@@ -1153,11 +1679,11 @@ export default function ExpensesPage() {
                   )}
                 </div>
               </div>
-              <div className="flex shrink-0 justify-end gap-2 border-t border-border px-4 py-3">
-                <Button type="button" variant="outline" onClick={closeModal} disabled={save.isPending}>
+              <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-border px-4 py-3 sm:flex-row sm:justify-end">
+                <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={closeModal} disabled={save.isPending}>
                   Cancelar
                 </Button>
-                <Button type="submit" isLoading={save.isPending}>
+                <Button type="submit" isLoading={save.isPending} className="w-full font-semibold sm:w-auto">
                   Guardar
                 </Button>
               </div>
@@ -1193,117 +1719,119 @@ export default function ExpensesPage() {
         onClose={closeCategoriesModal}
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
-          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-lg md:rounded-xl md:border">
+          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-3xl md:rounded-xl md:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-base font-semibold">Categorías de egreso</h2>
               <button onClick={closeCategoriesModal} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="flex flex-1 flex-col overflow-hidden">
+            <div className="flex flex-1 flex-col overflow-hidden md:flex-row">
+              {/* Panel informativo: qué es cada tipo y qué impacto tiene en el sistema */}
+              <aside className="max-h-44 shrink-0 overflow-y-auto border-b border-border bg-muted/30 p-4 md:max-h-none md:w-72 md:border-b-0 md:border-r">
+                <h3 className="text-sm font-semibold">¿Para qué sirve cada tipo?</h3>
+                <ul className="mt-3 flex flex-col gap-3">
+                  {EXPENSE_CATEGORY_TYPES.map((t) => (
+                    <li key={t.value}>
+                      <p className="text-xs font-medium">{t.label}</p>
+                      <p className="text-xs leading-relaxed text-muted-foreground">{t.hint}</p>
+                    </li>
+                  ))}
+                </ul>
+                {categories.some((c) => c.is_system) && (
+                  <p className="mt-4 flex items-start gap-1.5 border-t border-border pt-3 text-xs text-muted-foreground">
+                    <Lock className="mt-0.5 h-3 w-3 shrink-0" />
+                    Las categorías del sistema las crea el ERP automáticamente (retiros de caja, nóminas, órdenes de compra); no se muestran en la lista porque no se pueden editar ni eliminar.
+                  </p>
+                )}
+              </aside>
+
+              <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
               <div className="flex-1 overflow-y-auto p-4">
-                {categories.length === 0 ? (
+                {userCategories.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-8 text-center">
                     <Tags className="h-10 w-10 text-muted-foreground" />
                     <p className="mt-3 text-sm font-medium">No hay categorías</p>
                     <p className="text-xs text-muted-foreground">
-                      Crea la primera categoría de egreso usando el formulario.
+                      Crea la primera categoría de egreso usando el formulario de abajo.
                     </p>
                   </div>
                 ) : (
-                  <ul className="flex flex-col gap-3">
-                    {categories.map((c) => (
+                  <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {userCategories.map((c) => (
                       <li
                         key={c.id}
-                        className="flex items-start justify-between gap-3 rounded-xl border border-border bg-background p-3"
+                        className="flex flex-col gap-1 rounded-xl border border-border bg-background p-2.5"
                       >
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium">{c.name}</p>
-                            <span
-                              className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                                c.is_active
-                                  ? "bg-emerald-500/10 text-emerald-700"
-                                  : "bg-slate-500/10 text-slate-700"
-                              }`}
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="min-w-0 truncate text-sm font-medium">{c.name}</p>
+                          <div className="flex shrink-0 items-center gap-0.5">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0"
+                              onClick={() => toggleCategory.mutate(c.id)}
+                              disabled={toggleCategory.isPending}
+                              title={c.is_active ? "Desactivar" : "Activar"}
+                              aria-label={c.is_active ? "Desactivar" : "Activar"}
                             >
-                              {c.is_active ? "Activa" : "Inactiva"}
-                            </span>
+                              {c.is_active ? (
+                                <Ban className="h-3.5 w-3.5" />
+                              ) : (
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                              )}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0"
+                              onClick={() => handleEditCategory(c)}
+                              title="Editar"
+                              aria-label="Editar"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 text-danger hover:text-danger"
+                              onClick={() => openConfirmDeleteCategory(c)}
+                              disabled={deleteCategory.isPending}
+                              title="Eliminar"
+                              aria-label="Eliminar"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
                           </div>
-                          <p className="text-xs text-muted-foreground">
-                            {expenseCategoryTypeLabel(c.category_type) ?? EXPENSE_CATEGORY_TYPES.find((t) => t.value === c.category_type)?.label ?? c.category_type}
-                          </p>
-                          {c.description && (
-                            <p className="mt-1 text-xs text-muted-foreground">{c.description}</p>
-                          )}
                         </div>
-                        <div className="flex shrink-0 items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0"
-                            onClick={() => toggleCategory.mutate(c.id)}
-                            disabled={toggleCategory.isPending}
-                            title={c.is_active ? "Desactivar" : "Activar"}
-                            aria-label={c.is_active ? "Desactivar" : "Activar"}
-                          >
-                            {c.is_active ? (
-                              <Ban className="h-3.5 w-3.5" />
-                            ) : (
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                            )}
-                            <span className="sr-only">{c.is_active ? "Desactivar" : "Activar"}</span>
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0"
-                            onClick={() => handleEditCategory(c)}
-                            title="Editar"
-                            aria-label="Editar"
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                            <span className="sr-only">Editar</span>
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 text-danger hover:text-danger"
-                            onClick={() => openConfirmDeleteCategory(c)}
-                            disabled={deleteCategory.isPending}
-                            title="Eliminar"
-                            aria-label="Eliminar"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                            <span className="sr-only">Eliminar</span>
-                          </Button>
+                        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                          <span
+                            className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                              c.is_active ? "bg-success" : "bg-muted-foreground/40"
+                            }`}
+                            title={c.is_active ? "Activa" : "Inactiva"}
+                          />
+                          <span className="truncate">{expenseCategoryTypeLabel(c.category_type) ?? EXPENSE_CATEGORY_TYPES.find((t) => t.value === c.category_type)?.label ?? c.category_type}</span>
                         </div>
+                        {c.description && (
+                          <p className="truncate text-[11px] text-muted-foreground/80">{c.description}</p>
+                        )}
                       </li>
                     ))}
                   </ul>
                 )}
               </div>
-              <div className="shrink-0 border-t border-border p-4">
-                <form onSubmit={handleSaveCategory} className="flex flex-col gap-3">
-                  <h3 className="text-sm font-medium">
-                    {editingCategory ? "Editar categoría" : "Nueva categoría"}
-                  </h3>
-                  <div className="flex flex-col gap-2">
-                    <label htmlFor="expense-category-name" className="text-sm font-medium">
-                      Nombre
-                    </label>
+              <div className="shrink-0 border-t border-border p-3">
+                <form onSubmit={handleSaveCategory} className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
                     <Input
                       id="expense-category-name"
                       value={categoryForm.name}
                       onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })}
-                      placeholder="Nombre de la categoría"
+                      placeholder={editingCategory ? `Editando: ${editingCategory.name}` : "Nueva categoría…"}
+                      className="h-9 flex-1"
                       required
                     />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label htmlFor="expense-category-type" className="text-sm font-medium">
-                      Tipo de categoría
-                    </label>
                     <Select
                       id="expense-category-type"
                       value={categoryForm.category_type}
@@ -1313,6 +1841,7 @@ export default function ExpensesPage() {
                           category_type: e.target.value as ExpenseCategoryRequest["category_type"],
                         })
                       }
+                      className="h-9 w-36 shrink-0"
                       required
                     >
                       {EXPENSE_CATEGORY_TYPES.map((t) => (
@@ -1321,46 +1850,49 @@ export default function ExpensesPage() {
                         </option>
                       ))}
                     </Select>
+                    {editingCategory && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-9 w-9 shrink-0 p-0"
+                        onClick={resetCategoryForm}
+                        disabled={createCategory.isPending || updateCategory.isPending}
+                        title="Cancelar edición"
+                        aria-label="Cancelar edición"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
-                  <div className="flex flex-col gap-2">
-                    <label htmlFor="expense-category-desc" className="text-sm font-medium">
-                      Descripción
-                    </label>
-                    <Input
-                      id="expense-category-desc"
-                      value={categoryForm.description ?? ""}
-                      onChange={(e) =>
-                        setCategoryForm({ ...categoryForm, description: e.target.value || null })
-                      }
-                      placeholder="Opcional"
-                    />
+                  {/* Sin este campo, editar una categoría enviaba description: null
+                      y borraba la descripción existente. */}
+                  <Input
+                    id="expense-category-description"
+                    value={categoryForm.description ?? ""}
+                    onChange={(e) => setCategoryForm({ ...categoryForm, description: e.target.value })}
+                    placeholder="Descripción (opcional)"
+                    className="h-9"
+                  />
+                  <div className="flex justify-end">
+                    <Button
+                      type="submit"
+                      size="sm"
+                      className="h-9 shrink-0"
+                      isLoading={createCategory.isPending || updateCategory.isPending}
+                    >
+                      {editingCategory ? "Guardar" : "Crear"}
+                    </Button>
                   </div>
                   {(createCategory.isError || updateCategory.isError) && (
-                    <p className="text-sm text-danger">
+                    <p className="text-xs text-danger">
                       {(createCategory.error ?? updateCategory.error) instanceof Error
                         ? ((createCategory.error ?? updateCategory.error) as Error).message
                         : "Error al guardar"}
                     </p>
                   )}
-                  <div className="flex justify-end gap-2">
-                    {editingCategory && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={resetCategoryForm}
-                        disabled={createCategory.isPending || updateCategory.isPending}
-                      >
-                        Cancelar edición
-                      </Button>
-                    )}
-                    <Button
-                      type="submit"
-                      isLoading={createCategory.isPending || updateCategory.isPending}
-                    >
-                      Guardar
-                    </Button>
-                  </div>
                 </form>
+              </div>
               </div>
             </div>
           </div>
@@ -1412,27 +1944,27 @@ function StatCard({
   value: string | number;
   icon: React.ComponentType<{ className?: string }>;
   sub: string;
-  tone?: "emerald" | "rose" | "amber" | "teal" | "slate";
+  tone?: "success" | "info" | "warning" | "danger" | "slate";
 }) {
   const toneStyles = {
-    emerald: "from-emerald-50/60 via-white/90 to-white/90",
-    rose: "from-rose-50/60 via-white/90 to-white/90",
-    amber: "from-amber-50/60 via-white/90 to-white/90",
-    teal: "from-teal-50/60 via-white/90 to-white/90",
-    slate: "from-muted/50 via-white/90 to-white/90",
+    success: "from-success/10 via-background to-background",
+    info: "from-primary/10 via-background to-background",
+    warning: "from-warning/10 via-background to-background",
+    danger: "from-danger/10 via-background to-background",
+    slate: "from-muted/50 via-background to-background",
   };
   const toneText = {
-    emerald: "text-emerald-700/90",
-    rose: "text-rose-700/90",
-    amber: "text-amber-700/90",
-    teal: "text-teal-700/90",
+    success: "text-success",
+    info: "text-primary",
+    warning: "text-warning",
+    danger: "text-danger",
     slate: "text-muted-foreground",
   };
   const toneIcon = {
-    emerald: "bg-emerald-500/12 text-emerald-600",
-    rose: "bg-rose-500/12 text-rose-600",
-    amber: "bg-amber-500/12 text-amber-600",
-    teal: "bg-teal-500/12 text-teal-600",
+    success: "bg-success/12 text-success",
+    info: "bg-primary/12 text-primary",
+    warning: "bg-warning/12 text-warning",
+    danger: "bg-danger/12 text-danger",
     slate: "bg-muted text-muted-foreground",
   };
 
@@ -1504,7 +2036,7 @@ function MobileCardsSkeleton() {
       {Array.from({ length: 4 }).map((_, idx) => (
         <div
           key={idx}
-          className="rounded-2xl border border-border bg-card p-4 shadow-sm"
+          className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm"
         >
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex min-w-0 flex-1 items-start gap-3">

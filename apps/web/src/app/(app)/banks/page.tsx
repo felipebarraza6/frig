@@ -102,7 +102,7 @@ export default function BanksPage() {
     BANK_NAME_OPTIONS.find((o) => o.value === val)?.label ?? val ?? "—";
 
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
       <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div>
           <h1 className="text-lg font-semibold">Billeteras digitales</h1>
@@ -187,7 +187,7 @@ export default function BanksPage() {
             {/* Mobile */}
             <div className="grid gap-3 md:hidden">
               {filtered.map((b) => (
-                <div key={b.id} className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                <div key={b.id} className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="font-medium">{nameLabel(b.name)}</p>

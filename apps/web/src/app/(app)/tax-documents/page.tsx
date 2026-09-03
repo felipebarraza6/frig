@@ -27,7 +27,7 @@ import {
   createTaxDocument,
   issueTaxDocument,
   sendToSii,
-  cancelTaxDocument,
+  deleteTaxDocument,
   createCreditNote,
   type TaxDocument,
 } from "@/lib/api/tax-documents";
@@ -60,7 +60,7 @@ function formatCLP(value: string | number): string {
 function statusBadge(status?: string | null) {
   switch (status) {
     case "DRAFT": return "bg-muted text-muted-foreground";
-    case "ISSUED": return "bg-blue-500/10 text-blue-700";
+    case "ISSUED": return "bg-primary/10 text-primary";
     case "SENT": return "bg-amber-500/10 text-amber-700";
     case "ACCEPTED": return "bg-emerald-500/10 text-emerald-700";
     case "REJECTED": return "bg-danger/10 text-danger";
@@ -123,8 +123,20 @@ export default function TaxDocumentsPage() {
   });
 
   const cancelMut = useMutation({
-    mutationFn: ({ id, reason }: { id: string; reason: string }) => cancelTaxDocument(id, reason),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["tax-documents"] }); setConfirmCancel(null); setCancelReason(""); toast.success("Documento anulado"); },
+    // El backend no tiene acción `cancel/`: para borradores se elimina el
+    // documento (nunca fue al SII); para emitidos la anulación legal es una
+    // nota de crédito.
+    mutationFn: ({ id, reason, isDraft }: { id: string; reason: string; isDraft: boolean }): Promise<unknown> =>
+      isDraft ? deleteTaxDocument(id) : createCreditNote(id, { reason }),
+    onSuccess: (_data: unknown, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["tax-documents"] });
+      setConfirmCancel(null);
+      setCancelReason("");
+      toast.success(vars.isDraft ? "Documento eliminado" : "Nota de crédito creada: documento anulado");
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "No se pudo anular el documento");
+    },
   });
 
   const creditNoteMut = useMutation({
@@ -141,7 +153,7 @@ export default function TaxDocumentsPage() {
   const draftCount = documents.filter((d) => d.status === "DRAFT").length;
   const issuedCount = documents.filter((d) => d.status === "ISSUED" || d.status === "SENT").length;
   const acceptedCount = documents.filter((d) => d.status === "ACCEPTED").length;
-  const totalAmount = documents.reduce((s, d) => s + (parseFloat(d.total_amount) || 0), 0);
+  const totalAmount = documents.reduce((s, d) => s + (d.total_amount || 0), 0);
 
   return (
     <div className="flex min-h-full flex-col">
@@ -158,19 +170,19 @@ export default function TaxDocumentsPage() {
       <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
         {/* KPIs */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div className="rounded-xl border border-border bg-card p-3">
+          <div className="rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
             <p className="text-[11px] font-medium text-muted-foreground">Borradores</p>
             <p className="text-lg font-semibold tabular-nums">{draftCount}</p>
           </div>
-          <div className="rounded-xl border border-border bg-card p-3">
+          <div className="rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
             <p className="text-[11px] font-medium text-muted-foreground">Emitidos / Enviados</p>
             <p className="text-lg font-semibold tabular-nums">{issuedCount}</p>
           </div>
-          <div className="rounded-xl border border-border bg-card p-3">
+          <div className="rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
             <p className="text-[11px] font-medium text-muted-foreground">Aceptados SII</p>
             <p className="text-lg font-semibold tabular-nums text-emerald-600">{acceptedCount}</p>
           </div>
-          <div className="rounded-xl border border-border bg-card p-3">
+          <div className="rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
             <p className="text-[11px] font-medium text-muted-foreground">Monto total</p>
             <p className="text-lg font-semibold tabular-nums">{formatCLP(totalAmount)}</p>
           </div>
@@ -253,7 +265,7 @@ export default function TaxDocumentsPage() {
                               <Eye className="h-3.5 w-3.5" />
                             </Button>
                             {d.status === "DRAFT" && (
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600" onClick={() => issueMut.mutate(d.id)} disabled={issueMut.isPending} title="Emitir">
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={() => issueMut.mutate(d.id)} disabled={issueMut.isPending} title="Emitir">
                                 <Send className="h-3.5 w-3.5" />
                               </Button>
                             )}
@@ -286,7 +298,7 @@ export default function TaxDocumentsPage() {
               {filtered.map((d) => {
                 const StatusIcon = statusIcon(d.status);
                 return (
-                  <div key={d.id} className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                  <div key={d.id} className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
                     <div className="flex items-start justify-between">
                       <div className="min-w-0 flex-1">
                         <p className="text-xs text-muted-foreground">{docTypeLabel(d.document_type)} · {d.folio ?? d.document_number}</p>
@@ -394,7 +406,10 @@ export default function TaxDocumentsPage() {
             <div>
               <h2 className="text-base font-semibold">¿Anular documento?</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                {confirmCancel && `${docTypeLabel(confirmCancel.document_type)} ${confirmCancel.folio ?? ""} de ${confirmCancel.customer_name}`} será anulado.
+                {confirmCancel && `${docTypeLabel(confirmCancel.document_type)} ${confirmCancel.folio ?? ""} de ${confirmCancel.customer_name}`}
+                {confirmCancel?.status === "DRAFT"
+                  ? " será eliminado permanentemente."
+                  : " será anulado creando una nota de crédito ante el SII."}
               </p>
             </div>
           </div>
@@ -403,7 +418,7 @@ export default function TaxDocumentsPage() {
           </div>
           <div className="mt-4 flex justify-end gap-2">
             <Button variant="outline" onClick={() => { setConfirmCancel(null); setCancelReason(""); }} disabled={cancelMut.isPending}>Cancelar</Button>
-            <Button variant="danger" onClick={() => confirmCancel && cancelMut.mutate({ id: confirmCancel.id, reason: cancelReason })} disabled={!cancelReason.trim()} isLoading={cancelMut.isPending}>Anular</Button>
+            <Button variant="danger" onClick={() => confirmCancel && cancelMut.mutate({ id: confirmCancel.id, reason: cancelReason, isDraft: confirmCancel.status === "DRAFT" })} disabled={!cancelReason.trim()} isLoading={cancelMut.isPending}>{confirmCancel?.status === "DRAFT" ? "Eliminar" : "Anular"}</Button>
           </div>
         </div>
       </AnimatedOverlay>

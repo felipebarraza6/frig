@@ -1,16 +1,23 @@
-import { useState, useRef, useEffect, forwardRef, type SelectHTMLAttributes, Children, isValidElement } from "react";
+import { useState, useRef, forwardRef, type SelectHTMLAttributes, Children, isValidElement } from "react";
 import { ChevronDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DropdownPortal } from "./dropdown-portal";
 
 export type SelectOption = { value: string; label: string };
 
+export type SelectOptionExtra = {
+  icon?: React.ComponentType<{ className?: string }>;
+  bold?: boolean;
+};
+
 export type SelectProps = {
   options?: SelectOption[];
+  /** Extras por valor de opción (ej. ícono y negrita para categorías de sistema). */
+  optionExtras?: Record<string, SelectOptionExtra>;
 } & Omit<SelectHTMLAttributes<HTMLSelectElement>, "size">;
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ className, children, value, onChange, ...props }, ref) => {
+  ({ className, children, value, onChange, optionExtras, ...props }, ref) => {
     const [open, setOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const triggerRef = useRef<HTMLButtonElement>(null);
@@ -40,7 +47,14 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           aria-haspopup="listbox"
           aria-expanded={open}
         >
-          <span className="truncate">{selected?.label ?? "—"}</span>
+          <span className="flex min-w-0 items-center gap-2">
+            {optionExtras?.[String(value ?? "")]?.icon &&
+              (() => {
+                const Icon = optionExtras[String(value ?? "")].icon!;
+                return <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />;
+              })()}
+            <span className="truncate">{selected?.label ?? "—"}</span>
+          </span>
           <ChevronDown
             className={cn(
               "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
@@ -52,6 +66,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           triggerRef={triggerRef}
           open={open}
           onClose={() => setOpen(false)}
+          autoWidth
           className="max-h-60 overflow-auto rounded-xl border border-border/60 bg-background p-1 shadow-lg scrollbar-thin"
         >
           <div role="listbox">
@@ -72,7 +87,19 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
                     : "text-foreground hover:bg-muted",
                 )}
               >
-                <span className="truncate">{o.label}</span>
+                <span
+                  className={cn(
+                    "flex min-w-0 items-center gap-2",
+                    optionExtras?.[o.value]?.bold && "font-semibold",
+                  )}
+                >
+                  {optionExtras?.[o.value]?.icon &&
+                    (() => {
+                      const Icon = optionExtras[o.value].icon!;
+                      return <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />;
+                    })()}
+                  <span className="truncate">{o.label}</span>
+                </span>
                 {o.value === value && <Check className="h-3.5 w-3.5 shrink-0" />}
               </button>
             ))}

@@ -62,7 +62,7 @@ export default function ModifierModal({ productName, groups, onConfirm, onCancel
       for (const optionId of optionIds) {
         const option = group.modifier_group.options.find((o) => o.id === optionId);
         if (option) {
-          total += parseFloat(option.surcharge ?? "0") || 0;
+          total += option.surcharge ?? 0;
         }
       }
     }
@@ -80,7 +80,7 @@ export default function ModifierModal({ productName, groups, onConfirm, onCancel
             modifierOptionId: option.id,
             name: option.name,
             groupName: group.modifier_group.name,
-            surcharge: Math.round(parseFloat(option.surcharge ?? "0") || 0),
+            surcharge: Math.round(option.surcharge ?? 0),
           });
         }
       }
@@ -130,7 +130,7 @@ export default function ModifierModal({ productName, groups, onConfirm, onCancel
                     >
                       <span className="font-medium">{option.name}</span>
                       <span className="text-xs tabular-nums">
-                        {parseFloat(option.surcharge ?? "0") > 0
+                        {(option.surcharge ?? 0) > 0
                           ? `+${formatCLP(option.surcharge ?? 0)}`
                           : "Incluido"}
                       </span>

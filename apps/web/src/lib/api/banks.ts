@@ -24,14 +24,14 @@ export async function fetchBank(id: string): Promise<Bank> {
 export async function createBank(payload: BankRequest): Promise<Bank> {
   return apiFetch<Bank>("/finance/banks/", {
     method: "POST",
-    body: JSON.stringify(payload),
+    body: payload,
   });
 }
 
 export async function updateBank(id: string, payload: Partial<BankRequest>): Promise<Bank> {
   return apiFetch<Bank>(`/finance/banks/${id}/`, {
     method: "PATCH",
-    body: JSON.stringify(payload),
+    body: payload,
   });
 }
 

@@ -67,7 +67,7 @@ export function ComboPickerModal({ combos, onSelect, onClose }: ComboPickerModal
                 <div className="flex items-start justify-between gap-2">
                   <p className="text-sm font-medium">{combo.name}</p>
                   <span className="shrink-0 text-sm font-bold tabular-nums text-primary">
-                    {formatCLP(parseFloat(combo.combo_price || "0"))}
+                    {formatCLP(combo.combo_price ?? 0)}
                   </span>
                 </div>
                 {combo.items && combo.items.length > 0 && (
@@ -81,7 +81,7 @@ export function ComboPickerModal({ combos, onSelect, onClose }: ComboPickerModal
                           {item.quantity ?? 1}× {item.product_name}
                         </span>
                         <span className="shrink-0 tabular-nums">
-                          {formatCLP(parseFloat(item.product_price ?? "0"))}
+                          {formatCLP(item.product_price)}
                         </span>
                       </li>
                     ))}

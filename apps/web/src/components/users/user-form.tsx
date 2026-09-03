@@ -9,6 +9,7 @@ import { Select } from "@/components/ui/select";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import { useSessionStore, useCurrentBranch } from "@/lib/store/session";
 import { branchName } from "@/lib/types";
+import { ROLE_LABELS } from "@/lib/roles";
 import { createAndAssignUser, updateUser, changeAssignmentRole } from "@/lib/api/users";
 import type { Branch, UserResponse } from "@/lib/types";
 
@@ -19,12 +20,12 @@ interface UserFormProps {
 }
 
 const ALL_ROLES = [
-  { code: "OWNER", label: "Propietario" },
-  { code: "ADMIN_LOCAL", label: "Administrador local" },
-  { code: "MANAGER", label: "Gerente" },
-  { code: "EMPLOYEE", label: "Empleado" },
-  { code: "CAJERO", label: "Cajero" },
-  { code: "WAITER", label: "Mesero" },
+  { code: "OWNER", label: ROLE_LABELS.OWNER },
+  { code: "ADMIN_LOCAL", label: ROLE_LABELS.ADMIN_LOCAL },
+  { code: "MANAGER", label: ROLE_LABELS.MANAGER },
+  { code: "EMPLOYEE", label: ROLE_LABELS.EMPLOYEE },
+  { code: "CAJERO", label: ROLE_LABELS.CAJERO },
+  { code: "WAITER", label: ROLE_LABELS.WAITER },
 ];
 
 export function UserForm({ user, onClose, onSuccess }: UserFormProps) {

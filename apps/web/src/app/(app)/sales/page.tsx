@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, ShoppingBag, X, Eye, Ban, Banknote, Plus, Trash2, FileDown, ClipboardList, Receipt, FileText, SlidersHorizontal, Zap, Pencil, CalendarDays, Wallet, Clock, UtensilsCrossed, Store, Package, MoreHorizontal, LayoutGrid, List, HandHelping, MapPin } from "lucide-react";
+import { Search, ShoppingBag, X, Eye, Ban, Plus, FileDown, ClipboardList, Receipt, FileText, SlidersHorizontal, Zap, CalendarDays, Wallet, Clock, UtensilsCrossed, Store, Package, MoreHorizontal, LayoutGrid, List, HandHelping, MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { TableSkeleton } from "@/components/ui/skeleton";
@@ -18,19 +18,13 @@ import {
   createOrder,
   fetchInstallments,
   createInstallments,
-  payInstallment,
-  editOrder,
   type OrdersFilter,
   type InstallmentInput,
-  type InstallmentPayInput,
   type PaymentInstallment,
-  type EditOrderInput,
 } from "@/lib/api/orders";
-import { fetchPaymentMethods, createPayment } from "@/lib/api/payments";
-import { getCurrentCashRegister } from "@/lib/api/cash-register";
 import { fetchTables } from "@/lib/api/tables";
 import { searchCustomers, createCustomer } from "@/lib/api/customers";
-import { formatCLP, paymentTypeLabel, cn } from "@/lib/utils";
+import { formatCLP, cn } from "@/lib/utils";
 import {
   useIsCashier,
   useSessionStore,
@@ -42,6 +36,7 @@ import {
 } from "@/lib/store/session";
 
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
+import { useToast } from "@/lib/store/toast";
 import type { YggdraSchemas } from "@/lib/api/types";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -134,7 +129,7 @@ type QuickFilter = "ALL" | "PENDING" | "OPEN_ACCOUNTS" | "POR_DELIVER" | "DELIVE
 
 const QUICK_FILTERS: { value: QuickFilter; label: string }[] = [
   { value: "ALL", label: "Todos" },
-  { value: "PENDING", label: "Pendientes" },
+  { value: "PENDING", label: "Por pagar" },
   { value: "OPEN_ACCOUNTS", label: "Cuentas abiertas" },
   { value: "POR_DELIVER", label: "Por entregar" },
   { value: "DELIVERED", label: "Entregados" },
@@ -145,7 +140,7 @@ const QUICK_FILTERS: { value: QuickFilter; label: string }[] = [
 const STAT_TONES = {
   primary: "from-primary/15 to-primary/5 text-primary",
   amber: "from-amber-500/15 to-amber-500/5 text-amber-600",
-  blue: "from-blue-500/15 to-blue-500/5 text-blue-600",
+  blue: "from-primary/15 to-primary/5 text-primary",
   emerald: "from-emerald-500/15 to-emerald-500/5 text-emerald-600",
 } as const;
 
@@ -167,7 +162,7 @@ function StatCard({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left shadow-sm transition-colors",
+        "flex w-full items-center gap-3 rounded-2xl border border-border bg-muted/30 p-4 text-left shadow-sm transition-colors",
         onClick && "hover:border-primary/50 hover:bg-muted/30",
       )}
     >
@@ -210,9 +205,9 @@ function StatusBadge({ order }: { order: Order }) {
         tone === "emerald"
           ? "bg-emerald-500/10 text-emerald-700 ring-emerald-500/20"
           : tone === "blue"
-            ? "bg-blue-500/10 text-blue-700 ring-blue-500/20"
+            ? "bg-primary/10 text-primary ring-primary/20"
             : tone === "purple"
-              ? "bg-purple-500/10 text-purple-700 ring-purple-500/20"
+              ? "bg-primary/10 text-primary ring-primary/20"
               : tone === "danger"
                 ? "bg-danger/10 text-danger ring-danger/20"
                 : "bg-amber-500/10 text-amber-700 ring-amber-500/20",
@@ -228,7 +223,7 @@ function orderTypeMeta(order: Order) {
     return {
       label: "Orden",
       icon: ClipboardList,
-      bg: "bg-blue-500/10 text-blue-600",
+      bg: "bg-primary/10 text-primary",
     };
   }
   return {
@@ -236,10 +231,6 @@ function orderTypeMeta(order: Order) {
     icon: order.delivery_status === "DELIVERED" ? HandHelping : Store,
     bg: "bg-primary/10 text-primary",
   };
-}
-
-function orderIsClosed(status?: string | null) {
-  return ["COMPLETED", "CANCELLED", "REFUNDED", "RETURNED"].includes(status ?? "");
 }
 
 type OrderCardProps = {
@@ -254,9 +245,7 @@ type OrderCardProps = {
   onView: (order: Order) => void;
   onTicket: (order: Order) => void;
   onDeliver: (order: Order) => void;
-  onEdit: (order: Order) => void;
   onInstallments: (order: Order) => void;
-  onCollect: (order: Order) => void;
   onThermal: (order: Order) => void;
   onA4: (order: Order) => void;
   onCancel: (order: Order) => void;
@@ -279,9 +268,9 @@ function ActionMenuItem({
 }) {
   const toneClasses = {
     default: "text-foreground",
-    blue: "text-blue-600",
+    blue: "text-primary",
     amber: "text-amber-600",
-    purple: "text-purple-600",
+    purple: "text-primary",
     danger: "text-danger",
   };
   return (
@@ -310,9 +299,7 @@ function OrderListRow({
   onView,
   onTicket,
   onDeliver,
-  onEdit,
   onInstallments,
-  onCollect,
   onThermal,
   onA4,
   onCancel,
@@ -343,7 +330,7 @@ function OrderListRow({
   }, [menuOpen]);
 
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-border bg-card p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-2 rounded-2xl border border-border bg-muted/30 p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", typeMeta.bg)}>
           <TypeIcon className="h-5 w-5" />
@@ -376,16 +363,11 @@ function OrderListRow({
             <Button
               size="sm"
               variant="outline"
-              className="h-8 border-purple-300 text-purple-700 hover:bg-purple-50"
+              className="h-8 border-primary/30 text-primary hover:bg-primary/5"
               onClick={() => onInstallments(order)}
             >
               <CalendarDays className="mr-1 h-3.5 w-3.5" />
               Gestionar cuotas
-            </Button>
-          ) : order.status !== "CANCELLED" && (order.payment_status === "PENDING" || order.payment_status === "PARTIAL") ? (
-            <Button size="sm" className="h-8 bg-emerald-600 hover:bg-emerald-700" onClick={() => onCollect(order)}>
-              <Banknote className="mr-1 h-3.5 w-3.5" />
-              Cobrar
             </Button>
           ) : null}
           <Button variant="outline" size="sm" className="h-8" onClick={() => onView(order)}>
@@ -432,39 +414,16 @@ function OrderListRow({
                         disabled={deliverPending}
                       />
                     )}
-                    {!["COMPLETED", "CANCELLED", "REFUNDED", "RETURNED"].includes(order.status ?? "") && (
+                    {order.order_type === "ORDER" && order.status !== "CANCELLED" && order.payment_status !== "PAID" && (
                       <ActionMenuItem
-                        icon={Pencil}
-                        label="Editar orden"
-                        tone="amber"
+                        icon={CalendarDays}
+                        label="Gestionar cuotas"
+                        tone="purple"
                         onClick={() => {
-                          onEdit(order);
+                          onInstallments(order);
                           setMenuOpen(false);
                         }}
                       />
-                    )}
-                    {order.order_type === "ORDER" && order.status !== "CANCELLED" && order.payment_status !== "PAID" && (
-                      order.installments && order.installments.length > 0 ? (
-                        <ActionMenuItem
-                          icon={CalendarDays}
-                          label="Gestionar cuotas"
-                          tone="purple"
-                          onClick={() => {
-                            onInstallments(order);
-                            setMenuOpen(false);
-                          }}
-                        />
-                      ) : (
-                        <ActionMenuItem
-                          icon={CalendarDays}
-                          label="Cobrar en cuotas"
-                          tone="purple"
-                          onClick={() => {
-                            onInstallments(order);
-                            setMenuOpen(false);
-                          }}
-                        />
-                      )
                     )}
                     {order.payment_status === "PAID" && (
                       <>
@@ -526,9 +485,7 @@ function OrderCard({
   onView,
   onTicket,
   onDeliver,
-  onEdit,
   onInstallments,
-  onCollect,
   onThermal,
   onA4,
   onCancel,
@@ -562,7 +519,7 @@ function OrderCard({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(index, 10) * 0.03, duration: 0.25 }}
-      className="group flex flex-col rounded-2xl border border-border bg-card p-4 shadow-sm transition-[box-shadow,border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-primary hover:shadow-lg hover:shadow-primary/10"
+      className="group flex flex-col rounded-2xl border border-border bg-muted/30 p-4 shadow-sm transition-[box-shadow,border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-primary hover:shadow-lg hover:shadow-primary/10"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
@@ -627,19 +584,10 @@ function OrderCard({
             <button
               type="button"
               onClick={() => onInstallments(order)}
-              className="inline-flex h-11 min-h-[44px] items-center gap-1.5 rounded-lg border border-purple-300 bg-purple-50 px-3 text-xs font-semibold text-purple-700 shadow-sm transition-colors hover:bg-purple-100 sm:h-9"
+              className="inline-flex h-11 min-h-[44px] items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 text-xs font-semibold text-primary shadow-sm transition-colors hover:bg-primary/10 sm:h-9"
             >
               <CalendarDays className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
               Gestionar cuotas
-            </button>
-          ) : order.status !== "CANCELLED" && (order.payment_status === "PENDING" || order.payment_status === "PARTIAL") ? (
-            <button
-              type="button"
-              onClick={() => onCollect(order)}
-              className="inline-flex h-11 min-h-[44px] items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 sm:h-9"
-            >
-              <Banknote className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
-              Cobrar
             </button>
           ) : null}
           <button
@@ -694,39 +642,16 @@ function OrderCard({
                       disabled={deliverPending}
                     />
                   )}
-                  {!["COMPLETED", "CANCELLED", "REFUNDED", "RETURNED"].includes(order.status ?? "") && (
+                  {order.order_type === "ORDER" && order.status !== "CANCELLED" && order.payment_status !== "PAID" && (
                     <ActionMenuItem
-                      icon={Pencil}
-                      label="Editar orden"
-                      tone="amber"
+                      icon={CalendarDays}
+                      label="Gestionar cuotas"
+                      tone="purple"
                       onClick={() => {
-                        onEdit(order);
+                        onInstallments(order);
                         setMenuOpen(false);
                       }}
                     />
-                  )}
-                  {order.order_type === "ORDER" && order.status !== "CANCELLED" && order.payment_status !== "PAID" && (
-                    order.installments && order.installments.length > 0 ? (
-                      <ActionMenuItem
-                        icon={CalendarDays}
-                        label="Gestionar cuotas"
-                        tone="purple"
-                        onClick={() => {
-                          onInstallments(order);
-                          setMenuOpen(false);
-                        }}
-                      />
-                    ) : (
-                      <ActionMenuItem
-                        icon={CalendarDays}
-                        label="Cobrar en cuotas"
-                        tone="purple"
-                        onClick={() => {
-                          onInstallments(order);
-                          setMenuOpen(false);
-                        }}
-                      />
-                    )
                   )}
                   {order.payment_status === "PAID" && (
                     <>
@@ -830,39 +755,16 @@ function OrderCard({
                     disabled={deliverPending}
                   />
                 )}
-                {!["COMPLETED", "CANCELLED", "REFUNDED", "RETURNED"].includes(order.status ?? "") && (
+                {order.order_type === "ORDER" && order.status !== "CANCELLED" && order.payment_status !== "PAID" && (
                   <ActionMenuItem
-                    icon={Pencil}
-                    label="Editar orden"
-                    tone="amber"
+                    icon={CalendarDays}
+                    label="Gestionar cuotas"
+                    tone="purple"
                     onClick={() => {
-                      onEdit(order);
+                      onInstallments(order);
                       setMenuOpen(false);
                     }}
                   />
-                )}
-                {order.order_type === "ORDER" && order.status !== "CANCELLED" && order.payment_status !== "PAID" && (
-                  order.installments && order.installments.length > 0 ? (
-                    <ActionMenuItem
-                      icon={CalendarDays}
-                      label="Gestionar cuotas"
-                      tone="purple"
-                      onClick={() => {
-                        onInstallments(order);
-                        setMenuOpen(false);
-                      }}
-                    />
-                  ) : (
-                    <ActionMenuItem
-                      icon={CalendarDays}
-                      label="Cobrar en cuotas"
-                      tone="purple"
-                      onClick={() => {
-                        onInstallments(order);
-                        setMenuOpen(false);
-                      }}
-                    />
-                  )
                 )}
                 {order.payment_status === "PAID" && (
                   <>
@@ -917,6 +819,7 @@ function OrderCard({
 
 export default function SalesPage() {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const branch = useCurrentBranch();
   const theme = useSessionStore((s) => s.theme);
   const isCashier = useIsCashier();
@@ -1038,7 +941,6 @@ export default function SalesPage() {
   }, [clientFilterResultsQuery, clientFilterId, clientFilterName]);
 
   const [detail, setDetail] = useState<Order | null>(null);
-  const [collecting, setCollecting] = useState<Order | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [posModal, setPosModal] = useState<{
     open: boolean;
@@ -1087,9 +989,6 @@ export default function SalesPage() {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
     }
   }, [posModal.open, queryClient]);
-  const [paymentLines, setPaymentLines] = useState<{ id: string; payment_method_id: string; amount: string }[]>([]);
-  const [collectError, setCollectError] = useState<string | null>(null);
-  const [collectSuccess, setCollectSuccess] = useState<string | null>(null);
 
   // Modales de acciones por orden
   const [delivering, setDelivering] = useState<Order | null>(null);
@@ -1108,17 +1007,7 @@ export default function SalesPage() {
     setDelivering(null);
     setDeliverQuantities({});
   }
-  const [editing, setEditing] = useState<Order | null>(null);
   const [installmentOrder, setInstallmentOrder] = useState<Order | null>(null);
-
-  // Formulario de edición de orden
-  const [editObservation, setEditObservation] = useState("");
-  const [editTableId, setEditTableId] = useState<string>("");
-  const [editDeliveryAddress, setEditDeliveryAddress] = useState("");
-  const [editDeliveryDate, setEditDeliveryDate] = useState("");
-  const [editItems, setEditItems] = useState<
-    { id: number; product: number; product_name: string; quantity: number; notes: string }[]
-  >([]);
 
   // Formulario de nueva cuota
   const [newInstAmount, setNewInstAmount] = useState("");
@@ -1129,13 +1018,6 @@ export default function SalesPage() {
   const [installmentCount, setInstallmentCount] = useState("2");
   const [installmentStartDate, setInstallmentStartDate] = useState("");
   const [installmentFrequency, setInstallmentFrequency] = useState<"MONTHLY" | "WEEKLY" | "BIWEEKLY">("MONTHLY");
-
-  // Formulario de pago de cuota
-  const [payingInstallmentId, setPayingInstallmentId] = useState<string | null>(null);
-  const [payInstallmentAmount, setPayInstallmentAmount] = useState("");
-  const [payInstallmentMethodId, setPayInstallmentMethodId] = useState<string>("");
-  const [payInstallmentReference, setPayInstallmentReference] = useState("");
-  const [payInstallmentNotes, setPayInstallmentNotes] = useState("");
 
   const filter = useMemo<OrdersFilter>(
     () => ({
@@ -1154,19 +1036,6 @@ export default function SalesPage() {
   const { data: page, isLoading, error } = useQuery({
     queryKey: ["orders", filter],
     queryFn: () => fetchOrders(filter),
-  });
-
-  const { data: paymentMethods } = useQuery({
-    queryKey: ["payment-methods"],
-    queryFn: fetchPaymentMethods,
-    staleTime: 60_000,
-  });
-
-  const { data: currentCashRegister } = useQuery({
-    queryKey: ["cash-register", "current"],
-    queryFn: () => getCurrentCashRegister(),
-    staleTime: 30_000,
-    retry: false,
   });
 
   const { data: tablesPage } = useQuery({
@@ -1197,7 +1066,10 @@ export default function SalesPage() {
 
   // Filtro rápido por chips (aplicado en cliente sobre la página cargada).
   const visibleOrders = useMemo(() => {
-    if (quickFilter === "PENDING") return orders.filter((o) => o.status === "PENDING");
+    if (quickFilter === "PENDING")
+      return orders.filter(
+        (o) => o.status !== "CANCELLED" && (o.payment_status === "PENDING" || o.payment_status === "PARTIAL"),
+      );
     if (quickFilter === "OPEN_ACCOUNTS")
       return orders.filter((o) => o.order_type === "SALE" && o.status === "PENDING");
     if (quickFilter === "POR_DELIVER") {
@@ -1231,7 +1103,7 @@ export default function SalesPage() {
         !orderDate ||
         (!start || orderDate >= start) && (!end || orderDate <= end);
       if (inRange) {
-        totalAmount += parseFloat(o.total_amount ?? "0") || 0;
+        totalAmount += Number(o.total_amount ?? 0) || 0;
       }
       if (o.payment_status === "PENDING" || o.payment_status === "PARTIAL") pendingPayment += 1;
       // Por entregar = ya pagada pero aún no entregada.
@@ -1266,37 +1138,6 @@ export default function SalesPage() {
     },
   });
 
-  const collect = useMutation({
-    mutationFn: async ({
-      orderId,
-      payments,
-    }: {
-      orderId: string;
-      payments: { payment_method_id: string; amount: string }[];
-    }) => {
-      for (const payment of payments) {
-        await createPayment({
-          payment_method_id: payment.payment_method_id,
-          order_id: orderId,
-          amount: Number(payment.amount).toFixed(2),
-          status: "COMPLETED",
-          cash_register_id: currentCashRegister ? currentCashRegister.id : null,
-          skip_cash_register_validation: true,
-        });
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["orders"] });
-      queryClient.invalidateQueries({ queryKey: ["products"], refetchType: "all" });
-      setCollectSuccess("Pago registrado correctamente.");
-      setTimeout(() => {
-        setCollectSuccess(null);
-        setCollecting(null);
-        setPaymentLines([]);
-      }, 1200);
-    },
-  });
-
   const deliver = useMutation({
     mutationFn: ({ id, items }: { id: string; items?: { order_product_id: string; actual_quantity: number }[] }) =>
       deliverOrder(id, items),
@@ -1305,19 +1146,8 @@ export default function SalesPage() {
       queryClient.invalidateQueries({ queryKey: ["products"], refetchType: "all" });
       closeDelivering();
     },
-  });
-
-  const edit = useMutation({
-    mutationFn: ({
-      orderId,
-      input,
-    }: {
-      orderId: string;
-      input: EditOrderInput;
-    }) => editOrder(orderId, input),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["orders"] });
-      closeEditModal();
+    onError: (err: Error) => {
+      toast.error(err.message || "No se pudo registrar la entrega");
     },
   });
 
@@ -1344,24 +1174,8 @@ export default function SalesPage() {
       setNewInstDueDate("");
       setNewInstNotes("");
     },
-  });
-
-  const payInstallmentMut = useMutation({
-    mutationFn: ({
-      orderId,
-      installmentId,
-      input,
-    }: {
-      orderId: string;
-      installmentId: string;
-      input: InstallmentPayInput;
-    }) => payInstallment(orderId, installmentId, input),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["orders", installmentOrder?.id, "installments"],
-      });
-      queryClient.invalidateQueries({ queryKey: ["orders"] });
-      resetPayInstallmentForm();
+    onError: (err: Error) => {
+      toast.error(err.message || "No se pudieron generar las cuotas");
     },
   });
 
@@ -1374,21 +1188,6 @@ export default function SalesPage() {
     setStartDate(start);
     setEndDate(end);
     setPageUrl({});
-  }
-
-  function openCollect(order: Order) {
-    setCollecting(order);
-    setCollectError(null);
-    setCollectSuccess(null);
-    const total = parseFloat(order.total_amount ?? "0");
-    const firstMethod = paymentMethods?.[0];
-    setPaymentLines([
-      {
-        id: "initial",
-        payment_method_id: firstMethod?.id ?? "",
-        amount: total.toFixed(2),
-      },
-    ]);
   }
 
   async function handleExportExcel() {
@@ -1490,46 +1289,6 @@ export default function SalesPage() {
     setAccountError(null);
   }
 
-  function closeCollect() {
-    setCollecting(null);
-    setPaymentLines([]);
-    setCollectError(null);
-    setCollectSuccess(null);
-  }
-
-  function openEditModal(order: Order) {
-    setEditing(order);
-    setClientQuery(order.client?.name ?? "");
-    setDebouncedClientQuery(order.client?.name ?? "");
-    setSelectedClient(order.client ? { id: order.client.id, name: order.client.name, email: order.client.email } : null);
-    setShowClientResults(false);
-    setEditTableId(order.table ? String(order.table) : "");
-    setEditObservation(order.observation ?? "");
-    setEditDeliveryAddress(order.delivery_address ?? "");
-    setEditDeliveryDate(order.delivery_date ? order.delivery_date.slice(0, 16) : "");
-    setEditItems(
-      order.products.map((p) => ({
-        id: p.id,
-        product: p.product,
-        product_name: p.product_name,
-        quantity: p.quantity ?? 0,
-        notes: (p as unknown as { notes?: string | null }).notes ?? "",
-      })),
-    );
-    setShowCreateClient(false);
-    setCreateClientName("");
-  }
-
-  function closeEditModal() {
-    setEditing(null);
-    resetAccountForm();
-    setEditTableId("");
-    setEditObservation("");
-    setEditDeliveryAddress("");
-    setEditDeliveryDate("");
-    setEditItems([]);
-  }
-
   function openInstallments(order: Order) {
     setInstallmentOrder(order);
     setNewInstAmount("");
@@ -1538,7 +1297,6 @@ export default function SalesPage() {
     setInstallmentCount("2");
     setInstallmentStartDate(todayStr());
     setInstallmentFrequency("MONTHLY");
-    resetPayInstallmentForm();
   }
 
   function closeInstallments() {
@@ -1549,25 +1307,6 @@ export default function SalesPage() {
     setInstallmentCount("2");
     setInstallmentStartDate("");
     setInstallmentFrequency("MONTHLY");
-    resetPayInstallmentForm();
-  }
-
-  function resetPayInstallmentForm() {
-    setPayingInstallmentId(null);
-    setPayInstallmentAmount("");
-    setPayInstallmentMethodId(paymentMethods?.[0]?.id ?? "");
-    setPayInstallmentReference("");
-    setPayInstallmentNotes("");
-  }
-
-  function startPayInstallment(installment: PaymentInstallment) {
-    setPayingInstallmentId(installment.id);
-    const amount = parseFloat(installment.amount ?? "0");
-    const paid = parseFloat(installment.paid_amount ?? "0");
-    setPayInstallmentAmount((amount - paid > 0 ? amount - paid : 0).toFixed(2));
-    setPayInstallmentMethodId(paymentMethods?.[0]?.id ?? "");
-    setPayInstallmentReference("");
-    setPayInstallmentNotes("");
   }
 
   async function handleDeliverSubmit(e: React.FormEvent) {
@@ -1595,42 +1334,12 @@ export default function SalesPage() {
     }
   }
 
-  async function handleEditSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!editing) return;
-    try {
-      let clientId = selectedClient?.id ?? null;
-      if (!clientId && createClientName.trim()) {
-        const newClient = await createCustomer({ name: createClientName.trim() });
-        clientId = newClient.id;
-      }
-      await edit.mutateAsync({
-        orderId: editing.id,
-        input: {
-          client_id: clientId,
-          table_id: editTableId ? Number(editTableId) : null,
-          observation: editObservation || null,
-          delivery_address: editDeliveryAddress || null,
-          delivery_date: editDeliveryDate ? new Date(editDeliveryDate).toISOString() : null,
-          items: editItems.map((item) => ({
-            id: String(item.id),
-            product: item.product,
-            quantity: item.quantity,
-            notes: item.notes || null,
-          })),
-        },
-      });
-    } catch {
-      // error handled by api client
-    }
-  }
-
   async function handleGenerateInstallments(e: React.FormEvent) {
     e.preventDefault();
     if (!installmentOrder) return;
     const count = Math.max(1, parseInt(installmentCount, 10) || 0);
     if (count < 1) return;
-    const total = parseFloat(installmentOrder.total_amount ?? "0");
+    const total = Number(installmentOrder.total_amount ?? 0);
     if (total <= 0) return;
     const baseAmount = Math.floor(total / count);
     const remainder = Math.round(total - baseAmount * count);
@@ -1677,64 +1386,6 @@ export default function SalesPage() {
       });
     } catch {
       // error handled by api client
-    }
-  }
-
-  async function handlePayInstallmentSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!installmentOrder || !payingInstallmentId || !payInstallmentMethodId) return;
-    try {
-      const input: InstallmentPayInput = {
-        payment_method_id: payInstallmentMethodId,
-        amount: Number(payInstallmentAmount).toFixed(2),
-        reference: payInstallmentReference || null,
-        notes: payInstallmentNotes || null,
-        cash_register_id: currentCashRegister ? currentCashRegister.id : null,
-      };
-      await payInstallmentMut.mutateAsync({
-        orderId: installmentOrder.id,
-        installmentId: payingInstallmentId,
-        input,
-      });
-    } catch {
-      // error handled by api client
-    }
-  }
-
-  function addPaymentLine() {
-    const firstMethod = paymentMethods?.[0];
-    setPaymentLines((prev) => [
-      ...prev,
-      { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, payment_method_id: firstMethod?.id ?? "", amount: "" },
-    ]);
-  }
-
-  function removePaymentLine(id: string) {
-    setPaymentLines((prev) => prev.filter((p) => p.id !== id));
-  }
-
-  function updatePaymentLine(id: string, patch: Partial<{ payment_method_id: string; amount: string }>) {
-    setPaymentLines((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
-  }
-
-  async function handleCollectSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setCollectError(null);
-    if (!collecting) return;
-
-    const total = parseFloat(collecting.total_amount ?? "0");
-    const paid = paymentLines.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
-
-    // Las ventas (SALE) requieren pago completo. Los pedidos (ORDER) admiten pago parcial.
-    if (collecting.order_type === "SALE" && paid < total) {
-      setCollectError(`Faltan ${formatCLP(total - paid)} para completar el pago.`);
-      return;
-    }
-
-    try {
-      await collect.mutateAsync({ orderId: collecting.id, payments: paymentLines });
-    } catch (err) {
-      setCollectError(err instanceof Error ? err.message : "Error al registrar el pago.");
     }
   }
 
@@ -1860,7 +1511,7 @@ export default function SalesPage() {
 
         {/* Filtros específicos para entregas pendientes */}
         {quickFilter === "POR_DELIVER" && (
-          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-2 shadow-sm">
+          <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-muted/30 p-2 shadow-sm">
             <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-0.5">
               {([
                 { key: "ALL", label: "Todos" },
@@ -1909,7 +1560,7 @@ export default function SalesPage() {
 
         {/* Filtros avanzados (desktop, colapsables) */}
         {advancedOpen && (
-            <div className="hidden grid-cols-2 gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm sm:grid md:grid-cols-3 lg:grid-cols-6">
+            <div className="hidden grid-cols-2 gap-3 rounded-2xl border border-border bg-muted/30 p-3 shadow-sm sm:grid md:grid-cols-3 lg:grid-cols-6">
               <div className="flex flex-col gap-1">
                 <label htmlFor="filter-status" className="text-xs text-muted-foreground">Estado</label>
                 <Select id="filter-status" value={status} onChange={(e) => updateFilter(setStatus, e.target.value)} className="h-10 text-sm sm:h-9">
@@ -2037,7 +1688,7 @@ export default function SalesPage() {
         ) : isLoading ? (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-44 animate-pulse rounded-2xl border border-border bg-card" />
+              <div key={i} className="h-44 animate-pulse rounded-2xl border border-border bg-muted/30 shadow-sm" />
             ))}
           </div>
         ) : (
@@ -2071,9 +1722,7 @@ export default function SalesPage() {
                     onView={setDetail}
                     onTicket={handleDownloadTicketPdf}
                     onDeliver={openDelivering}
-                    onEdit={openEditModal}
                     onInstallments={openInstallments}
-                    onCollect={openCollect}
                     onThermal={handleDownloadThermalPdf}
                     onA4={handleDownloadA4Pdf}
                     onCancel={(o) => cancel.mutate(o.id)}
@@ -2093,9 +1742,7 @@ export default function SalesPage() {
                     onView={setDetail}
                     onTicket={handleDownloadTicketPdf}
                     onDeliver={openDelivering}
-                    onEdit={openEditModal}
                     onInstallments={openInstallments}
-                    onCollect={openCollect}
                     onThermal={handleDownloadThermalPdf}
                     onA4={handleDownloadA4Pdf}
                     onCancel={(o) => cancel.mutate(o.id)}
@@ -2169,7 +1816,7 @@ export default function SalesPage() {
                     ? "bg-emerald-500/10 text-emerald-700 ring-emerald-500/20"
                     : detail.delivery_status === "PARTIAL"
                       ? "bg-amber-500/10 text-amber-700 ring-amber-500/20"
-                      : "bg-blue-500/10 text-blue-700 ring-blue-500/20",
+                      : "bg-primary/10 text-primary ring-primary/20",
                 )}>
                   {detail.delivery_status === "DELIVERED"
                     ? "Entregado"
@@ -2215,11 +1862,11 @@ export default function SalesPage() {
                         <div className="min-w-0 flex-1">
                           <p className="truncate font-medium">{p.product_name}</p>
                           <p className="mt-0.5 text-xs text-muted-foreground">
-                            x{p.quantity ?? 0} · {formatCLP(parseFloat(p.unit_price ?? "0"))} c/u
+                            x{p.quantity ?? 0} · {formatCLP(p.unit_price ?? 0)} c/u
                           </p>
                         </div>
                         <p className="shrink-0 font-semibold tabular-nums">
-                          {formatCLP(parseFloat(p.total_price ?? "0"))}
+                          {formatCLP(p.total_price ?? 0)}
                         </p>
                       </div>
                     ))}
@@ -2281,8 +1928,8 @@ export default function SalesPage() {
 
               {/* Datos de entrega (solo pedidos) */}
               {detail.order_type === "ORDER" && (detail.delivery_address || detail.delivery_date) && (
-                <div className="mt-5 rounded-xl border border-blue-500/20 bg-blue-500/5 p-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-600">Entrega</p>
+                <div className="mt-5 rounded-xl border border-primary/20 bg-primary/5 p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">Entrega</p>
                   {detail.delivery_address && (
                     <p className="mt-1 text-sm">
                       <span className="text-muted-foreground">Dirección:</span> {detail.delivery_address}
@@ -2320,7 +1967,7 @@ export default function SalesPage() {
                     {detail.order_type === "ORDER" && (detail.installments?.length ?? 0) > 0 && detail.payment_status !== "PAID" ? (
                       <Button
                         variant="outline"
-                        className="h-10 border-purple-300 text-purple-700 hover:bg-purple-50"
+                        className="h-10 border-primary/30 text-primary hover:bg-primary/5"
                         onClick={() => {
                           openInstallments(detail);
                           setDetail(null);
@@ -2329,22 +1976,11 @@ export default function SalesPage() {
                         <CalendarDays className="mr-1.5 h-4 w-4" />
                         Gestionar cuotas
                       </Button>
-                    ) : detail.payment_status !== "PAID" ? (
-                      <Button
-                        className="h-10 bg-emerald-600 hover:bg-emerald-700"
-                        onClick={() => {
-                          openCollect(detail);
-                          setDetail(null);
-                        }}
-                      >
-                        <Banknote className="mr-1.5 h-4 w-4" />
-                        Cobrar
-                      </Button>
                     ) : null}
                     {detail.delivery_status !== "DELIVERED" && (
                       <Button
                         variant="outline"
-                        className="h-10 border-blue-300 text-blue-700 hover:bg-blue-50"
+                        className="h-10 border-primary/30 text-primary hover:bg-primary/5"
                         onClick={() => {
                           openDelivering(detail);
                           setDetail(null);
@@ -2354,30 +1990,17 @@ export default function SalesPage() {
                         Entregar
                       </Button>
                     )}
-                    {!orderIsClosed(detail.status) && (
-                      <Button
-                        variant="outline"
-                        className="h-10"
-                        onClick={() => {
-                          openEditModal(detail);
-                          setDetail(null);
-                        }}
-                      >
-                        <Pencil className="mr-1.5 h-4 w-4" />
-                        Editar
-                      </Button>
-                    )}
                     {detail.order_type === "ORDER" && detail.payment_status !== "PAID" && (
                       <Button
                         variant="outline"
-                        className="h-10 border-purple-300 text-purple-700 hover:bg-purple-50"
+                        className="h-10 border-primary/30 text-primary hover:bg-primary/5"
                         onClick={() => {
                           openInstallments(detail);
                           setDetail(null);
                         }}
                       >
                         <CalendarDays className="mr-1.5 h-4 w-4" />
-                        {detail.installments && detail.installments.length > 0 ? "Gestionar cuotas" : "Cobrar en cuotas"}
+                        Gestionar cuotas
                       </Button>
                     )}
                   </>
@@ -2416,7 +2039,7 @@ export default function SalesPage() {
                 {detail.status !== "CANCELLED" && canCancel(detail.owner) && (
                   <Button
                     variant="outline"
-                    className="h-10 border-rose-300 text-rose-700 hover:bg-rose-50"
+                    className="h-10 border-danger/30 text-danger hover:bg-danger/5"
                     onClick={() => {
                       cancel.mutate(detail.id);
                       setDetail(null);
@@ -2432,113 +2055,6 @@ export default function SalesPage() {
                 Cerrar
               </Button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {collecting && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
-          role="dialog"
-          aria-modal="true"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) closeCollect();
-          }}
-        >
-          <div className="flex h-[92dvh] w-full flex-col overflow-y-auto rounded-t-xl border-x border-t border-border bg-card p-6 shadow-lg sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-xl sm:border">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-base font-semibold">
-                Cobrar {orderTypeLabel(collecting.order_type).toLowerCase()} {collecting.order_number ?? collecting.id.slice(0, 8)}
-              </h2>
-              <button onClick={closeCollect} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <form onSubmit={handleCollectSubmit} className="flex flex-col gap-4">
-              <div className="flex items-center justify-between rounded-lg border border-border p-3 text-sm">
-                <span className="text-muted-foreground">Total a cobrar</span>
-                <span className="text-lg font-semibold tabular-nums">
-                  {formatCLP(collecting.total_amount ?? "0")}
-                </span>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium">Pagos</label>
-                  <Button type="button" variant="outline" size="sm" onClick={addPaymentLine}>
-                    <Plus className="mr-1 h-3.5 w-3.5" />
-                    Agregar
-                  </Button>
-                </div>
-                {paymentLines.map((line) => (
-                  <div key={line.id} className="flex items-end gap-2 rounded-lg border border-border p-2">
-                    <div className="flex min-w-0 flex-1 flex-col gap-1">
-                      <label className="text-xs text-muted-foreground">Método</label>
-                      <Select
-                        value={line.payment_method_id}
-                        onChange={(e) => updatePaymentLine(line.id, { payment_method_id: e.target.value })}
-                      >
-                        {paymentMethods?.map((m) => (
-                          <option key={m.id} value={m.id}>
-                            {paymentTypeLabel(m.payment_type) || m.name || m.payment_type}
-                          </option>
-                        ))}
-                      </Select>
-                    </div>
-                    <div className="flex w-28 flex-col gap-1">
-                      <label className="text-xs text-muted-foreground">Monto</label>
-                      <Input
-                        type="number"
-                        min={0}
-                        step="1"
-                        value={line.amount ? Math.round(parseFloat(line.amount)).toString() : ""}
-                        onChange={(e) => updatePaymentLine(line.id, { amount: e.target.value })}
-                        className="tabular-nums"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removePaymentLine(line.id)}
-                      className="mb-2 text-muted-foreground hover:text-danger"
-                      aria-label="Quitar pago"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Total ingresado</span>
-                  <span className="tabular-nums">
-                    {formatCLP(paymentLines.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0))}
-                  </span>
-                </div>
-              </div>
-
-              {collecting.order_type === "ORDER" && (
-                <p className="text-xs text-muted-foreground">
-                  En pedidos puedes registrar un pago parcial; el restante quedará pendiente.
-                  Para dividir en cuotas fijas usa <span className="font-medium text-foreground">Cobrar en cuotas</span>.
-                </p>
-              )}
-
-              {collectError && (
-                <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{collectError}</p>
-              )}
-              {collectSuccess && (
-                <p className="rounded-lg bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700">
-                  {collectSuccess}
-                </p>
-              )}
-
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={closeCollect} disabled={collect.isPending}>
-                  Cancelar
-                </Button>
-                <Button type="submit" isLoading={collect.isPending}>
-                  Registrar pago
-                </Button>
-              </div>
-            </form>
           </div>
         </div>
       )}
@@ -2657,257 +2173,6 @@ export default function SalesPage() {
         </div>
       )}
 
-      {editing && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4" role="dialog" aria-modal="true">
-          <div className="flex h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-card shadow-2xl sm:h-auto sm:max-h-[90vh] sm:rounded-2xl sm:border sm:border-border">
-            {/* Header */}
-            <div className="flex shrink-0 items-center justify-between border-b border-border bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-4">
-              <div>
-                <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  Editar {orderTypeLabel(editing.order_type).toLowerCase()}
-                </p>
-                <h2 className="mt-0.5 text-xl font-bold tabular-nums tracking-tight">
-                  {editing.order_number ?? editing.id.slice(0, 8)}
-                </h2>
-              </div>
-              <button
-                onClick={closeEditModal}
-                aria-label="Cerrar"
-                className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {/* Body */}
-            <form onSubmit={handleEditSubmit} className="flex flex-1 flex-col overflow-hidden">
-              <div className="flex-1 overflow-y-auto px-5 py-4">
-                <div className="flex flex-col gap-4">
-                  {/* Cliente */}
-                  <div className="flex flex-col gap-1.5">
-                    <label htmlFor="edit-client" className="text-xs font-medium text-muted-foreground">
-                      Cliente
-                    </label>
-                    <div className="relative">
-                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                      <Input
-                        id="edit-client"
-                        value={clientQuery}
-                        onChange={(e) => {
-                          setClientQuery(e.target.value);
-                          setSelectedClient(null);
-                          setShowClientResults(true);
-                        }}
-                        onFocus={() => setShowClientResults(true)}
-                        placeholder="Buscar cliente..."
-                        className="h-10 pl-9 text-sm"
-                      />
-                      {showClientResults && debouncedClientQuery.trim().length === 0 && !selectedClient && (
-                        <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs text-muted-foreground shadow-md">
-                          Escribe para buscar clientes…
-                        </div>
-                      )}
-                      {showClientResults && debouncedClientQuery.trim().length > 0 && searchingCustomers && (
-                        <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs text-muted-foreground shadow-md">
-                          Buscando…
-                        </div>
-                      )}
-                      {showClientResults && debouncedClientQuery.trim().length > 0 && !searchingCustomers && clientResults.length > 0 && (
-                        <div className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-lg border border-border bg-background shadow-md">
-                          {clientResults.map((client) => (
-                            <button
-                              key={client.id}
-                              type="button"
-                              onClick={() => {
-                                setSelectedClient(client);
-                                setClientQuery(client.name ?? "");
-                                setShowClientResults(false);
-                              }}
-                              className="w-full px-3 py-2 text-left text-sm hover:bg-muted"
-                            >
-                              {client.name}
-                              {client.email && <span className="ml-2 text-xs text-muted-foreground">{client.email}</span>}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      {showClientResults && debouncedClientQuery.trim().length > 0 && !searchingCustomers && clientResults.length === 0 && !selectedClient && (
-                        <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs text-muted-foreground shadow-md">
-                          Sin resultados
-                        </div>
-                      )}
-                    </div>
-                    {!showCreateClient ? (
-                      <button
-                        type="button"
-                        onClick={() => setShowCreateClient(true)}
-                        className="self-start text-xs text-primary hover:underline"
-                      >
-                        + Crear cliente rápido
-                      </button>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <Input
-                          value={createClientName}
-                          onChange={(e) => setCreateClientName(e.target.value)}
-                          placeholder="Nombre del nuevo cliente"
-                          className="h-9 flex-1 text-sm"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowCreateClient(false);
-                            setCreateClientName("");
-                          }}
-                          className="text-xs text-muted-foreground hover:text-foreground"
-                        >
-                          Cancelar
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Mesa */}
-                  {showTables && (
-                    <div className="flex flex-col gap-1.5">
-                      <label htmlFor="edit-table" className="text-xs font-medium text-muted-foreground">
-                        Mesa (opcional)
-                      </label>
-                      <Select
-                        id="edit-table"
-                        value={editTableId}
-                        onChange={(e) => setEditTableId(e.target.value)}
-                        className="h-10 text-sm"
-                      >
-                        <option value="">Sin mesa</option>
-                        {(tablesPage?.results ?? []).map((table) => (
-                          <option key={table.id} value={String(table.id)}>
-                            Mesa {table.number}
-                          </option>
-                        ))}
-                      </Select>
-                    </div>
-                  )}
-
-                  {/* Observación */}
-                  <div className="flex flex-col gap-1.5">
-                    <label htmlFor="edit-observation" className="text-xs font-medium text-muted-foreground">
-                      Observación
-                    </label>
-                    <Input
-                      id="edit-observation"
-                      value={editObservation}
-                      onChange={(e) => setEditObservation(e.target.value)}
-                      placeholder="Observación general"
-                      className="h-10 text-sm"
-                    />
-                  </div>
-
-                  {/* Entrega (solo pedidos) */}
-                  {editing.order_type === "ORDER" && (
-                    <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted/20 p-3">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Entrega</p>
-                      <div className="flex flex-col gap-1.5">
-                        <label htmlFor="edit-delivery-address" className="text-xs font-medium text-muted-foreground">
-                          Dirección de entrega
-                        </label>
-                        <Input
-                          id="edit-delivery-address"
-                          value={editDeliveryAddress}
-                          onChange={(e) => setEditDeliveryAddress(e.target.value)}
-                          placeholder="Dirección de entrega"
-                          className="h-10 text-sm"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1.5">
-                        <label htmlFor="edit-delivery-date" className="text-xs font-medium text-muted-foreground">
-                          Fecha y hora de entrega
-                        </label>
-                        <Input
-                          id="edit-delivery-date"
-                          type="datetime-local"
-                          value={editDeliveryDate}
-                          onChange={(e) => setEditDeliveryDate(e.target.value)}
-                          className="h-10 text-sm"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Productos */}
-                  {editItems.length > 0 && (
-                    <div className="flex flex-col gap-2">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Productos</p>
-                      <div className="flex flex-col divide-y divide-border rounded-xl border border-border bg-background">
-                        {editItems.map((item, idx) => (
-                          <div key={item.id} className="flex flex-col gap-2 p-3">
-                            <div className="flex items-start justify-between gap-3">
-                              <p className="min-w-0 flex-1 truncate text-sm font-medium">{item.product_name}</p>
-                              <p className="shrink-0 text-sm font-semibold tabular-nums">
-                                {formatCLP(
-                                  (Number(item.quantity) || 0) *
-                                    (parseFloat(String((editing.products?.find((p) => p.id === item.id)?.unit_price ?? "0"))) || 0),
-                                )}
-                              </p>
-                            </div>
-                            <div className="flex items-end gap-2">
-                              <div className="flex w-24 flex-col gap-1">
-                                <label className="text-xs text-muted-foreground">Cantidad</label>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  step="1"
-                                  value={item.quantity}
-                                  onChange={(e) =>
-                                    setEditItems((prev) =>
-                                      prev.map((i, iIdx) =>
-                                        iIdx === idx ? { ...i, quantity: Number(e.target.value) || 0 } : i,
-                                      ),
-                                    )
-                                  }
-                                  className="h-9 text-sm tabular-nums"
-                                />
-                              </div>
-                              <div className="flex flex-1 flex-col gap-1">
-                                <label className="text-xs text-muted-foreground">Notas</label>
-                                <Input
-                                  value={item.notes}
-                                  onChange={(e) =>
-                                    setEditItems((prev) =>
-                                      prev.map((i, iIdx) =>
-                                        iIdx === idx ? { ...i, notes: e.target.value } : i,
-                                      ),
-                                    )
-                                  }
-                                  placeholder="Notas del producto"
-                                  className="h-9 text-sm"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="shrink-0 border-t border-border bg-background p-4">
-                <div className="flex gap-2">
-                  <Button type="button" variant="outline" className="flex-1" onClick={closeEditModal} disabled={edit.isPending}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit" className="flex-1" isLoading={edit.isPending}>
-                    Guardar cambios
-                  </Button>
-                </div>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
       {installmentOrder && (
         <div
           className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
@@ -2979,7 +2244,7 @@ export default function SalesPage() {
                     <strong>
                       {formatCLP(
                         Math.floor(
-                          parseFloat(installmentOrder.total_amount ?? "0") /
+                          Number(installmentOrder.total_amount ?? 0) /
                             parseInt(installmentCount, 10)
                         ).toString()
                       )}
@@ -3020,7 +2285,6 @@ export default function SalesPage() {
               ) : (
                 <div className="flex flex-col gap-2">
                   {installmentsQuery.data?.map((inst) => {
-                    const isPending = inst.status !== "PAID";
                     return (
                       <div key={inst.id} className="rounded-lg border border-border p-3">
                         <div className="mb-2 flex items-center justify-between text-sm">
@@ -3046,67 +2310,6 @@ export default function SalesPage() {
                           )}
                         </div>
                         {inst.notes && <p className="mb-2 text-xs text-muted-foreground">{inst.notes}</p>}
-                        {isPending && (
-                          <>
-                            {payingInstallmentId === inst.id ? (
-                              <form onSubmit={handlePayInstallmentSubmit} className="flex flex-col gap-2 rounded-lg bg-muted/50 p-2">
-                                <div className="grid grid-cols-2 gap-2">
-                                  <div className="flex flex-col gap-1">
-                                    <label className="text-xs text-muted-foreground">Método de pago</label>
-                                    <Select
-                                      value={payInstallmentMethodId}
-                                      onChange={(e) => setPayInstallmentMethodId(e.target.value)}
-                                      className="h-8 text-xs"
-                                    >
-                                      {paymentMethods?.map((m) => (
-                                        <option key={m.id} value={m.id}>
-                                          {paymentTypeLabel(m.payment_type) || m.name || m.payment_type}
-                                        </option>
-                                      ))}
-                                    </Select>
-                                  </div>
-                                  <div className="flex flex-col gap-1">
-                                    <label className="text-xs text-muted-foreground">Monto</label>
-                                    <Input
-                                      type="number"
-                                      min={0}
-                                      step="1"
-                                      value={payInstallmentAmount}
-                                      onChange={(e) => setPayInstallmentAmount(e.target.value)}
-                                      className="h-8 text-xs tabular-nums"
-                                    />
-                                  </div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-2">
-                                  <Input
-                                    value={payInstallmentReference}
-                                    onChange={(e) => setPayInstallmentReference(e.target.value)}
-                                    placeholder="Referencia"
-                                    className="h-8 text-xs"
-                                  />
-                                  <Input
-                                    value={payInstallmentNotes}
-                                    onChange={(e) => setPayInstallmentNotes(e.target.value)}
-                                    placeholder="Notas"
-                                    className="h-8 text-xs"
-                                  />
-                                </div>
-                                <div className="flex justify-end gap-2">
-                                  <Button type="button" variant="outline" size="sm" onClick={resetPayInstallmentForm} disabled={payInstallmentMut.isPending}>
-                                    Cancelar
-                                  </Button>
-                                  <Button type="submit" size="sm" isLoading={payInstallmentMut.isPending} disabled={!payInstallmentMethodId}>
-                                    Registrar pago
-                                  </Button>
-                                </div>
-                              </form>
-                            ) : (
-                              <Button size="sm" variant="outline" onClick={() => startPayInstallment(inst)}>
-                                Pagar cuota
-                              </Button>
-                            )}
-                          </>
-                        )}
                       </div>
                     );
                   })}
@@ -3630,9 +2833,7 @@ export default function SalesPage() {
                       onView={setDetail}
                       onTicket={handleDownloadTicketPdf}
                       onDeliver={openDelivering}
-                      onEdit={openEditModal}
                       onInstallments={openInstallments}
-                      onCollect={openCollect}
                       onThermal={handleDownloadThermalPdf}
                       onA4={handleDownloadA4Pdf}
                       onCancel={(o) => cancel.mutate(o.id)}

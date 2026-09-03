@@ -116,9 +116,9 @@ function discountToForm(d: PromotionDiscount): DiscountFormState {
     discount_type: d.discount_type,
     apply_to: d.apply_to ?? "ALL_PRODUCTS",
     status: d.status ?? "ACTIVE",
-    discount_value: d.discount_value,
-    minimum_amount: d.minimum_amount ?? "",
-    maximum_discount: d.maximum_discount ?? "",
+    discount_value: String(d.discount_value),
+    minimum_amount: d.minimum_amount?.toString() ?? "",
+    maximum_discount: d.maximum_discount?.toString() ?? "",
     buy_quantity: d.buy_quantity?.toString() ?? "",
     get_quantity: d.get_quantity?.toString() ?? "",
     bulk_threshold: d.bulk_threshold?.toString() ?? "",
@@ -594,8 +594,8 @@ export default function DiscountsPage() {
                       </td>
                       <td className="px-4 py-3 tabular-nums">
                         {d.discount_type === "PERCENTAGE"
-                          ? `${parseFloat(d.discount_value)}%`
-                          : formatCLP(parseFloat(d.discount_value))}
+                          ? `${d.discount_value}%`
+                          : formatCLP(d.discount_value)}
                       </td>
                       <td className="px-4 py-3">
                         <span className={statusBadgeClass(d.status)}>
@@ -641,7 +641,7 @@ export default function DiscountsPage() {
               {filtered.map((d) => (
                 <div
                   key={d.id}
-                  className="rounded-2xl border border-border bg-card p-4 shadow-sm"
+                  className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
@@ -691,8 +691,8 @@ export default function DiscountsPage() {
                       <span className="block text-[10px] uppercase tracking-wide">Valor</span>
                       <span className="font-medium tabular-nums text-foreground">
                         {d.discount_type === "PERCENTAGE"
-                          ? `${parseFloat(d.discount_value)}%`
-                          : formatCLP(parseFloat(d.discount_value))}
+                          ? `${d.discount_value}%`
+                          : formatCLP(d.discount_value)}
                       </span>
                     </div>
                     <div className="col-span-2 flex items-center gap-1.5 text-muted-foreground">
@@ -1125,7 +1125,7 @@ function StatCard({
   sub: string;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-3 sm:p-4">
+    <div className="rounded-2xl border border-border bg-muted/30 p-3 sm:p-4 shadow-sm">
       <div className="mb-1.5 flex items-center gap-2 text-muted-foreground sm:mb-2">
         <Icon className="h-4 w-4" />
         <span className="text-xs font-medium">{label}</span>

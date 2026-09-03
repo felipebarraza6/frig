@@ -87,7 +87,7 @@ export async function updateRecipe(id: string, payload: Partial<RecipePayload>):
 export async function createRecipeIngredient(payload: RecipeIngredientPayload): Promise<RecipeIngredient> {
   return apiFetch<RecipeIngredient>("/recipes/ingredients/", {
     method: "POST",
-    body: payload as RecipeIngredientRequest,
+    body: { ...payload, quantity: Number(payload.quantity) } as RecipeIngredientRequest,
   });
 }
 

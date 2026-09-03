@@ -81,8 +81,8 @@ function toDecimal(v: string): string {
   return n.toFixed(2);
 }
 
-function toNum(v: string | null | undefined): number {
-  return parseFloat(v || "0") || 0;
+function toNum(v: string | number | null | undefined): number {
+  return parseFloat(String(v ?? "0")) || 0;
 }
 
 function todayLocal(): string {
@@ -283,7 +283,7 @@ export default function CashRegisterPage() {
 
   const closeMutation = useMutation({
     mutationFn: (amount: string) =>
-      closeCashRegister(cashRegister!.id, { closing_amount: amount }),
+      closeCashRegister(cashRegister!.id, { closing_amount: Number(amount) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cash-register"] });
       setCloseAmount("");
@@ -296,7 +296,7 @@ export default function CashRegisterPage() {
 
   const closeHistoryMutation = useMutation({
     mutationFn: ({ id, amount }: { id: number; amount: string }) =>
-      closeCashRegister(id, { closing_amount: amount }),
+      closeCashRegister(id, { closing_amount: Number(amount) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cash-register"] });
       setHistoryActionRegisterId(null);
@@ -314,7 +314,7 @@ export default function CashRegisterPage() {
       openCashRegister({
         branch_id: Number(branch?.branch_id ?? 0),
         station_id: stationId,
-        opening_amount: toDecimal(amount),
+        opening_amount: Number(toDecimal(amount)),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cash-register"] });
@@ -629,7 +629,7 @@ export default function CashRegisterPage() {
         {/* Top POS panel: Cash + Movements */}
         {loadingRegister ? (
           <section className="grid gap-4 lg:grid-cols-3">
-            <div className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-card p-5 shadow-sm lg:col-span-2">
+            <div className="flex flex-col gap-4 rounded-2xl border border-border bg-muted/30 p-5 shadow-sm lg:col-span-2">
               <div className="flex items-center gap-3">
                 <Skeleton className="h-10 w-10 rounded-xl" />
                 <div className="space-y-2">
@@ -646,7 +646,7 @@ export default function CashRegisterPage() {
                 ))}
               </div>
             </div>
-            <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
+            <div className="flex flex-col gap-3 rounded-2xl border border-border bg-muted/30 p-5 shadow-sm">
               <Skeleton className="h-4 w-32" />
               <Skeleton className="h-9 w-full" />
               <Skeleton className="h-9 w-full" />
@@ -657,7 +657,7 @@ export default function CashRegisterPage() {
             {/* Cash register panel */}
             <div
               className={cn(
-                "flex flex-col gap-4 rounded-2xl border border-border/60 bg-card p-5 shadow-sm",
+                "flex flex-col gap-4 rounded-2xl border border-border bg-muted/30 p-5 shadow-sm",
                 canManageMovements && "lg:col-span-2",
               )}
             >
@@ -703,22 +703,22 @@ export default function CashRegisterPage() {
                 <MetricItem
                   icon={TrendingUp}
                   label="Ventas"
-                  value={summary ? formatCLP(parseFloat(summary.total_sales || "0")) : "—"}
-                  muted={!summary || parseFloat(summary.total_sales || "0") === 0}
+                  value={summary ? formatCLP(summary.total_sales) : "—"}
+                  muted={!summary || summary.total_sales === 0}
                   loading={loadingSummary}
                 />
                 <MetricItem
                   icon={Banknote}
                   label="Efectivo"
-                  value={summary ? formatCLP(parseFloat(summary.cash_sales || "0")) : "—"}
-                  muted={!summary || parseFloat(summary.cash_sales || "0") === 0}
+                  value={summary ? formatCLP(summary.cash_sales) : "—"}
+                  muted={!summary || summary.cash_sales === 0}
                   loading={loadingSummary}
                 />
                 <MetricItem
                   icon={CreditCard}
                   label="Otros"
-                  value={summary ? formatCLP(parseFloat(summary.other_sales || "0")) : "—"}
-                  muted={!summary || parseFloat(summary.other_sales || "0") === 0}
+                  value={summary ? formatCLP(summary.other_sales) : "—"}
+                  muted={!summary || summary.other_sales === 0}
                   loading={loadingSummary}
                 />
                 <MetricItem
@@ -738,7 +738,7 @@ export default function CashRegisterPage() {
               {/* Inline open/close action */}
               {isOpen ? (
                 canManageMovements && (
-                  <div className="flex flex-col gap-2 rounded-xl border border-border/60 bg-background/60 p-3 sm:flex-row sm:items-center">
+                  <div className="flex flex-col gap-2 rounded-2xl border border-border bg-muted/30 p-3 sm:flex-row sm:items-center">
                     <>
                       <Input
                         value={
@@ -770,12 +770,12 @@ export default function CashRegisterPage() {
                           <span
                             className={cn(
                               "font-medium",
-                              parseFloat(toDecimal(closeAmount)) - parseFloat(expected || "0") === 0
+                              Number(toDecimal(closeAmount)) - (expected ?? 0) === 0
                                 ? "text-emerald-600"
                                 : "text-amber-600",
                             )}
                           >
-                            {formatCLP(parseFloat(toDecimal(closeAmount)) - parseFloat(expected || "0"))}
+                            {formatCLP(Number(toDecimal(closeAmount)) - (expected ?? 0))}
                           </span>
                         </p>
                       )}
@@ -796,7 +796,7 @@ export default function CashRegisterPage() {
                       <span>
                         Último cierre:{" "}
                         <strong className="text-foreground">
-                          {formatCLP(parseFloat(lastClosedRegister.closing_amount || "0"))}
+                          {formatCLP(lastClosedRegister.closing_amount ?? 0)}
                         </strong>{" "}
                         {lastClosedRegister.date && (
                           <>el {new Date(lastClosedRegister.date).toLocaleDateString("es-CL")}</>
@@ -820,7 +820,7 @@ export default function CashRegisterPage() {
                           onClick={() =>
                             openMutation.mutate({
                               branch_id: Number(branch?.branch_id ?? 0),
-                              opening_amount: toDecimal(openAmount),
+                              opening_amount: Number(toDecimal(openAmount)),
                               station_id: Number(activeStationId),
                             })
                           }
@@ -842,7 +842,7 @@ export default function CashRegisterPage() {
 
             {/* Movements panel */}
             {canManageMovements && (
-              <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
+              <div className="flex flex-col gap-3 rounded-2xl border border-border bg-muted/30 p-5 shadow-sm">
                 <h2 className="flex items-center gap-2 text-sm font-semibold">
                   <Coins className="h-4 w-4 text-primary" />
                   Movimientos de caja
@@ -1088,31 +1088,31 @@ export default function CashRegisterPage() {
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <SummaryCard
                   label="Ventas totales"
-                  value={parseFloat(summary.total_sales || "0")}
+                  value={summary.total_sales}
                   icon={TrendingUp}
                   tone="primary"
                 />
                 <SummaryCard
                   label="Efectivo"
-                  value={parseFloat(summary.cash_sales || "0")}
+                  value={summary.cash_sales}
                   icon={Banknote}
                   tone="emerald"
                 />
                 <SummaryCard
                   label="Tarjetas/Transf."
-                  value={parseFloat(summary.card_sales || "0")}
+                  value={summary.card_sales}
                   icon={CreditCard}
                   tone="default"
                 />
                 <SummaryCard
                   label="Otros"
-                  value={parseFloat(summary.other_sales || "0")}
+                  value={summary.other_sales}
                   icon={Coins}
                   tone="default"
                 />
                 <SummaryCard
                   label="Apertura"
-                  value={parseFloat(summary.opening_amount || "0")}
+                  value={summary.opening_amount}
                   icon={Wallet}
                   tone="default"
                 />
@@ -1132,7 +1132,7 @@ export default function CashRegisterPage() {
                   label="Esperado efectivo"
                   value={
                     summary.expected_amount !== null && summary.expected_amount !== undefined
-                      ? parseFloat(summary.expected_amount)
+                      ? summary.expected_amount
                       : null
                   }
                   icon={Calculator}
@@ -1156,7 +1156,7 @@ export default function CashRegisterPage() {
               </div>
             ) : audit ? (
               <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-background/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-3 rounded-2xl border border-border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
                       <CalendarDays className="h-5 w-5 text-primary" />
@@ -1262,7 +1262,7 @@ export default function CashRegisterPage() {
                 </div>
 
                 {auditPaymentTotals.length > 0 && (
-                  <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
+                  <div className="rounded-2xl border border-border bg-muted/30 p-4">
                     <div className="mb-3 flex items-center justify-between">
                       <h3 className="flex items-center gap-2 text-sm font-semibold">
                         <Wallet className="h-4 w-4 text-primary" />
@@ -1279,7 +1279,7 @@ export default function CashRegisterPage() {
                         return (
                           <div
                             key={name}
-                            className="flex flex-col gap-2 rounded-xl border border-border/60 bg-background p-3 transition-colors hover:border-border"
+                            className="flex flex-col gap-2 rounded-2xl border border-border bg-muted/30 p-3 transition-colors hover:border-border"
                           >
                             <div className="flex items-start justify-between gap-2">
                               <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-full", bg)}>
@@ -1473,7 +1473,7 @@ export default function CashRegisterPage() {
                       {audit.detalle_por_dia.map((day, idx) => (
                         <div
                           key={idx}
-                          className="flex items-center justify-between rounded-xl border border-border/60 bg-background/60 p-3 text-sm"
+                          className="flex items-center justify-between rounded-2xl border border-border bg-muted/30 p-3 text-sm"
                         >
                           <div>
                             <p className="font-medium">{day.fecha}</p>
@@ -1789,7 +1789,7 @@ export default function CashRegisterPage() {
                   {movements.map((m: CashRegisterMovement) => (
                     <li
                       key={m.id}
-                      className="flex items-center justify-between rounded-xl border border-border/60 bg-background/60 px-4 py-3 text-sm"
+                      className="flex items-center justify-between rounded-2xl border border-border bg-muted/30 px-4 py-3 text-sm"
                     >
                       <div className="flex items-center gap-3">
                         <div
@@ -1847,7 +1847,7 @@ function MetricItem({
   loading?: boolean;
 }) {
   return (
-    <div className="flex min-h-[92px] flex-col justify-between rounded-xl border border-border/60 bg-background/60 p-3.5 transition-colors hover:border-border">
+    <div className="flex min-h-[92px] flex-col justify-between rounded-2xl border border-border bg-muted/30 p-3.5 transition-colors hover:border-border">
       <div className="flex items-start gap-1.5 text-[11px] font-medium text-muted-foreground">
         <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
         <span className="leading-tight">{label}</span>
@@ -1894,19 +1894,19 @@ function paymentMethodMeta(name: string): {
 } {
   const n = name.toLowerCase();
   if (n.includes("efectivo") || n.includes("cash"))
-    return { icon: Banknote, color: "text-emerald-600", bg: "bg-emerald-500/10", bar: "bg-emerald-500" };
+    return { icon: Banknote, color: "text-primary", bg: "bg-primary/10", bar: "bg-primary" };
   if (n.includes("transferencia") || n.includes("bank"))
-    return { icon: Landmark, color: "text-blue-600", bg: "bg-blue-500/10", bar: "bg-blue-500" };
+    return { icon: Landmark, color: "text-primary", bg: "bg-primary/15", bar: "bg-primary" };
   if (n.includes("débito") || n.includes("debit"))
-    return { icon: CreditCard, color: "text-indigo-600", bg: "bg-indigo-500/10", bar: "bg-indigo-500" };
+    return { icon: CreditCard, color: "text-primary", bg: "bg-primary/20", bar: "bg-primary" };
   if (n.includes("crédito") || n.includes("credit"))
-    return { icon: CreditCard, color: "text-violet-600", bg: "bg-violet-500/10", bar: "bg-violet-500" };
+    return { icon: CreditCard, color: "text-primary", bg: "bg-primary/10 border border-primary/20", bar: "bg-primary" };
   if (n.includes("billetera") || n.includes("digital") || n.includes("wallet"))
-    return { icon: Smartphone, color: "text-sky-600", bg: "bg-sky-500/10", bar: "bg-sky-500" };
+    return { icon: Smartphone, color: "text-primary", bg: "bg-primary/15", bar: "bg-primary" };
   if (n.includes("cripto") || n.includes("crypto"))
-    return { icon: Bitcoin, color: "text-amber-600", bg: "bg-amber-500/10", bar: "bg-amber-500" };
+    return { icon: Bitcoin, color: "text-primary", bg: "bg-primary/20", bar: "bg-primary" };
   if (n.includes("cheque") || n.includes("check"))
-    return { icon: FileText, color: "text-rose-600", bg: "bg-rose-500/10", bar: "bg-rose-500" };
+    return { icon: FileText, color: "text-primary", bg: "bg-primary/10", bar: "bg-primary" };
   return { icon: Wallet, color: "text-muted-foreground", bg: "bg-muted", bar: "bg-primary" };
 }
 

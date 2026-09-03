@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { useSessionStore, useCurrentBranch, useCanManageUsers } from "@/lib/store/session";
 import { branchName } from "@/lib/types";
+import { getRoleLabel } from "@/lib/roles";
 import {
   fetchUsers,
   toggleBranchAssignmentStatus,
@@ -86,7 +87,7 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
       <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
         <div>
           <h1 className="text-lg font-semibold">Usuarios</h1>
@@ -115,7 +116,7 @@ export default function UsersPage() {
 
       <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
         {revealedPassword && (
-          <div className="rounded-xl border border-border bg-muted p-4">
+          <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
             <p className="text-sm font-medium">Contraseña generada</p>
             <p className="mt-1 text-xs text-muted-foreground">
               Usuario: <span className="font-mono text-foreground">{revealedPassword.username}</span>
@@ -186,21 +187,16 @@ export default function UsersPage() {
                     return (
                       <tr key={String(u.id)} className="border-b border-border last:border-0">
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-secondary text-foreground">
-                              <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                            </div>
-                            <div className="min-w-0">
-                              <p className="truncate font-medium">{userDisplayName(u)}</p>
-                              <p className="text-xs text-muted-foreground">{u.email}</p>
-                            </div>
+                          <div className="min-w-0">
+                            <p className="truncate font-medium">{userDisplayName(u)}</p>
+                            <p className="text-xs text-muted-foreground">{u.email}</p>
                           </div>
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">
                           {access?.branch_name ?? "—"}
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">
-                          {access?.role_name ?? access?.role_code ?? "—"}
+                          {getRoleLabel(access?.role_code) ?? access?.role_name ?? access?.role_code ?? "—"}
                         </td>
                         <td className="px-4 py-3 text-center">
                           <button
@@ -254,27 +250,22 @@ export default function UsersPage() {
                 return (
                   <div
                     key={String(u.id)}
-                    className="rounded-2xl border border-border bg-card p-4 shadow-sm"
+                    className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm"
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary">
-                          <Users className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="truncate font-medium">{userDisplayName(u)}</p>
-                          <p className="text-xs text-muted-foreground">{u.email}</p>
-                          <span
-                            className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                              access?.is_active
-                                ? "bg-emerald-500/10 text-emerald-700"
-                                : "bg-danger/10 text-danger"
-                            }`}
-                          >
-                            <Power className="h-3 w-3" />
-                            {access?.is_active ? "Activo" : "Inactivo"}
-                          </span>
-                        </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium">{userDisplayName(u)}</p>
+                        <p className="text-xs text-muted-foreground">{u.email}</p>
+                        <span
+                          className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                            access?.is_active
+                              ? "bg-emerald-500/10 text-emerald-700"
+                              : "bg-danger/10 text-danger"
+                          }`}
+                        >
+                          <Power className="h-3 w-3" />
+                          {access?.is_active ? "Activo" : "Inactivo"}
+                        </span>
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
                         <Button
@@ -313,7 +304,7 @@ export default function UsersPage() {
                       <div className="flex items-center gap-1.5 text-muted-foreground">
                         <span className="text-[10px] uppercase tracking-wide">Rol</span>
                         <span className="truncate font-medium text-foreground">
-                          {access?.role_name ?? access?.role_code ?? "—"}
+                          {getRoleLabel(access?.role_code) ?? access?.role_name ?? access?.role_code ?? "—"}
                         </span>
                       </div>
                     </div>

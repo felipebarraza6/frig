@@ -15,6 +15,7 @@ export interface RevenuesFilter {
   status?: string;
   startDate?: string;
   endDate?: string;
+  page_size?: number;
   next?: string | null;
   previous?: string | null;
 }
@@ -32,12 +33,16 @@ export async function fetchRevenues(filter: RevenuesFilter = {}): Promise<Pagina
   if (filter.status) qs.set("status", filter.status);
   if (filter.startDate) qs.set("start_date", filter.startDate);
   if (filter.endDate) qs.set("end_date", filter.endDate);
+  if (filter.page_size) qs.set("page_size", String(filter.page_size));
   const q = qs.toString();
   return apiFetch<PaginatedRevenue>(`/finance/revenues/${q ? `?${q}` : ""}`);
 }
 
 export async function fetchRevenueCategories(): Promise<RevenueCategory[]> {
-  const data = await apiFetch<PaginatedRevenueCategory>("/finance/revenue-categories/");
+  // page_size=100: el endpoint pagina por defecto a 10 y cortaría la lista.
+  const data = await apiFetch<PaginatedRevenueCategory>(
+    "/finance/revenue-categories/?page_size=100",
+  );
   return data.results ?? [];
 }
 

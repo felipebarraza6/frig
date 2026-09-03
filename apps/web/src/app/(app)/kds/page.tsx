@@ -75,7 +75,7 @@ export default function KdsZenPage() {
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-xl border border-border bg-card p-4">
+          <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
             <div className="mb-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
               <Settings2 className="h-3.5 w-3.5" />
               Estaciones
@@ -86,7 +86,7 @@ export default function KdsZenPage() {
             </p>
           </div>
 
-          <div className="rounded-xl border border-border bg-card p-4">
+          <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
             <div className="mb-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
               <Clock className="h-3.5 w-3.5" />
               Pendientes
@@ -95,7 +95,7 @@ export default function KdsZenPage() {
             <p className="text-xs text-muted-foreground">Comandas por iniciar</p>
           </div>
 
-          <div className="rounded-xl border border-border bg-card p-4">
+          <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
             <div className="mb-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
               <Flame className="h-3.5 w-3.5" />
               En preparación
@@ -104,7 +104,7 @@ export default function KdsZenPage() {
             <p className="text-xs text-muted-foreground">Comandas activas</p>
           </div>
 
-          <div className="rounded-xl border border-border bg-card p-4">
+          <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
             <div className="mb-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
               <Utensils className="h-3.5 w-3.5" />
               Listos

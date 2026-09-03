@@ -1,18 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { X, UserPlus } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { X, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
-import { useCanManageBranches } from "@/lib/store/session";
-import { fetchBranchUsers, inviteBranchUser, fetchBranchRoles } from "@/lib/api/branches";
-import type { RoleDefinition } from "@/lib/types";
+import { getRoleLabel } from "@/lib/roles";
+import { fetchBranchUsers } from "@/lib/api/branches";
 import { branchName } from "@/lib/types";
 import type { Branch } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 interface BranchUsersDialogProps {
   branch: Branch;
@@ -20,36 +17,30 @@ interface BranchUsersDialogProps {
 }
 
 export function BranchUsersDialog({ branch, onClose }: BranchUsersDialogProps) {
-  const queryClient = useQueryClient();
-  const canManage = useCanManageBranches();
-
-  const [email, setEmail] = useState("");
-  const [roleDefinition, setRoleDefinition] = useState<string>("");
-
   const { data: users, isLoading } = useQuery({
     queryKey: ["branches", branch.branch_id, "users"],
     queryFn: () => fetchBranchUsers(branch.branch_id),
   });
 
-  const { data: roles } = useQuery({
-    queryKey: ["branches", branch.branch_id, "roles"],
-    queryFn: () => fetchBranchRoles(String(branch.branch_id)),
-  });
+  const roleCounts = useMemo(() => {
+    const map = new Map<string, { code: string; label: string; count: number }>();
+    for (const u of users ?? []) {
+      const code = u.role_code || "—";
+      const label = getRoleLabel(code) ?? u.role_name ?? code;
+      const existing = map.get(code);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        map.set(code, { code, label, count: 1 });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => b.count - a.count);
+  }, [users]);
 
-  const invite = useMutation({
-    mutationFn: () => inviteBranchUser(branch.branch_id, email, Number(roleDefinition)),
-    onSuccess: () => {
-      setEmail("");
-      setRoleDefinition("");
-      queryClient.invalidateQueries({ queryKey: ["branches", branch.branch_id, "users"] });
-    },
-  });
-
-  const handleInvite = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !roleDefinition) return;
-    invite.mutate();
-  };
+  const activeCount = useMemo(
+    () => (users ?? []).filter((u) => u.is_active).length,
+    [users]
+  );
 
   return (
     <AnimatedOverlay
@@ -62,7 +53,7 @@ export function BranchUsersDialog({ branch, onClose }: BranchUsersDialogProps) {
           <div>
             <h2 className="text-base font-semibold">Usuarios de {branchName(branch)}</h2>
             <p className="text-xs text-muted-foreground">
-              {users?.length ?? 0} usuario(s) asignado(s)
+              {users?.length ?? 0} usuario(s) asignado(s) · {activeCount} activo(s)
             </p>
           </div>
           <button
@@ -75,92 +66,38 @@ export function BranchUsersDialog({ branch, onClose }: BranchUsersDialogProps) {
         </div>
 
         <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4">
-          {canManage && (
-            <form onSubmit={handleInvite} className="flex flex-col gap-3 rounded-xl border border-border bg-muted p-4">
-              <p className="text-sm font-medium">Invitar usuario</p>
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="invite_email" className="text-xs font-medium">
-                  Correo
-                </label>
-                <Input
-                  id="invite_email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="usuario@negocio.cl"
-                  required
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="invite_role" className="text-xs font-medium">
-                  Rol
-                </label>
-                <Select
-                  id="invite_role"
-                  value={roleDefinition}
-                  onChange={(e) => setRoleDefinition(e.target.value)}
-                  required
-                >
-                  <option value="">Seleccionar rol</option>
-                  {roles?.map((r: RoleDefinition) => (
-                    <option key={String(r.id)} value={String(r.id)}>
-                      {r.name}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-              <div className="flex justify-end">
-                <Button type="submit" size="sm" isLoading={invite.isPending}>
-                  <UserPlus className="mr-1 h-3.5 w-3.5" />
-                  Invitar
-                </Button>
-              </div>
-            </form>
-          )}
-
           {isLoading ? (
             <div className="grid flex-1 place-items-center py-8">
               <Skeleton className="h-6 w-6 rounded-full" />
             </div>
+          ) : roleCounts.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-2 py-10 text-center text-muted-foreground">
+              <Users className="h-8 w-8" />
+              <p className="text-sm font-medium">No hay usuarios asignados</p>
+            </div>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-border">
-              <table className="w-full min-w-[400px] text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                    <th className="px-4 py-2">Usuario</th>
-                    <th className="px-4 py-2">Rol</th>
-                    <th className="px-4 py-2 text-center">Activo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(users ?? []).map((u) => (
-                    <tr key={String(u.id)} className="border-b border-border last:border-0">
-                      <td className="px-4 py-2">
-                        <p className="font-medium">
-                          {u.first_name || u.last_name
-                            ? `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim()
-                            : u.email}
-                        </p>
-                        <p className="text-xs text-muted-foreground">{u.email}</p>
-                      </td>
-                      <td className="px-4 py-2 text-muted-foreground">
-                        {u.branch_access?.role_name ?? u.branch_access?.role_code ?? "—"}
-                      </td>
-                      <td className="px-4 py-2 text-center">
-                        <span
-                          className={
-                            u.branch_access?.is_active
-                              ? "rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-700"
-                              : "rounded-full bg-danger/10 px-2 py-0.5 text-xs font-medium text-danger"
-                          }
-                        >
-                          {u.branch_access?.is_active ? "Sí" : "No"}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="flex flex-col gap-3">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Distribución por rol
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {roleCounts.map(({ code, label, count }) => (
+                  <span
+                    key={code}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium",
+                      code === "OWNER"
+                        ? "border-primary/30 bg-primary/10 text-primary"
+                        : "border-border bg-muted text-foreground"
+                    )}
+                  >
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-background text-xs font-semibold">
+                      {count}
+                    </span>
+                    {label}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
         </div>

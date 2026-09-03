@@ -10,6 +10,7 @@ export const ROUTE_MODULE_MAP: Record<string, ModuleName | null> = {
   "/pos": "pos",
   "/pos/terminal": "pos",
   "/sales": "sales",
+  "/reports": "nutrition",
   "/cash-register": "cash_register",
   "/cash-register/stations": "cash_register",
   "/kds": "production",
@@ -30,11 +31,13 @@ export const ROUTE_MODULE_MAP: Record<string, ModuleName | null> = {
   "/payments": "payment_methods",
   "/payment-methods": "payment_methods",
   "/tax-documents": "invoices",
+  "/quotations": "sales",
   "/banks": "bank_accounts",
   "/bank-accounts": "bank_accounts",
   "/reconciliations": "bank_accounts",
   "/revenues": "finance",
   "/expenses": "finance",
+  "/finance": "finance",
   "/fixed-expenses": "finance",
   "/finance/settings": "finance",
   "/suppliers": "suppliers",
@@ -163,15 +166,22 @@ export const FRIG_ALWAYS_ON_MODULES: ModuleName[] = [
 /**
  * Módulos que sí aparecen como cards en /settings/modules para activar/desactivar.
  * Todo lo demás se oculta de esa vista.
+ *
+ * Cada módulo usado por la app debe estar aquí o en FRIG_ALWAYS_ON_MODULES:
+ * si falta de ambas listas, la ruta/menú que lo consume queda bloqueada
+ * (fail-closed) sin forma de activarlo desde la UI.
  */
 export const FRIG_SETTINGS_MODULES: ModuleName[] = [
   "pos",
+  "cash_register",
   "tables",
+  "deliveries",
   "production",
   "inventory",
   "nutrition",
   "public_catalog",
   "invoices",
+  "promotions",
 ];
 
 // ── Definición del menú de Frig ───────────────────────────────────────────────
@@ -192,6 +202,8 @@ export interface FrigMenuItem {
 
 export interface FrigMenuGroup {
   title: string;
+  /** Nombre del icono Lucide del grupo (para getIcon). */
+  icon: string;
   items: FrigMenuItem[];
 }
 
@@ -202,56 +214,64 @@ export interface FrigMenuGroup {
 export const FRIG_MENU_DEF: FrigMenuGroup[] = [
   {
     title: "Operaciones",
+    icon: "LayoutDashboard",
     items: [
-      { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard", module: "dashboard" },
-      { href: "/pos", label: "Punto de Venta (POS)", icon: "Receipt", module: "pos" },
-      { href: "/cash-register", label: "Caja", icon: "Banknote", module: "cash_register" },
+      { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard", module: "dashboard", description: "Resumen general del negocio en tiempo real" },
+      { href: "/pos", label: "Punto de Venta (POS)", icon: "Receipt", module: "pos", description: "Terminal de venta, cuentas abiertas y cobros" },
+      { href: "/cash-register", label: "Caja", icon: "Banknote", module: "cash_register", description: "Apertura, cierre y movimientos de caja" },
       { href: "/sales", label: "Ventas", icon: "ShoppingBag", module: "sales", description: "Historial de ventas y cuentas abiertas" },
-      { href: "/reports", label: "Informes", icon: "FileText", module: "recipes" },
-      { href: "/kds", label: "Cocina", icon: "ChefHat", module: "production", badge: "kitchenReady" },
+      { href: "/kds", label: "Cocina", icon: "ChefHat", module: "production", badge: "kitchenReady", description: "Pantalla de cocina (KDS) y estaciones" },
     ],
   },
   {
     title: "Sala",
+    icon: "Table",
     items: [
-      { href: "/tables", label: "Mesas", icon: "Table", module: "tables" },
-      { href: "/tables/map", label: "Mapa de mesas", icon: "Table", module: "tables" },
+      { href: "/tables", label: "Mesas", icon: "Table", module: "tables", description: "Estado y cuentas de las mesas" },
+      { href: "/tables/map", label: "Mapa de mesas", icon: "Table", module: "tables", description: "Vista en plano para asignar mesas" },
     ],
   },
   {
     title: "Productos",
+    icon: "Package",
     items: [
-      { href: "/products", label: "Productos", icon: "Package", module: "product_catalog" },
-      { href: "/products/combos", label: "Combos", icon: "Boxes", module: "product_catalog" },
-      { href: "/products/modifiers", label: "Modificadores", icon: "ListChecks", module: "product_catalog" },
-      { href: "/categories", label: "Categorías", icon: "Tags", module: "product_catalog" },
-      { href: "/products/nutrition", label: "Etiquetado nutricional", icon: "Apple", module: "nutrition" },
-      { href: "/products/menus", label: "Menús digitales", icon: "QrCode", module: "public_catalog" },
+      { href: "/products", label: "Productos", icon: "Package", module: "product_catalog", description: "Catálogo, precios y disponibilidad" },
+      { href: "/products/combos", label: "Combos", icon: "Boxes", module: "product_catalog", description: "Agrupa productos con precio especial" },
+      { href: "/products/modifiers", label: "Modificadores", icon: "ListChecks", module: "product_catalog", description: "Opciones y agregados por producto" },
+      { href: "/categories", label: "Categorías", icon: "Tags", module: "product_catalog", description: "Organiza el catálogo por categorías" },
+      { href: "/products/nutrition", label: "Etiquetado nutricional", icon: "Apple", module: "nutrition", description: "Tablas nutricionales por producto" },
+      { href: "/reports", label: "Informe nutricional", icon: "FileText", module: "nutrition", description: "Productos más vendidos e insumos consumidos" },
+      { href: "/products/menus", label: "Menús digitales", icon: "QrCode", module: "public_catalog", description: "Cartas QR públicas por estación" },
     ],
   },
   {
     title: "Inventario",
+    icon: "Warehouse",
     items: [
-      { href: "/warehouses", label: "Bodegas", icon: "Warehouse", module: "inventory" },
-      { href: "/inventory", label: "Inventario", icon: "ClipboardList", module: "inventory" },
+      { href: "/warehouses", label: "Bodegas", icon: "Warehouse", module: "inventory", description: "Bodegas y sus responsables" },
+      { href: "/inventory", label: "Inventario", icon: "ClipboardList", module: "inventory", description: "Stock por bodega y movimientos" },
     ],
   },
   {
     title: "Clientes",
+    icon: "Users",
     items: [
-      { href: "/customers", label: "Clientes", icon: "UserCircle", module: "customers" },
-      { href: "/promotions/discounts", label: "Promociones", icon: "Percent", module: "promotions" },
+      { href: "/customers", label: "Clientes", icon: "UserCircle", module: "customers", description: "Base de clientes y su historial" },
+      { href: "/promotions/discounts", label: "Promociones", icon: "Percent", module: "promotions", description: "Descuentos y códigos promocionales" },
     ],
   },
   {
     title: "Compras",
+    icon: "ShoppingCart",
     items: [
-      { href: "/suppliers", label: "Proveedores", icon: "Truck", module: "suppliers" },
-      { href: "/purchase-orders", label: "Órdenes de compra", icon: "ShoppingCart", module: "suppliers" },
+      { href: "/suppliers", label: "Proveedores", icon: "Truck", module: "suppliers", description: "Directorio de proveedores" },
+      { href: "/purchase-orders", label: "Órdenes de compra", icon: "ShoppingCart", module: "suppliers", description: "Pedidos a proveedores y su recepción" },
+      { href: "/fixed-expenses", label: "Gastos", icon: "TrendingDown", module: "finance", description: "Gastos fijos y programados" },
     ],
   },
   {
     title: "Pagos",
+    icon: "CreditCard",
     items: [
       { href: "/payments", label: "Pagos", icon: "Banknote", module: "payment_methods", description: "Ingresos, egresos y transacciones unificadas" },
       { href: "/payment-methods", label: "Métodos de pago", icon: "CreditCard", module: "payment_methods", description: "Configura medios de pago de la sucursal" },
@@ -259,27 +279,29 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
   },
   {
     title: "Finanzas",
+    icon: "Landmark",
     items: [
-      { href: "/revenues", label: "Ingresos", icon: "ArrowDownLeft", module: "finance" },
-      { href: "/expenses", label: "Egresos", icon: "ArrowUpRight", module: "finance" },
-      { href: "/fixed-expenses", label: "Gastos fijos", icon: "TrendingDown", module: "finance" },
+      { href: "/revenues", label: "Ingresos", icon: "ArrowDownLeft", module: "finance", description: "Registro de ingresos del negocio" },
+      { href: "/expenses", label: "Egresos", icon: "ArrowUpRight", module: "finance", description: "Registro de egresos del negocio" },
       { href: "/tax-documents", label: "Documentos tributarios", icon: "FileText", module: "invoices", description: "Boletas, facturas y SII" },
-      { href: "/finance/settings", label: "Config. financiera", icon: "Settings", module: "finance" },
+      { href: "/finance/settings", label: "Config. financiera", icon: "Settings", module: "finance", description: "Impuestos y configuración financiera" },
     ],
   },
   {
     title: "Billeteras",
+    icon: "Wallet",
     items: [
-      { href: "/bank-accounts", label: "Cuentas bancarias", icon: "Wallet", module: "bank_accounts" },
-      { href: "/reconciliations", label: "Conciliaciones", icon: "ArrowLeftRight", module: "bank_accounts" },
+      { href: "/bank-accounts", label: "Cuentas bancarias", icon: "Wallet", module: "bank_accounts", description: "Cuentas y saldos bancarios" },
+      { href: "/reconciliations", label: "Conciliaciones", icon: "ArrowLeftRight", module: "bank_accounts", description: "Cuadra movimientos con el banco" },
     ],
   },
   {
     title: "Configuración",
+    icon: "Settings",
     items: [
-      { href: "/users", label: "Usuarios", icon: "UserIcon", module: "config" },
-      { href: "/branches", label: "Sucursales", icon: "Store", module: "config" },
-      { href: "/settings/modules", label: "Módulos", icon: "Settings", module: "config" },
+      { href: "/users", label: "Usuarios", icon: "UserIcon", module: "config", description: "Usuarios y sus roles por sucursal" },
+      { href: "/branches", label: "Sucursales", icon: "Store", module: "config", description: "Sucursales del negocio y su equipo" },
+      { href: "/settings/modules", label: "Módulos", icon: "Settings", module: "config", description: "Activa o desactiva módulos por sucursal" },
     ],
   },
 ];

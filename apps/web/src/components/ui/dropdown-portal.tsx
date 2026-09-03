@@ -11,7 +11,18 @@ interface DropdownPortalProps {
   className?: string;
   minWidth?: number;
   align?: "left" | "right";
+  /** Ensanchar el panel al ancho natural del contenido (evita cortar etiquetas largas). */
+  autoWidth?: boolean;
 }
+
+/** Estado previo a la medición: fuera de pantalla, oculto y sin ancho
+ *  (un elemento fixed con width auto hace shrink-to-fit al contenido). */
+const HIDDEN_STYLE: React.CSSProperties = {
+  position: "fixed",
+  top: -10000,
+  left: 0,
+  visibility: "hidden",
+};
 
 export function DropdownPortal({
   triggerRef,
@@ -21,16 +32,26 @@ export function DropdownPortal({
   className = "",
   minWidth = 140,
   align = "left",
+  autoWidth = false,
 }: DropdownPortalProps) {
   const contentRef = useRef<HTMLDivElement>(null);
-  const [style, setStyle] = useState<React.CSSProperties>({});
+  // Estado inicial fuera de pantalla y sin ancho: un elemento fixed con
+  // width auto hace shrink-to-fit, así se puede medir el ancho natural.
+  const [style, setStyle] = useState<React.CSSProperties>(HIDDEN_STYLE);
+  const naturalWidthRef = useRef(0);
 
   const updatePosition = useCallback(() => {
     const trigger = triggerRef.current;
     if (!trigger) return;
     const rect = trigger.getBoundingClientRect();
     const margin = 8;
-    const width = Math.max(rect.width, minWidth);
+    let width = Math.max(rect.width, minWidth);
+    if (autoWidth) {
+      // Ancho natural medido con el panel en shrink-to-fit (ver useEffect).
+      width = Math.max(width, naturalWidthRef.current);
+    }
+    // Nunca más ancho que la ventana
+    width = Math.min(width, window.innerWidth - margin * 2);
     let left = align === "left" ? rect.left : rect.right - width;
 
     // Evitar que se salga por la derecha
@@ -54,11 +75,21 @@ export function DropdownPortal({
       left,
       width,
       zIndex: 9999,
+      visibility: "visible",
     });
-  }, [triggerRef, align, minWidth]);
+  }, [triggerRef, align, minWidth, autoWidth]);
 
   useEffect(() => {
     if (!open) return;
+    if (autoWidth && contentRef.current) {
+      // Medir el ancho natural quitando el width fijo momentáneamente:
+      // al ser position:fixed con width auto, el panel hace shrink-to-fit.
+      const el = contentRef.current;
+      const prevWidth = el.style.width;
+      el.style.width = "auto";
+      naturalWidthRef.current = el.offsetWidth;
+      el.style.width = prevWidth;
+    }
     updatePosition();
     window.addEventListener("resize", updatePosition);
     window.addEventListener("scroll", updatePosition, true);
@@ -66,7 +97,7 @@ export function DropdownPortal({
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition, true);
     };
-  }, [open, updatePosition]);
+  }, [open, updatePosition, autoWidth]);
 
   useEffect(() => {
     if (!open) return;

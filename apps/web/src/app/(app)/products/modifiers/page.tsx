@@ -126,7 +126,7 @@ function optionToDraft(option: ModifierOption): OptionDraft {
   return {
     id: option.id,
     name: option.name,
-    surcharge: option.surcharge ?? "",
+    surcharge: option.surcharge != null ? String(option.surcharge) : "",
     is_default: option.is_default ?? false,
     order: String(option.order ?? 0),
     is_active: option.is_active ?? true,
@@ -245,7 +245,7 @@ function OptionsEditor({ groupId }: { groupId: number }) {
     const payload: ModifierOptionWriteRequest = {
       group: groupId,
       name,
-      surcharge: surchargeValue || "0",
+      surcharge: Number(surchargeValue || "0"),
       is_default: draft.is_default,
       order: Number(draft.order) || 0,
       is_active: draft.is_active,
@@ -343,7 +343,7 @@ function OptionsEditor({ groupId }: { groupId: number }) {
                   <tr key={option.id} className="hover:bg-muted/30">
                     <td className="px-3 py-2 font-medium">{option.name}</td>
                     <td className="px-3 py-2 text-right tabular-nums">
-                      {formatCLP(parseFloat(option.surcharge || "0"))}
+                      {formatCLP(option.surcharge ?? 0)}
                     </td>
                     <td className="px-3 py-2 text-center">
                       <span
@@ -1022,7 +1022,7 @@ export default function ModifiersPage() {
         ) : (
           <>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-sm">
+              <div className="flex items-center gap-3 rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary">
                   <Boxes className="h-5 w-5 text-muted-foreground" />
                 </div>
@@ -1031,7 +1031,7 @@ export default function ModifiersPage() {
                   <p className="text-lg font-semibold leading-none">{stats.total}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-sm">
+              <div className="flex items-center gap-3 rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary">
                   <Power className="h-5 w-5 text-muted-foreground" />
                 </div>
@@ -1040,7 +1040,7 @@ export default function ModifiersPage() {
                   <p className="text-lg font-semibold leading-none">{stats.active}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-sm">
+              <div className="flex items-center gap-3 rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary">
                   <AlertTriangle className="h-5 w-5 text-muted-foreground" />
                 </div>
@@ -1184,7 +1184,7 @@ export default function ModifiersPage() {
                 return (
                   <div
                     key={group.id}
-                    className="flex min-w-0 flex-col rounded-xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md"
+                    className="flex min-w-0 flex-col rounded-2xl border border-border bg-muted/30 p-4 shadow-sm transition-shadow hover:shadow-md"
                   >
                     <div className="mb-3 flex items-start justify-between gap-3">
                       <div className="flex min-w-0 items-center gap-3">

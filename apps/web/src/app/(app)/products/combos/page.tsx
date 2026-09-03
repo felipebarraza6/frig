@@ -76,7 +76,7 @@ function comboToForm(combo: Combo): ComboFormState {
   return {
     name: combo.name,
     description: combo.description ?? "",
-    combo_price: combo.combo_price ?? "",
+    combo_price: combo.combo_price != null ? String(combo.combo_price) : "",
     is_active: combo.is_active ?? true,
     start_date: combo.start_date ?? "",
     end_date: combo.end_date ?? "",
@@ -94,7 +94,7 @@ function comboToPayload(combo: Combo): ComboWriteRequest {
   return {
     name: combo.name,
     description: combo.description ?? null,
-    combo_price: combo.combo_price ?? "0",
+    combo_price: combo.combo_price ?? 0,
     is_active: combo.is_active ?? true,
     start_date: combo.start_date ?? null,
     end_date: combo.end_date ?? null,
@@ -285,7 +285,7 @@ export default function CombosPage() {
     const payload: ComboWriteRequest = {
       name: form.name.trim(),
       description: form.description.trim() || null,
-      combo_price: price.toFixed(2),
+      combo_price: price,
       is_active: form.is_active,
       start_date: form.start_date || null,
       end_date: form.end_date || null,
@@ -324,7 +324,7 @@ export default function CombosPage() {
       const payload: ComboWriteRequest = {
         name: `${full.name} (copia)`,
         description: full.description ?? null,
-        combo_price: full.combo_price ?? "0",
+        combo_price: full.combo_price ?? 0,
         is_active: full.is_active ?? true,
         start_date: full.start_date ?? null,
         end_date: full.end_date ?? null,
@@ -440,7 +440,7 @@ export default function CombosPage() {
           <>
             {/* Resumen */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
-              <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-sm">
+              <div className="flex items-center gap-3 rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary">
                   <Boxes className="h-5 w-5 text-muted-foreground" />
                 </div>
@@ -449,7 +449,7 @@ export default function CombosPage() {
                   <p className="text-lg font-semibold leading-none">{totalCombos}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-sm">
+              <div className="flex items-center gap-3 rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary">
                   <Zap className="h-5 w-5 text-muted-foreground" />
                 </div>
@@ -458,7 +458,7 @@ export default function CombosPage() {
                   <p className="text-lg font-semibold leading-none">{stats.active}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-sm">
+              <div className="flex items-center gap-3 rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary">
                   <TrendingUp className="h-5 w-5 text-muted-foreground" />
                 </div>
@@ -467,7 +467,7 @@ export default function CombosPage() {
                   <p className="text-lg font-semibold leading-none">{stats.inactive}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-sm">
+              <div className="flex items-center gap-3 rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary">
                   <AlertTriangle className="h-5 w-5 text-muted-foreground" />
                 </div>
@@ -516,7 +516,7 @@ export default function CombosPage() {
                         </td>
                         <td className="px-4 py-3 text-right">
                           <span className="font-semibold tabular-nums">
-                            {formatCLP(parseFloat(combo.combo_price || "0"))}
+                            {formatCLP(combo.combo_price ?? 0)}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-center">
@@ -583,7 +583,7 @@ export default function CombosPage() {
                 return (
                   <div
                     key={combo.id}
-                    className="flex min-w-0 flex-col rounded-xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md"
+                    className="flex min-w-0 flex-col rounded-2xl border border-border bg-muted/30 p-4 shadow-sm transition-shadow hover:shadow-md"
                   >
                     <div className="mb-3 flex items-start justify-between gap-3">
                       <div className="flex min-w-0 items-center gap-3">
@@ -615,7 +615,7 @@ export default function CombosPage() {
                       <div className="min-w-0">
                         <p className="text-xs text-muted-foreground">Precio combo</p>
                         <p className="text-lg font-semibold tabular-nums">
-                          {formatCLP(parseFloat(combo.combo_price || "0"))}
+                          {formatCLP(combo.combo_price ?? 0)}
                         </p>
                       </div>
                       <div className="min-w-0">
@@ -634,7 +634,7 @@ export default function CombosPage() {
                             {combo.end_date ? formatDate(combo.end_date) : "Sin fin"}
                           </span>
                           {expired && (
-                            <span className="inline-flex items-center gap-0.5 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-medium text-rose-700">
+                            <span className="inline-flex items-center gap-0.5 rounded bg-danger/10 px-1.5 py-0.5 text-[10px] font-medium text-danger">
                               <AlertTriangle className="h-3 w-3" />
                               Vencido
                             </span>

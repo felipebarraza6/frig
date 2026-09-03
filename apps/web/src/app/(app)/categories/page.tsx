@@ -199,7 +199,7 @@ export default function CategoriesPage() {
           <>
             {/* Resumen */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-              <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-sm">
+              <div className="flex items-center gap-3 rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary">
                   <Folder className="h-5 w-5 text-muted-foreground" />
                 </div>
@@ -208,7 +208,7 @@ export default function CategoriesPage() {
                   <p className="text-lg font-semibold leading-none">{totalCategories}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-sm">
+              <div className="flex items-center gap-3 rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary">
                   <Boxes className="h-5 w-5 text-muted-foreground" />
                 </div>
@@ -301,7 +301,7 @@ export default function CategoriesPage() {
                 return (
                   <div
                     key={c.id}
-                    className="flex min-w-0 flex-col rounded-xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md"
+                    className="flex min-w-0 flex-col rounded-2xl border border-border bg-muted/30 p-4 shadow-sm transition-shadow hover:shadow-md"
                   >
                     <div className="mb-3 flex items-start justify-between gap-3">
                       <div className="flex min-w-0 items-center gap-3">

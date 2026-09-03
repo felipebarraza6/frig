@@ -424,7 +424,7 @@ export default function TablesPage() {
               {Array.from({ length: 4 }).map((_, i) => (
                 <div
                   key={i}
-                  className="rounded-xl border border-border bg-card p-4 shadow-sm"
+                  className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm"
                 >
                   <div className="mb-2 flex items-center gap-2">
                     <Skeleton className="h-8 w-8 rounded-md" />
@@ -539,7 +539,7 @@ export default function TablesPage() {
                               <button
                                 onClick={() => setTransferringTable(table)}
                                 disabled={transferWaiter.isPending}
-                                className="inline-flex items-center gap-1 rounded-md bg-blue-500/10 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-500/20"
+                                className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-xs font-medium text-primary hover:bg-primary/20"
                               >
                                 <ArrowLeftRight className="h-3 w-3" />
                                 Transferir
@@ -589,7 +589,7 @@ export default function TablesPage() {
                   <div
                     key={table.id}
                     className={cn(
-                      "flex flex-col gap-3 rounded-xl border border-border bg-card p-4 transition-shadow hover:shadow-sm",
+                      "flex flex-col gap-3 rounded-2xl border border-border bg-muted/30 p-4 transition-shadow hover:shadow-md",
                       !table.is_active && "opacity-60"
                     )}
                   >
@@ -675,7 +675,7 @@ export default function TablesPage() {
                         <button
                           onClick={() => setTransferringTable(table)}
                           disabled={transferWaiter.isPending}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-blue-500/10 text-blue-700 hover:bg-blue-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 text-primary hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           title="Transferir"
                           aria-label="Transferir"
                         >

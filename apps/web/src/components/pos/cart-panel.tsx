@@ -74,8 +74,6 @@ interface CartPanelProps {
   selectedTable?: YggdraSchemas["Table"] | null;
   existingOrderId?: string | null;
   existingOrder?: Order | null;
-  existingOrderLoading?: boolean;
-  existingOrderError?: Error | null;
   onOrderRegistered?: (orderType?: "SALE" | "ORDER") => void;
   onPostSaleOrder?: (order: Order, items: CartItem[]) => void;
   onClose?: () => void;
@@ -83,7 +81,7 @@ interface CartPanelProps {
   defaultOrderType?: "SALE" | "ORDER" | "AGREEMENT";
 }
 
-export default function CartPanel({ stationId, selectedTable, existingOrderId, existingOrder, existingOrderLoading, existingOrderError, onOrderRegistered, onPostSaleOrder, onClose, isWaiter: isWaiterProp, defaultOrderType }: CartPanelProps) {
+export default function CartPanel({ stationId, selectedTable, existingOrderId, existingOrder, onOrderRegistered, onPostSaleOrder, onClose, isWaiter: isWaiterProp, defaultOrderType }: CartPanelProps) {
   const queryClient = useQueryClient();
   const branch = useCurrentBranch();
   const branchId = branch?.branch_id ?? null;
@@ -122,7 +120,9 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
   const [deliveryDate, setDeliveryDate] = useState("");
   const [removedOrderProductIds, setRemovedOrderProductIds] = useState<number[]>([]);
   const [showEmpty, setShowEmpty] = useState(items.length === 0);
-  const deliveryInitializedRef = useRef(false);
+  // ID de la orden cuyos datos ya fueron volcados al estado local. Permite
+  // cargar una sola vez cada orden, pero refrescar al cambiar de cuenta.
+  const loadedOrderIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (items.length === 0) {
@@ -162,7 +162,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
-  function orderProductsToCartItems(orderProducts?: OrderProduct[] | null): CartItem[] {
+  function orderProductsToCartItems(orderProducts?: readonly OrderProduct[] | null): CartItem[] {
     if (!orderProducts) return [];
     return orderProducts.map((op) => {
       const product: PosProduct = {
@@ -189,30 +189,39 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
     });
   }
 
-  /* eslint-disable react-hooks/set-state-in-effect */
+  // Al salir del modo edición (nueva venta), liberar la referencia para que
+  // reabrir la misma orden vuelva a cargar sus productos.
   useEffect(() => {
-    deliveryInitializedRef.current = false;
-    setRemovedOrderProductIds([]);
+    if (!existingOrderId) {
+      loadedOrderIdRef.current = null;
+    }
   }, [existingOrderId]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
-  /* eslint-disable react-hooks/set-state-in-effect */
-  // Al editar una orden existente, cargar cliente, productos y datos de entrega una sola vez.
+  // Al editar una orden existente, cargar cliente, productos y datos de entrega.
   useEffect(() => {
-    if (!existingOrder || deliveryInitializedRef.current) return;
-    deliveryInitializedRef.current = true;
-    if (existingOrder.client) {
-      setSelectedClient(existingOrder.client as unknown as Customer);
-    }
-    if (existingOrder.products && existingOrder.products.length > 0) {
-      setItems((prev) => (prev.length > 0 ? prev : orderProductsToCartItems(existingOrder.products)));
-    }
+    if (!existingOrder || loadedOrderIdRef.current === existingOrder.id) return;
+    const switchingFromAnotherOrder = loadedOrderIdRef.current != null;
+    loadedOrderIdRef.current = existingOrder.id;
+    setSelectedClient((existingOrder.client ?? null) as unknown as Customer | null);
+    setItems((prev) => {
+      // Al cambiar de cuenta, los ítems que venían de la orden anterior no
+      // pertenecen a esta y se reemplazan; lo que el usuario agregó
+      // manualmente (sin orderProductId) se conserva.
+      const userAdded = switchingFromAnotherOrder
+        ? prev.filter((i) => i.orderProductId == null)
+        : prev;
+      return [...orderProductsToCartItems(existingOrder.products), ...userAdded];
+    });
+    // Resetear el estado local que es específico de la orden anterior.
+    setRemovedOrderProductIds([]);
+    setPayments([]);
+    setDiscountCode("");
+    setValidatedDiscount(null);
     const hasDelivery = Boolean(existingOrder.delivery_address || existingOrder.delivery_date);
     setDeliveryMode(hasDelivery ? "delivery" : "pickup");
     setDeliveryAddress(existingOrder.delivery_address ?? "");
     setDeliveryDate(toDateTimeLocal(existingOrder.delivery_date));
   }, [existingOrder, setItems]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   /* eslint-disable react-hooks/set-state-in-effect */
   // Si el modo es delivery y el cliente tiene dirección, precargarla cuando esté vacía.
@@ -499,7 +508,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
         await createPayment({
           payment_method_id: payment.payment_method_id,
           order_id: orderId,
-          amount: Number(payment.amount).toFixed(2),
+          amount: Number(Number(payment.amount).toFixed(2)),
           status: "COMPLETED",
           cash_register_id: currentCashRegister.id,
         });
@@ -608,14 +617,40 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
         }));
       }
 
-      for (const payment of paymentsToProcess) {
-        await createPayment({
-          payment_method_id: payment.payment_method_id,
-          order_id: order.id,
-          amount: Number(payment.amount).toFixed(2),
-          status: "COMPLETED",
-          cash_register_id: currentCashRegister ? currentCashRegister.id : null,
-        });
+      try {
+        for (const payment of paymentsToProcess) {
+          await createPayment({
+            payment_method_id: payment.payment_method_id,
+            order_id: order.id,
+            amount: Number(Number(payment.amount).toFixed(2)),
+            status: "COMPLETED",
+            cash_register_id: currentCashRegister ? currentCashRegister.id : null,
+          });
+        }
+      } catch (paymentErr) {
+        // La orden ya fue creada en el backend. Sin esta compensación, el
+        // carrito quedaba intacto y reintentar "Registrar" duplicaba la
+        // venta. Los ítems ya están guardados en la orden (con los pagos
+        // que sí se aplicaron), así que se vacía el carrito y la orden
+        // pendiente se completa desde Cuentas.
+        queryClient.invalidateQueries({ queryKey: ["orders"] });
+        queryClient.invalidateQueries({ queryKey: ["cash-register"] });
+        queryClient.invalidateQueries({ queryKey: ["open-accounts"] });
+        queryClient.invalidateQueries({ queryKey: ["products"], refetchType: "all" });
+        clear();
+        resetPayments();
+        setSelectedClient(null);
+        setDiscountCode("");
+        setValidatedDiscount(null);
+        resetDelivery();
+        onOrderRegistered?.();
+        const paymentMessage =
+          paymentErr instanceof Error ? paymentErr.message : "Error de pago";
+        toast.error(
+          `La orden ${order.id.slice(0, 8)} se creó, pero un pago falló (${paymentMessage}). ` +
+            "Los productos quedaron guardados: complétala desde Cuentas.",
+        );
+        return;
       }
 
       // Solo liberar la mesa si la venta quedó cobrada (SALE con pagos).
@@ -630,8 +665,10 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
       }
 
       if (orderType === "SALE" && payments.length > 0) {
-        // Venta pagada: delegar al padre el modal de comprobantes para que
-        // sobreviva al cierre del drawer en móvil.
+        // Venta pagada: refrescar catálogo (stock) y dashboard antes de
+        // delegar el modal de comprobantes al padre.
+        queryClient.invalidateQueries({ queryKey: ["products"], refetchType: "all" });
+        queryClient.invalidateQueries({ queryKey: ["dashboard"] });
         onPostSaleOrder?.(order, [...items]);
         clear();
         resetPayments();
@@ -644,6 +681,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
       }
 
       queryClient.invalidateQueries({ queryKey: ["products"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       clear();
       resetPayments();
       setSelectedClient(null);
@@ -885,17 +923,6 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        {existingOrderId && (
-          <div className="shrink-0 border-b border-border/60 p-3">
-            <ExistingOrderSummary
-              existingOrderId={existingOrderId}
-              existingOrder={existingOrder}
-              existingOrderLoading={existingOrderLoading}
-              existingOrderError={existingOrderError}
-            />
-          </div>
-        )}
-
         {showEmpty ? (
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-3">
             {!existingOrderId && (
@@ -1470,65 +1497,6 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
         />
       )}
 
-    </div>
-  );
-}
-
-function ExistingOrderSummary({
-  existingOrderId,
-  existingOrder,
-  existingOrderLoading,
-  existingOrderError,
-}: {
-  existingOrderId: string;
-  existingOrder?: Order | null;
-  existingOrderLoading?: boolean;
-  existingOrderError?: Error | null;
-}) {
-  if (existingOrderLoading) {
-    return (
-      <div className="flex flex-col gap-2 rounded-lg bg-primary/5 px-3 py-2.5 text-xs text-primary">
-        <div className="flex items-center gap-2">
-          <svg className="h-3.5 w-3.5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-          </svg>
-          <span>Cargando orden #{existingOrderId.slice(0, 8)}…</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (existingOrderError) {
-    return (
-      <div className="rounded-lg bg-rose-500/10 px-3 py-2 text-xs text-rose-700">
-        No se pudo cargar la orden. Revisa la conexión o el ID.
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-2 rounded-lg bg-primary/5 px-3 py-2.5 text-xs">
-      <div className="flex items-center justify-between text-primary">
-        <span className="font-medium">Agregando a orden #{existingOrderId.slice(0, 8)}</span>
-        <span className="font-bold tabular-nums">
-          {formatCLP(parseFloat(existingOrder?.total_amount ?? "0"))}
-        </span>
-      </div>
-      {existingOrder?.products && existingOrder.products.length > 0 && (
-        <ul className="flex flex-col gap-1 border-t border-primary/10 pt-2">
-          {existingOrder.products.map((item) => (
-            <li key={item.id} className="flex items-start justify-between gap-2">
-              <span className="truncate">
-                {item.quantity}× {item.product_name}
-              </span>
-              <span className="shrink-0 tabular-nums text-muted-foreground">
-                {formatCLP(parseFloat(item.final_price ?? item.total_price ?? "0"))}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 }

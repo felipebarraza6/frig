@@ -148,6 +148,11 @@ export interface BranchUser {
   user: ID;
   user_name?: string;
   user_email?: string;
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+  full_name?: string;
+  username?: string;
   branch: ID;
   branch_name?: string;
   role_definition: ID;

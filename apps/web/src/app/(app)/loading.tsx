@@ -22,7 +22,7 @@ export default function Loading() {
           {Array.from({ length: 4 }).map((_, i) => (
             <div
               key={i}
-              className="rounded-2xl border border-border bg-card p-4 shadow-sm"
+              className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm"
             >
               <div className="mb-2 flex items-center gap-2">
                 <Skeleton className="h-8 w-8 rounded-xl" />

@@ -18,6 +18,7 @@ export interface OrdersFilter {
   payment_status?: string | string[];
   delivery_status?: string | string[];
   client__in?: string | string[];
+  has_revenues?: boolean;
   start_date?: string;
   end_date?: string;
   page_size?: number;
@@ -91,8 +92,14 @@ export interface PaymentInstallment {
   paid_amount?: string | null;
   due_date?: string | null;
   payment_date?: string | null;
-  notes?: string | null;
+  /** Fecha en que la cuota quedó pagada (serializer del backend). */
+  paid_at?: string | null;
+  /** UUID del pago (Payment) que canceló esta cuota, si ya fue pagada. */
+  payment?: string | null;
+  payment_method_name?: string;
   status?: "PENDING" | "PAID" | "OVERDUE" | "CANCELLED" | string;
+  status_display?: string;
+  notes?: string | null;
   created?: string;
   modified?: string;
 }
@@ -119,6 +126,9 @@ function buildOrdersQueryString(filter: OrdersFilter): string {
   setMulti("payment_status", filter.payment_status);
   setMulti("delivery_status", filter.delivery_status);
   setMulti("client__in", filter.client__in);
+  if (filter.has_revenues !== undefined) {
+    qs.set("has_revenues", filter.has_revenues ? "true" : "false");
+  }
 
   if (filter.start_date) qs.set("start_date", filter.start_date);
   if (filter.end_date) qs.set("end_date", filter.end_date);

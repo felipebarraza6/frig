@@ -93,6 +93,15 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Ocultar scrollbars en toda la app */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
+
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -118,6 +127,16 @@ body {
 }
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Sidebar: fondo fuerte derivado del primary de la marca (texto blanco encima).
+   Una sola variación para light y dark — mezcla del brand con negro. */
+.app-sidebar {
+  background-color: color-mix(in srgb, var(--brand-primary) 88%, #000);
+  border-right: 1px solid color-mix(in srgb, var(--brand-primary) 68%, #000);
+}
+.dark .app-sidebar {
+  background-color: color-mix(in srgb, var(--brand-primary) 76%, #000);
 }
 
 @keyframes bump {

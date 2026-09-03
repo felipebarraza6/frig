@@ -36,6 +36,11 @@ function getBranchId(): string | null {
 
 function redirectToLogin(): void {
   if (typeof window === "undefined") return;
+  // Limpiar la sesión persistida: si no, el localStorage queda con token y
+  // datos de sucursal stale hasta que un nuevo login los sobrescriba.
+  window.localStorage.removeItem("frig.token");
+  window.localStorage.removeItem("frig.branch_id");
+  window.localStorage.removeItem("frig.session");
   window.location.assign(`${window.location.origin}/login`);
 }
 

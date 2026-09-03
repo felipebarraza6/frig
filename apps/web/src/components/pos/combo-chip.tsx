@@ -20,7 +20,7 @@ function ComboChipRaw({ combo, onClick }: ComboChipProps) {
       <span className="min-w-0 truncate">{combo.name}</span>
       <span className="shrink-0 opacity-80">· {combo.items_count}</span>
       <span className="shrink-0 font-semibold">
-        {formatCLP(parseFloat(combo.combo_price || "0"))}
+        {formatCLP(combo.combo_price ?? 0)}
       </span>
     </button>
   );

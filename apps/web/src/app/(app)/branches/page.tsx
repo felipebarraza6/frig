@@ -13,11 +13,22 @@ import {
 } from "@/lib/store/session";
 import { branchName } from "@/lib/types";
 import { fetchBranches, updateBranch } from "@/lib/api/branches";
+import { getRoleLabel } from "@/lib/roles";
 import { BranchForm } from "@/components/branches/branch-form";
 import { BranchUsersDialog } from "@/components/branches/branch-users-dialog";
 import { BranchThemeDialog } from "@/components/branches/branch-theme-dialog";
 import type { Branch } from "@/lib/types";
 import type { BranchesFilter } from "@/lib/api/branches";
+
+/** Cantidad de usuarios por rol de la sucursal, ordenada de mayor a menor. */
+function roleEntriesOf(branch: Branch): [string, number][] {
+  const raw = branch.users_by_role;
+  if (!raw || typeof raw !== "object") return [];
+  return Object.entries(raw)
+    .map(([code, count]) => [code, Number(count) || 0] as [string, number])
+    .filter(([, count]) => count > 0)
+    .sort((a, b) => b[1] - a[1]);
+}
 
 export default function BranchesPage() {
   const queryClient = useQueryClient();
@@ -25,6 +36,7 @@ export default function BranchesPage() {
   const canView = useCanViewBranches();
   const canManage = useCanManageBranches();
   const isSuperAdmin = Boolean(user?.is_superuser || user?.type_user === "ADM");
+  const canCreateBranch = isSuperAdmin || user?.is_multi_branch;
 
   const [search, setSearch] = useState("");
   const [pageUrl, setPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
@@ -67,7 +79,7 @@ export default function BranchesPage() {
   }
 
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
       <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
         <div>
           <h1 className="text-lg font-semibold">Sucursales</h1>
@@ -77,7 +89,7 @@ export default function BranchesPage() {
               : "Gestiona tus sucursales"}
           </p>
         </div>
-        {canManage && (
+        {canCreateBranch && (
           <div className="flex items-center gap-2">
             <Button
               size="icon"
@@ -123,7 +135,7 @@ export default function BranchesPage() {
               <p className="text-xs text-muted-foreground">
                 Prueba con otros términos o agrega una nueva sucursal.
               </p>
-              {canManage && (
+              {canCreateBranch && (
                 <Button className="mt-4" size="sm" onClick={() => setCreating(true)}>
                   <Plus className="mr-1 h-3.5 w-3.5" />
                   Nueva sucursal
@@ -150,28 +162,43 @@ export default function BranchesPage() {
                   {branches.map((b, index) => {
                     const manageable = isSuperAdmin || b.can_manage;
                     const rowKey = String(b.branch_id ?? b.id ?? index);
+                    const roleEntries = roleEntriesOf(b);
                     const activeBadgeClass = b.is_active
                       ? "bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20"
                       : "bg-danger/10 text-danger hover:bg-danger/20";
                     return (
                       <tr key={rowKey} className="border-b border-border last:border-0">
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-secondary text-foreground">
-                              <Store className="h-3.5 w-3.5 text-muted-foreground" />
-                            </div>
-                            <div className="min-w-0">
-                              <p className="truncate font-medium">{branchName(b)}</p>
-                              {b.commercial_business && (
-                                <p className="text-xs text-muted-foreground">{b.commercial_business}</p>
-                              )}
-                            </div>
+                          <div className="min-w-0">
+                            <p className="truncate font-medium">{branchName(b)}</p>
+                            {b.commercial_business && (
+                              <p className="text-xs text-muted-foreground">{b.commercial_business}</p>
+                            )}
                           </div>
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">{b.phone ?? "—"}</td>
                         <td className="px-4 py-3 text-muted-foreground">{b.email ?? "—"}</td>
-                        <td className="px-4 py-3 text-center text-muted-foreground">
-                          {b.users_count ?? "—"}
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            type="button"
+                            onClick={() => setViewingUsers(b)}
+                            title="Ver usuarios por tipo"
+                            className="group inline-flex max-w-[240px] flex-wrap items-center justify-center gap-1"
+                          >
+                            {roleEntries.length > 0 ? (
+                              roleEntries.map(([code, count]) => (
+                                <span
+                                  key={code}
+                                  className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground transition-colors group-hover:bg-primary/10"
+                                >
+                                  <span className="font-semibold tabular-nums">{count}</span>
+                                  {getRoleLabel(code)}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-muted-foreground">{b.users_count ?? 0}</span>
+                            )}
+                          </button>
                         </td>
                         <td className="px-4 py-3 text-center">
                           {manageable ? (
@@ -239,32 +266,28 @@ export default function BranchesPage() {
               {branches.map((b, index) => {
                 const manageable = isSuperAdmin || b.can_manage;
                 const rowKey = String(b.branch_id ?? b.id ?? index);
+                const roleEntries = roleEntriesOf(b);
                 return (
                   <div
                     key={rowKey}
-                    className="rounded-2xl border border-border bg-card p-4 shadow-sm"
+                    className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm"
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary">
-                          <Store className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="truncate font-medium">{branchName(b)}</p>
-                          {b.commercial_business && (
-                            <p className="text-xs text-muted-foreground">{b.commercial_business}</p>
-                          )}
-                          <span
-                            className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                              b.is_active
-                                ? "bg-emerald-500/10 text-emerald-700"
-                                : "bg-danger/10 text-danger"
-                            }`}
-                          >
-                            <Power className="h-3 w-3" />
-                            {b.is_active ? "Activa" : "Inactiva"}
-                          </span>
-                        </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium">{branchName(b)}</p>
+                        {b.commercial_business && (
+                          <p className="text-xs text-muted-foreground">{b.commercial_business}</p>
+                        )}
+                        <span
+                          className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                            b.is_active
+                              ? "bg-emerald-500/10 text-emerald-700"
+                              : "bg-danger/10 text-danger"
+                          }`}
+                        >
+                          <Power className="h-3 w-3" />
+                          {b.is_active ? "Activa" : "Inactiva"}
+                        </span>
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
                         <Button
@@ -320,12 +343,29 @@ export default function BranchesPage() {
                           <span className="truncate">{b.email}</span>
                         </div>
                       )}
-                      <div className="flex items-center gap-1.5 text-muted-foreground">
-                        <Users className="h-3 w-3" />
-                        <span>
-                          <span className="font-medium text-foreground">{b.users_count ?? 0}</span> usuarios
-                        </span>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setViewingUsers(b)}
+                        className="col-span-2 flex flex-wrap items-center gap-1 text-left"
+                      >
+                        <Users className="h-3 w-3 shrink-0 text-muted-foreground" />
+                        {roleEntries.length > 0 ? (
+                          roleEntries.map(([code, count]) => (
+                            <span
+                              key={code}
+                              className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-foreground"
+                            >
+                              <span className="font-semibold tabular-nums">{count}</span>{" "}
+                              {getRoleLabel(code)}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-muted-foreground">
+                            <span className="font-medium text-foreground">{b.users_count ?? 0}</span>{" "}
+                            usuarios
+                          </span>
+                        )}
+                      </button>
                     </div>
                   </div>
                 );

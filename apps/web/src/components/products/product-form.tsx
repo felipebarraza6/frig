@@ -113,17 +113,17 @@ interface YggdraProductDetail extends Omit<YggdraProduct, "category" | "branch" 
   category?: number | null | { id: number; name?: string };
   is_nutritional_ingredient?: boolean;
   is_public?: boolean;
-  energy_kcal?: string | null;
-  proteins_g?: string | null;
-  total_fats_g?: string | null;
-  saturated_fats_g?: string | null;
-  monounsaturated_fats_g?: string | null;
-  polyunsaturated_fats_g?: string | null;
-  trans_fats_g?: string | null;
-  cholesterol_mg?: string | null;
-  carbohydrates_g?: string | null;
-  total_sugars_g?: string | null;
-  sodium_mg?: string | null;
+  energy_kcal?: number | null;
+  proteins_g?: number | null;
+  total_fats_g?: number | null;
+  saturated_fats_g?: number | null;
+  monounsaturated_fats_g?: number | null;
+  polyunsaturated_fats_g?: number | null;
+  trans_fats_g?: number | null;
+  cholesterol_mg?: number | null;
+  carbohydrates_g?: number | null;
+  total_sugars_g?: number | null;
+  sodium_mg?: number | null;
 }
 
 export type FormTab = "basic" | "pricing" | "recipe" | "warehouses" | "nutrition" | "modifiers";
@@ -138,6 +138,11 @@ interface ProductFormProps {
 
 function generateId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+/** Convierte un valor numérico del API a string para el estado del formulario. */
+function numToStr(value: number | null | undefined): string {
+  return value == null ? "" : String(value);
 }
 
 type WarehouseProduct = YggdraSchemas["WarehouseProduct"];
@@ -198,10 +203,10 @@ function buildInitialForm(product?: YggdraProductDetail, defaultProductType?: st
     name: product?.name ?? "",
     code: product?.code ?? "",
     description: product?.description ?? "",
-    price: product?.sale_price ?? product?.price ?? "",
-    costPrice: product?.cost_price ?? "",
-    priceInternal: product?.price_internal ?? "",
-    wholesalePrice: product?.wholesale_price ?? "",
+    price: numToStr(product?.sale_price ?? product?.price),
+    costPrice: numToStr(product?.cost_price),
+    priceInternal: numToStr(product?.price_internal),
+    wholesalePrice: numToStr(product?.wholesale_price),
     stock: product?.quantity !== undefined ? String(product.quantity) : "",
     minimumStock: product?.minimum_stock !== undefined ? String(product.minimum_stock) : "",
     measurementUnit: product?.measurement_unit ?? "",
@@ -218,17 +223,17 @@ function buildInitialForm(product?: YggdraProductDetail, defaultProductType?: st
     isPublic: product?.is_public ?? false,
     isActive: product?.is_active ?? true,
     isNutritionalIngredient: product?.is_nutritional_ingredient ?? false,
-    energyKcal: product?.energy_kcal ?? "",
-    proteinsG: product?.proteins_g ?? "",
-    totalFatsG: product?.total_fats_g ?? "",
-    saturatedFatsG: product?.saturated_fats_g ?? "",
-    monounsaturatedFatsG: product?.monounsaturated_fats_g ?? "",
-    polyunsaturatedFatsG: product?.polyunsaturated_fats_g ?? "",
-    transFatsG: product?.trans_fats_g ?? "",
-    cholesterolMg: product?.cholesterol_mg ?? "",
-    carbohydratesG: product?.carbohydrates_g ?? "",
-    totalSugarsG: product?.total_sugars_g ?? "",
-    sodiumMg: product?.sodium_mg ?? "",
+    energyKcal: numToStr(product?.energy_kcal),
+    proteinsG: numToStr(product?.proteins_g),
+    totalFatsG: numToStr(product?.total_fats_g),
+    saturatedFatsG: numToStr(product?.saturated_fats_g),
+    monounsaturatedFatsG: numToStr(product?.monounsaturated_fats_g),
+    polyunsaturatedFatsG: numToStr(product?.polyunsaturated_fats_g),
+    transFatsG: numToStr(product?.trans_fats_g),
+    cholesterolMg: numToStr(product?.cholesterol_mg),
+    carbohydratesG: numToStr(product?.carbohydrates_g),
+    totalSugarsG: numToStr(product?.total_sugars_g),
+    sodiumMg: numToStr(product?.sodium_mg),
   };
 }
 
@@ -573,7 +578,7 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
         recipe_type: r.recipe_type ?? "SIMPLE",
         preparation_time_minutes: r.preparation_time_minutes !== undefined ? String(r.preparation_time_minutes) : "",
         cooking_time_minutes: r.cooking_time_minutes !== undefined ? String(r.cooking_time_minutes) : "",
-        yield_quantity: r.yield_quantity ?? "",
+        yield_quantity: r.yield_quantity !== undefined ? String(r.yield_quantity) : "",
         yield_unit: r.yield_unit ?? "",
         servings: r.servings !== undefined ? String(r.servings) : "",
         notes: r.notes ?? "",
@@ -585,7 +590,7 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
           ingredient: ing.ingredient,
           ingredient_name: ing.ingredient_name,
           ingredient_code: ing.ingredient_code ?? null,
-          quantity: ing.quantity,
+          quantity: String(ing.quantity),
           unit: ing.unit,
           is_optional: ing.is_optional,
           preparation_notes: ing.preparation_notes ?? "",
@@ -622,16 +627,16 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
       setForm((prev) => ({
         ...prev,
         isNutritionalIngredient: true,
-        energyKcal: result.calculated_energy_kcal ?? "",
-        proteinsG: result.calculated_proteins_g ?? "",
-        totalFatsG: result.calculated_total_fats_g ?? "",
-        saturatedFatsG: result.calculated_saturated_fats_g ?? "",
-        monounsaturatedFatsG: result.calculated_monounsaturated_fats_g ?? "",
-        polyunsaturatedFatsG: result.calculated_polyunsaturated_fats_g ?? "",
-        cholesterolMg: result.calculated_cholesterol_mg ?? "",
-        carbohydratesG: result.calculated_carbohydrates_g ?? "",
-        totalSugarsG: result.calculated_total_sugars_g ?? "",
-        sodiumMg: result.calculated_sodium_mg ?? "",
+        energyKcal: numToStr(result.calculated_energy_kcal),
+        proteinsG: numToStr(result.calculated_proteins_g),
+        totalFatsG: numToStr(result.calculated_total_fats_g),
+        saturatedFatsG: numToStr(result.calculated_saturated_fats_g),
+        monounsaturatedFatsG: numToStr(result.calculated_monounsaturated_fats_g),
+        polyunsaturatedFatsG: numToStr(result.calculated_polyunsaturated_fats_g),
+        cholesterolMg: numToStr(result.calculated_cholesterol_mg),
+        carbohydratesG: numToStr(result.calculated_carbohydrates_g),
+        totalSugarsG: numToStr(result.calculated_total_sugars_g),
+        sodiumMg: numToStr(result.calculated_sodium_mg),
       }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al calcular nutrición");
@@ -769,7 +774,7 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
     const branchId = branch?.branch_id;
     if (!supplierId || !branchId) return;
 
-    const costPrice = form.costPrice || "0";
+    const costPrice = Number(form.costPrice || "0");
     const supplierName = form.name.trim() || effectiveProduct?.name || "Producto";
 
     try {
@@ -911,11 +916,11 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
         name: form.name.trim(),
         code: form.code || null,
         description: form.description || null,
-        price: form.price || undefined,
-        sale_price: form.price || undefined,
-        cost_price: form.costPrice || undefined,
-        price_internal: form.priceInternal || undefined,
-        wholesale_price: form.wholesalePrice || undefined,
+        price: form.price ? Number(form.price) : undefined,
+        sale_price: form.price ? Number(form.price) : undefined,
+        cost_price: form.costPrice ? Number(form.costPrice) : undefined,
+        price_internal: form.priceInternal ? Number(form.priceInternal) : undefined,
+        wholesale_price: form.wholesalePrice ? Number(form.wholesalePrice) : undefined,
         // En creación no enviamos stock general: si se gestiona por bodega se
         // asigna abajo; si no, el producto se crea sin stock inicial.
         quantity: effectiveProduct?.id ? (form.stock ? Number(form.stock) : undefined) : undefined,
@@ -928,17 +933,17 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
         is_public: form.isPublic,
         is_active: form.isActive,
         is_nutritional_ingredient: form.isNutritionalIngredient,
-        energy_kcal: form.energyKcal || null,
-        proteins_g: form.proteinsG || null,
-        total_fats_g: form.totalFatsG || null,
-        saturated_fats_g: form.saturatedFatsG || null,
-        monounsaturated_fats_g: form.monounsaturatedFatsG || null,
-        polyunsaturated_fats_g: form.polyunsaturatedFatsG || null,
-        trans_fats_g: form.transFatsG || null,
-        cholesterol_mg: form.cholesterolMg || null,
-        carbohydrates_g: form.carbohydratesG || null,
-        total_sugars_g: form.totalSugarsG || null,
-        sodium_mg: form.sodiumMg || null,
+        energy_kcal: form.energyKcal ? Number(form.energyKcal) : null,
+        proteins_g: form.proteinsG ? Number(form.proteinsG) : null,
+        total_fats_g: form.totalFatsG ? Number(form.totalFatsG) : null,
+        saturated_fats_g: form.saturatedFatsG ? Number(form.saturatedFatsG) : null,
+        monounsaturated_fats_g: form.monounsaturatedFatsG ? Number(form.monounsaturatedFatsG) : null,
+        polyunsaturated_fats_g: form.polyunsaturatedFatsG ? Number(form.polyunsaturatedFatsG) : null,
+        trans_fats_g: form.transFatsG ? Number(form.transFatsG) : null,
+        cholesterol_mg: form.cholesterolMg ? Number(form.cholesterolMg) : null,
+        carbohydrates_g: form.carbohydratesG ? Number(form.carbohydratesG) : null,
+        total_sugars_g: form.totalSugarsG ? Number(form.totalSugarsG) : null,
+        sodium_mg: form.sodiumMg ? Number(form.sodiumMg) : null,
       };
       const savedProduct = await onSubmit(payload, effectiveProduct?.id);
 
@@ -1285,7 +1290,7 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
                               type="button"
                               onClick={() => removeExistingWarehouseProduct(wp.id)}
                               disabled={removingWarehouseId === wp.id}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-rose-50 hover:text-danger disabled:opacity-50"
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-danger/10 hover:text-danger disabled:opacity-50"
                               title="Quitar producto de esta bodega"
                             >
                               {removingWarehouseId === wp.id ? (

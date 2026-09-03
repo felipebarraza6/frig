@@ -299,7 +299,7 @@ export default function FinanceDashboardPage() {
             </section>
 
             <section className="grid gap-4 lg:grid-cols-3">
-              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm lg:col-span-2">
+              <div className="rounded-2xl border border-border bg-muted/30 p-5 shadow-sm lg:col-span-2">
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600">
@@ -330,7 +330,7 @@ export default function FinanceDashboardPage() {
                 )}
               </div>
 
-              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+              <div className="rounded-2xl border border-border bg-muted/30 p-5 shadow-sm">
                 <div className="mb-4 flex items-center gap-2">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-500/10 text-rose-600">
                     <PieChart className="h-4 w-4" />
@@ -377,7 +377,7 @@ export default function FinanceDashboardPage() {
               </div>
             </section>
 
-            <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+            <section className="rounded-2xl border border-border bg-muted/30 p-5 shadow-sm">
               <div className="mb-4 flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
                   <PiggyBank className="h-4 w-4" />
@@ -416,7 +416,7 @@ export default function FinanceDashboardPage() {
               </div>
             </section>
 
-            <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+            <section className="rounded-2xl border border-border bg-muted/30 p-5 shadow-sm">
               <div className="mb-4 flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
                   <Settings className="h-4 w-4" />
@@ -477,19 +477,19 @@ function StatCard({
   const toneStyles = {
     emerald: "from-emerald-50/60 via-white/90 to-white/90",
     rose: "from-rose-50/60 via-white/90 to-white/90",
-    teal: "from-teal-50/60 via-white/90 to-white/90",
+    teal: "from-primary/5 via-white/90 to-white/90",
     slate: "from-muted/50 via-white/90 to-white/90",
   };
   const toneText = {
     emerald: "text-emerald-700/90",
     rose: "text-rose-700/90",
-    teal: "text-teal-700/90",
+    teal: "text-primary/80",
     slate: "text-muted-foreground",
   };
   const toneIcon = {
     emerald: "bg-emerald-500/12 text-emerald-600",
     rose: "bg-rose-500/12 text-rose-600",
-    teal: "bg-teal-500/12 text-teal-600",
+    teal: "bg-primary/10 text-primary",
     slate: "bg-muted text-muted-foreground",
   };
 
@@ -571,7 +571,7 @@ function QuickAction({
   const toneIcon = {
     emerald: "bg-emerald-500/10 text-emerald-600",
     rose: "bg-rose-500/10 text-rose-600",
-    teal: "bg-teal-500/10 text-teal-600",
+    teal: "bg-primary/10 text-primary",
     slate: "bg-muted text-muted-foreground",
   };
   return (

@@ -1,16 +1,17 @@
-import { notFound } from "next/navigation";
-import { KdsBoard } from "@/components/kds/kds-board";
+import { KdsStationClient } from "./kds-station-client";
 
-interface KdsStationPageProps {
-  params: Promise<{ id: string }>;
+// Exportación estática (deploy por FTP): se genera una instancia con el
+// placeholder "__" y el servidor (ver .htaccess en out/) reescribe las URLs
+// reales (/kds/station/<id>) a esa instancia. La estación se resuelve en el cliente.
+export function generateStaticParams() {
+  return [{ id: "__" }];
 }
 
-export default async function KdsStationPage({ params }: KdsStationPageProps) {
+export default async function KdsStationPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
-  const stationId = Number(id);
-  if (!stationId || Number.isNaN(stationId)) {
-    notFound();
-  }
-
-  return <KdsBoard fixedStationId={stationId} title="Estación de cocina" />;
+  return <KdsStationClient id={id} />;
 }

@@ -46,7 +46,7 @@ const COLUMNS: {
   color: string;
 }[] = [
   { key: "PENDING", label: "Pendientes", icon: Clock, color: "bg-amber-500" },
-  { key: "PREPARING", label: "En preparación", icon: ChefHat, color: "bg-blue-500" },
+  { key: "PREPARING", label: "En preparación", icon: ChefHat, color: "bg-primary" },
   { key: "READY", label: "Listos", icon: Utensils, color: "bg-emerald-500" },
 ];
 
@@ -112,8 +112,12 @@ export function KdsBoard({
 
   const toast = useToast();
 
-  const invalidateTickets = () =>
+  const invalidateTickets = () => {
     queryClient.invalidateQueries({ queryKey: ["kitchen-tickets"] });
+    // El POS muestra estado de órdenes/cuentas: sin esto dependía 100%
+    // del WebSocket y con el socket caído quedaba stale hasta el polling.
+    queryClient.invalidateQueries({ queryKey: ["orders"] });
+  };
 
   const mutationOptions = {
     onSuccess: invalidateTickets,
@@ -157,7 +161,7 @@ export function KdsBoard({
           {Array.from({ length: 3 }).map((_, col) => (
             <div
               key={col}
-              className="flex min-h-0 flex-col rounded-xl border border-border bg-card"
+              className="flex min-h-0 flex-col rounded-2xl border border-border bg-muted/30"
             >
               <div className="flex items-center gap-2 px-4 py-3">
                 <Skeleton className="h-4 w-4 rounded" />
@@ -168,7 +172,7 @@ export function KdsBoard({
                 {Array.from({ length: col === 0 ? 3 : 2 }).map((_, i) => (
                   <div
                     key={i}
-                    className="rounded-lg border border-border bg-background p-4 shadow-sm"
+                    className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm"
                   >
                     <div className="mb-2 flex items-center justify-between">
                       <Skeleton className="h-3 w-24" />
@@ -268,7 +272,7 @@ export function KdsBoard({
           return (
             <div
               key={col.key}
-              className="flex min-h-0 flex-col rounded-xl border border-border bg-card"
+              className="flex min-h-0 flex-col rounded-2xl border border-border bg-muted/30"
             >
               <div
                 className={cn(
@@ -347,7 +351,7 @@ function TicketCard({
     cancelMutation.isPending;
 
   return (
-    <div className="rounded-lg border border-border bg-background p-4 shadow-sm transition-shadow hover:shadow-md">
+    <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm transition-shadow hover:shadow-md">
       <div className="mb-2 flex items-center justify-between">
         <span className="text-xs font-medium text-muted-foreground">
           Orden #{ticket.order.slice(0, 8)}
@@ -376,7 +380,7 @@ function TicketCard({
               )}
             </div>
             <span className="tabular-nums text-muted-foreground">
-              x{parseFloat(item.quantity || "0")}
+              x{item.quantity ?? 0}
             </span>
           </li>
         ))}

@@ -123,8 +123,8 @@ export default function PosZenPage() {
         cashRegisters[idx]?.isLoading || dailySummaries[idx]?.isLoading;
       map.set(station.id, {
         isOpen: register?.status === "OPEN",
-        totalSales: parseFloat(summary?.total_sales ?? "0"),
-        cashSales: parseFloat(summary?.cash_sales ?? "0"),
+        totalSales: summary?.total_sales ?? 0,
+        cashSales: summary?.cash_sales ?? 0,
         totalOrders: summary?.total_orders ?? 0,
         isLoading,
       });
@@ -170,7 +170,7 @@ export default function PosZenPage() {
       const data = await openCashRegister({
         branch_id: Number(branch?.branch_id ?? 0),
         station_id: station.id,
-        opening_amount: toDecimal(amount),
+        opening_amount: parseFloat(toDecimal(amount)),
       });
       queryClient.invalidateQueries({ queryKey: ["cash-register", "current"] });
       queryClient.invalidateQueries({
@@ -224,7 +224,7 @@ export default function PosZenPage() {
             {[0, 1, 2].map((i) => (
               <div
                 key={i}
-                className="flex flex-col justify-between rounded-2xl border border-border/60 bg-card p-5 shadow-sm"
+                className="flex flex-col justify-between rounded-2xl border border-border bg-muted/30 p-5 shadow-sm"
               >
                 <div>
                   <div className="flex items-start justify-between gap-3">
@@ -248,7 +248,7 @@ export default function PosZenPage() {
             ))}
           </div>
         ) : stationsError ? (
-          <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-danger/30 bg-card p-10 text-center">
+          <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-danger/30 bg-muted/30 p-10 text-center">
             <Monitor className="h-10 w-10 text-danger/80" />
             <div>
               <p className="text-sm font-medium">
@@ -280,7 +280,7 @@ export default function PosZenPage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.05 }}
                   className={cn(
-                    "flex flex-col justify-between rounded-2xl border bg-card p-5 transition-all shadow-sm hover:shadow-md",
+                    "flex flex-col justify-between rounded-2xl border border-border bg-muted/30 p-5 transition-all shadow-sm hover:shadow-md",
                     selected
                       ? "border-primary/50 bg-gradient-to-b from-primary/5 to-card ring-2 ring-primary/20 shadow-md"
                       : "border-border hover:border-primary/40",
@@ -361,7 +361,7 @@ export default function PosZenPage() {
                     <div className="mt-4 border-t border-border pt-4">
                       {isOpen ? (
                         <div className="grid grid-cols-3 gap-2">
-                          <div className="flex flex-col rounded-xl bg-muted/50 p-2.5 text-center">
+                          <div className="flex flex-col rounded-2xl border border-border bg-muted/30 p-2.5 text-center">
                             <span className="text-[11px] font-medium text-muted-foreground flex items-center justify-center gap-1">
                               <BarChart3 className="h-3 w-3" />
                               Órdenes
@@ -371,7 +371,7 @@ export default function PosZenPage() {
                             </span>
                           </div>
 
-                          <div className="flex flex-col rounded-xl bg-muted/50 p-2.5 text-center">
+                          <div className="flex flex-col rounded-2xl border border-border bg-muted/30 p-2.5 text-center">
                             <span className="text-[11px] font-medium text-muted-foreground flex items-center justify-center gap-1">
                               <ShoppingBag className="h-3 w-3" />
                               Ventas
@@ -381,7 +381,7 @@ export default function PosZenPage() {
                             </span>
                           </div>
 
-                          <div className="flex flex-col rounded-xl bg-muted/50 p-2.5 text-center">
+                          <div className="flex flex-col rounded-2xl border border-border bg-muted/30 p-2.5 text-center">
                             <span className="text-[11px] font-medium text-muted-foreground flex items-center justify-center gap-1">
                               <Banknote className="h-3 w-3" />
                               Efectivo
@@ -475,7 +475,7 @@ export default function PosZenPage() {
             })}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-card p-10 text-center">
+          <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-muted/30 p-10 text-center">
             <Monitor className="h-10 w-10 text-muted-foreground" />
             <div>
               <p className="text-sm font-medium">

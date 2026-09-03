@@ -1,0 +1,56 @@
+# Deploy automático de FRIG web al hosting estático por FTP.
+#
+# Requisitos en GitHub → Settings → Secrets and variables → Actions:
+#   Secrets:
+#     FTP_PASSWORD    contraseña FTP
+#     FTP_TARGET_DIR  carpeta destino (ej. /public_html/ o /htdocs/frig/)
+#
+# Nota: el frontend se compila a HTML estático (next.config.ts usa output:"export").
+# Las rutas dinámicas se sirven mediante .htaccess generado por scripts/post-export.mjs.
+
+name: Deploy FRIG web a FTP
+
+on:
+  push:
+    branches: [master]
+    paths: ["apps/web/**", ".github/workflows/deploy.yml"]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      # Se inyecta en build time: NEXT_PUBLIC_* se sustituye en el bundle.
+      NEXT_PUBLIC_YGGDRA_API_BASE: "https://api.yggdra.cl/api"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Build estático
+        run: npm run build
+
+      - name: Generar .htaccess para rutas dinámicas
+        run: node scripts/post-export.mjs
+
+      - name: Subir a servidor por FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ftp.yggdra.cl
+          port: 21
+          username: web_ci@frig.yddra.cl
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: apps/web/out/
+          server-dir: ${{ secrets.FTP_TARGET_DIR }}
+          dangerous-clean-slate: true

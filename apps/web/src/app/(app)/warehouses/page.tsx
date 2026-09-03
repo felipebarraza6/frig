@@ -162,7 +162,7 @@ export default function WarehousesPage() {
         warehouse_type: (form.warehouse_type || "GENERAL") as "GENERAL" | "TOOLS" | "RAW_MATERIAL" | "WASTE" | "CUSTOM",
         description: form.description || null,
         location: form.location || null,
-        capacity: form.capacity || null,
+        capacity: form.capacity ? Number(form.capacity) : null,
         is_default: form.is_default,
         branch_id: Number(branch?.branch_id ?? 0),
       };
@@ -194,7 +194,7 @@ export default function WarehousesPage() {
         warehouse_type: warehouse.warehouse_type ?? "GENERAL",
         description: warehouse.description ?? "",
         location: warehouse.location ?? "",
-        capacity: warehouse.capacity ?? "",
+        capacity: warehouse.capacity?.toString() ?? "",
         is_default: warehouse.is_default ?? false,
       });
     } else {
@@ -400,7 +400,7 @@ export default function WarehousesPage() {
           <>
             {/* Resumen global */}
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+              <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
                     <Warehouse className="h-5 w-5 text-primary" />
@@ -411,10 +411,10 @@ export default function WarehousesPage() {
                   </div>
                 </div>
               </div>
-              <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+              <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10">
-                    <Package className="h-5 w-5 text-blue-600" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                    <Package className="h-5 w-5 text-primary" />
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Productos</p>
@@ -422,10 +422,10 @@ export default function WarehousesPage() {
                   </div>
                 </div>
               </div>
-              <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+              <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10">
-                    <Coins className="h-5 w-5 text-emerald-600" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20">
+                    <Coins className="h-5 w-5 text-primary" />
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Valor costo</p>
@@ -433,10 +433,10 @@ export default function WarehousesPage() {
                   </div>
                 </div>
               </div>
-              <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+              <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/10">
-                    <TrendingUp className="h-5 w-5 text-violet-600" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15">
+                    <TrendingUp className="h-5 w-5 text-primary" />
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Valor venta</p>

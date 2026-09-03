@@ -27,7 +27,7 @@ import {
   type DateRange,
 } from "@/lib/api/analytics";
 import { formatCLP, cn } from "@/lib/utils";
-import { useCurrentBranch, useIsModuleEnabledFromConfig } from "@/lib/store/session";
+import { useCurrentBranch, useIsNutritionEnabled } from "@/lib/store/session";
 import { useProducts } from "@/lib/hooks/useCatalog";
 import { MetricDrawer, type MetricDrawerSection } from "@/components/metric-drawer";
 import { Sparkline } from "@/components/sparkline";
@@ -136,7 +136,7 @@ export default function DashboardPage() {
     enabled: !!branch,
   });
 
-  const nutritionEnabled = useIsModuleEnabledFromConfig("nutrition");
+  const nutritionEnabled = useIsNutritionEnabled();
 
   const { data: ingredientConsumption, isLoading: loadingIngredients } = useQuery({
     queryKey: ["dashboard", "ingredient-consumption", "v2", dates.start, dates.end, branchId],
@@ -350,7 +350,7 @@ export default function DashboardPage() {
                       items={summary?.products?.best_selling_orders ?? []}
                       title="Productos más vendidos en órdenes"
                       emptyMessage="Sin productos vendidos en órdenes del período."
-                      colorClass="bg-blue-500"
+                      colorClass="bg-primary"
                     />
                   </>
                 ),
@@ -893,35 +893,35 @@ function StatCard({
 }) {
   const toneStyles = {
     emerald: "from-emerald-50/50 via-white/80 to-white/80 shadow-emerald-500/5",
-    blue: "from-blue-50/50 via-white/80 to-white/80 shadow-blue-500/5",
+    blue: "from-primary/5 via-white/80 to-white/80 shadow-primary/5",
     amber: "from-amber-50/50 via-white/80 to-white/80 shadow-amber-500/5",
-    violet: "from-violet-50/50 via-white/80 to-white/80 shadow-violet-500/5",
-    orange: "from-orange-50/50 via-white/80 to-white/80 shadow-orange-500/5",
-    teal: "from-teal-50/50 via-white/80 to-white/80 shadow-teal-500/5",
+    violet: "from-primary/6 via-white/80 to-white/80 shadow-primary/5",
+    orange: "from-primary/8 via-white/80 to-white/80 shadow-primary/5",
+    teal: "from-primary/4 via-white/80 to-white/80 shadow-primary/5",
     rose: "from-rose-50/50 via-white/80 to-white/80 shadow-rose-500/5",
-    slate: "from-muted/40 via-white/80 to-white/80",
+    slate: "from-primary/5 via-white/80 to-white/80 shadow-primary/5",
   };
 
   const toneText = {
     emerald: "text-emerald-700/90",
-    blue: "text-blue-700/90",
+    blue: "text-primary/80",
     amber: "text-amber-700/90",
-    violet: "text-violet-700/90",
-    orange: "text-orange-700/90",
-    teal: "text-teal-700/90",
+    violet: "text-primary/80",
+    orange: "text-primary/80",
+    teal: "text-primary/80",
     rose: "text-rose-700/90",
-    slate: "text-muted-foreground",
+    slate: "text-primary/80",
   };
 
   const toneIcon = {
     emerald: "bg-emerald-500/12 text-emerald-600",
-    blue: "bg-blue-500/12 text-blue-600",
+    blue: "bg-primary/10 text-primary",
     amber: "bg-amber-500/12 text-amber-600",
-    violet: "bg-violet-500/12 text-violet-600",
-    orange: "bg-orange-500/12 text-orange-600",
-    teal: "bg-teal-500/12 text-teal-600",
+    violet: "bg-primary/12 text-primary",
+    orange: "bg-primary/15 text-primary",
+    teal: "bg-primary/8 text-primary",
     rose: "bg-rose-500/12 text-rose-600",
-    slate: "bg-muted text-muted-foreground",
+    slate: "bg-primary/10 text-primary",
   };
 
   const content = (

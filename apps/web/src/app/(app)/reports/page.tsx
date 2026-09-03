@@ -4,22 +4,13 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion, type Variants } from "framer-motion";
 import {
-  TrendingUp,
-  Receipt,
-  Wallet,
-  FlaskConical,
-  ArrowUpRight,
-  ArrowDownLeft,
   ShoppingBag,
-  CreditCard,
-  BarChart3,
+  Package,
+  FlaskConical,
+  Apple,
   AlertTriangle,
   FileText,
   FileSpreadsheet,
-  Percent,
-  TrendingDown,
-  Target,
-  BarChart,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -29,9 +20,8 @@ import {
   type DashboardSummary,
   type IngredientConsumption,
 } from "@/lib/api/analytics";
-import { formatCLP, cn, paymentTypeLabel } from "@/lib/utils";
+import { formatCLP, cn } from "@/lib/utils";
 import { useCurrentBranch } from "@/lib/store/session";
-import { fetchFinancialMetricsSummary, fetchProfitabilityComparison } from "@/lib/api/financial-metrics";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/page-header";
 
@@ -115,27 +105,11 @@ async function exportToExcel(
   const XLSX = await import("xlsx");
   const wb = XLSX.utils.book_new();
 
-  const salesTotal = summary.sales.completed.total_amount;
-  const salesCount = summary.sales.completed.count;
-  const salesProfit = summary.sales.completed.profit;
-  const ordersTotal = summary.orders.completed_summary.total_amount;
-  const ordersCount = summary.orders.completed_summary.count;
-  const ordersProfit = summary.orders.completed_summary.profit;
-  const totalRevenue = salesTotal + ordersTotal;
-  const totalProfit = salesProfit + ordersProfit;
-
   const resumenRows = [
-    { Concepto: "Ventas del período", Valor: salesTotal },
-    { Concepto: "Cantidad de ventas", Valor: salesCount },
-    { Concepto: "Órdenes del período", Valor: ordersTotal },
-    { Concepto: "Cantidad de pedidos", Valor: ordersCount },
-    { Concepto: "Ingresos totales", Valor: totalRevenue },
-    { Concepto: "Ganancia estimada", Valor: totalProfit },
+    { Concepto: "Unidades vendidas", Valor: summary.products.best_selling.reduce((s, p) => s + p.quantity, 0) },
+    { Concepto: "Productos distintos vendidos", Valor: summary.products.best_selling.length },
+    { Concepto: "Insumos distintos utilizados", Valor: ingredientConsumption?.items.length ?? 0 },
     { Concepto: "Costo de insumos", Valor: ingredientConsumption?.total_cost ?? 0 },
-    {
-      Concepto: "Gastos estimados",
-      Valor: totalRevenue - totalProfit - (ingredientConsumption?.total_cost ?? 0),
-    },
   ];
   const wsResumen = XLSX.utils.json_to_sheet(resumenRows);
   XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen");
@@ -147,13 +121,6 @@ async function exportToExcel(
   }));
   const wsProductos = XLSX.utils.json_to_sheet(productosRows);
   XLSX.utils.book_append_sheet(wb, wsProductos, "Productos");
-
-  const pagosRows = summary.payments.map((p) => ({
-    Método: paymentTypeLabel(p.type_payment__name),
-    Total: p.total,
-  }));
-  const wsPagos = XLSX.utils.json_to_sheet(pagosRows);
-  XLSX.utils.book_append_sheet(wb, wsPagos, "Pagos");
 
   if (ingredientConsumption && ingredientConsumption.items.length > 0) {
     const insumosRows = ingredientConsumption.items.map((item) => ({
@@ -167,7 +134,7 @@ async function exportToExcel(
   }
 
   const dateStr = new Date().toISOString().split("T")[0];
-  XLSX.writeFile(wb, `informe-frig-${dateStr}.xlsx`);
+  XLSX.writeFile(wb, `informe-nutricional-${dateStr}.xlsx`);
 }
 
 export default function ReportsPage() {
@@ -194,24 +161,11 @@ export default function ReportsPage() {
   const loading = loadingSummary || loadingIngredients || !branch;
   const error = summaryError;
 
-  // Financial metrics queries
-  const { data: finSummary, isLoading: loadingFin } = useQuery({
-    queryKey: ["finance", "profitability-summary", branchId],
-    queryFn: () => fetchFinancialMetricsSummary(branchId),
-    enabled: !!branchId,
-  });
-
-  const { data: comparison } = useQuery({
-    queryKey: ["finance", "profitability-comparison", branchId],
-    queryFn: () => fetchProfitabilityComparison(branchId, "MONTHLY", 6),
-    enabled: !!branchId,
-  });
-
   if (error) {
     return (
       <div className="flex min-h-full flex-col items-center justify-center gap-3 p-6 text-center">
         <AlertTriangle className="h-10 w-10 text-amber-500" />
-        <h1 className="text-lg font-semibold">No se pudieron cargar los informes</h1>
+        <h1 className="text-lg font-semibold">No se pudo cargar el informe nutricional</h1>
         <p className="max-w-md text-sm text-muted-foreground">
           {error instanceof Error ? error.message : "Ocurrió un error inesperado al consultar los datos."}
         </p>
@@ -219,16 +173,9 @@ export default function ReportsPage() {
     );
   }
 
-  const salesTotal = summary?.sales?.completed?.total_amount ?? 0;
-  const salesCount = summary?.sales?.completed?.count ?? 0;
-  const salesProfit = summary?.sales?.completed?.profit ?? 0;
-  const ordersTotal = summary?.orders?.completed_summary?.total_amount ?? 0;
-  const ordersCount = summary?.orders?.completed_summary?.count ?? 0;
-  const ordersProfit = summary?.orders?.completed_summary?.profit ?? 0;
-  const totalRevenue = salesTotal + ordersTotal;
-  const totalProfit = salesProfit + ordersProfit;
+  const bestSelling = summary?.products?.best_selling ?? [];
+  const totalUnits = bestSelling.reduce((s, p) => s + p.quantity, 0);
   const ingredientCost = ingredientConsumption?.total_cost ?? 0;
-  const expensesTotal = totalRevenue - totalProfit - ingredientCost;
 
   const topIngredients = (ingredientConsumption?.items ?? [])
     .slice()
@@ -246,9 +193,9 @@ export default function ReportsPage() {
       `}</style>
       {/* Header */}
       <header className="print-hidden flex flex-col gap-3">
-        <PageHeader title="Informes" className="mb-0" />
+        <PageHeader title="Informe nutricional" className="mb-0" />
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-          <div className="inline-flex rounded-xl border border-border bg-card p-1 shadow-sm">
+          <div className="inline-flex rounded-xl border border-border bg-muted/30 p-1 shadow-sm">
             {(["today", "yesterday", "week", "month"] as DateRange[]).map((r) => (
               <button
                 key={r}
@@ -272,7 +219,7 @@ export default function ReportsPage() {
             ))}
           </div>
 
-          <div className="inline-flex items-center gap-1 rounded-xl border border-border bg-card p-1 shadow-sm">
+          <div className="inline-flex items-center gap-1 rounded-xl border border-border bg-muted/30 p-1 shadow-sm">
             <input
               type="date"
               value={customRange.start}
@@ -303,7 +250,7 @@ export default function ReportsPage() {
               type="button"
               onClick={exportToPDF}
               disabled={exportDisabled}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-muted/30 px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
             >
               <FileText className="h-3.5 w-3.5" />
               Exportar PDF
@@ -312,7 +259,7 @@ export default function ReportsPage() {
               type="button"
               onClick={() => summary && exportToExcel(summary, ingredientConsumption)}
               disabled={exportDisabled}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-muted/30 px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
             >
               <FileSpreadsheet className="h-3.5 w-3.5" />
               Exportar Excel
@@ -325,480 +272,176 @@ export default function ReportsPage() {
         <ReportsSkeleton />
       ) : (
         <>
-          {/* Resumen ejecutivo */}
-      <motion.section
-        variants={container}
-        initial="hidden"
-        animate="show"
-        className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6"
-      >
-        <StatCard
-          label="Ventas del período"
-          value={formatCLP(salesTotal)}
-          icon={TrendingUp}
-          tone="primary"
-          sub={`${salesCount} ventas`}
-        />
-        <StatCard
-          label="Órdenes del período"
-          value={formatCLP(ordersTotal)}
-          icon={Receipt}
-          tone="emerald"
-          sub={`${ordersCount} pedidos`}
-        />
-        <StatCard
-          label="Ingresos totales"
-          value={formatCLP(totalRevenue)}
-          icon={ArrowDownLeft}
-          tone="primary"
-          sub="ventas + pedidos"
-        />
-        <StatCard
-          label="Ganancia estimada"
-          value={formatCLP(totalProfit)}
-          icon={Wallet}
-          tone="primary"
-          sub="aproximada"
-        />
-        <StatCard
-          label="Costo de insumos"
-          value={formatCLP(ingredientCost)}
-          icon={FlaskConical}
-          tone="rose"
-          sub="según recetas vendidas"
-        />
-        <StatCard
-          label="Gastos"
-          value={formatCLP(expensesTotal)}
-          icon={ArrowUpRight}
-          tone="amber"
-          sub="estimados"
-        />
-      </motion.section>
-
-      {/* Evolución de ventas */}
-      <motion.section
-        variants={container}
-        initial="hidden"
-        animate="show"
-        className="grid gap-4"
-      >
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-sm font-semibold">
-              <BarChart3 className="h-4 w-4 text-primary" />
-              Evolución de ventas
-            </h2>
-            <span className="text-xs text-muted-foreground">{dates.label}</span>
-          </div>
-          {summary?.time_series && summary.time_series.length > 0 ? (
-            <SalesChart
-              data={summary.time_series}
-              startDate={dates.start}
-              endDate={dates.end}
+          {/* Resumen de productos */}
+          <motion.section
+            variants={container}
+            initial="hidden"
+            animate="show"
+            className="grid grid-cols-2 gap-2 lg:grid-cols-4"
+          >
+            <StatCard
+              label="Productos vendidos"
+              value={totalUnits}
+              icon={ShoppingBag}
+              tone="primary"
+              sub="unidades en el período"
             />
-          ) : (
-            <div className="grid h-44 place-items-center rounded-xl border border-dashed border-border bg-muted/30 text-center">
-              <div>
-                <BarChart3 className="mx-auto h-8 w-8 text-muted-foreground" />
-                <p className="mt-2 text-sm font-medium">Sin datos de ventas</p>
-                <p className="text-xs text-muted-foreground">No hay ventas en el período seleccionado.</p>
+            <StatCard
+              label="Productos distintos"
+              value={bestSelling.length}
+              icon={Package}
+              tone="emerald"
+              sub="con venta registrada"
+            />
+            <StatCard
+              label="Costo de insumos"
+              value={formatCLP(ingredientCost)}
+              icon={FlaskConical}
+              tone="rose"
+              sub="según recetas vendidas"
+            />
+            <StatCard
+              label="Insumos utilizados"
+              value={ingredientConsumption?.items.length ?? 0}
+              icon={Apple}
+              tone="amber"
+              sub="distintos en el período"
+            />
+          </motion.section>
+
+          {/* Productos más vendidos */}
+          <motion.section
+            variants={container}
+            initial="hidden"
+            animate="show"
+            className="grid gap-4"
+          >
+            <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="flex items-center gap-2 text-sm font-semibold">
+                  <ShoppingBag className="h-4 w-4 text-primary" />
+                  Productos más vendidos
+                </h2>
+                <span className="text-xs text-muted-foreground">{dates.label}</span>
               </div>
-            </div>
-          )}
-        </div>
-      </motion.section>
-
-      {/* Productos y métodos de pago */}
-      <motion.section
-        variants={container}
-        initial="hidden"
-        animate="show"
-        className="grid gap-4 lg:grid-cols-2"
-      >
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-sm font-semibold">
-              <ShoppingBag className="h-4 w-4 text-primary" />
-              Productos más vendidos
-            </h2>
-          </div>
-          {summary?.products?.best_selling && summary.products.best_selling.length > 0 ? (
-            <div className="flex flex-col gap-3">
-              {summary.products.best_selling.map((p, i) => {
-                const maxQty = Math.max(...summary.products.best_selling.map((x) => x.quantity), 1);
-                const pct = (p.quantity / maxQty) * 100;
-                return (
-                  <div
-                    key={i}
-                    className="flex flex-col gap-1.5"
-                    title={`${p.product__name}: ${p.quantity} vendidos por ${formatCLP(p.total)}`}
-                  >
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="min-w-0 truncate font-medium">{p.product__name}</span>
-                      <span className="shrink-0 tabular-nums font-semibold">
-                        {p.quantity} · {formatCLP(p.total)}
-                      </span>
-                    </div>
-                    <div className="h-2.5 w-full rounded-full bg-muted">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${pct}%` }}
-                        transition={{ duration: 0.8, delay: i * 0.05 }}
-                        className="h-2.5 rounded-full bg-emerald-500"
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="grid place-items-center rounded-xl border border-dashed border-border bg-muted/30 py-10 text-center">
-              <div>
-                <ShoppingBag className="mx-auto h-8 w-8 text-muted-foreground" />
-                <p className="mt-2 text-sm font-medium">Sin ventas</p>
-                <p className="text-xs text-muted-foreground">No hay productos vendidos en el período.</p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-sm font-semibold">
-              <CreditCard className="h-4 w-4 text-primary" />
-              Métodos de pago
-            </h2>
-          </div>
-          {summary?.payments && summary.payments.length > 0 ? (
-            <div className="flex flex-col gap-3">
-              {(() => {
-                const totalPayments = summary.payments.reduce((s, x) => s + x.total, 0);
-                return summary.payments.map((p, i) => {
-                  const pct = totalPayments > 0 ? (p.total / totalPayments) * 100 : 0;
-                  return (
-                    <div
-                      key={i}
-                      className="flex flex-col gap-1.5"
-                      title={`${paymentTypeLabel(p.type_payment__name)}: ${formatCLP(p.total)} en el período`}
-                    >
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="font-medium">{paymentTypeLabel(p.type_payment__name)}</span>
-                        <span className="tabular-nums font-semibold">{formatCLP(p.total)}</span>
-                      </div>
-                      <div className="h-2.5 w-full rounded-full bg-muted">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${pct}%` }}
-                          transition={{ duration: 0.8, delay: i * 0.05 }}
-                          className="h-2.5 rounded-full bg-primary"
-                        />
-                      </div>
-                    </div>
-                  );
-                });
-              })()}
-            </div>
-          ) : (
-            <div className="grid place-items-center rounded-xl border border-dashed border-border bg-muted/30 py-10 text-center">
-              <div>
-                <CreditCard className="mx-auto h-8 w-8 text-muted-foreground" />
-                <p className="mt-2 text-sm font-medium">Sin pagos</p>
-                <p className="text-xs text-muted-foreground">No se registraron pagos en el período.</p>
-              </div>
-            </div>
-          )}
-        </div>
-      </motion.section>
-
-      {/* Insumos consumidos */}
-      <motion.section
-        variants={container}
-        initial="hidden"
-        animate="show"
-        className="grid gap-4"
-      >
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-sm font-semibold">
-              <FlaskConical className="h-4 w-4 text-primary" />
-              Insumos consumidos
-            </h2>
-            <span className="text-xs text-muted-foreground">Top 10</span>
-          </div>
-          {topIngredients.length > 0 ? (
-            <>
-              {/* Vista móvil: cards */}
-              <div className="space-y-2 sm:hidden">
-                {topIngredients.map((item) => (
-                  <div
-                    key={item.ingredient_id}
-                    className="flex items-center justify-between rounded-xl border border-border bg-background p-3"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{item.ingredient_name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {item.total_quantity} {item.unit}
-                      </p>
-                    </div>
-                    <p className="shrink-0 text-sm font-semibold tabular-nums">
-                      {formatCLP(item.cost)}
-                    </p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Vista desktop: tabla */}
-              <div className="hidden overflow-x-auto sm:block">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                      <th className="pb-2 font-medium">Insumo</th>
-                      <th className="pb-2 font-medium">Cantidad</th>
-                      <th className="pb-2 font-medium">Unidad</th>
-                      <th className="pb-2 text-right font-medium">Costo</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {topIngredients.map((item) => (
-                      <tr
-                        key={item.ingredient_id}
-                        className="border-b border-border/50 last:border-0"
-                      >
-                        <td className="py-2 font-medium">{item.ingredient_name}</td>
-                        <td className="py-2 tabular-nums">{item.total_quantity}</td>
-                        <td className="py-2 text-muted-foreground">{item.unit}</td>
-                        <td className="py-2 text-right tabular-nums font-semibold">
-                          {formatCLP(item.cost)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          ) : (
-            <div className="grid place-items-center rounded-xl border border-dashed border-border bg-muted/30 py-10 text-center">
-              <div>
-                <FlaskConical className="mx-auto h-8 w-8 text-muted-foreground" />
-                <p className="mt-2 text-sm font-medium">Sin consumo de insumos</p>
-                <p className="text-xs text-muted-foreground">No hay consumo registrado en el período.</p>
-              </div>
-            </div>
-          )}
-        </div>
-      </motion.section>
-
-      {/* Rentabilidad financiera */}
-      <motion.section
-        variants={container}
-        initial="hidden"
-        animate="show"
-        className="grid gap-4"
-      >
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-sm font-semibold">
-              <Percent className="h-4 w-4 text-emerald-600" />
-              Rentabilidad financiera
-            </h2>
-            <span className="text-xs text-muted-foreground">
-              {loadingFin ? "Cargando..." : "Datos reales de finanzas"}
-            </span>
-          </div>
-
-          {loadingFin ? (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="rounded-xl border border-border bg-muted/30 p-3">
-                  <Skeleton className="mb-2 h-3 w-20" />
-                  <Skeleton className="h-6 w-28" />
-                </div>
-              ))}
-            </div>
-          ) : finSummary?.total_revenue ? (
-            <>
-              {/* KPIs financieros */}
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <FinKPICard
-                  label="Ingresos totales"
-                  value={formatCLP(parseFin(finSummary.total_revenue))}
-                  icon={TrendingUp}
-                  tone="emerald"
-                />
-                <FinKPICard
-                  label="Costos totales"
-                  value={formatCLP(parseFin(finSummary.total_expenses))}
-                  icon={TrendingDown}
-                  tone="rose"
-                />
-                <FinKPICard
-                  label="Utilidad neta"
-                  value={formatCLP(parseFin(finSummary.net_profit))}
-                  icon={Wallet}
-                  tone={parseFin(finSummary.net_profit) >= 0 ? "emerald" : "rose"}
-                />
-                <FinKPICard
-                  label="Margen neto"
-                  value={`${parseFin(finSummary.profit_margin).toFixed(1)}%`}
-                  icon={Target}
-                  tone={parseFin(finSummary.profit_margin) >= 10 ? "emerald" : parseFin(finSummary.profit_margin) >= 0 ? "amber" : "rose"}
-                />
-              </div>
-
-              {/* Breakdown */}
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl border border-border bg-muted/20 p-3">
-                  <h3 className="mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">Desglose de ingresos</h3>
-                  <div className="space-y-1.5 text-sm">
-                    {(() => {
-                      const rb = finSummary.revenue_breakdown as Record<string, unknown> | undefined;
-                      if (!rb) return null;
-                      return (
-                        <>
-                          <div className="flex justify-between"><span className="text-muted-foreground">Ventas</span><span className="font-medium tabular-nums">{formatCLP(parseFin(rb.sales_revenue))}</span></div>
-                          <div className="flex justify-between"><span className="text-muted-foreground">Servicios</span><span className="font-medium tabular-nums">{formatCLP(parseFin(rb.service_revenue))}</span></div>
-                          <div className="flex justify-between"><span className="text-muted-foreground">Otros</span><span className="font-medium tabular-nums">{formatCLP(parseFin(rb.other_revenue))}</span></div>
-                        </>
-                      );
-                    })()}
-                  </div>
-                </div>
-                <div className="rounded-xl border border-border bg-muted/20 p-3">
-                  <h3 className="mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">Desglose de costos</h3>
-                  <div className="space-y-1.5 text-sm">
-                    {(() => {
-                      const eb = finSummary.expenses_breakdown as Record<string, unknown> | undefined;
-                      if (!eb) return null;
-                      return (
-                        <>
-                          <div className="flex justify-between"><span className="text-muted-foreground">Costo producto</span><span className="font-medium tabular-nums">{formatCLP(parseFin(eb.product_cost))}</span></div>
-                          <div className="flex justify-between"><span className="text-muted-foreground">Gastos fijos</span><span className="font-medium tabular-nums">{formatCLP(parseFin(eb.fixed_expenses))}</span></div>
-                          <div className="flex justify-between"><span className="text-muted-foreground">Gastos variables</span><span className="font-medium tabular-nums">{formatCLP(parseFin(eb.variable_expenses))}</span></div>
-                        </>
-                      );
-                    })()}
-                  </div>
-                </div>
-              </div>
-
-              {/* Margen bruto y neto adicionales */}
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <div className="rounded-xl border border-border bg-muted/20 p-3">
-                  <h3 className="mb-1 text-xs font-medium text-muted-foreground uppercase tracking-wide">Margen bruto</h3>
-                  <p className={`text-xl font-bold tabular-nums ${parseFin(finSummary.gross_margin) >= 20 ? "text-emerald-600" : parseFin(finSummary.gross_margin) >= 10 ? "text-amber-600" : "text-rose-600"}`}>
-                    {parseFin(finSummary.gross_margin).toFixed(1)}%
-                  </p>
-                </div>
-                <div className="rounded-xl border border-border bg-muted/20 p-3">
-                  <h3 className="mb-1 text-xs font-medium text-muted-foreground uppercase tracking-wide">Tendencia</h3>
-                  <p className={`text-xl font-bold tabular-nums ${
-                    finSummary.profit_trend === "EXCELLENT" ? "text-emerald-600" :
-                    finSummary.profit_trend === "GOOD" ? "text-emerald-500" :
-                    finSummary.profit_trend === "FAIR" ? "text-amber-600" : "text-rose-600"
-                  }`}>
-                    {finSummary.profit_trend === "EXCELLENT" ? "Excelente" :
-                     finSummary.profit_trend === "GOOD" ? "Buena" :
-                     finSummary.profit_trend === "FAIR" ? "Regular" : "Baja"}
-                  </p>
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="grid h-44 place-items-center rounded-xl border border-dashed border-border bg-muted/30 text-center">
-              <div>
-                <Percent className="mx-auto h-8 w-8 text-muted-foreground" />
-                <p className="mt-2 text-sm font-medium">Sin datos de rentabilidad</p>
-                <p className="text-xs text-muted-foreground">Los reportes se generan automáticamente al registrar transacciones.</p>
-              </div>
-            </div>
-          )}
-        </div>
-      </motion.section>
-
-      {/* Comparativo mensual */}
-      {comparison && comparison.length > 0 && (
-        <motion.section
-          variants={container}
-          initial="hidden"
-          animate="show"
-          className="grid gap-4"
-        >
-          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="flex items-center gap-2 text-sm font-semibold">
-                <BarChart className="h-4 w-4 text-primary" />
-                Comparativo mensual
-              </h2>
-              <span className="text-xs text-muted-foreground">Últimos {comparison.length} meses</span>
-            </div>
-
-            {/* Mobile: cards */}
-            <div className="space-y-2 sm:hidden">
-              {comparison.map((c, i) => (
-                <div key={i} className="rounded-xl border border-border bg-muted/20 p-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium">{c.period?.split(" - ")[0]}</span>
-                    <span className={`tabular-nums font-semibold ${parseFin(c.profit) >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-                      {parseFin(c.profit) >= 0 ? "+" : ""}{formatCLP(parseFin(c.profit))}
-                    </span>
-                  </div>
-                  <div className="mt-1 flex gap-4 text-xs text-muted-foreground">
-                    <span>Ingresos: {formatCLP(parseFin(c.revenue))}</span>
-                    <span>Margen: {parseFin(c.margin).toFixed(1)}%</span>
-                  </div>
-                  <div className="mt-2 h-2 w-full rounded-full bg-muted">
-                    <div
-                      className={`h-2 rounded-full ${parseFin(c.profit) >= 0 ? "bg-emerald-500" : "bg-rose-500"}`}
-                      style={{ width: `${Math.min(Math.abs(parseFin(c.margin)) * 2, 100)}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Desktop: table */}
-            <div className="hidden overflow-x-auto sm:block">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                    <th className="pb-2 font-medium">Período</th>
-                    <th className="pb-2 text-right font-medium">Ingresos</th>
-                    <th className="pb-2 text-right font-medium">Costos</th>
-                    <th className="pb-2 text-right font-medium">Utilidad</th>
-                    <th className="pb-2 text-right font-medium">Margen</th>
-                    <th className="pb-2 text-right font-medium">Visual</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {comparison.map((c, i) => {
-                    const maxRev = Math.max(...comparison.map(x => parseFin(x.revenue)), 1);
-                    const pct = (parseFin(c.revenue) / maxRev) * 100;
+              {bestSelling.length > 0 ? (
+                <div className="flex flex-col gap-3">
+                  {bestSelling.map((p, i) => {
+                    const maxQty = Math.max(...bestSelling.map((x) => x.quantity), 1);
+                    const pct = (p.quantity / maxQty) * 100;
                     return (
-                      <tr key={i} className="border-b border-border/50 last:border-0">
-                        <td className="py-2 font-medium">{c.period?.split(" - ")[0]}</td>
-                        <td className="py-2 text-right tabular-nums">{formatCLP(parseFin(c.revenue))}</td>
-                        <td className="py-2 text-right tabular-nums text-muted-foreground">{formatCLP(parseFin(c.cost))}</td>
-                        <td className={`py-2 text-right tabular-nums font-semibold ${parseFin(c.profit) >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-                          {parseFin(c.profit) >= 0 ? "+" : ""}{formatCLP(parseFin(c.profit))}
-                        </td>
-                        <td className={`py-2 text-right tabular-nums font-medium ${parseFin(c.margin) >= 10 ? "text-emerald-600" : "text-amber-600"}`}>
-                          {parseFin(c.margin).toFixed(1)}%
-                        </td>
-                        <td className="py-2">
-                          <div className="h-2 w-24 rounded-full bg-muted ml-auto">
-                            <div className="h-2 rounded-full bg-emerald-500" style={{ width: `${pct}%` }} />
-                          </div>
-                        </td>
-                      </tr>
+                      <div
+                        key={i}
+                        className="flex flex-col gap-1.5"
+                        title={`${p.product__name}: ${p.quantity} vendidos por ${formatCLP(p.total)}`}
+                      >
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="min-w-0 truncate font-medium">{p.product__name}</span>
+                          <span className="shrink-0 tabular-nums font-semibold">
+                            {p.quantity} · {formatCLP(p.total)}
+                          </span>
+                        </div>
+                        <div className="h-2.5 w-full rounded-full bg-muted">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${pct}%` }}
+                            transition={{ duration: 0.8, delay: i * 0.05 }}
+                            className="h-2.5 rounded-full bg-emerald-500"
+                          />
+                        </div>
+                      </div>
                     );
                   })}
-                </tbody>
-              </table>
+                </div>
+              ) : (
+                <div className="grid place-items-center rounded-xl border border-dashed border-border bg-muted/30 py-10 text-center">
+                  <div>
+                    <ShoppingBag className="mx-auto h-8 w-8 text-muted-foreground" />
+                    <p className="mt-2 text-sm font-medium">Sin ventas</p>
+                    <p className="text-xs text-muted-foreground">No hay productos vendidos en el período.</p>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        </motion.section>
-      )}
+          </motion.section>
+
+          {/* Insumos consumidos */}
+          <motion.section
+            variants={container}
+            initial="hidden"
+            animate="show"
+            className="grid gap-4"
+          >
+            <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="flex items-center gap-2 text-sm font-semibold">
+                  <FlaskConical className="h-4 w-4 text-primary" />
+                  Insumos consumidos
+                </h2>
+                <span className="text-xs text-muted-foreground">Top 10</span>
+              </div>
+              {topIngredients.length > 0 ? (
+                <>
+                  {/* Vista móvil: cards */}
+                  <div className="space-y-2 sm:hidden">
+                    {topIngredients.map((item) => (
+                      <div
+                        key={item.ingredient_id}
+                        className="flex items-center justify-between rounded-xl border border-border bg-background p-3"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">{item.ingredient_name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {item.total_quantity} {item.unit}
+                          </p>
+                        </div>
+                        <p className="shrink-0 text-sm font-semibold tabular-nums">
+                          {formatCLP(item.cost)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Vista desktop: tabla */}
+                  <div className="hidden overflow-x-auto sm:block">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                          <th className="pb-2 font-medium">Insumo</th>
+                          <th className="pb-2 font-medium">Cantidad</th>
+                          <th className="pb-2 font-medium">Unidad</th>
+                          <th className="pb-2 text-right font-medium">Costo</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {topIngredients.map((item) => (
+                          <tr
+                            key={item.ingredient_id}
+                            className="border-b border-border/50 last:border-0"
+                          >
+                            <td className="py-2 font-medium">{item.ingredient_name}</td>
+                            <td className="py-2 tabular-nums">{item.total_quantity}</td>
+                            <td className="py-2 text-muted-foreground">{item.unit}</td>
+                            <td className="py-2 text-right tabular-nums font-semibold">
+                              {formatCLP(item.cost)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : (
+                <div className="grid place-items-center rounded-xl border border-dashed border-border bg-muted/30 py-10 text-center">
+                  <div>
+                    <FlaskConical className="mx-auto h-8 w-8 text-muted-foreground" />
+                    <p className="mt-2 text-sm font-medium">Sin consumo de insumos</p>
+                    <p className="text-xs text-muted-foreground">No hay consumo registrado en el período.</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.section>
         </>
       )}
     </div>
@@ -819,7 +462,7 @@ function StatCard({
   tone?: "default" | "primary" | "emerald" | "amber" | "rose";
 }) {
   const tones = {
-    default: "bg-card",
+    default: "bg-muted/30",
     primary: "bg-primary/[0.06] border-primary/15",
     emerald: "bg-emerald-500/[0.06] border-emerald-500/15",
     amber: "bg-amber-500/[0.06] border-amber-500/15",
@@ -837,7 +480,7 @@ function StatCard({
     <motion.div
       variants={item}
       className={cn(
-        "rounded-xl border border-border p-2.5 shadow-sm transition-all duration-200",
+        "rounded-2xl border border-border p-2.5 shadow-sm transition-all duration-200",
         "hover:border-primary/20 hover:shadow-md",
         tones[tone],
       )}
@@ -854,261 +497,12 @@ function StatCard({
   );
 }
 
-function parseFin(value: unknown): number {
-  if (value === undefined || value === null) return 0;
-  if (typeof value === "number") return value;
-  return parseFloat(String(value)) || 0;
-}
-
-function FinKPICard({ label, value, icon: Icon, tone = "default" }: {
-  label: string; value: string; icon: LucideIcon; tone?: "emerald" | "rose" | "amber" | "default";
-}) {
-  const tones = {
-    default: "bg-card border-border/60",
-    emerald: "bg-emerald-500/[0.06] border-emerald-500/15",
-    rose: "bg-rose-500/[0.06] border-rose-500/15",
-    amber: "bg-amber-500/[0.06] border-amber-500/15",
-  };
-  const iconBg = {
-    default: "bg-muted text-muted-foreground",
-    emerald: "bg-emerald-500/15 text-emerald-600",
-    rose: "bg-rose-500/15 text-rose-600",
-    amber: "bg-amber-500/15 text-amber-600",
-  };
-  return (
-    <div className={cn("rounded-xl border p-3 shadow-sm transition-all hover:shadow-md", tones[tone])}>
-      <div className="mb-1.5 flex items-center gap-2">
-        <div className={cn("flex h-7 w-7 items-center justify-center rounded-lg", iconBg[tone])}>
-          <Icon className="h-3.5 w-3.5" strokeWidth={2} />
-        </div>
-        <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
-      </div>
-      <p className="text-base font-semibold tabular-nums tracking-tight text-foreground sm:text-lg">{value}</p>
-    </div>
-  );
-}
-
-function parseLocalDate(iso: string): Date {
-  return new Date(`${iso}T00:00:00`);
-}
-
-function formatLocalISO(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-function formatShortDate(iso: string): string {
-  return parseLocalDate(iso).toLocaleDateString("es-CL", { day: "numeric", month: "short" });
-}
-
-function formatFullDate(iso: string): string {
-  return parseLocalDate(iso).toLocaleDateString("es-CL", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
-}
-
-function parseHourKey(hourKey: string): Date {
-  const [datePart, timePart] = hourKey.split(" ");
-  const [hours] = timePart.split(":").map(Number);
-  const date = parseLocalDate(datePart);
-  date.setHours(hours);
-  return date;
-}
-
-function formatHourLabel(hourKey: string): string {
-  const [, timePart] = hourKey.split(" ");
-  return timePart;
-}
-
-function formatFullHour(hourKey: string): string {
-  return parseHourKey(hourKey).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" });
-}
-
-function SalesChart({
-  data,
-  startDate,
-  endDate,
-}: {
-  data: { date: string; sales: number; orders: number }[];
-  startDate: string;
-  endDate: string;
-}) {
-  const [hover, setHover] = useState<number | null>(null);
-  const isHourly = startDate === endDate;
-
-  const filled = useMemo(() => {
-    const map = new Map(data.map((d) => [d.date, d]));
-
-    if (isHourly) {
-      const hours = [];
-      for (let h = 0; h < 24; h++) {
-        const hourKey = `${startDate} ${String(h).padStart(2, "0")}:00`;
-        hours.push(map.get(hourKey) ?? { date: hourKey, sales: 0, orders: 0 });
-      }
-      return hours;
-    }
-
-    const start = parseLocalDate(startDate);
-    const end = parseLocalDate(endDate);
-    const days = [];
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      const iso = formatLocalISO(d);
-      days.push(map.get(iso) ?? { date: iso, sales: 0, orders: 0 });
-    }
-    return days;
-  }, [data, startDate, endDate, isHourly]);
-
-  if (filled.length === 0) return null;
-
-  const values = filled.map((d) => d.sales);
-  const max = Math.max(...values, 1);
-  const width = 600;
-  const height = 180;
-  const padding = { top: 10, right: 10, bottom: 24, left: 10 };
-  const chartW = width - padding.left - padding.right;
-  const chartH = height - padding.top - padding.bottom;
-
-  const xDivisor = Math.max(filled.length - 1, 1);
-  const getX = (i: number) => padding.left + (i / xDivisor) * chartW;
-  const getY = (v: number) => padding.top + chartH - (v / max) * chartH;
-
-  const path = filled.reduce((acc, d, i) => {
-    const px = getX(i);
-    const py = getY(d.sales);
-    if (i === 0) return `M ${px},${py}`;
-    const prevX = getX(i - 1);
-    const prevY = getY(filled[i - 1].sales);
-    const cpX = prevX + (px - prevX) / 2;
-    return `${acc} C ${cpX},${prevY} ${cpX},${py} ${px},${py}`;
-  }, "");
-
-  const areaPath = `${path} L ${getX(filled.length - 1)},${padding.top + chartH} L ${getX(0)},${padding.top + chartH} Z`;
-
-  const handleMove = (e: React.MouseEvent<SVGSVGElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const raw = ((mx - padding.left) / chartW) * xDivisor;
-    const idx = Math.max(0, Math.min(filled.length - 1, Math.round(raw)));
-    setHover(idx);
-  };
-
-  const labelCount = Math.min(filled.length, 5);
-  const labelInterval = Math.max(1, Math.floor(filled.length / labelCount));
-
-  const hoverPoint = hover !== null ? filled[hover] : null;
-  const hoverX = hover !== null ? getX(hover) : 0;
-  const hoverY = hover !== null ? getY(hoverPoint?.sales ?? 0) : 0;
-
-  return (
-    <div className="relative select-none">
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        className="h-40 w-full"
-        onMouseMove={handleMove}
-        onMouseLeave={() => setHover(null)}
-      >
-        <defs>
-          <linearGradient id="sales-gradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="currentColor" stopOpacity="0.28" className="text-primary" />
-            <stop offset="100%" stopColor="currentColor" stopOpacity="0.03" className="text-primary" />
-          </linearGradient>
-        </defs>
-
-        <path d={areaPath} fill="url(#sales-gradient)" className="text-primary" />
-
-        <motion.path
-          d={path}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="text-primary"
-          initial={{ pathLength: 0 }}
-          animate={{ pathLength: 1 }}
-          transition={{ duration: 1.2, ease: "easeOut" }}
-        />
-
-        {filled.map((d, i) => (
-          <circle
-            key={i}
-            cx={getX(i)}
-            cy={getY(d.sales)}
-            r={hover === i ? 5 : 2.5}
-            className={cn(
-              "fill-background stroke-primary stroke-2 transition-all duration-150",
-              hover === i && "fill-primary",
-            )}
-          />
-        ))}
-
-        {hover !== null && hoverPoint && (
-          <g>
-            <line
-              x1={hoverX}
-              y1={padding.top}
-              x2={hoverX}
-              y2={padding.top + chartH}
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeDasharray="4 4"
-              className="text-muted-foreground/40"
-            />
-            <circle
-              cx={hoverX}
-              cy={hoverY}
-              r="6"
-              className="fill-primary stroke-background stroke-[2.5]"
-            />
-          </g>
-        )}
-
-        {filled.map((d, i) =>
-          i % labelInterval === 0 || i === filled.length - 1 ? (
-            <text
-              key={i}
-              x={getX(i)}
-              y={height - 8}
-              textAnchor="middle"
-              className="fill-muted-foreground/80 text-[11px] font-medium"
-            >
-              {isHourly ? formatHourLabel(d.date) : formatShortDate(d.date)}
-            </text>
-          ) : null,
-        )}
-      </svg>
-
-      {hover !== null && hoverPoint && (
-        <div
-          className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-xl border border-border bg-card px-3 py-2 text-xs shadow-lg"
-          style={{
-            left: `${(hoverX / width) * 100}%`,
-            top: `${(hoverY / height) * 100}%`,
-          }}
-        >
-          <div className="mb-1 h-1.5 w-1.5 rounded-full bg-primary" />
-          <p className="font-semibold">
-            {isHourly ? formatFullHour(hoverPoint.date) : formatFullDate(hoverPoint.date)}
-          </p>
-          <p className="text-muted-foreground">
-            {formatCLP(hoverPoint.sales)} · {hoverPoint.orders} {hoverPoint.orders === 1 ? "orden" : "órdenes"}
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function ReportsSkeleton() {
   return (
     <>
-      <section className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="rounded-xl border border-border bg-card p-2.5 shadow-sm">
+      <section className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="rounded-2xl border border-border bg-muted/30 p-2.5 shadow-sm">
             <div className="mb-1.5 flex items-center gap-2">
               <Skeleton className="h-7 w-7 rounded-lg" />
               <Skeleton className="h-3 w-20" />
@@ -1120,17 +514,10 @@ function ReportsSkeleton() {
       </section>
 
       <section className="grid gap-4">
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-          <Skeleton className="mb-4 h-4 w-40" />
-          <Skeleton className="h-40 w-full" />
-        </div>
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+        <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
           <Skeleton className="mb-4 h-4 w-40" />
           <div className="flex flex-col gap-3">
-            {Array.from({ length: 4 }).map((_, i) => (
+            {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
                   <Skeleton className="h-3 w-32" />
@@ -1141,24 +528,10 @@ function ReportsSkeleton() {
             ))}
           </div>
         </div>
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-          <Skeleton className="mb-4 h-4 w-32" />
-          <div className="flex flex-col gap-3">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between">
-                  <Skeleton className="h-3 w-28" />
-                  <Skeleton className="h-3 w-16" />
-                </div>
-                <Skeleton className="h-2.5 w-full" />
-              </div>
-            ))}
-          </div>
-        </div>
       </section>
 
       <section className="grid gap-4">
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+        <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
           <Skeleton className="mb-4 h-4 w-36" />
           <div className="flex flex-col gap-2">
             {Array.from({ length: 5 }).map((_, i) => (

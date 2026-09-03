@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSessionStore } from "@/lib/store/session";
+import { getRoleLabel } from "@/lib/roles";
 import { fetchMyProfile, updateMyProfile, changePassword } from "@/lib/api/profile";
 import type { BranchAssignment } from "@/lib/types";
 
@@ -125,7 +126,7 @@ export default function ProfilePage() {
 
       <div className="flex flex-1 flex-col gap-6 p-6">
         {/* Información personal */}
-        <section className="rounded-xl border border-border bg-card p-5">
+        <section className="rounded-2xl border border-border bg-muted/30 p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-2">
             <UserIcon className="h-4 w-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold">Información personal</h2>
@@ -228,7 +229,7 @@ export default function ProfilePage() {
         </section>
 
         {/* Mis sucursales */}
-        <section className="rounded-xl border border-border bg-card p-5">
+        <section className="rounded-2xl border border-border bg-muted/30 p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-2">
             <Store className="h-4 w-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold">Mis sucursales</h2>
@@ -258,7 +259,7 @@ export default function ProfilePage() {
                         {a.branch_name ?? `Sucursal ${a.branch_id}`}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {a.role_name ?? a.role_code ?? "—"}
+                        {getRoleLabel(a.role_code) ?? a.role_name ?? a.role_code ?? "—"}
                       </p>
                     </div>
                     <span
@@ -289,7 +290,7 @@ export default function ProfilePage() {
                       <tr key={String(a.id ?? `${a.branch_id}-${idx}`)} className="border-b border-border last:border-0">
                         <td className="px-4 py-3">{a.branch_name ?? `Sucursal ${a.branch_id}`}</td>
                         <td className="px-4 py-3 text-muted-foreground">
-                          {a.role_name ?? a.role_code ?? "—"}
+                          {getRoleLabel(a.role_code) ?? a.role_name ?? a.role_code ?? "—"}
                         </td>
                         <td className="px-4 py-3 text-center">
                           <span
@@ -312,7 +313,7 @@ export default function ProfilePage() {
         </section>
 
         {/* Cambiar contraseña */}
-        <section className="rounded-xl border border-border bg-card p-5">
+        <section className="rounded-2xl border border-border bg-muted/30 p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-2">
             <KeyRound className="h-4 w-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold">Seguridad</h2>

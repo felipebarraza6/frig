@@ -3,8 +3,11 @@
 import type { CSSProperties } from "react";
 import { motion, useReducedMotion, type Variants } from "framer-motion";
 import { LANDING_FEATURES, LANDING_VALUE_PROP } from "@/content/landing";
+import { BrandLogo } from "@/components/brand-logo";
 import { DemoCta } from "@/components/landing/demo-form";
 import { PixelFoodMark } from "@/components/landing/pixel-food-mark";
+
+type LandingBrand = { name: string; logo?: string | null } | null;
 
 type FrigScopeStyle = CSSProperties & {
   readonly "--frig-bg": string;
@@ -42,7 +45,7 @@ const FRIG_SCOPE_VARS: FrigScopeStyle = {
   "--frig-bread-light": "#f1d195",
 };
 
-export function LandingPanel() {
+export function LandingPanel({ brand }: { brand?: LandingBrand }) {
   const reduceMotion = useReducedMotion();
 
   const container: Variants = {
@@ -73,25 +76,46 @@ export function LandingPanel() {
         className="relative z-10 flex flex-col gap-6"
       >
         <motion.header variants={item} className="flex flex-col items-center gap-2 text-center">
-          <motion.span
-            initial={reduceMotion ? false : { opacity: 0, rotate: -8, scale: 0.8 }}
-            animate={{ opacity: 1, rotate: 0, scale: 1 }}
-            transition={{ duration: 0.45, ease: "easeOut" }}
-            className="text-[var(--frig-accent)]"
-          >
-            <PixelFoodMark className="h-7 w-7" />
-          </motion.span>
-          <motion.span
-            className="font-pixel text-2xl font-semibold tracking-[0.3em] text-[var(--frig-text)]"
-            initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, ease: "easeOut", delay: 0.2 }}
-          >
-            FRIG
-          </motion.span>
-          <span className="text-xs uppercase tracking-[0.18em] text-[var(--frig-text-muted)]">
-            Gestión comercial y gastronómica
-          </span>
+          {brand ? (
+            <>
+              <motion.span
+                initial={reduceMotion ? false : { opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
+                className="flex items-center gap-2"
+              >
+                <BrandLogo src={brand.logo ?? null} name={brand.name} className="h-8 w-8" />
+                <span className="text-xl font-semibold tracking-wide text-[var(--frig-text)]">
+                  {brand.name}
+                </span>
+              </motion.span>
+              <span className="text-xs uppercase tracking-[0.18em] text-[var(--frig-text-muted)]">
+                powered by FRIG
+              </span>
+            </>
+          ) : (
+            <>
+              <motion.span
+                initial={reduceMotion ? false : { opacity: 0, rotate: -8, scale: 0.8 }}
+                animate={{ opacity: 1, rotate: 0, scale: 1 }}
+                transition={{ duration: 0.45, ease: "easeOut" }}
+                className="text-[var(--frig-accent)]"
+              >
+                <PixelFoodMark className="h-7 w-7" />
+              </motion.span>
+              <motion.span
+                className="font-pixel text-2xl font-semibold tracking-[0.3em] text-[var(--frig-text)]"
+                initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, ease: "easeOut", delay: 0.2 }}
+              >
+                FRIG
+              </motion.span>
+              <span className="text-xs uppercase tracking-[0.18em] text-[var(--frig-text-muted)]">
+                Gestión comercial y gastronómica
+              </span>
+            </>
+          )}
         </motion.header>
 
         <motion.div variants={item} className="flex flex-col items-center justify-center gap-4 text-center lg:flex-row lg:gap-6">

@@ -44,7 +44,7 @@ export async function fetchTaxDocument(id: string): Promise<TaxDocument> {
 export async function createTaxDocument(payload: TaxDocumentRequest): Promise<TaxDocument> {
   return apiFetch<TaxDocument>("/finance/tax-documents/", {
     method: "POST",
-    body: JSON.stringify(payload),
+    body: payload,
   });
 }
 
@@ -56,17 +56,19 @@ export async function sendToSii(id: string): Promise<TaxDocument> {
   return apiFetch<TaxDocument>(`/finance/tax-documents/${id}/send_to_sii/`, { method: "POST" });
 }
 
-export async function cancelTaxDocument(id: string, reason: string): Promise<TaxDocument> {
-  return apiFetch<TaxDocument>(`/finance/tax-documents/${id}/cancel/`, {
-    method: "POST",
-    body: JSON.stringify({ reason }),
-  });
+/**
+ * Elimina un documento en borrador (nunca emitido/enviado al SII).
+ * El backend no tiene acción `cancel/`: para documentos ya emitidos la
+ * anulación legal es una nota de crédito (`createCreditNote`).
+ */
+export async function deleteTaxDocument(id: string): Promise<void> {
+  await apiFetch<void>(`/finance/tax-documents/${id}/`, { method: "DELETE" });
 }
 
 export async function createCreditNote(id: string, payload?: { reason?: string; items?: Array<{ description: string; quantity: number; unit_price: string }> }): Promise<TaxDocument> {
   return apiFetch<TaxDocument>(`/finance/tax-documents/${id}/create_credit_note/`, {
     method: "POST",
-    body: JSON.stringify(payload ?? {}),
+    body: payload ?? {},
   });
 }
 

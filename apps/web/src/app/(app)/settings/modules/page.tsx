@@ -4,7 +4,22 @@
 import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertTriangle, CheckCircle2, Sparkles } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Sparkles,
+  Monitor,
+  Table,
+  ChefHat,
+  Boxes,
+  Apple,
+  QrCode,
+  FileText,
+  Banknote,
+  Percent,
+  Bike,
+  type LucideIcon,
+} from "lucide-react";
 import { useCurrentBranch, useIsOwner, useIsSuperAdmin, useSessionStore } from "@/lib/store/session";
 import { useToast } from "@/lib/store/toast";
 import {
@@ -19,7 +34,7 @@ import type { YggdraSchemas } from "@/lib/api/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/page-header";
 import { cn } from "@/lib/utils";
-import { getIcon, type IconName } from "@/lib/icons";
+import { getIcon } from "@/lib/icons";
 import {
   useModuleCatalog,
   getModuleMetadata,
@@ -36,39 +51,63 @@ function isCore(moduleName: ModuleName): boolean {
 /** Labels claros en castellano chileno para los módulos configurables. */
 const MODULE_LABELS: Partial<Record<ModuleName, string>> = {
   pos: "Terminal de ventas rápidas",
+  cash_register: "Caja y arqueo",
   tables: "Mesas y mapa del local",
+  deliveries: "Delivery y retiro",
   production: "Cocina / KDS",
   inventory: "Bodegas y control de stock",
   nutrition: "Etiquetado nutricional",
   public_catalog: "Menús digitales con QR",
   invoices: "Documentos tributarios",
+  promotions: "Promociones y descuentos",
+};
+
+/** Íconos únicos y minimalistas para cada módulo configurable. */
+const MODULE_ICONS: Partial<Record<ModuleName, LucideIcon>> = {
+  pos: Monitor,
+  cash_register: Banknote,
+  tables: Table,
+  deliveries: Bike,
+  production: ChefHat,
+  inventory: Boxes,
+  nutrition: Apple,
+  public_catalog: QrCode,
+  invoices: FileText,
+  promotions: Percent,
 };
 
 /** Categoría en castellano por módulo visible en Frig. */
 const MODULE_CATEGORY: Partial<Record<ModuleName, string>> = {
   pos: "Operación",
+  cash_register: "Operación",
   tables: "Operación",
+  deliveries: "Operación",
   production: "Operación",
   inventory: "Productos",
   nutrition: "Productos",
   recipes: "Productos",
   ingredients: "Productos",
-  public_catalog: "Clientes",
+  public_catalog: "Productos",
+  invoices: "Finanzas",
+  promotions: "Clientes",
 };
 
 /** Descripción breve por módulo para la card. */
 const MODULE_DESCRIPTIONS: Partial<Record<ModuleName, string>> = {
-  pos: "Activa el punto de venta para cobros rápidos, boletas y ventas presenciales.",
+  pos: "Activa el punto de venta para cobros rápidos, boletas y ventas presenciales. Sin él, la Caja tampoco está disponible.",
+  cash_register: "Apertura y cierre de caja, arqueo y movimientos de efectivo. Requiere que el módulo POS esté activo.",
   tables: "Organiza el salón: mapa de mesas, asignación de garzones y cuentas por mesa.",
+  deliveries: "Muestra los paneles de delivery y retiro en local en el POS, y las órdenes con despacho.",
   production: "Pantallas de cocina (KDS), estaciones y seguimiento de preparaciones.",
   inventory: "Controla bodegas, stock disponible, movimientos y alertas de inventario.",
   nutrition: "Muestra información nutricional en productos. Recetas e ingredientes siempre están disponibles.",
   public_catalog: "Menús digitales con QR para que tus clientes vean y compartan.",
   invoices: "Genera boletas, facturas y notas de crédito/débito electrónicas. Al activar, habilita la página de Documentos tributarios en el menú de Finanzas.",
+  promotions: "Descuentos y códigos promocionales que el cajero aplica en el carrito del POS.",
 };
 
 /** Orden de las secciones en la vista. */
-const CATEGORY_ORDER = ["Operación", "Productos", "Clientes"];
+const CATEGORY_ORDER = ["Operación", "Productos", "Clientes", "Finanzas"];
 
 /** Resuelve la categoría de un módulo: mapa propio → meta → General. */
 function resolveCategory(moduleName: ModuleName, metaCategory?: string | null): string {
@@ -288,7 +327,7 @@ export default function BranchModulesPage() {
   }
 
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
       {/* Header */}
       <header className="border-b border-border bg-card px-6 py-5">
         <PageHeader
@@ -348,7 +387,7 @@ export default function BranchModulesPage() {
                   {Array.from({ length: 3 }).map((_, i) => (
                     <div
                       key={i}
-                      className="rounded-xl border border-border bg-card p-4"
+                      className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm"
                     >
                       <div className="mb-3 flex items-center gap-3">
                         <Skeleton className="h-9 w-9 rounded-lg" />
@@ -420,12 +459,13 @@ function ModuleCard({
   const enabled = !!config.is_enabled;
   const label = MODULE_LABELS[config.module_name] ?? meta.label;
   const description = MODULE_DESCRIPTIONS[config.module_name];
+  const Icon = MODULE_ICONS[config.module_name] ?? getIcon(meta.icon);
 
   return (
     <div
       className={cn(
         "group relative rounded-2xl transition-all duration-200",
-        enabled ? "p-[2px]" : "border border-border bg-card",
+        enabled ? "p-[2px]" : "border border-border bg-muted/30 shadow-sm",
         !core && canManage && !isPending && "cursor-pointer",
         core && "cursor-default"
       )}
@@ -450,22 +490,19 @@ function ModuleCard({
         className={cn(
           "relative flex h-full flex-col gap-3 rounded-[14px] p-4 transition-all duration-200",
           enabled
-            ? "bg-gradient-to-br from-primary/5 to-card shadow-sm ring-1 ring-primary/20"
-            : "bg-card opacity-80 hover:opacity-100 hover:shadow-md",
+            ? "bg-gradient-to-br from-primary/5 to-muted/30 shadow-sm ring-1 ring-primary/20"
+            : "bg-muted/30 opacity-80 hover:opacity-100 hover:shadow-md",
           !core && canManage && "hover:shadow-md"
         )}
       >
         <div className="flex items-start gap-3">
           <div
             className={cn(
-              "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors",
+              "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl transition-colors",
               enabled ? "bg-primary/15" : "bg-muted"
             )}
           >
-            <ModuleIcon
-              name={meta.icon}
-              className={cn("h-5 w-5", enabled ? "text-primary" : "text-muted-foreground")}
-            />
+            <Icon className={cn("h-5 w-5", enabled ? "text-primary" : "text-muted-foreground")} />
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold leading-tight">{label}</p>
@@ -550,13 +587,4 @@ function ToggleSwitch({
   );
 }
 
-function ModuleIcon({
-  name,
-  className,
-}: {
-  name?: IconName | string | null;
-  className?: string;
-}) {
-  const Icon = getIcon(name);
-  return <Icon className={className} />;
-}
+

@@ -301,7 +301,10 @@ export default function PosPage() {
       setAccountSelectedClient(null);
       setAccountCreateName("");
       setAccountShowResults(false);
-      router.replace(`/pos/terminal?order_id=${order.id}&open_account=1`);
+      // Abrir la cuenta recién creada como si se hubiera elegido "Ver" en el
+      // listado: preserva return_to/station_id en la URL. El flag
+      // open_account=1 ya no es necesario (el modo se infiere de la orden).
+      handleEditOrder(order as Order);
       setCartOpen(true);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "No se pudo abrir la cuenta.");
@@ -453,7 +456,7 @@ export default function PosPage() {
       openCashRegister({
         branch_id: Number(branch?.branch_id ?? 0),
         station_id: activeStationId ? Number(activeStationId) : undefined,
-        opening_amount: Number(cashRegisterAmount || "0").toFixed(2),
+        opening_amount: Number(Number(cashRegisterAmount || "0").toFixed(2)),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cash-register"] });
@@ -490,7 +493,7 @@ export default function PosPage() {
     mutationFn: () => {
       if (!currentCashRegister) throw new Error("No hay caja abierta");
       return closeCashRegister(currentCashRegister.id, {
-        closing_amount: Number(cashRegisterAmount || "0").toFixed(2),
+        closing_amount: Number(Number(cashRegisterAmount || "0").toFixed(2)),
       });
     },
     onSuccess: () => {
@@ -557,7 +560,7 @@ export default function PosPage() {
             branch: Number(branch.branch_id),
             category: category.id,
             created_by: Number(user.id),
-            amount: payload.amount,
+            amount: Number(payload.amount),
             frequency: "ONE_TIME",
             start_date: new Date().toISOString().split("T")[0],
             status: "ACTIVE",
@@ -612,11 +615,7 @@ export default function PosPage() {
     selectedTableState?.current_order_id ||
     null;
 
-  const {
-    data: existingOrder,
-    isLoading: loadingExistingOrder,
-    error: existingOrderError,
-  } = useQuery<Order>({
+  const { data: existingOrder } = useQuery<Order>({
     queryKey: ["order", "pos-terminal", effectiveOrderId],
     queryFn: () => fetchOrder(effectiveOrderId as string) as Promise<Order>,
     enabled: Boolean(effectiveOrderId),
@@ -753,7 +752,7 @@ export default function PosPage() {
         },
         0,
       );
-      const comboPrice = Math.round(parseFloat(detail.combo_price || "0") || 0);
+      const comboPrice = Math.round(detail.combo_price ?? 0);
       const ratio = regularTotal > 0 ? comboPrice / regularTotal : 1;
 
       for (const item of detail.items) {
@@ -832,7 +831,7 @@ export default function PosPage() {
 
   const itemCount = useCartStore((s) => s.items.reduce((sum, i) => sum + i.quantity, 0));
   const existingOrderTotal = existingOrder
-    ? Math.max(0, parseFloat(existingOrder.total_amount ?? "0"))
+    ? Math.max(0, existingOrder.total_amount ?? 0)
     : 0;
   const existingItemCount = useMemo(
     () =>
@@ -971,6 +970,8 @@ export default function PosPage() {
               stationId={activeStationId}
               onContinueOrder={handleEditOrder}
               onCancelOrder={handleCancelOrder}
+              showAccounts={effectiveConfig.order_history}
+              showCollect={effectiveConfig.customer_search}
             />
           )}
 
@@ -1229,7 +1230,7 @@ export default function PosPage() {
                     Mesa {selectedTable.number} {selectedTable.area ? `· ${selectedTable.area}` : ""}
                     {existingOrder && (
                       <span className="ml-1.5 text-emerald-700">
-                        · {formatCLP(parseFloat(existingOrder.total_amount ?? "0"))}
+                        · {formatCLP(existingOrder.total_amount ?? 0)}
                       </span>
                     )}
                   </span>
@@ -1357,7 +1358,7 @@ export default function PosPage() {
                   Mesa {selectedTable.number} {selectedTable.area ? `· ${selectedTable.area}` : ""}
                   {existingOrder && (
                     <span className="ml-1.5 text-emerald-700">
-                      · {formatCLP(parseFloat(existingOrder.total_amount ?? "0"))}
+                      · {formatCLP(existingOrder.total_amount ?? 0)}
                     </span>
                   )}
                 </span>
@@ -1446,7 +1447,7 @@ export default function PosPage() {
                             </span>
                           </div>
                           <p className="self-start text-sm font-bold tabular-nums text-foreground sm:text-base">
-                            {formatCLP(parseFloat(combo.combo_price || "0"))}
+                            {formatCLP(combo.combo_price ?? 0)}
                           </p>
                         </div>
                       </motion.div>
@@ -1504,8 +1505,6 @@ export default function PosPage() {
               selectedTable={selectedTable}
               existingOrderId={effectiveOrderId}
               existingOrder={existingOrder}
-              existingOrderLoading={loadingExistingOrder}
-              existingOrderError={existingOrderError}
               defaultOrderType={queryOrderType ?? undefined}
               onOrderRegistered={(orderType) => {
                 if (isWaiter) goToWaiterTablesView();
@@ -1550,8 +1549,6 @@ export default function PosPage() {
               selectedTable={selectedTable}
               existingOrderId={effectiveOrderId}
               existingOrder={existingOrder}
-              existingOrderLoading={loadingExistingOrder}
-              existingOrderError={existingOrderError}
               defaultOrderType={queryOrderType ?? undefined}
               onOrderRegistered={(orderType) => {
                 if (isWaiter) goToWaiterTablesView();
@@ -1616,6 +1613,8 @@ export default function PosPage() {
               layout="bottom"
               onContinueOrder={handleEditOrder}
               onCancelOrder={handleCancelOrder}
+              showAccounts={effectiveConfig.order_history}
+              showCollect={effectiveConfig.customer_search}
             />
           )}
         </div>
@@ -1698,7 +1697,7 @@ export default function PosPage() {
                   {visibleOpenAccounts.length} pedido{visibleOpenAccounts.length === 1 ? "" : "s"} sin pagar
                   {visibleOpenAccounts.length > 0 && (
                     <span className="ml-1">
-                      · {formatCLP(visibleOpenAccounts.reduce((sum, o) => sum + parseFloat(o.total_amount ?? "0"), 0))}
+                      · {formatCLP(visibleOpenAccounts.reduce((sum, o) => sum + (o.total_amount ?? 0), 0))}
                     </span>
                   )}
                 </p>
@@ -2156,7 +2155,7 @@ export default function PosPage() {
                   {(filteredPendingDeliveries as Order[]).map((order) => (
                     <div
                       key={order.id}
-                      className="group flex flex-col gap-2 rounded-xl border border-border bg-background p-3 transition-colors hover:border-blue-300 hover:bg-blue-50/30"
+                      className="group flex flex-col gap-2 rounded-xl border border-border bg-background p-3 transition-colors hover:border-primary/30 hover:bg-primary/5"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
@@ -2196,7 +2195,7 @@ export default function PosPage() {
                             type="button"
                             disabled={deliverMutation.isPending}
                             onClick={() => deliverMutation.mutate({ id: order.id })}
-                            className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+                            className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-primary/90 disabled:opacity-50"
                           >
                             {deliverMutation.isPending && deliverMutation.variables?.id === order.id ? (
                               <svg className="h-3 w-3 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -2258,6 +2257,7 @@ export default function PosPage() {
 
       {collectingOrder && (
         <OrderCollectModal
+          key={collectingOrder.id}
           order={collectingOrder}
           paymentMethods={paymentMethods}
           currentCashRegister={currentCashRegister}

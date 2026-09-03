@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -8,11 +8,19 @@ import { Input } from "@/components/ui/input";
 import { useSessionStore, normalizeDashboardRoute } from "@/lib/store/session";
 import { loginComplete, forgotPassword } from "@/lib/api/auth";
 import { fetchFrontendConfig } from "@/lib/api/frontend-config";
-import { fetchBranchTheme, applyThemeConfig } from "@/lib/api/branches";
+import {
+  fetchBranchTheme,
+  fetchPublicLoginTheme,
+  fetchPublicLoginThemeByHost,
+  applyThemeConfig,
+} from "@/lib/api/branches";
+import type { BranchThemeConfig } from "@/lib/types";
 import { setToken } from "@/lib/api/session-storage";
 import { cn } from "@/lib/utils";
 import { LandingPanel } from "@/components/landing/landing-panel";
 import { PixelFoodMark } from "@/components/landing/pixel-food-mark";
+import { BrandLogo } from "@/components/brand-logo";
+import { LANDING_VALUE_PROP } from "@/content/landing";
 
 type FoodKind = "tazon" | "helado" | "cafe" | "tallarines" | "bebida";
 
@@ -119,6 +127,7 @@ function getHomeRouteForUser(
   if (firstRole === "OWNER") return "/dashboard";
   if (firstRole === "ADMIN_LOCAL") return "/pos";
   if (firstRole === "CAJERO") return "/pos/terminal";
+  if (firstRole === "WAITER") return "/pos/terminal";
   return "/dashboard";
 }
 
@@ -138,6 +147,35 @@ export default function LoginPage() {
   const [forgotError, setForgotError] = useState<string | null>(null);
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
+
+  // Login personalizado por sucursal: branding público según el dominio
+  // (by-host) o según ?branch=<slug>. Sin branding (p. ej. localhost) se
+  // mantiene la marca FRIG por defecto.
+  const [brandTheme, setBrandTheme] = useState<BranchThemeConfig | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const slug = new URLSearchParams(window.location.search).get("branch");
+      const theme = slug
+        ? await fetchPublicLoginTheme(slug)
+        : await fetchPublicLoginThemeByHost();
+      if (cancelled || !theme) return;
+      setBrandTheme(theme);
+      applyThemeConfig(theme);
+      if (theme.favicon) {
+        let link = document.querySelector<HTMLLinkElement>("link[rel='icon']");
+        if (!link) {
+          link = document.createElement("link");
+          link.rel = "icon";
+          document.head.appendChild(link);
+        }
+        link.href = theme.favicon;
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -205,23 +243,44 @@ export default function LoginPage() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25, ease: "easeOut" }}
-          className="relative flex w-full max-w-sm flex-col overflow-hidden font-pixel lg:h-[600px] lg:justify-center"
+          className="relative flex w-full max-w-sm flex-col overflow-hidden px-1 font-pixel lg:h-[600px] lg:justify-center"
         >
           <div className="mb-8 flex flex-col items-center gap-3 text-center">
-            <div className="mb-2 flex items-center gap-3">
-              {FOOD_ICONS.map((icon) => (
-                <span key={icon.label} aria-label={icon.label} title={icon.label}>
-                  <FoodIcon kind={icon.kind} />
-                </span>
-              ))}
-            </div>
-            <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-              <PixelFoodMark className="h-9 w-9" title="FRIG" withEyes animated />
-            </div>
+            {!brandTheme && (
+              <div className="mb-2 flex items-center gap-3">
+                {FOOD_ICONS.map((icon) => (
+                  <span key={icon.label} aria-label={icon.label} title={icon.label}>
+                    <FoodIcon kind={icon.kind} />
+                  </span>
+                ))}
+              </div>
+            )}
+            {brandTheme?.logo ? (
+              <BrandLogo
+                src={brandTheme.logo}
+                alt={brandTheme.app_name ?? "Logo"}
+                name={brandTheme.app_name}
+                containerClassName="h-16 w-16 rounded-xl shadow-sm"
+                className="max-h-14 max-w-14 p-1.5"
+              />
+            ) : (
+              <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+                <PixelFoodMark className="h-9 w-9" title="FRIG" withEyes animated />
+              </div>
+            )}
             <div>
-              <h1 className="font-pixel text-2xl font-semibold tracking-[0.16em]">FRIG</h1>
+              <h1
+                className={cn(
+                  "text-2xl font-semibold",
+                  !brandTheme && "font-pixel tracking-[0.16em]",
+                )}
+              >
+                {brandTheme?.app_name ?? "FRIG"}
+              </h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Gestión comercial y gastronómica
+                {brandTheme?.login_welcome_message ||
+                  brandTheme?.tagline ||
+                  LANDING_VALUE_PROP.headline}
               </p>
             </div>
           </div>
@@ -394,7 +453,13 @@ export default function LoginPage() {
       </section>
 
       <aside className="lg:col-start-1 lg:row-start-1 lg:h-dvh lg:overflow-hidden">
-        <LandingPanel />
+        <LandingPanel
+          brand={
+            brandTheme
+              ? { name: brandTheme.app_name ?? "FRIG", logo: brandTheme.logo }
+              : null
+          }
+        />
       </aside>
     </div>
   );
