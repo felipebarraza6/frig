@@ -11,8 +11,8 @@
 :root {
   --brand-primary: #2f6b3c;
   --brand-secondary: #f2e8cf;
-  --brand-surface: #f7f6f1;
-  --brand-foreground: #1a1d18;
+  --brand-surface: #f8f7f3;
+  --brand-foreground: #1b1e19;
   --brand-radius: 0.75rem;
   --brand-motion: 1;
   --brand-compact: 0;
@@ -48,37 +48,46 @@
 
 :root,
 .light {
-  --background: var(--brand-surface);
+  --background: #f8f7f3;
   --foreground: var(--brand-foreground);
-  --muted: hsl(120 8% 91%);
-  --muted-foreground: hsl(120 5% 45%);
+  --muted: hsl(95 10% 93%);
+  --muted-foreground: hsl(100 5% 38%);
   --accent: var(--muted);
   --accent-foreground: var(--brand-foreground);
   --primary-foreground: #ffffff;
   --secondary-foreground: var(--brand-foreground);
-  --border: hsl(120 10% 86%);
-  --input: hsl(120 10% 86%);
+  --border: hsl(95 9% 88%);
+  --input: hsl(95 9% 85%);
   --card: #ffffff;
   --card-foreground: var(--brand-foreground);
   --danger: #dc2626;
   --success: #16a34a;
-  --warning: #f59e0b;
+  --warning: #d97706;
   --radius: var(--brand-radius);
 }
 
 .dark {
-  --background: #14160f;
-  --foreground: #f2f4ee;
-  --muted: hsl(120 8% 18%);
-  --muted-foreground: hsl(120 5% 62%);
+  --background: #12150f;
+  --foreground: #eef1e8;
+  --muted: hsl(100 10% 17%);
+  --muted-foreground: hsl(95 7% 64%);
   --accent: var(--muted);
-  --accent-foreground: #f2f4ee;
+  --accent-foreground: #eef1e8;
   --primary-foreground: #ffffff;
-  --secondary-foreground: #f2f4ee;
-  --border: hsl(120 8% 24%);
-  --input: hsl(120 8% 24%);
-  --card: #1c1f17;
-  --card-foreground: #f2f4ee;
+  --secondary-foreground: #eef1e8;
+  --border: hsl(100 9% 23%);
+  --input: hsl(100 9% 27%);
+  --card: #1a1e15;
+  --card-foreground: #eef1e8;
+  /* En oscuro los semánticos se aclaran para mantener contraste legible
+     sobre fondos profundos (los mismos tokens, mejor luminancia). */
+  --danger: #f87171;
+  --success: #4ade80;
+  --warning: #fbbf24;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--brand-primary) 24%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {
