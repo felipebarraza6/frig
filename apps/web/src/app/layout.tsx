@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Pixelify_Sans } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { ThemeApplier } from "@/components/theme-applier";
+import { ServiceWorkerRegister } from "@/components/service-worker-register";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,9 +24,30 @@ const pixelify = Pixelify_Sans({
 export const metadata: Metadata = {
   title: "FRIG — Punto de venta gastronómico",
   description: "POS, comandas y cocina para restaurantes.",
+  manifest: "/manifest.webmanifest",
+  applicationName: "FRIG",
+  appleWebApp: {
+    capable: true,
+    title: "FRIG",
+    statusBarStyle: "default",
+  },
+  formatDetection: { telephone: false },
+  icons: {
+    icon: [
+      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
 };
 
 export const viewport: Viewport = {
+  // App-like: sin zoom de doble tap ni zoom por foco en inputs en iOS.
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#f7f6f1" },
     { media: "(prefers-color-scheme: dark)", color: "#14160f" },
@@ -73,6 +95,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-full flex-col">
         <Providers>
           <ThemeApplier />
+          <ServiceWorkerRegister />
           {children}
         </Providers>
       </body>

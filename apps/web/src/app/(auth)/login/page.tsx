@@ -452,7 +452,7 @@ export default function LoginPage() {
         </motion.div>
       </section>
 
-      <aside className="lg:col-start-1 lg:row-start-1 lg:h-dvh lg:overflow-hidden">
+      <aside className="hidden lg:col-start-1 lg:row-start-1 lg:block lg:h-dvh lg:overflow-hidden">
         <LandingPanel
           brand={
             brandTheme
