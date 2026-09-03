@@ -49,8 +49,9 @@ jobs:
         with:
           server: ftp.yggdra.cl
           port: 21
-          username: web_ci@frig.yddra.cl
+          username: frig_cd@yggdra.cl
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: apps/web/out/
           server-dir: ${{ secrets.FTP_TARGET_DIR }}
-          dangerous-clean-slate: true
+          # Sin dangerous-clean-slate: la raíz del hosting contiene cgi-bin/
+          # y .well-known/ (renovación SSL) que no deben borrarse.
