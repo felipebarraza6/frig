@@ -52,7 +52,11 @@ export function ForbiddenListener() {
       const isSecondaryModule = /\b(tables|public_catalog|product_catalog|nutrition)\b/i.test(
         rawMessage,
       );
-      if (!(isPosRoute && isSecondaryModule)) {
+      // Errores de "módulo no habilitado para esta sucursal": la UI ya oculta
+      // esas secciones y el 403 suele venir de peticiones secundarias/paralelas
+      // (no de una acción del usuario). Mostrar el toast rompe la experiencia.
+      const isModuleDisabled = /no está habilitado/i.test(rawMessage);
+      if (!isModuleDisabled && !(isPosRoute && isSecondaryModule)) {
         toast.error(message);
       }
 
