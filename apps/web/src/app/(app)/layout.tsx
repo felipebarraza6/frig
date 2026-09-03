@@ -149,6 +149,18 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     );
   }
 
+  // Fail-closed: si el módulo de la ruta está deshabilitado no se renderiza
+  // la página ni un frame (el efecto de arriba ya redirige a /dashboard).
+  // Sin esto, al entrar a una ruta desactivada (p. ej. Inventario off) la
+  // página completa se pintaba antes de la redirección.
+  if (!isRouteModuleEnabled && pathname !== "/dashboard") {
+    return (
+      <div className="flex flex-1 items-center justify-center bg-background">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-muted border-t-primary" />
+      </div>
+    );
+  }
+
   return (
     <RealtimeProvider>
       <ForbiddenListener />

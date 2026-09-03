@@ -313,6 +313,8 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
   // El check "Público en menú QR" depende del módulo Menús digitales
   // (public_catalog), igual que el tab Nutrición depende de `nutrition`.
   const publicCatalogEnabled = useIsModuleEnabledFromConfig("public_catalog");
+  // El tab Bodegas depende del módulo Inventario.
+  const inventoryEnabled = useIsModuleEnabledFromConfig("inventory");
   const { download: downloadNutritionPdf, isLoading: downloadingNutritionPdf } = useDownloadFile();
   const { options: categories, isLoading: loadingCategories } = useCategoryOptions();
 
@@ -516,14 +518,14 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
       { id: "basic", label: "Datos básicos", enabled: true },
       { id: "pricing", label: "Precios y venta", enabled: true },
       { id: "recipe", label: "Receta", enabled: isCompound },
-      { id: "warehouses", label: "Bodegas", enabled: true },
+      { id: "warehouses", label: "Bodegas", enabled: inventoryEnabled },
       { id: "modifiers", label: "Modificadores", enabled: true },
     ];
     if (nutritionEnabled) {
       list.push({ id: "nutrition", label: "Nutrición", enabled: true });
     }
     return list;
-  }, [isCompound, nutritionEnabled]);
+  }, [isCompound, nutritionEnabled, inventoryEnabled]);
 
   // Al cargar las opciones de tipo (la query puede llegar después de abrir el
   // form), corrige el valor actual si no está entre las disponibles.

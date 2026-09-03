@@ -43,7 +43,7 @@ import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
 import { useBranchProductTypes } from "@/lib/hooks/useBranchProductTypes";
 import { useCategoryOptions } from "@/lib/hooks/useCategoryOptions";
 import { useToast } from "@/lib/store/toast";
-import { useCurrentBranch } from "@/lib/store/session";
+import { useCurrentBranch, useIsModuleEnabledFromConfig } from "@/lib/store/session";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import { useBranchRecipeMaps } from "@/lib/hooks/useBranchRecipeMaps";
 import type { YggdraProduct, YggdraSchemas } from "@/lib/api/types";
@@ -114,6 +114,7 @@ function ProductCard({
 }: ProductCardProps) {
   const stock = productStock(product);
   const lowStock = isLowStock(product);
+  const inventoryEnabled = useIsModuleEnabledFromConfig("inventory");
   const categoryName = product.category && typeof product.category === "object" ? product.category.name : null;
 
   return (
@@ -186,8 +187,9 @@ function ProductCard({
             {formatCLP(product.sale_price ?? product.price ?? "0")}
           </p>
         </div>
-        <div className="text-right">
-          <p className="text-xs text-muted-foreground">Stock</p>
+        {inventoryEnabled && (
+          <div className="text-right">
+            <p className="text-xs text-muted-foreground">Stock</p>
           <div className="flex items-center justify-end gap-1.5">
             <span
               className={cn(
@@ -206,7 +208,8 @@ function ProductCard({
           {lowStock && (
             <p className="text-xs font-medium text-amber-600">Stock bajo</p>
           )}
-        </div>
+          </div>
+        )}
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2">
@@ -244,16 +247,18 @@ function ProductCard({
           >
             <Pencil className="h-4 w-4" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-            onClick={onEditWarehouses}
-            title="Editar bodegas"
-            aria-label={`Editar bodegas de ${product.name}`}
-          >
-            <Warehouse className="h-4 w-4" />
-          </Button>
+          {inventoryEnabled && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              onClick={onEditWarehouses}
+              title="Editar bodegas"
+              aria-label={`Editar bodegas de ${product.name}`}
+            >
+              <Warehouse className="h-4 w-4" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"

@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { AlertTriangle, List } from "lucide-react";
 import type { PosProduct, YggdraSchemas } from "@/lib/api/types";
 import { formatCLP, cn } from "@/lib/utils";
+import { useIsModuleEnabledFromConfig } from "@/lib/store/session";
 
 interface ProductCardProps {
   product: PosProduct;
@@ -83,7 +84,10 @@ function ProductImage({ product }: { product: PosProduct }) {
 }
 
 function ProductCardRaw({ product, recipe, ingredients, onClick, onKeyDown }: ProductCardProps) {
-  const disabled = (product.quantity ?? 0) === 0;
+  // Sin módulo Inventario no hay control de stock: se oculta el badge y
+  // el producto nunca queda bloqueado por cantidad.
+  const inventoryEnabled = useIsModuleEnabledFromConfig("inventory");
+  const disabled = inventoryEnabled && (product.quantity ?? 0) === 0;
   const hasImage = Boolean(product.image);
 
   return (
@@ -118,7 +122,7 @@ function ProductCardRaw({ product, recipe, ingredients, onClick, onKeyDown }: Pr
             {product.product_type === "RECIPE_BASED" && (
               <ProductTypeBadge recipe={recipe} ingredients={ingredients} />
             )}
-            <StockBadge product={product} />
+            {inventoryEnabled && <StockBadge product={product} />}
           </div>
         </div>
 
