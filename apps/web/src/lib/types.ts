@@ -206,6 +206,8 @@ export interface UserUpdatePayload {
 /** Respuesta de `POST /api/accounts/users/login_complete/`. */
 export interface LoginCompleteResponse {
   token: string;
+  /** Solo usuarios demo: ISO datetime en que expira la sesión (1 hora). */
+  demo_expires_at?: string | null;
   user: User;
   branches: Branch[];
   owned_organizations?: Organization[];

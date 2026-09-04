@@ -20,95 +20,18 @@ import { cn } from "@/lib/utils";
 import { LandingPanel } from "@/components/landing/landing-panel";
 import { PixelFoodMark } from "@/components/landing/pixel-food-mark";
 import { BrandLogo } from "@/components/brand-logo";
-import { LANDING_VALUE_PROP } from "@/content/landing";
-
-type FoodKind = "tazon" | "helado" | "cafe" | "tallarines" | "bebida";
-
-const FOOD_ICONS: readonly { label: string; kind: FoodKind }[] = [
-  { label: "Tazón", kind: "tazon" },
-  { label: "Helado", kind: "helado" },
-  { label: "Café", kind: "cafe" },
-  { label: "Tallarines", kind: "tallarines" },
-  { label: "Bebida", kind: "bebida" },
-] as const;
+import { LANDING_USE_CASES, LANDING_VALUE_PROP } from "@/content/landing";
+import type { LandingUseCase } from "@/content/landing";
+import { Clock, Copy, KeyRound } from "lucide-react";
+import { FOOD_ICONS, FoodIcon } from "@/components/auth/pixel-food-icons";
+import { PixelLoginBg } from "@/components/auth/pixel-login-bg";
+import { PixelLoginSuccess } from "@/components/auth/pixel-login-success";
 
 /** Easing de "frames" (efecto retro): arranca en 6 pasos discretos. */
 function stepEase(steps = 6) {
   return (value: number) => Math.round(value * steps) / steps;
 }
 
-function FoodIcon({ kind }: { kind: FoodKind }) {
-  const s = { width: 28, height: 28, imageRendering: "pixelated" } as const;
-  switch (kind) {
-    case "tazon":
-      return (
-        <svg viewBox="0 0 16 16" style={s} shapeRendering="crispEdges">
-          <path d="M6 1h1v2H6zm4 0h1v2H6zm-3 0h1v1H7z" fill="#a9c9b8" />
-          <path d="M2 5h12v2H2z" fill="#1a1d18" />
-          <path d="M3 7h10v4H3z" fill="#f7f6f1" stroke="#1a1d18" strokeWidth={0} />
-          <path d="M3 7h10v4H3z" fill="#ffffff" />
-          <path d="M4 7h8v2H4z" fill="#d8783d" />
-          <path d="M5 7h2v2H5zM8 7h2v2H8z" fill="#8a4f2b" opacity=".5" />
-          <path d="M2 5h12v2H2z" fill="#1a1d18" />
-          <path d="M5 11h6v2H5zM6 13h4v1H6z" fill="#1a1d18" />
-        </svg>
-      );
-    case "helado":
-      return (
-        <svg viewBox="0 0 16 16" style={s} shapeRendering="crispEdges">
-          <path d="M5 2h6v1H5zM4 3h8v1H4zM4 4h8v3H4z" fill="#f1d195" />
-          <path d="M5 3h2v1H5z" fill="white" opacity=".6" />
-          <path d="M6 7h4v1H6zM5 8h6v1H5zM5 9h6v1H5zM6 10h4v1H6zM6 11h4v1H6zM7 12h2v1H7zM7 13h2v1H7z" fill="#d8a45c" />
-          <path d="M6 7h1v6H6z" fill="#b8893a" opacity=".5" />
-          <path d="M10 4h1v2h-1z" fill="#e9a84a" opacity=".4" />
-        </svg>
-      );
-    case "cafe":
-      return (
-        <svg viewBox="0 0 16 16" style={s} shapeRendering="crispEdges">
-          <path d="M7 0h1v2H7zm3 1h1v2h-1z" fill="#a9c9b8" opacity=".9" />
-          <path d="M3 5h8v1H3z" fill="#1a1d18" />
-          <path d="M3 6h8v6H3z" fill="white" />
-          <path d="M3 6h8v1H3z" fill="#f7f6f1" />
-          <path d="M4 7h6v1H4z" fill="#8a4f2b" />
-          <path d="M4 7h6v2H4z" fill="#6b3a1f" opacity=".15" />
-          <path d="M11 6h2v6H11z" fill="white" />
-          <path d="M12 7h1v4h-1z" fill="#1a1d18" opacity=".08" />
-          <path d="M3 12h8v1H3z" fill="#1a1d18" />
-          <path d="M4 4h1v1H4z" fill="#a9c9b8" opacity=".5" />
-        </svg>
-      );
-    case "tallarines":
-      return (
-        <svg viewBox="0 0 16 16" style={s} shapeRendering="crispEdges">
-          <path d="M7 0h1v2H7z" fill="#a9c9b8" />
-          <path d="M2 5h12v2H2z" fill="#1a1d18" />
-          <path d="M3 7h10v4H3z" fill="white" />
-          <path d="M4 7h8v1H4z" fill="#e8c17a" />
-          <path d="M4 8h8v1H4z" fill="#d8a45c" />
-          <path d="M4 9h8v1H4z" fill="#e8c17a" />
-          <path d="M5 7h1v3H5zM7 7h1v3H7zM9 7h1v3H9z" fill="#b8893a" opacity=".5" />
-          <path d="M6 7h1v1H6zM9 9h1v1H9z" fill="#c95f4b" />
-          <path d="M5 11h6v2H5zM6 13h4v1H6z" fill="#1a1d18" />
-          <path d="M8 8h2v1H8z" fill="#8dc4a3" />
-        </svg>
-      );
-    case "bebida":
-      return (
-        <svg viewBox="0 0 16 16" style={s} shapeRendering="crispEdges">
-          <path d="M5 2h6v1H5z" fill="#1a1d18" />
-          <path d="M4 3h8v1H4z" fill="white" />
-          <path d="M4 4h8v8H4z" fill="#8dc4a3" />
-          <path d="M4 4h8v2H4z" fill="#bfe7d0" />
-          <path d="M5 6h1v4H5z" fill="white" opacity=".55" />
-          <path d="M10 1h2v3h-2z" fill="#d8783d" />
-          <path d="M11 1h1v4H11z" fill="#1a1d18" opacity=".12" />
-          <path d="M4 12h8v1H4z" fill="#1a1d18" />
-          <path d="M5 4h6v1H5z" fill="#2f6b3c" opacity=".2" />
-        </svg>
-      );
-  }
-}
 
 function getHomeRouteForUser(
   user: {
@@ -140,8 +63,23 @@ export default function LoginPage() {
   const [mode, setMode] = useState<"login" | "forgot">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    // Aviso persistido por client.ts cuando una sesión expira (p. ej. demo).
+    const notice = window.sessionStorage.getItem("frig.auth_notice");
+    if (notice) window.sessionStorage.removeItem("frig.auth_notice");
+    return notice;
+  });
   const [loading, setLoading] = useState(false);
+  // Animación de éxito (estrella pixel + monedas) antes de navegar.
+  const [success, setSuccess] = useState(false);
+  // Remonta el mensaje de error para re-disparar el shake en cada intento.
+  const [errorKey, setErrorKey] = useState(0);
+
+  function celebrateThen(callback: () => void) {
+    setSuccess(true);
+    window.setTimeout(callback, 1150);
+  }
 
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotError, setForgotError] = useState<string | null>(null);
@@ -152,6 +90,31 @@ export default function LoginPage() {
   // (by-host) o según ?branch=<slug>. Sin branding (p. ej. localhost) se
   // mantiene la marca FRIG por defecto.
   const [brandTheme, setBrandTheme] = useState<BranchThemeConfig | null>(null);
+  // Demo activa según ?branch=<slug>: muestra credenciales de acceso y aviso de 1 hora.
+  // Se calcula una sola vez (lazy init) — no necesita effect.
+  const [demoCase] = useState<LandingUseCase | null>(() => {
+    if (typeof window === "undefined") return null;
+    const slug = new URLSearchParams(window.location.search).get("branch");
+    return LANDING_USE_CASES.find((u) => u.slug === slug) ?? null;
+  });
+  const [copied, setCopied] = useState<string | null>(null);
+
+  async function copyCredential(kind: "user" | "password", value: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(kind);
+      setTimeout(() => setCopied(null), 1500);
+    } catch {
+      // clipboard no disponible: el texto igual es seleccionable
+    }
+  }
+
+  function useDemoCredentials() {
+    if (!demoCase) return;
+    setEmail(demoCase.demoUser);
+    setPassword(demoCase.demoPassword);
+    setError(null);
+  }
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -184,6 +147,12 @@ export default function LoginPage() {
     try {
       const res = await loginComplete({ email, password });
       setToken(res.token);
+      // Sesión demo: guardar expiración (1h) para avisos/cuenta regresiva.
+      if (res.demo_expires_at) {
+        window.localStorage.setItem("frig.demo_expires_at", res.demo_expires_at);
+      } else {
+        window.localStorage.removeItem("frig.demo_expires_at");
+      }
       if (res.branches.length === 1) {
         const branchId = Number(res.branches[0].branch_id);
         const config = await fetchFrontendConfig(branchId);
@@ -197,14 +166,17 @@ export default function LoginPage() {
         } catch {
           // tema no crítico
         }
-        router.replace(getHomeRouteForUser(config.user, config.dashboard));
+        celebrateThen(() =>
+          router.replace(getHomeRouteForUser(config.user, config.dashboard)),
+        );
       } else {
         // Múltiples sucursales: guardar datos básicos y dejar que select-branch cargue frontend-config.
         setSession(res.user, res.branches, res.permissions ?? null);
-        router.replace("/select-branch");
+        celebrateThen(() => router.replace("/select-branch"));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al iniciar sesión");
+      setErrorKey((k) => k + 1);
     } finally {
       setLoading(false);
     }
@@ -238,7 +210,8 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-dvh flex-1 flex-col lg:h-dvh lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)] lg:overflow-hidden">
-      <section className="flex flex-1 flex-col items-center justify-center bg-background px-4 py-10 lg:col-start-2 lg:row-start-1 lg:h-dvh lg:overflow-hidden">
+      <section className="relative flex flex-1 flex-col items-center justify-center bg-background px-4 py-10 lg:col-start-2 lg:row-start-1 lg:h-dvh lg:overflow-hidden">
+        <PixelLoginBg />
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -284,6 +257,56 @@ export default function LoginPage() {
               </p>
             </div>
           </div>
+
+          {demoCase && mode === "login" && (
+            <div
+              className="mb-6 rounded-lg border-2 bg-card/60 p-3"
+              style={{ borderColor: demoCase.brandColor }}
+            >
+              <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <KeyRound className="h-3.5 w-3.5" style={{ color: demoCase.brandColor }} />
+                Acceso demo — {demoCase.name}
+              </p>
+              <div className="mt-2 flex flex-col gap-1.5">
+                {(
+                  [
+                    { kind: "user" as const, label: "Usuario", value: demoCase.demoUser },
+                    { kind: "password" as const, label: "Clave", value: demoCase.demoPassword },
+                  ]
+                ).map((item) => (
+                  <button
+                    key={item.kind}
+                    type="button"
+                    onClick={() => copyCredential(item.kind, item.value)}
+                    title="Clic para copiar"
+                    className="flex cursor-pointer items-center justify-between gap-2 rounded border border-border bg-background/80 px-2 py-1.5 text-left font-pixel text-xs transition-colors hover:border-foreground/40"
+                  >
+                    <span className="truncate">
+                      <span className="text-muted-foreground">{item.label}: </span>
+                      <span className="font-medium">{item.value}</span>
+                    </span>
+                    {copied === item.kind ? (
+                      <span className="shrink-0 text-[10px] text-emerald-600">¡Copiado!</span>
+                    ) : (
+                      <Copy className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    )}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={useDemoCredentials}
+                className="mt-2 w-full cursor-pointer rounded border border-dashed px-2 py-1.5 text-xs font-medium transition-colors hover:bg-foreground/5"
+                style={{ borderColor: demoCase.brandColor, color: demoCase.brandColor }}
+              >
+                Usar estas credenciales
+              </button>
+              <p className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <Clock className="h-3 w-3" />
+                La sesión demo dura 1 hora. Juega, prueba y revienta el sistema.
+              </p>
+            </div>
+          )}
 
           {mode === "forgot" ? (
             forgotSent ? (
@@ -372,12 +395,15 @@ export default function LoginPage() {
               </div>
 
               {error && (
-                <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
+                <p
+                  key={errorKey}
+                  className="login-shake rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger"
+                >
                   {error}
                 </p>
               )}
 
-              <Button type="submit" size="lg" disabled={loading} className="mt-2">
+              <Button type="submit" size="lg" disabled={loading} className="mt-2 active:scale-[0.97] transition-transform">
                 {loading ? "Ingresando…" : "Ingresar"}
               </Button>
 
@@ -450,6 +476,10 @@ export default function LoginPage() {
             />
           </div>
         </motion.div>
+
+        {success && (
+          <PixelLoginSuccess brandName={brandTheme?.app_name ?? null} />
+        )}
       </section>
 
       <aside className="hidden lg:col-start-1 lg:row-start-1 lg:block lg:h-dvh lg:overflow-hidden">

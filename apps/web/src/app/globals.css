@@ -253,12 +253,298 @@ body {
   box-shadow: 1px 1px 0 0 rgba(0, 0, 0, 0.45);
 }
 
+/* ── Fondos pixel-art con gradiente ───────────────────────────────────────
+   Gradiente SUAVE + dithering fino encima (checker pixel a muy baja
+   opacidad): textura retro sin cortes de capa visibles. */
+
+/* Cielo nocturno del hero / CTA final: verde profundo → verde bosque,
+   con resplandor cálido del "horizonte" (fuego del castillo). */
+.pixel-sky-hero {
+  background-color: #08170f;
+  background-image:
+    /* Dither fino (4px) sobre todo el cielo. */
+    repeating-conic-gradient(rgba(255, 255, 255, 0.022) 0% 25%, transparent 0% 50%),
+    /* Dither grueso (16px) muy tenue: rompe la lisura sin marcar bandas. */
+    repeating-conic-gradient(rgba(141, 196, 163, 0.02) 0% 25%, transparent 0% 50%),
+    /* Resplandor cálido del horizonte, suave. */
+    radial-gradient(120% 55% at 50% 108%, rgba(233, 189, 74, 0.13) 0%, rgba(216, 120, 61, 0.06) 45%, transparent 72%),
+    /* Gradiente principal, continuo. */
+    linear-gradient(180deg, #050d09 0%, #08170f 32%, #0c2317 58%, #123020 78%, #1a4226 100%);
+  background-size: 4px 4px, 16px 16px, 100% 100%, 100% 100%;
+}
+
+/* Fondo de secciones oscuras (planes): más frío, casi pizarra. */
+.pixel-sky-deep {
+  background-color: #10160f;
+  background-image:
+    repeating-conic-gradient(rgba(255, 255, 255, 0.02) 0% 25%, transparent 0% 50%),
+    repeating-conic-gradient(rgba(141, 196, 163, 0.018) 0% 25%, transparent 0% 50%),
+    radial-gradient(140% 40% at 50% -8%, rgba(233, 189, 74, 0.05) 0%, transparent 60%),
+    linear-gradient(180deg, #0b110c 0%, #10160f 40%, #151e14 72%, #1a271b 100%);
+  background-size: 4px 4px, 16px 16px, 100% 100%, 100% 100%;
+}
+
+/* Dither claro para secciones crema (funciones / demos): textura sutil. */
+.pixel-dither-light {
+  background-image:
+    repeating-conic-gradient(color-mix(in srgb, var(--color-primary) 4%, transparent) 0% 25%, transparent 0% 50%),
+    linear-gradient(180deg,
+      var(--background) 0%,
+      color-mix(in srgb, var(--color-primary) 4%, var(--background)) 100%);
+  background-size: 4px 4px, 100% 100%;
+}
+
+/* Bosque nocturno: secciones intermedias del "viaje" (funciones, demos).
+   Mismo lenguaje que pixel-sky-deep pero más verde, como ladera baja el
+   bosque. La cima (#0b110c) coincide con el relleno de PixelSlope. */
+.pixel-sky-forest {
+  background-color: #0b110c;
+  background-image:
+    repeating-conic-gradient(rgba(255, 255, 255, 0.02) 0% 25%, transparent 0% 50%),
+    repeating-conic-gradient(rgba(141, 196, 163, 0.018) 0% 25%, transparent 0% 50%),
+    radial-gradient(120% 45% at 50% 112%, rgba(233, 189, 74, 0.08) 0%, transparent 70%),
+    linear-gradient(180deg, #0b110c 0%, #0e1810 45%, #122217 100%);
+  background-size: 4px 4px, 16px 16px, 100% 100%, 100% 100%;
+}
+
+/* ── Login pixel (fondo vivo + éxito) ────────────────────────────────────── */
+
+/* Estrellas pixel: titilan con steps para parpadeo duro retro. */
+@keyframes login-twinkle {
+  0%,
+  100% {
+    opacity: 0.12;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.4);
+  }
+}
+
+/* Flotación suave de los sprites de comida. */
+@keyframes login-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -10px, 0);
+  }
+}
+
+/* Vapor subiendo desde el "suelo" del login. */
+@keyframes login-steam {
+  0% {
+    transform: translate3d(0, 8px, 0) scale(0.8);
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.3;
+  }
+  100% {
+    transform: translate3d(0, -34px, 0) scale(1.25);
+    opacity: 0;
+  }
+}
+
+/* Cielo: gradiente que respira muy lento. */
+@keyframes login-sky {
+  0%,
+  100% {
+    background-position: 0% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
+}
+
+/* Shake del error de login (pasos duros, estilo retro). */
+@keyframes login-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-6px);
+  }
+  40% {
+    transform: translateX(6px);
+  }
+  60% {
+    transform: translateX(-4px);
+  }
+  80% {
+    transform: translateX(4px);
+  }
+}
+
+/* Moneda que salta en la animación de éxito (usa --tx/--ty por moneda). */
+@keyframes login-coin-pop {
+  0% {
+    transform: translate(0, 0) scale(0.3);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  55% {
+    transform: translate(var(--tx, 0), var(--ty, -52px)) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--tx, 0), calc(var(--ty, -52px) - 34px)) scale(0.6);
+    opacity: 0;
+  }
+}
+
+/* Estrella de éxito: gira con steps (rotación pixel) y aparece con pop. */
+@keyframes login-success-pop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  55% {
+    transform: scale(1.18);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Halo que crece una vez tras la estrella de éxito. */
+@keyframes login-success-halo {
+  0% {
+    transform: scale(0.4);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+.login-shake {
+  animation: login-shake 0.4s steps(8);
+}
+
+/* ── Landing: longhouse vivo + nubes + viento + glow de planes ──────────── */
+
+/* Antorcha: parpadeo irregular estilo llama (steps = parpadeo duro retro). */
+@keyframes house-torch {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  25% {
+    opacity: 0.5;
+  }
+  45% {
+    opacity: 0.95;
+  }
+  70% {
+    opacity: 0.35;
+  }
+  85% {
+    opacity: 0.8;
+  }
+}
+
+/* Ventana: brillo de vela que respira lento. */
+@keyframes house-window {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* Bandera: aleteo lateral con 2 pasos (pixel flutter). */
+@keyframes house-flag {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(-18%);
+  }
+}
+
+/* Nube: cruza el hero de izquierda a derecha, en bucle.
+   translateX(-100%) = ancho propio fuera de pantalla (el contenedor recorta).
+   steps() = avance a saltos, estilo pixel. */
+@keyframes landing-cloud {
+  from {
+    transform: translate3d(-100%, 0, 0);
+  }
+  to {
+    transform: translate3d(100vw, 0, 0);
+  }
+}
+
+.landing-cloud {
+  animation-name: landing-cloud;
+  animation-timing-function: steps(160);
+  animation-iteration-count: infinite;
+}
+
+/* Glow pulsante del plan destacado. */
+@keyframes plan-glow {
+  0%,
+  100% {
+    box-shadow: 6px 6px 0 0 rgba(0, 0, 0, 0.45), 0 0 0 0 rgba(233, 189, 74, 0);
+  }
+  50% {
+    box-shadow: 6px 6px 0 0 rgba(0, 0, 0, 0.45), 0 0 0 5px rgba(233, 189, 74, 0.28);
+  }
+}
+
+.plan-glow {
+  animation: plan-glow 2.4s ease-in-out infinite;
+}
+
+/* Halo de la luna: respira lento (brillo + leve escala). */
+@keyframes moon-halo {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.1);
+  }
+}
+
+.moon-halo {
+  animation: moon-halo 6s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .landing-pixel-drift,
   .landing-pixel-steam,
   .landing-pixel-glow,
   .frig-eye,
-  .frig-smoke {
+  .frig-smoke,
+  .house-torch,
+  .house-window,
+  .house-flag,
+  .landing-cloud,
+  .plan-glow,
+  .moon-halo {
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-twinkle,
+  .login-float,
+  .login-steam-anim,
+  .login-shake {
     animation: none;
   }
 }

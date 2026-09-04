@@ -41,6 +41,7 @@ function redirectToLogin(): void {
   window.localStorage.removeItem("frig.token");
   window.localStorage.removeItem("frig.branch_id");
   window.localStorage.removeItem("frig.session");
+  window.localStorage.removeItem("frig.demo_expires_at");
   window.location.assign(`${window.location.origin}/login`);
 }
 
@@ -142,8 +143,18 @@ export async function apiFetch<T>(path: string, opts: ApiOptions = {}): Promise<
     });
 
     if (res.status === 401 && auth === "required") {
+      let notice = "";
+      try {
+        notice = formatErrorDetail(await res.json());
+      } catch {
+        // sin cuerpo JSON: mensaje genérico
+      }
+      if (typeof window !== "undefined" && notice) {
+        // Sobrevive al redirect (sessionStorage) para mostrarlo en /login.
+        window.sessionStorage.setItem("frig.auth_notice", notice);
+      }
       redirectToLogin();
-      throw new ApiError(401, "Sesión expirada");
+      throw new ApiError(401, notice || "Sesión expirada");
     }
 
     const text = await res.text();
@@ -285,8 +296,18 @@ export async function apiFile(
     });
 
     if (res.status === 401 && auth === "required") {
+      let notice = "";
+      try {
+        notice = formatErrorDetail(await res.json());
+      } catch {
+        // sin cuerpo JSON: mensaje genérico
+      }
+      if (typeof window !== "undefined" && notice) {
+        // Sobrevive al redirect (sessionStorage) para mostrarlo en /login.
+        window.sessionStorage.setItem("frig.auth_notice", notice);
+      }
       redirectToLogin();
-      throw new ApiError(401, "Sesión expirada");
+      throw new ApiError(401, notice || "Sesión expirada");
     }
 
     if (!res.ok) {
