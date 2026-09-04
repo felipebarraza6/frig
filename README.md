@@ -1,100 +1,107 @@
-# FRIG
-
-El punto de venta gastronómico que no te hace pelear con la tecnología.
-
-FRIG es un POS multi-tenant y white-label pensado para restaurantes, cafeterías, locales de comida rápida y cualquier negocio gastronómico que necesite vender sin complicaciones. Nace con una misión clara: ser facil de usar.
-## ¿Qué hace FRIG?
-
-- **Varias sucursales, una sola cuenta.** Cada usuario puede operar el punto de venta de la sucursal que le corresponda, con su propio tema y branding.
-- **Tema white-label por sucursal.** Logo, colores primarios y mensajes de bienvenida se configuran por branch, así cada local se siente propio.
-- **POS rápido y táctil.** Busca productos, agrégalos al carrito, ajusta cantidades y cobra en segundos.
-- **Gestión de productos sencilla.** Crea productos, define precio, costo y stock inicial; activa o desactiva ítems según necesites.
-- **Cobro completo.** Registra ventas como órdenes y ciérralas con el método de pago que elijas: efectivo, tarjeta, etc.
-- **Backend robusto.** Se conecta a la API Yggdra (Django) para autenticación, catálogo, ventas, pagos y temas.
-
-## Stack tecnológico
-
-| Capa | Tecnología |
-|------|------------|
-| Frontend | Next.js 16, React 19, Tailwind CSS 4, TypeScript |
-| Estado | Zustand + persistencia en localStorage |
-| Datos | TanStack Query (React Query) |
-| Movimiento | Framer Motion |
-| Iconos | Lucide React |
-| Backend | API Yggdra (Django REST, corre en Docker) |
-
-## Estructura del repo
-
-```
-frig/
-├── apps/web/        # Aplicación principal del POS
-├── docs/            # Documentación y mapas del proyecto
-├── legacy/          # Referencias locales (no se suben)
-└── .omo/            # Estado de sesiones locales (no se sube)
-```
-
-El frontend vive en `apps/web/` y consume directamente la API Yggdra corriendo en `http://localhost:8000`.
-
-## Cómo levantar el proyecto
-
-Requisitos:
-
-- Node 20+ (se recomienda usar `nvm`)
-- La API Yggdra corriendo en Docker (`yggdra-light-api`)
-
-Pasos:
-
-```bash
-cd apps/web
-nvm use 20
-npm install
-npm run dev
-```
-
-Abre [http://localhost:3000](http://localhost:3000) y prueba con:
-
-- Correo: `admin@example.com`
-- Contraseña: `admin123`
-
-La sucursal por defecto del login es **Bizantni Gelato** (branch 1, `login/bizantni-gelato`), así que el tema, logo y colores que veas corresponden a ella. El seed `seed_bizantni_gelato` (backend) crea sus métodos de pago y abre la caja del día.
-
-## Comandos útiles
-
-```bash
-# Revisar estilo
-npx eslint .
-
-# Verificar tipos
-npx tsc --noEmit
-
-# Build de producción
-npx next build
-```
-
-> Nota: aunque `bun` aparece como package manager del proyecto, actualmente `next build` puede fallar con Bun. Usa Node 20 para builds estables.
-
-## QA y flujo completo
-
-El proyecto incluye verificación de punta a punta:
-
-1. **Lint + TypeScript + Build** pasan sin errores.
-2. **Flujo E2E** (producto → venta → pago) se valida contra la API viva (barrido curl de los endpoints del POS, finanzas y exportaciones) y cubre: login, catálogo `for-sale`, creación de orden, cobro con método de pago y caja, y estado `PAID` de la orden. Los hallazgos de la auditoría E2E y los fixes quedan documentados en el historial de la sesión de revisión.
-
-## Detalles técnicos importantes
-
-- La autenticación usa `localStorage` para el token (`frig.token`) y el store persistido de Zustand (`frig.session`).
-- Cada request al backend lleva `Authorization: Token <key>` y el header `X-Branch-ID` de la sucursal activa.
-- Los cambios en el backend Yggdra requieren `docker restart yggdra-light-api` porque Gunicorn carga con `--preload`.
-- El formulario de productos envía `quantity` como stock inicial, necesario porque el backend valida stock en cada venta.
-
-## Próximos pasos sugeridos
-
-- Impresión de comandas/tickets.
-- Panel de cocina (KDS).
-- Dashboard de ventas por sucursal.
-- Soporte para propinas y descuentos.
-- Modo offline con sincronización.
+<div align="center">
+  <img src="https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/chef-hat.svg" alt="FRIG Logo" width="80" height="80">
+  <h1 align="center">FRIG POS</h1>
+  <p align="center">
+    <strong>El punto de venta gastronómico que no te hace pelear con la tecnología.</strong>
+  </p>
+  <p align="center">
+    <a href="#qué-hace-frig">Características</a> •
+    <a href="#tecnología">Tecnología</a> •
+    <a href="#desarrollo">Desarrollo</a> •
+    <a href="#próximos-pasos">Próximos Pasos</a>
+  </p>
+</div>
 
 ---
 
-Construido con la idea de que operar un restaurante debería ser tan simple como atender una mesa.
+**FRIG** es un POS (*Point of Sale*) multi-tenant y white-label diseñado para restaurantes, cafeterías, locales de comida rápida y cualquier negocio gastronómico que necesite operar sin fricciones. Nace con una misión clara: ser rápido, táctil y ridículamente fácil de usar.
+
+## 🍔 ¿Qué hace FRIG?
+
+- **Multi-sucursal en una sola cuenta:** Cada cajero puede operar el punto de venta de la sucursal que le corresponda.
+- **Identidad White-Label:** Logo, colores primarios y mensajes se configuran por sucursal. Cada local se siente como un software a medida.
+- **Checkout Rápido y Táctil:** Búsqueda rápida, carrito dinámico, ajuste de cantidades y cobro en milisegundos.
+- **Gestión Simplificada:** Creación de productos, precio, costo y stock inicial. Activación o desactivación de ítems según demanda.
+- **Cierre Eficiente:** Múltiples métodos de pago integrados (efectivo, tarjeta, transferencias, etc) gestionados a nivel de caja.
+
+## 🛠 Tecnología
+
+Construido con un stack de vanguardia para asegurar la máxima fluidez en dispositivos de baja y alta gama.
+
+| Capa | Herramienta |
+|------|-------------|
+| **Frontend** | Next.js 16 (App Router), React 19, TypeScript |
+| **Estilos** | Tailwind CSS v4 |
+| **Animación** | Framer Motion (Transiciones fluidas a 60fps) |
+| **Estado** | Zustand + Persistencia en `localStorage` |
+| **Datos** | TanStack Query (Caché y Server State) |
+| **Backend** | API Yggdra (Django REST Framework) |
+
+---
+
+## 💻 Desarrollo
+
+La aplicación web ha sido reestructurada para operar directamente desde la raíz del repositorio, simplificando los flujos de despliegue y desarrollo.
+
+### Estructura de Carpetas
+```
+frig/
+├── app/             # Rutas y páginas de Next.js (App Router)
+├── components/      # Componentes UI (ui/ compartidos, landing/, pos/, etc)
+├── lib/             # Integración con Yggdra API, hooks, utilidades y estado
+├── content/         # Copys y contenido estático
+├── docs/            # Documentación profunda y mapas del proyecto
+└── public/          # Assets estáticos (imágenes, fuentes, runas)
+```
+
+### Levantando el Proyecto
+
+**Requisitos previos:**
+- Node.js 20+ (se recomienda `nvm`)
+- La API Yggdra corriendo en Docker (`yggdra-light-api`) en el puerto `:8000`.
+
+**Ejecución:**
+```bash
+# 1. Instalar dependencias
+npm install
+
+# 2. Levantar servidor local
+npm run dev
+```
+
+El POS estará disponible en [http://localhost:3000](http://localhost:3000).
+
+**Credenciales de Prueba:**
+- **Email:** `admin@example.com`
+- **Password:** `admin123`
+*(Por defecto ingresará a la sucursal "Bizantni Gelato", permitiendo probar el sistema de theming white-label).*
+
+### Comandos Útiles
+
+```bash
+npm run lint         # Auditoría de código con ESLint
+npm run type-check   # Verificación estricta de TypeScript
+npm run build        # Compilar para producción en Vercel / Node
+```
+
+## 🔐 Detalles de Arquitectura
+
+- **Autenticación stateless:** Emplea `localStorage` para persistir el token (`frig.token`) y la sesión (`frig.session`).
+- **Contexto de sucursal:** Cada request incluye el header `X-Branch-ID` asegurando segregación de datos.
+- **Stock Predictivo:** El backend Yggdra valida inventario en cada venta para prevenir quiebres de stock.
+
+## 🚀 Próximos Pasos
+
+El producto se encuentra en evolución continua. El roadmap actual incluye:
+
+- [ ] **Impresión Ticked / Comandas:** Soporte para impresoras térmicas ESC/POS (80mm).
+- [ ] **KDS (Kitchen Display System):** Pantalla de comandas para la cocina.
+- [ ] **Dashboards:** Analítica de ventas multi-sucursal en tiempo real.
+- [ ] **Propinas y Descuentos:** Flexibilidad de cobro en mesa.
+- [ ] **Modo Offline:** Persistencia con `IndexedDB` y `Workbox` para ventas sin conexión.
+
+---
+
+<div align="center">
+  <sub>Construido con la idea de que operar un restaurante debería ser tan simple como atender una mesa.</sub>
+</div>

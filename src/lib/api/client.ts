@@ -42,6 +42,7 @@ function redirectToLogin(): void {
   window.localStorage.removeItem("frig.branch_id");
   window.localStorage.removeItem("frig.session");
   window.localStorage.removeItem("frig.demo_expires_at");
+  // eslint-disable-next-line @next/next/no-location-assign-relative-destination
   window.location.assign(`${window.location.origin}/login`);
 }
 
