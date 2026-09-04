@@ -203,7 +203,7 @@ function Features() {
           {LANDING_FEATURES.map((feature, i) => {
             const Icon = feature.icon;
             return (
-              <ScrollReveal key={feature.title} delay={(i % 3) * 0.07}>
+              <ScrollReveal key={feature.title} delay={(i % 3) * 0.07} className="h-full">
                 <li className="pixel-frame flex h-full gap-3.5 p-4 transition-transform hover:-translate-y-0.5">
                   <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center bg-primary/20 text-primary">
                     <Icon className="h-[18px] w-[18px]" aria-hidden />
@@ -258,7 +258,7 @@ function HowItWorks() {
         </ScrollReveal>
         <ol className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {HOW_IT_STEPS.map((step, i) => (
-            <ScrollReveal key={step.n} delay={i * 0.08}>
+            <ScrollReveal key={step.n} delay={i * 0.08} className="h-full">
               <li className="pixel-frame relative flex h-full flex-col items-center gap-3 p-6 text-center transition-transform hover:-translate-y-0.5">
                 <span
                   className="font-pixel text-2xl font-bold tabular-nums"
