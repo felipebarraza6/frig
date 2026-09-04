@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   TrendingUp,
@@ -98,13 +98,10 @@ export default function FinanceDashboardPage() {
   const branch = useCurrentBranch();
   const branchId = branch?.branch_id;
   const [preset, setPreset] = useState<RangePreset>("current_month");
-  const [range, setRange] = useState(() => getPresetRange("current_month"));
+  const [customRange, setCustomRange] = useState<{ start: string; end: string } | null>(null);
 
-  useEffect(() => {
-    if (preset !== "custom") {
-      setRange(getPresetRange(preset));
-    }
-  }, [preset]);
+  // range se deriva directamente de preset — no necesita useEffect
+  const range = preset === "custom" && customRange ? customRange : getPresetRange(preset);
 
   const {
     data: summary,
@@ -187,7 +184,7 @@ export default function FinanceDashboardPage() {
                   id="finance-start"
                   type="date"
                   value={range.start}
-                  onChange={(e) => setRange((r) => ({ ...r, start: e.target.value }))}
+                  onChange={(e) => setCustomRange((r) => ({ ...(r ?? range), start: e.target.value }))}
                   className="w-36"
                 />
               </div>
@@ -197,7 +194,7 @@ export default function FinanceDashboardPage() {
                   id="finance-end"
                   type="date"
                   value={range.end}
-                  onChange={(e) => setRange((r) => ({ ...r, end: e.target.value }))}
+                  onChange={(e) => setCustomRange((r) => ({ ...(r ?? range), end: e.target.value }))}
                   className="w-36"
                 />
               </div>

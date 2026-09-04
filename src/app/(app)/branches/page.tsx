@@ -34,7 +34,7 @@ export default function BranchesPage() {
   const queryClient = useQueryClient();
   const user = useSessionStore((s) => s.user);
   const canView = useCanViewBranches();
-  const canManage = useCanManageBranches();
+  const _canManage = useCanManageBranches();
   const isSuperAdmin = Boolean(user?.is_superuser || user?.type_user === "ADM");
   const canCreateBranch = isSuperAdmin || user?.is_multi_branch;
 

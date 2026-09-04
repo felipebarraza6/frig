@@ -119,17 +119,22 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryDate, setDeliveryDate] = useState("");
   const [removedOrderProductIds, setRemovedOrderProductIds] = useState<number[]>([]);
-  const [showEmpty, setShowEmpty] = useState(items.length === 0);
+  const [emptyTimerFired, setEmptyTimerFired] = useState(false);
   // ID de la orden cuyos datos ya fueron volcados al estado local. Permite
   // cargar una sola vez cada orden, pero refrescar al cambiar de cuenta.
   const loadedOrderIdRef = useRef<string | null>(null);
 
+  // showEmpty se activa con 220ms de retraso para suavizar la transición
+  // de vacío↔con-ítems. Se deriva: false cuando hay ítems, delayed-true cuando no.
+  const showEmpty = items.length === 0 && emptyTimerFired;
+
   useEffect(() => {
     if (items.length === 0) {
-      const timer = setTimeout(() => setShowEmpty(true), 220);
+      const timer = setTimeout(() => setEmptyTimerFired(true), 220);
       return () => clearTimeout(timer);
     }
-    setShowEmpty(false);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset timer flag when items added
+    setEmptyTimerFired(false);
   }, [items.length]);
 
   function handleRemoveItem(cartItemId: string) {

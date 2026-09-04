@@ -73,6 +73,7 @@ function ProductImage({ product }: { product: PosProduct }) {
   if (!product.image) return null;
   return (
     <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-muted">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={product.image}
         alt={product.name}

@@ -1,6 +1,6 @@
 "use client";
 
-import { Children, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Children, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -137,6 +137,18 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
     [kitchenStations]
   );
 
+  const handleLogout = useCallback(async () => {
+    try {
+      await logout();
+    } catch {
+      // ignora errores de red en logout
+    }
+    clearToken();
+    clearSession();
+    queryClient.clear();
+    router.replace("/login");
+  }, [queryClient, router, clearSession]);
+
   const allItems = useMemo<CommandPaletteItem[]>(() => {
     const ops = visibleMenuGroups.flatMap((g) =>
       g.title.toLowerCase() === "operaciones"
@@ -215,18 +227,6 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
     if (active) setOpenGroup(active.title);
   }, [pathname, stationActiveHref, visibleMenuGroups]);
   /* eslint-enable react-hooks/set-state-in-effect */
-
-  async function handleLogout() {
-    try {
-      await logout();
-    } catch {
-      // ignora errores de red en logout
-    }
-    clearToken();
-    clearSession();
-    queryClient.clear();
-    router.replace("/login");
-  }
 
   useEffect(() => {
     function handleShortcut(e: KeyboardEvent) {

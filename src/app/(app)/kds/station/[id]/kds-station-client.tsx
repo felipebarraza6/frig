@@ -1,17 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { KdsBoard } from "@/components/kds/kds-board";
 
-// La estación se resuelve después del montaje para que el HTML estático
-// (exportación con placeholder "__") hidrate sin diferencias.
+// stationId se deriva directamente del prop — no necesita efecto.
 export function KdsStationClient({ id }: { id: string }) {
-  const [stationId, setStationId] = useState<number | null>(null);
-
-  useEffect(() => {
-    const parsed = Number(id);
-    setStationId(Number.isNaN(parsed) || parsed <= 0 ? null : parsed);
-  }, [id]);
+  const parsed = Number(id);
+  const stationId = Number.isNaN(parsed) || parsed <= 0 ? null : parsed;
 
   if (stationId === null) {
     return (

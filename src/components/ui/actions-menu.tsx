@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { MoreVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownPortal } from "./dropdown-portal";

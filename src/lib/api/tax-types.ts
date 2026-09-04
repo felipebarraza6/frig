@@ -19,7 +19,7 @@ export interface CreateTaxTypeInput {
   priority?: number;
 }
 
-export interface UpdateTaxTypeInput extends Partial<CreateTaxTypeInput> {}
+export type UpdateTaxTypeInput = Partial<CreateTaxTypeInput>;
 
 export async function fetchTaxTypes(params?: { branch?: number; is_active?: boolean }): Promise<TaxType[]> {
   const qs = new URLSearchParams();

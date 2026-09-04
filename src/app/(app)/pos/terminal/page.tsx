@@ -218,7 +218,7 @@ export default function PosPage() {
 
   // Modo cuenta abierta: SALE creada desde "Abrir cuenta" (pending, sin pagos).
   // Modo orden explícita: ORDER. Se mantienen separados para no confundir casos.
-  const isOpenAccountMode = useMemo(() => openAccountParam && Boolean(queryOrderId), [openAccountParam, queryOrderId]);
+  const _isOpenAccountMode = useMemo(() => openAccountParam && Boolean(queryOrderId), [openAccountParam, queryOrderId]);
   const isOrderMode = useMemo(() => queryOrderType === "ORDER", [queryOrderType]);
 
   function handlePostSaleOrder(order: Order, items?: CartItem[]) {
@@ -805,7 +805,7 @@ export default function PosPage() {
     return (pendingDeliveriesPage?.results ?? []) as Order[];
   }, [pendingDeliveriesPage]);
 
-  const pendingDeliveriesCount = useMemo(() => pendingDeliveriesBase.length, [pendingDeliveriesBase]);
+  const _pendingDeliveriesCount = useMemo(() => pendingDeliveriesBase.length, [pendingDeliveriesBase]);
 
   const filteredPendingDeliveries = useMemo(() => {
     let orders = pendingDeliveriesBase;
@@ -1408,6 +1408,7 @@ export default function PosPage() {
                       >
                         {combo.image ? (
                           <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-muted">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                               src={combo.image}
                               alt={combo.name}

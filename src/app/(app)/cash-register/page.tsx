@@ -227,7 +227,7 @@ export default function CashRegisterPage() {
     staleTime: 30_000,
   });
 
-  const pendingPurchaseOrders = purchaseOrdersData?.results ?? [];
+  const pendingPurchaseOrders = useMemo(() => purchaseOrdersData?.results ?? [], [purchaseOrdersData]);
 
   const selectedPurchaseOrder = useMemo(() => {
     if (!selectedPurchaseOrderId) return null;

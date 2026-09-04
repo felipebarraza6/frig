@@ -315,6 +315,7 @@ export function BranchThemeDialog({ branch, onClose }: BranchThemeDialogProps) {
                     {logoPreview && (
                       <div className="mt-2 flex items-center gap-2 rounded-lg border border-border bg-muted/30 p-2">
                         <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={logoPreview}
                           alt="Vista previa del logo"
@@ -358,6 +359,7 @@ export function BranchThemeDialog({ branch, onClose }: BranchThemeDialogProps) {
                     />
                     {bannerPreview && (
                       <div className="mt-2 overflow-hidden rounded-lg border border-border">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={bannerPreview}
                           alt="Vista previa del banner"

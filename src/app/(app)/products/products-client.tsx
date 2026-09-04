@@ -378,7 +378,7 @@ export function ProductsClient() {
     staleTime: 30_000,
   });
 
-  const products = page?.results ?? [];
+  const products = useMemo(() => page?.results ?? [], [page]);
   const totalProducts = page?.count ?? 0;
 
   // Recetas e ingredientes de productos compuestos visibles.

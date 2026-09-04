@@ -42,7 +42,7 @@ for (let i = 0; i < ROOF_ROWS; i++) {
     const h = (i * 31 + j * 17) % 23;
     fill += h < 3 ? "R" : h === 9 && i > 1 ? "G" : "r";
   }
-  let cells = ("x" + fill + "x").split("");
+  const cells = ("x" + fill + "x").split("");
   // Asta central ('dd' en cols 24-25) por encima de la paja.
   cells[24 - start] = "d";
   cells[25 - start] = "d";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Monitor, Save } from "lucide-react";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
@@ -31,12 +31,17 @@ export function StationFormModal({ open, onClose, station }: StationFormModalPro
   const toast = useToast();
   const editing = station !== null;
 
-  const [name, setName] = useState("");
-  const [code, setCode] = useState("");
-  const [isActive, setIsActive] = useState(true);
+  const [name, setName] = useState(station?.name ?? "");
+  const [code, setCode] = useState(station?.code ?? "");
+  const [isActive, setIsActive] = useState(station?.is_active ?? true);
+  const prevOpenRef = useRef(false);
 
   useEffect(() => {
+    if (open === prevOpenRef.current) return;
+    prevOpenRef.current = open;
     if (!open) return;
+    // React 18/19 auto-batches these — single commit, no cascading render
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- form-reset on modal open
     setName(station?.name ?? "");
     setCode(station?.code ?? "");
     setIsActive(station?.is_active ?? true);

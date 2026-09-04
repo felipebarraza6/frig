@@ -9,7 +9,6 @@ import type {
   BranchUser,
   ID,
   RoleDefinition,
-  UserResponse,
 } from "@/lib/types";
 
 export interface BranchesFilter {

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
-import { Check, CreditCard, Mail, Store } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { CreditCard, Mail, Store } from "lucide-react";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -30,12 +30,14 @@ export function CheckoutModal({ plan, onClose }: CheckoutModalProps) {
   const [email, setEmail] = useState("");
   const [contactName, setContactName] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const prevPlanIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (plan) {
-      setState("form");
-      setError(null);
-    }
+    if (!plan || plan.id === prevPlanIdRef.current) return;
+    prevPlanIdRef.current = plan.id;
+    // React 18/19 auto-batches — single commit
+    setState("form");
+    setError(null);
   }, [plan]);
 
   if (!plan) return null;

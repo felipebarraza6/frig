@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Settings, ChevronUp, ChevronDown, Check, X } from "lucide-react";
+import { ChevronUp, ChevronDown, Check, X } from "lucide-react";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -78,13 +78,21 @@ export default function PosQuickActionsSettings({
 }: PosQuickActionsSettingsProps) {
   const toast = useToast();
   const queryClient = useQueryClient();
-  const [enableQuickActions, setEnableQuickActions] = useState(true);
-  const [actions, setActions] = useState<POSQuickAction[]>(DEFAULT_POS_QUICK_ACTIONS);
+  const [enableQuickActions, setEnableQuickActions] = useState(config?.enable_quick_actions ?? true);
+  const [actions, setActions] = useState<POSQuickAction[]>(() => {
+    const source = config?.quick_actions?.length ? config.quick_actions : DEFAULT_POS_QUICK_ACTIONS;
+    return source.map((a) => ({ ...a, label: TYPE_LABELS[a.type] ?? a.label }));
+  });
+  const prevOpenRef = useRef(false);
 
   useEffect(() => {
+    if (open === prevOpenRef.current) return;
+    prevOpenRef.current = open;
     if (!open) return;
-    setEnableQuickActions(config?.enable_quick_actions ?? true);
+    // Batch in a single commit — no cascading renders
     const source = config?.quick_actions?.length ? config.quick_actions : DEFAULT_POS_QUICK_ACTIONS;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- form-reset on open; React 19 batches these into one commit
+    setEnableQuickActions(config?.enable_quick_actions ?? true);
     setActions(
       source.map((a) => ({
         ...a,
