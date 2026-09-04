@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Check, ExternalLink } from "lucide-react";
+import { fetchPublicLoginThemeByHost } from "@/lib/api/branches";
 import {
   LANDING_FEATURES,
   LANDING_PLANS,
@@ -483,9 +484,53 @@ function Footer() {
  * Sitio público de FRIG en `/`. Estilo juego medieval pixel-art: fondos en
  * mosaico oscuro, castillo en bitmap, marcos chunky con sombra dura y
  * tipografía pixel en los títulos. El login queda en /login.
+ *
+ * Gate by-host: si el dominio tiene branding configurado (dominio de una
+ * sucursal u organización), el visitante va DIRECTO al login de ese tenant
+ * y jamás ve la landing de FRIG. Sin by-host (dominio propio o desarrollo)
+ * se muestra la landing.
  */
 export function LandingSite() {
   const [plan, setPlan] = useState<LandingPlan | null>(null);
+  const [byHost, setByHost] = useState<"checking" | "landing" | "tenant">("checking");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const host = window.location.hostname;
+      // Desarrollo (localhost / IP): siempre landing.
+      if (host === "localhost" || host === "127.0.0.1" || /^\d+\.\d+\.\d+\.\d+$/.test(host)) {
+        if (!cancelled) setByHost("landing");
+        return;
+      }
+      const theme = await fetchPublicLoginThemeByHost();
+      if (cancelled) return;
+      if (theme) {
+        // Dominio de un tenant: al login directo, sin ver la landing.
+        setByHost("tenant");
+        window.location.replace("/login");
+      } else {
+        setByHost("landing");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Mientras se resuelve el host: pantalla oscura mínima (sin flash de
+  // landing para los tenant).
+  if (byHost === "checking" || byHost === "tenant") {
+    return (
+      <div
+        className="flex min-h-dvh items-center justify-center"
+        style={{ background: "#0b110c" }}
+        aria-hidden
+      >
+        <PixelFoodMark className="h-10 w-10 text-emerald-100/60" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-dvh flex-1 flex-col bg-background font-sans">
