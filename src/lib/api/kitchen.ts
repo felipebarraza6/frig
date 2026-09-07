@@ -14,11 +14,13 @@ type PaginatedKitchenTicket = YggdraSchemas["PaginatedKitchenTicketList"] & {
 
 export async function fetchKitchenTickets(
   status?: KitchenTicket["status"],
-  stationId?: number | null
+  stationId?: number | null,
+  branch?: string | number | null,
 ): Promise<KitchenTicket[]> {
   const search = new URLSearchParams();
   if (status) search.set("status", status);
   if (stationId) search.set("station_id", String(stationId));
+  if (branch !== undefined && branch !== null && branch !== "") search.set("branch", String(branch));
   const params = search.toString() ? `?${search.toString()}` : "";
   const data = await apiFetch<PaginatedKitchenTicket>(`/sales/kitchen-tickets/${params}`);
   return data.results;

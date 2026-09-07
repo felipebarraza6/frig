@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -51,6 +52,7 @@ import {
   fetchPayment,
   fetchPaymentMethods,
   downloadPaymentVoucher,
+  exportPaymentsExcel,
   processPayment,
   type ProcessPaymentPayload,
   type YggdraPaymentList,
@@ -418,6 +420,14 @@ export default function PaymentsPage() {
   // Exporta a Excel exactamente los registros visibles con los filtros aplicados.
   const { download: downloadFile, isLoading: isDownloadingExcel } = useDownloadFile();
   async function handleExportExcel() {
+    try {
+      await downloadFile(() => exportPaymentsExcel(), {
+        filename: exportFilename("pagos", "xlsx"),
+        extension: "xlsx",
+      });
+      return;
+    } catch {
+    }
     const headers = ["Fecha", "Método", "Origen", "Estado", "Monto", "Referencia", "N° orden"];
     const rows = filteredPayments.map((p) => {
       const isIncome = p.payment_direction === "INCOME";
@@ -466,6 +476,15 @@ export default function PaymentsPage() {
           </Button>
         </div>
       </header>
+
+      <nav aria-label="Secciones de pagos" className="flex gap-1 border-b border-border bg-background px-4 sm:px-6">
+        <span aria-current="page" className="border-b-2 border-primary px-3 py-2 text-sm font-semibold text-foreground">
+          Transacciones
+        </span>
+        <Link href="/payment-methods" className="px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
+          Métodos
+        </Link>
+      </nav>
 
       <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
         {/* Stats cards */}

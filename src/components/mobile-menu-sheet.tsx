@@ -10,6 +10,7 @@ import {
   LogOut,
   User as UserIcon,
   ArrowRightLeft,
+  ChevronRight,
   Pin,
   PinOff,
   Settings2,
@@ -175,7 +176,7 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
             </div>
 
             {/* Header */}
-            <div className="relative overflow-hidden border-b border-border px-5 pb-7 pt-4">
+            <div className="relative overflow-hidden border-b border-border px-5 pb-10 pt-6">
               <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
               <button
                 type="button"
@@ -186,9 +187,9 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
                 <X className="h-5 w-5" />
               </button>
 
-              <div className="relative flex flex-col items-center text-center">
+              <div className="relative flex flex-col items-center gap-1 text-center">
                 {theme?.logo ? (
-                  <div className="rounded-2xl bg-gradient-to-br from-primary to-primary/80 p-1 shadow-lg ring-4 ring-primary/10">
+                  <div className="mb-2 rounded-2xl bg-gradient-to-br from-primary to-primary/80 p-1 shadow-lg ring-4 ring-primary/10">
                     <BrandLogo
                       src={theme.logo}
                       alt={appName}
@@ -250,8 +251,8 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
                             className={cn(
                               "relative flex min-h-[76px] flex-col items-center justify-center gap-1.5 rounded-xl border p-2.5 transition-all touch-manipulation active:scale-[0.96]",
                               favorited
-                                ? "border-primary/40 bg-primary/10 text-primary shadow-xs"
-                                : "border-border/80 bg-background text-foreground hover:bg-muted active:bg-muted/80",
+                                ? "border-primary bg-primary text-primary-foreground shadow-md"
+                                : "border-primary/20 bg-primary/[0.04] text-foreground hover:bg-primary/10 active:bg-primary/15",
                               disabled && "cursor-not-allowed opacity-40 active:scale-100",
                             )}
                           >
@@ -265,9 +266,9 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
                             <item.icon
                               className={cn(
                                 "h-5 w-5 shrink-0",
-                                favorited ? "text-primary" : "text-muted-foreground",
+                                favorited ? "text-primary-foreground" : "text-primary",
                               )}
-                              strokeWidth={favorited ? 2.5 : 1.75}
+                              strokeWidth={favorited ? 2.5 : 2}
                             />
                             <span className="max-w-full truncate text-[11px] font-medium leading-tight">
                               {item.label}
@@ -350,7 +351,12 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
 
             {/* Footer */}
             <div className="border-t border-border p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-              <div className="flex items-center gap-3 rounded-xl bg-muted p-3">
+              <Link
+                href="/profile"
+                onClick={handleClose}
+                aria-label="Abrir mi perfil"
+                className="flex items-center gap-3 rounded-xl bg-muted p-3 transition-colors hover:bg-muted/80 active:bg-muted/60"
+              >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary">
                   <UserIcon className="h-5 w-5 text-secondary-foreground" />
                 </div>
@@ -358,7 +364,8 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
                   <p className="truncate text-sm font-medium">{user?.first_name ?? user?.email}</p>
                   <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
                 </div>
-              </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+              </Link>
 
               <div className="mt-3 grid grid-cols-2 gap-2">
                 {canSwitchBranch && (
@@ -411,11 +418,11 @@ function QuickAccessButton({
       className={cn(
         "flex min-h-[76px] flex-col items-center justify-center gap-1.5 rounded-xl border p-2.5 transition-all touch-manipulation active:scale-[0.96]",
         active
-          ? "border-primary/40 bg-primary/10 text-primary shadow-xs font-semibold"
-          : "border-border/80 bg-background text-foreground hover:bg-muted active:bg-muted/80"
+          ? "border-primary bg-primary text-primary-foreground shadow-md font-semibold"
+          : "border-primary/20 bg-primary/[0.04] text-foreground hover:bg-primary/10 active:bg-primary/15"
       )}
     >
-      <Icon className="h-5 w-5 shrink-0" strokeWidth={active ? 2.5 : 1.75} />
+      <Icon className={cn("h-5 w-5 shrink-0", active ? "text-primary-foreground" : "text-primary")} strokeWidth={active ? 2.5 : 2} />
       <span className="max-w-full truncate text-[11px] font-medium leading-tight">{label}</span>
     </Link>
   );

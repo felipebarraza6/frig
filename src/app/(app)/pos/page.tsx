@@ -25,6 +25,8 @@ import {
 } from "@/lib/store/session";
 import { formatCLP, cn } from "@/lib/utils";
 import { PosConfigModal } from "@/components/pos/pos-config-modal";
+import PosQuickActionsSettings from "@/components/pos/pos-quick-actions-settings";
+import { fetchBranchPOSConfig } from "@/lib/api/branches";
 import { Settings2 } from "lucide-react";
 import { statusBadge } from "@/lib/status-styles";
 import { useQuery, useQueries, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -74,6 +76,7 @@ export default function PosZenPage() {
   const [openingAmounts, setOpeningAmounts] = useState<Record<number, string>>({});
   const processingRef = useRef(false);
   const [configStationId, setConfigStationId] = useState<number | null>(null);
+  const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   // Modal crear/editar estación (misma experiencia que Métodos de pago).
   const [stationModal, setStationModal] = useState<{
     open: boolean;
@@ -90,6 +93,13 @@ export default function PosZenPage() {
   } = useQuery({
     queryKey: ["cash-register-stations", "pos-landing"],
     queryFn: fetchCashRegisterStations,
+    staleTime: 60_000,
+  });
+
+  const { data: posConfig } = useQuery({
+    queryKey: ["branch-pos-config"],
+    queryFn: fetchBranchPOSConfig,
+    enabled: canConfigurePos,
     staleTime: 60_000,
   });
 
@@ -247,13 +257,24 @@ export default function PosZenPage() {
             </p>
           </div>
           {canConfigurePos && (
-            <Button
-              size="sm"
-              onClick={() => setStationModal({ open: true, station: null })}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Nueva estación
-            </Button>
+            <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+              <Button
+                size="sm"
+                onClick={() => setStationModal({ open: true, station: null })}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Nueva estación
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setQuickActionsOpen(true)}
+              >
+                <Settings2 className="mr-2 h-4 w-4" />
+                Acciones rápidas
+              </Button>
+            </div>
           )}
         </div>
 
@@ -329,103 +350,52 @@ export default function PosZenPage() {
                   {/* Header y cuerpo */}
                   <div>
                     {/* Top: Icono + Título + Badge de estado */}
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3.5 min-w-0">
-                        <div
-                          className={cn(
-                            "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-colors shadow-xs",
-                            isOpen || selected
-                              ? "bg-primary/10 text-primary ring-1 ring-primary/20"
-                              : "bg-muted text-muted-foreground",
-                          )}
-                        >
-                          <Monitor className="h-6 w-6" />
-                        </div>
-                        <div className="min-w-0">
-                          <h2 className="text-base font-bold text-foreground truncate leading-snug">
-                            {station.name}
-                          </h2>
-                          <p className="text-xs text-muted-foreground font-medium truncate">
-                            {station.code || "Punto de venta"}
-                          </p>
-                        </div>
+                    <div className="flex items-center gap-3.5">
+                      <div
+                        className={cn(
+                          "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-colors shadow-xs",
+                          isOpen || selected
+                            ? "bg-primary/10 text-primary ring-1 ring-primary/20"
+                            : "bg-muted text-muted-foreground",
+                        )}
+                      >
+                        <Monitor className="h-6 w-6" />
                       </div>
-
-                      <div className="flex shrink-0 items-start gap-2">
-                        <span
-                          className={cn(
-                            "inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold shadow-xs",
-                            !stationActive
-                              ? "border-border bg-muted text-muted-foreground"
-                              : statusBadge(isOpen ? "OPEN" : "CLOSED"),
-                          )}
-                        >
-                          {!stationActive ? (
-                            <>
-                              <Power className="h-3.5 w-3.5" />
-                              Inactiva
-                            </>
-                          ) : isOpen ? (
-                            <>
-                              <Unlock className="h-3.5 w-3.5" />
-                              Abierta
-                            </>
-                          ) : (
-                            <>
-                              <Lock className="h-3.5 w-3.5" />
-                              Cerrada
-                            </>
-                          )}
-                        </span>
-                        {canConfigurePos && (
+                      <div className="min-w-0 flex-1">
+                        <h2 className="text-base font-bold text-foreground leading-snug break-words">
+                          {station.name}
+                        </h2>
+                        <p className="text-xs text-muted-foreground font-medium">
+                          {station.code || "Punto de venta"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      <span
+                        className={cn(
+                          "inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold shadow-xs",
+                          !stationActive
+                            ? "border-border bg-muted text-muted-foreground"
+                            : statusBadge(isOpen ? "OPEN" : "CLOSED"),
+                        )}
+                      >
+                        {!stationActive ? (
                           <>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setStationModal({ open: true, station })
-                              }
-                              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                              aria-label={`Editar estación ${station.name}`}
-                              title="Editar estación"
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                toggleStation.mutate({
-                                  id: station.id,
-                                  is_active: !stationActive,
-                                })
-                              }
-                              disabled={toggleStation.isPending}
-                              className={cn(
-                                "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                                stationActive
-                                  ? "text-muted-foreground hover:bg-muted hover:text-foreground"
-                                  : "text-primary hover:bg-primary/10",
-                              )}
-                              aria-label={
-                                stationActive
-                                  ? `Desactivar estación ${station.name}`
-                                  : `Activar estación ${station.name}`
-                              }
-                              title={stationActive ? "Desactivar" : "Activar"}
-                            >
-                              <Power className="h-3.5 w-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setConfigStationId(station.id)}
-                              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                              aria-label={`Configurar estación ${station.name}`}
-                              title="Configurar estación"
-                            >
-                              <Settings2 className="h-3.5 w-3.5" />
-                            </button>
+                            <Power className="h-3.5 w-3.5" />
+                            Inactiva
+                          </>
+                        ) : isOpen ? (
+                          <>
+                            <Unlock className="h-3.5 w-3.5" />
+                            Abierta
+                          </>
+                        ) : (
+                          <>
+                            <Lock className="h-3.5 w-3.5" />
+                            Cerrada
                           </>
                         )}
-                      </div>
+                      </span>
                     </div>
 
                     {/* Subtexto de turno */}
@@ -534,32 +504,69 @@ export default function PosZenPage() {
                     </div>
                   </div>
 
-                  {/* Botón de acción al fondo de la tarjeta */}
-                  <div className="mt-5 pt-3 border-t border-border">
-                    <Button
-                      size="lg"
-                      variant="default"
-                      className="w-full h-11 rounded-xl text-sm font-semibold shadow-sm transition-all touch-manipulation active:scale-[0.98]"
-                      disabled={(!isOpening && isBusy) || !branch || !stationActive}
-                      isLoading={isOpening}
-                      onClick={() => handleOpen(station)}
-                    >
-                      {isOpening ? (
-                        isOpen ? "Cargando punto de venta..." : "Abriendo caja..."
-                      ) : !stationActive ? (
-                        "Estación desactivada"
-                      ) : isOpen ? (
-                        <>
-                          <Receipt className="mr-2 h-4 w-4" />
-                          Abrir terminal de venta
-                        </>
-                      ) : (
-                        <>
-                          <Unlock className="mr-2 h-4 w-4" />
-                          Abrir caja e iniciar turno
-                        </>
-                      )}
-                    </Button>
+                  {canConfigurePos && (
+                    <div className="mt-4 flex items-center gap-2" role="toolbar" aria-label={`Acciones de ${station.name}`}>
+                      <button
+                        type="button"
+                        onClick={() => setStationModal({ open: true, station })}
+                        className="inline-flex h-10 flex-1 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground transition-colors touch-manipulation active:scale-[0.97] hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        aria-label={`Editar estación ${station.name}`}
+                        title="Editar estación"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleStation.mutate({ id: station.id, is_active: !stationActive })}
+                        disabled={toggleStation.isPending}
+                        className={cn(
+                          "inline-flex h-10 flex-1 items-center justify-center rounded-xl border border-border bg-background transition-colors touch-manipulation active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                          stationActive
+                            ? "text-muted-foreground hover:bg-muted hover:text-foreground"
+                            : "text-primary hover:bg-primary/10",
+                        )}
+                        aria-label={stationActive ? `Desactivar estación ${station.name}` : `Activar estación ${station.name}`}
+                        title={stationActive ? "Desactivar" : "Activar"}
+                      >
+                        <Power className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfigStationId(station.id)}
+                        className="inline-flex h-10 flex-1 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground transition-colors touch-manipulation active:scale-[0.97] hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        aria-label={`Configurar estación ${station.name}`}
+                        title="Configurar estación"
+                      >
+                        <Settings2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="mt-4 pt-3 border-t border-border">
+                      <Button
+                        size="lg"
+                        variant="default"
+                        className="h-11 w-full rounded-xl text-sm font-semibold shadow-sm transition-all touch-manipulation active:scale-[0.98]"
+                        disabled={(!isOpening && isBusy) || !branch || !stationActive}
+                        isLoading={isOpening}
+                        onClick={() => handleOpen(station)}
+                      >
+                        {isOpening ? (
+                          isOpen ? "Cargando punto de venta..." : "Abriendo caja..."
+                        ) : !stationActive ? (
+                          "Estación desactivada"
+                        ) : isOpen ? (
+                          <>
+                            <Receipt className="mr-2 h-4 w-4" />
+                            Abrir terminal de venta
+                          </>
+                        ) : (
+                          <>
+                            <Unlock className="mr-2 h-4 w-4" />
+                            Abrir caja e iniciar turno
+                          </>
+                        )}
+                      </Button>
                   </div>
                 </motion.div>
               );
@@ -598,6 +605,12 @@ export default function PosZenPage() {
           open={configStationId !== null}
           onClose={() => setConfigStationId(null)}
           stationId={configStationId}
+        />
+        <PosQuickActionsSettings
+          open={quickActionsOpen}
+          config={posConfig}
+          branchId={branch?.branch_id}
+          onClose={() => setQuickActionsOpen(false)}
         />
       </motion.div>
     </div>

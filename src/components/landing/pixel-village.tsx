@@ -188,7 +188,7 @@ export function PixelVillage() {
   return (
     <div
       aria-hidden
-      className="pointer-events-none absolute inset-x-0 bottom-0 h-[220px] sm:h-[320px]"
+      className="pointer-events-none absolute inset-x-0 bottom-0 h-[150px] sm:h-[320px]"
     >
       {/* Terreno (grilla estirada a la altura de la escena). */}
       <div

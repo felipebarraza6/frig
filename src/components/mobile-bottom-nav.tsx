@@ -5,20 +5,18 @@ import { useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import {
-  LayoutDashboard,
-  Receipt,
-  Banknote,
-  ShoppingBag,
-  Menu,
+  LayoutGrid,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BrandLogo } from "@/components/brand-logo";
 import {
   useIsCashier,
   useIsWaiter,
   useCashierAllowedPaths,
   useWaiterAllowedPaths,
-  useIsModuleEnabledFromConfig,
+  useCurrentBranch,
+  useSessionStore,
 } from "@/lib/store/session";
 import { useFrigMenu } from "@/lib/hooks/useFrigMenu";
 import { useNavFavorites } from "@/lib/store/nav-favorites";
@@ -47,9 +45,12 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
   const isWaiter = useIsWaiter();
   const cashierAllowedPaths = useCashierAllowedPaths();
   const waiterAllowedPaths = useWaiterAllowedPaths();
-  const posEnabled = useIsModuleEnabledFromConfig("pos");
   const menuGroups = useFrigMenu();
   const { favorites } = useNavFavorites();
+  const branch = useCurrentBranch();
+  const theme = useSessionStore((s) => s.theme);
+  const branchLogo = theme?.logo ?? branch?.logo ?? null;
+  const branchName = branch?.business_name ?? theme?.app_name ?? null;
 
   const allMenuItems = useMemo(
     () => menuGroups.flatMap((g) => g.items),
@@ -74,25 +75,25 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
     // Si el usuario definió favoritos, se muestran SOLO esos (sin mezclar con defaults).
     if (starred.length > 0) return starred.slice(0, BOTTOM_NAV_SLOTS);
 
-    // Sin favoritos propios: defaults de descubrimiento.
-    const defaults: NavItem[] = [
-      { href: "/dashboard", label: "Inicio", icon: LayoutDashboard },
-      { href: "/sales", label: "Ventas", icon: ShoppingBag, description: "Ventas y cuentas abiertas" },
-      ...(posEnabled ? [{ href: "/pos", label: "POS", icon: Receipt }] : []),
-      ...(posEnabled ? [{ href: "/cash-register", label: "Caja", icon: Banknote }] : []),
-    ];
+    const preferred = ["/dashboard", "/sales", "/pos", "/cash-register", "/tables", "/customers"];
+    const defaults: NavItem[] = preferred
+      .map((href) => visibleMenuItems.find((i) => i.href === href))
+      .filter((item): item is NonNullable<typeof item> => Boolean(item))
+      .map((item) => ({ href: item.href, label: item.label, icon: item.icon, badge: item.badge, description: item.description }));
 
     return defaults.slice(0, BOTTOM_NAV_SLOTS);
-  }, [visibleMenuItems, favorites, posEnabled]);
+  }, [visibleMenuItems, favorites]);
 
   const items: (NavItem & { onClick?: () => void })[] = [
     ...navItems,
-    { href: "", label: "Menú", icon: Menu, onClick: onMenuClick },
+    { href: "", label: "Menú", icon: LayoutGrid, onClick: onMenuClick },
   ];
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden pb-[max(0.75rem,env(safe-area-inset-bottom))] pointer-events-none">
-      <div className="mx-3 flex items-center justify-around rounded-2xl border border-border/70 bg-background/90 px-1.5 py-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.15)] backdrop-blur-xl pointer-events-auto min-h-[58px]">
+      <div
+        className="mx-3 flex items-center justify-around rounded-2xl border-2 border-primary/30 bg-card px-1.5 py-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.15)] pointer-events-auto min-h-[58px]"
+      >
         {items.map((item) => {
           const isActive =
             item.href && (pathname === item.href || pathname.startsWith(`${item.href}/`));
@@ -102,22 +103,38 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
             <div
               className={cn(
                 "relative flex min-h-[48px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1.5 py-1.5 transition-all touch-manipulation active:scale-[0.93]",
-                isActive ? "text-primary font-semibold" : "text-muted-foreground",
+                isActive ? "text-white font-semibold" : "text-foreground/60",
                 isMenu && "text-foreground font-medium",
               )}
             >
               {isActive && (
                 <motion.div
                   layoutId="active-nav-pill"
-                  className="absolute inset-0 rounded-xl bg-primary/10"
+                  className="absolute inset-0 rounded-xl bg-primary shadow-md"
                   transition={{ type: "spring", stiffness: 350, damping: 30 }}
                 />
               )}
               <div className="relative">
-                <item.icon
-                  className="relative z-10 h-[22px] w-[22px]"
-                  strokeWidth={isActive ? 2.5 : 1.8}
-                />
+                {isMenu ? (
+                  branchLogo || branchName ? (
+                    <BrandLogo
+                      src={branchLogo}
+                      name={branchName}
+                      className="h-6 w-6"
+                      containerClassName="h-[26px] w-[26px] !rounded-[9px] shadow-sm"
+                    />
+                  ) : (
+                    <LayoutGrid
+                      className="relative z-10 h-[22px] w-[22px]"
+                      strokeWidth={1.8}
+                    />
+                  )
+                ) : (
+                  <item.icon
+                    className="relative z-10 h-[22px] w-[22px]"
+                    strokeWidth={isActive ? 2.5 : 1.8}
+                  />
+                )}
                 {typeof item.badge === "number" && item.badge > 0 && (
                   <motion.span
                     initial={{ scale: 0 }}
@@ -128,14 +145,11 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
                   </motion.span>
                 )}
               </div>
-              <span
-                className={cn(
-                  "relative z-10 max-w-full truncate px-0.5 text-[10.5px] leading-tight",
-                  isActive ? "text-primary" : "text-muted-foreground",
-                )}
-              >
-                {item.label}
-              </span>
+              {isActive && (
+                <span className="relative z-10 max-w-full truncate px-0.5 text-[10.5px] font-semibold leading-tight text-white">
+                  {item.label}
+                </span>
+              )}
             </div>
           );
 

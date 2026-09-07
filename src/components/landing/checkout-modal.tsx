@@ -6,9 +6,11 @@ import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DEMO_CONTACTS, LANDING_INTEGRATION_UF, type LandingPlan } from "@/content/landing";
-import { API_BASE } from "@/lib/api/client";
+import { fetchCheckout, fetchCheckoutStatus } from "@/lib/api/checkout";
+import { ApiError } from "@/lib/api/client";
+import { useApp } from "@/lib/app-context";
 
-type CheckoutState = "form" | "processing" | "done";
+type CheckoutState = "form" | "processing" | "polling" | "done";
 
 interface CheckoutModalProps {
   plan: LandingPlan | null;
@@ -25,10 +27,20 @@ interface CheckoutModalProps {
  * de confirmación (la promesa del flujo es el correo con el código).
  */
 export function CheckoutModal({ plan, onClose }: CheckoutModalProps) {
-  const [state, setState] = useState<CheckoutState>("form");
+  const { checkoutGroup } = useApp();
+  const storageKey = `frig.checkout_id.${checkoutGroup}`;
+  const [state, setState] = useState<CheckoutState>(() => {
+    if (typeof window === "undefined") return "form";
+    const params = new URLSearchParams(window.location.search);
+    const pending =
+      params.get("checkout_id") ??
+      window.sessionStorage.getItem(storageKey);
+    return pending ? "polling" : "form";
+  });
   const [business, setBusiness] = useState("");
   const [email, setEmail] = useState("");
   const [contactName, setContactName] = useState("");
+  const [website, setWebsite] = useState("");
   const [error, setError] = useState<string | null>(null);
   const prevPlanIdRef = useRef<string | null>(null);
 
@@ -39,6 +51,47 @@ export function CheckoutModal({ plan, onClose }: CheckoutModalProps) {
     setState("form");
     setError(null);
   }, [plan]);
+
+  useEffect(() => {
+    if (state !== "polling" || typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const id =
+      params.get("checkout_id") ??
+      window.sessionStorage.getItem(storageKey);
+    if (!id) return;
+    let cancelled = false;
+    let attempts = 0;
+    const timer = window.setInterval(async () => {
+      attempts += 1;
+      try {
+        const s = await fetchCheckoutStatus(id, checkoutGroup);
+        if (cancelled) return;
+        if (s.status === "PAID") {
+          window.clearInterval(timer);
+          window.sessionStorage.removeItem(storageKey);
+          setState("done");
+        } else if (s.status === "EXPIRED" || s.status === "FAILED") {
+          window.clearInterval(timer);
+          setError("Tu pago no se completó, intenta de nuevo");
+          setState("form");
+        } else if (attempts >= 40) {
+          window.clearInterval(timer);
+          setError("Todavía no vemos tu pago, revisa tu correo en unos minutos");
+          setState("form");
+        }
+      } catch {
+        if (cancelled) return;
+        if (attempts >= 40) {
+          window.clearInterval(timer);
+          setState("form");
+        }
+      }
+    }, 3000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [state, checkoutGroup, storageKey]);
 
   if (!plan) return null;
 
@@ -55,18 +108,25 @@ export function CheckoutModal({ plan, onClose }: CheckoutModalProps) {
       business_name: business.trim(),
       contact_name: contactName.trim(),
       email: email.trim().toLowerCase(),
+      website: website || undefined,
     };
 
     try {
-      const res = await fetch(`${API_BASE}/public/frig-checkout/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    } catch {
-      // El endpoint de checkout aún no existe en el backend (ver docs). Mientras
-      // tanto, caer al correo con todos los datos del pedido.
+      const res = await fetchCheckout(payload, checkoutGroup);
+      window.sessionStorage.setItem(storageKey, res.checkout_id);
+      window.location.href = res.payment_url;
+      return;
+    } catch (e) {
+      if (
+        e instanceof ApiError &&
+        e.status >= 400 &&
+        e.status < 500 &&
+        e.status !== 429
+      ) {
+        setError(e.message || "Revisa los datos e intenta de nuevo");
+        setState("form");
+        return;
+      }
       const body = [
         `Plan: ${plan!.name} (${monthly})`,
         `Negocio: ${payload.business_name}`,
@@ -172,6 +232,17 @@ export function CheckoutModal({ plan, onClose }: CheckoutModalProps) {
               </p>
             </div>
 
+            <div className="hidden" aria-hidden="true">
+              <label htmlFor="checkout-website">Sitio web</label>
+              <Input
+                id="checkout-website"
+                value={website}
+                onChange={(e) => setWebsite(e.target.value)}
+                autoComplete="off"
+                tabIndex={-1}
+              />
+            </div>
+
             {error && (
               <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>
             )}
@@ -183,11 +254,11 @@ export function CheckoutModal({ plan, onClose }: CheckoutModalProps) {
             </Button>
             <Button
               type="submit"
-              disabled={state === "processing"}
-              isLoading={state === "processing"}
+              disabled={state === "processing" || state === "polling"}
+              isLoading={state === "processing" || state === "polling"}
             >
               <CreditCard className="mr-2 h-4 w-4" />
-              Ir a pagar
+              {state === "polling" ? "CONFIRMANDO PAGO" : "Ir a pagar"}
             </Button>
           </ModalFooter>
         </form>

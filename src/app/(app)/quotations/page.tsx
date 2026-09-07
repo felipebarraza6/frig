@@ -1,16 +1,18 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Search, FileDown, Eye, FileText, Inbox, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
-import { fetchQuotations, exportQuotationsExcel, type Quotation } from "@/lib/api/quotations";
+import { fetchQuotations, exportQuotationsExcel, convertQuotationToOrder, type Quotation } from "@/lib/api/quotations";
+import { QuotationCreateModal } from "@/components/sales/quotation-create-modal";
 import { formatCLP, cn } from "@/lib/utils";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
+import { useToast } from "@/lib/store/toast";
 
 const STATUS_OPTIONS = [
   { value: "", label: "Todos" },
@@ -41,6 +43,18 @@ export default function QuotationsPage() {
   const [endDate, setEndDate] = useState("");
   const [pageUrl, setPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
   const [detail, setDetail] = useState<Quotation | null>(null);
+  const [creating, setCreating] = useState(false);
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const convert = useMutation({
+    mutationFn: (id: string) => convertQuotationToOrder(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["quotations"] });
+      setDetail(null);
+      toast.success("Cotización convertida a orden");
+    },
+    onError: (err: Error) => toast.error(err.message || "No se pudo convertir la cotización"),
+  });
 
   const filter = useMemo(
     () => ({
@@ -89,17 +103,23 @@ export default function QuotationsPage() {
             Historial de cotizaciones y presupuestos
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleExportExcel}
-          isLoading={isDownloading}
-          className="h-9 w-full sm:w-auto"
-        >
-          <FileDown className="mr-0 h-4 w-4 sm:mr-2" />
-          <span className="hidden sm:inline">Exportar Excel</span>
-        </Button>
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+          <Button size="sm" onClick={() => setCreating(true)} className="h-11 justify-center shadow-sm transition-transform touch-manipulation active:scale-[0.97] sm:h-9">
+            Nueva
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportExcel}
+            isLoading={isDownloading}
+            className="h-11 justify-center shadow-sm transition-transform touch-manipulation active:scale-[0.97] sm:h-9"
+          >
+            <FileDown className="mr-1.5 h-4 w-4" />
+            Excel
+          </Button>
+        </div>
       </header>
+      <QuotationCreateModal open={creating} onClose={() => setCreating(false)} />
 
       <div className="flex flex-1 flex-col gap-4 p-6">
         <div className="flex flex-wrap items-end gap-3">
@@ -235,10 +255,16 @@ export default function QuotationsPage() {
                         {new Date(quotation.date).toLocaleString()}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <Button variant="ghost" size="sm" onClick={() => setDetail(quotation)}>
-                          <Eye className="mr-1.5 h-3.5 w-3.5" />
-                          Ver
-                        </Button>
+                        <div className="inline-flex items-center gap-1">
+                          <Button variant="ghost" size="sm" disabled title="PDF disponible próximamente">
+                            <FileDown className="mr-1.5 h-3.5 w-3.5" />
+                            PDF
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => setDetail(quotation)}>
+                            <Eye className="mr-1.5 h-3.5 w-3.5" />
+                            Ver
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -291,7 +317,11 @@ export default function QuotationsPage() {
                       <p className="font-medium">{new Date(quotation.date).toLocaleString()}</p>
                     </div>
                   </div>
-                  <div className="mt-3 flex justify-end">
+                  <div className="mt-3 flex justify-end gap-1">
+                    <Button variant="ghost" size="sm" disabled title="PDF disponible próximamente">
+                      <FileDown className="mr-1.5 h-3.5 w-3.5" />
+                      PDF
+                    </Button>
                     <Button variant="ghost" size="sm" onClick={() => setDetail(quotation)}>
                       <Eye className="mr-1.5 h-3.5 w-3.5" />
                       Ver
@@ -358,7 +388,17 @@ export default function QuotationsPage() {
                 )}
               </div>
             </div>
-            <div className="flex shrink-0 justify-end border-t border-border p-4">
+            <div className="flex shrink-0 justify-end gap-2 border-t border-border p-4">
+              {detail.status !== "CANCELLED" && (
+                <Button
+                  size="sm"
+                  onClick={() => detail && convert.mutate(detail.id)}
+                  disabled={convert.isPending}
+                  isLoading={convert.isPending}
+                >
+                  Convertir a orden
+                </Button>
+              )}
               <Button variant="outline" size="sm" onClick={() => setDetail(null)}>
                 Cerrar
               </Button>

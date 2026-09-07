@@ -1,10 +1,37 @@
-# Requerimientos backend — flujo de contratación FRIG (checkout → correo con código)
+# Flujo de contratación FRIG — estado de implementación
 
-## Objetivo
+## Estado actual (2026-09-07): backend implementado ✅
 
-Desde la landing pública (`/`), un visitante elige un plan, ingresa los datos de su negocio, paga y recibe un correo con un código para entrar. El frontend ya está integrado y hace POST al endpoint descrito abajo; mientras el endpoint no exista, el modal cae a un `mailto:` con todos los datos (ver `apps/web/src/components/landing/checkout-modal.tsx`).
+El flujo completo ya existe en Yggdra y está verificado end-to-end en dev:
 
-## Endpoint necesario
+| Pieza | Endpoint | Estado |
+|---|---|---|
+| Crear checkout | `POST /api/public/frig-checkout/` | ✅ (idempotente, honeypot, throttle 5/min) |
+| Estado para polling | `GET /api/public/frig-checkout/{checkout_id}/` | ✅ |
+| Pasarela simulada | `GET/POST /api/public/checkout/simulated-gateway/{session_id}/` | ✅ (activa en dev vía `PUBLIC_CHECKOUT_SIMULATED_PAYMENTS_ENABLED`) |
+| **Catálogo de planes** | `GET /api/public/frig-plans/` | ✅ (planes mutables desde el admin Django) |
+| **Canje magic-link** | `POST /api/public/checkout/magic-login/` | ✅ (token firmado del correo → sesión) |
+| Provisioning post-pago | — | ✅ (Organization + Branch + OWNER + `OrganizationPlanSubscription` + magic-link por correo) |
+
+Precios reales en la base de datos (`plan_checkout_groupplan`): kiosco 10 UF,
+local 20, restaurante 35, grande 50, cadena a convenir — editables desde el
+admin Django (PlanGroup → GroupPlan inline).
+
+## Pendiente en el frontend (repo frig)
+
+1. **Pricing de la landing con planes vivos**: consumir `GET /api/public/frig-plans/`
+   con fallback a `LANDING_PLANS` (patrón `LiveMenuGallery`). Los `tagline`/
+   `resources`/`highlighted` siguen en `src/content/landing.ts` (copy de marketing);
+   precio/nombre/visibilidad vienen del sistema.
+2. **Modal de checkout con polling en background**: hoy redirige a `payment_url`;
+   idealmente mantener el modal abierto en estado "polling" mientras el pago se
+   confirma en otra pestaña (la lógica de polling ya existe en `checkout-modal.tsx`).
+3. **Canje del magic-link en `/login`**: `/login/[slug]` debe preservar `?token=`
+   al redirigir a `/login?branch=<slug>&token=<token>` y la página de login debe
+   canjearlo vía `POST /api/public/checkout/magic-login/` (misma forma de
+   respuesta que `login_complete`).
+
+## Contrato original (referencia)
 
 ### `POST /api/public/frig-checkout/` (público, sin autenticación, con rate-limit y captcha/anti-spam)
 
@@ -24,32 +51,27 @@ Respuesta `201`:
 ```json
 {
   "checkout_id": "uuid",
-  "payment_url": "https://…"   // link de pago (Transbank/Webpay o simulado en etapa inicial)
+  "payment_url": "https://…"
 }
 ```
 
-El frontend redirige al `payment_url` (paso "Ir a pagar").
+## Flujo completo (cubierto por el backend)
 
-## Flujo completo que el backend debe cubrir
-
-1. **Checkout** — registrar la intención de compra con el plan elegido (planes por nivel de demanda, definidos en `apps/web/src/content/landing.ts` — espejar esa tabla o servirla por API).
-2. **Pago** — integración Webpay Plus (o proveedor definido) con monto = precio del plan + 1 UF de integración (valores UF del día).
-3. **Webhook/retorno de pago confirmado** → activar la contratación:
-   - Crear organización + sucursal con el plan FRIG ("Gestión gastronómica/comercial").
-   - Crear usuario OWNER con un **código de acceso** (clave inicial de un solo uso o magic-link firmado).
-   - Generar branding base (logo placeholder + color primario).
-4. **Correo de acceso** — email con: código de acceso, URL de login personalizada (`https://frig.yggdra.cl/login/<slug>`), e instrucciones para cambiar la clave.
-5. **Estado del checkout** — `GET /api/public/frig-checkout/{checkout_id}/` para que el frontend pueda hacer polling del estado si se decide flujo inline (opcional fase 2).
+1. **Checkout** — registrar la intención de compra con el plan elegido ✅
+2. **Pago** — fase 1: pasarela simulada; monto = precio del plan + UF de integración (UF del día vía mindicador.cl) ✅
+3. **Post-pago** — provisioning atómico: Organization + Branch + usuario OWNER + `OrganizationPlanSubscription` + branding base ✅
+4. **Correo de acceso** — magic-link firmado a `/login/<slug>?token=…` ✅
+5. **Estado del checkout** — polling del front ✅
 
 ## Notas
 
-- La UF se convierte a CLP al momento del pago (valor UF del día, e.g. CMF/indicadores económicos).
-- Rate-limit obligatorio: endpoint público (ej. 5/min por IP).
-- Validar email único por checkout pendiente (evitar duplicados de doble-submit).
-- Logs de auditoría: cada checkout con IP, user-agent y resultado del pago.
+- La UF se convierte a CLP al momento del pago (valor UF del día, vía mindicador.cl cacheado 6h).
+- Rate-limit: 5/min por IP en checkout, estado y magic-login; el catálogo de planes usa throttle anónimo estándar.
+- Validar email único por checkout pendiente (idempotencia 24h) — implementado.
+- Logs de auditoría (`plan_checkout.audit`): cada checkout con IP, user-agent y resultado del pago.
 
-## Frontend ya integrado
+## Frontend (estado)
 
-- Parrilla de 5 planes por nivel de demanda en `/` (landing) — `apps/web/src/content/landing.ts`.
-- Modal de contratación con formulario y pantalla de confirmación — `apps/web/src/components/landing/checkout-modal.tsx`.
-- Correo prometido: "te llegará un correo con tu código para entrar" — es el contrato visible al usuario, cumplirlo al confirmar el pago.
+- Parrilla de 5 planes en `/` — `src/content/landing.ts` (pendiente: consumir catálogo vivo).
+- Modal de contratación — `src/components/landing/checkout-modal.tsx` (POST real al backend; pendiente: polling en background).
+- Correo prometido: "te llegará un correo con tu código para entrar" — cumplido por el backend (magic-link).

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Check, ExternalLink } from "lucide-react";
-import { fetchPublicLoginThemeByHost } from "@/lib/api/branches";
+import { useApp } from "@/lib/app-context";
 import {
   LANDING_FEATURES,
   LANDING_PLANS,
@@ -19,6 +19,8 @@ import { PixelNightSky } from "@/components/landing/pixel-night-sky";
 import { ScrollReveal } from "@/components/landing/scroll-reveal";
 import { PixelFoodMark } from "@/components/landing/pixel-food-mark";
 import { CheckoutModal } from "@/components/landing/checkout-modal";
+import { LiveMenuGallery } from "@/components/landing/live-menu-gallery";
+import { SectionTitle } from "@/components/landing/section-title";
 import { motion } from "framer-motion";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -29,50 +31,6 @@ const PIXEL_BTN =
 
 const CREAM = "#f5efdd";
 const GOLD = "#e9bd4a";
-
-function SectionTitle({
-  kicker,
-  title,
-  sub,
-  dark = false,
-}: {
-  kicker: string;
-  title: string;
-  sub: string;
-  dark?: boolean;
-}) {
-  return (
-    <div className="mb-10 max-w-2xl">
-      <p
-        className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em]"
-        style={{ color: dark ? GOLD : undefined }}
-      >
-        <span
-          className="inline-block h-2 w-2"
-          style={{ backgroundColor: dark ? GOLD : "var(--color-primary)" }}
-          aria-hidden
-        />
-        <span className={dark ? undefined : "text-primary"}>{kicker}</span>
-      </p>
-      <h2
-        className={cn(
-          "mt-3 font-pixel text-2xl leading-snug tracking-wide sm:text-3xl",
-          dark ? "text-white" : "text-foreground",
-        )}
-      >
-        {title}
-      </h2>
-      <p
-        className={cn(
-          "mt-3 text-sm leading-relaxed sm:text-base",
-          dark ? "text-emerald-100/80" : "text-muted-foreground",
-        )}
-      >
-        {sub}
-      </p>
-    </div>
-  );
-}
 
 function Nav() {
   return (
@@ -123,13 +81,13 @@ function Hero({ onPickPlan }: { onPickPlan: (p: LandingPlan) => void }) {
         }}
       />
 
-      <div className="relative mx-auto flex min-h-[calc(100dvh-3.5rem)] max-w-6xl flex-col justify-center px-4 pt-12 pb-[230px] sm:px-6 sm:pb-[200px]">
-        <div className="flex flex-col items-center gap-6 text-center lg:items-start lg:text-left">
+      <div className="relative mx-auto flex min-h-[calc(100dvh-3.5rem)] max-w-6xl flex-col justify-start px-4 pt-[27vh] pb-[170px] sm:px-6 sm:justify-center sm:pt-12 sm:pb-[200px]">
+        <div className="flex flex-col items-center gap-3 text-center sm:gap-6 lg:items-start lg:text-left">
           <motion.h1
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.45, delay: 0.08, ease: "easeOut" }}
-            className="max-w-xl font-pixel text-3xl font-semibold leading-snug tracking-wide sm:text-5xl"
+            className="max-w-xl font-pixel text-2xl font-semibold leading-snug tracking-wide sm:text-5xl"
             style={{ color: CREAM, textShadow: "3px 3px 0 rgba(0,0,0,0.5)" }}
           >
             Gestión comercial y gastronómica,{" "}
@@ -139,7 +97,7 @@ function Hero({ onPickPlan }: { onPickPlan: (p: LandingPlan) => void }) {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.45, delay: 0.16, ease: "easeOut" }}
-            className="max-w-lg text-pretty text-sm leading-relaxed text-emerald-100/85 sm:text-base"
+            className="max-w-lg text-pretty text-[13px] leading-relaxed text-emerald-100/85 sm:text-base"
           >
             Una sola app para cobrar, atender mesas, ver la cocina en vivo, llevar tu
             inventario y ordenar tus finanzas.{" "}
@@ -177,7 +135,7 @@ function Hero({ onPickPlan }: { onPickPlan: (p: LandingPlan) => void }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.34 }}
-            className="font-pixel text-[10px] tracking-[0.2em] text-emerald-100/50"
+            className="hidden font-pixel text-[10px] tracking-[0.2em] text-emerald-100/50 sm:block"
           >
             TODOS LOS MÓDULOS · EN TODOS LOS PLANES · SIEMPRE
           </motion.p>
@@ -247,7 +205,7 @@ const HOW_IT_STEPS = [
 function HowItWorks() {
   return (
     <section className="pixel-sky-forest">
-      <div className="mx-auto max-w-6xl px-4 pb-16 sm:px-6 sm:pb-24">
+      <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
         <ScrollReveal>
           <SectionTitle
             dark
@@ -492,31 +450,12 @@ function Footer() {
  */
 export function LandingSite() {
   const [plan, setPlan] = useState<LandingPlan | null>(null);
-  const [byHost, setByHost] = useState<"checking" | "landing" | "tenant">("checking");
+  const { status, theme } = useApp();
+  const byHost = status === "checking" ? "checking" : theme ? "tenant" : "landing";
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const host = window.location.hostname;
-      // Desarrollo (localhost / IP): siempre landing.
-      if (host === "localhost" || host === "127.0.0.1" || /^\d+\.\d+\.\d+\.\d+$/.test(host)) {
-        if (!cancelled) setByHost("landing");
-        return;
-      }
-      const theme = await fetchPublicLoginThemeByHost();
-      if (cancelled) return;
-      if (theme) {
-        // Dominio de un tenant: al login directo, sin ver la landing.
-        setByHost("tenant");
-        window.location.replace("/login");
-      } else {
-        setByHost("landing");
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    if (byHost === "tenant") window.location.replace("/login");
+  }, [byHost]);
 
   // Mientras se resuelve el host: pantalla oscura mínima (sin flash de
   // landing para los tenant).
@@ -539,6 +478,7 @@ export function LandingSite() {
         <Hero onPickPlan={setPlan} />
         <Features />
         <HowItWorks />
+        <LiveMenuGallery />
         <Pricing onPickPlan={setPlan} />
         <UseCases />
         <FinalCta onPickPlan={setPlan} />

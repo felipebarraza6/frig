@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -206,6 +207,15 @@ export default function PaymentMethodsPage() {
           </Button>
         </div>
       </header>
+
+      <nav aria-label="Secciones de pagos" className="flex gap-1 border-b border-border bg-background px-4 sm:px-6">
+        <Link href="/payments" className="px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
+          Transacciones
+        </Link>
+        <span aria-current="page" className="border-b-2 border-primary px-3 py-2 text-sm font-semibold text-foreground">
+          Métodos
+        </span>
+      </nav>
 
       <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
         <div className="relative max-w-xs">

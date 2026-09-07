@@ -141,8 +141,7 @@ function buildOrdersQueryString(filter: OrdersFilter): string {
  * El backend asigna branch/owner automáticamente desde el request
  * (X-Branch-ID + token). La fecha se envía en hora local ISO.
  */
-export async function fetchOrders(filter: OrdersFilter = {}): Promise<PaginatedOrder> {
-  if (filter.next) {
+export async function fetchOrders(filter: OrdersFilter = {}): Promise<PaginatedOrder> {  if (filter.next) {
     return apiFetch<PaginatedOrder>(filter.next);
   }
   if (filter.previous) {
@@ -150,6 +149,14 @@ export async function fetchOrders(filter: OrdersFilter = {}): Promise<PaginatedO
   }
   const q = buildOrdersQueryString(filter);
   return apiFetch<PaginatedOrder>(`/sales/orders/${q ? `?${q}` : ""}`);
+}
+
+export async function exportOrdersFile(filter: OrdersFilter = {}): Promise<ApiFileResult> {
+  const base = buildOrdersQueryString({ ...filter, next: null, previous: null });
+  const qs = new URLSearchParams(base);
+  qs.set("format", "xlsx");
+  const q = qs.toString();
+  return apiFile(`/sales/orders/export/${q ? `?${q}` : ""}`);
 }
 
 export interface PayOrderPayload {
@@ -181,6 +188,16 @@ export async function fetchOrder(id: string): Promise<YggdraOrder> {
 
 export async function cancelOrder(id: string): Promise<YggdraOrder> {
   return apiFetch<YggdraOrder>(`/sales/orders/${id}/cancel/`, { method: "POST" });
+}
+
+export async function returnOrderProducts(
+  id: string,
+  payload: { items: Array<{ order_product_id: string | number; quantity_to_return: number; reason?: string }> },
+): Promise<YggdraOrder> {
+  return apiFetch<YggdraOrder>(`/sales/orders/${id}/return_products/`, {
+    method: "POST",
+    body: payload,
+  });
 }
 
 export async function createOrder(input: CreateOrderInput): Promise<YggdraOrder> {

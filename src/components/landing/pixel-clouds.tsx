@@ -53,11 +53,11 @@ const CLOUDS = [
   { id: "c2", top: "16%", size: 64, duration: "65s", delay: "-28s", opacity: 0.38 },
   { id: "c3", top: "3%", size: 48, duration: "100s", delay: "-55s", opacity: 0.75, dense: true },
   { id: "c4", top: "12%", size: 72, duration: "75s", delay: "-12s", opacity: 0.42 },
-  { id: "c5", top: "21%", size: 56, duration: "92s", delay: "-70s", opacity: 0.3 },
+  { id: "c5", top: "21%", size: 56, duration: "92s", delay: "-70s", opacity: 0.3, mdUp: true },
   { id: "c6", top: "5%", size: 40, duration: "110s", delay: "-40s", opacity: 0.7, dense: true },
   { id: "c7", top: "11%", size: 88, duration: "70s", delay: "-45s", opacity: 0.36 },
-  { id: "c8", top: "25%", size: 52, duration: "80s", delay: "-20s", opacity: 0.28 },
-  { id: "c9", top: "30%", size: 36, duration: "95s", delay: "-62s", opacity: 0.22 },
+  { id: "c8", top: "25%", size: 52, duration: "80s", delay: "-20s", opacity: 0.28, mdUp: true },
+  { id: "c9", top: "30%", size: 36, duration: "95s", delay: "-62s", opacity: 0.22, mdUp: true },
 ] as ReadonlyArray<{
   id: string;
   top: string;
@@ -66,6 +66,8 @@ const CLOUDS = [
   delay: string;
   opacity: number;
   dense?: boolean;
+  /** Solo md+ : en móvil la banda de nubes queda más arriba para dar aire al texto. */
+  mdUp?: boolean;
 }>;
 
 export function PixelClouds() {
@@ -74,7 +76,7 @@ export function PixelClouds() {
       {CLOUDS.map((cloud) => (
         <div
           key={cloud.id}
-          className="landing-cloud absolute left-0"
+          className={`landing-cloud absolute left-0${cloud.mdUp ? " hidden md:block" : ""}`}
           style={{ top: cloud.top, opacity: cloud.opacity, animationDuration: cloud.duration, animationDelay: cloud.delay }}
         >
           <Cloud size={cloud.size} dense={cloud.dense} />

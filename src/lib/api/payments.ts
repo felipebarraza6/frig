@@ -1,4 +1,4 @@
-import { apiFetch, apiFile } from "./client";
+import { apiFetch, apiFile, type ApiFileResult } from "./client";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 export type YggdraPaymentMethod = YggdraSchemas["PaymentMethodList"];
@@ -164,6 +164,10 @@ export async function fetchPaymentStats(): Promise<PaymentStats> {
 
 export async function fetchPaymentsByDirection(): Promise<PaymentDirectionSummary> {
   return apiFetch<PaymentDirectionSummary>("/finance/payments/by_direction/");
+}
+
+export async function exportPaymentsExcel(filter: PaymentsFilter = {}): Promise<ApiFileResult> {
+  return apiFile(`/finance/payments/export-excel/${paymentsQueryString(filter)}`);
 }
 
 export async function downloadPaymentVoucher(

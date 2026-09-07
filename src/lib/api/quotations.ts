@@ -43,3 +43,35 @@ export async function exportQuotationsExcel(filter: QuotationsFilter = {}): Prom
   const q = qs.toString();
   return apiFile(`/sales/quotations/export/${q ? `?${q}` : ""}`);
 }
+
+export async function convertQuotationToOrder(id: string): Promise<YggdraOrder> {
+  return apiFetch<YggdraOrder>(`/sales/quotations/${id}/convert_to_order/`, {
+    method: "POST",
+  });
+}
+
+export interface CreateQuotationItemInput {
+  product: number;
+  quantity: number;
+  unit_price: string;
+  notes?: string | null;
+}
+
+export interface CreateQuotationInput {
+  items: CreateQuotationItemInput[];
+  observation?: string | null;
+  client_id?: number | null;
+}
+
+export async function createQuotation(input: CreateQuotationInput): Promise<YggdraOrder> {
+  return apiFetch<YggdraOrder>("/sales/quotations/", {
+    method: "POST",
+    body: {
+      order_type: "ORDER",
+      date: new Date().toISOString(),
+      observation: input.observation ?? null,
+      client_id: input.client_id ?? null,
+      items: input.items,
+    },
+  });
+}

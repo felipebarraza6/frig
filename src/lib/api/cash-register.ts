@@ -131,6 +131,16 @@ export async function getMovements(id: number): Promise<CashRegisterMovement[]> 
   return apiFetch<CashRegisterMovement[]>(`/finance/cash-registers/${id}/movements/`);
 }
 
+export async function cancelMovement(
+  id: number,
+  payload: { movement_id: string | number; reason?: string },
+): Promise<CashRegisterMovement> {
+  return apiFetch<CashRegisterMovement>(`/finance/cash-registers/${id}/cancel-movement/`, {
+    method: "POST",
+    body: payload,
+  });
+}
+
 export type CashRegisterFilter = {
   station?: number | string | null;
   status?: "OPEN" | "CLOSED" | "";

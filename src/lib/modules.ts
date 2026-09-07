@@ -7,6 +7,7 @@ import type { ModuleName, SubmoduleConfig } from "@/lib/api/branch-modules";
  */
 export const ROUTE_MODULE_MAP: Record<string, ModuleName | null> = {
   "/dashboard": "dashboard",
+  "/dash-fast": "dashboard",
   "/pos": "pos",
   "/pos/terminal": "pos",
   "/sales": "sales",
@@ -213,26 +214,29 @@ export interface FrigMenuGroup {
  */
 export const FRIG_MENU_DEF: FrigMenuGroup[] = [
   {
-    title: "Operaciones",
-    icon: "LayoutDashboard",
+    title: "Vender",
+    icon: "Receipt",
     items: [
       { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard", module: "dashboard", description: "Resumen general del negocio en tiempo real" },
       { href: "/pos", label: "Punto de Venta (POS)", icon: "Receipt", module: "pos", description: "Terminal de venta, cuentas abiertas y cobros" },
       { href: "/cash-register", label: "Caja", icon: "Banknote", module: "cash_register", description: "Apertura, cierre y movimientos de caja" },
       { href: "/sales", label: "Ventas", icon: "ShoppingBag", module: "sales", description: "Historial de ventas y cuentas abiertas" },
+      { href: "/quotations", label: "Cotizaciones", icon: "FileText", module: "sales", description: "Presupuestos y cotizaciones convertibles a orden" },
       { href: "/kds", label: "Cocina", icon: "ChefHat", module: "production", badge: "kitchenReady", description: "Pantalla de cocina (KDS) y estaciones" },
     ],
   },
   {
-    title: "Sala",
+    title: "Local",
     icon: "Table",
     items: [
       { href: "/tables", label: "Mesas", icon: "Table", module: "tables", description: "Estado y cuentas de las mesas" },
       { href: "/tables/map", label: "Mapa de mesas", icon: "Table", module: "tables", description: "Vista en plano para asignar mesas" },
+      { href: "/customers", label: "Clientes", icon: "UserCircle", module: "customers", description: "Base de clientes y su historial" },
+      { href: "/promotions/discounts", label: "Promociones", icon: "Percent", module: "promotions", description: "Descuentos y códigos promocionales" },
     ],
   },
   {
-    title: "Productos",
+    title: "Catálogo",
     icon: "Package",
     items: [
       { href: "/products", label: "Productos", icon: "Package", module: "product_catalog", description: "Catálogo, precios y disponibilidad" },
@@ -242,61 +246,28 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
       { href: "/products/nutrition", label: "Etiquetado nutricional", icon: "Apple", module: "nutrition", description: "Tablas nutricionales por producto" },
       { href: "/reports", label: "Informe nutricional", icon: "FileText", module: "nutrition", description: "Productos más vendidos e insumos consumidos" },
       { href: "/products/menus", label: "Menús digitales", icon: "QrCode", module: "public_catalog", description: "Cartas QR públicas por estación" },
-    ],
-  },
-  {
-    title: "Inventario",
-    icon: "Warehouse",
-    items: [
       { href: "/warehouses", label: "Bodegas", icon: "Warehouse", module: "inventory", description: "Bodegas y sus responsables" },
       { href: "/inventory", label: "Inventario", icon: "ClipboardList", module: "inventory", description: "Stock por bodega y movimientos" },
     ],
   },
   {
-    title: "Clientes",
-    icon: "Users",
-    items: [
-      { href: "/customers", label: "Clientes", icon: "UserCircle", module: "customers", description: "Base de clientes y su historial" },
-      { href: "/promotions/discounts", label: "Promociones", icon: "Percent", module: "promotions", description: "Descuentos y códigos promocionales" },
-    ],
-  },
-  {
-    title: "Compras",
-    icon: "ShoppingCart",
-    items: [
-      { href: "/suppliers", label: "Proveedores", icon: "Truck", module: "suppliers", description: "Directorio de proveedores" },
-      { href: "/purchase-orders", label: "Órdenes de compra", icon: "ShoppingCart", module: "suppliers", description: "Pedidos a proveedores y su recepción" },
-      { href: "/fixed-expenses", label: "Gastos", icon: "TrendingDown", module: "finance", description: "Gastos fijos y programados" },
-    ],
-  },
-  {
-    title: "Pagos",
-    icon: "CreditCard",
-    items: [
-      { href: "/payments", label: "Pagos", icon: "Banknote", module: "payment_methods", description: "Ingresos, egresos y transacciones unificadas" },
-      { href: "/payment-methods", label: "Métodos de pago", icon: "CreditCard", module: "payment_methods", description: "Configura medios de pago de la sucursal" },
-    ],
-  },
-  {
-    title: "Finanzas",
+    title: "Dinero",
     icon: "Landmark",
     items: [
+      { href: "/payments", label: "Pagos", icon: "Banknote", module: "payment_methods", description: "Transacciones y métodos de pago" },
       { href: "/revenues", label: "Ingresos", icon: "ArrowDownLeft", module: "finance", description: "Registro de ingresos del negocio" },
       { href: "/expenses", label: "Egresos", icon: "ArrowUpRight", module: "finance", description: "Registro de egresos del negocio" },
+      { href: "/fixed-expenses", label: "Gastos", icon: "TrendingDown", module: "finance", description: "Gastos fijos y programados" },
       { href: "/tax-documents", label: "Documentos tributarios", icon: "FileText", module: "invoices", description: "Boletas, facturas y SII" },
       { href: "/finance/settings", label: "Config. financiera", icon: "Settings", module: "finance", description: "Impuestos y configuración financiera" },
-    ],
-  },
-  {
-    title: "Billeteras",
-    icon: "Wallet",
-    items: [
+      { href: "/suppliers", label: "Proveedores", icon: "Truck", module: "suppliers", description: "Directorio de proveedores" },
+      { href: "/purchase-orders", label: "Órdenes de compra", icon: "ShoppingCart", module: "suppliers", description: "Pedidos a proveedores y su recepción" },
       { href: "/bank-accounts", label: "Cuentas bancarias", icon: "Wallet", module: "bank_accounts", description: "Cuentas y saldos bancarios" },
       { href: "/reconciliations", label: "Conciliaciones", icon: "ArrowLeftRight", module: "bank_accounts", description: "Cuadra movimientos con el banco" },
     ],
   },
   {
-    title: "Configuración",
+    title: "Ajustes",
     icon: "Settings",
     items: [
       { href: "/users", label: "Usuarios", icon: "UserIcon", module: "config", description: "Usuarios y sus roles por sucursal" },

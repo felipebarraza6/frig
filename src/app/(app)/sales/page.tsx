@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, ShoppingBag, X, Eye, Ban, Plus, FileDown, ClipboardList, Receipt, FileText, SlidersHorizontal, Zap, CalendarDays, Wallet, Clock, UtensilsCrossed, Store, Package, MoreHorizontal, LayoutGrid, List, HandHelping, MapPin } from "lucide-react";
+import { Search, ShoppingBag, X, Eye, Ban, Plus, FileDown, ClipboardList, Receipt, FileText, SlidersHorizontal, Zap, Wallet, Clock, Store, Package, MoreHorizontal, LayoutGrid, List, HandHelping, MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { TableSkeleton } from "@/components/ui/skeleton";
@@ -15,11 +15,9 @@ import {
   downloadOrderTicketPdf,
   downloadOrderA4Pdf,
   generateOrdersExcel,
+  exportOrdersFile,
   createOrder,
-  fetchInstallments,
-  createInstallments,
   type OrdersFilter,
-  type InstallmentInput,
   type PaymentInstallment,
 } from "@/lib/api/orders";
 import { fetchTables } from "@/lib/api/tables";
@@ -36,6 +34,8 @@ import {
 } from "@/lib/store/session";
 
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
+import { OrderSplitsPanel } from "@/components/sales/order-splits-panel";
+import { OrderReturnPanel } from "@/components/sales/order-return-panel";
 import { useToast } from "@/lib/store/toast";
 import type { YggdraSchemas } from "@/lib/api/types";
 import { AnimatePresence, motion } from "framer-motion";
@@ -97,12 +97,6 @@ const ORDER_TYPE_OPTIONS = [
   { value: "SALE", label: "Venta" },
   { value: "ORDER", label: "Orden" },
 ];
-
-function todayStr(): string {
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
 
 function monthStartStr(): string {
   const d = new Date();
@@ -245,7 +239,6 @@ type OrderCardProps = {
   onView: (order: Order) => void;
   onTicket: (order: Order) => void;
   onDeliver: (order: Order) => void;
-  onInstallments: (order: Order) => void;
   onThermal: (order: Order) => void;
   onA4: (order: Order) => void;
   onCancel: (order: Order) => void;
@@ -299,7 +292,6 @@ function OrderListRow({
   onView,
   onTicket,
   onDeliver,
-  onInstallments,
   onThermal,
   onA4,
   onCancel,
@@ -330,7 +322,13 @@ function OrderListRow({
   }, [menuOpen]);
 
   return (
-    <div className="flex flex-col gap-2 rounded-2xl border border-border bg-muted/30 p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.97 }}
+      transition={{ duration: 0.2 }}
+      className="flex flex-col gap-2 rounded-2xl border border-border bg-muted/30 p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", typeMeta.bg)}>
           <TypeIcon className="h-5 w-5" />
@@ -359,17 +357,6 @@ function OrderListRow({
           {formatCLP(order.total_amount ?? "0")}
         </p>
         <div className="flex items-center gap-2">
-          {order.order_type === "ORDER" && (order.installments?.length ?? 0) > 0 && order.payment_status !== "PAID" && order.status !== "CANCELLED" ? (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 border-primary/30 text-primary hover:bg-primary/5"
-              onClick={() => onInstallments(order)}
-            >
-              <CalendarDays className="mr-1 h-3.5 w-3.5" />
-              Gestionar cuotas
-            </Button>
-          ) : null}
           <Button variant="outline" size="sm" className="h-8" onClick={() => onView(order)}>
             <Eye className="mr-1 h-3.5 w-3.5" />
             Ver
@@ -412,17 +399,6 @@ function OrderListRow({
                           setMenuOpen(false);
                         }}
                         disabled={deliverPending}
-                      />
-                    )}
-                    {order.order_type === "ORDER" && order.status !== "CANCELLED" && order.payment_status !== "PAID" && (
-                      <ActionMenuItem
-                        icon={CalendarDays}
-                        label="Gestionar cuotas"
-                        tone="purple"
-                        onClick={() => {
-                          onInstallments(order);
-                          setMenuOpen(false);
-                        }}
                       />
                     )}
                     {order.payment_status === "PAID" && (
@@ -469,7 +445,7 @@ function OrderListRow({
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -485,12 +461,10 @@ function OrderCard({
   onView,
   onTicket,
   onDeliver,
-  onInstallments,
   onThermal,
   onA4,
   onCancel,
 }: OrderCardProps) {
-  const branch = useCurrentBranch();
   const shortDate = new Date(order.date).toLocaleString("es-CL", {
     day: "2-digit",
     month: "short",
@@ -516,8 +490,11 @@ function OrderCard({
   }, [menuOpen]);
   return (
     <motion.div
+      layout
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.96 }}
+      whileTap={{ scale: 0.98 }}
       transition={{ delay: Math.min(index, 10) * 0.03, duration: 0.25 }}
       className="group flex flex-col rounded-2xl border border-border bg-muted/30 p-4 shadow-sm transition-[box-shadow,border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-primary hover:shadow-lg hover:shadow-primary/10"
     >
@@ -540,56 +517,27 @@ function OrderCard({
             </p>
           </div>
         </div>
-        <p className="shrink-0 text-lg font-extrabold tabular-nums tracking-tight">
-          {formatCLP(order.total_amount ?? "0")}
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <p className="text-lg font-extrabold tabular-nums tracking-tight">
+            {formatCLP(order.total_amount ?? "0")}
+          </p>
+          <StatusBadge order={order} />
+        </div>
+      </div>
+
+      <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border pt-2.5 text-xs">
+        <p className="min-w-0 flex-1 truncate font-medium">
+          {order.client?.name ?? "Sin cliente"}
+          {showTables && order.table ? ` · Mesa ${tableById.get(order.table)?.number ?? order.table}` : ""}
+        </p>
+        <p className="flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground">
+          <MapPin className="h-3 w-3 shrink-0 text-primary" />
+          {order.delivery_address ? "Delivery" : "Retiro"}
         </p>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-1.5">
-        <StatusBadge order={order} />
-        {showTables && order.table && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary ring-1 ring-inset ring-primary/20">
-            <UtensilsCrossed className="h-3 w-3" />
-            Mesa {tableById.get(order.table)?.number ?? order.table}
-          </span>
-        )}
-      </div>
-
-      <p className="mt-3 truncate text-xs text-muted-foreground">
-        {order.client?.name ?? "Sin cliente"}
-      </p>
-      <p className="mt-1 flex items-center gap-1 truncate text-[11px] text-muted-foreground">
-        <MapPin className="h-3 w-3 shrink-0 text-primary" />
-        {order.delivery_address
-          ? `Delivery · ${order.delivery_address}`
-          : `Retiro en tienda · ${branch?.address ?? "Pickup"}`}
-      </p>
-
-      {order.order_type === "ORDER" && order.installments && order.installments.length > 0 && (
-        <div className="mt-2 flex items-center justify-between rounded-lg bg-muted/40 px-2 py-1.5 text-[11px]">
-          <span className="flex items-center gap-1 text-muted-foreground">
-            <CalendarDays className="h-3 w-3" />
-            Cuotas
-          </span>
-          <span className="font-semibold tabular-nums">
-            {order.installments.filter((i) => i.status === "PAID").length}/
-            {order.installments.length} pagadas
-          </span>
-        </div>
-      )}
-
       <div className="mt-3 flex flex-1 items-end justify-between gap-2 border-t border-border pt-3">
         <div className="flex flex-1 items-center gap-2">
-          {order.order_type === "ORDER" && (order.installments?.length ?? 0) > 0 && order.payment_status !== "PAID" && order.status !== "CANCELLED" ? (
-            <button
-              type="button"
-              onClick={() => onInstallments(order)}
-              className="inline-flex h-11 min-h-[44px] items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 text-xs font-semibold text-primary shadow-sm transition-colors hover:bg-primary/10 sm:h-9"
-            >
-              <CalendarDays className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
-              Gestionar cuotas
-            </button>
-          ) : null}
           <button
             type="button"
             onClick={() => onView(order)}
@@ -640,17 +588,6 @@ function OrderCard({
                         setMenuOpen(false);
                       }}
                       disabled={deliverPending}
-                    />
-                  )}
-                  {order.order_type === "ORDER" && order.status !== "CANCELLED" && order.payment_status !== "PAID" && (
-                    <ActionMenuItem
-                      icon={CalendarDays}
-                      label="Gestionar cuotas"
-                      tone="purple"
-                      onClick={() => {
-                        onInstallments(order);
-                        setMenuOpen(false);
-                      }}
                     />
                   )}
                   {order.payment_status === "PAID" && (
@@ -753,17 +690,6 @@ function OrderCard({
                       setMenuOpen(false);
                     }}
                     disabled={deliverPending}
-                  />
-                )}
-                {order.order_type === "ORDER" && order.status !== "CANCELLED" && order.payment_status !== "PAID" && (
-                  <ActionMenuItem
-                    icon={CalendarDays}
-                    label="Gestionar cuotas"
-                    tone="purple"
-                    onClick={() => {
-                      onInstallments(order);
-                      setMenuOpen(false);
-                    }}
                   />
                 )}
                 {order.payment_status === "PAID" && (
@@ -1007,18 +933,6 @@ export default function SalesPage() {
     setDelivering(null);
     setDeliverQuantities({});
   }
-  const [installmentOrder, setInstallmentOrder] = useState<Order | null>(null);
-
-  // Formulario de nueva cuota
-  const [newInstAmount, setNewInstAmount] = useState("");
-  const [newInstDueDate, setNewInstDueDate] = useState("");
-  const [newInstNotes, setNewInstNotes] = useState("");
-
-  // Generador automático de cuotas
-  const [installmentCount, setInstallmentCount] = useState("2");
-  const [installmentStartDate, setInstallmentStartDate] = useState("");
-  const [installmentFrequency, setInstallmentFrequency] = useState<"MONTHLY" | "WEEKLY" | "BIWEEKLY">("MONTHLY");
-
   const filter = useMemo<OrdersFilter>(
     () => ({
       search: debouncedSearch || undefined,
@@ -1136,6 +1050,9 @@ export default function SalesPage() {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       queryClient.invalidateQueries({ queryKey: ["products"], refetchType: "all" });
     },
+    onError: (err: Error) => {
+      toast.error(err.message || "No se pudo anular la orden");
+    },
   });
 
   const deliver = useMutation({
@@ -1151,34 +1068,6 @@ export default function SalesPage() {
     },
   });
 
-  const installmentsQuery = useQuery({
-    queryKey: ["orders", installmentOrder?.id, "installments"],
-    queryFn: () => fetchInstallments(installmentOrder!.id),
-    enabled: !!installmentOrder,
-  });
-
-  const createInstallment = useMutation({
-    mutationFn: ({
-      orderId,
-      installments,
-    }: {
-      orderId: string;
-      installments: InstallmentInput[];
-    }) => createInstallments(orderId, installments),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["orders", installmentOrder?.id, "installments"],
-      });
-      queryClient.invalidateQueries({ queryKey: ["orders"] });
-      setNewInstAmount("");
-      setNewInstDueDate("");
-      setNewInstNotes("");
-    },
-    onError: (err: Error) => {
-      toast.error(err.message || "No se pudieron generar las cuotas");
-    },
-  });
-
   function updateFilter<T extends string>(setter: (v: T) => void, value: T) {
     setter(value);
     setPageUrl({});
@@ -1191,8 +1080,14 @@ export default function SalesPage() {
   }
 
   async function handleExportExcel() {
-    // Exportar todos los resultados filtrados (no solo la página actual)
-    // generando el Excel en el navegador con estados traducidos al español.
+    try {
+      await downloadFile(() => exportOrdersFile(filter), {
+        filename: exportFilename("ordenes", "xlsx"),
+        extension: "xlsx",
+      });
+      return;
+    } catch {
+    }
     const exportFilter: OrdersFilter = { ...filter };
     delete exportFilter.next;
     delete exportFilter.previous;
@@ -1289,26 +1184,6 @@ export default function SalesPage() {
     setAccountError(null);
   }
 
-  function openInstallments(order: Order) {
-    setInstallmentOrder(order);
-    setNewInstAmount("");
-    setNewInstDueDate("");
-    setNewInstNotes("");
-    setInstallmentCount("2");
-    setInstallmentStartDate(todayStr());
-    setInstallmentFrequency("MONTHLY");
-  }
-
-  function closeInstallments() {
-    setInstallmentOrder(null);
-    setNewInstAmount("");
-    setNewInstDueDate("");
-    setNewInstNotes("");
-    setInstallmentCount("2");
-    setInstallmentStartDate("");
-    setInstallmentFrequency("MONTHLY");
-  }
-
   async function handleDeliverSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!delivering) return;
@@ -1334,85 +1209,35 @@ export default function SalesPage() {
     }
   }
 
-  async function handleGenerateInstallments(e: React.FormEvent) {
-    e.preventDefault();
-    if (!installmentOrder) return;
-    const count = Math.max(1, parseInt(installmentCount, 10) || 0);
-    if (count < 1) return;
-    const total = Number(installmentOrder.total_amount ?? 0);
-    if (total <= 0) return;
-    const baseAmount = Math.floor(total / count);
-    const remainder = Math.round(total - baseAmount * count);
-    const start = installmentStartDate ? new Date(installmentStartDate + "T00:00:00") : new Date();
-    const installments: InstallmentInput[] = [];
-    for (let i = 0; i < count; i++) {
-      const due = new Date(start);
-      if (installmentFrequency === "MONTHLY") {
-        due.setMonth(due.getMonth() + i);
-      } else if (installmentFrequency === "BIWEEKLY") {
-        due.setDate(due.getDate() + i * 14);
-      } else {
-        due.setDate(due.getDate() + i * 7);
-      }
-      const amount = baseAmount + (i === count - 1 ? remainder : 0);
-      installments.push({
-        amount: Number(amount).toFixed(2),
-        due_date: due.toISOString().slice(0, 10),
-        notes: i === 0 ? "Generada automáticamente" : null,
-      });
-    }
-    try {
-      await createInstallment.mutateAsync({
-        orderId: installmentOrder.id,
-        installments,
-      });
-    } catch {
-      // error handled by api client
-    }
-  }
-
-  async function handleCreateInstallmentSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!installmentOrder || !newInstAmount) return;
-    try {
-      const installment: InstallmentInput = {
-        amount: Number(newInstAmount).toFixed(2),
-        due_date: newInstDueDate || null,
-        notes: newInstNotes || null,
-      };
-      await createInstallment.mutateAsync({
-        orderId: installmentOrder.id,
-        installments: [installment],
-      });
-    } catch {
-      // error handled by api client
-    }
-  }
-
   return (
     <div className="flex min-h-full flex-col">
       <header className="relative overflow-hidden border-b border-border">
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-transparent" />
         <div className="relative flex flex-col gap-4 px-4 py-5 sm:px-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <Button onClick={() => setPosModal({ open: true, orderType: "SALE" })} className="shadow-sm">
-                <Plus className="mr-1.5 h-4 w-4" />
-                Nueva venta
-              </Button>
-              <Button variant="outline" onClick={() => setPosModal({ open: true, orderType: "ORDER" })}>
-                <ClipboardList className="mr-1.5 h-4 w-4" />
-                Nueva orden
-              </Button>
-              <Button variant="outline" onClick={() => setAccountModal(true)}>
-                <Wallet className="mr-1.5 h-4 w-4" />
-                Nueva cuenta
-              </Button>
-            </div>
-            <Button variant="ghost" size="sm" onClick={handleExportExcel} isLoading={isDownloading}>
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+            <Button onClick={() => setPosModal({ open: true, orderType: "SALE" })} className="h-11 justify-center shadow-sm transition-transform touch-manipulation active:scale-[0.97] sm:h-9">
+              <Plus className="mr-1.5 h-4 w-4" />
+              Nueva venta
+            </Button>
+            <Button variant="outline" onClick={() => setPosModal({ open: true, orderType: "ORDER" })} className="h-11 justify-center transition-transform touch-manipulation active:scale-[0.97] sm:h-9">
+              <ClipboardList className="mr-1.5 h-4 w-4" />
+              Nueva orden
+            </Button>
+            <Button variant="outline" onClick={() => setAccountModal(true)} className="h-11 justify-center transition-transform touch-manipulation active:scale-[0.97] sm:h-9">
+              <Wallet className="mr-1.5 h-4 w-4" />
+              Nueva cuenta
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportExcel}
+              isLoading={isDownloading}
+              title="Descargar Excel con los filtros aplicados"
+              aria-label="Exportar Excel"
+              className="h-11 justify-center shadow-sm transition-transform touch-manipulation active:scale-[0.97] sm:ml-auto sm:h-9"
+            >
               <FileDown className="mr-1.5 h-4 w-4" />
-              <span className="hidden sm:inline">Exportar Excel</span>
-              <span className="sm:hidden">Excel</span>
+              Excel
             </Button>
           </div>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -1707,7 +1532,8 @@ export default function SalesPage() {
                 </div>
               </div>
             ) : viewMode === "cards" ? (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <motion.div layout className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <AnimatePresence mode="popLayout">
                 {visibleOrders.map((order, index) => (
                   <OrderCard
                     key={order.id}
@@ -1722,15 +1548,16 @@ export default function SalesPage() {
                     onView={setDetail}
                     onTicket={handleDownloadTicketPdf}
                     onDeliver={openDelivering}
-                    onInstallments={openInstallments}
                     onThermal={handleDownloadThermalPdf}
                     onA4={handleDownloadA4Pdf}
                     onCancel={(o) => cancel.mutate(o.id)}
                   />
                 ))}
-              </div>
+                </AnimatePresence>
+              </motion.div>
             ) : (
-              <div className="flex flex-col gap-2">
+              <motion.div layout className="flex flex-col gap-2">
+                <AnimatePresence mode="popLayout">
                 {visibleOrders.map((order) => (
                   <OrderListRow
                     key={order.id}
@@ -1742,13 +1569,13 @@ export default function SalesPage() {
                     onView={setDetail}
                     onTicket={handleDownloadTicketPdf}
                     onDeliver={openDelivering}
-                    onInstallments={openInstallments}
                     onThermal={handleDownloadThermalPdf}
                     onA4={handleDownloadA4Pdf}
                     onCancel={(o) => cancel.mutate(o.id)}
                   />
                 ))}
-              </div>
+                </AnimatePresence>
+              </motion.div>
             )}
 
             <div className="flex items-center justify-between text-sm">
@@ -1897,33 +1724,20 @@ export default function SalesPage() {
                 </div>
               )}
 
-              {/* Cuotas (solo órdenes) */}
-              {detail.order_type === "ORDER" && detail.installments && detail.installments.length > 0 && (
-                <div className="mt-5">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cuotas de pago</p>
-                  <div className="mt-2 flex flex-col divide-y divide-border rounded-xl border border-border bg-background">
-                    {detail.installments.map((inst) => (
-                      <div key={inst.id} className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm">
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium">
-                            Cuota {inst.due_date ? `· vence ${inst.due_date}` : ""}
-                          </p>
-                          <p className="mt-0.5 text-xs text-muted-foreground">
-                            {inst.status === "PAID" ? "Pagada" : inst.status === "OVERDUE" ? "Vencida" : "Pendiente"}
-                          </p>
-                        </div>
-                        <p
-                          className={cn(
-                            "shrink-0 font-semibold tabular-nums",
-                            inst.status === "PAID" ? "text-emerald-600" : "text-amber-600",
-                          )}
-                        >
-                          {formatCLP(parseFloat(inst.paid_amount ?? "0"))} / {formatCLP(parseFloat(inst.amount ?? "0"))}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+              {/* Divisiones de cuenta */}
+              {detail.status !== "CANCELLED" && detail.payment_status !== "PAID" && (
+                <OrderSplitsPanel orderId={detail.id} orderTotal={detail.total_amount ?? "0"} />
+              )}
+              {detail.status !== "CANCELLED" && detail.products && detail.products.length > 0 && (
+                <OrderReturnPanel
+                  orderId={detail.id}
+                  products={detail.products.map((p) => ({
+                    id: p.id,
+                    name: p.product_name ?? "Producto",
+                    max: p.quantity ?? 0,
+                    unitPrice: p.unit_price ?? 0,
+                  }))}
+                />
               )}
 
               {/* Datos de entrega (solo pedidos) */}
@@ -1964,19 +1778,6 @@ export default function SalesPage() {
               <div className="grid grid-cols-2 gap-2">
                 {detail.status !== "CANCELLED" && (
                   <>
-                    {detail.order_type === "ORDER" && (detail.installments?.length ?? 0) > 0 && detail.payment_status !== "PAID" ? (
-                      <Button
-                        variant="outline"
-                        className="h-10 border-primary/30 text-primary hover:bg-primary/5"
-                        onClick={() => {
-                          openInstallments(detail);
-                          setDetail(null);
-                        }}
-                      >
-                        <CalendarDays className="mr-1.5 h-4 w-4" />
-                        Gestionar cuotas
-                      </Button>
-                    ) : null}
                     {detail.delivery_status !== "DELIVERED" && (
                       <Button
                         variant="outline"
@@ -1988,19 +1789,6 @@ export default function SalesPage() {
                       >
                         <Zap className="mr-1.5 h-4 w-4" />
                         Entregar
-                      </Button>
-                    )}
-                    {detail.order_type === "ORDER" && detail.payment_status !== "PAID" && (
-                      <Button
-                        variant="outline"
-                        className="h-10 border-primary/30 text-primary hover:bg-primary/5"
-                        onClick={() => {
-                          openInstallments(detail);
-                          setDetail(null);
-                        }}
-                      >
-                        <CalendarDays className="mr-1.5 h-4 w-4" />
-                        Gestionar cuotas
                       </Button>
                     )}
                   </>
@@ -2169,196 +1957,6 @@ export default function SalesPage() {
                 </div>
               </form>
             )}
-          </div>
-        </div>
-      )}
-
-      {installmentOrder && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
-          role="dialog"
-          aria-modal="true"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) closeInstallments();
-          }}
-        >
-          <div className="flex h-[92dvh] w-full flex-col overflow-y-auto rounded-t-xl border-x border-t border-border bg-card p-6 shadow-lg sm:h-auto sm:max-h-[90vh] sm:max-w-lg sm:rounded-xl sm:border">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-base font-semibold">
-                Cuotas {orderTypeLabel(installmentOrder.order_type).toLowerCase()} {installmentOrder.order_number ?? installmentOrder.id.slice(0, 8)}
-              </h2>
-              <button onClick={closeInstallments} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="mb-4 rounded-lg border border-border p-3 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Total de la orden</span>
-                <span className="font-semibold tabular-nums">{formatCLP(installmentOrder.total_amount ?? "0")}</span>
-              </div>
-            </div>
-
-            {(installmentsQuery.data?.length ?? 0) === 0 && !installmentsQuery.isLoading && (
-              <form onSubmit={handleGenerateInstallments} className="mb-6 flex flex-col gap-3 rounded-lg border border-border p-3">
-                <h3 className="text-sm font-medium">Generar cuotas</h3>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs text-muted-foreground">Cantidad</label>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={36}
-                      step="1"
-                      value={installmentCount}
-                      onChange={(e) => setInstallmentCount(e.target.value)}
-                      placeholder="2"
-                      className="h-9 text-sm tabular-nums"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs text-muted-foreground">Primera fecha</label>
-                    <Input
-                      type="date"
-                      value={installmentStartDate}
-                      onChange={(e) => setInstallmentStartDate(e.target.value)}
-                      className="h-9 text-sm"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs text-muted-foreground">Frecuencia</label>
-                    <Select
-                      value={installmentFrequency}
-                      onChange={(e) => setInstallmentFrequency(e.target.value as "MONTHLY" | "WEEKLY" | "BIWEEKLY")}
-                      className="h-9 text-xs"
-                    >
-                      <option value="MONTHLY">Mensual</option>
-                      <option value="BIWEEKLY">Quincenal</option>
-                      <option value="WEEKLY">Semanal</option>
-                    </Select>
-                  </div>
-                </div>
-                {installmentOrder && parseInt(installmentCount, 10) > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    Se generarán <strong>{installmentCount}</strong> cuotas de aprox{" "}
-                    <strong>
-                      {formatCLP(
-                        Math.floor(
-                          Number(installmentOrder.total_amount ?? 0) /
-                            parseInt(installmentCount, 10)
-                        ).toString()
-                      )}
-                    </strong>{" "}
-                    cada{" "}
-                    {installmentFrequency === "MONTHLY"
-                      ? "mes"
-                      : installmentFrequency === "BIWEEKLY"
-                        ? "2 semanas"
-                        : "semana"}
-                    .
-                  </p>
-                )}
-                <div className="flex justify-end">
-                  <Button
-                    type="submit"
-                    size="sm"
-                    isLoading={createInstallment.isPending}
-                    disabled={
-                      !installmentStartDate ||
-                      parseInt(installmentCount, 10) < 1
-                    }
-                  >
-                    Generar cuotas
-                  </Button>
-                </div>
-              </form>
-            )}
-
-            <div className="flex flex-col gap-3">
-              <h3 className="text-sm font-medium">Cuotas registradas</h3>
-              {installmentsQuery.isLoading ? (
-                <div className="py-4">
-                  <TableSkeleton rows={3} columns={4} />
-                </div>
-              ) : (installmentsQuery.data?.length ?? 0) === 0 ? (
-                <p className="text-sm text-muted-foreground">No hay cuotas registradas.</p>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  {installmentsQuery.data?.map((inst) => {
-                    return (
-                      <div key={inst.id} className="rounded-lg border border-border p-3">
-                        <div className="mb-2 flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium tabular-nums">{formatCLP(inst.amount)}</span>
-                            <span
-                              className={cn(
-                                "rounded-full px-2 py-0.5 text-[10px] font-medium",
-                                inst.status === "PAID"
-                                  ? "bg-emerald-500/10 text-emerald-700"
-                                  : inst.status === "OVERDUE"
-                                    ? "bg-danger/10 text-danger"
-                                    : "bg-amber-500/10 text-amber-700",
-                              )}
-                            >
-                              {inst.status === "PAID" ? "Pagada" : inst.status === "OVERDUE" ? "Vencida" : "Pendiente"}
-                            </span>
-                          </div>
-                          {inst.due_date && (
-                            <span className="text-xs text-muted-foreground">
-                              Vence {new Date(inst.due_date).toLocaleDateString("es-CL")}
-                            </span>
-                          )}
-                        </div>
-                        {inst.notes && <p className="mb-2 text-xs text-muted-foreground">{inst.notes}</p>}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {(installmentsQuery.data?.length ?? 0) > 0 && (
-                <form onSubmit={handleCreateInstallmentSubmit} className="mt-4 flex flex-col gap-3 rounded-lg border border-border p-3">
-                  <h3 className="text-sm font-medium">Agregar cuota extra</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs text-muted-foreground">Monto</label>
-                      <Input
-                        type="number"
-                        min={0}
-                        step="1"
-                        value={newInstAmount}
-                        onChange={(e) => setNewInstAmount(e.target.value)}
-                        placeholder="0"
-                        className="h-9 text-sm tabular-nums"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs text-muted-foreground">Vencimiento</label>
-                      <Input
-                        type="date"
-                        value={newInstDueDate}
-                        onChange={(e) => setNewInstDueDate(e.target.value)}
-                        className="h-9 text-sm"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs text-muted-foreground">Notas</label>
-                    <Input
-                      value={newInstNotes}
-                      onChange={(e) => setNewInstNotes(e.target.value)}
-                      placeholder="Notas de la cuota"
-                      className="h-9 text-sm"
-                    />
-                  </div>
-                  <div className="flex justify-end">
-                    <Button type="submit" size="sm" isLoading={createInstallment.isPending} disabled={!newInstAmount}>
-                      Agregar cuota
-                    </Button>
-                  </div>
-                </form>
-              )}
-            </div>
           </div>
         </div>
       )}
@@ -2833,8 +2431,7 @@ export default function SalesPage() {
                       onView={setDetail}
                       onTicket={handleDownloadTicketPdf}
                       onDeliver={openDelivering}
-                      onInstallments={openInstallments}
-                      onThermal={handleDownloadThermalPdf}
+                        onThermal={handleDownloadThermalPdf}
                       onA4={handleDownloadA4Pdf}
                       onCancel={(o) => cancel.mutate(o.id)}
                     />

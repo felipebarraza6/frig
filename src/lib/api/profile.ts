@@ -6,6 +6,8 @@ export interface UserProfile {
   email?: string;
   username?: string;
   dni?: string;
+  created?: string;
+  last_login?: string;
 }
 
 export interface ChangePasswordPayload {

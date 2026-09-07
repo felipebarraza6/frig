@@ -28,7 +28,6 @@ import {
   Smartphone,
   Bitcoin,
   Landmark,
-  Settings,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,6 +42,7 @@ import {
   cashIn,
   cashOut,
   getMovements,
+  cancelMovement,
   fetchCashAudit,
   exportCashAudit,
   exportCashAuditSimple,
@@ -67,9 +67,6 @@ import {
 } from "@/lib/store/session";
 import Link from "next/link";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
-
-import { fetchBranchPOSConfig } from "@/lib/api/branches";
-import PosQuickActionsSettings from "@/components/pos/pos-quick-actions-settings";
 
 function numberValue(v: string): string {
   const cleaned = v.replace(/[^0-9]/g, "");
@@ -119,7 +116,6 @@ export default function CashRegisterPage() {
   const [movementsDate, setMovementsDate] = useState(() => todayLocal());
   const { download: downloadFile, isLoading: isDownloading } = useDownloadFile();
   const [downloadingAuditMode, setDownloadingAuditMode] = useState<"simple" | "full" | null>(null);
-  const [posSettingsOpen, setPosSettingsOpen] = useState(false);
 
   const assignedStationId = station?.station_id ?? null;
   const [selectedStationId, setSelectedStationId] = useState<number | null>(
@@ -133,14 +129,6 @@ export default function CashRegisterPage() {
   const user = useSessionStore((s) => s.user);
   const isOwner = useIsOwner();
   const isSuperAdmin = useIsSuperAdmin();
-  const canConfigurePOS = isOwner || isSuperAdmin;
-
-  const { data: posConfig } = useQuery({
-    queryKey: ["branch-pos-config"],
-    queryFn: fetchBranchPOSConfig,
-    enabled: canConfigurePOS,
-    staleTime: 60_000,
-  });
   const [historyStatus, setHistoryStatus] = useState<"" | "OPEN" | "CLOSED">("");
   const [historyDate, setHistoryDate] = useState("");
   const [historyPage, setHistoryPage] = useState(1);
@@ -328,6 +316,19 @@ export default function CashRegisterPage() {
     },
   });
 
+  const cancelMovementMutation = useMutation({
+    mutationFn: ({ registerId, movementId }: { registerId: number; movementId: number }) =>
+      cancelMovement(registerId, { movement_id: movementId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cash-register"] });
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      toast.success("Movimiento anulado");
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "No se pudo anular el movimiento");
+    },
+  });
+
   const movementMutation = useMutation({
     mutationFn: async (payload: {
       type: "CASH_IN" | "CASH_OUT";
@@ -337,6 +338,9 @@ export default function CashRegisterPage() {
     }) => {
       if (!branch?.branch_id) throw new Error("No hay sucursal seleccionada");
       if (!user?.id) throw new Error("No hay usuario identificado");
+      if (!cashRegister || cashRegister.status !== "OPEN") {
+        throw new Error("La caja está cerrada, abre un turno para mover dinero");
+      }
 
       const base = {
         amount: payload.amount,
@@ -573,6 +577,8 @@ export default function CashRegisterPage() {
     cashRegister.opened_by === user?.id ||
     cashRegister.opened_by == null;
 
+  const movementsLocked = !isOpen || !isRegisterController;
+
   return (
     <div className="flex min-h-full flex-col items-start justify-start py-6 px-4 md:px-6">
       <div className="mx-auto w-full max-w-6xl space-y-6">
@@ -612,18 +618,6 @@ export default function CashRegisterPage() {
               )}
             </div>
           </div>
-          {canConfigurePOS && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setPosSettingsOpen(true)}
-              className="gap-2 self-start sm:self-auto"
-            >
-              <Settings className="h-4 w-4" />
-              Acciones rápidas
-            </Button>
-          )}
         </header>
 
         {/* Top POS panel: Cash + Movements */}
@@ -859,7 +853,7 @@ export default function CashRegisterPage() {
                         setSelectedPurchaseOrderId(null);
                         setPurchaseOrderError(null);
                       }}
-                      disabled={isOpen && !isRegisterController}
+                      disabled={movementsLocked}
                       className="flex-1"
                     >
                       <ArrowDownLeft className="mr-1.5 h-4 w-4" />
@@ -875,7 +869,7 @@ export default function CashRegisterPage() {
                         setSelectedPurchaseOrderId(null);
                         setPurchaseOrderError(null);
                       }}
-                      disabled={isOpen && !isRegisterController}
+                      disabled={movementsLocked}
                       className="flex-1"
                     >
                       <ArrowUpRight className="mr-1.5 h-4 w-4" />
@@ -894,7 +888,7 @@ export default function CashRegisterPage() {
                             setSelectedPurchaseOrderId(null);
                             setPurchaseOrderError(null);
                           }}
-                          disabled={isOpen && !isRegisterController}
+                          disabled={movementsLocked}
                           className="flex-1"
                         >
                           Retiro simple
@@ -909,7 +903,7 @@ export default function CashRegisterPage() {
                             setMovementReason("");
                             setPurchaseOrderError(null);
                           }}
-                          disabled={isOpen && !isRegisterController}
+                          disabled={movementsLocked}
                           className="flex-1"
                         >
                           Pago orden de compra
@@ -922,7 +916,7 @@ export default function CashRegisterPage() {
                           value={purchaseOrderSearch}
                           onChange={(e) => setPurchaseOrderSearch(e.target.value)}
                           placeholder="Buscar orden de compra..."
-                          disabled={isOpen && !isRegisterController}
+                          disabled={movementsLocked}
                         />
                         <Select
                           value={selectedPurchaseOrderId ?? ""}
@@ -942,7 +936,7 @@ export default function CashRegisterPage() {
                               setMovementReason("");
                             }
                           }}
-                          disabled={isOpen && !isRegisterController || loadingPurchaseOrders}
+                          disabled={movementsLocked || loadingPurchaseOrders}
                           options={[
                             { value: "", label: "Seleccionar orden de compra" },
                             ...pendingPurchaseOrders.map((o) => ({
@@ -980,14 +974,14 @@ export default function CashRegisterPage() {
                       value={movementAmount ? formatCLP(parseFloat(toDecimal(movementAmount))) : ""}
                       onChange={(e) => setMovementAmount(numberValue(e.target.value))}
                       placeholder="Monto"
-                      disabled={isOpen && !isRegisterController || cashOutMode === "purchase_order"}
+                      disabled={movementsLocked || cashOutMode === "purchase_order"}
                       className="tabular-nums"
                     />
                     <Input
                       value={movementReason}
                       onChange={(e) => setMovementReason(e.target.value)}
                       placeholder="Motivo"
-                      disabled={isOpen && !isRegisterController}
+                      disabled={movementsLocked}
                     />
                     <Button
                       onClick={() => {
@@ -1006,7 +1000,7 @@ export default function CashRegisterPage() {
                         });
                       }}
                       disabled={
-                        (isOpen && !isRegisterController) ||
+                        movementsLocked ||
                         !movementAmount ||
                         !movementReason ||
                         movementMutation.isPending
@@ -1026,10 +1020,12 @@ export default function CashRegisterPage() {
                           : "Registrar retiro"}
                     </Button>
                   </div>
-                  {isOpen && !isRegisterController && (
-                    <p className="flex items-center gap-2 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
+                  {movementsLocked && (
+                    <p className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
                       <Lock className="h-4 w-4" />
-                      Caja abierta por <strong>{cashRegister?.opened_by_name}</strong>. Solo esa persona o un administrador pueden operarla.
+                      {!isOpen
+                        ? "Abre la caja para registrar movimientos."
+                        : <>Caja abierta por <strong>{cashRegister?.opened_by_name}</strong>. Solo esa persona o un administrador pueden operarla.</>}
                     </p>
                   )}
                 </>
@@ -1814,6 +1810,22 @@ export default function CashRegisterPage() {
                       <span className="font-semibold tabular-nums">
                         {formatCLP(parseFloat(m.amount || "0"))}
                       </span>
+                      {canManageMovements && movementsCashRegisterId && movementsCashRegisterId === cashRegister?.id && cashRegister?.status === "OPEN" && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 shrink-0 text-danger"
+                          onClick={() =>
+                            cancelMovementMutation.mutate({
+                              registerId: movementsCashRegisterId,
+                              movementId: m.id,
+                            })
+                          }
+                          disabled={cancelMovementMutation.isPending}
+                        >
+                          Anular
+                        </Button>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -1822,13 +1834,6 @@ export default function CashRegisterPage() {
           )}
         </section>
       </div>
-
-      <PosQuickActionsSettings
-        open={posSettingsOpen}
-        config={posConfig}
-        branchId={branch?.branch_id}
-        onClose={() => setPosSettingsOpen(false)}
-      />
     </div>
   );
 }
@@ -1847,12 +1852,12 @@ function MetricItem({
   loading?: boolean;
 }) {
   return (
-    <div className="flex min-h-[92px] flex-col justify-between rounded-2xl border border-border bg-muted/30 p-3.5 transition-colors hover:border-border">
+    <div className="flex min-h-[92px] min-w-0 flex-col justify-between rounded-2xl border border-border bg-muted/30 p-3.5 transition-colors hover:border-border">
       <div className="flex items-start gap-1.5 text-[11px] font-medium text-muted-foreground">
         <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
         <span className="leading-tight">{label}</span>
       </div>
-      <p className={cn("text-base font-bold tabular-nums tracking-tight", muted && "text-muted-foreground")}>
+      <p className={cn("break-words text-sm font-bold tabular-nums tracking-tight sm:text-base", muted && "text-muted-foreground")}>
         {loading ? <SkeletonText width="60%" height="md" /> : value}
       </p>
     </div>

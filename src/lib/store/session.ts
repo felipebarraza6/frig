@@ -515,7 +515,6 @@ const CASHIER_ALLOWED_PATHS = [
   "/pos",
   "/pos/terminal",
   "/cash-register",
-  "/kds",
   "/sales",
   "/profile",
 ];
@@ -523,18 +522,9 @@ const CASHIER_ALLOWED_PATHS = [
 const WAITER_ALLOWED_PATHS = [
   "/pos",
   "/pos/terminal",
-  "/cash-register",
-  "/sales",
-  "/products",
-  "/products/combos",
-  "/categories",
-  "/warehouses",
-  "/inventory",
   "/tables",
   "/tables/map",
   "/customers",
-  "/suppliers",
-  "/purchase-orders",
   "/profile",
 ];
 
