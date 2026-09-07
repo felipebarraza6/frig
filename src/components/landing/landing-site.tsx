@@ -1,8 +1,34 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Check, ExternalLink } from "lucide-react";
+import {
+  ArrowRight,
+  Banknote,
+  Bike,
+  Building2,
+  ChartColumn,
+  Check,
+  ChefHat,
+  CreditCard,
+  ExternalLink,
+  FileText,
+  LayoutGrid,
+  Package,
+  Percent,
+  Plug,
+  QrCode,
+  Receipt,
+  ShieldCheck,
+  Smartphone,
+  Store,
+  Truck,
+  Users,
+  Warehouse,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { useApp } from "@/lib/app-context";
 import {
   LANDING_FEATURES,
@@ -10,8 +36,17 @@ import {
   LANDING_PRICING_NOTE,
   LANDING_INTEGRATION_UF,
   LANDING_USE_CASES,
+  LANDING_VALUE_PROP,
+  DEMO_CONTACTS,
   type LandingPlan,
 } from "@/content/landing";
+import {
+  fetchLandingConfig,
+  type LandingConfig,
+  type LandingFeatureItem,
+  type LandingHero,
+} from "@/lib/api/checkout";
+import { applyThemeConfig } from "@/lib/api/branches";
 import { PixelClouds } from "@/components/landing/pixel-clouds";
 import { PixelWind } from "@/components/landing/pixel-wind";
 import { PixelVillage } from "@/components/landing/pixel-village";
@@ -19,11 +54,42 @@ import { PixelNightSky } from "@/components/landing/pixel-night-sky";
 import { ScrollReveal } from "@/components/landing/scroll-reveal";
 import { PixelFoodMark } from "@/components/landing/pixel-food-mark";
 import { CheckoutModal } from "@/components/landing/checkout-modal";
-import { LiveMenuGallery } from "@/components/landing/live-menu-gallery";
 import { SectionTitle } from "@/components/landing/section-title";
 import { motion } from "framer-motion";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+/**
+ * Cruza la config viva de la landing (GET /public/landing-config/) con el
+ * copy local: planes (precio, nombre, bajada, bullets, sello) y copy de
+ * grupo vienen del sistema; `src/content/landing.ts` queda como fallback.
+ */
+function resolvePlans(config: LandingConfig | undefined): {
+  plans: LandingPlan[];
+  integrationUf: number;
+} {
+  const groupPlans = config?.plans;
+  if (!groupPlans?.length) {
+    return { plans: LANDING_PLANS, integrationUf: LANDING_INTEGRATION_UF };
+  }
+  const copyById = new Map(LANDING_PLANS.map((p) => [p.id, p]));
+  const plans = groupPlans.map((gp) => {
+    const copy = copyById.get(gp.plan_id);
+    return {
+      id: gp.plan_id,
+      name: gp.display_name,
+      tagline: gp.description || copy?.tagline || "",
+      priceUf: gp.price_uf,
+      resources: gp.features?.length ? gp.features : (copy?.resources ?? []),
+      highlighted: gp.highlighted || copy?.highlighted,
+      badge: gp.badge ?? null,
+    } satisfies LandingPlan;
+  });
+  return {
+    plans,
+    integrationUf: config?.group.integration_uf ?? LANDING_INTEGRATION_UF,
+  };
+}
 
 /** Botón chunky estilo juego (sombra dura, sin radios, se hunde al pulsar). */
 const PIXEL_BTN =
@@ -31,6 +97,31 @@ const PIXEL_BTN =
 
 const CREAM = "#f5efdd";
 const GOLD = "#e9bd4a";
+
+/** Mapea las claves de icono del sistema a componentes lucide. */
+const FEATURE_ICONS: Record<string, LucideIcon> = {
+  zap: Zap,
+  receipt: Receipt,
+  users: Users,
+  package: Package,
+  "chef-hat": ChefHat,
+  truck: Truck,
+  "bar-chart": ChartColumn,
+  percent: Percent,
+  shield: ShieldCheck,
+  smartphone: Smartphone,
+  "building-2": Building2,
+  plug: Plug,
+  banknote: Banknote,
+  bike: Bike,
+  "layout-grid": LayoutGrid,
+  warehouse: Warehouse,
+  "credit-card": CreditCard,
+  "file-text": FileText,
+  "qr-code": QrCode,
+  store: Store,
+};
+const DEFAULT_FEATURE_ICON = Store;
 
 function Nav() {
   return (
@@ -64,7 +155,27 @@ function Nav() {
   );
 }
 
-function Hero({ onPickPlan }: { onPickPlan: (p: LandingPlan) => void }) {
+function Hero({
+  plans,
+  hero,
+  onPickPlan,
+}: {
+  plans: LandingPlan[];
+  /** Copy del hero desde el sistema (null → fallback local). */
+  hero: LandingHero | null;
+  onPickPlan: (p: LandingPlan) => void;
+}) {
+  const cta = plans[0];
+  const ctaLabel =
+    hero?.cta_label ??
+    (cta?.priceUf != null ? `EMPEZAR POR ${cta.priceUf} UF` : "EMPEZAR AHORA");
+  const headline = hero?.headline ?? LANDING_VALUE_PROP.headline;
+  const subhead = hero?.subhead ?? LANDING_VALUE_PROP.subhead;
+  // Acento dorado en la cola del titular (tras la última coma), como en el
+  // copy histórico; sin coma, el titular completo queda en crema.
+  const splitAt = headline.lastIndexOf(", ");
+  const head = splitAt > 0 ? headline.slice(0, splitAt + 1) : headline;
+  const tail = splitAt > 0 ? headline.slice(splitAt + 2) : null;
   return (
     <section className="pixel-sky-hero relative overflow-hidden min-h-[calc(100dvh-3.5rem)]">
       <PixelNightSky />
@@ -90,8 +201,7 @@ function Hero({ onPickPlan }: { onPickPlan: (p: LandingPlan) => void }) {
             className="max-w-xl font-pixel text-2xl font-semibold leading-snug tracking-wide sm:text-5xl"
             style={{ color: CREAM, textShadow: "3px 3px 0 rgba(0,0,0,0.5)" }}
           >
-            Gestión comercial y gastronómica,{" "}
-            <span style={{ color: GOLD }}>todo incluido.</span>
+            {head} {tail && <span style={{ color: GOLD }}>{tail}</span>}
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 16 }}
@@ -99,10 +209,11 @@ function Hero({ onPickPlan }: { onPickPlan: (p: LandingPlan) => void }) {
             transition={{ duration: 0.45, delay: 0.16, ease: "easeOut" }}
             className="max-w-lg text-pretty text-[13px] leading-relaxed text-emerald-100/85 sm:text-base"
           >
-            Una sola app para cobrar, atender mesas, ver la cocina en vivo, llevar tu
-            inventario y ordenar tus finanzas.{" "}
+            {subhead}{" "}
             <span className="font-semibold" style={{ color: GOLD }}>
-              Desde 1 UF mensual.
+              {cta?.priceUf != null
+                ? `Desde ${cta.priceUf} UF mensual.`
+                : "Precios a convenir según tu operación."}
             </span>
           </motion.p>
           <motion.div
@@ -115,9 +226,9 @@ function Hero({ onPickPlan }: { onPickPlan: (p: LandingPlan) => void }) {
               size="lg"
               className={cn(PIXEL_BTN, "text-emerald-950")}
               style={{ backgroundColor: GOLD }}
-              onClick={() => onPickPlan(LANDING_PLANS[0])}
+              onClick={() => cta && onPickPlan(cta)}
             >
-              EMPEZAR POR 1 UF
+              {ctaLabel}
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
             <a
@@ -145,7 +256,14 @@ function Hero({ onPickPlan }: { onPickPlan: (p: LandingPlan) => void }) {
   );
 }
 
-function Features() {
+function Features({ items }: { items: LandingFeatureItem[] }) {
+  const features = items.length
+    ? items.map((f) => ({
+        icon: FEATURE_ICONS[f.icon] ?? DEFAULT_FEATURE_ICON,
+        title: f.title,
+        description: f.description,
+      }))
+    : LANDING_FEATURES;
   return (
     <section id="funciones" className="pixel-sky-forest scroll-mt-16">
       <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
@@ -158,7 +276,7 @@ function Features() {
           />
         </ScrollReveal>
         <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {LANDING_FEATURES.map((feature, i) => {
+          {features.map((feature, i) => {
             const Icon = feature.icon;
             return (
               <ScrollReveal key={feature.title} delay={(i % 3) * 0.07} className="h-full">
@@ -184,60 +302,17 @@ function Features() {
   );
 }
 
-const HOW_IT_STEPS = [
-  {
-    n: "01",
-    title: "ELIGES TU PLAN",
-    body: "Todos los módulos incluidos siempre. Solo eliges la capacidad de tu local: cajas, usuarios y sucursales.",
-  },
-  {
-    n: "02",
-    title: "INTEGRAMOS TU LOCAL",
-    body: `Con la UF única de integración dejamos FRIG operando con tu marca: logo, colores, sucursales, usuarios y productos cargados.`,
-  },
-  {
-    n: "03",
-    title: "OPERAS CON TU MARCA",
-    body: "Tus cajas, cocina en vivo, inventario y finanzas corriendo en la nube. Soporte directo, sin letra chica.",
-  },
-] as const;
-
-function HowItWorks() {
-  return (
-    <section className="pixel-sky-forest">
-      <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
-        <ScrollReveal>
-          <SectionTitle
-            dark
-            kicker="El camino"
-            title="De cero a operar en tres pasos"
-            sub="Sin implementaciones eternas: este es el recorrido completo, de la primera conversación a tu primera venta."
-          />
-        </ScrollReveal>
-        <ol className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {HOW_IT_STEPS.map((step, i) => (
-            <ScrollReveal key={step.n} delay={i * 0.08} className="h-full">
-              <li className="pixel-frame relative flex h-full flex-col items-center gap-3 p-6 text-center transition-transform hover:-translate-y-0.5">
-                <span
-                  className="font-pixel text-2xl font-bold tabular-nums"
-                  style={{ color: "#b8860b", textShadow: "2px 2px 0 rgba(0,0,0,0.15)" }}
-                >
-                  {step.n}
-                </span>
-                <p className="font-pixel text-[13px] font-semibold tracking-wider">
-                  {step.title}
-                </p>
-                <p className="text-[13px] leading-snug text-muted-foreground">{step.body}</p>
-              </li>
-            </ScrollReveal>
-          ))}
-        </ol>
-      </div>
-    </section>
-  );
-}
-
-function Pricing({ onPickPlan }: { onPickPlan: (p: LandingPlan) => void }) {
+function Pricing({
+  plans,
+  integrationUf,
+  pricingNote,
+  onPickPlan,
+}: {
+  plans: LandingPlan[];
+  integrationUf: number;
+  pricingNote: string;
+  onPickPlan: (p: LandingPlan) => void;
+}) {
   return (
     <section
       id="planes"
@@ -249,15 +324,15 @@ function Pricing({ onPickPlan }: { onPickPlan: (p: LandingPlan) => void }) {
             dark
             kicker="Planes"
             title="Crece con tu negocio, no con tus funciones"
-            sub={LANDING_PRICING_NOTE}
+            sub={pricingNote}
           />
         </ScrollReveal>
         <p className="mb-10 max-w-2xl font-pixel text-[11px] tracking-[0.16em] text-emerald-100/60">
-          + {LANDING_INTEGRATION_UF} UF ÚNICA DE INTEGRACIÓN — DEJAMOS TU LOCAL OPERANDO CON SU MARCA
+          + {integrationUf} UF ÚNICA DE INTEGRACIÓN — DEJAMOS TU LOCAL OPERANDO CON SU MARCA
         </p>
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5 lg:items-stretch">
-          {LANDING_PLANS.map((plan, i) => (
+          {plans.map((plan, i) => (
             <ScrollReveal key={plan.id} delay={i * 0.06} className="h-full">
               <article
                 className={cn(
@@ -277,7 +352,7 @@ function Pricing({ onPickPlan }: { onPickPlan: (p: LandingPlan) => void }) {
                     className="landing-pixel-glow mb-3 inline-flex w-fit items-center px-2 py-0.5 font-pixel text-[10px] tracking-[0.14em] text-[#241f1a]"
                     style={{ backgroundColor: GOLD }}
                   >
-                    EL MÁS ELEGIDO
+                    {plan.badge ?? "EL MÁS ELEGIDO"}
                   </span>
                 )}
                 <h3 className="font-pixel text-sm font-semibold tracking-wider">{plan.name}</h3>
@@ -370,7 +445,16 @@ function UseCases() {
   );
 }
 
-function FinalCta({ onPickPlan }: { onPickPlan: (p: LandingPlan) => void }) {
+function FinalCta({
+  plans,
+  onPickPlan,
+}: {
+  plans: LandingPlan[];
+  onPickPlan: (p: LandingPlan) => void;
+}) {
+  const cta = plans[0];
+  const ctaLabel =
+    cta?.priceUf != null ? `EMPEZAR POR ${cta.priceUf} UF` : "EMPEZAR AHORA";
   return (
     <section className="pixel-sky-hero relative overflow-hidden">
       {/* Estrellas pixel titilando sobre el CTA final. */}
@@ -406,9 +490,9 @@ function FinalCta({ onPickPlan }: { onPickPlan: (p: LandingPlan) => void }) {
             size="lg"
             className={cn(PIXEL_BTN, "text-emerald-950")}
             style={{ backgroundColor: GOLD }}
-            onClick={() => onPickPlan(LANDING_PLANS[0])}
+            onClick={() => cta && onPickPlan(cta)}
           >
-            EMPEZAR POR 1 UF
+            {ctaLabel}
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </ScrollReveal>
@@ -417,7 +501,7 @@ function FinalCta({ onPickPlan }: { onPickPlan: (p: LandingPlan) => void }) {
   );
 }
 
-function Footer() {
+function Footer({ contactEmail }: { contactEmail: string }) {
   return (
     <footer className="bg-[#14160f]">
       <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 py-8 font-pixel text-[10px] tracking-[0.18em] text-emerald-100/50 sm:flex-row sm:px-6">
@@ -429,8 +513,8 @@ function Footer() {
           <Link href="/politicas" className="transition-colors hover:text-white">
             POLÍTICA DE PRIVACIDAD
           </Link>
-          <a href="mailto:frig@yggdra.cl" className="text-emerald-100 hover:text-white">
-            CONTACTO: frig@yggdra.cl
+          <a href={`mailto:${contactEmail}`} className="text-emerald-100 hover:text-white">
+            CONTACTO: {contactEmail}
           </a>
         </nav>
       </div>
@@ -447,15 +531,46 @@ function Footer() {
  * sucursal u organización), el visitante va DIRECTO al login de ese tenant
  * y jamás ve la landing de FRIG. Sin by-host (dominio propio o desarrollo)
  * se muestra la landing.
+ *
+ * Todo el contenido de la landing viene de GET /public/landing-config/
+ * (grupo según checkoutGroup): hero, funciones, nota de pricing, contacto,
+ * UF de integración y planes. `src/content/landing.ts` queda solo como
+ * fallback ante 404/error del backend.
  */
 export function LandingSite() {
   const [plan, setPlan] = useState<LandingPlan | null>(null);
-  const { status, theme } = useApp();
+  const { status, theme, checkoutGroup } = useApp();
   const byHost = status === "checking" ? "checking" : theme ? "tenant" : "landing";
+
+  // Config viva de la landing (una sola llamada: copy + planes).
+  const configQuery = useQuery({
+    queryKey: ["landing-config", checkoutGroup],
+    queryFn: () => fetchLandingConfig(checkoutGroup),
+    staleTime: 10 * 60 * 1000,
+    retry: 1,
+  });
+  const { plans, integrationUf } = useMemo(
+    () => resolvePlans(configQuery.data),
+    [configQuery.data],
+  );
+  const group = configQuery.data?.group;
+  const heroCopy = group?.hero ?? null;
+  const featureItems = group?.features ?? [];
+  const pricingNote = group?.pricing_note || LANDING_PRICING_NOTE;
+  const contactEmail = group?.contact_email || DEMO_CONTACTS.to;
 
   useEffect(() => {
     if (byHost === "tenant") window.location.replace("/login");
   }, [byHost]);
+
+  // La landing fija la identidad FRIG (ver docs/tasks landing-login): un
+  // tema de tenant persistido en :root por un login previo (misma cookie de
+  // dominio) mancha las secciones pixel que usan tokens de tema (var(--card),
+  // var(--muted-foreground), …). Se limpia al montar.
+  useEffect(() => {
+    applyThemeConfig(null);
+    document.documentElement.classList.remove("dark");
+  }, []);
 
   // Mientras se resuelve el host: pantalla oscura mínima (sin flash de
   // landing para los tenant).
@@ -475,16 +590,14 @@ export function LandingSite() {
     <div className="flex min-h-dvh flex-1 flex-col bg-background font-sans">
       <Nav />
       <main>
-        <Hero onPickPlan={setPlan} />
-        <Features />
-        <HowItWorks />
-        <LiveMenuGallery />
-        <Pricing onPickPlan={setPlan} />
+        <Hero plans={plans} hero={heroCopy} onPickPlan={setPlan} />
+        <Features items={featureItems} />
+        <Pricing plans={plans} integrationUf={integrationUf} pricingNote={pricingNote} onPickPlan={setPlan} />
         <UseCases />
-        <FinalCta onPickPlan={setPlan} />
+        <FinalCta plans={plans} onPickPlan={setPlan} />
       </main>
-      <Footer />
-      <CheckoutModal plan={plan} onClose={() => setPlan(null)} />
+      <Footer contactEmail={contactEmail} />
+      <CheckoutModal plan={plan} integrationUf={integrationUf} contactEmail={contactEmail} onClose={() => setPlan(null)} />
     </div>
   );
 }

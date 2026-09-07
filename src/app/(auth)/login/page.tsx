@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, type FormEvent } from "react";
+import { useState, useEffect, useCallback, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSessionStore, normalizeDashboardRoute } from "@/lib/store/session";
 import { loginComplete, forgotPassword } from "@/lib/api/auth";
+import { fetchMagicLogin } from "@/lib/api/checkout";
 import { fetchFrontendConfig } from "@/lib/api/frontend-config";
 import {
   fetchBranchTheme,
@@ -22,6 +23,7 @@ import { PixelFoodMark } from "@/components/landing/pixel-food-mark";
 import { BrandLogo } from "@/components/brand-logo";
 import { LANDING_USE_CASES, LANDING_VALUE_PROP } from "@/content/landing";
 import type { LandingUseCase } from "@/content/landing";
+import type { LoginCompleteResponse } from "@/lib/types";
 import { Clock, Copy, KeyRound } from "lucide-react";
 import { FOOD_ICONS, FoodIcon } from "@/components/auth/pixel-food-icons";
 import { PixelLoginBg } from "@/components/auth/pixel-login-bg";
@@ -146,6 +148,22 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const res = await loginComplete({ email, password });
+      await completeLogin(res);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al iniciar sesión");
+      setErrorKey((k) => k + 1);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /**
+   * Flujo común tras obtener un payload de sesión (login con clave o canje
+   * del magic-link de contratación): persistir token, cargar config/tema de
+   * la sucursal y navegar al home que corresponda al rol.
+   */
+  const completeLogin = useCallback(
+    async (res: LoginCompleteResponse) => {
       setToken(res.token);
       // Sesión demo: guardar expiración (1h) para avisos/cuenta regresiva.
       if (res.demo_expires_at) {
@@ -174,13 +192,42 @@ export default function LoginPage() {
         setSession(res.user, res.branches, res.permissions ?? null);
         celebrateThen(() => router.replace("/select-branch"));
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al iniciar sesión");
-      setErrorKey((k) => k + 1);
-    } finally {
-      setLoading(false);
-    }
-  }
+    },
+    [router, setFrontendConfig, setSession, setTheme],
+  );
+
+  // Canje del magic-link de contratación: /login/<slug>?token=… llega aquí
+  // como ?branch=<slug>&token=<token>. Si el canje falla (expirado/inválido)
+  // se muestra el error y queda disponible el login normal con clave.
+  const [magicToken] = useState<string | null>(() =>
+    typeof window === "undefined"
+      ? null
+      : new URLSearchParams(window.location.search).get("token"),
+  );
+
+  useEffect(() => {
+    if (!magicToken) return;
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await fetchMagicLogin(magicToken);
+        if (cancelled) return;
+        await completeLogin(res);
+      } catch (err) {
+        if (cancelled) return;
+        setError(
+          err instanceof Error ? err.message : "Enlace inválido o expirado.",
+        );
+        setErrorKey((k) => k + 1);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [magicToken, completeLogin]);
 
   async function handleForgotSubmit(e: FormEvent) {
     e.preventDefault();

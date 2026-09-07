@@ -17,19 +17,28 @@ Precios reales en la base de datos (`plan_checkout_groupplan`): kiosco 10 UF,
 local 20, restaurante 35, grande 50, cadena a convenir — editables desde el
 admin Django (PlanGroup → GroupPlan inline).
 
-## Pendiente en el frontend (repo frig)
+## Estado en el frontend (repo frig) — 2026-09-07: implementado ✅
 
-1. **Pricing de la landing con planes vivos**: consumir `GET /api/public/frig-plans/`
-   con fallback a `LANDING_PLANS` (patrón `LiveMenuGallery`). Los `tagline`/
-   `resources`/`highlighted` siguen en `src/content/landing.ts` (copy de marketing);
-   precio/nombre/visibilidad vienen del sistema.
-2. **Modal de checkout con polling en background**: hoy redirige a `payment_url`;
-   idealmente mantener el modal abierto en estado "polling" mientras el pago se
-   confirma en otra pestaña (la lógica de polling ya existe en `checkout-modal.tsx`).
-3. **Canje del magic-link en `/login`**: `/login/[slug]` debe preservar `?token=`
-   al redirigir a `/login?branch=<slug>&token=<token>` y la página de login debe
-   canjearlo vía `POST /api/public/checkout/magic-login/` (misma forma de
-   respuesta que `login_complete`).
+1. **Pricing de la landing con planes vivos** ✅ — `GET /public/{group}-plans/`
+   consumido en `src/components/landing/landing-site.tsx` (React Query).
+   Del sistema vienen `plan_id`, `display_name`, `price_uf`, `integration_uf`,
+   `description` y `features` (cruzados en `resolvePlans`); el copy local
+   (`src/content/landing.ts`) queda como fallback y fuente del sello
+   "el más elegido". Los CTAs "EMPEZAR POR X UF" interpolan el primer plan
+   vivo. Si el grupo no existe o el backend no responde, cae a
+   `LANDING_PLANS`.
+2. **Modal de checkout con polling en background** ✅ — tras crear la sesión
+   el modal queda abierto en estado "polling" (spinner + botón "Abrir
+   pasarela de pago"), la pasarela se abre en otra pestaña y el estado se
+   consulta cada 3 s (máx. ~4 min). Al `PAID` muestra la confirmación; el
+   resume por `?checkout_id=`/sessionStorage sigue funcionando.
+3. **Canje del magic-link en `/login`** ✅ — `/login/[slug]` preserva
+   `?token=` al redirigir a `/login?branch=<slug>&token=<token>` y la página
+   canjea vía `POST /public/checkout/magic-login/` (`fetchMagicLogin` en
+   `src/lib/api/checkout.ts`), reutilizando el mismo flujo post-login que
+   `login_complete` (`completeLogin` en `src/app/(auth)/login/page.tsx`).
+   Si el enlace expiró o es inválido, se muestra el error y queda el login
+   normal con clave.
 
 ## Contrato original (referencia)
 
@@ -72,6 +81,6 @@ Respuesta `201`:
 
 ## Frontend (estado)
 
-- Parrilla de 5 planes en `/` — `src/content/landing.ts` (pendiente: consumir catálogo vivo).
-- Modal de contratación — `src/components/landing/checkout-modal.tsx` (POST real al backend; pendiente: polling en background).
-- Correo prometido: "te llegará un correo con tu código para entrar" — cumplido por el backend (magic-link).
+- Parrilla de 5 planes en `/` — catálogo vivo vía `GET /public/{group}-plans/` (grupo según `checkoutGroup`), fallback a `src/content/landing.ts`.
+- Modal de contratación — POST real al backend; polling en background con la pasarela en otra pestaña.
+- Correo prometido: "te llegará un correo con tu código para entrar" — cumplido por el backend (magic-link), canjeable en `/login?token=…` sin clave.

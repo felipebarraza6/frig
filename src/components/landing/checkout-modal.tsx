@@ -14,19 +14,27 @@ type CheckoutState = "form" | "processing" | "polling" | "done";
 
 interface CheckoutModalProps {
   plan: LandingPlan | null;
+  /** UF única de integración (del catálogo vivo del grupo; fallback local). */
+  integrationUf?: number;
+  /** Correo de contacto para el fallback mailto (del grupo; fallback local). */
+  contactEmail?: string;
   onClose: () => void;
 }
+
+/** Máximo de intentos de polling (3 s c/u ≈ 4 min) antes de dar por perdido el pago. */
+const POLL_MAX_ATTEMPTS = 80;
 
 /**
  * Flujo de contratación: plan elegido → datos del negocio → pago → el sistema
  * envía un correo con el código de acceso.
  *
- * El POST a /public/frig-checkout/ está documentado en
- * docs/checkout-requerimientos-backend.md; mientras el endpoint no exista,
- * el modal cae a un mailto con todos los datos y muestra la misma pantalla
- * de confirmación (la promesa del flujo es el correo con el código).
+ * Tras crear la sesión (POST /public/frig-checkout/) el modal se mantiene
+ * abierto en estado "polling": la pasarela se abre en otra pestaña y aquí se
+ * confirma el pago consultando el estado cada 3 s. Si el POST falla con error
+ * de servidor, se cae a un mailto con todos los datos (la promesa del flujo
+ * es el correo con el código).
  */
-export function CheckoutModal({ plan, onClose }: CheckoutModalProps) {
+export function CheckoutModal({ plan, integrationUf = LANDING_INTEGRATION_UF, contactEmail = DEMO_CONTACTS.to, onClose }: CheckoutModalProps) {
   const { checkoutGroup } = useApp();
   const storageKey = `frig.checkout_id.${checkoutGroup}`;
   const [state, setState] = useState<CheckoutState>(() => {
@@ -41,6 +49,7 @@ export function CheckoutModal({ plan, onClose }: CheckoutModalProps) {
   const [email, setEmail] = useState("");
   const [contactName, setContactName] = useState("");
   const [website, setWebsite] = useState("");
+  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const prevPlanIdRef = useRef<string | null>(null);
 
@@ -66,6 +75,7 @@ export function CheckoutModal({ plan, onClose }: CheckoutModalProps) {
       try {
         const s = await fetchCheckoutStatus(id, checkoutGroup);
         if (cancelled) return;
+        if (s.payment_url) setPaymentUrl(s.payment_url);
         if (s.status === "PAID") {
           window.clearInterval(timer);
           window.sessionStorage.removeItem(storageKey);
@@ -74,14 +84,14 @@ export function CheckoutModal({ plan, onClose }: CheckoutModalProps) {
           window.clearInterval(timer);
           setError("Tu pago no se completó, intenta de nuevo");
           setState("form");
-        } else if (attempts >= 40) {
+        } else if (attempts >= POLL_MAX_ATTEMPTS) {
           window.clearInterval(timer);
           setError("Todavía no vemos tu pago, revisa tu correo en unos minutos");
           setState("form");
         }
       } catch {
         if (cancelled) return;
-        if (attempts >= 40) {
+        if (attempts >= POLL_MAX_ATTEMPTS) {
           window.clearInterval(timer);
           setState("form");
         }
@@ -114,7 +124,12 @@ export function CheckoutModal({ plan, onClose }: CheckoutModalProps) {
     try {
       const res = await fetchCheckout(payload, checkoutGroup);
       window.sessionStorage.setItem(storageKey, res.checkout_id);
-      window.location.href = res.payment_url;
+      // El pago se completa en la pasarela (otra pestaña); aquí quedamos
+      // haciendo polling del estado. Si el navegador bloqueó la pestaña,
+      // el botón "Abrir pasarela de pago" del estado polling la reabre.
+      setPaymentUrl(res.payment_url);
+      setState("polling");
+      window.open(res.payment_url, "_blank", "noopener,noreferrer");
       return;
     } catch (e) {
       if (
@@ -134,7 +149,7 @@ export function CheckoutModal({ plan, onClose }: CheckoutModalProps) {
         `Correo: ${payload.email}`,
       ].join("\n");
       window.location.href =
-        `mailto:${DEMO_CONTACTS.to}?subject=${encodeURIComponent(`Contratación FRIG — ${plan!.name}`)}` +
+        `mailto:${contactEmail}?subject=${encodeURIComponent(`Contratación FRIG — ${plan!.name}`)}` +
         `&body=${encodeURIComponent(body)}`;
     }
     setState("done");
@@ -148,10 +163,32 @@ export function CheckoutModal({ plan, onClose }: CheckoutModalProps) {
       description={
         state === "done"
           ? undefined
-          : `${monthly} + ${LANDING_INTEGRATION_UF} UF única de integración`
+          : `${monthly} + ${integrationUf} UF única de integración`
       }
     >
-      {state === "done" ? (
+      {state === "polling" ? (
+        <ModalBody className="flex flex-col items-center gap-4 py-8 text-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-primary" />
+          <div>
+            <p className="text-base font-semibold">Confirmando tu pago…</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Completa el pago en la pasarela. La abrimos en otra pestaña; en
+              cuanto se confirme, te mostramos tu código de acceso.
+            </p>
+          </div>
+          {paymentUrl && (
+            <Button
+              variant="outline"
+              onClick={() =>
+                window.open(paymentUrl, "_blank", "noopener,noreferrer")
+              }
+            >
+              <CreditCard className="mr-2 h-4 w-4" />
+              Abrir pasarela de pago
+            </Button>
+          )}
+        </ModalBody>
+      ) : state === "done" ? (
         <ModalBody className="flex flex-col items-center gap-4 py-8 text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600">
             <Mail className="h-7 w-7" />
@@ -254,11 +291,11 @@ export function CheckoutModal({ plan, onClose }: CheckoutModalProps) {
             </Button>
             <Button
               type="submit"
-              disabled={state === "processing" || state === "polling"}
-              isLoading={state === "processing" || state === "polling"}
+              disabled={state === "processing"}
+              isLoading={state === "processing"}
             >
               <CreditCard className="mr-2 h-4 w-4" />
-              {state === "polling" ? "CONFIRMANDO PAGO" : "Ir a pagar"}
+              Ir a pagar
             </Button>
           </ModalFooter>
         </form>

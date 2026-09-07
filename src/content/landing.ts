@@ -121,6 +121,8 @@ export interface LandingPlan {
   /** Recursos incluidos (lo que crece entre niveles). */
   resources: string[];
   highlighted?: boolean;
+  /** Texto del sello del plan destacado (viene del sistema). */
+  badge?: string | null;
 }
 
 export const LANDING_INTEGRATION_UF = 1;
