@@ -55,6 +55,7 @@ import { PixelClouds } from "@/components/landing/pixel-clouds";
 import { PixelWind } from "@/components/landing/pixel-wind";
 import { PixelVillage } from "@/components/landing/pixel-village";
 import { PixelNightSky } from "@/components/landing/pixel-night-sky";
+import { PixelSlope } from "@/components/landing/pixel-slope";
 import { ScrollReveal } from "@/components/landing/scroll-reveal";
 import { PixelFoodMark } from "@/components/landing/pixel-food-mark";
 import { CheckoutModal } from "@/components/landing/checkout-modal";
@@ -714,6 +715,7 @@ export function LandingSite() {
       <main>
         <Hero plans={plans} hero={heroCopy} onPickPlan={setPlan} savedUser={savedUser} entering={entering} onReenter={handleReenter} />
         <Features items={featureItems} />
+        <PixelSlope from="#122217" fill="#0b110c" seed={1} />
         <Pricing plans={plans} integrationUf={integrationUf} pricingNote={pricingNote} onPickPlan={setPlan} />
         <UseCases />
         <FinalCta plans={plans} onPickPlan={setPlan} />

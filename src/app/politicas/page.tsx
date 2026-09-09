@@ -172,7 +172,7 @@ export default function PoliticasPage() {
         </div>
       </div>
 
-      <PixelSlope fill="#0b110c" from="#1a271b" seed={2} />
+      <PixelSlope from="#1a271b" fill="#0b110c" seed={2} />
 
       <main className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-4 py-12 sm:px-6">
         {SECTIONS.map((s) => (
@@ -198,7 +198,7 @@ export default function PoliticasPage() {
       </main>
 
       <div className="mt-auto">
-        <PixelSlope fill="#14160f" from="#0b110c" seed={5} highlight="#234026" />
+        <PixelSlope from="#0b110c" fill="#14160f" seed={5} highlight="#234026" />
         <footer className="bg-[#14160f]">
           <div className="mx-auto flex max-w-4xl flex-col items-center justify-between gap-3 px-4 py-8 font-pixel text-[10px] tracking-[0.18em] text-emerald-100/50 sm:flex-row sm:px-6">
             <span className="flex items-center gap-2">
