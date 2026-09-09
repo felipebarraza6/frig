@@ -4,7 +4,6 @@ import type { CSSProperties } from "react";
 import { motion, useReducedMotion, type Variants } from "framer-motion";
 import { LANDING_FEATURES, LANDING_VALUE_PROP } from "@/content/landing";
 import { BrandLogo } from "@/components/brand-logo";
-import { DemoCta } from "@/components/landing/demo-form";
 import { PixelFoodMark } from "@/components/landing/pixel-food-mark";
 
 type LandingBrand = { name: string; logo?: string | null } | null;
@@ -118,13 +117,10 @@ export function LandingPanel({ brand }: { brand?: LandingBrand }) {
           )}
         </motion.header>
 
-        <motion.div variants={item} className="flex flex-col items-center justify-center gap-4 text-center lg:flex-row lg:gap-6">
-          <p className="max-w-md text-pretty text-[15px] leading-relaxed text-[var(--frig-text-muted)] lg:text-left">
+        <motion.div variants={item} className="flex flex-col items-center justify-center gap-4 text-center">
+          <p className="max-w-md text-pretty text-[15px] leading-relaxed text-[var(--frig-text-muted)]">
             {LANDING_VALUE_PROP.subhead}
           </p>
-          <div className="shrink-0">
-            <DemoCta />
-          </div>
         </motion.div>
 
         <motion.ul
