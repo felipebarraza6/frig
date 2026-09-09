@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -11,10 +11,20 @@ import { LandingPanel } from "@/components/landing/landing-panel";
 import { PixelFoodMark } from "@/components/landing/pixel-food-mark";
 import { cn } from "@/lib/utils";
 
+function extractTokenFromPath(): string {
+  if (typeof window === "undefined") return "";
+  const segments = window.location.pathname.split("/").filter(Boolean);
+  const last = segments[segments.length - 1] ?? "";
+  return last && last !== "__" ? last : "";
+}
+
 export default function ResetPasswordPage() {
-  const params = useParams<{ token: string }>();
-  const token = params?.token ?? "";
   const router = useRouter();
+  const [token, setToken] = useState("");
+
+  useEffect(() => {
+    setToken(extractTokenFromPath());
+  }, []);
 
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
