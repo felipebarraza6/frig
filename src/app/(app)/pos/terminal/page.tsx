@@ -913,12 +913,13 @@ export default function PosPage() {
             </button>
           )}
 
-          {/* Inventario: stock actual y mermas/movimientos manuales (configurable) */}
+          {/* Inventario: stock actual y mermas/movimientos manuales (configurable).
+              En móvil sale de la barra inferior; acá solo desktop/tablet. */}
           {effectiveConfig.inventory_movements && !isWaiter && (
             <button
               type="button"
               onClick={() => setInventoryOpen(true)}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border/60 bg-muted/40 px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+              className="hidden h-8 items-center gap-1.5 rounded-lg border border-border/60 bg-muted/40 px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted md:inline-flex"
               title="Inventario"
             >
               <Package className="h-3.5 w-3.5" />
@@ -926,12 +927,13 @@ export default function PosPage() {
             </button>
           )}
 
-          {/* Ajustes de la estación (solo owner/admin: el cajero no configura) */}
+          {/* Ajustes de la estación (solo owner/admin: el cajero no configura).
+              En móvil sale de la barra inferior; acá solo desktop/tablet. */}
           {canConfigurePos && !isWaiter && activeStationId && (
             <button
               type="button"
               onClick={() => setConfigOpen(true)}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border/60 bg-muted/40 px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+              className="hidden h-8 items-center gap-1.5 rounded-lg border border-border/60 bg-muted/40 px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted md:inline-flex"
               title="Ajustes de la estación"
             >
               <Settings2 className="h-3.5 w-3.5" />
@@ -1599,35 +1601,33 @@ export default function PosPage() {
         </div>
       )}
 
-      {/* Bottom bar móvil */}
+      {/* Bottom bar móvil: acciones del header de web (Inventario/Ajustes) + cobros.
+          La Caja queda solo arriba (estado en el header) para no repetirla. */}
       {!cartOpen && !(isWaiter && !selectedTable && !isEditingOrder) && (
         <div className="fixed bottom-0 left-0 right-0 z-40 flex items-center gap-1.5 border-t border-border/60 bg-background px-2 py-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-lg md:hidden">
-          {!isWaiter && (
+          {/* Inventario: solo si está activo en la config de la estación */}
+          {effectiveConfig.inventory_movements && !isWaiter && (
             <button
               type="button"
-              onClick={() => {
-                setShowCashRegisterModal(true);
-                setMovementType("CASH_IN");
-                setMovementAmount("");
-                setMovementReason("");
-              }}
-              className={cn(
-                "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium transition-colors",
-                cashRegisterError
-                  ? "text-rose-700 hover:bg-rose-500/10"
-                  : currentCashRegister
-                    ? "text-emerald-700 hover:bg-emerald-500/10"
-                    : "text-amber-700 hover:bg-amber-500/10"
-              )}
+              onClick={() => setInventoryOpen(true)}
+              title="Inventario"
+              className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
-              {cashRegisterError ? (
-                <AlertTriangle className="h-[18px] w-[18px]" />
-              ) : (
-                <Banknote className="h-[18px] w-[18px]" />
-              )}
-              <span className="truncate px-0.5">
-                {cashRegisterError ? "Error caja" : currentCashRegister ? "Caja" : "Abrir caja"}
-              </span>
+              <Package className="h-[18px] w-[18px] shrink-0" />
+              <span className="truncate px-0.5">Inventario</span>
+            </button>
+          )}
+
+          {/* Ajustes de la estación (solo owner/admin) */}
+          {canConfigurePos && !isWaiter && activeStationId && (
+            <button
+              type="button"
+              onClick={() => setConfigOpen(true)}
+              title="Ajustes de la estación"
+              className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <Settings2 className="h-[18px] w-[18px] shrink-0" />
+              <span className="truncate px-0.5">Ajustes</span>
             </button>
           )}
 
