@@ -40,7 +40,6 @@ import { fetchProducts } from "@/lib/api/products";
 import { fetchSupplierProductsByBranch } from "@/lib/api/suppliers";
 import { formatCLP, cn, stockStatusLabel } from "@/lib/utils";
 import { useCurrentBranch } from "@/lib/store/session";
-import { CompoundProductsSection } from "./compound-products-section";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 type WarehouseProduct = YggdraSchemas["WarehouseProduct"];
@@ -1071,8 +1070,6 @@ export default function WarehouseDetailPage() {
           </>
         )}
       </div>
-
-      <CompoundProductsSection catalog={catalog} />
 
       {addOpen && (
         <Modal title="Agregar producto a bodega" onClose={() => setAddOpen(false)}>

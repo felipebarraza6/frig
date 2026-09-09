@@ -26,6 +26,7 @@ import { useToast } from "@/lib/store/toast";
 import { useCurrentBranch } from "@/lib/store/session";
 import { NutritionLabelPreview } from "@/components/products/nutrition-label-preview";
 import { ProductTypeHelp } from "@/components/products/product-type-help";
+import { CompoundAvailability } from "@/components/products/compound-availability";
 import {
   fetchRecipesByProduct,
   createRecipe,
@@ -518,7 +519,9 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
       { id: "basic", label: "Datos básicos", enabled: true },
       { id: "pricing", label: "Precios y venta", enabled: true },
       { id: "recipe", label: "Receta", enabled: isCompound },
-      { id: "warehouses", label: "Bodegas", enabled: inventoryEnabled && !isCompound },
+      // En compuestos el tab muestra la disponibilidad calculada desde los
+      // ingredientes (no gestionan stock propio por bodega).
+      { id: "warehouses", label: "Bodegas", enabled: inventoryEnabled },
       { id: "modifiers", label: "Modificadores", enabled: true },
     ];
     if (nutritionEnabled) {
@@ -526,14 +529,6 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
     }
     return list;
   }, [isCompound, nutritionEnabled, inventoryEnabled]);
-
-  // Los compuestos no gestionan stock por bodega: si el tipo cambia estando
-  // en ese tab, volver a la receta.
-  useEffect(() => {
-    if (isCompound && activeTab === "warehouses") {
-      setActiveTab("recipe");
-    }
-  }, [isCompound, activeTab]);
 
   // Al cargar las opciones de tipo (la query puede llegar después de abrir el
   // form), corrige el valor actual si no está entre las disponibles.
@@ -561,12 +556,13 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
     }
   }, [tracksWarehouseStock, warehouseAssignments.length]);
 
-  // Al entrar al tab Bodegas se activa la gestión de stock por bodega.
+  // Al entrar al tab Bodegas se activa la gestión de stock por bodega. Los
+  // compuestos no gestionan stock propio: solo muestran disponibilidad.
   useEffect(() => {
-    if (activeTab === "warehouses" && !tracksWarehouseStock) {
+    if (activeTab === "warehouses" && !isCompound && !tracksWarehouseStock) {
       setTracksWarehouseStock(true);
     }
-  }, [activeTab, tracksWarehouseStock]);
+  }, [activeTab, isCompound, tracksWarehouseStock]);
 
   const {
     data: existingRecipes = [],
@@ -1255,7 +1251,20 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
             </p>
           )}
 
-          {activeTab === "warehouses" && (
+          {activeTab === "warehouses" && isCompound && (
+            <div className="flex flex-col gap-5">
+              {effectiveProduct?.id ? (
+                <CompoundAvailability productId={Number(effectiveProduct.id)} />
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Guarda el producto primero para ver cuántas unidades puedes
+                  fabricar con el stock de los ingredientes en bodega.
+                </p>
+              )}
+            </div>
+          )}
+
+          {activeTab === "warehouses" && !isCompound && (
             <div className="flex flex-col gap-5">
               {effectiveProduct?.id && (
                 <div className="rounded-xl border border-border bg-muted/40 p-5">

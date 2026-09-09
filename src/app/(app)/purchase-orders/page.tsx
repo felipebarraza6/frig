@@ -452,7 +452,7 @@ export default function PurchaseOrdersPage() {
   const complete = useMutation({
     // Recibir = fin de la orden: primero se marca la recepción total de los
     // ítems (lo que mueve inventario a bodega) y luego se cierra la orden.
-    // El pago no ocurre aquí: se hace aparte, desde la caja.
+    // El pago no ocurre aquí: se hace aparte, desde el módulo Pagos.
     mutationFn: async (order: PurchaseOrderList) => {
       const full = await fetchPurchaseOrder(order.id);
       const updates: Record<string, number> = {};
@@ -1665,7 +1665,7 @@ export default function PurchaseOrdersPage() {
             <p className="mt-1 text-sm text-muted-foreground">
               {confirmAction.type === "cancel"
                 ? `Se anulará la orden ${confirmAction.order.order_number}. Esta acción no se puede deshacer.`
-                : `Se registrará la recepción total de sus ítems (ingresan a bodega) y la orden ${confirmAction.order.order_number} quedará recibida y cerrada. El pago se hace aparte, desde la caja. Esta acción no se puede deshacer.`}
+                : `Se registrará la recepción total de sus ítems (ingresan a bodega) y la orden ${confirmAction.order.order_number} quedará recibida y cerrada. El pago se hace aparte, desde el módulo Pagos. Esta acción no se puede deshacer.`}
             </p>
             {(cancel.isError || complete.isError) && (
               <p className="mt-2 text-sm text-danger">
