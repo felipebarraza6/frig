@@ -26,6 +26,7 @@ import {
   useIsAdminLocal,
 } from "@/lib/store/session";
 import { formatCLP, cn } from "@/lib/utils";
+import { isStandalonePwa } from "@/lib/pwa";
 import { PosConfigModal } from "@/components/pos/pos-config-modal";
 import { Settings2 } from "lucide-react";
 import { statusBadge } from "@/lib/status-styles";
@@ -67,15 +68,8 @@ function todayIso() {
 
 // PWA instalada (display: standalone / iOS apple-mobile-web-app): window.open
 // no abre una pestaña real, navega la propia ventana de la PWA y deja el
-// historial "clavado" (sin atrás). Detectarla permite navegar en la misma
-// ventana conservando el historial y el botón Volver del terminal.
-function isStandalonePwa(): boolean {
-  if (typeof window === "undefined") return false;
-  return (
-    window.matchMedia("(display-mode: standalone)").matches ||
-    (navigator as unknown as { standalone?: boolean }).standalone === true
-  );
-}
+// historial "clavado" (sin atrás). isStandalonePwa (src/lib/pwa.ts) permite
+// navegar en la misma ventana conservando el historial y el botón Volver.
 
 export default function PosZenPage() {
   const branch = useCurrentBranch();

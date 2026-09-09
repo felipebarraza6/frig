@@ -3,12 +3,14 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { User as UserIcon, KeyRound, Store, Check, AlertCircle, Building2, CalendarDays, Clock, type LucideIcon } from "lucide-react";
+import { User as UserIcon, KeyRound, Store, Check, AlertCircle, Building2, CalendarDays, Clock, RefreshCw, Smartphone, type LucideIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSessionStore } from "@/lib/store/session";
+import { useToast } from "@/lib/store/toast";
+import { APP_BUILD, checkForAppUpdate, isStandalonePwa } from "@/lib/pwa";
 import { getRoleLabel } from "@/lib/roles";
 import { fetchMyProfile, updateMyProfile, changePassword } from "@/lib/api/profile";
 import { fetchBranches } from "@/lib/api/branches";
@@ -36,12 +38,13 @@ function formatDateTime(iso?: string): string {
   return `${date} · ${time}`;
 }
 
-type SectionId = "personal" | "sucursales" | "seguridad";
+type SectionId = "personal" | "sucursales" | "seguridad" | "app";
 
 const SECTIONS: { id: SectionId; label: string; icon: LucideIcon; title: string; description: string }[] = [
   { id: "personal", label: "Datos", icon: UserIcon, title: "Información personal", description: "Cómo te ven en el negocio" },
   { id: "sucursales", label: "Sucursales", icon: Store, title: "Mis sucursales", description: "Dónde operas y con qué rol" },
   { id: "seguridad", label: "Seguridad", icon: KeyRound, title: "Seguridad", description: "Mantén tu acceso protegido" },
+  { id: "app", label: "App", icon: Smartphone, title: "Aplicación", description: "Versión instalada y actualizaciones" },
 ];
 
 type ProfileForm = {
@@ -103,6 +106,26 @@ export function ProfilePanel() {
   const [activeSection, setActiveSection] = useState<SectionId>("personal");
   const [profileSuccess, setProfileSuccess] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const toast = useToast();
+
+  async function handleCheckUpdate() {
+    if (checkingUpdate) return;
+    setCheckingUpdate(true);
+    try {
+      const result = await checkForAppUpdate();
+      if (result === "updated") {
+        // El SW nuevo toma control y dispara el toast persistente con Recargar.
+        toast.info("Nueva versión encontrada. Confirma con Recargar.");
+      } else if (result === "latest") {
+        toast.success("Ya tienes la última versión");
+      } else {
+        toast.error("Actualización no disponible en este navegador");
+      }
+    } finally {
+      setCheckingUpdate(false);
+    }
+  }
 
   const values: ProfileForm = useMemo(
     () => ({
@@ -514,6 +537,41 @@ export function ProfilePanel() {
                 </Button>
               </div>
             </form>
+          )}
+
+          {activeSection === "app" && (
+            <div className="flex flex-col gap-4">
+              <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm">
+                <dl className="flex flex-col gap-2.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <dt className="text-muted-foreground">Versión</dt>
+                    <dd className="font-mono text-xs font-semibold tabular-nums">v{APP_BUILD}</dd>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <dt className="text-muted-foreground">Modo</dt>
+                    <dd className="text-xs font-semibold">
+                      {isStandalonePwa() ? "App instalada (PWA)" : "Navegador web"}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Si hay una versión nueva, se descarga al tocar el botón y podrás aplicarla
+                con Recargar. La app también avisa sola cuando detecta un deploy nuevo.
+              </p>
+              <div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCheckUpdate}
+                  disabled={checkingUpdate}
+                  isLoading={checkingUpdate}
+                >
+                  {!checkingUpdate && <RefreshCw className="mr-2 h-4 w-4" />}
+                  Buscar actualizaciones
+                </Button>
+              </div>
+            </div>
           )}
         </motion.div>
       </AnimatePresence>

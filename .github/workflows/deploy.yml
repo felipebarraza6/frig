@@ -27,6 +27,8 @@ jobs:
       # Se inyecta en build time: NEXT_PUBLIC_* se sustituye en el bundle.
       # El mismo build sirve para ambos servidores (misma API).
       NEXT_PUBLIC_YGGDRA_API_BASE: "https://api.yggdra.cl/api"
+      # Identificador visible de la versión en la app (Perfil → Aplicación).
+      NEXT_PUBLIC_APP_BUILD: "${{ github.run_number }}"
     steps:
       - uses: actions/checkout@v4
 
