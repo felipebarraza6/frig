@@ -14,12 +14,19 @@ const APP_SHELL = ["/", "/login", "/manifest.webmanifest", "/icons/icon-192x192.
 
 const STATIC_RE = /\/_next\/static\//;
 const SAME_ORIGIN = new RegExp("^" + self.location.origin);
+// Tope de páginas cacheadas (LRU simple): evita que frig-pages-v1 crezca
+// sin límite con una entrada por URL+querystring en tablets de POS.
+const PAGES_CACHE_MAX = 60;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open(STATIC_CACHE)
-      .then((cache) => cache.addAll(APP_SHELL))
+      // Adds individuales tolerantes a fallo: si el hosting no reescribe
+      // /login → /login.html, un 404 en addAll abortaría todo el install.
+      .then((cache) =>
+        Promise.allSettled(APP_SHELL.map((url) => cache.add(url)))
+      )
       .then(() => self.skipWaiting())
   );
 });
@@ -64,7 +71,19 @@ self.addEventListener("fetch", (event) => {
         .then((response) => {
           if (response.ok) {
             const copy = response.clone();
-            caches.open(PAGES_CACHE).then((cache) => cache.put(request, copy));
+            caches.open(PAGES_CACHE).then((cache) =>
+              cache
+                .put(request, copy)
+                // LRU: si excede el tope, elimina las entradas más antiguas.
+                .then(() => cache.keys())
+                .then((keys) => {
+                  if (keys.length > PAGES_CACHE_MAX) {
+                    return Promise.all(
+                      keys.slice(0, keys.length - PAGES_CACHE_MAX).map((k) => cache.delete(k))
+                    );
+                  }
+                })
+            );
           }
           return response;
         })

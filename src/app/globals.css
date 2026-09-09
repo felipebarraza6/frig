@@ -96,10 +96,16 @@
   }
 }
 
+html {
+  /* App-like: sin rebote de overscroll ni pull-to-refresh "suelto" en PWA. */
+  overscroll-behavior: none;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
 }
 
 /* Manito en todos los elementos clickeables, incluidos los botones

@@ -77,7 +77,7 @@ export function MetricDrawer({
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", stiffness: 320, damping: 32 }}
-            className="absolute bottom-0 left-0 right-0 flex h-[80vh] flex-col rounded-t-3xl bg-card shadow-[0_-8px_40px_rgba(0,0,0,0.2)] md:left-auto md:right-4 md:top-4 md:h-auto md:max-h-[calc(100vh-2rem)] md:w-[480px] md:rounded-3xl md:shadow-2xl"
+            className="absolute bottom-0 left-0 right-0 flex h-[80dvh] flex-col rounded-t-3xl bg-card shadow-[0_-8px_40px_rgba(0,0,0,0.2)] pb-[env(safe-area-inset-bottom)] md:left-auto md:right-4 md:top-4 md:h-auto md:max-h-[calc(100vh-2rem)] md:w-[480px] md:rounded-3xl md:shadow-2xl md:pb-0"
             role="dialog"
             aria-modal="true"
             aria-label={title}

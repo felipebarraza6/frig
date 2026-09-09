@@ -290,7 +290,9 @@ function ModalFooter({ children, className }: ModalFooterProps) {
   return (
     <div
       className={cn(
-        "flex shrink-0 flex-col-reverse gap-2 border-t border-border bg-muted/30 px-6 py-4 sm:flex-row sm:items-center sm:justify-end",
+        // pb con safe-area: el modal es full-screen en móvil (h-dvh) y su
+        // footer quedaría bajo el home indicator sin este padding.
+        "flex shrink-0 flex-col-reverse gap-2 border-t border-border bg-muted/30 px-6 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:flex-row sm:items-center sm:justify-end sm:pb-4",
         className,
       )}
     >

@@ -1124,7 +1124,7 @@ export default function PosPage() {
       )}
 
       {/* Área de trabajo */}
-      <div className="flex min-h-0 flex-1 pb-16 md:pb-0">
+      <div className="flex min-h-0 flex-1 pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
         {/* Catálogo */}
         <section className="min-w-0 flex-1 overflow-hidden border-r border-border/60 bg-background">
         {isWaiter && !selectedTable && !isEditingOrder ? (
@@ -1362,7 +1362,7 @@ export default function PosPage() {
                       onChange={(e) => setQuery(e.target.value)}
                       onFocus={(e) => e.currentTarget.select()}
                       placeholder="Buscar producto…"
-                      className="h-8 w-full rounded-lg border-border/60 bg-background pl-8 text-xs"
+                      className="h-9 w-full rounded-lg border-border/60 bg-background pl-8 text-base"
                       aria-label="Buscar producto"
                     />
                   </div>
@@ -1611,7 +1611,7 @@ export default function PosPage() {
               type="button"
               onClick={() => setInventoryOpen(true)}
               title="Inventario"
-              className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground min-h-[40px]"
             >
               <Package className="h-[18px] w-[18px] shrink-0" />
               <span className="truncate px-0.5">Inventario</span>
@@ -1624,7 +1624,7 @@ export default function PosPage() {
               type="button"
               onClick={() => setConfigOpen(true)}
               title="Ajustes de la estación"
-              className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground min-h-[40px]"
             >
               <Settings2 className="h-[18px] w-[18px] shrink-0" />
               <span className="truncate px-0.5">Ajustes</span>

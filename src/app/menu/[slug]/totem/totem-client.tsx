@@ -61,7 +61,7 @@ export default function MenuTotemPage({ slug }: { slug: string }) {
 
   return (
     <div
-      className={`flex min-h-screen flex-col items-center justify-center p-8 text-center print:p-0 ${fontClass}`}
+      className={`flex min-h-dvh flex-col items-center justify-center p-8 text-center print:p-0 ${fontClass}`}
       style={{ backgroundColor: secondaryColor }}
     >
       <div

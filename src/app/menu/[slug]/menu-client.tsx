@@ -100,7 +100,7 @@ export default function PublicMenuPage() {
           : "font-sans";
 
   return (
-    <div className={`min-h-screen ${fontClass}`} style={{ backgroundColor: secondaryColor }}>
+    <div className={`min-h-dvh ${fontClass}`} style={{ backgroundColor: secondaryColor }}>
       {/* Header */}
       <header
         className="sticky top-0 z-10 border-b px-4 py-6 shadow-sm sm:px-6"

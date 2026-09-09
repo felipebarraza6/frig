@@ -24,7 +24,7 @@ export function Toaster() {
   const removeToast = useToastStore((s) => s.removeToast);
 
   return (
-    <div className="fixed bottom-24 right-4 z-[100] flex flex-col gap-2 sm:bottom-4">
+    <div className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-4 z-[100] flex flex-col gap-2 sm:bottom-4">
       <AnimatePresence>
         {toasts.map((toast) => {
           const Icon = icons[toast.variant ?? "info"];
@@ -42,6 +42,18 @@ export function Toaster() {
             >
               <Icon className="h-5 w-5 shrink-0" />
               <p className="flex-1 text-sm font-medium">{toast.message}</p>
+              {toast.action && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    toast.action?.onClick();
+                    removeToast(toast.id);
+                  }}
+                  className="shrink-0 rounded-lg bg-white/20 px-2.5 py-1 text-xs font-semibold transition-colors hover:bg-white/30"
+                >
+                  {toast.action.label}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => removeToast(toast.id)}

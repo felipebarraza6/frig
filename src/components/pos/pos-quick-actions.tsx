@@ -201,7 +201,7 @@ export default function PosQuickActions({
               type="button"
               onClick={() => setActiveType(action.id)}
               title={TYPE_LABELS[action.type]}
-              className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground min-h-[40px]"
             >
               <Icon className="h-[18px] w-[18px] shrink-0" />
               <span className="truncate px-0.5">{TYPE_LABELS_SHORT[action.type]}</span>

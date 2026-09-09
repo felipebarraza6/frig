@@ -9,6 +9,8 @@ export interface Toast {
   message: string;
   variant?: ToastVariant;
   duration?: number;
+  /** Botón de acción opcional (p. ej. "Recargar" en update de la PWA). */
+  action?: { label: string; onClick: () => void };
 }
 
 interface ToastState {

@@ -48,6 +48,9 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
+  // Evita que el viewport "salte" al abrir el teclado en inputs del POS:
+  // el contenido se redimensiona en vez de hacer pan/overlay.
+  interactiveWidget: "resizes-content",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#f7f6f1" },
     { media: "(prefers-color-scheme: dark)", color: "#14160f" },
@@ -90,6 +93,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
     >
       <head>
+        {/* Next no emite apple-mobile-web-app-capable (solo mobile-web-app-capable);
+            iOS ≤15 no abre la PWA instalada en standalone sin este meta. */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="flex min-h-full flex-col">

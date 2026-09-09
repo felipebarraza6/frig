@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Banknote,
@@ -64,11 +65,24 @@ function todayIso() {
   return `${y}-${m}-${d}`;
 }
 
+// PWA instalada (display: standalone / iOS apple-mobile-web-app): window.open
+// no abre una pestaña real, navega la propia ventana de la PWA y deja el
+// historial "clavado" (sin atrás). Detectarla permite navegar en la misma
+// ventana conservando el historial y el botón Volver del terminal.
+function isStandalonePwa(): boolean {
+  if (typeof window === "undefined") return false;
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (navigator as unknown as { standalone?: boolean }).standalone === true
+  );
+}
+
 export default function PosZenPage() {
   const branch = useCurrentBranch();
   const userStation = useCurrentBranchStation();
   const toast = useToast();
   const queryClient = useQueryClient();
+  const router = useRouter();
   const today = todayIso();
   const [selectedStationId, setSelectedStationId] = useState<number | null>(
     userStation?.station_id ? Number(userStation.station_id) : null,
@@ -172,7 +186,14 @@ export default function PosZenPage() {
   }, [stations, cashRegisters, dailySummaries]);
 
   const openTerminal = (stationId: number, win?: Window | null) => {
-    const url = `/pos/terminal?station_id=${stationId}`;
+    // return_to siempre presente: el terminal muestra su botón Volver a /pos
+    // aunque el historial del SO no permita retroceder (PWA standalone).
+    const url = `/pos/terminal?station_id=${stationId}&return_to=${encodeURIComponent("/pos")}`;
+    if (isStandalonePwa()) {
+      // Misma ventana de la PWA: conserva el historial para volver atrás.
+      router.push(url);
+      return;
+    }
     if (win) {
       // Ventana capturada en el click (antes de los await) para que iOS/Android
       // no bloqueen el popup; aquí solo la navegamos al terminal.
@@ -196,7 +217,8 @@ export default function PosZenPage() {
 
     // window.open debe ejecutarse en el gesto del usuario; tras un await los
     // navegadores móviles lo bloquean. Sin "noopener" para conservar el handle.
-    const win = window.open("", "_blank");
+    // En PWA standalone no pre-abrimos: navegaremos en la misma ventana.
+    const win = isStandalonePwa() ? null : window.open("", "_blank");
 
     try {
       const register = await getCurrentCashRegister(station.id);

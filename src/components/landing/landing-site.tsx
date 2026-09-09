@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   Banknote,
@@ -30,6 +31,9 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useApp } from "@/lib/app-context";
+import { useSessionStore, normalizeDashboardRoute } from "@/lib/store/session";
+import { getToken } from "@/lib/api/session-storage";
+import type { User } from "@/lib/types";
 import {
   LANDING_FEATURES,
   LANDING_PLANS,
@@ -123,7 +127,31 @@ const FEATURE_ICONS: Record<string, LucideIcon> = {
 };
 const DEFAULT_FEATURE_ICON = Store;
 
-function Nav() {
+/**
+ * Nombre corto para saludar a un usuario con sesión persistida. En landing
+ * FRIG (sin tema de tenant) el saludo es solo cosmético: la sesión real se
+ * valida al entrar a la app (el shell reacciona a un 401 limpiando todo y
+ * volviendo a /login con aviso).
+ */
+function sessionDisplayName(user: User): string {
+  const full = (
+    user.full_name ??
+    `${user.first_name ?? ""} ${user.last_name ?? ""}`
+  ).trim();
+  return full || user.username || user.email.split("@")[0] || "tu cuenta";
+}
+
+/** Props comunes del punto de reingreso con sesión persistida. */
+interface ReenterProps {
+  /** Usuario con sesión persistida (null → UI de siempre). */
+  savedUser: User | null;
+  /** True mientras se navega de vuelta a la app. */
+  entering: boolean;
+  /** Navega al home persistido de la sesión. */
+  onReenter: () => void;
+}
+
+function Nav({ savedUser }: { savedUser: User | null }) {
   return (
     <header className="sticky top-0 z-40 border-b-2 border-[#241f1a] bg-[#14160f]">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
@@ -135,21 +163,25 @@ function Nav() {
             FRIG
           </span>
         </Link>
-        <nav className="hidden items-center gap-6 font-pixel text-xs tracking-widest text-emerald-100/70 sm:flex">
-          <a href="#funciones" className="transition-colors hover:text-white">FUNCIONES</a>
-          <a href="#planes" className="transition-colors hover:text-white">PLANES</a>
-          <a href="#casos" className="transition-colors hover:text-white">DEMOS</a>
-        </nav>
-        <Link
-          href="/login"
-          className={cn(
-            buttonVariants({ variant: "outline", size: "sm" }),
-            PIXEL_BTN,
-            "border-emerald-100/30 bg-transparent text-emerald-50 hover:bg-white/10 hover:text-white",
+        <nav className="flex items-center gap-4 font-pixel text-xs tracking-widest text-emerald-100/70 sm:gap-6">
+          <a href="#funciones" className="hidden transition-colors hover:text-white sm:inline">FUNCIONES</a>
+          <a href="#planes" className="hidden transition-colors hover:text-white sm:inline">PLANES</a>
+          <a href="#casos" className="hidden transition-colors hover:text-white sm:inline">DEMOS</a>
+          {/* Sin sesión el acceso va acá; con sesión, el reingreso vive en el
+              banner del hero (VOLVISTE → REINGRESAR), no repetido en el header. */}
+          {!savedUser && (
+            <Link
+              href="/login"
+              className={cn(
+                buttonVariants({ variant: "outline", size: "sm" }),
+                PIXEL_BTN,
+                "border-emerald-100/30 bg-transparent text-emerald-50 hover:bg-white/10 hover:text-white",
+              )}
+            >
+              Entrar
+            </Link>
           )}
-        >
-          Entrar
-        </Link>
+        </nav>
       </div>
     </header>
   );
@@ -159,12 +191,15 @@ function Hero({
   plans,
   hero,
   onPickPlan,
+  savedUser,
+  entering,
+  onReenter,
 }: {
   plans: LandingPlan[];
   /** Copy del hero desde el sistema (null → fallback local). */
   hero: LandingHero | null;
   onPickPlan: (p: LandingPlan) => void;
-}) {
+} & ReenterProps) {
   const cta = plans[0];
   const ctaLabel =
     hero?.cta_label ??
@@ -194,11 +229,57 @@ function Hero({
 
       <div className="relative mx-auto flex min-h-[calc(100dvh-3.5rem)] max-w-6xl flex-col justify-start px-4 pt-[27vh] pb-[170px] sm:px-6 sm:justify-center sm:pt-12 sm:pb-[200px]">
         <div className="flex flex-col items-center gap-3 text-center sm:gap-6 lg:items-start lg:text-left">
+          {savedUser && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.04, ease: "easeOut" }}
+              className="flex w-full max-w-xl flex-col items-center gap-3 border-2 border-emerald-100/25 bg-[#08170f]/85 p-3 shadow-[5px_5px_0_0_rgba(0,0,0,0.45)] sm:flex-row sm:items-center sm:gap-4 sm:p-3.5 lg:w-fit lg:max-w-none lg:self-end"
+            >
+              <span
+                aria-hidden
+                className="flex h-10 w-10 shrink-0 items-center justify-center font-pixel text-base font-semibold text-emerald-950"
+                style={{ backgroundColor: GOLD }}
+              >
+                {sessionDisplayName(savedUser).charAt(0).toUpperCase()}
+              </span>
+              <div className="min-w-0 max-w-48 flex-1 text-center sm:text-left">
+                <p className="font-pixel text-[10px] tracking-[0.2em] text-emerald-100/55">
+                  VOLVISTE
+                </p>
+                <p className="truncate font-pixel text-sm font-semibold tracking-wider text-emerald-50">
+                  {sessionDisplayName(savedUser)}
+                </p>
+              </div>
+              <div className="flex w-full flex-col items-center gap-2 sm:w-auto sm:flex-row sm:gap-3">
+                <Button
+                  size="sm"
+                  disabled={entering}
+                  className={cn(PIXEL_BTN, "text-emerald-950")}
+                  style={{ backgroundColor: GOLD }}
+                  onClick={onReenter}
+                >
+                  {entering ? "ENTRANDO…" : "REINGRESAR"}
+                </Button>
+                <Link
+                  href="/login"
+                  className="font-pixel text-[10px] tracking-[0.14em] text-emerald-100/60 transition-colors hover:text-white"
+                >
+                  ¿NO ERES TÚ?
+                </Link>
+              </div>
+            </motion.div>
+          )}
           <motion.h1
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.45, delay: 0.08, ease: "easeOut" }}
-            className="max-w-xl font-pixel text-2xl font-semibold leading-snug tracking-wide sm:text-5xl"
+            className={cn(
+              "max-w-xl font-pixel text-2xl font-semibold leading-snug tracking-wide sm:text-5xl",
+              // Con sesión en móvil el hero lo encabeza el banner de
+              // reingreso: el titular/CTA ya los conoce y rompen el fold.
+              savedUser && "max-sm:hidden",
+            )}
             style={{ color: CREAM, textShadow: "3px 3px 0 rgba(0,0,0,0.5)" }}
           >
             {head} {tail && <span style={{ color: GOLD }}>{tail}</span>}
@@ -207,7 +288,10 @@ function Hero({
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.45, delay: 0.16, ease: "easeOut" }}
-            className="max-w-lg text-pretty text-[13px] leading-relaxed text-emerald-100/85 sm:text-base"
+            className={cn(
+              "max-w-lg text-pretty text-[13px] leading-relaxed text-emerald-100/85 sm:text-base",
+              savedUser && "max-sm:hidden",
+            )}
           >
             {subhead}{" "}
             <span className="font-semibold" style={{ color: GOLD }}>
@@ -220,7 +304,10 @@ function Hero({
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.45, delay: 0.24, ease: "easeOut" }}
-            className="flex flex-col gap-3 sm:flex-row"
+            className={cn(
+              "flex flex-col gap-3 sm:flex-row",
+              savedUser && "max-sm:hidden",
+            )}
           >
             <Button
               size="lg"
@@ -527,10 +614,18 @@ function Footer({ contactEmail }: { contactEmail: string }) {
  * mosaico oscuro, castillo en bitmap, marcos chunky con sombra dura y
  * tipografía pixel en los títulos. El login queda en /login.
  *
- * Gate by-host: si el dominio tiene branding configurado (dominio de una
- * sucursal u organización), el visitante va DIRECTO al login de ese tenant
- * y jamás ve la landing de FRIG. Sin by-host (dominio propio o desarrollo)
- * se muestra la landing.
+ * Gate by-host (splash-first): la exportación estática no puede detectar el
+ * host en el servidor, así que el primer paint (SSR incluido) es SIEMPRE una
+ * pantalla oscura mínima y la landing solo se monta tras resolver el host en
+ * cliente. En dominio de tenant (by-host) se redirige a /login sin que la
+ * landing llegue a pintarse jamás — un flash de landing rompe el contexto del
+ * producto white-label. En dominio propio/desarrollo la splash cede paso a la
+ * landing (las animaciones de entrada la hacen ver intencional).
+ *
+ * Reingreso: si hay una sesión persistida (frig.token + frig.session), la
+ * animación de entrada muestra al usuario con un botón que vuelve directo al
+ * home persistido. La validez real del token la confirma el shell de la app
+ * (un 401 limpia la sesión y vuelve a /login con aviso).
  *
  * Todo el contenido de la landing viene de GET /public/landing-config/
  * (grupo según checkoutGroup): hero, funciones, nota de pricing, contacto,
@@ -538,16 +633,42 @@ function Footer({ contactEmail }: { contactEmail: string }) {
  * fallback ante 404/error del backend.
  */
 export function LandingSite() {
+  const router = useRouter();
   const [plan, setPlan] = useState<LandingPlan | null>(null);
   const { status, theme, checkoutGroup } = useApp();
+  // Primer paint del cliente: el SSR sirve la splash, pero el render inicial
+  // hidratado aún no ha resuelto el host — se vuelve a la splash hasta tener
+  // el veredicto (mounted && status !== "checking"). useSyncExternalStore da
+  // ese gate sin setState en effect (regla react-hooks/set-state-in-effect).
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
   const byHost = status === "checking" ? "checking" : theme ? "tenant" : "landing";
 
-  // Config viva de la landing (una sola llamada: copy + planes).
+  // Sesión persistida de un ingreso anterior: solo se expone después de que
+  // el store hidrató (hasHydrated) para no pelear con el SSR/hidratación.
+  const hasHydrated = useSessionStore((s) => s.hasHydrated);
+  const sessionUser = useSessionStore((s) => s.user);
+  const dashboard = useSessionStore((s) => s.dashboard);
+  const [entering, setEntering] = useState(false);
+  const savedUser = hasHydrated && sessionUser && getToken() ? sessionUser : null;
+  const homeRoute = normalizeDashboardRoute(dashboard) ?? "/dashboard";
+  function handleReenter() {
+    if (entering) return;
+    setEntering(true);
+    router.push(homeRoute);
+  }
+
+  // Config viva de la landing (una sola llamada: copy + planes). Solo cuando
+  // el host quedó resuelto como landing: en tenant ni se pide.
   const configQuery = useQuery({
     queryKey: ["landing-config", checkoutGroup],
     queryFn: () => fetchLandingConfig(checkoutGroup),
     staleTime: 10 * 60 * 1000,
     retry: 1,
+    enabled: mounted && byHost === "landing",
   });
   const { plans, integrationUf } = useMemo(
     () => resolvePlans(configQuery.data),
@@ -572,9 +693,10 @@ export function LandingSite() {
     document.documentElement.classList.remove("dark");
   }, []);
 
-  // Mientras se resuelve el host: pantalla oscura mínima (sin flash de
-  // landing para los tenant).
-  if (byHost === "checking" || byHost === "tenant") {
+  // Splash mínima mientras no hay veredicto de host (SSR, primer paint e
+  // identificación del tenant): la landing nunca se pinta en dominios
+  // by-branch — de haber branding se sale directo a /login.
+  if (!mounted || byHost !== "landing") {
     return (
       <div
         className="flex min-h-dvh items-center justify-center"
@@ -588,15 +710,17 @@ export function LandingSite() {
 
   return (
     <div className="flex min-h-dvh flex-1 flex-col bg-background font-sans">
-      <Nav />
+      <Nav savedUser={savedUser} />
       <main>
-        <Hero plans={plans} hero={heroCopy} onPickPlan={setPlan} />
+        <Hero plans={plans} hero={heroCopy} onPickPlan={setPlan} savedUser={savedUser} entering={entering} onReenter={handleReenter} />
         <Features items={featureItems} />
         <Pricing plans={plans} integrationUf={integrationUf} pricingNote={pricingNote} onPickPlan={setPlan} />
         <UseCases />
         <FinalCta plans={plans} onPickPlan={setPlan} />
       </main>
-      <Footer contactEmail={contactEmail} />
+      {/* Contacto fijo de la marca; el checkout sigue usando el correo del
+          grupo configurado en el backend. */}
+      <Footer contactEmail={DEMO_CONTACTS.to} />
       <CheckoutModal plan={plan} integrationUf={integrationUf} contactEmail={contactEmail} onClose={() => setPlan(null)} />
     </div>
   );

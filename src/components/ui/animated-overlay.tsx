@@ -71,14 +71,19 @@ export function AnimatedOverlay({
               onClick={onClose}
               className={cn("absolute inset-0 bg-black/40", className)}
             />
-            {/* Panel */}
+            {/* Panel: los bottom sheets (items-end) suben su contenido por
+                encima del home indicator gracias al safe-area. */}
             <m.div
               key="ao-panel"
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 16 }}
               transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              className={cn("relative z-10 h-full", panelClassName)}
+              className={cn(
+                "relative z-10 h-full",
+                panelClassName?.includes("items-end") && "pb-[env(safe-area-inset-bottom)]",
+                panelClassName,
+              )}
             >
               {children}
             </m.div>
