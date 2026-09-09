@@ -153,7 +153,7 @@ export function Modal({
       <AnimatePresence>
         {open && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+            className="fixed inset-0 z-50 flex items-center justify-center sm:p-6"
             onKeyDown={handleKeyDown}
           >
             <m.div
@@ -184,10 +184,9 @@ export function Modal({
               transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
               onClick={(event) => event.stopPropagation()}
               className={cn(
-                "relative z-10 flex w-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl outline-none",
+                "relative z-10 flex w-full flex-col overflow-hidden rounded-none border border-border bg-card shadow-2xl outline-none sm:rounded-2xl",
                 SIZE_CLASS[size],
-                size === "full" && "h-full",
-                size !== "full" && "max-h-[calc(100vh-2rem)]",
+                size === "full" ? "h-full" : "h-dvh sm:h-auto sm:max-h-[calc(100vh-2rem)]",
                 className,
               )}
             >

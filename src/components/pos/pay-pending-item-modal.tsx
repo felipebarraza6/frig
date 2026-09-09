@@ -1172,7 +1172,9 @@ export default function PayPendingItemModal({
                   </div>
                 </div>
               </div>
-              <div className="mt-2 flex items-center justify-between gap-2">
+              {/* En móvil el estado y las acciones van en líneas separadas para
+                  que el badge no se comprima y los botones no se salgan de la tarjeta. */}
+              <div className="mt-2 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex flex-wrap gap-1.5">
                   {isPayOrder ? (
                     <>
@@ -1189,7 +1191,7 @@ export default function PayPendingItemModal({
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-1.5 ml-auto">
+                <div className="flex flex-wrap items-center gap-1.5 sm:ml-auto">
                   {isPayOrder ? (
                     <>
                       {["PENDING", "PARTIAL"].includes(o.payment_status ?? "") && (
@@ -1214,7 +1216,7 @@ export default function PayPendingItemModal({
                           disabled={deliveringOrderId !== null}
                           className="h-7 gap-1 px-2 text-xs"
                         >
-                          <Check className="h-3 w-3" /> Entregar
+                          <Check className="h-3 w-3" /> <span className="hidden sm:inline">Entregar</span>
                         </Button>
                       )}
                     </>
@@ -1234,9 +1236,10 @@ export default function PayPendingItemModal({
                     size="sm"
                     variant="outline"
                     onClick={() => setViewDetailId(isExpanded ? null : o.id)}
+                    title={isExpanded ? "Cerrar detalle" : "Ver detalle"}
                     className="h-7 gap-1 px-2 text-xs"
                   >
-                    <Eye className="h-3 w-3" /> {isExpanded ? "Cerrar" : "Ver detalle"}
+                    <Eye className="h-3 w-3" /> <span className="hidden sm:inline">{isExpanded ? "Cerrar" : "Ver detalle"}</span>
                   </Button>
                   {!isPayOrder && showOrderActions && (
                     <Button
