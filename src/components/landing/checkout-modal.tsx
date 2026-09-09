@@ -124,9 +124,12 @@ export function CheckoutModal({ plan, integrationUf = LANDING_INTEGRATION_UF, co
     try {
       const res = await fetchCheckout(payload, checkoutGroup);
       window.sessionStorage.setItem(storageKey, res.checkout_id);
-      // El pago se completa en la pasarela (otra pestaña); aquí quedamos
-      // haciendo polling del estado. Si el navegador bloqueó la pestaña,
-      // el botón "Abrir pasarela de pago" del estado polling la reabre.
+
+      if (!res.payment_url && res.status === "PAID") {
+        setState("done");
+        return;
+      }
+
       setPaymentUrl(res.payment_url);
       setState("polling");
       window.open(res.payment_url, "_blank", "noopener,noreferrer");
