@@ -12,15 +12,12 @@ import {
   Pencil,
   Trash2,
   Loader2,
-  Boxes,
   X,
   Calendar,
   Copy,
   Power,
   AlertTriangle,
   FolderOpen,
-  TrendingUp,
-  Zap,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -296,10 +293,8 @@ export default function CombosPage() {
     try {
       if (editing) {
         await updateMutation.mutateAsync({ id: editing.id, payload });
-        toast.success("Combo actualizado");
       } else {
         await createMutation.mutateAsync(payload);
-        toast.success("Combo creado");
       }
       closeModal();
     } catch (err) {
@@ -312,7 +307,6 @@ export default function CombosPage() {
     try {
       await deleteMutation.mutateAsync(confirmDelete.id);
       setConfirmDelete(null);
-      toast.success("Combo eliminado");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al eliminar el combo");
     }
@@ -332,7 +326,6 @@ export default function CombosPage() {
         items: full.items?.map((it) => ({ product: it.product, quantity: it.quantity ?? 1 })) ?? [],
       };
       await createMutation.mutateAsync(payload);
-      toast.success("Combo duplicado");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "No se pudo duplicar el combo.");
     }
@@ -348,7 +341,6 @@ export default function CombosPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["combos"] });
-      toast.success("Estado actualizado");
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : "No se pudo actualizar el estado.");
@@ -440,41 +432,27 @@ export default function CombosPage() {
           <>
             {/* Resumen */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
-              <div className="flex items-center gap-3 rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary">
-                  <Boxes className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">Total combos</p>
-                  <p className="text-lg font-semibold leading-none">{totalCombos}</p>
-                </div>
+              <div className="rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
+                <p className="text-xs text-muted-foreground">Total combos</p>
+                <p className="mt-1 text-2xl font-semibold leading-none tabular-nums">{totalCombos}</p>
               </div>
-              <div className="flex items-center gap-3 rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary">
-                  <Zap className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">Activos</p>
-                  <p className="text-lg font-semibold leading-none">{stats.active}</p>
-                </div>
+              <div className="rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
+                <p className="text-xs text-muted-foreground">Activos</p>
+                <p className="mt-1 text-2xl font-semibold leading-none tabular-nums text-emerald-700">
+                  {stats.active}
+                </p>
               </div>
-              <div className="flex items-center gap-3 rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary">
-                  <TrendingUp className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">Inactivos</p>
-                  <p className="text-lg font-semibold leading-none">{stats.inactive}</p>
-                </div>
+              <div className="rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
+                <p className="text-xs text-muted-foreground">Inactivos</p>
+                <p className="mt-1 text-2xl font-semibold leading-none tabular-nums text-muted-foreground">
+                  {stats.inactive}
+                </p>
               </div>
-              <div className="flex items-center gap-3 rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary">
-                  <AlertTriangle className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">Por vencer / vencidos</p>
-                  <p className="text-lg font-semibold leading-none">{stats.soon + stats.expired}</p>
-                </div>
+              <div className="rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
+                <p className="text-xs text-muted-foreground">Por vencer / vencidos</p>
+                <p className="mt-1 text-2xl font-semibold leading-none tabular-nums text-amber-700">
+                  {stats.soon + stats.expired}
+                </p>
               </div>
             </div>
 
@@ -500,18 +478,13 @@ export default function CombosPage() {
                         className="transition-colors hover:bg-muted/30"
                       >
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary">
-                              <Boxes className="h-4 w-4 text-muted-foreground" />
-                            </div>
-                            <div className="min-w-0">
-                              <p className="truncate font-medium">{combo.name}</p>
-                              {combo.description && (
-                                <p className="truncate text-xs text-muted-foreground">
-                                  {combo.description}
-                                </p>
-                              )}
-                            </div>
+                          <div className="min-w-0">
+                            <p className="truncate font-medium">{combo.name}</p>
+                            {combo.description && (
+                              <p className="truncate text-xs text-muted-foreground">
+                                {combo.description}
+                              </p>
+                            )}
                           </div>
                         </td>
                         <td className="px-4 py-3 text-right">
@@ -586,16 +559,11 @@ export default function CombosPage() {
                     className="flex min-w-0 flex-col rounded-2xl border border-border bg-muted/30 p-4 shadow-sm transition-shadow hover:shadow-md"
                   >
                     <div className="mb-3 flex items-start justify-between gap-3">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-secondary">
-                          <Boxes className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="truncate font-semibold">{combo.name}</p>
-                          <p className="truncate text-xs text-muted-foreground">
-                            {combo.description || status.label}
-                          </p>
-                        </div>
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold">{combo.name}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {combo.description || status.label}
+                        </p>
                       </div>
                       <button
                         onClick={() => toggleActive.mutate(combo)}

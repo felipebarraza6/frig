@@ -518,7 +518,7 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
       { id: "basic", label: "Datos básicos", enabled: true },
       { id: "pricing", label: "Precios y venta", enabled: true },
       { id: "recipe", label: "Receta", enabled: isCompound },
-      { id: "warehouses", label: "Bodegas", enabled: inventoryEnabled },
+      { id: "warehouses", label: "Bodegas", enabled: inventoryEnabled && !isCompound },
       { id: "modifiers", label: "Modificadores", enabled: true },
     ];
     if (nutritionEnabled) {
@@ -526,6 +526,14 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
     }
     return list;
   }, [isCompound, nutritionEnabled, inventoryEnabled]);
+
+  // Los compuestos no gestionan stock por bodega: si el tipo cambia estando
+  // en ese tab, volver a la receta.
+  useEffect(() => {
+    if (isCompound && activeTab === "warehouses") {
+      setActiveTab("recipe");
+    }
+  }, [isCompound, activeTab]);
 
   // Al cargar las opciones de tipo (la query puede llegar después de abrir el
   // form), corrige el valor actual si no está entre las disponibles.
@@ -718,7 +726,6 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
     setRemovingWarehouseId(id);
     try {
       await deleteWarehouseProduct(id);
-      toast.success("Bodega eliminada del producto");
       queryClient.invalidateQueries({ queryKey: ["warehouse-products", "product", effectiveProduct.id] });
       queryClient.invalidateQueries({ queryKey: ["products", effectiveProduct.id, "warehouses"] });
     } catch (err) {
@@ -924,9 +931,12 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
         price_internal: form.priceInternal ? Number(form.priceInternal) : undefined,
         wholesale_price: form.wholesalePrice ? Number(form.wholesalePrice) : undefined,
         // En creación no enviamos stock general: si se gestiona por bodega se
-        // asigna abajo; si no, el producto se crea sin stock inicial.
-        quantity: effectiveProduct?.id ? (form.stock ? Number(form.stock) : undefined) : undefined,
-        minimum_stock: effectiveProduct?.id ? (form.minimumStock ? Number(form.minimumStock) : undefined) : undefined,
+        // asigna abajo; si no, el producto se crea sin stock inicial. Los
+        // compuestos no tienen stock propio: su disponibilidad sale de la receta.
+        quantity:
+          effectiveProduct?.id && !isCompound ? (form.stock ? Number(form.stock) : undefined) : undefined,
+        minimum_stock:
+          effectiveProduct?.id && !isCompound ? (form.minimumStock ? Number(form.minimumStock) : undefined) : undefined,
         measurement_unit: form.measurementUnit || null,
         category: form.category ? Number(form.category) : null,
         product_type: form.productType as unknown as ProductPayload["product_type"],
@@ -958,7 +968,7 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
 
       await saveModifierGroups(savedProduct.id);
 
-      if (tracksWarehouseStock && warehouseAssignments.length > 0) {
+      if (!isCompound && tracksWarehouseStock && warehouseAssignments.length > 0) {
         await saveWarehouseAssignments(savedProduct.id);
         queryClient.invalidateQueries({ queryKey: ["warehouses"] });
         queryClient.invalidateQueries({ queryKey: ["warehouse-products", "product", effectiveProduct?.id] });
@@ -1281,7 +1291,7 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
                           </div>
                           <div className="flex shrink-0 items-center gap-1">
                             <Link
-                              href={`/warehouses/${wp.warehouse.id}`}
+                              href={`/warehouses/view?id=${wp.warehouse.id}`}
                               className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
                               title="Ver bodega"
                             >

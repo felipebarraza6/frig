@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   Clock,
   Wallet,
+  Truck,
   Target,
   FlaskConical,
   ArrowRight,
@@ -26,9 +27,10 @@ import {
   fetchIngredientConsumption,
   type DateRange,
 } from "@/lib/api/analytics";
-import { formatCLP, cn } from "@/lib/utils";
+import { formatCLP, cn, orderStatusLabel, paymentStatusLabel } from "@/lib/utils";
 import { useCurrentBranch, useIsNutritionEnabled } from "@/lib/store/session";
 import { useProducts } from "@/lib/hooks/useCatalog";
+import { fetchOrders } from "@/lib/api/orders";
 import { MetricDrawer, type MetricDrawerSection } from "@/components/metric-drawer";
 import { Sparkline } from "@/components/sparkline";
 import { CustomersMetricDetail, IncomeMetricDetail, OrdersMetricDetail } from "@/components/metric-drawer-detail";
@@ -145,6 +147,25 @@ export default function DashboardPage() {
   });
 
   const { data: products = [] } = useProducts(!!branch);
+
+  // Últimos 5 registros para los widgets de pendientes.
+  const { data: pendingDelivery = [] } = useQuery({
+    queryKey: ["dashboard", "pending-delivery", "v2", branchId],
+    queryFn: async () => {
+      const data = await fetchOrders({ order_type: "ORDER", status: ["PENDING", "IN_PROGRESS"], page_size: 5 });
+      return data.results ?? [];
+    },
+    enabled: !!branch,
+  });
+
+  const { data: pendingPayment = [] } = useQuery({
+    queryKey: ["dashboard", "pending-payment", "v2", branchId],
+    queryFn: async () => {
+      const data = await fetchOrders({ order_type: ["SALE", "ORDER"], payment_status: ["PENDING", "PARTIAL"], page_size: 5 });
+      return data.results ?? [];
+    },
+    enabled: !!branch,
+  });
 
   const loading = loadingCounts || loadingSummary || (nutritionEnabled && loadingIngredients);
   const error = countsError || summaryError;
@@ -649,10 +670,10 @@ export default function DashboardPage() {
           label="Gastos"
           value={formatCLP(expensesTotal)}
           icon={ArrowUpRight}
-          sub="activos"
+          sub="pagados en el período"
           tone="rose"
           href="/expenses"
-          description="Gastos fijos activos de la sucursal. No dependen del rango de fechas."
+          description="Dinero efectivamente pagado en el rango de fechas seleccionado."
           onClick={() =>
             setDrawer({
               open: true,
@@ -661,11 +682,13 @@ export default function DashboardPage() {
                 value: formatCLP(expensesTotal),
                 icon: ArrowUpRight,
                 description:
-                  "Suma de gastos fijos activos registrados para la sucursal. Estos registros no tienen fecha de ocurrencia, por lo que no se filtran por el rango seleccionado.",
+                  "Dinero efectivamente pagado en el período seleccionado: pagos completados de egresos (gastos manuales y de órdenes de compra).",
                 sections: [
                   {
-                    label: "Registros activos",
-                    value: String(counts?.finance?.total_expenses ?? 0),
+                    label: "Pagos de egresos en el período",
+                    value: String(
+                      counts?.expenses_by_supplier?.reduce((sum, e) => sum + e.count, 0) ?? 0,
+                    ),
                   },
                   {
                     label: "Proveedores con gastos",
@@ -695,7 +718,7 @@ export default function DashboardPage() {
                                   </span>
                                 </div>
                                 <p className="text-xs text-muted-foreground">
-                                  {e.count} {e.count === 1 ? "registro" : "registros"}
+                                  {e.count} {e.count === 1 ? "pago" : "pagos"}
                                 </p>
                                 <div className="h-1.5 w-full rounded-full bg-muted">
                                   <motion.div
@@ -734,6 +757,91 @@ export default function DashboardPage() {
             })
           }
         />
+      </motion.section>
+
+      {/* Últimos pendientes: entrega y pago */}
+      <motion.section variants={container} initial="hidden" animate="show" className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <motion.div variants={item} className="rounded-2xl border border-border bg-muted/30 p-5 shadow-sm">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-sm font-semibold">
+              <Truck className="h-4 w-4 text-primary" />
+              Últimas órdenes pendientes de entrega
+            </h2>
+            <Link href="/orders" className="text-xs font-medium text-primary transition-colors hover:underline">
+              Ver todas
+            </Link>
+          </div>
+          {pendingDelivery.length === 0 ? (
+            <p className="py-4 text-center text-xs text-muted-foreground">
+              No hay órdenes pendientes de entrega.
+            </p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {pendingDelivery.map((o) => (
+                <li key={o.id} className="flex items-center justify-between gap-3 py-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">
+                      {o.order_number ?? o.id.slice(0, 8)}
+                      <span className="ml-2 text-xs font-normal text-muted-foreground">
+                        {o.client?.name ?? "Sin cliente"}
+                      </span>
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(o.date).toLocaleDateString("es-CL", { day: "2-digit", month: "short" })}
+                      {" · "}{orderStatusLabel(o.status)}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-sm font-semibold tabular-nums">
+                    {formatCLP(Number(o.total_amount ?? 0))}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </motion.div>
+
+        <motion.div variants={item} className="rounded-2xl border border-border bg-muted/30 p-5 shadow-sm">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-sm font-semibold">
+              <Wallet className="h-4 w-4 text-primary" />
+              Últimos pendientes por pagar
+            </h2>
+            <Link href="/orders" className="text-xs font-medium text-primary transition-colors hover:underline">
+              Ver todas
+            </Link>
+          </div>
+          {pendingPayment.length === 0 ? (
+            <p className="py-4 text-center text-xs text-muted-foreground">
+              No hay cuentas pendientes de pago.
+            </p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {pendingPayment.map((o) => {
+                const paid = Number((o as { paid_amount?: number | string | null }).paid_amount ?? 0);
+                const remaining = Number(o.total_amount ?? 0) - paid;
+                return (
+                  <li key={o.id} className="flex items-center justify-between gap-3 py-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">
+                        {o.order_number ?? o.id.slice(0, 8)}
+                        <span className="ml-2 text-xs font-normal text-muted-foreground">
+                          {o.client?.name ?? "Sin cliente"}
+                        </span>
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(o.date).toLocaleDateString("es-CL", { day: "2-digit", month: "short" })}
+                        {" · "}{paymentStatusLabel(o.payment_status)}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-sm font-semibold tabular-nums text-amber-600">
+                      {formatCLP(remaining)}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </motion.div>
       </motion.section>
 
       {/* Gráficos principales */}

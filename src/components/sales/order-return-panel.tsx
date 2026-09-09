@@ -35,7 +35,6 @@ export function OrderReturnPanel({ orderId, products }: { orderId: string; produ
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       setOpen(false);
       setQty({});
-      toast.success("Devolución registrada");
     },
     onError: (err: Error) => toast.error(err.message || "No se pudo registrar la devolución"),
   });

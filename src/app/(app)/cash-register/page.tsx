@@ -52,7 +52,6 @@ import {
   type CashRegister as CashRegisterType,
 } from "@/lib/api/cash-register";
 import { fetchCashRegisterStations } from "@/lib/api/cash-register-stations";
-import { fetchPurchaseOrders } from "@/lib/api/suppliers";
 import { formatCLP, cn, paymentTypeLabel } from "@/lib/utils";
 import { useToast } from "@/lib/store/toast";
 import {
@@ -65,7 +64,6 @@ import {
   useIsOwner,
   useIsSuperAdmin,
 } from "@/lib/store/session";
-import Link from "next/link";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
 
 function numberValue(v: string): string {
@@ -106,10 +104,6 @@ export default function CashRegisterPage() {
   const [movementAmount, setMovementAmount] = useState("");
   const [movementReason, setMovementReason] = useState("");
   const [movementType, setMovementType] = useState<"CASH_IN" | "CASH_OUT">("CASH_IN");
-  const [cashOutMode, setCashOutMode] = useState<"simple" | "purchase_order">("simple");
-  const [selectedPurchaseOrderId, setSelectedPurchaseOrderId] = useState<string | null>(null);
-  const [purchaseOrderSearch, setPurchaseOrderSearch] = useState("");
-  const [purchaseOrderError, setPurchaseOrderError] = useState<string | null>(null);
   const toast = useToast();
   const [tab, setTab] = useState<"summary" | "movements" | "audit" | "history">("summary");
   const [auditDate, setAuditDate] = useState(() => todayLocal());
@@ -203,25 +197,6 @@ export default function CashRegisterPage() {
     return movementsRegisterPage?.results[0]?.id ?? null;
   }, [movementsDate, cashRegister, movementsRegisterPage]);
 
-  const { data: purchaseOrdersData, isLoading: loadingPurchaseOrders } = useQuery({
-    queryKey: ["purchase-orders", "pending-for-cash", branch?.branch_id, purchaseOrderSearch],
-    queryFn: () =>
-      fetchPurchaseOrders({
-        status: "SENT",
-        payment_status: "PENDING",
-        search: purchaseOrderSearch || undefined,
-      }),
-    enabled: cashOutMode === "purchase_order" && !!branch,
-    staleTime: 30_000,
-  });
-
-  const pendingPurchaseOrders = useMemo(() => purchaseOrdersData?.results ?? [], [purchaseOrdersData]);
-
-  const selectedPurchaseOrder = useMemo(() => {
-    if (!selectedPurchaseOrderId) return null;
-    return pendingPurchaseOrders.find((o) => o.id === selectedPurchaseOrderId) ?? null;
-  }, [selectedPurchaseOrderId, pendingPurchaseOrders]);
-
   const { data: movements = [], isLoading: loadingMovements } = useQuery({
     queryKey: ["cash-register", branch?.branch_id, movementsCashRegisterId, "movements"],
     queryFn: () => getMovements(movementsCashRegisterId!),
@@ -262,7 +237,6 @@ export default function CashRegisterPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cash-register"] });
       setOpenAmount("");
-      toast.success("Caja abierta correctamente");
     },
     onError: (err: Error) => {
       toast.error(err.message || "No se pudo abrir la caja");
@@ -275,7 +249,6 @@ export default function CashRegisterPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cash-register"] });
       setCloseAmount("");
-      toast.success("Caja cerrada correctamente");
     },
     onError: (err: Error) => {
       toast.error(err.message || "No se pudo cerrar la caja");
@@ -290,7 +263,6 @@ export default function CashRegisterPage() {
       setHistoryActionRegisterId(null);
       setHistoryActionType(null);
       setHistoryActionAmounts({});
-      toast.success("Caja cerrada correctamente");
     },
     onError: (err: Error) => {
       toast.error(err.message || "No se pudo cerrar la caja");
@@ -309,7 +281,6 @@ export default function CashRegisterPage() {
       setHistoryActionRegisterId(null);
       setHistoryActionType(null);
       setHistoryActionAmounts({});
-      toast.success("Caja abierta correctamente");
     },
     onError: (err: Error) => {
       toast.error(err.message || "No se pudo abrir la caja");
@@ -322,7 +293,6 @@ export default function CashRegisterPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cash-register"] });
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
-      toast.success("Movimiento anulado");
     },
     onError: (err: Error) => {
       toast.error(err.message || "No se pudo anular el movimiento");
@@ -353,19 +323,12 @@ export default function CashRegisterPage() {
 
       return result;
     },
-    onSuccess: (_, payload) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cash-register"] });
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
       setMovementAmount("");
       setMovementReason("");
-      setSelectedPurchaseOrderId(null);
-      setPurchaseOrderError(null);
-      if (payload.purchase_order_id) {
-        toast.success("Pago de orden de compra registrado");
-      } else {
-        toast.success(payload.type === "CASH_IN" ? "Ingreso registrado" : "Retiro registrado");
-      }
     },
     onError: (err: Error) => {
       toast.error(err.message || "No se pudo registrar el movimiento");
@@ -849,9 +812,6 @@ export default function CashRegisterPage() {
                       size="sm"
                       onClick={() => {
                         setMovementType("CASH_IN");
-                        setCashOutMode("simple");
-                        setSelectedPurchaseOrderId(null);
-                        setPurchaseOrderError(null);
                       }}
                       disabled={movementsLocked}
                       className="flex-1"
@@ -865,9 +825,6 @@ export default function CashRegisterPage() {
                       size="sm"
                       onClick={() => {
                         setMovementType("CASH_OUT");
-                        setCashOutMode("simple");
-                        setSelectedPurchaseOrderId(null);
-                        setPurchaseOrderError(null);
                       }}
                       disabled={movementsLocked}
                       className="flex-1"
@@ -877,104 +834,11 @@ export default function CashRegisterPage() {
                     </Button>
                   </div>
                   <div className="flex flex-col gap-2">
-                    {movementType === "CASH_OUT" && (
-                      <div className="flex gap-2">
-                        <Button
-                          type="button"
-                          variant={cashOutMode === "simple" ? "danger" : "outline"}
-                          size="sm"
-                          onClick={() => {
-                            setCashOutMode("simple");
-                            setSelectedPurchaseOrderId(null);
-                            setPurchaseOrderError(null);
-                          }}
-                          disabled={movementsLocked}
-                          className="flex-1"
-                        >
-                          Retiro simple
-                        </Button>
-                        <Button
-                          type="button"
-                          variant={cashOutMode === "purchase_order" ? "danger" : "outline"}
-                          size="sm"
-                          onClick={() => {
-                            setCashOutMode("purchase_order");
-                            setMovementAmount("");
-                            setMovementReason("");
-                            setPurchaseOrderError(null);
-                          }}
-                          disabled={movementsLocked}
-                          className="flex-1"
-                        >
-                          Pago orden de compra
-                        </Button>
-                      </div>
-                    )}
-                    {movementType === "CASH_OUT" && cashOutMode === "purchase_order" && (
-                      <div className="flex flex-col gap-2">
-                        <Input
-                          value={purchaseOrderSearch}
-                          onChange={(e) => setPurchaseOrderSearch(e.target.value)}
-                          placeholder="Buscar orden de compra..."
-                          disabled={movementsLocked}
-                        />
-                        <Select
-                          value={selectedPurchaseOrderId ?? ""}
-                          onChange={(e) => {
-                            const value = e.target.value || null;
-                            setSelectedPurchaseOrderId(value);
-                            setPurchaseOrderError(null);
-                            if (value) {
-                              const order = pendingPurchaseOrders.find((o) => o.id === value);
-                              if (order) {
-                                const remaining = Math.round(toNum(order.remaining_amount));
-                                setMovementAmount(remaining ? remaining.toString() : "");
-                                setMovementReason(`Pago ${order.order_number}`);
-                              }
-                            } else {
-                              setMovementAmount("");
-                              setMovementReason("");
-                            }
-                          }}
-                          disabled={movementsLocked || loadingPurchaseOrders}
-                          options={[
-                            { value: "", label: "Seleccionar orden de compra" },
-                            ...pendingPurchaseOrders.map((o) => ({
-                              value: o.id,
-                              label: `${o.order_number} - ${o.supplier_name || "Sin proveedor"} (${formatCLP(toNum(o.remaining_amount))})`,
-                            })),
-                          ]}
-                        />
-                        {loadingPurchaseOrders && (
-                          <p className="text-xs text-muted-foreground">Cargando órdenes de compra...</p>
-                        )}
-                        <div className="flex items-center justify-between">
-                          <Link
-                            href="/purchase-orders"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                          >
-                            <Plus className="h-3 w-3" />
-                            Crear nueva orden de compra
-                          </Link>
-                          {selectedPurchaseOrder && (
-                            <p className="text-xs text-muted-foreground">
-                              Total: {formatCLP(toNum(selectedPurchaseOrder.total_amount))} · Pendiente:{" "}
-                              {formatCLP(toNum(selectedPurchaseOrder.remaining_amount))}
-                            </p>
-                          )}
-                        </div>
-                        {purchaseOrderError && (
-                          <p className="text-xs text-red-600">{purchaseOrderError}</p>
-                        )}
-                      </div>
-                    )}
                     <Input
                       value={movementAmount ? formatCLP(parseFloat(toDecimal(movementAmount))) : ""}
                       onChange={(e) => setMovementAmount(numberValue(e.target.value))}
                       placeholder="Monto"
-                      disabled={movementsLocked || cashOutMode === "purchase_order"}
+                      disabled={movementsLocked}
                       className="tabular-nums"
                     />
                     <Input
@@ -985,18 +849,11 @@ export default function CashRegisterPage() {
                     />
                     <Button
                       onClick={() => {
-                        if (movementType === "CASH_OUT" && cashOutMode === "purchase_order" && !selectedPurchaseOrderId) {
-                          setPurchaseOrderError("Selecciona una orden de compra para continuar");
-                          return;
-                        }
                         movementMutation.mutate({
                           type: movementType,
                           amount: toDecimal(movementAmount),
                           reason: movementReason,
-                          purchase_order_id:
-                            movementType === "CASH_OUT" && cashOutMode === "purchase_order"
-                              ? selectedPurchaseOrderId
-                              : null,
+                          purchase_order_id: null,
                         });
                       }}
                       disabled={
@@ -1013,11 +870,7 @@ export default function CashRegisterPage() {
                       ) : (
                         <Minus className="mr-2 h-4 w-4" />
                       )}
-                      {movementType === "CASH_IN"
-                        ? "Registrar ingreso"
-                        : cashOutMode === "purchase_order"
-                          ? "Registrar pago de orden"
-                          : "Registrar retiro"}
+                      {movementType === "CASH_IN" ? "Registrar ingreso" : "Registrar retiro"}
                     </Button>
                   </div>
                   {movementsLocked && (

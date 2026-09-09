@@ -272,7 +272,6 @@ function NutritionDetailModal({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["recipes", "by-product", product.id] });
       queryClient.invalidateQueries({ queryKey: ["recipe", "nutrition-label"] });
-      toast.success("Nutrición calculada");
     },
     onError: (err: Error) => toast.error(err.message),
   });

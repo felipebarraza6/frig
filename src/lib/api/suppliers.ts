@@ -216,6 +216,7 @@ export interface PurchaseOrdersFilter {
   search?: string;
   supplier?: string;
   status?: string;
+  status__in?: string[];
   payment_status?: string;
   payment_status__in?: string[];
   has_expense?: boolean;
@@ -239,6 +240,9 @@ export async function fetchPurchaseOrders(
   if (filter.search) qs.set("search", filter.search);
   if (filter.supplier) qs.set("supplier", filter.supplier);
   if (filter.status) qs.set("status", filter.status);
+  if (filter.status__in && filter.status__in.length > 0) {
+    qs.set("status__in", filter.status__in.join(","));
+  }
   if (filter.payment_status) qs.set("payment_status", filter.payment_status);
   if (filter.payment_status__in && filter.payment_status__in.length > 0) {
     qs.set("payment_status__in", filter.payment_status__in.join(","));

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Store } from "lucide-react";
+import { mediaUrl } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
 interface BrandLogoProps {
@@ -12,6 +13,8 @@ interface BrandLogoProps {
   name?: string | null;
   /** Clase del contenedor del fallback (ícono/iniciales). */
   containerClassName?: string;
+  /** Color de fondo del fallback de iniciales (ej. tema de la sucursal). */
+  fallbackColor?: string;
 }
 
 function getInitials(name?: string | null): string {
@@ -37,17 +40,20 @@ export function BrandLogo({
   name,
   className,
   containerClassName,
+  fallbackColor,
 }: BrandLogoProps) {
   const [error, setError] = useState(false);
   const initials = getInitials(name);
+  const resolvedSrc = mediaUrl(src);
 
-  if (!src || error) {
+  if (!resolvedSrc || error) {
     return (
       <div
         className={cn(
           "flex items-center justify-center rounded-lg bg-primary text-white font-semibold",
           containerClassName ?? "h-9 w-9",
         )}
+        style={fallbackColor ? { backgroundColor: fallbackColor } : undefined}
         title={name ?? alt}
       >
         {initials ? (
@@ -68,7 +74,7 @@ export function BrandLogo({
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={src}
+        src={resolvedSrc}
         alt={alt}
         loading="lazy"
         decoding="async"

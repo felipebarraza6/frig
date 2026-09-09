@@ -289,10 +289,8 @@ export default function DiscountsPage() {
     try {
       if (editing) {
         await updateMutation.mutateAsync({ id: editing.id, payload });
-        toast.success("Descuento actualizado");
       } else {
         await createMutation.mutateAsync(payload);
-        toast.success("Descuento creado");
       }
       closeModal();
     } catch (err) {
@@ -305,7 +303,6 @@ export default function DiscountsPage() {
     try {
       await deleteMutation.mutateAsync(confirmDelete.id);
       setConfirmDelete(null);
-      toast.success("Descuento eliminado");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al eliminar el descuento");
     }
@@ -579,14 +576,9 @@ export default function DiscountsPage() {
                   {filtered.map((d) => (
                     <tr key={d.id} className="border-b border-border last:border-0">
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-secondary">
-                            <Percent className="h-3.5 w-3.5 text-muted-foreground" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-medium">{d.name}</p>
-                            <p className="text-xs text-muted-foreground">{d.code}</p>
-                          </div>
+                        <div className="min-w-0">
+                          <p className="font-medium">{d.name}</p>
+                          <p className="text-xs text-muted-foreground">{d.code}</p>
                         </div>
                       </td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">
@@ -644,17 +636,12 @@ export default function DiscountsPage() {
                   className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary">
-                        <Percent className="h-5 w-5 text-muted-foreground" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="truncate font-medium">{d.name}</p>
-                        <p className="text-xs text-muted-foreground">{d.code}</p>
-                        <span className={cn("mt-1", statusBadgeClass(d.status))}>
-                          {d.status_display}
-                        </span>
-                      </div>
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{d.name}</p>
+                      <p className="text-xs text-muted-foreground">{d.code}</p>
+                      <span className={cn("mt-1", statusBadgeClass(d.status))}>
+                        {d.status_display}
+                      </span>
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
                       <Button

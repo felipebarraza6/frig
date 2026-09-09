@@ -167,6 +167,166 @@ export interface SubmitPaymentPayload {
   notes?: string | null;
 }
 
+// Entidad elegible en el picker del modal "Registrar pago" y en la vista
+// "Pendientes" — ambas usan la misma lista de entidades pendientes.
+interface PickerEntity {
+  /** Clave única compuesta `${kind}:${id}` (los ids son UUID por tipo). */
+  key: string;
+  kind: PendingEntityKind;
+  id: string;
+  title: string;
+  /** Etiqueta corta del tipo específico (Venta, Orden, Convenio, Ingreso directo…). */
+  tag: string;
+  description: string | null;
+  category: string;
+  /** Estado de pago derivado (ver PAYMENT_STATUS_META para etiqueta/tono). */
+  paymentStatus: "PAID" | "PARTIAL" | "OVERDUE" | "PENDING";
+  date: string | null;
+  /** Fecha de vencimiento con que se mide el atraso (ver daysOverdue). */
+  dueDate: string | null;
+  amount: number;
+  pending: number;
+  hint: string;
+}
+
+// Etiqueta y tono del estado de pago mostrado en la vista "Pendientes".
+const PAYMENT_STATUS_META: Record<PickerEntity["paymentStatus"], { label: string; badge: string }> = {
+  PAID: { label: "Pagado", badge: "bg-success/10 text-success" },
+  PARTIAL: { label: "Pago parcial", badge: "bg-primary/10 text-primary" },
+  OVERDUE: { label: "Atrasado", badge: "bg-danger/10 text-danger" },
+  PENDING: { label: "Sin pagar", badge: "bg-warning/10 text-warning" },
+};
+
+// Inicio del día local, para derivar "Atrasado": fecha del documento ya
+// pasó y el pago no está completo.
+function startOfToday(): number {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+// Días de atraso respecto a la fecha de vencimiento, en días calendario
+// LOCALES (misma base con que la página muestra las fechas). No se corta el
+// substring ISO: el backend puede serializar en UTC (medianoche Z = día
+// anterior en Chile) y eso desplazaría el cómputo un día.
+function daysOverdue(dueDate: string): number {
+  const parsed = new Date(dueDate);
+  if (Number.isNaN(parsed.getTime())) return 0;
+  const now = new Date();
+  const dueDay = Date.UTC(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+  const todayDay = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.max(0, Math.round((todayDay - dueDay) / 86400000));
+}
+
+// Texto corto de días de atraso: "1 día" / "N días".
+function formatDaysLate(days: number): string {
+  return days === 1 ? "1 día" : `${days} días`;
+}
+
+// Estilo del ícono por tipo de entidad: las órdenes/gastos usan el tono de
+// su dirección (success/danger) y las entidades manuales un tono neutro.
+const KIND_META: Record<PendingEntityKind, { icon: LucideIcon; chip: string }> = {
+  order: { icon: ArrowDownLeft, chip: "bg-success/10 text-success" },
+  installment: { icon: CalendarClock, chip: "bg-primary/10 text-primary" },
+  revenue: { icon: Banknote, chip: "bg-primary/10 text-primary" },
+  expense: { icon: ArrowUpRight, chip: "bg-danger/10 text-danger" },
+  purchase_order: { icon: ShoppingCart, chip: "bg-warning/10 text-warning" },
+};
+
+const isIncomeEntity = (kind: PendingEntityKind) => kind === "order" || kind === "revenue";
+
+// Entidades pendientes de pago (la fuente de verdad de la vista "Pendientes"
+// y del picker de "Registrar pago").
+// Ingreso: ÓRDENES con pago pendiente — ventas (SALE), pedidos (ORDER) y
+// convenios (AGREEMENT); lo que realmente se paga, el ingreso es la
+// consecuencia contable— + INGRESOS DIRECTOS manuales (sin orden asociada).
+// Egreso: ÓRDENES DE COMPRA con saldo + GASTOS manuales sin OC asociada
+// (los gastos ligados a una OC se pagan siempre vía la OC).
+function buildPendingEntities(
+  orders: OrderDetail[],
+  revenues: Revenue[],
+  purchaseOrders: PurchaseOrderList[],
+  expenses: FixedExpense[],
+): PickerEntity[] {
+  const today = startOfToday();
+  const orderEntities: PickerEntity[] = orders
+    .filter((o) => o.payment_status !== "PAID" && parseAmount(o.total_amount) > 0)
+    .map((o) => {
+      // SALE = venta directa, ORDER = orden de pedido, AGREEMENT = convenio.
+      const typeLabel = o.order_type === "SALE" ? "Venta" : o.order_type === "ORDER" ? "Orden" : "Convenio";
+      const partial = o.payment_status === "PARTIAL";
+      const overdue = !partial && new Date(o.date).getTime() < today;
+      return {
+        key: `order:${o.id}`,
+        kind: "order" as const,
+        id: o.id,
+        title: o.order_number ? `#${o.order_number}` : `${typeLabel} ${o.id.slice(0, 8)}`,
+        tag: typeLabel,
+        description: o.client?.name ?? null,
+        category: o.payment_status === "PARTIAL" ? "Pago parcial" : "Sin pagar",
+        paymentStatus: partial ? "PARTIAL" : overdue ? "OVERDUE" : "PENDING",
+        date: o.date,
+        dueDate: o.date,
+        amount: parseAmount(o.total_amount),
+        pending: parseAmount(o.total_amount),
+        hint: "total orden",
+      };
+    });
+  const revenueEntities: PickerEntity[] = revenues
+    .filter((r) => !r.order && r.status === "PENDING" && !r.is_fully_paid && parseAmount(r.pending_amount) > 0)
+    .map((r) => ({
+      key: `revenue:${r.id}`,
+      kind: "revenue",
+      id: r.id,
+      title: r.title,
+      tag: "Ingreso directo",
+      description: r.description ?? null,
+      category: "Ingreso directo",
+      paymentStatus: new Date(r.revenue_date).getTime() < today ? "OVERDUE" : "PENDING",
+      date: r.revenue_date,
+      dueDate: r.revenue_date,
+      amount: parseAmount(r.amount),
+      pending: parseAmount(r.pending_amount),
+      hint: "pendiente",
+    }));
+  const poEntities: PickerEntity[] = purchaseOrders
+    .filter((po) => po.status !== "CANCELLED" && po.status !== "DRAFT" && !po.is_fully_paid && parseAmount(po.remaining_amount ?? po.total_amount) > 0)
+    .map((po) => ({
+      key: `purchase_order:${po.id}`,
+      kind: "purchase_order",
+      id: po.id,
+      title: `OC ${po.order_number}`,
+      tag: "Orden de compra",
+      description: po.supplier_name ?? "Sin proveedor",
+      category: po.payment_status === "PARTIAL" ? "Pago parcial" : po.status_display,
+      // El backend ya resuelve el vencimiento con payment_status=OVERDUE.
+      paymentStatus: po.payment_status === "OVERDUE" ? "OVERDUE" : po.payment_status === "PARTIAL" ? "PARTIAL" : "PENDING",
+      date: po.order_date,
+      dueDate: po.order_date,
+      amount: parseAmount(po.total_amount),
+      pending: parseAmount(po.remaining_amount ?? po.total_amount),
+      hint: "por pagar",
+    }));
+  const expenseEntities: PickerEntity[] = expenses
+    .filter((e) => !e.purchase_order_id && e.status === "PENDING" && !e.is_fully_paid && parseAmount(e.pending_amount) > 0)
+    .map((e) => ({
+      key: `expense:${e.id}`,
+      kind: "expense",
+      id: e.id,
+      title: e.name,
+      tag: "Gasto",
+      description: e.description ?? null,
+      category: e.category_name,
+      paymentStatus: new Date(e.start_date).getTime() < today ? "OVERDUE" : "PENDING",
+      date: e.start_date,
+      dueDate: e.start_date,
+      amount: parseAmount(e.amount),
+      pending: parseAmount(e.pending_amount),
+      hint: "pendiente",
+    }));
+  return [...orderEntities, ...revenueEntities, ...poEntities, ...expenseEntities];
+}
+
 export default function PaymentsPage() {
   const toast = useToast();
   // Filtros persistidos en localStorage para que sobrevivan recargas/navegación
@@ -184,6 +344,18 @@ export default function PaymentsPage() {
   }, [search]);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [pageUrl, setPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
+  // Vista de la página: pendientes (por procesar) o transacciones (histórico).
+  // Por defecto se abre en "Pendientes" — es la acción principal del módulo.
+  // La clave cambió (frig.payments.tab) para que el nuevo default aplique a
+  // usuarios que ya tenían "transacciones" persistido en la clave anterior.
+  const [view, setView] = usePersistedState("frig.payments.tab", "pendientes", ["pendientes", "transacciones"]);
+  // Filtros de la vista "Pendientes". Se aplican en cliente sobre la lista
+  // unificada: las entidades vienen de 4 endpoints distintos que no comparten
+  // parámetros de filtro.
+  const [pendingSearch, setPendingSearch] = usePersistedState("frig.payments.pendingSearch", "");
+  const [pendingDirection, setPendingDirection] = usePersistedState("frig.payments.pendingDirection", "", ["", "INCOME", "EXPENSE"]);
+  const [pendingDateFrom, setPendingDateFrom] = usePersistedState("frig.payments.pendingDateFrom", "");
+  const [pendingDateTo, setPendingDateTo] = usePersistedState("frig.payments.pendingDateTo", "");
   // Offset aproximado de la página actual para calcular el correlativo visible
   const [offset, setOffset] = useState(0);
 
@@ -241,42 +413,62 @@ export default function PaymentsPage() {
     queryFn: fetchPaymentsByDirection,
   });
 
-  // Data for create form
-  const { data: paymentMethods } = useQuery({
-    queryKey: ["payment-methods"],
-    queryFn: fetchPaymentMethods,
-  });
-
-  // Data for create form. En el registro de un INGRESO se selecciona la
-  // ORDEN de venta pendiente (lo que realmente se paga) o un INGRESO DIRECTO
-  // manual (sin orden asociada). En un EGRESO se selecciona una ORDEN DE
-  // COMPRA con saldo o un GASTO manual (los gastos ligados a una OC se pagan
-  // siempre vía la OC, para mantener su estado de pago sincronizado).
-  // Solo se cargan cuando el modal está abierto.
-  const { data: ordersForPayment } = useQuery({
+  // Vista "Pendientes": muestra las entidades pendientes de pago (órdenes,
+  // ingresos, órdenes de compra y gastos) — las mismas que ofrece el picker
+  // de "Nuevo pago". Se cargan con la vista activa o con el modal abierto.
+  // Ojo: no son registros Payment con status PENDING (casi no existen: los
+  // pagos se crean directamente como COMPLETED), por eso la vista anterior
+  // salía vacía.
+  const {
+    data: ordersForPayment,
+    isLoading: loadingOrdersForPayment,
+    isError: isOrdersForPaymentError,
+    refetch: refetchOrdersForPayment,
+  } = useQuery({
     queryKey: ["orders", "for-payment"],
     // Todas las órdenes con pago pendiente/parcial, sin filtrar por tipo:
     // SALE (venta), ORDER (orden de pedido) y AGREEMENT (convenio) se pueden pagar.
     queryFn: () => fetchOrders({ payment_status: ["PENDING", "PARTIAL"], page_size: 100 }),
-    enabled: createOpen,
+    enabled: createOpen || view === "pendientes",
   });
 
-  const { data: revenuesForPayment } = useQuery({
+  const {
+    data: revenuesForPayment,
+    isLoading: loadingRevenuesForPayment,
+    isError: isRevenuesForPaymentError,
+    refetch: refetchRevenuesForPayment,
+  } = useQuery({
     queryKey: ["revenues", "for-payment"],
     queryFn: () => fetchRevenues({ status: "PENDING", page_size: 100 }),
-    enabled: createOpen,
+    enabled: createOpen || view === "pendientes",
   });
 
-  const { data: purchaseOrdersForPayment } = useQuery({
+  const {
+    data: purchaseOrdersForPayment,
+    isLoading: loadingPurchaseOrdersForPayment,
+    isError: isPurchaseOrdersForPaymentError,
+    refetch: refetchPurchaseOrdersForPayment,
+  } = useQuery({
     queryKey: ["purchase-orders", "for-payment"],
     queryFn: () => fetchPurchaseOrders({ payment_status__in: ["PENDING", "PARTIAL", "OVERDUE"], page_size: 100 }),
-    enabled: createOpen,
+    enabled: createOpen || view === "pendientes",
   });
 
-  const { data: expenses } = useQuery({
+  const {
+    data: expenses,
+    isLoading: loadingExpensesForPayment,
+    isError: isExpensesForPaymentError,
+    refetch: refetchExpensesForPayment,
+  } = useQuery({
     queryKey: ["expenses", "for-payment"],
     queryFn: () => fetchExpenses({ status: "PENDING" }),
-    enabled: createOpen,
+    enabled: createOpen || view === "pendientes",
+  });
+
+  // Data for create form
+  const { data: paymentMethods } = useQuery({
+    queryKey: ["payment-methods"],
+    queryFn: fetchPaymentMethods,
   });
 
   // Símbolo de la moneda configurada en Finanzas → Configuración (para el campo Monto).
@@ -293,6 +485,70 @@ export default function PaymentsPage() {
   const totalCount = page?.count ?? 0;
   const incomeTotal = parseAmount(directionSummary?.INCOME);
   const expenseTotal = parseAmount(directionSummary?.EXPENSE);
+
+  // Agregados de la vista "Pendientes", calculados sobre la lista completa
+  // de entidades pendientes (órdenes, ingresos, OC y gastos).
+  const pendingList = useMemo(
+    () =>
+      buildPendingEntities(
+        ordersForPayment?.results ?? [],
+        revenuesForPayment?.results ?? [],
+        purchaseOrdersForPayment?.results ?? [],
+        expenses?.results ?? [],
+      ).sort((a, b) => new Date(b.date ?? 0).getTime() - new Date(a.date ?? 0).getTime()),
+    [ordersForPayment, revenuesForPayment, purchaseOrdersForPayment, expenses],
+  );
+  const pendingStats = useMemo(() => {
+    const income = pendingList.reduce((acc, e) => acc + (isIncomeEntity(e.kind) ? e.pending : 0), 0);
+    const expense = pendingList.reduce((acc, e) => acc + (isIncomeEntity(e.kind) ? 0 : e.pending), 0);
+    return { income, expense, net: income - expense, count: pendingList.length };
+  }, [pendingList]);
+  const loadingPending =
+    loadingOrdersForPayment || loadingRevenuesForPayment || loadingPurchaseOrdersForPayment || loadingExpensesForPayment;
+  const isPendingError =
+    isOrdersForPaymentError || isRevenuesForPaymentError || isPurchaseOrdersForPaymentError || isExpensesForPaymentError;
+  const refetchPending = () => {
+    refetchOrdersForPayment();
+    refetchRevenuesForPayment();
+    refetchPurchaseOrdersForPayment();
+    refetchExpensesForPayment();
+  };
+
+  // Filtros de la vista "Pendientes" sobre la lista unificada (cliente).
+  const filteredPendingList = useMemo(() => {
+    const q = pendingSearch.trim().toLowerCase();
+    const from = pendingDateFrom ? new Date(`${pendingDateFrom}T00:00:00`).getTime() : null;
+    const to = pendingDateTo ? new Date(`${pendingDateTo}T23:59:59.999`).getTime() : null;
+    return pendingList.filter((e) => {
+      if (pendingDirection === "INCOME" && !isIncomeEntity(e.kind)) return false;
+      if (pendingDirection === "EXPENSE" && isIncomeEntity(e.kind)) return false;
+      const t = e.date ? new Date(e.date).getTime() : null;
+      if (from !== null && (t === null || t < from)) return false;
+      if (to !== null && (t === null || t > to)) return false;
+      if (
+        q &&
+        !(
+          e.title.toLowerCase().includes(q) ||
+          e.description?.toLowerCase().includes(q) ||
+          e.category.toLowerCase().includes(q) ||
+          e.tag.toLowerCase().includes(q)
+        )
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [pendingList, pendingSearch, pendingDirection, pendingDateFrom, pendingDateTo]);
+
+  // Pago de una entidad pendiente desde la vista "Pendientes": abre el modal
+  // de "Nuevo pago" con la entidad ya seleccionada y el monto prellenado.
+  // El `key` del modal se deriva del preset para que React lo remonte y tome
+  // la selección inicial al abrir.
+  const [paymentPreset, setPaymentPreset] = useState<{ key: string } | null>(null);
+  const handlePayPending = (ent: PickerEntity) => {
+    setPaymentPreset({ key: ent.key });
+    setCreateOpen(true);
+  };
 
   const filteredPayments = useMemo(() => {
     if (!search.trim()) return payments;
@@ -478,10 +734,25 @@ export default function PaymentsPage() {
       </header>
 
       <nav aria-label="Secciones de pagos" className="flex gap-1 border-b border-border bg-background px-4 sm:px-6">
-        <span aria-current="page" className="border-b-2 border-primary px-3 py-2 text-sm font-semibold text-foreground">
-          Transacciones
-        </span>
-        <Link href="/payment-methods" className="px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
+        {([
+          { id: "pendientes", label: "Pendientes" },
+          { id: "transacciones", label: "Transacciones" },
+        ] as const).map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setView(t.id)}
+            aria-current={view === t.id ? "page" : undefined}
+            className={
+              view === t.id
+                ? "border-b-2 border-primary px-3 py-2 text-sm font-semibold text-foreground"
+                : "border-b-2 border-transparent px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            }
+          >
+            {t.label}
+          </button>
+        ))}
+        <Link href="/payment-methods" className="border-b-2 border-transparent px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
           Métodos
         </Link>
       </nav>
@@ -489,7 +760,18 @@ export default function PaymentsPage() {
       <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
         {/* Stats cards */}
         <section className="grid gap-3 overflow-x-auto pb-1 [grid-template-columns:repeat(4,minmax(150px,1fr))] sm:grid-cols-2 lg:grid-cols-4">
-          {loadingDirectionSummary ? (
+          {view === "pendientes" ? (
+            loadingPending ? (
+              <><StatSkeleton /><StatSkeleton /><StatSkeleton /><StatSkeleton /></>
+            ) : (
+              <>
+                <StatCard label="Ingresos pendientes" value={formatCLP(pendingStats.income)} icon={ArrowDownLeft} sub="por cobrar" tone="success" />
+                <StatCard label="Egresos pendientes" value={formatCLP(pendingStats.expense)} icon={ArrowUpRight} sub="por pagar" tone="danger" />
+                <StatCard label="Saldo neto pendiente" value={formatCLP(pendingStats.net)} icon={Wallet} sub="ingresos - egresos pendientes" tone={pendingStats.net >= 0 ? "success" : "danger"} />
+                <StatCard label="Ítems pendientes" value={pendingStats.count} icon={CalendarClock} sub="órdenes, ingresos, OC y gastos" tone="slate" />
+              </>
+            )
+          ) : loadingDirectionSummary ? (
             <><StatSkeleton /><StatSkeleton /><StatSkeleton /><StatSkeleton /></>
           ) : (
             <>
@@ -501,6 +783,211 @@ export default function PaymentsPage() {
           )}
         </section>
 
+        {view === "pendientes" ? (
+          isPendingError ? (
+            <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border p-8 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-danger/10"><AlertCircle className="h-7 w-7 text-danger" /></div>
+              <p className="text-sm font-medium">No se pudieron cargar los pagos pendientes</p>
+              <Button variant="outline" size="sm" onClick={() => refetchPending()}><RotateCcw className="mr-1.5 h-3.5 w-3.5" />Reintentar</Button>
+            </div>
+          ) : loadingPending ? (
+            <div className="flex flex-col gap-3"><TableSkeleton /><MobileCardsSkeleton /></div>
+          ) : (
+            <>
+              {/* Filters (cliente, sobre la lista unificada) */}
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="relative w-full sm:w-56 sm:shrink-0">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input value={pendingSearch} onChange={(e) => setPendingSearch(e.target.value)} placeholder="Buscar por N° orden, cliente, proveedor…" className="pl-9" aria-label="Buscar pendiente" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="filter-pending-direction" className="text-xs text-muted-foreground">Dirección</label>
+                  <Select id="filter-pending-direction" value={pendingDirection} onChange={(e) => setPendingDirection(e.target.value as "" | "INCOME" | "EXPENSE")}>
+                    {DIRECTION_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="filter-pending-date-from" className="text-xs text-muted-foreground">Desde</label>
+                  <Input id="filter-pending-date-from" type="date" value={pendingDateFrom} onChange={(e) => setPendingDateFrom(e.target.value)} className="h-10" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="filter-pending-date-to" className="text-xs text-muted-foreground">Hasta</label>
+                  <Input id="filter-pending-date-to" type="date" value={pendingDateTo} onChange={(e) => setPendingDateTo(e.target.value)} className="h-10" />
+                </div>
+                <Button variant="ghost" size="sm" className="h-10 px-2 text-xs" onClick={() => { setPendingSearch(""); setPendingDirection(""); setPendingDateFrom(""); setPendingDateTo(""); }}>
+                  Limpiar
+                </Button>
+              </div>
+
+              {pendingList.length === 0 ? (
+            <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-border p-8 text-center">
+              <div>
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-success/10"><Check className="h-7 w-7 text-success" /></div>
+                <p className="mt-4 text-base font-medium">No hay pagos pendientes</p>
+                <p className="mx-auto mt-1 max-w-xs text-sm text-muted-foreground">Órdenes, ingresos, órdenes de compra y gastos están al día.</p>
+                <Button className="mt-4" size="sm" onClick={() => setCreateOpen(true)}><Plus className="mr-1.5 h-4 w-4" />Registrar pago</Button>
+              </div>
+            </div>
+          ) : filteredPendingList.length === 0 ? (
+            <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-border p-8 text-center">
+              <div>
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-muted"><Receipt className="h-7 w-7 text-muted-foreground" /></div>
+                <p className="mt-4 text-base font-medium">Sin resultados para los filtros</p>
+                <p className="mx-auto mt-1 max-w-xs text-sm text-muted-foreground">Prueba con otra búsqueda o limpia los filtros.</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Desktop table */}
+              <div className="hidden overflow-x-auto rounded-2xl border border-border md:block">
+                <table className="w-full min-w-[900px] text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+                      <th className="px-4 py-3">Fecha</th>
+                      <th className="px-4 py-3">Vence</th>
+                      <th className="px-4 py-3">Entidad</th>
+                      <th className="px-4 py-3">Estado</th>
+                      <th className="px-4 py-3 text-right">Monto pendiente</th>
+                      <th className="px-4 py-3 text-right">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredPendingList.map((ent) => {
+                      const isIncome = isIncomeEntity(ent.kind);
+                      const Meta = KIND_META[ent.kind];
+                      const MetaIcon = Meta.icon;
+                      const dateCell = ent.date ? formatDateCell(ent.date) : null;
+                      const overdueDays = ent.paymentStatus === "OVERDUE" && ent.dueDate ? daysOverdue(ent.dueDate) : 0;
+                      return (
+                        <tr key={ent.key} className="border-b border-border last:border-0 transition-colors hover:bg-muted/40">
+                          <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
+                            <span className="flex flex-col">
+                              <span className="font-medium text-foreground">{dateCell?.date ?? "—"}</span>
+                              <span className="text-xs tabular-nums">{dateCell?.time ?? ""}</span>
+                            </span>
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
+                            <span className="flex flex-col">
+                              <span className="font-medium text-foreground">{ent.dueDate ? new Date(ent.dueDate).toLocaleDateString("es-CL") : "—"}</span>
+                              {overdueDays > 0 && (
+                                <span className="text-xs font-medium tabular-nums text-danger">{formatDaysLate(overdueDays)} de atraso</span>
+                              )}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${Meta.chip}`}>
+                                <MetaIcon className="h-3.5 w-3.5" />
+                              </div>
+                              <span className="min-w-0">
+                                <span className="flex items-center gap-1.5">
+                                  <span className="truncate font-medium">{ent.title}</span>
+                                  <span className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${Meta.chip}`}>{ent.tag}</span>
+                                </span>
+                                {ent.description && <span className="block truncate text-xs text-muted-foreground">{ent.description}</span>}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${PAYMENT_STATUS_META[ent.paymentStatus].badge}`}>
+                              {PAYMENT_STATUS_META[ent.paymentStatus].label}
+                              {overdueDays > 0 ? ` · ${formatDaysLate(overdueDays)}` : ""}
+                            </span>
+                          </td>
+                          <td className={`px-4 py-3 text-right tabular-nums font-semibold ${isIncome ? "text-success" : "text-danger"}`}>
+                            {isIncome ? "+" : "-"}{formatCLP(ent.pending)}
+                            {ent.pending < ent.amount && (<span className="block text-xs font-normal text-muted-foreground">de {formatCLP(ent.amount)}</span>)}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                size="sm"
+                                className="h-8 gap-1 px-2 text-xs"
+                                onClick={() => handlePayPending(ent)}
+                                title="Pagar"
+                              >
+                                <Check className="h-4 w-4" />
+                                Pagar
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile cards */}
+              <div className="grid gap-3 md:hidden">
+                {filteredPendingList.map((ent) => {
+                  const isIncome = isIncomeEntity(ent.kind);
+                  const Meta = KIND_META[ent.kind];
+                  const MetaIcon = Meta.icon;
+                  const overdueDays = ent.paymentStatus === "OVERDUE" && ent.dueDate ? daysOverdue(ent.dueDate) : 0;
+                  return (
+                    <div key={ent.key} className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
+                      <div className="flex items-start gap-3">
+                        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${Meta.chip}`}>
+                          <MetaIcon className="h-5 w-5" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate font-medium">{ent.title}</p>
+                              <p className="break-words text-xs text-muted-foreground">
+                                {ent.tag}{ent.description ? ` · ${ent.description}` : ""}
+                              </p>
+                            </div>
+                            <p className={`shrink-0 text-base font-bold tabular-nums ${isIncome ? "text-success" : "text-danger"}`}>
+                              {isIncome ? "+" : "-"}{formatCLP(ent.pending)}
+                            </p>
+                          </div>
+                          <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-3 text-xs">
+                            <div className="min-w-0">
+                              <span className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Estado</span>
+                              <span className={`inline-block truncate rounded-full px-2 py-0.5 text-xs font-medium ${PAYMENT_STATUS_META[ent.paymentStatus].badge}`}>{PAYMENT_STATUS_META[ent.paymentStatus].label}{overdueDays > 0 ? ` · ${formatDaysLate(overdueDays)}` : ""}</span>
+                              {overdueDays > 0 && ent.dueDate && (
+                                <span className="block whitespace-nowrap text-[11px] font-medium text-danger">
+                                  vence {new Date(ent.dueDate).toLocaleDateString("es-CL")}
+                                </span>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <span className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Fecha</span>
+                              <span className="block whitespace-nowrap font-medium text-foreground">
+                                {ent.date ? new Date(ent.date).toLocaleDateString("es-CL") : "—"}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="mt-3 flex justify-end gap-2 border-t border-border pt-3">
+                            <Button
+                              size="sm"
+                              className="h-8 flex-1 gap-1 px-2 text-xs sm:flex-none"
+                              onClick={() => handlePayPending(ent)}
+                              title="Pagar"
+                            >
+                              <Check className="h-4 w-4" />
+                              Pagar
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <p className="text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">{filteredPendingList.length} ítem{filteredPendingList.length === 1 ? "" : "s"}</span> pendiente{filteredPendingList.length === 1 ? "" : "s"}
+                {filteredPendingList.length !== pendingList.length && (<span> de {pendingList.length}</span>)}
+              </p>
+            </>
+              )}
+            </>
+          )
+        ) : (
+        <>
         {/* Filters */}
         <div className="flex flex-col gap-3">
           <div className="hidden flex-wrap items-end gap-3 md:flex">
@@ -843,6 +1330,8 @@ export default function PaymentsPage() {
             </div>
           </>
         )}
+        </>
+        )}
       </div>
 
       {/* Payment Detail Modal */}
@@ -855,14 +1344,16 @@ export default function PaymentsPage() {
 
       {/* Create Payment Modal */}
       <CreatePaymentModal
+        key={paymentPreset ? `pay:${paymentPreset.key}` : "new-payment"}
         open={createOpen}
-        onClose={() => setCreateOpen(false)}
+        onClose={() => { setCreateOpen(false); setPaymentPreset(null); }}
         paymentMethods={paymentMethods ?? []}
         orders={ordersForPayment?.results ?? []}
         revenues={revenuesForPayment?.results ?? []}
         purchaseOrders={purchaseOrdersForPayment?.results ?? []}
         expenses={expenses?.results ?? []}
         currencySymbol={currencySymbol}
+        initialEntityKey={paymentPreset?.key ?? null}
         onSubmit={(payload) => createMutation.mutate(payload)}
         isPending={createMutation.isPending}
         error={createMutation.error instanceof Error ? createMutation.error.message : null}
@@ -880,33 +1371,6 @@ export default function PaymentsPage() {
     </div>
   );
 }
-
-// Entidad elegible en el picker del modal "Registrar pago".
-interface PickerEntity {
-  /** Clave única compuesta `${kind}:${id}` (los ids son UUID por tipo). */
-  key: string;
-  kind: PendingEntityKind;
-  id: string;
-  title: string;
-  /** Etiqueta corta del tipo específico (Venta, Orden, Convenio, Ingreso directo…). */
-  tag: string;
-  description: string | null;
-  category: string;
-  date: string | null;
-  amount: number;
-  pending: number;
-  hint: string;
-}
-
-// Estilo del ícono por tipo de entidad: las órdenes/gastos usan el tono de
-// su dirección (success/danger) y las entidades manuales un tono neutro.
-const KIND_META: Record<PendingEntityKind, { icon: LucideIcon; chip: string }> = {
-  order: { icon: ArrowDownLeft, chip: "bg-success/10 text-success" },
-  installment: { icon: CalendarClock, chip: "bg-primary/10 text-primary" },
-  revenue: { icon: Banknote, chip: "bg-primary/10 text-primary" },
-  expense: { icon: ArrowUpRight, chip: "bg-danger/10 text-danger" },
-  purchase_order: { icon: ShoppingCart, chip: "bg-warning/10 text-warning" },
-};
 
 /** Identidad visual por tipo de método de pago: cuadrito cuyo color deriva del primary (mismo lenguaje que Configuración → Métodos de pago). */
 interface PaymentTypeMeta {
@@ -926,7 +1390,7 @@ const METHOD_TYPE_META: Record<YggdraPaymentMethod["payment_type"], PaymentTypeM
   OTHER: { icon: MoreHorizontal, solid: "bg-[color-mix(in_oklab,var(--color-primary),black_35%)]", iconClass: "text-white" },
 };
 
-function CreatePaymentModal({ open, onClose, paymentMethods, orders, revenues, purchaseOrders, expenses, currencySymbol, onSubmit, isPending, error }: {
+function CreatePaymentModal({ open, onClose, paymentMethods, orders, revenues, purchaseOrders, expenses, currencySymbol, initialEntityKey, onSubmit, isPending, error }: {
   open: boolean;
   onClose: () => void;
   paymentMethods: YggdraPaymentMethod[];
@@ -936,96 +1400,42 @@ function CreatePaymentModal({ open, onClose, paymentMethods, orders, revenues, p
   expenses: FixedExpense[];
   /** Símbolo de la moneda configurada en Finanzas (p. ej. "$"). */
   currencySymbol: string;
+  /** Entidad preseleccionada desde la vista "Pendientes" (botón Pagar). El `key` del modal se remonta cuando cambia, así el estado inicial la toma al abrir. */
+  initialEntityKey?: string | null;
   onSubmit: (payload: SubmitPaymentPayload) => void;
   isPending: boolean;
   error: string | null;
 }) {
-  const [entityType, setEntityType] = useState<"revenue" | "expense">("revenue");
-  const [entityKey, setEntityKey] = useState("");
+  // Entidades pendientes de pago (misma fuente de verdad que la vista
+  // "Pendientes"); el picker solo filtra por el tipo activo. Se calculan
+  // antes de los useState para inicializar la selección del preset.
+  const allPendingEntities = useMemo<PickerEntity[]>(
+    () => buildPendingEntities(orders, revenues, purchaseOrders, expenses),
+    [orders, revenues, purchaseOrders, expenses],
+  );
+  const initialEntity = initialEntityKey
+    ? allPendingEntities.find((e) => e.key === initialEntityKey)
+    : undefined;
+
+  const [entityType, setEntityType] = useState<"revenue" | "expense">(
+    initialEntity && !isIncomeEntity(initialEntity.kind) ? "expense" : "revenue",
+  );
+  const [entityKey, setEntityKey] = useState(initialEntity?.key ?? "");
   const [installmentId, setInstallmentId] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerSearch, setPickerSearch] = useState("");
   const [paymentMethodId, setPaymentMethodId] = useState("");
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState(initialEntity ? String(initialEntity.pending) : "");
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
 
-  // Entidades pendientes de pago.
-  // Ingreso: ÓRDENES con pago pendiente — ventas (SALE), pedidos (ORDER) y
-  // convenios (AGREEMENT); lo que realmente se paga, el ingreso es la
-  // consecuencia contable— + INGRESOS DIRECTOS manuales (sin orden asociada).
-  // Egreso: ÓRDENES DE COMPRA con saldo + GASTOS manuales sin OC asociada
-  // (los gastos ligados a una OC se pagan siempre vía la OC).
-  const pendingEntities = useMemo<PickerEntity[]>(() => {
-    if (entityType === "revenue") {
-      const orderEntities: PickerEntity[] = orders
-        .filter((o) => o.payment_status !== "PAID" && parseAmount(o.total_amount) > 0)
-        .map((o) => {
-          // SALE = venta directa, ORDER = orden de pedido, AGREEMENT = convenio.
-          const typeLabel = o.order_type === "SALE" ? "Venta" : o.order_type === "ORDER" ? "Orden" : "Convenio";
-          return {
-            key: `order:${o.id}`,
-            kind: "order" as const,
-            id: o.id,
-            title: o.order_number ? `#${o.order_number}` : `${typeLabel} ${o.id.slice(0, 8)}`,
-            tag: typeLabel,
-            description: o.client?.name ?? null,
-            category: o.payment_status === "PARTIAL" ? "Pago parcial" : "Sin pagar",
-            date: o.date,
-            amount: parseAmount(o.total_amount),
-            pending: parseAmount(o.total_amount),
-            hint: "total orden",
-          };
-        });
-      const revenueEntities: PickerEntity[] = revenues
-        .filter((r) => !r.order && r.status === "PENDING" && !r.is_fully_paid && parseAmount(r.pending_amount) > 0)
-        .map((r) => ({
-          key: `revenue:${r.id}`,
-          kind: "revenue",
-          id: r.id,
-          title: r.title,
-          tag: "Ingreso directo",
-          description: r.description ?? null,
-          category: "Ingreso directo",
-          date: r.revenue_date,
-          amount: parseAmount(r.amount),
-          pending: parseAmount(r.pending_amount),
-          hint: "pendiente",
-        }));
-      return [...orderEntities, ...revenueEntities];
-    }
-    const poEntities: PickerEntity[] = purchaseOrders
-      .filter((po) => po.status !== "CANCELLED" && po.status !== "DRAFT" && !po.is_fully_paid && parseAmount(po.remaining_amount ?? po.total_amount) > 0)
-      .map((po) => ({
-        key: `purchase_order:${po.id}`,
-        kind: "purchase_order",
-        id: po.id,
-        title: `OC ${po.order_number}`,
-        tag: "Orden de compra",
-        description: po.supplier_name ?? "Sin proveedor",
-        category: po.payment_status === "PARTIAL" ? "Pago parcial" : po.status_display,
-        date: po.order_date,
-        amount: parseAmount(po.total_amount),
-        pending: parseAmount(po.remaining_amount ?? po.total_amount),
-        hint: "por pagar",
-      }));
-    const expenseEntities: PickerEntity[] = expenses
-      .filter((e) => !e.purchase_order_id && e.status === "PENDING" && !e.is_fully_paid && parseAmount(e.pending_amount) > 0)
-      .map((e) => ({
-        key: `expense:${e.id}`,
-        kind: "expense",
-        id: e.id,
-        title: e.name,
-        tag: "Gasto",
-        description: e.description ?? null,
-        category: e.category_name,
-        date: e.start_date,
-        amount: parseAmount(e.amount),
-        pending: parseAmount(e.pending_amount),
-        hint: "pendiente",
-      }));
-    return [...poEntities, ...expenseEntities];
-  }, [entityType, orders, revenues, purchaseOrders, expenses]);
+  const pendingEntities = useMemo<PickerEntity[]>(
+    () =>
+      entityType === "revenue"
+        ? allPendingEntities.filter((e) => e.kind === "order" || e.kind === "revenue")
+        : allPendingEntities.filter((e) => e.kind === "purchase_order" || e.kind === "expense"),
+    [allPendingEntities, entityType],
+  );
 
   const pickerList = useMemo(() => {
     const q = pickerSearch.trim().toLowerCase();
@@ -1176,6 +1586,7 @@ function CreatePaymentModal({ open, onClose, paymentMethods, orders, revenues, p
                                 )}
                                 <span className="block truncate text-[11px] text-muted-foreground">
                                   {ent.category}{ent.date ? ` · ${new Date(ent.date).toLocaleDateString("es-CL")}` : ""}
+                                  {ent.paymentStatus === "OVERDUE" && ent.dueDate ? ` · atraso ${formatDaysLate(daysOverdue(ent.dueDate))}` : ""}
                                 </span>
                               </span>
                               <span className="shrink-0 text-right">
@@ -1285,6 +1696,7 @@ function CreatePaymentModal({ open, onClose, paymentMethods, orders, revenues, p
                                   <span className="min-w-0 truncate text-muted-foreground">
                                     Cuota {idx + 1}
                                     {inst.due_date ? ` · vence ${new Date(inst.due_date).toLocaleDateString("es-CL")}` : ""}
+                                    {inst.status === "OVERDUE" && inst.due_date ? ` · atraso ${formatDaysLate(daysOverdue(inst.due_date))}` : ""}
                                   </span>
                                 </span>
                                 <span className="flex shrink-0 items-center gap-2">
@@ -1708,7 +2120,10 @@ function PaymentOrderSection({ orderId, paymentId }: { orderId: string; paymentI
                       </span>
                     </div>
                     {inst.due_date && (
-                      <p className="mt-0.5 text-xs text-muted-foreground">Vence {new Date(inst.due_date).toLocaleDateString("es-CL")}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        Vence {new Date(inst.due_date).toLocaleDateString("es-CL")}
+                        {inst.status === "OVERDUE" ? ` · atraso ${formatDaysLate(daysOverdue(inst.due_date))}` : ""}
+                      </p>
                     )}
                     {isPaying && (
                       <div className="mt-2 grid gap-2 rounded-lg bg-muted/30 p-3">

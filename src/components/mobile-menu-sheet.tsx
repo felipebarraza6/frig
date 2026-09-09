@@ -27,6 +27,7 @@ import {
   useCashierAllowedPaths,
   useWaiterAllowedPaths,
 } from "@/lib/store/session";
+import { BranchSwitcherModal } from "@/components/branch-switcher-modal";
 import { useFrigMenu } from "@/lib/hooks/useFrigMenu";
 import { useNavFavorites, MAX_NAV_FAVORITES } from "@/lib/store/nav-favorites";
 import { logout } from "@/lib/api/auth";
@@ -60,9 +61,11 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
   const cashierAllowedPaths = useCashierAllowedPaths();
   const waiterAllowedPaths = useWaiterAllowedPaths();
   const [editingQuickAccess, setEditingQuickAccess] = useState(false);
+  const [branchPickerOpen, setBranchPickerOpen] = useState(false);
 
   const handleClose = useCallback(() => {
     setEditingQuickAccess(false);
+    setBranchPickerOpen(false);
     onClose();
   }, [onClose]);
 
@@ -138,9 +141,10 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
   const displayName = branch ? branchName(branch) : appName;
 
   return (
-    <AnimatePresence>
-      {open && (
-        <div className="fixed inset-0 z-[60] md:hidden">
+    <>
+      <AnimatePresence>
+        {open && (
+          <div className="fixed inset-0 z-[60] md:hidden">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -369,14 +373,19 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
 
               <div className="mt-3 grid grid-cols-2 gap-2">
                 {canSwitchBranch && (
-                  <Link
-                    href="/select-branch"
-                    onClick={handleClose}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // El modal es a pantalla completa: se cierra el sheet y
+                      // queda el picker flotante encima de la app.
+                      onClose();
+                      setBranchPickerOpen(true);
+                    }}
                     className="flex items-center justify-center gap-2 rounded-xl bg-muted px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted/80"
                   >
                     <ArrowRightLeft className="h-4 w-4" />
                     Cambiar sucursal
-                  </Link>
+                  </button>
                 )}
                 <button
                   type="button"
@@ -394,7 +403,13 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+      </AnimatePresence>
+      {/* Selector de sucursal a pantalla completa; el sheet se cierra al abrirlo. */}
+      <BranchSwitcherModal
+        open={branchPickerOpen}
+        onClose={() => setBranchPickerOpen(false)}
+      />
+    </>
   );
 }
 

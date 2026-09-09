@@ -14,6 +14,7 @@ import {
   Power,
   Receipt,
   ShoppingBag,
+  Trash2,
   Unlock,
 } from "lucide-react";
 import {
@@ -25,8 +26,6 @@ import {
 } from "@/lib/store/session";
 import { formatCLP, cn } from "@/lib/utils";
 import { PosConfigModal } from "@/components/pos/pos-config-modal";
-import PosQuickActionsSettings from "@/components/pos/pos-quick-actions-settings";
-import { fetchBranchPOSConfig } from "@/lib/api/branches";
 import { Settings2 } from "lucide-react";
 import { statusBadge } from "@/lib/status-styles";
 import { useQuery, useQueries, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -38,9 +37,11 @@ import {
 import {
   fetchCashRegisterStations,
   updateCashRegisterStation,
+  deleteCashRegisterStation,
 } from "@/lib/api/cash-register-stations";
 import type { CashRegisterStation } from "@/lib/api/cash-register-stations";
 import { StationFormModal } from "@/components/pos/station-form-modal";
+import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
@@ -76,7 +77,7 @@ export default function PosZenPage() {
   const [openingAmounts, setOpeningAmounts] = useState<Record<number, string>>({});
   const processingRef = useRef(false);
   const [configStationId, setConfigStationId] = useState<number | null>(null);
-  const [quickActionsOpen, setQuickActionsOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<CashRegisterStation | null>(null);
   // Modal crear/editar estación (misma experiencia que Métodos de pago).
   const [stationModal, setStationModal] = useState<{
     open: boolean;
@@ -96,23 +97,26 @@ export default function PosZenPage() {
     staleTime: 60_000,
   });
 
-  const { data: posConfig } = useQuery({
-    queryKey: ["branch-pos-config"],
-    queryFn: fetchBranchPOSConfig,
-    enabled: canConfigurePos,
-    staleTime: 60_000,
-  });
-
   // Activar / desactivar estación sin abrir el modal (como el toggle de medios de pago).
   const toggleStation = useMutation({
     mutationFn: ({ id, is_active }: { id: number; is_active: boolean }) =>
       updateCashRegisterStation(id, { is_active }),
-    onSuccess: (_data, vars) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cash-register-stations"] });
-      toast.success(vars.is_active ? "Estación activada" : "Estación desactivada");
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : "No se pudo cambiar el estado");
+    },
+  });
+
+  const deleteStation = useMutation({
+    mutationFn: (id: number) => deleteCashRegisterStation(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cash-register-stations"] });
+      setConfirmDelete(null);
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "No se pudo eliminar la estación");
     },
   });
 
@@ -265,15 +269,6 @@ export default function PosZenPage() {
                 <Plus className="mr-2 h-4 w-4" />
                 Nueva estación
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setQuickActionsOpen(true)}
-              >
-                <Settings2 className="mr-2 h-4 w-4" />
-                Acciones rápidas
-              </Button>
             </div>
           )}
         </div>
@@ -386,8 +381,10 @@ export default function PosZenPage() {
                           </>
                         ) : isOpen ? (
                           <>
-                            <Unlock className="h-3.5 w-3.5" />
-                            Abierta
+                            <Unlock className="h-3.5 w-3.5 shrink-0" />
+                            <span className="max-w-40 truncate" title={register?.opened_by_name ? `Caja abierta por ${register.opened_by_name}` : "Caja abierta"}>
+                              {register?.opened_by_name ?? "Abierta"}
+                            </span>
                           </>
                         ) : (
                           <>
@@ -539,6 +536,15 @@ export default function PosZenPage() {
                       >
                         <Settings2 className="h-4 w-4" />
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDelete(station)}
+                        className="inline-flex h-10 flex-1 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground transition-colors touch-manipulation active:scale-[0.97] hover:bg-danger/10 hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        aria-label={`Eliminar estación ${station.name}`}
+                        title="Eliminar estación"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
                   )}
 
@@ -606,12 +612,39 @@ export default function PosZenPage() {
           onClose={() => setConfigStationId(null)}
           stationId={configStationId}
         />
-        <PosQuickActionsSettings
-          open={quickActionsOpen}
-          config={posConfig}
-          branchId={branch?.branch_id}
-          onClose={() => setQuickActionsOpen(false)}
-        />
+
+        {confirmDelete && (
+          <AnimatedOverlay
+            open={true}
+            onClose={() => setConfirmDelete(null)}
+            panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
+          >
+            <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
+              <h2 className="text-base font-semibold">¿Eliminar punto de venta?</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Se eliminará la estación{" "}
+                <span className="font-medium text-foreground">{confirmDelete.name}</span>. Si tiene
+                caja abierta o ventas asociadas, el backend rechazará la eliminación.
+              </p>
+              <div className="mt-4 flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setConfirmDelete(null)}
+                  disabled={deleteStation.isPending}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  variant="danger"
+                  onClick={() => deleteStation.mutate(confirmDelete.id)}
+                  isLoading={deleteStation.isPending}
+                >
+                  Eliminar
+                </Button>
+              </div>
+            </div>
+          </AnimatedOverlay>
+        )}
       </motion.div>
     </div>
   );

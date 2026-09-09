@@ -11,6 +11,22 @@
 export const API_BASE =
   process.env.NEXT_PUBLIC_YGGDRA_API_BASE ?? "http://localhost:8000/api";
 
+/** Origen del backend sin el prefijo /api (archivos servidos fuera de la API). */
+export const API_ORIGIN = API_BASE.replace(/\/api\/?$/, "");
+
+/**
+ * Resuelve una URL de archivo del backend (p. ej. logos en /media/…): las
+ * rutas locales se prefijan con el origen de la API; las URLs absolutas
+ * (http(s), data:, blob:) pasan tal cual.
+ */
+export function mediaUrl(src: string | null | undefined): string | null {
+  if (!src) return null;
+  if (/^(https?:)?\/\//i.test(src) || src.startsWith("data:") || src.startsWith("blob:")) {
+    return src;
+  }
+  return `${API_ORIGIN}${src.startsWith("/") ? "" : "/"}${src}`;
+}
+
 export class ApiError extends Error {
   status: number;
   detail?: unknown;

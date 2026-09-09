@@ -45,6 +45,7 @@ export const ROUTE_MODULE_MAP: Record<string, ModuleName | null> = {
   "/purchase-orders": "suppliers",
   "/users": "config",
   "/branches": "config",
+  "/organization": "config",
   "/settings/modules": "config",
   "/profile": null,
 };
@@ -267,9 +268,10 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
     ],
   },
   {
-    title: "Ajustes",
+    title: "Ajustes de acceso",
     icon: "Settings",
     items: [
+      { href: "/organization", label: "Organización", icon: "Building2", module: "config", description: "Tu organización: sucursales y planes" },
       { href: "/users", label: "Usuarios", icon: "UserIcon", module: "config", description: "Usuarios y sus roles por sucursal" },
       { href: "/branches", label: "Sucursales", icon: "Store", module: "config", description: "Sucursales del negocio y su equipo" },
       { href: "/settings/modules", label: "Módulos", icon: "Settings", module: "config", description: "Activa o desactiva módulos por sucursal" },

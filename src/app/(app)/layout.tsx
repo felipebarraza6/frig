@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import {
   useSessionStore,
@@ -13,6 +14,7 @@ import {
 } from "@/lib/store/session";
 import { useIsRouteModuleEnabled } from "@/lib/hooks/useRouteModuleAccess";
 import { fetchFrontendConfig } from "@/lib/api/frontend-config";
+import { activateBranch, pickDefaultBranchId } from "@/lib/branch-session";
 import { useSidebarStore } from "@/lib/store/sidebar";
 import { AppSidebar } from "@/components/app-sidebar/app-sidebar";
 import { MobileBottomNav } from "@/components/mobile-bottom-nav";
@@ -50,6 +52,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const sidebarExpanded = useSidebarStore((s) => s.expanded);
   const isRouteModuleEnabled = useIsRouteModuleEnabled(pathname);
   const setFrontendConfig = useSessionStore((s) => s.setFrontendConfig);
+  const branches = useSessionStore((s) => s.branches);
+  const queryClient = useQueryClient();
+  // Evita disparar la auto-selección dos veces (StrictMode re-ejecuta effects).
+  const activatingBranchRef = useRef(false);
 
   // Re-sincroniza los módulos de la sesión con frontend-config al entrar a la
   // app. El store persiste `modules` en localStorage; sin este refresco quedan
@@ -82,7 +88,16 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       return;
     }
     if (!currentBranchId) {
-      router.replace("/select-branch");
+      // Sin sucursal activa (login fresco o sesión sin branch): se activa la
+      // por defecto en silencio. No hay pantalla bloqueante; el cambio de
+      // sucursal dentro de la app lo hace el switcher del sidebar.
+      const target = pickDefaultBranchId(user, branches);
+      if (target && !activatingBranchRef.current) {
+        activatingBranchRef.current = true;
+        activateBranch(target, queryClient).catch((err) => {
+          console.error("[layout] failed to activate default branch:", err);
+        });
+      }
       return;
     }
 
@@ -139,6 +154,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     waiterAllowedPaths,
     isRouteModuleEnabled,
     enabledModules,
+    branches,
+    queryClient,
   ]);
 
   if (!hasHydrated || !user) {

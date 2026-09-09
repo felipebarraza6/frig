@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Pencil, Trash2, Tag, X, Copy, FolderOpen, Boxes, Folder } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, X, Copy, FolderOpen, Boxes } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { TableSkeleton } from "@/components/ui/skeleton";
@@ -103,7 +103,6 @@ export default function CategoriesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
-      toast.success("Categoría duplicada");
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : "No se pudo duplicar la categoría.");
@@ -199,23 +198,13 @@ export default function CategoriesPage() {
           <>
             {/* Resumen */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-              <div className="flex items-center gap-3 rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary">
-                  <Folder className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">Categorías</p>
-                  <p className="text-lg font-semibold leading-none">{totalCategories}</p>
-                </div>
+              <div className="rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
+                <p className="text-xs text-muted-foreground">Categorías</p>
+                <p className="mt-1 text-2xl font-semibold leading-none tabular-nums">{totalCategories}</p>
               </div>
-              <div className="flex items-center gap-3 rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary">
-                  <Boxes className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">Productos asignados</p>
-                  <p className="text-lg font-semibold leading-none">{totalProducts}</p>
-                </div>
+              <div className="rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
+                <p className="text-xs text-muted-foreground">Productos asignados</p>
+                <p className="mt-1 text-2xl font-semibold leading-none tabular-nums">{totalProducts}</p>
               </div>
             </div>
 
@@ -239,12 +228,7 @@ export default function CategoriesPage() {
                         className="transition-colors hover:bg-muted/30"
                       >
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary">
-                              <Tag className="h-4 w-4 text-muted-foreground" />
-                            </div>
-                            <span className="font-medium">{c.name}</span>
-                          </div>
+                          <span className="font-medium">{c.name}</span>
                         </td>
                         <td className="px-4 py-3 text-center">
                           <span className="inline-flex rounded-md border border-border/60 bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
@@ -304,16 +288,11 @@ export default function CategoriesPage() {
                     className="flex min-w-0 flex-col rounded-2xl border border-border bg-muted/30 p-4 shadow-sm transition-shadow hover:shadow-md"
                   >
                     <div className="mb-3 flex items-start justify-between gap-3">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-secondary">
-                          <Tag className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="truncate font-semibold">{c.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {categoryTypeLabel(c.category_type)}
-                          </p>
-                        </div>
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold">{c.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {categoryTypeLabel(c.category_type)}
+                        </p>
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
                         <Button

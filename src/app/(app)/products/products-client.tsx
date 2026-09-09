@@ -396,7 +396,6 @@ export function ProductsClient() {
       setProductActive(id, isActive),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
-      toast.success("Estado actualizado");
     },
     onError: (err: Error) => {
       toast.error(err.message || "No se pudo actualizar el estado.");
@@ -408,7 +407,6 @@ export function ProductsClient() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       setConfirmDelete(null);
-      toast.success("Producto eliminado");
     },
     onError: (err: Error) => {
       toast.error(err.message || "No se pudo eliminar el producto.");
@@ -425,7 +423,6 @@ export function ProductsClient() {
       ? await updateProduct(id, payload)
       : await createProduct(payload);
     queryClient.invalidateQueries({ queryKey: ["products"] });
-    toast.success(id ? "Producto actualizado" : "Producto creado");
     return product;
   };
 
@@ -440,7 +437,6 @@ export function ProductsClient() {
         code: detail.code ? `${detail.code}-copia` : null,
       });
       queryClient.invalidateQueries({ queryKey: ["products"] });
-      toast.success("Producto duplicado");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "No se pudo duplicar el producto.");
     }

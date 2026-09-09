@@ -55,10 +55,43 @@ export async function fetchAllInventoryMovements(filter: MovementsFilter = {}): 
   return all;
 }
 
+/**
+ * Tipos de movimiento cuyo impacto real en el backend create_movement/ es
+ * "fijar el stock absoluto" (cualquier cantidad escrita sobrescribe el stock),
+ * en vez de restar. Comportamiento verificado contra la API el 2026-09-09:
+ * LOSS/DAMAGE/EXPIRY/ADJUSTMENT hacen `stock = quantity`; IN/OUT/RETURN hacen
+ * `stock += quantity` (con signo, así que OUT solo resta en negativo).
+ *
+ * Como no podemos corregir el backend desde este frontend, toda salida se
+ * envía como OUT con cantidad negativa (la única vía que resta de verdad) y
+ * el motivo original se conserva en notes para no perder el detalle.
+ */
+const SET_STOCK_TYPES = new Set(["LOSS", "DAMAGE", "EXPIRY"]);
+const OUT_REASON_LABELS: Record<string, string> = {
+  OUT: "Salida",
+  LOSS: "Merma/pérdida",
+  DAMAGE: "Daño",
+  EXPIRY: "Vencimiento",
+};
+
 export async function createInventoryMovement(payload: InventoryHistoryRequest): Promise<InventoryHistory> {
+  // El action create_movement/ del backend espera `product_id` (el serializer
+  // InventoryHistoryRequest del esquema dice `product`, pero el action no lo acepta).
+  const { product, movement_type, quantity, notes, ...rest } = payload;
+  const isOut = movement_type === "OUT" || SET_STOCK_TYPES.has(movement_type);
+  const reason = OUT_REASON_LABELS[movement_type] ?? "Salida";
+  const body = isOut
+    ? {
+        ...rest,
+        product_id: product,
+        movement_type: "OUT",
+        quantity: -Math.abs(Number(quantity)),
+        notes: notes?.trim() ? `${reason}: ${notes.trim()}` : reason,
+      }
+    : { ...rest, product_id: product, movement_type, quantity, notes };
   return apiFetch<InventoryHistory>("/inventory/inventory-history/create_movement/", {
     method: "POST",
-    body: payload,
+    body,
   });
 }
 
@@ -81,6 +114,25 @@ export async function fetchOutOfStock(): Promise<ProductInventorySummary[]> {
     "/inventory/product-inventory/out_of_stock/",
   );
   return normalizeSummaryList(data);
+}
+
+/**
+ * Stock actual de todos los productos con inventario (paginado, con búsqueda
+ * por nombre/código). Contrato: ProductInventoryViewSet (read-only).
+ */
+export async function fetchProductInventory(filter: {
+  search?: string;
+  page?: number;
+  page_size?: number;
+} = {}): Promise<ProductInventorySummary[]> {
+  const qs = new URLSearchParams();
+  if (filter.search) qs.set("search", filter.search);
+  if (filter.page) qs.set("page", String(filter.page));
+  if (filter.page_size) qs.set("page_size", String(filter.page_size));
+  const data = await apiFetch<{ results?: ProductInventorySummary[] } | ProductInventorySummary[]>(
+    `/inventory/product-inventory/${qs.toString() ? `?${qs}` : ""}`,
+  );
+  return Array.isArray(data) ? data : (data.results ?? []);
 }
 
 export function exportInventoryMovements(filter: MovementsFilter, format: "excel" | "pdf"): Promise<ApiFileResult> {

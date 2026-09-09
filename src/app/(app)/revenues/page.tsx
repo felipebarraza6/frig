@@ -367,7 +367,6 @@ export default function RevenuesPage() {
     notes: "",
     is_recurring: false,
     frequency: "ONE_TIME",
-    order: null,
   });
   const [viewingOrderId, setViewingOrderId] = useState<string | null>(null);
   const [cancelError, setCancelError] = useState<string | null>(null);
@@ -531,7 +530,6 @@ export default function RevenuesPage() {
       invoice_number: nullable(payload.invoice_number),
       notes: nullable(payload.notes),
       frequency: payload.is_recurring ? (payload.frequency ?? "ONE_TIME") : "ONE_TIME",
-      order: payload.order || null,
     };
   }
 
@@ -676,7 +674,6 @@ export default function RevenuesPage() {
         notes: revenue.notes ?? "",
         is_recurring: false,
         frequency: "ONE_TIME",
-        order: revenue.order ?? null,
       });
     } else {
       setForm({
@@ -693,7 +690,6 @@ export default function RevenuesPage() {
         notes: "",
         is_recurring: false,
         frequency: "ONE_TIME",
-        order: null,
       });
     }
     setModalOpen(true);

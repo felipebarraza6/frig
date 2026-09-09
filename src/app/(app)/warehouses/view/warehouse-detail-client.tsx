@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -40,6 +40,7 @@ import { fetchProducts } from "@/lib/api/products";
 import { fetchSupplierProductsByBranch } from "@/lib/api/suppliers";
 import { formatCLP, cn, stockStatusLabel } from "@/lib/utils";
 import { useCurrentBranch } from "@/lib/store/session";
+import { CompoundProductsSection } from "./compound-products-section";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 type WarehouseProduct = YggdraSchemas["WarehouseProduct"];
@@ -210,28 +211,19 @@ function WarehouseProductCard({
         <div>
           <p className="text-[10px] text-muted-foreground">Cantidad</p>
           <p className="text-sm font-semibold tabular-nums">{wp.current_quantity}</p>
-        </div>
-        <div>
-          <p className="text-[10px] text-muted-foreground">Rango</p>
-          <p className="text-sm font-semibold tabular-nums">
-            {wp.minimum_quantity ?? 0}-{wp.maximum_quantity ?? "—"}
+          <p className="text-[10px] tabular-nums text-muted-foreground">
+            mín {wp.minimum_quantity ?? 0} · máx {wp.maximum_quantity ?? "—"}
           </p>
         </div>
         <div>
           <p className="text-[10px] text-muted-foreground">Costo total</p>
           <p className="text-sm font-semibold tabular-nums text-success">{formatCLP(totalValue)}</p>
+          <p className="text-[10px] tabular-nums text-muted-foreground">{formatCLP(unitCost)} c/u</p>
         </div>
-      </div>
-
-      <div className="mt-3 grid grid-cols-2 gap-3">
         <div>
           <p className="text-[10px] text-muted-foreground">Venta total</p>
           <p className="text-sm font-semibold tabular-nums text-primary">{formatCLP(totalSale)}</p>
-          <p className="text-[10px] text-muted-foreground">{formatCLP(salePrice)} c/u</p>
-        </div>
-        <div>
-          <p className="text-[10px] text-muted-foreground">Costo unitario</p>
-          <p className="text-sm font-semibold tabular-nums text-success">{formatCLP(unitCost)}</p>
+          <p className="text-[10px] tabular-nums text-muted-foreground">{formatCLP(salePrice)} c/u</p>
         </div>
       </div>
 
@@ -291,9 +283,20 @@ function MetricCard({
 }
 
 export default function WarehouseDetailPage() {
-  const params = useParams();
   const router = useRouter();
-  const warehouseId = Number(params.id);
+  // El id se resuelve desde la URL: la app se exporta estática (output:
+  // "export") y la navegación client-side actualiza useSearchParams de forma
+  // reactiva. NO leer window.location en un useState inicial: al navegar con
+  // router.push la URL aún no está actualizada cuando el componente monta y
+  // el id quedaba en 0 para siempre, congelando la página en el skeleton.
+  // Soporta ?id=<n> y /warehouses/<n>.
+  const searchParams = useSearchParams();
+  const warehouseId = useMemo(() => {
+    if (typeof window === "undefined") return 0;
+    const fromQuery = searchParams.get("id");
+    const fromPath = window.location.pathname.match(/\/warehouses\/(\d+)/)?.[1];
+    return Number(fromQuery ?? fromPath ?? 0) || 0;
+  }, [searchParams]);
   const queryClient = useQueryClient();
 
   const [addOpen, setAddOpen] = useState(false);
@@ -351,7 +354,7 @@ export default function WarehouseDetailPage() {
     queryFn: () => fetchWarehouseProducts(warehouseId, productFilter),
     enabled: Boolean(warehouseId),
   });
-  const products = productsPage?.results ?? [];
+  const products = useMemo(() => productsPage?.results ?? [], [productsPage]);
   const totalProductsCount = productsPage?.count ?? 0;
 
   const { data: catalog = [] } = useQuery({
@@ -383,6 +386,22 @@ export default function WarehouseDetailPage() {
     }
     return map;
   }, [catalog]);
+
+  // Los productos compuestos (RECIPE_BASED) no tienen stock propio en bodega:
+  // su disponibilidad se calcula desde los ingredientes de la receta, así que
+  // no se agregan ni se muestran en la bodega.
+  const compoundProductIds = useMemo(
+    () => new Set(catalog.filter((p) => p.product_type === "RECIPE_BASED").map((p) => p.id)),
+    [catalog],
+  );
+  const storableCatalog = useMemo(
+    () => catalog.filter((p) => p.product_type !== "RECIPE_BASED"),
+    [catalog],
+  );
+  const visibleProducts = useMemo(
+    () => products.filter((wp) => wp.product == null || !compoundProductIds.has(wp.product)),
+    [products, compoundProductIds],
+  );
 
   const { data: warehousesPage } = useQuery({
     queryKey: ["warehouses", "all"],
@@ -485,7 +504,9 @@ export default function WarehouseDetailPage() {
     },
   });
 
-  if (loadingWarehouse) {
+  // Mientras no hay id resuelto (SSR del export estático) mostramos el
+  // skeleton en vez de un falso "no encontrada".
+  if (loadingWarehouse || !warehouseId) {
     return (
       <div className="flex min-h-full flex-col">
         <header className="flex items-center gap-3 border-b border-border px-4 py-3 sm:px-6">
@@ -782,7 +803,7 @@ export default function WarehouseDetailPage() {
 
         {loadingProducts ? (
           view === "grid" ? (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
                   <div className="flex items-start gap-3">
@@ -793,13 +814,9 @@ export default function WarehouseDetailPage() {
                     </div>
                   </div>
                   <div className="mt-4 grid grid-cols-3 gap-3">
-                    <SkeletonBlock className="h-8" />
-                    <SkeletonBlock className="h-8" />
-                    <SkeletonBlock className="h-8" />
-                  </div>
-                  <div className="mt-3 grid grid-cols-2 gap-3">
-                    <SkeletonBlock className="h-8" />
-                    <SkeletonBlock className="h-8" />
+                    <SkeletonBlock className="h-12" />
+                    <SkeletonBlock className="h-12" />
+                    <SkeletonBlock className="h-12" />
                   </div>
                   <div className="mt-3 flex gap-2">
                     <SkeletonBlock className="h-6 w-16" />
@@ -831,7 +848,7 @@ export default function WarehouseDetailPage() {
               ))}
             </div>
           )
-        ) : products.length === 0 ? (
+        ) : visibleProducts.length === 0 ? (
           <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-border p-12">
             <div className="text-center">
               <Warehouse className="mx-auto h-10 w-10 text-muted-foreground" />
@@ -848,8 +865,8 @@ export default function WarehouseDetailPage() {
         ) : (
           <>
           {view === "grid" ? (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {products.map((wp) => (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+              {visibleProducts.map((wp) => (
                 <WarehouseProductCard
                   key={wp.id}
                   wp={wp}
@@ -899,7 +916,7 @@ export default function WarehouseDetailPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {products.map((wp) => {
+                  {visibleProducts.map((wp) => {
                     const unitCost = numValue(wp.product_cost);
                     const totalValue = numValue(wp.total_value);
                     const salePrice = productSalePriceMap.get(wp.product ?? 0) ?? 0;
@@ -1055,6 +1072,8 @@ export default function WarehouseDetailPage() {
         )}
       </div>
 
+      <CompoundProductsSection catalog={catalog} />
+
       {addOpen && (
         <Modal title="Agregar producto a bodega" onClose={() => setAddOpen(false)}>
           <div className="flex flex-col gap-4">
@@ -1065,7 +1084,7 @@ export default function WarehouseDetailPage() {
                 onChange={(e) => setSelectedProduct(e.target.value)}
               >
                 <option value="">Selecciona un producto</option>
-                {catalog.map((p) => (
+                {storableCatalog.map((p) => (
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </Select>
@@ -1264,7 +1283,7 @@ export default function WarehouseDetailPage() {
                 }}
               >
                 <option value="">Selecciona un producto</option>
-                {products.map((wp) => (
+                {visibleProducts.map((wp) => (
                   <option key={wp.id} value={wp.id}>{wp.product_name}</option>
                 ))}
               </Select>

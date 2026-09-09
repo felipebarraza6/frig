@@ -8,6 +8,7 @@ import {
   X,
   Ban,
   CheckCircle2,
+  PackageCheck,
   FileText,
   Banknote,
   Trash2,
@@ -442,7 +443,6 @@ export default function PurchaseOrdersPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
       setConfirmAction(null);
-      toast.success("Orden anulada");
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Error al anular la orden");
@@ -450,8 +450,9 @@ export default function PurchaseOrdersPage() {
   });
 
   const complete = useMutation({
-    // Completar = fin de la orden: primero se marca la recepción total de los
+    // Recibir = fin de la orden: primero se marca la recepción total de los
     // ítems (lo que mueve inventario a bodega) y luego se cierra la orden.
+    // El pago no ocurre aquí: se hace aparte, desde la caja.
     mutationFn: async (order: PurchaseOrderList) => {
       const full = await fetchPurchaseOrder(order.id);
       const updates: Record<string, number> = {};
@@ -469,10 +470,9 @@ export default function PurchaseOrdersPage() {
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
       queryClient.invalidateQueries({ queryKey: ["purchase-order"] });
       setConfirmAction(null);
-      toast.success("Orden completada — ítems recepcionados y orden cerrada");
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Error al completar la orden");
+      toast.error(error instanceof Error ? error.message : "Error al recibir la orden");
     },
   });
 
@@ -523,7 +523,6 @@ export default function PurchaseOrdersPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
       queryClient.invalidateQueries({ queryKey: ["purchase-order"] });
-      toast.success("Orden actualizada");
       closeEdit();
     },
     onError: (error) => {
@@ -1472,8 +1471,8 @@ export default function PurchaseOrdersPage() {
                   onClick={() => openConfirmComplete(detail!)}
                   disabled={complete.isPending}
                 >
-                  <CheckCircle2 className="mr-2 h-4 w-4" />
-                  Completar
+                  <PackageCheck className="mr-2 h-4 w-4" />
+                  Recibir
                 </Button>
               )}
             </div>
@@ -1661,12 +1660,12 @@ export default function PurchaseOrdersPage() {
       >
           <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">
-              {confirmAction.type === "cancel" ? "¿Anular orden?" : "¿Completar orden?"}
+              {confirmAction.type === "cancel" ? "¿Anular orden?" : "¿Recibir orden?"}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
               {confirmAction.type === "cancel"
                 ? `Se anulará la orden ${confirmAction.order.order_number}. Esta acción no se puede deshacer.`
-                : `Se registrará la recepción total de sus ítems (ingresan a bodega) y la orden ${confirmAction.order.order_number} quedará completada y cerrada. Esta acción no se puede deshacer.`}
+                : `Se registrará la recepción total de sus ítems (ingresan a bodega) y la orden ${confirmAction.order.order_number} quedará recibida y cerrada. El pago se hace aparte, desde la caja. Esta acción no se puede deshacer.`}
             </p>
             {(cancel.isError || complete.isError) && (
               <p className="mt-2 text-sm text-danger">
@@ -1694,7 +1693,7 @@ export default function PurchaseOrdersPage() {
                 }}
                 isLoading={cancel.isPending || complete.isPending}
               >
-                {confirmAction.type === "cancel" ? "Anular" : "Completar"}
+                {confirmAction.type === "cancel" ? "Anular" : "Recibir"}
               </Button>
             </div>
           </div>

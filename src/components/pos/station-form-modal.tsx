@@ -62,7 +62,6 @@ export function StationFormModal({ open, onClose, station }: StationFormModalPro
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cash-register-stations"] });
-      toast.success(editing ? "Estación actualizada" : "Estación creada");
       onClose();
     },
     onError: (err) => {

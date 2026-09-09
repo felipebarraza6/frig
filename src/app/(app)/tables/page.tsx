@@ -139,7 +139,6 @@ export default function TablesPage() {
     onSuccess: () => {
       refreshTables();
       setCreating(false);
-      toast.success("Mesa creada");
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -150,7 +149,6 @@ export default function TablesPage() {
     onSuccess: () => {
       refreshTables();
       setEditing(null);
-      toast.success("Mesa actualizada");
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -159,7 +157,6 @@ export default function TablesPage() {
     mutationFn: deleteTable,
     onSuccess: () => {
       refreshTables();
-      toast.success("Mesa eliminada");
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -173,7 +170,6 @@ export default function TablesPage() {
     },
     onSuccess: () => {
       refreshTables();
-      toast.success("Estado actualizado");
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -184,7 +180,6 @@ export default function TablesPage() {
     onSuccess: () => {
       refreshTables();
       setTransferringTable(null);
-      toast.success("Mesero asignado correctamente");
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -594,16 +589,11 @@ export default function TablesPage() {
                     )}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
-                          <Table className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                        <div>
-                          <p className="font-semibold">Mesa {table.number}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {table.area || "Sin área"}
-                          </p>
-                        </div>
+                      <div>
+                        <p className="font-semibold">Mesa {table.number}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {table.area || "Sin área"}
+                        </p>
                       </div>
                       <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", statusColor(table.status))}>
                         {statusLabel(table.status)}

@@ -51,6 +51,15 @@ export function UserForm({ user, onClose, onSuccess }: UserFormProps) {
     return ALL_ROLES.filter((r) => r.code !== "OWNER");
   }, [isSuperAdmin]);
 
+  // Solo un owner multi-sucursal (o superadmin) puede crear/editar usuarios
+  // multi-sucursal; el check no se muestra a otros roles.
+  const canGrantMultiBranch =
+    isSuperAdmin ||
+    (Boolean(currentUser?.is_multi_branch) &&
+      Boolean(
+        currentUser?.branch_assignments?.some((a) => a.role_code === "OWNER"),
+      ));
+
   const currentAssignment = user?.branch_access;
   const initialRole = currentAssignment?.role_code ?? availableRoles[0]?.code ?? "EMPLOYEE";
 
@@ -118,7 +127,7 @@ export function UserForm({ user, onClose, onSuccess }: UserFormProps) {
         last_name: lastName,
         dni,
         password,
-        is_multi_branch: isMultiBranch,
+        is_multi_branch: canGrantMultiBranch ? isMultiBranch : false,
       },
       branch_assignment: {
         branch_id: branchId,
@@ -269,15 +278,17 @@ export function UserForm({ user, onClose, onSuccess }: UserFormProps) {
                 </Select>
               </div>
 
-              <label className="flex items-center gap-2 text-sm sm:col-span-2">
-                <input
-                  type="checkbox"
-                  checked={isMultiBranch}
-                  onChange={(e) => setIsMultiBranch(e.target.checked)}
-                  className="h-4 w-4 rounded border-input"
-                />
-                Usuario multi-sucursal
-              </label>
+              {canGrantMultiBranch && (
+                <label className="flex items-center gap-2 text-sm sm:col-span-2">
+                  <input
+                    type="checkbox"
+                    checked={isMultiBranch}
+                    onChange={(e) => setIsMultiBranch(e.target.checked)}
+                    className="h-4 w-4 rounded border-input"
+                  />
+                  Usuario multi-sucursal
+                </label>
+              )}
 
               {error && (
                 <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger sm:col-span-2">

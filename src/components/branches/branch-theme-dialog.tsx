@@ -101,7 +101,6 @@ export function BranchThemeDialog({ branch, onClose }: BranchThemeDialogProps) {
         setTheme(updated);
         applyThemeConfig(updated);
       }
-      toast.success("Tema actualizado correctamente");
       onClose();
     },
     onError: (err: Error) => {

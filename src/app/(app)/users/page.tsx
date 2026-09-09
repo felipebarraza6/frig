@@ -2,10 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, KeyRound, Power, Users, Pencil } from "lucide-react";
+import { Plus, Search, KeyRound, Power, Users, Pencil, Copy, Check, Eye, EyeOff, TriangleAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { TableSkeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/lib/store/toast";
 import { useSessionStore, useCurrentBranch, useCanManageUsers } from "@/lib/store/session";
 import { branchName } from "@/lib/types";
 import { getRoleLabel } from "@/lib/roles";
@@ -41,6 +43,21 @@ export default function UsersPage() {
     username: string;
     password: string;
   } | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const toast = useToast();
+
+  async function copyPassword() {
+    if (!revealedPassword) return;
+    try {
+      await navigator.clipboard.writeText(revealedPassword.password);
+      setCopied(true);
+      toast.success("Contraseña copiada al portapapeles");
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("No se pudo copiar. Selecciónala y cópiala manualmente.");
+    }
+  }
 
   const filter = useMemo<UsersFilter>(() => {
     const base: UsersFilter = {};
@@ -70,6 +87,8 @@ export default function UsersPage() {
     mutationFn: (userId: number) => generatePassword(userId),
     onSuccess: (data) => {
       setRevealedPassword({ username: data.username, password: data.new_password });
+      setShowPassword(false);
+      setCopied(false);
       queryClient.invalidateQueries({ queryKey: ["users"] });
     },
   });
@@ -115,26 +134,6 @@ export default function UsersPage() {
       </header>
 
       <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
-        {revealedPassword && (
-          <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
-            <p className="text-sm font-medium">Contraseña generada</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Usuario: <span className="font-mono text-foreground">{revealedPassword.username}</span>
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Contraseña: <span className="font-mono text-foreground">{revealedPassword.password}</span>
-            </p>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="mt-2"
-              onClick={() => setRevealedPassword(null)}
-            >
-              Cerrar
-            </Button>
-          </div>
-        )}
-
         <div className="relative w-full sm:max-w-sm">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -341,6 +340,61 @@ export default function UsersPage() {
           </>
         )}
       </div>
+
+      <Modal
+        open={revealedPassword !== null}
+        onClose={() => setRevealedPassword(null)}
+        title="Contraseña generada"
+        description={`Nueva clave de acceso para ${revealedPassword?.username ?? ""}.`}
+        size="sm"
+      >
+        <ModalBody className="space-y-4">
+          <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-700">
+            <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>
+              Por seguridad, esta contraseña se muestra solo esta vez. Guárdala en un
+              lugar seguro antes de cerrar.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Contraseña
+            </p>
+            <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/50 p-2 pl-3">
+              <code className="min-w-0 flex-1 truncate font-mono text-sm">
+                {showPassword ? revealedPassword?.password : "•".repeat(revealedPassword?.password.length ?? 12)}
+              </code>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 shrink-0 p-0"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                title={showPassword ? "Ocultar" : "Mostrar"}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 shrink-0 p-0"
+                onClick={copyPassword}
+                aria-label="Copiar contraseña"
+                title="Copiar"
+              >
+                {copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+              </Button>
+            </div>
+          </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button className="w-full sm:w-auto" onClick={() => setRevealedPassword(null)}>
+            <Check className="mr-2 h-4 w-4" />
+            Listo, ya la guardé
+          </Button>
+        </ModalFooter>
+      </Modal>
 
       {(creating || editing) && (
         <UserForm

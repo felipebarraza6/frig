@@ -41,7 +41,6 @@ export function OrderSplitsPanel({ orderId, orderTotal }: { orderId: string; ord
       setAmount("");
       setNotes("");
       refresh();
-      toast.success("División creada");
     },
     onError: (err: Error) => toast.error(err.message || "No se pudo crear la división"),
   });
@@ -50,7 +49,6 @@ export function OrderSplitsPanel({ orderId, orderTotal }: { orderId: string; ord
     mutationFn: (id: number) => payOrderSplit(id),
     onSuccess: () => {
       refresh();
-      toast.success("División pagada");
     },
     onError: (err: Error) => toast.error(err.message || "No se pudo pagar la división"),
   });
@@ -59,7 +57,6 @@ export function OrderSplitsPanel({ orderId, orderTotal }: { orderId: string; ord
     mutationFn: (id: number) => cancelOrderSplit(id),
     onSuccess: () => {
       refresh();
-      toast.success("División anulada");
     },
     onError: (err: Error) => toast.error(err.message || "No se pudo anular la división"),
   });

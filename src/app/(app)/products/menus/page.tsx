@@ -184,7 +184,6 @@ export default function MenusPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["public-catalogs"] });
       closeModal();
-      toast.success("Menú creado");
     },
     onError: (err: Error) => {
       toast.error(err.message || "Error al crear el menú");
@@ -197,7 +196,6 @@ export default function MenusPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["public-catalogs"] });
       closeModal();
-      toast.success("Menú actualizado");
     },
     onError: (err: Error) => {
       toast.error(err.message || "Error al actualizar el menú");
@@ -209,7 +207,6 @@ export default function MenusPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["public-catalogs"] });
       setConfirmDelete(null);
-      toast.success("Menú eliminado");
     },
     onError: (err: Error) => {
       toast.error(err.message || "Error al eliminar el menú");
@@ -285,9 +282,7 @@ export default function MenusPage() {
 
   function copyLink(slug: string) {
     const url = `${window.location.origin}${publicMenuUrl(slug)}`;
-    navigator.clipboard.writeText(url).then(() => {
-      toast.success("Link copiado al portapapeles");
-    });
+    navigator.clipboard.writeText(url);
   }
 
   const filtered = catalogs.results;
@@ -474,24 +469,19 @@ export default function MenusPage() {
                   className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary">
-                        <LayoutTemplate className="h-5 w-5 text-muted-foreground" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="truncate font-medium">{catalog.title}</p>
-                        <p className="text-xs text-muted-foreground">/{catalog.slug}</p>
-                        <span
-                          className={cn(
-                            "mt-1 inline-flex rounded px-2 py-0.5 text-[10px] font-medium",
-                            catalog.is_active
-                              ? "bg-emerald-500/10 text-emerald-700"
-                              : "bg-danger/10 text-danger",
-                          )}
-                        >
-                          {catalog.is_active ? "Activo" : "Inactivo"}
-                        </span>
-                      </div>
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{catalog.title}</p>
+                      <p className="text-xs text-muted-foreground">/{catalog.slug}</p>
+                      <span
+                        className={cn(
+                          "mt-1 inline-flex rounded px-2 py-0.5 text-[10px] font-medium",
+                          catalog.is_active
+                            ? "bg-emerald-500/10 text-emerald-700"
+                            : "bg-danger/10 text-danger",
+                        )}
+                      >
+                        {catalog.is_active ? "Activo" : "Inactivo"}
+                      </span>
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
                       <Button

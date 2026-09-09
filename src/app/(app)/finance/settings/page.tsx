@@ -115,7 +115,6 @@ function SubSectionTitle({ children }: { children: React.ReactNode }) {
 
 export default function FinanceSettingsPage() {
   const queryClient = useQueryClient();
-  const toast = useToast();
   const [selectedIdx, setSelectedIdx] = useState(0);
 
   const { data: configs = [], isLoading, isError, refetch } = useQuery({
@@ -130,7 +129,6 @@ export default function FinanceSettingsPage() {
       updateBranchFinanceConfig(id, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["branch-finance-configs"] });
-      toast.success("Configuración guardada");
     },
   });
 
@@ -325,7 +323,6 @@ function TaxTypesSection({ branchId }: { branchId: number }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tax-types", branchId] });
       setAdding(false);
-      toast.success("Impuesto creado");
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -336,7 +333,6 @@ function TaxTypesSection({ branchId }: { branchId: number }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tax-types", branchId] });
       setEditing(null);
-      toast.success("Impuesto actualizado");
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -345,7 +341,6 @@ function TaxTypesSection({ branchId }: { branchId: number }) {
     mutationFn: deleteTaxType,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tax-types", branchId] });
-      toast.success("Impuesto eliminado");
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -518,7 +513,6 @@ function SiiSection({
         sii_generation_trigger: config.sii_generation_trigger ?? "MANUAL",
         sii_document_preference: documentPreference,
       });
-      toast.success("Proveedor SII configurado y seleccionado");
     },
     onError: (err: Error) => toast.error(err.message),
   });

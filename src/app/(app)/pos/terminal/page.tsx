@@ -30,6 +30,8 @@ import {
   Lock,
   Unlock,
   AlertTriangle,
+  Settings2,
+  Package,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -69,7 +71,6 @@ import {
   cashOut,
   getMovements,
 } from "@/lib/api/cash-register";
-import { fetchExpenseCategories, createExpenseCategory, createExpense } from "@/lib/api/expenses";
 import { fetchTables } from "@/lib/api/tables";
 import { useCartStore, type CartItemModifier, type CartItem, cartSubtotal, cartDiscountTotal } from "@/lib/store/cart";
 import type { PosProduct, YggdraSchemas } from "@/lib/api/types";
@@ -92,6 +93,7 @@ import {
   useSessionStore,
   useIsOwner,
   useIsSuperAdmin,
+  useIsAdminLocal,
   useCanViewCashRegisterHistory,
 } from "@/lib/store/session";
 import { useBranchModules } from "@/lib/hooks/useBranchModules";
@@ -102,6 +104,9 @@ import ModifierModal from "@/components/pos/modifier-modal";
 import PosQuickActions from "@/components/pos/pos-quick-actions";
 import { WaiterTablesView } from "@/components/pos/waiter-tables-view";
 import { ComboPickerModal } from "@/components/pos/combo-picker-modal";
+import { PosConfigModal } from "@/components/pos/pos-config-modal";
+import { PosInventoryModal } from "@/components/pos/pos-inventory-modal";
+import { PosProfileButton } from "@/components/pos/pos-profile-button";
 import { TablesCanvas } from "@/components/tables/tables-canvas";
 
 function numberValue(v: string): string {
@@ -120,6 +125,10 @@ export default function PosPage() {
   const realIsWaiter = useIsWaiter();
   const isOwner = useIsOwner();
   const isSuperAdmin = useIsSuperAdmin();
+  const isAdminLocal = useIsAdminLocal();
+  const canConfigurePos = isOwner || isAdminLocal;
+  const [configOpen, setConfigOpen] = useState(false);
+  const [inventoryOpen, setInventoryOpen] = useState(false);
   const canViewHistory = useCanViewCashRegisterHistory();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -133,6 +142,7 @@ export default function PosPage() {
         ? {
             cash_movements: false,
             expenses: false,
+            purchase_order_payments: false,
             quotes: false,
             order_history: false,
           }
@@ -341,7 +351,6 @@ export default function PosPage() {
     setIsCanceling(true);
     try {
       await cancelOrder(order.id);
-      toast.success("Cuenta anulada correctamente");
       queryClient.invalidateQueries({
         queryKey: ["orders", "open-accounts", "pos-terminal"],
       });
@@ -462,7 +471,6 @@ export default function PosPage() {
       queryClient.invalidateQueries({ queryKey: ["cash-register"] });
       setCashRegisterAmount("");
       setShowCashRegisterModal(false);
-      toast.success("Caja abierta correctamente");
     },
     onError: (err: Error) => {
       toast.error(err.message || "No se pudo abrir la caja");
@@ -474,7 +482,6 @@ export default function PosPage() {
       deliverOrder(id, items),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
-      toast.success("Entrega registrada");
     },
     onError: (err: Error) => {
       toast.error(err.message || "No se pudo registrar la entrega");
@@ -500,7 +507,6 @@ export default function PosPage() {
       queryClient.invalidateQueries({ queryKey: ["cash-register"] });
       setCashRegisterAmount("");
       setShowCashRegisterModal(false);
-      toast.success("Caja cerrada correctamente");
     },
     onError: (err: Error) => {
       toast.error(err.message || "No se pudo cerrar la caja");
@@ -526,58 +532,38 @@ export default function PosPage() {
     [currentCashRegister, isSuperAdmin, isOwner, user?.id],
   );
 
+  // El pago de órdenes de proveedor no se gestiona desde la caja: se hace
+  // desde Órdenes → Proveedor del terminal (ver PayPendingItemModal).
   const movementMutation = useMutation({
-    mutationFn: async (payload: { type: "CASH_IN" | "CASH_OUT"; amount: string; reason: string }) => {
+    mutationFn: async (payload: {
+      type: "CASH_IN" | "CASH_OUT";
+      amount: string;
+      reason: string;
+      purchase_order_id?: string | null;
+    }) => {
       if (!currentCashRegister) throw new Error("No hay caja abierta");
       if (!branch?.branch_id) throw new Error("No hay sucursal seleccionada");
       if (!user?.id) throw new Error("No hay usuario identificado");
 
-      const base = { amount: payload.amount, reason: payload.reason };
-      const result = await (payload.type === "CASH_IN"
+      const base = {
+        amount: payload.amount,
+        reason: payload.reason,
+        purchase_order_id: payload.purchase_order_id || null,
+      };
+      // El backend crea el egreso/vinculación contable: para retiros simples
+      // genera un FixedExpense (create_expense_for_cash_out) y para pagos de
+      // orden de compra registra el Payment vinculado a la OC. Crearlo aquí
+      // además duplicaría el egreso.
+      return payload.type === "CASH_IN"
         ? cashIn(currentCashRegister.id, base)
-        : cashOut(currentCashRegister.id, base));
-
-      // Los retiros de caja se registran automáticamente como egreso para
-      // mantener la contabilidad al día sin trabajo extra del cajero.
-      if (payload.type === "CASH_OUT") {
-        try {
-          const categories = await fetchExpenseCategories();
-          let category = categories.find(
-            (c) => c.name.toLowerCase().includes("egreso"),
-          );
-          if (!category) {
-            category = await createExpenseCategory({
-              name: "Egresos de caja",
-              category_type: "OTHER",
-              branch: Number(branch.branch_id),
-              description: "Egresos generados por egresos manuales de caja desde el POS",
-              is_active: true,
-            });
-          }
-          await createExpense({
-            name: payload.reason,
-            description: `Egreso de caja registrado en ${activeStation?.name ?? "estación actual"}`,
-            branch: Number(branch.branch_id),
-            category: category.id,
-            created_by: Number(user.id),
-            amount: Number(payload.amount),
-            frequency: "ONE_TIME",
-            start_date: new Date().toISOString().split("T")[0],
-            status: "ACTIVE",
-          });
-        } catch {
-          // No bloqueamos el retiro si falla el egreso; se puede conciliar después.
-        }
-      }
-
-      return result;
+        : cashOut(currentCashRegister.id, base);
     },
-    onSuccess: (_, payload) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cash-register"] });
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
       setMovementAmount("");
       setMovementReason("");
-      toast.success(payload.type === "CASH_IN" ? "Ingreso registrado" : "Egreso registrado");
     },
     onError: (err: Error) => {
       toast.error(err.message || "No se pudo registrar el movimiento");
@@ -915,6 +901,72 @@ export default function PosPage() {
             )}
           </button>
 
+          {/* Mapa mesas */}
+          {showTables && !isWaiter && (
+            <button
+              type="button"
+              onClick={() => setShowTableMap(true)}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border/60 bg-muted/40 px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+            >
+              <Table className="h-3.5 w-3.5" />
+              <span className="hidden lg:inline">Mapa mesas</span>
+            </button>
+          )}
+
+          {/* Inventario: stock actual y mermas/movimientos manuales (configurable) */}
+          {effectiveConfig.inventory_movements && !isWaiter && (
+            <button
+              type="button"
+              onClick={() => setInventoryOpen(true)}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border/60 bg-muted/40 px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+              title="Inventario"
+            >
+              <Package className="h-3.5 w-3.5" />
+              <span className="hidden lg:inline">Inventario</span>
+            </button>
+          )}
+
+          {/* Ajustes de la estación (solo owner/admin: el cajero no configura) */}
+          {canConfigurePos && !isWaiter && activeStationId && (
+            <button
+              type="button"
+              onClick={() => setConfigOpen(true)}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border/60 bg-muted/40 px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+              title="Ajustes de la estación"
+            >
+              <Settings2 className="h-3.5 w-3.5" />
+              <span className="hidden lg:inline">Ajustes</span>
+            </button>
+          )}
+
+          {/* PosQuickActions */}
+          {!isWaiter && (
+            <PosQuickActions
+              stationId={activeStationId}
+              onContinueOrder={handleEditOrder}
+              onCancelOrder={handleCancelOrder}
+              showAccounts={effectiveConfig.order_history}
+              showCollect={effectiveConfig.customer_search}
+              showSupplierPayments={effectiveConfig.purchase_order_payments}
+            />
+          )}
+
+          {/* Mobile cart summary */}
+          <button
+            type="button"
+            onClick={() => setCartOpen(true)}
+            className="relative inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary px-2.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 sm:hidden"
+            aria-label="Ver cuenta"
+          >
+            <ShoppingBag className="h-3.5 w-3.5" />
+            <span className="font-bold tabular-nums">{formatCLP(displayCartTotal)}</span>
+            {displayItemCount > 0 && (
+              <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-500 px-1 text-[9px] font-semibold text-white">
+                {displayItemCount}
+              </span>
+            )}
+          </button>
+
           {/* Cash register status */}
           {!isWaiter && (
             <button
@@ -926,6 +978,13 @@ export default function PosPage() {
                 setMovementAmount("");
                 setMovementReason("");
               }}
+              title={
+                cashRegisterError
+                  ? "Error al consultar la caja"
+                  : currentCashRegister
+                    ? "Caja abierta"
+                    : "Caja cerrada"
+              }
               className={cn(
                 "inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition-colors",
                 cashRegisterError
@@ -952,44 +1011,8 @@ export default function PosPage() {
             </button>
           )}
 
-          {/* Mapa mesas */}
-          {showTables && !isWaiter && (
-            <button
-              type="button"
-              onClick={() => setShowTableMap(true)}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border/60 bg-muted/40 px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
-            >
-              <Table className="h-3.5 w-3.5" />
-              <span className="hidden lg:inline">Mapa mesas</span>
-            </button>
-          )}
-
-          {/* PosQuickActions */}
-          {!isWaiter && (
-            <PosQuickActions
-              stationId={activeStationId}
-              onContinueOrder={handleEditOrder}
-              onCancelOrder={handleCancelOrder}
-              showAccounts={effectiveConfig.order_history}
-              showCollect={effectiveConfig.customer_search}
-            />
-          )}
-
-          {/* Mobile cart summary */}
-          <button
-            type="button"
-            onClick={() => setCartOpen(true)}
-            className="relative inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary px-2.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 sm:hidden"
-            aria-label="Ver cuenta"
-          >
-            <ShoppingBag className="h-3.5 w-3.5" />
-            <span className="font-bold tabular-nums">{formatCLP(displayCartTotal)}</span>
-            {displayItemCount > 0 && (
-              <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-500 px-1 text-[9px] font-semibold text-white">
-                {displayItemCount}
-              </span>
-            )}
-          </button>
+          {/* Perfil: mismo panel que /profile, con cierre de sesión (también para cajero) */}
+          <PosProfileButton />
         </div>
 
       </header>
@@ -1616,6 +1639,7 @@ export default function PosPage() {
               onCancelOrder={handleCancelOrder}
               showAccounts={effectiveConfig.order_history}
               showCollect={effectiveConfig.customer_search}
+              showSupplierPayments={effectiveConfig.purchase_order_payments}
             />
           )}
         </div>
@@ -2311,6 +2335,12 @@ export default function PosPage() {
                 </h3>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Estación {activeStation?.name ?? "actual"}
+                  {currentCashRegister?.opened_by_name && (
+                    <>
+                      {" · en turno: "}
+                      <span className="font-medium text-foreground">{currentCashRegister.opened_by_name}</span>
+                    </>
+                  )}
                 </p>
               </div>
               {currentCashRegister && (
@@ -2575,9 +2605,15 @@ export default function PosPage() {
                         type: movementType,
                         amount: toDecimal(movementAmount),
                         reason: movementReason,
+                        purchase_order_id: null,
                       })
                     }
-                    disabled={!isRegisterController || !movementAmount || !movementReason || movementMutation.isPending}
+                    disabled={
+                      !isRegisterController ||
+                      !movementAmount ||
+                      !movementReason ||
+                      movementMutation.isPending
+                    }
                     isLoading={movementMutation.isPending}
                     variant={movementType === "CASH_OUT" ? "danger" : "default"}
                     className="h-auto min-h-10 whitespace-normal py-2 text-xs sm:min-h-9"
@@ -2665,6 +2701,19 @@ export default function PosPage() {
           onClose={handleClosePostSale}
         />
       )}
+
+      {/* Ajustes de la estación (abre desde el botón del header) */}
+      <PosConfigModal
+        open={configOpen}
+        onClose={() => setConfigOpen(false)}
+        stationId={activeStationId}
+      />
+
+      {/* Inventario del POS (stock + movimientos manuales) */}
+      <PosInventoryModal
+        open={inventoryOpen}
+        onClose={() => setInventoryOpen(false)}
+      />
     </div>
   );
 }

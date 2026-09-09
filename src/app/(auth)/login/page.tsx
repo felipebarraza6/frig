@@ -17,6 +17,7 @@ import {
 } from "@/lib/api/branches";
 import type { BranchThemeConfig } from "@/lib/types";
 import { setToken } from "@/lib/api/session-storage";
+import { pickDefaultBranchId } from "@/lib/branch-session";
 import { cn } from "@/lib/utils";
 import { LandingPanel } from "@/components/landing/landing-panel";
 import { PixelFoodMark } from "@/components/landing/pixel-food-mark";
@@ -59,6 +60,7 @@ function getHomeRouteForUser(
 export default function LoginPage() {
   const router = useRouter();
   const setSession = useSessionStore((s) => s.setSession);
+  const setOwnedOrganizations = useSessionStore((s) => s.setOwnedOrganizations);
   const setFrontendConfig = useSessionStore((s) => s.setFrontendConfig);
   const setTheme = useSessionStore((s) => s.setTheme);
 
@@ -165,35 +167,42 @@ export default function LoginPage() {
   const completeLogin = useCallback(
     async (res: LoginCompleteResponse) => {
       setToken(res.token);
+      // Organizaciones que el usuario posee: alimentan el guard de /organization.
+      setOwnedOrganizations(res.owned_organizations ?? null);
       // Sesión demo: guardar expiración (1h) para avisos/cuenta regresiva.
       if (res.demo_expires_at) {
         window.localStorage.setItem("frig.demo_expires_at", res.demo_expires_at);
       } else {
         window.localStorage.removeItem("frig.demo_expires_at");
       }
-      if (res.branches.length === 1) {
-        const branchId = Number(res.branches[0].branch_id);
-        const config = await fetchFrontendConfig(branchId);
-        setFrontendConfig(config, String(branchId));
+      // Activa la sucursal por defecto (o la única) y entra directo: el cambio
+      // de sucursal dentro de la app lo hace el switcher del sidebar.
+      const target = pickDefaultBranchId(res.user, res.branches);
+      if (target) {
         try {
-          const branchTheme = await fetchBranchTheme(String(branchId));
-          if (branchTheme) {
-            setTheme(branchTheme);
-            applyThemeConfig(branchTheme);
+          const config = await fetchFrontendConfig(Number(target));
+          setFrontendConfig(config, target);
+          try {
+            const branchTheme = await fetchBranchTheme(target);
+            if (branchTheme) {
+              setTheme(branchTheme);
+              applyThemeConfig(branchTheme);
+            }
+          } catch {
+            // tema no crítico
           }
+          celebrateThen(() =>
+            router.replace(getHomeRouteForUser(config.user, config.dashboard)),
+          );
+          return;
         } catch {
-          // tema no crítico
+          // Falló frontend-config: el layout reactivará la sucursal por defecto.
         }
-        celebrateThen(() =>
-          router.replace(getHomeRouteForUser(config.user, config.dashboard)),
-        );
-      } else {
-        // Múltiples sucursales: guardar datos básicos y dejar que select-branch cargue frontend-config.
-        setSession(res.user, res.branches, res.permissions ?? null);
-        celebrateThen(() => router.replace("/select-branch"));
       }
+      setSession(res.user, res.branches, res.permissions ?? null);
+      celebrateThen(() => router.replace("/dashboard"));
     },
-    [router, setFrontendConfig, setSession, setTheme],
+    [router, setFrontendConfig, setSession, setOwnedOrganizations, setTheme],
   );
 
   // Canje del magic-link de contratación: /login/<slug>?token=… llega aquí
@@ -263,7 +272,7 @@ export default function LoginPage() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25, ease: "easeOut" }}
-          className="relative flex w-full max-w-sm flex-col overflow-hidden px-1 font-pixel lg:h-[600px] lg:justify-center"
+          className="relative flex w-full max-w-sm flex-col overflow-hidden px-1 font-pixel lg:min-h-[600px] lg:justify-center"
         >
           <div className="mb-8 flex flex-col items-center gap-3 text-center">
             {!brandTheme && (

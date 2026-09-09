@@ -364,20 +364,23 @@ export default function WarehousesPage() {
                 </div>
               ))}
             </div>
-            {/* Tabla */}
-            <div className="overflow-hidden rounded-xl border border-border">
-              <div className="border-b border-border px-4 py-3">
-                <Skeleton className="h-3 w-44" />
-              </div>
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-3 border-b border-border px-4 py-3 last:border-0"
-                >
-                  <Skeleton className="h-10 w-10 rounded-xl" />
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="hidden h-4 w-20 sm:block" />
-                  <Skeleton className="ml-auto h-4 w-16" />
+            {/* Tarjetas */}
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-11 w-11 rounded-xl" />
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <Skeleton className="h-14 w-full" />
+                    <Skeleton className="h-14 w-full" />
+                    <Skeleton className="h-14 w-full" />
+                    <Skeleton className="h-14 w-full" />
+                  </div>
                 </div>
               ))}
             </div>
@@ -467,127 +470,8 @@ export default function WarehousesPage() {
               </div>
             )}
 
-            {/* Desktop table */}
-            <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
-              <table className="w-full min-w-[900px] text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                    <th className="px-4 py-3">Bodega</th>
-                    <th className="px-4 py-3">Tipo</th>
-                    <th className="px-4 py-3 text-right">Productos</th>
-                    <th className="px-4 py-3 text-right">Unidades</th>
-                    <th className="px-4 py-3 text-right">Costo</th>
-                    <th className="px-4 py-3 text-right">Venta</th>
-                    <th className="px-4 py-3 text-center">Alertas</th>
-                    <th className="px-4 py-3 text-right">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {warehouses.map((w) => {
-                    const Icon = typeIcon(w.warehouse_type);
-                    const accent = typeAccent(w.warehouse_type);
-                    const totalProducts = numValue(w.total_products);
-                    const totalQuantity = numValue(w.total_quantity);
-                    const totalCost = numValue(w.total_value);
-                    const totalSale = numValue(w.total_sale_value);
-                    const lowStock = numValue(w.low_stock_products);
-                    const outOfStock = numValue(w.out_of_stock_products);
-                    const hasAlerts = lowStock > 0 || outOfStock > 0;
-
-                    return (
-                      <tr key={w.id} className="border-b border-border last:border-0">
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            <div
-                              className={cn(
-                                "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border",
-                                accent,
-                              )}
-                            >
-                              <Icon className="h-5 w-5" />
-                            </div>
-                            <div className="min-w-0">
-                              <p className="truncate font-medium">{w.name}</p>
-                              {w.is_default && (
-                                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-                                  Principal
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground">{typeLabel(w.warehouse_type)}</td>
-                        <td className="px-4 py-3 text-right tabular-nums">{totalProducts}</td>
-                        <td className="px-4 py-3 text-right tabular-nums">{totalQuantity}</td>
-                        <td className="px-4 py-3 text-right tabular-nums font-medium text-emerald-700">
-                          {formatCLP(totalCost)}
-                        </td>
-                        <td className="px-4 py-3 text-right tabular-nums font-medium text-primary">
-                          {formatCLP(totalSale)}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          {hasAlerts ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700">
-                              <AlertTriangle className="h-3 w-3" />
-                              {lowStock > 0 && `${lowStock} bajo`}
-                              {lowStock > 0 && outOfStock > 0 && " · "}
-                              {outOfStock > 0 && `${outOfStock} sin`}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 text-danger hover:text-danger"
-                              title="Eliminar"
-                              aria-label="Eliminar"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setConfirmDelete(w);
-                              }}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                              <span className="sr-only">Eliminar</span>
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                              title="Editar"
-                              aria-label="Editar"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openModal(w);
-                              }}
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                              <span className="sr-only">Editar</span>
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                router.push(`/warehouses/${w.id}`);
-                              }}
-                            >
-                              <span>Entrar</span>
-                              <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile cards */}
-            <div className="grid gap-4 md:hidden">
+            {/* Cards */}
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               {warehouses.map((w) => {
                 const Icon = typeIcon(w.warehouse_type);
                 const accent = typeAccent(w.warehouse_type);
@@ -602,7 +486,7 @@ export default function WarehousesPage() {
                 return (
                   <div
                     key={w.id}
-                    onClick={() => router.push(`/warehouses/${w.id}`)}
+                    onClick={() => router.push(`/warehouses/view?id=${w.id}`)}
                     className={cn(
                       "group cursor-pointer rounded-2xl border border-border bg-card p-4 shadow-sm transition",
                       "hover:border-primary hover:shadow-md",
@@ -697,7 +581,7 @@ export default function WarehousesPage() {
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          router.push(`/warehouses/${w.id}`);
+                          router.push(`/warehouses/view?id=${w.id}`);
                         }}
                       >
                         <span className="hidden sm:inline">Entrar</span>

@@ -27,7 +27,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ModalBody, ModalFooter } from "@/components/ui/modal";
 import { fetchOrders, fetchOrder, payOrder, deliverOrder } from "@/lib/api/orders";
+import { fetchPurchaseOrders, payPurchaseOrder, type PurchaseOrderList } from "@/lib/api/suppliers";
 import { searchCustomers } from "@/lib/api/customers";
+import { fetchQuotations, convertQuotationToOrder } from "@/lib/api/quotations";
+import { Select } from "@/components/ui/select";
 import { formatCLP, cn } from "@/lib/utils";
 import { useToast } from "@/lib/store/toast";
 import type { POSQuickActionType } from "@/lib/api/branches";
@@ -273,6 +276,9 @@ interface PayPendingItemModalProps {
   paymentMethods: PaymentMethod[];
   onContinueOrder?: (order: Order) => void;
   onCancelOrder?: (order: Order) => void;
+  /** Permite pagar órdenes de proveedor desde la pestaña Proveedor
+   *  (config purchase_order_payments de la estación). Por defecto true. */
+  showSupplierPayments?: boolean;
 }
 
 const TYPE_CONFIG: Record<
@@ -304,6 +310,7 @@ export default function PayPendingItemModal({
   paymentMethods,
   onContinueOrder,
   onCancelOrder,
+  showSupplierPayments = true,
 }: PayPendingItemModalProps) {
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -326,8 +333,15 @@ export default function PayPendingItemModal({
   const [clientFilterQuery, setClientFilterQuery] = useState("");
   const [deliveringOrderId, setDeliveringOrderId] = useState<string | null>(null);
   const [orderQuery, setOrderQuery] = useState("");
+  /** Orden de proveedor con el formulario de pago inline abierto. */
+  const [payingOrderId, setPayingOrderId] = useState<string | null>(null);
+  const [payAmount, setPayAmount] = useState("");
+  const [payMethodId, setPayMethodId] = useState<string>(activeMethods[0]?.id ?? "");
+  /** Contraparte del listado: órdenes de cliente, de compra (proveedor) o cotizaciones. */
+  const [counterparty, setCounterparty] = useState<"client" | "supplier" | "quotation">("client");
 
   const isCollect = type === "collect";
+  const showCounterpartyToggle = type === "pay_account" || type === "pay_order";
   const [payingAll, setPayingAll] = useState(false);
 
   const { data: allPendingAccounts = [], isLoading: loadingAllPending } = useQuery({
@@ -425,6 +439,83 @@ export default function PayPendingItemModal({
     staleTime: 30_000,
   });
 
+  // Órdenes de compra (proveedor) para la pestaña "Proveedor": mismas que se
+  // pueden pagar desde la caja (enviadas o recibidas, con saldo pendiente).
+  const { data: supplierOrders = [], isLoading: loadingSupplierOrders } = useQuery({
+    queryKey: ["purchase-orders", "pending-for-pay-modal", orderQuery],
+    queryFn: async () => {
+      const data = await fetchPurchaseOrders({
+        status__in: ["SENT", "CONFIRMED", "PARTIAL_RECEIVED", "RECEIVED", "COMPLETED"],
+        payment_status__in: ["PENDING", "PARTIAL", "OVERDUE"],
+        search: orderQuery.trim() || undefined,
+        page_size: 100,
+      });
+      return data.results ?? [];
+    },
+    enabled: open && showCounterpartyToggle && counterparty === "supplier",
+    staleTime: 30_000,
+  });
+
+  // Cotizaciones pendientes para la pestaña "Cotizaciones": se cargan al
+  // terminal como venta para cobrar en caja. Las convertidas desaparecen del
+  // endpoint (is_quotation=False); las canceladas se filtran acá.
+  const { data: quotationList = [], isLoading: loadingQuotations } = useQuery({
+    queryKey: ["quotations", "pending-for-pay-modal", orderQuery],
+    queryFn: async () => {
+      const data = await fetchQuotations({
+        search: orderQuery.trim() || undefined,
+        page_size: 100,
+      });
+      return (data.results ?? []).filter((q) => q.status !== "CANCELLED");
+    },
+    enabled: open && showCounterpartyToggle && counterparty === "quotation",
+    staleTime: 30_000,
+  });
+
+  // Pago de orden de proveedor desde la pestaña Proveedor: registra el pago
+  // vinculado a la OC y, si hay caja abierta, su egreso en caja. Así la OC se
+  // gestiona completa desde Órdenes y no desde el modal de caja.
+  const paySupplierOrder = useMutation({
+    mutationFn: async (po: PurchaseOrderList) => {
+      if (!payMethodId) throw new Error("Selecciona un método de pago");
+      return payPurchaseOrder(String(po.id), {
+        amount: toDecimal(payAmount),
+        payment_method_id: payMethodId,
+        cash_register_id: cashRegisterId,
+        notes: `Pago ${po.order_number}`,
+      });
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-register"] });
+      toast.success(result.message || "Pago registrado");
+      setPayingOrderId(null);
+      setPayAmount("");
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "No se pudo registrar el pago");
+    },
+  });
+
+  // Cargar una cotización al terminal: se convierte en venta (SALE) y queda
+  // abierta como cuenta para cobrar en caja con el flujo normal del POS.
+  const loadQuotation = useMutation({
+    mutationFn: async (quotationId: string) => {
+      const order = await convertQuotationToOrder(quotationId, "SALE");
+      return order as Order;
+    },
+    onSuccess: (order) => {
+      queryClient.invalidateQueries({ queryKey: ["quotations"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-orders-for-pos"] });
+      onContinueOrder?.(order);
+      handleClose();
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "No se pudo cargar la cotización");
+    },
+  });
+
   const selectedItem = useMemo(() => {
     if (!selectedItemId) return null;
     return orders.find((o) => o.id === selectedItemId) ?? null;
@@ -485,6 +576,7 @@ export default function PayPendingItemModal({
     setNotes("");
     setPaymentMethodId(activeMethods[0]?.id ?? "");
     setPayingAll(false);
+    setCounterparty("client");
     onClose();
   }
 
@@ -537,7 +629,6 @@ export default function PayPendingItemModal({
     }
     setPayingAll(false);
     if (success > 0) {
-      toast.success(`${success} pago(s) registrado(s)${failed ? `, ${failed} fallaron` : ""}`);
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       queryClient.invalidateQueries({ queryKey: ["pending-orders-for-pos"] });
       queryClient.invalidateQueries({ queryKey: ["all-pending-accounts-for-collect"] });
@@ -551,7 +642,194 @@ export default function PayPendingItemModal({
 
   const showOrderActions = type === "pay_account" || type === "pay_order";
 
+  function renderSupplierList() {
+    if (loadingSupplierOrders) return <LoadingState message="Cargando órdenes de compra..." />;
+    if (supplierOrders.length === 0) {
+      return (
+        <EmptyState
+          icon={ClipboardList}
+          title="No hay órdenes de compra por pagar"
+          description={orderQuery.trim() ? "No coinciden con la búsqueda." : undefined}
+        />
+      );
+    }
+    return (
+      <div className="grid grid-cols-1 gap-3">
+        {supplierOrders.map((po) => {
+          const remaining = toNum(po.remaining_amount);
+          return (
+            <div
+              key={po.id}
+              className="rounded-xl border border-border/60 bg-card p-3 shadow-sm"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-start gap-2.5">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-500/10 text-amber-700">
+                    <Package className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">{po.order_number}</p>
+                    <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
+                      <User className="h-3 w-3" /> {po.supplier_name || "Sin proveedor"}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-base font-bold tabular-nums text-amber-700">{formatCLP(remaining)}</p>
+                  <p className="text-xs text-muted-foreground">de {formatCLP(toNum(po.total_amount))}</p>
+                </div>
+              </div>
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
+                    po.payment_status === "PENDING" && "bg-amber-500/10 text-amber-700",
+                    po.payment_status === "PARTIAL" && "bg-primary/10 text-primary",
+                    po.payment_status === "OVERDUE" && "bg-rose-500/10 text-rose-700",
+                  )}
+                >
+                  <DollarSign className="h-3 w-3" />
+                  {po.payment_status === "PENDING"
+                    ? "Por pagar"
+                    : po.payment_status === "PARTIAL"
+                      ? "Pago parcial"
+                      : "Vencida"}
+                </span>
+                {showSupplierPayments ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      if (payingOrderId === po.id) {
+                        setPayingOrderId(null);
+                      } else {
+                        setPayingOrderId(po.id);
+                        setPayAmount(String(Math.round(toNum(po.remaining_amount))));
+                        setPayMethodId(activeMethods[0]?.id ?? "");
+                      }
+                    }}
+                    className="h-7 gap-1 px-2 text-xs"
+                  >
+                    <Banknote className="h-3 w-3" /> Pagar
+                  </Button>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Pagos de proveedor desactivados en la configuración de la estación.
+                  </p>
+                )}
+              </div>
+              {showSupplierPayments && payingOrderId === po.id && (
+                <div className="mt-2 flex flex-col gap-2 rounded-lg border border-border bg-muted/30 p-2">
+                  <div className="flex gap-2">
+                    <Input
+                      value={payAmount}
+                      onChange={(e) => setPayAmount(e.target.value)}
+                      placeholder="Monto"
+                      className="h-8 flex-1 text-xs tabular-nums"
+                    />
+                    <Select
+                      value={payMethodId}
+                      onChange={(e) => setPayMethodId(e.target.value)}
+                      options={activeMethods.map((m) => ({ value: m.id, label: m.name }))}
+                      className="h-8 flex-1 text-xs"
+                    />
+                  </div>
+                  {!cashRegisterId && (
+                    <p className="text-xs text-amber-600">
+                      No hay caja abierta: el pago queda registrado sin egreso en caja.
+                    </p>
+                  )}
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setPayingOrderId(null)}
+                      className="h-7 text-xs"
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => paySupplierOrder.mutate(po)}
+                      isLoading={paySupplierOrder.isPending}
+                      disabled={!payAmount || !payMethodId}
+                      className="h-7 text-xs"
+                    >
+                      Confirmar pago
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  function renderQuotationList() {
+    if (loadingQuotations) return <LoadingState message="Cargando cotizaciones..." />;
+    if (quotationList.length === 0) {
+      return (
+        <EmptyState
+          icon={FileText}
+          title="No hay cotizaciones pendientes"
+          description={orderQuery.trim() ? "No coinciden con la búsqueda." : undefined}
+        />
+      );
+    }
+    return (
+      <div className="grid grid-cols-1 gap-3">
+        {quotationList.map((q) => (
+          <div
+            key={q.id}
+            className="rounded-xl border border-dashed border-primary/30 bg-card p-3 shadow-sm"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 items-start gap-2.5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <FileText className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold">
+                    {q.order_number ?? `Cotización ${String(q.id).slice(0, 8)}`}
+                  </p>
+                  <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
+                    <User className="h-3 w-3" /> {q.client?.name ?? "Sin cliente"}
+                  </p>
+                  <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Calendar className="h-3 w-3" /> {shortDate(q.date)}
+                  </p>
+                </div>
+              </div>
+              <div className="shrink-0 text-right">
+                <p className="text-base font-bold tabular-nums text-primary">
+                  {formatCLP(Number(q.total_amount ?? 0))}
+                </p>
+              </div>
+            </div>
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">
+                Se abrirá como venta para cobrar en caja.
+              </p>
+              <Button
+                size="sm"
+                onClick={() => loadQuotation.mutate(String(q.id))}
+                isLoading={loadQuotation.isPending}
+                className="h-7 gap-1 px-2 text-xs"
+              >
+                <Banknote className="h-3 w-3" /> Cobrar
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   function renderItemList() {
+    if (counterparty === "supplier") return renderSupplierList();
+    if (counterparty === "quotation") return renderQuotationList();
     if (isCollect) {
       if (!selectedClient) {
         if (loadingAllPending) return <LoadingState message="Cargando clientes..." />;
@@ -709,6 +987,20 @@ export default function PayPendingItemModal({
                     >
                       <Banknote className="h-3 w-3" /> Abrir
                     </Button>
+                    {o.order_type === "ORDER" &&
+                      (["PENDING", "IN_PROGRESS"].includes(o.status ?? "") ||
+                        ["PENDING", "IN_PROGRESS", "PARTIAL"].includes(o.delivery_status ?? "")) && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => deliverMutation.mutate(o.id)}
+                          isLoading={deliveringOrderId === o.id}
+                          disabled={deliveringOrderId !== null}
+                          className="h-7 gap-1 px-2 text-xs"
+                        >
+                          <Check className="h-3 w-3" /> Entregar
+                        </Button>
+                      )}
                     <Button
                       size="sm"
                       variant="outline"
@@ -1230,21 +1522,84 @@ export default function PayPendingItemModal({
           )}
 
           <div className="flex flex-col gap-2">
+            {showCounterpartyToggle && (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCounterparty("client");
+                    setSelectedItemId(null);
+                    setViewDetailId(null);
+                  }}
+                  className={cn(
+                    "h-8 flex-1 rounded-md text-xs font-medium transition-colors",
+                    counterparty === "client"
+                      ? "bg-primary text-white"
+                      : "border border-border bg-background text-foreground hover:bg-muted",
+                  )}
+                >
+                  Cliente
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCounterparty("supplier");
+                    setSelectedItemId(null);
+                    setViewDetailId(null);
+                  }}
+                  className={cn(
+                    "h-8 flex-1 rounded-md text-xs font-medium transition-colors",
+                    counterparty === "supplier"
+                      ? "bg-primary text-white"
+                      : "border border-border bg-background text-foreground hover:bg-muted",
+                  )}
+                >
+                  Proveedor
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCounterparty("quotation");
+                    setSelectedItemId(null);
+                    setViewDetailId(null);
+                  }}
+                  className={cn(
+                    "h-8 flex-1 rounded-md text-xs font-medium transition-colors",
+                    counterparty === "quotation"
+                      ? "bg-primary text-white"
+                      : "border border-border bg-background text-foreground hover:bg-muted",
+                  )}
+                >
+                  Cotizaciones
+                </button>
+              </div>
+            )}
             <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
               <Receipt className="h-3.5 w-3.5" />
-              {cfg.listLabel}
+              {counterparty === "supplier"
+                ? "Órdenes de compra"
+                : counterparty === "quotation"
+                  ? "Cotizaciones pendientes"
+                  : cfg.listLabel}
             </p>
-            {type === "pay_order" && (
+            {(type === "pay_order" || counterparty !== "client") && (
               <div className="relative">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={orderQuery}
                   onChange={(e) => setOrderQuery(e.target.value)}
-                  placeholder="N° orden, cliente, RUT, teléfono, email o dirección"
+                  placeholder={
+                    counterparty === "supplier"
+                      ? "N° orden de compra o proveedor"
+                      : counterparty === "quotation"
+                        ? "N° cotización o cliente"
+                        : "N° orden, cliente, RUT, teléfono, email o dirección"
+                  }
                   className="pl-9 h-9 text-xs"
                 />
               </div>
             )}
+            {counterparty === "client" && (
             <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 p-2">
               <Calendar className="h-4 w-4 text-muted-foreground" />
               <div className="flex flex-1 gap-2">
@@ -1256,12 +1611,13 @@ export default function PayPendingItemModal({
                 <Button variant="ghost" size="sm" onClick={() => { setDateFrom(""); setDateTo(""); setOrderQuery(""); }} className="h-8 px-2 text-xs">Limpiar</Button>
               )}
             </div>
+            )}
             <div className="flex flex-col gap-3 rounded-xl bg-muted/20 p-3 max-h-[28rem] overflow-y-auto">
               {renderItemList()}
             </div>
           </div>
 
-          {selectedItem && (
+          {selectedItem && counterparty === "client" && (
             <div className="flex flex-col gap-3 rounded-lg border border-border/60 bg-muted/30 p-3">
               {type === "pay_order" ? (
                 <>
@@ -1372,7 +1728,7 @@ export default function PayPendingItemModal({
               handleClose();
             }
           }}
-          disabled={!selectedItem}
+          disabled={!selectedItem || counterparty !== "client"}
         >
           <Banknote className="mr-1.5 h-4 w-4" />
           {type === "pay_account"

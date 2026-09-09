@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { useMemo } from "react";
-import type { Branch, BranchAssignment, BranchThemeConfig, User } from "@/lib/types";
+import type { Branch, BranchAssignment, BranchThemeConfig, ID, Organization, User } from "@/lib/types";
 import { setBranchId, clearBranchId } from "@/lib/api/session-storage";
 import type {
   FrontendConfigResponse,
@@ -21,6 +21,8 @@ export interface SessionPermissions {
 interface SessionState {
   user: User | null;
   branches: Branch[];
+  /** Organizaciones de las que el usuario es dueño (login_complete.owned_organizations). */
+  ownedOrganizations: Organization[];
   currentBranchId: ID_STR | null;
   theme: BranchThemeConfig | null;
   permissions: SessionPermissions | null;
@@ -32,6 +34,9 @@ interface SessionState {
   frontendConfigBranchId: ID_STR | null;
   hasHydrated: boolean;
   setSession: (user: User, branches: Branch[], permissions?: SessionPermissions | null) => void;
+  setOwnedOrganizations: (orgs: Organization[] | null) => void;
+  /** Actualiza campos de una sucursal en la sesión (p. ej. plan tras apply-plan). */
+  patchBranch: (branchId: ID, patch: Partial<Branch>) => void;
   setFrontendConfig: (config: FrontendConfigResponse, branchId?: ID_STR) => void;
   setUser: (user: User) => void;
   setCurrentBranch: (branchId: ID_STR) => void;
@@ -146,6 +151,7 @@ export const useSessionStore = create<SessionState>()(
     (set) => ({
       user: null,
       branches: [],
+      ownedOrganizations: [],
       currentBranchId: null,
       theme: null,
       permissions: null,
@@ -157,6 +163,13 @@ export const useSessionStore = create<SessionState>()(
       hasHydrated: false,
       setSession: (user, branches, permissions = null) =>
         set({ user, branches, currentBranchId: null, permissions, frontendConfigBranchId: null }),
+      setOwnedOrganizations: (orgs) => set({ ownedOrganizations: orgs ?? [] }),
+      patchBranch: (branchId, patch) =>
+        set((s) => ({
+          branches: s.branches.map((b) =>
+            String(b.branch_id) === String(branchId) ? { ...b, ...patch } : b,
+          ),
+        })),
       setFrontendConfig: (config, branchId) => {
         if (branchId) {
           setBranchId(branchId);
@@ -190,6 +203,7 @@ export const useSessionStore = create<SessionState>()(
         set({
           user: null,
           branches: [],
+          ownedOrganizations: [],
           currentBranchId: null,
           theme: null,
           permissions: null,
@@ -207,6 +221,7 @@ export const useSessionStore = create<SessionState>()(
       partialize: (s) => ({
         user: s.user,
         branches: s.branches,
+        ownedOrganizations: s.ownedOrganizations,
         currentBranchId: s.currentBranchId,
         theme: s.theme,
         permissions: s.permissions,
@@ -276,6 +291,21 @@ export function useCanManageBranches(): boolean {
   if (!user) return false;
   if (isUserAdminOrSuperuser(user)) return true;
   return user.branch_assignments?.some((a) => normalizeRole(a.role_code) === "OWNER") ?? false;
+}
+
+/**
+ * True si el usuario puede ver la vista de organización: solo el dueño de la
+ * organización (user.is_organization_owner / owned_organizations de
+ * login_complete) o superadmin/staff. Un OWNER de una sucursal que no sea
+ * dueño de la org NO califica: la gestión de organización es para quien posee
+ * la organización, no para dueños de local.
+ */
+export function useCanViewOrganization(): boolean {
+  const user = useSessionStore((s) => s.user);
+  const owned = useSessionStore((s) => s.ownedOrganizations);
+  if (!user) return false;
+  if (isUserAdminOrSuperuser(user)) return true;
+  return user.is_organization_owner === true || owned.length > 0;
 }
 
 /** True si el usuario puede gestionar inventario, productos y categorías. */

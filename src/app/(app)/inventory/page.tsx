@@ -104,7 +104,7 @@ export default function InventoryPage() {
 
   const { data: productsPage } = useQuery({
     queryKey: ["products", "catalog"],
-    queryFn: () => fetchProducts({}),
+    queryFn: () => fetchProducts({ page_size: 100 }),
   });
   const products = productsPage?.results ?? [];
 
@@ -265,6 +265,28 @@ export default function InventoryPage() {
       <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
         {tab === "movements" && (
           <>
+            {totalAlerts > 0 && (
+              <button
+                type="button"
+                onClick={() => setTab("alerts")}
+                className="flex w-full items-center gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-left transition-colors hover:bg-amber-500/20"
+              >
+                <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-amber-700">
+                    {totalAlerts} alerta(s) de stock
+                  </p>
+                  <p className="text-xs text-amber-600/90">
+                    {outOfStock.length > 0 && `${outOfStock.length} sin stock`}
+                    {outOfStock.length > 0 && lowStock.length > 0 && " · "}
+                    {lowStock.length > 0 && `${lowStock.length} con stock bajo`}
+                  </p>
+                </div>
+                <span className="shrink-0 text-xs font-medium text-amber-700 hover:underline">
+                  Ver alertas
+                </span>
+              </button>
+            )}
             <div className="flex flex-col gap-3">
               {/* Desktop filters */}
               <div className="hidden flex-wrap items-end gap-3 md:flex">
@@ -477,16 +499,11 @@ export default function InventoryPage() {
                       className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm"
                     >
                       <div className="flex items-start justify-between gap-3">
-                        <div className="flex min-w-0 items-center gap-3">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary">
-                            <Package className="h-5 w-5 text-muted-foreground" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="truncate font-medium">{m.product_name}</p>
-                            <span className={cn("mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium", movementBadgeClass(m.movement_type))}>
-                              {movementLabel(m.movement_type)}
-                            </span>
-                          </div>
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">{m.product_name}</p>
+                          <span className={cn("mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium", movementBadgeClass(m.movement_type))}>
+                            {movementLabel(m.movement_type)}
+                          </span>
                         </div>
                       </div>
 

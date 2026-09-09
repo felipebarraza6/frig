@@ -2,7 +2,9 @@
 //
 // Next 16 emite cada ruta como "<ruta>.html" plano (más un directorio con el
 // payload RSC), no como "<ruta>/index.html". Por eso:
-//   1. Las rutas dinámicas (/menu/<slug>, /menu/<slug>/totem, /warehouses/<id>,
+//   1. Las URLs legacy de bodega (/warehouses/<id>) se reescriben a la vista
+//      estática /warehouses/view.html (resuelve el id desde la querystring).
+//      Otras rutas dinámicas (/menu/<slug>, /menu/<slug>/totem,
 //      /kds/station/<id>, /reset-password/<token>) se reescriben a la instancia
 //      estática del placeholder "__". Las páginas son "use client" y resuelven
 //      el parámetro real desde la URL, así la hidratación no depende del placeholder.
@@ -19,7 +21,7 @@ const dynamicRewrites = [
   ["^menu/[^/]+/totem/?$", "/menu/__/totem.html"],
   ["^menu/[^/]+/?$", "/menu/__.html"],
   ["^login/[^/]+/?$", "/login/__.html"],
-  ["^warehouses/[^/]+/?$", "/warehouses/__.html"],
+  ["^warehouses/\\d+/?$", "/warehouses/view.html"],
   ["^kds/station/[^/]+/?$", "/kds/station/__.html"],
   ["^reset-password/[^/]+/?$", "/reset-password/__.html"],
 ];

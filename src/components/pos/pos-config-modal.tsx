@@ -50,6 +50,23 @@ const SECTIONS: {
         description:
           "Muestra la pestaña de movimientos en el modal de caja.",
       },
+      {
+        key: "purchase_order_payments",
+        label: "Pago de órdenes de proveedor",
+        description:
+          "Permite pagar órdenes de compra pendientes desde el terminal: Órdenes → Proveedor → Pagar.",
+      },
+    ],
+  },
+  {
+    title: "Inventario",
+    items: [
+      {
+        key: "inventory_movements",
+        label: "Inventario y mermas",
+        description:
+          "Muestra el inventario actual en el terminal y permite registrar movimientos manuales (mermas, daños, entradas).",
+      },
     ],
   },
   {
@@ -77,9 +94,12 @@ const SECTIONS: {
   {
     title: "Órdenes",
     items: [
-      // Nota: el toggle "quotes" no se ofrece hasta que el terminal implemente
-      // el flujo de cotizaciones (hoy la clave existe en PosConfig pero nadie
-      // la consume fuera del mask de self_service).
+      {
+        key: "quotes",
+        label: "Cotizaciones",
+        description:
+          "Permite buscar cotizaciones del cliente desde el terminal y cargarlas para cobrar en caja.",
+      },
       {
         key: "order_history",
         label: "Historial de órdenes",

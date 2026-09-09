@@ -62,6 +62,13 @@ export interface Branch {
   plan?: ID | null;
   plan_name?: string | null;
   plan_expiration_date?: string | null;
+  /** Configuración SII de solo lectura (escritura vía PATCH de la sucursal). */
+  sii_config?: {
+    sii_enabled: boolean;
+    sii_resolution_number?: string | null;
+    sii_resolution_date?: string | null;
+    digital_certificate?: string | null;
+  } | null;
   users_count?: number;
   users_by_role?: Record<string, number>;
   can_manage?: boolean;
@@ -134,6 +141,10 @@ export interface UserResponse {
   is_superuser?: boolean;
   is_staff?: boolean;
   is_active?: boolean;
+  is_admin?: boolean;
+  is_client?: boolean;
+  /** Dueño de alguna organización (reseller). Marca canónica del backend. */
+  is_organization_owner?: boolean;
   is_multi_branch?: boolean;
   last_login?: string;
   created?: string;

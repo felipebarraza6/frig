@@ -475,10 +475,7 @@ export function StationsModal({
   });
   const deleteMutation = useMutation({
     mutationFn: deleteKitchenStation,
-    onSuccess: () => {
-      invalidate();
-      toast.success("Estación eliminada");
-    },
+    onSuccess: invalidate,
     onError: (error: Error) => {
       toast.error(error.message || "Error al eliminar estación");
     },

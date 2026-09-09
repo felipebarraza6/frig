@@ -396,12 +396,10 @@ export default function ExpensesPage() {
   );
 
   const todayStr = toISODate(new Date());
-  // Los egresos generados por una orden de compra NO se listan aquí: viven en
-  // el módulo Órdenes de compra. Gastos muestra solo egresos manuales.
-  const allExpenses = useMemo(
-    () => (listPage?.results ?? []).filter((e) => !e.purchase_order_id),
-    [listPage],
-  );
+  // Los egresos de órdenes de compra SÍ se listan aquí (solo son de lectura:
+  // se gestionan desde su módulo origen); la tarjeta y la tabla marcan su
+  // vínculo a la OC y bloquean edición/borrado vía isManualExpense.
+  const allExpenses = useMemo(() => listPage?.results ?? [], [listPage]);
   // El filtro de estado es derivado (pagado/parcial/pendiente/atrasado/cancelado)
   // y se resuelve en cliente sobre el conjunto traído del servidor.
   const expenses = useMemo(
@@ -497,7 +495,6 @@ export default function ExpensesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
-      toast.success(editing ? "Gasto actualizado" : "Gasto creado");
       closeModal();
     },
     onError: (error) => {
@@ -510,7 +507,6 @@ export default function ExpensesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
       setConfirmDelete(null);
-      toast.success("Gasto eliminado");
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Error al eliminar el gasto");
@@ -521,7 +517,6 @@ export default function ExpensesPage() {
     mutationFn: (id: string) => cancelExpense(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
-      toast.success("Gasto cancelado");
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Error al cancelar el gasto");

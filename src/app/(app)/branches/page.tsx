@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Pencil, Power, Store, Users, Palette, Phone, Mail } from "lucide-react";
+import { Plus, Search, Pencil, Power, Store, Users, Palette, Phone, Mail, CreditCard, CalendarDays, FileText } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { TableSkeleton } from "@/components/ui/skeleton";
@@ -10,6 +10,7 @@ import {
   useSessionStore,
   useCanViewBranches,
   useCanManageBranches,
+  useIsModuleEnabledFromConfig,
 } from "@/lib/store/session";
 import { branchName } from "@/lib/types";
 import { fetchBranches, updateBranch } from "@/lib/api/branches";
@@ -17,8 +18,11 @@ import { getRoleLabel } from "@/lib/roles";
 import { BranchForm } from "@/components/branches/branch-form";
 import { BranchUsersDialog } from "@/components/branches/branch-users-dialog";
 import { BranchThemeDialog } from "@/components/branches/branch-theme-dialog";
+import { BranchSiiDialog } from "@/components/branches/branch-sii-dialog";
+import { ApplyPlanDialog } from "@/components/branches/apply-plan-dialog";
 import type { Branch } from "@/lib/types";
 import type { BranchesFilter } from "@/lib/api/branches";
+import { cn } from "@/lib/utils";
 
 /** Cantidad de usuarios por rol de la sucursal, ordenada de mayor a menor. */
 function roleEntriesOf(branch: Branch): [string, number][] {
@@ -28,6 +32,27 @@ function roleEntriesOf(branch: Branch): [string, number][] {
     .map(([code, count]) => [code, Number(count) || 0] as [string, number])
     .filter(([, count]) => count > 0)
     .sort((a, b) => b[1] - a[1]);
+}
+
+function formatPlanExpiry(iso?: string | null): { label: string; expired: boolean } | null {
+  if (!iso) return null;
+  // Fecha corta (YYYY-MM-DD): se formatea como fecha pura, sin desfase de
+  // zona horaria (new Date("2026-10-08") en UTC-X cae en el día anterior).
+  const dateOnly = /^\d{4}-\d{2}-\d{2}/.exec(iso)?.[0];
+  if (dateOnly) {
+    const [y, m, d] = dateOnly.split("-").map(Number);
+    const utc = Date.UTC(y, m - 1, d);
+    const label = new Date(utc).toLocaleDateString("es-CL", { timeZone: "UTC" });
+    const today = new Date();
+    const todayUtc = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+    return { label, expired: utc < todayUtc };
+  }
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return {
+    label: d.toLocaleDateString("es-CL"),
+    expired: d.getTime() < Date.now(),
+  };
 }
 
 export default function BranchesPage() {
@@ -44,6 +69,11 @@ export default function BranchesPage() {
   const [editing, setEditing] = useState<Branch | null>(null);
   const [viewingUsers, setViewingUsers] = useState<Branch | null>(null);
   const [editingTheme, setEditingTheme] = useState<Branch | null>(null);
+  const [editingPlan, setEditingPlan] = useState<Branch | null>(null);
+  const [editingSii, setEditingSii] = useState<Branch | null>(null);
+  const patchBranch = useSessionStore((s) => s.patchBranch);
+  // Configuración SII solo con el módulo de documentos tributarios activo.
+  const siiModuleEnabled = useIsModuleEnabledFromConfig("invoices");
 
   const filter = useMemo<BranchesFilter>(() => {
     const base: BranchesFilter = {};
@@ -151,8 +181,8 @@ export default function BranchesPage() {
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
                     <th className="px-4 py-3">Sucursal</th>
-                    <th className="px-4 py-3">Teléfono</th>
-                    <th className="px-4 py-3">Email</th>
+                    <th className="px-4 py-3">Plan</th>
+                    <th className="px-4 py-3">Contacto</th>
                     <th className="px-4 py-3 text-center">Usuarios</th>
                     <th className="px-4 py-3 text-center">Activa</th>
                     <th className="px-4 py-3 text-right">Acciones</th>
@@ -176,8 +206,49 @@ export default function BranchesPage() {
                             )}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-muted-foreground">{b.phone ?? "—"}</td>
-                        <td className="px-4 py-3 text-muted-foreground">{b.email ?? "—"}</td>
+                        <td className="px-4 py-3">
+                          <div className="min-w-0 text-xs">
+                            <p className="flex items-center gap-1 font-medium">
+                              <CreditCard className="h-3 w-3 shrink-0 text-muted-foreground" />
+                              <span className="truncate">{b.plan_name ?? "Sin plan"}</span>
+                            </p>
+                            {(() => {
+                              const expiry = formatPlanExpiry(b.plan_expiration_date);
+                              return (
+                                <p
+                                  className={cn(
+                                    "mt-0.5 flex items-center gap-1 tabular-nums",
+                                    expiry?.expired ? "text-danger" : "text-muted-foreground",
+                                  )}
+                                >
+                                  <CalendarDays className="h-3 w-3 shrink-0" />
+                                  {expiry
+                                    ? `vence ${expiry.label}${expiry.expired ? " (vencido)" : ""}`
+                                    : "sin vencimiento"}
+                                </p>
+                              );
+                            })()}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="min-w-0 space-y-0.5 text-xs">
+                            {b.phone ? (
+                              <p className="flex items-center gap-1.5 text-muted-foreground">
+                                <Phone className="h-3 w-3 shrink-0" />
+                                <span className="tabular-nums">{b.phone}</span>
+                              </p>
+                            ) : null}
+                            {b.email ? (
+                              <p className="flex items-center gap-1.5 text-muted-foreground">
+                                <Mail className="h-3 w-3 shrink-0" />
+                                <span className="truncate">{b.email}</span>
+                              </p>
+                            ) : null}
+                            {!b.phone && !b.email && (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </div>
+                        </td>
                         <td className="px-4 py-3 text-center">
                           <button
                             type="button"
@@ -227,29 +298,59 @@ export default function BranchesPage() {
                             <Button
                               variant="ghost"
                               size="sm"
+                              className="h-8 w-8 p-0"
+                              title="Usuarios"
+                              aria-label="Usuarios"
                               onClick={() => setViewingUsers(b)}
                             >
-                              <Users className="mr-1.5 h-3.5 w-3.5" />
-                              Usuarios
+                              <Users className="h-3.5 w-3.5" />
                             </Button>
                             {manageable && (
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => setEditing(b)}
+                                className="h-8 w-8 p-0"
+                                title="Plan"
+                                aria-label="Plan"
+                                onClick={() => setEditingPlan(b)}
                               >
-                                <Pencil className="mr-1.5 h-3.5 w-3.5" />
-                                Editar
+                                <CreditCard className="h-3.5 w-3.5" />
                               </Button>
                             )}
                             {manageable && (
                               <Button
                                 variant="ghost"
                                 size="sm"
+                                className="h-8 w-8 p-0"
+                                title="Editar"
+                                aria-label="Editar"
+                                onClick={() => setEditing(b)}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                            {manageable && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                title="Tema"
+                                aria-label="Tema"
                                 onClick={() => setEditingTheme(b)}
                               >
-                                <Palette className="mr-1.5 h-3.5 w-3.5" />
-                                Tema
+                                <Palette className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                            {manageable && siiModuleEnabled && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                title="Configuración SII"
+                                aria-label="Configuración SII"
+                                onClick={() => setEditingSii(b)}
+                              >
+                                <FileText className="h-3.5 w-3.5" />
                               </Button>
                             )}
                           </div>
@@ -306,6 +407,19 @@ export default function BranchesPage() {
                             variant="ghost"
                             size="sm"
                             className="h-8 w-8 p-0"
+                            title="Plan"
+                            aria-label="Plan"
+                            onClick={() => setEditingPlan(b)}
+                          >
+                            <CreditCard className="h-3.5 w-3.5" />
+                            <span className="sr-only">Plan</span>
+                          </Button>
+                        )}
+                        {manageable && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
                             title="Editar"
                             aria-label="Editar"
                             onClick={() => setEditing(b)}
@@ -327,10 +441,45 @@ export default function BranchesPage() {
                             <span className="sr-only">Tema</span>
                           </Button>
                         )}
+                        {manageable && siiModuleEnabled && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            title="Configuración SII"
+                            aria-label="Configuración SII"
+                            onClick={() => setEditingSii(b)}
+                          >
+                            <FileText className="h-3.5 w-3.5" />
+                            <span className="sr-only">Configuración SII</span>
+                          </Button>
+                        )}
                       </div>
                     </div>
 
                     <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                      <div className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span className="flex items-center gap-1 font-medium">
+                          <CreditCard className="h-3 w-3 shrink-0 text-muted-foreground" />
+                          {b.plan_name ?? "Sin plan"}
+                        </span>
+                        {(() => {
+                          const expiry = formatPlanExpiry(b.plan_expiration_date);
+                          return (
+                            <span
+                              className={cn(
+                                "flex items-center gap-1 tabular-nums",
+                                expiry?.expired ? "text-danger" : "text-muted-foreground",
+                              )}
+                            >
+                              <CalendarDays className="h-3 w-3 shrink-0" />
+                              {expiry
+                                ? `vence ${expiry.label}${expiry.expired ? " (vencido)" : ""}`
+                                : "sin vencimiento"}
+                            </span>
+                          );
+                        })()}
+                      </div>
                       {b.phone && (
                         <div className="flex items-center gap-1.5 text-muted-foreground">
                           <Phone className="h-3 w-3" />
@@ -427,6 +576,33 @@ export default function BranchesPage() {
         <BranchThemeDialog
           branch={editingTheme}
           onClose={() => setEditingTheme(null)}
+        />
+      )}
+
+      {editingPlan && (
+        <ApplyPlanDialog
+          branch={editingPlan}
+          onClose={() => setEditingPlan(null)}
+          onApplied={(res) => {
+            patchBranch(
+              editingPlan.branch_id,
+              res
+                ? {
+                    plan: res.plan_id,
+                    plan_name: res.plan_name,
+                    plan_expiration_date: res.end_date ?? null,
+                  }
+                : { plan: null, plan_name: null, plan_expiration_date: null },
+            );
+            queryClient.invalidateQueries({ queryKey: ["branches"] });
+          }}
+        />
+      )}
+
+      {editingSii && (
+        <BranchSiiDialog
+          branch={editingSii}
+          onClose={() => setEditingSii(null)}
         />
       )}
     </div>

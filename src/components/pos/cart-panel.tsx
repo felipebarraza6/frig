@@ -273,7 +273,6 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
       setCreateModalOpen(false);
       setClientQuery("");
       setShowClientResults(false);
-      toast.success("Cliente creado y seleccionado");
     },
     onError: (err: Error) => {
       toast.error(err.message || "No se pudo crear el cliente");
@@ -484,7 +483,6 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
       setRemovedOrderProductIds([]);
       setDiscountCode("");
       setValidatedDiscount(null);
-      toast.success(`Orden actualizada (${order.id.slice(0, 8)})`);
       onOrderRegistered?.(order.order_type === "ORDER" ? "ORDER" : "SALE");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al actualizar la orden");
@@ -693,8 +691,6 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
       setDiscountCode("");
       setValidatedDiscount(null);
       resetDelivery();
-      const actionLabel = payments.length > 0 ? "Venta registrada" : "Orden guardada";
-      toast.success(`${actionLabel} (orden ${order.id.slice(0, 8)})`);
       onOrderRegistered?.(orderType === "AGREEMENT" ? "SALE" : orderType);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al registrar la venta");
@@ -716,7 +712,6 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
       setValidatedDiscount(result);
       // Al cambiar el total por descuento, resetear pagos para que el cajero los ingrese sobre el nuevo monto.
       resetPayments();
-      toast.success(`Descuento ${result.discount.name} aplicado`);
     } catch (err) {
       setValidatedDiscount(null);
       toast.error(err instanceof Error ? err.message : "Código de descuento inválido");

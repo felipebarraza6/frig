@@ -114,12 +114,12 @@ export default function TaxDocumentsPage() {
 
   const issueMut = useMutation({
     mutationFn: issueTaxDocument,
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["tax-documents"] }); toast.success("Documento emitido"); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["tax-documents"] }); },
   });
 
   const sendMut = useMutation({
     mutationFn: sendToSii,
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["tax-documents"] }); toast.success("Enviado al SII"); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["tax-documents"] }); },
   });
 
   const cancelMut = useMutation({
@@ -128,11 +128,10 @@ export default function TaxDocumentsPage() {
     // nota de crédito.
     mutationFn: ({ id, reason, isDraft }: { id: string; reason: string; isDraft: boolean }): Promise<unknown> =>
       isDraft ? deleteTaxDocument(id) : createCreditNote(id, { reason }),
-    onSuccess: (_data: unknown, vars) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tax-documents"] });
       setConfirmCancel(null);
       setCancelReason("");
-      toast.success(vars.isDraft ? "Documento eliminado" : "Nota de crédito creada: documento anulado");
     },
     onError: (err: Error) => {
       toast.error(err.message || "No se pudo anular el documento");
@@ -141,12 +140,12 @@ export default function TaxDocumentsPage() {
 
   const creditNoteMut = useMutation({
     mutationFn: ({ id }: { id: string }) => createCreditNote(id),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["tax-documents"] }); toast.success("Nota de crédito creada"); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["tax-documents"] }); },
   });
 
   const createMut = useMutation({
     mutationFn: createTaxDocument,
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["tax-documents"] }); setCreateOpen(false); toast.success("Documento creado"); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["tax-documents"] }); setCreateOpen(false); },
   });
 
   // KPIs

@@ -294,61 +294,65 @@ export type POSQuickActionType =
   | "pay_order"
   | "collect";
 
-export interface POSQuickAction {
-  id: string;
-  type: POSQuickActionType;
-  label: string;
-  icon: string;
-  color?: string;
-  enabled: boolean;
+/** PATCH /api/branches/{id}/ — configuración SII de la sucursal (multipart por
+ *  el certificado digital). Campos vacíos se envían como vacíos para permitir
+ *  limpiar la resolución. */
+export interface BranchSiiConfigPayload {
+  sii_enabled: boolean;
+  sii_resolution_number?: string;
+  sii_resolution_date?: string;
+  digital_certificate?: File | null;
+  certificate_password?: string;
 }
 
-export interface BranchPOSConfig {
-  id: string | number;
-  branch: number | string;
-  show_price_in_selector: boolean;
-  show_product_images: boolean;
-  require_branch_selection: boolean;
-  auto_select_product: boolean;
-  default_measurement_unit: string;
-  enable_quick_actions: boolean;
-  quick_actions: POSQuickAction[];
-}
-
-export const DEFAULT_POS_QUICK_ACTIONS: POSQuickAction[] = [
-  { id: "pay-account", type: "pay_account", label: "Cuentas", icon: "Receipt", color: "blue", enabled: true },
-  { id: "pay-order", type: "pay_order", label: "Órdenes", icon: "ClipboardList", color: "amber", enabled: true },
-  { id: "collect", type: "collect", label: "Cobrar por cliente", icon: "UserSearch", color: "emerald", enabled: true },
-];
-
-export async function fetchBranchPOSConfig(): Promise<BranchPOSConfig | null> {
-  const data = await apiFetch<{ results?: BranchPOSConfig[] } | BranchPOSConfig>("/branches/pos-config/");
-  const results = Array.isArray(data) ? data : ((data as { results?: BranchPOSConfig[] }).results ?? []);
-  const cfg = results[0] ?? (data as BranchPOSConfig);
-  if (!cfg || typeof cfg !== "object") return null;
-  return {
-    ...cfg,
-    quick_actions: cfg.quick_actions?.length ? cfg.quick_actions : DEFAULT_POS_QUICK_ACTIONS,
-  } as BranchPOSConfig;
-}
-
-export async function updateBranchPOSConfig(
+export async function updateBranchSiiConfig(
   id: ID,
-  payload: Partial<BranchPOSConfig>,
-): Promise<BranchPOSConfig> {
-  return apiFetch<BranchPOSConfig>(`/branches/pos-config/${id}/`, {
-    method: "PATCH",
-    body: payload,
-  });
-}
+  payload: BranchSiiConfigPayload,
+): Promise<void> {
+  if (!id) throw new Error("ID de sucursal no válido para guardar la configuración SII");
 
-export async function createBranchPOSConfig(
-  payload: Partial<BranchPOSConfig>,
-): Promise<BranchPOSConfig> {
-  return apiFetch<BranchPOSConfig>("/branches/pos-config/", {
-    method: "POST",
-    body: payload,
+  const formData = new FormData();
+  formData.append("sii_enabled", String(payload.sii_enabled));
+  formData.append("sii_resolution_number", payload.sii_resolution_number ?? "");
+  formData.append("sii_resolution_date", payload.sii_resolution_date ?? "");
+  if (payload.digital_certificate) {
+    formData.append("digital_certificate", payload.digital_certificate);
+  }
+  if (payload.certificate_password) {
+    formData.append("certificate_password", payload.certificate_password);
+  }
+
+  const token = getToken();
+  const branchId = getBranchId();
+  const headers: Record<string, string> = {};
+  if (token) headers["Authorization"] = `Token ${token}`;
+  if (branchId) headers["X-Branch-ID"] = branchId;
+
+  const res = await fetch(`${API_BASE}/branches/${id}/`, {
+    method: "PATCH",
+    headers,
+    body: formData,
+    credentials: "include",
   });
+
+  const text = await res.text();
+  let data: unknown = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      // respuesta no JSON
+    }
+  }
+
+  if (!res.ok) {
+    let message = `Error ${res.status} al guardar la configuración SII`;
+    if (data && typeof data === "object" && "detail" in data) {
+      const detail = (data as { detail?: unknown }).detail;
+      if (detail) message = String(detail);
+    }
+    throw new ApiError(res.status, message, data);
+  }
 }
 
 export interface BranchThemeConfigPayload {

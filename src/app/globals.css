@@ -102,6 +102,22 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Manito en todos los elementos clickeables, incluidos los botones
+   nativos (Tailwind v4 no pone cursor:pointer en <button>). */
+button:not(:disabled),
+[role="button"]:not(:disabled),
+[role="switch"]:not(:disabled),
+summary:not(:disabled) {
+  cursor: pointer;
+}
+button:disabled,
+[role="button"]:disabled {
+  cursor: not-allowed;
+}
+a {
+  cursor: pointer;
+}
+
 /* Ocultar scrollbars en toda la app */
 * {
   scrollbar-width: none;
@@ -138,14 +154,50 @@ body {
   background: hsl(var(--muted-foreground) / 0.5);
 }
 
-/* Sidebar: fondo fuerte derivado del primary de la marca (texto blanco encima).
-   Una sola variación para light y dark — mezcla del brand con negro. */
+/* Sidebar: fondo orgánico derivado del primary de la marca (texto blanco
+   encima). Mismo lenguaje que los fondos pixel de la landing: base profunda
+   (brand + negro) + dither pixel a baja opacidad + brillos radiales y un
+   gradiente que respira lentamente. Todo se re-teñe solo al cambiar
+   --brand-primary (multi-tenant). */
 .app-sidebar {
   background-color: color-mix(in srgb, var(--brand-primary) 88%, #000);
+  background-image:
+    /* Dither fino (4px): grano casi imperceptible, acompaña al gradiente. */
+    repeating-conic-gradient(rgba(255, 255, 255, 0.025) 0% 25%, transparent 0% 50%),
+    /* Dither grueso (16px) teñido de marca: textura pixel que solo se nota
+       donde el fondo es más claro (varía con el gradiente, no uniforme). */
+    repeating-conic-gradient(color-mix(in srgb, var(--brand-primary) 12%, transparent) 0% 25%, transparent 0% 50%),
+    /* Gradiente principal en diagonal: es lo que manda; el pixel es grano. */
+    radial-gradient(140% 100% at -10% -10%, color-mix(in srgb, var(--brand-primary) 70%, transparent) 0%, transparent 60%),
+    /* Segundo foco abajo-derecha: profundidad orgánica en diagonal. */
+    radial-gradient(130% 90% at 110% 110%, color-mix(in srgb, var(--brand-primary) 55%, transparent) 0%, transparent 65%),
+    /* Capa que respira (animada con sidebar-breathe). */
+    linear-gradient(165deg, color-mix(in srgb, var(--brand-primary) 50%, transparent) 0%, transparent 40%, color-mix(in srgb, var(--brand-primary) 65%, transparent) 100%);
+  background-size: 4px 4px, 16px 16px, 100% 100%, 100% 100%, 200% 200%;
+  background-position: 0 0, 0 0, 0 0, 0 0, 0% 0%;
+  animation: sidebar-breathe 18s ease-in-out infinite;
   border-right: 1px solid color-mix(in srgb, var(--brand-primary) 68%, #000);
 }
 .dark .app-sidebar {
   background-color: color-mix(in srgb, var(--brand-primary) 76%, #000);
+}
+
+/* Respiración del gradiente: solo se mueve la última capa; las texturas
+   pixel quedan fijas (si se animaran, el checkerboard "caminaría"). */
+@keyframes sidebar-breathe {
+  0%,
+  100% {
+    background-position: 0 0, 0 0, 0 0, 0 0, 0% 0%;
+  }
+  50% {
+    background-position: 0 0, 0 0, 0 0, 0 0, 100% 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-sidebar {
+    animation: none;
+  }
 }
 
 @keyframes bump {
@@ -522,6 +574,49 @@ body {
 
 .moon-halo {
   animation: moon-halo 6s ease-in-out infinite;
+}
+
+/* ── Borde neón animado (paleta ⌘K) ──────────────────────────────────────
+   Gradiente cónico rotando sobre un aro de 1px: dos pulsos de luz recorren
+   el borde del panel. El color sigue la marca (--color-primary). */
+
+@property --neon-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes neon-spin {
+  to {
+    --neon-angle: 360deg;
+  }
+}
+
+.neon-border,
+.neon-border-glow {
+  background: conic-gradient(
+    from var(--neon-angle),
+    var(--color-primary) 0deg,
+    color-mix(in srgb, var(--color-primary) 60%, transparent) 50deg,
+    transparent 100deg,
+    color-mix(in srgb, var(--color-primary) 55%, #ffffff) 190deg,
+    transparent 250deg,
+    var(--color-primary) 360deg
+  );
+  animation: neon-spin 5s linear infinite;
+}
+
+/* Halo difuso detrás del panel, mismo gradiente desenfocado. */
+.neon-border-glow {
+  filter: blur(14px);
+  opacity: 0.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .neon-border,
+  .neon-border-glow {
+    animation: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

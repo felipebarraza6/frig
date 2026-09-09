@@ -2,21 +2,41 @@
 
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { X } from "lucide-react";
+import { X, Check, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Field } from "@/components/ui/field";
+import { Switch } from "@/components/ui/switch";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import { useSessionStore } from "@/lib/store/session";
 import { createBranch, updateBranch } from "@/lib/api/branches";
 import { fetchModulePlans, applyBranchPlan } from "@/lib/api/module-plans";
 import { FRIG_PLAN_NAME } from "@/lib/modules";
+import { isFrigPlanName } from "@/lib/plans";
 import { branchName } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import type { Branch, BranchPayload } from "@/lib/types";
 
 interface BranchFormProps {
   branch?: Branch;
   onClose: () => void;
   onSuccess: () => void;
+}
+
+/** Duraciones rápidas de etapa de prueba (en días, desde hoy). */
+const TRIAL_DAYS = [7, 14, 30];
+
+function trialDate(days: number): string {
+  const d = new Date(Date.now() + days * 86_400_000);
+  return d.toISOString().slice(0, 10);
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      {children}
+    </p>
+  );
 }
 
 export function BranchForm({ branch, onClose, onSuccess }: BranchFormProps) {
@@ -34,23 +54,35 @@ export function BranchForm({ branch, onClose, onSuccess }: BranchFormProps) {
   const [province, setProvince] = useState(branch?.province ?? "");
   const [commune, setCommune] = useState(branch?.commune ?? "");
   const [dni, setDni] = useState(branch?.dni ?? "");
-  const [isActive, setIsActive] = useState(branch?.is_active ?? true);
   const [ownerId, setOwnerId] = useState<string>(branch?.owner_id ? String(branch.owner_id) : "");
+  const [planId, setPlanId] = useState<string>(branch?.plan ? String(branch.plan) : "");
+  // Etapa de prueba: aplica el plan con fecha de término (suscripción finita).
+  const [trial, setTrial] = useState(Boolean(branch?.plan_expiration_date));
+  const [endDate, setEndDate] = useState((branch?.plan_expiration_date ?? "").slice(0, 10));
   const [error, setError] = useState<string | null>(null);
 
   const { data: plans = [] } = useQuery({
     queryKey: ["module-plans"],
     queryFn: fetchModulePlans,
-    enabled: !isEditing,
   });
 
-  const frigPlan = plans.find(
-    (p) => p.name.toLowerCase().includes(FRIG_PLAN_NAME.toLowerCase()) ||
-      p.name.toLowerCase().includes("frig"),
+  // Catálogo compartido: aquí solo se ofrecen los planes frig (prefijo
+  // "frig-"); los demás son de otras apps del mismo backend.
+  const frigPlans = plans.filter((p) => isFrigPlanName(p.name));
+
+  // Plan sugerido al crear: el plan FRIG de gestión gastronómica/comercial.
+  const frigPlan = frigPlans.find(
+    (p) => p.name.toLowerCase().includes(FRIG_PLAN_NAME.toLowerCase()),
   );
+  const effectivePlanId = planId || (frigPlan ? String(frigPlan.id) : "");
+  // Al editar, si la sucursal tiene un plan no-frig, se muestra igual para
+  // que no quede una selección vacía con un valor invisible.
+  const currentPlanMissing =
+    isEditing && effectivePlanId !== "" && !frigPlans.some((p) => String(p.id) === effectivePlanId);
 
   const save = useMutation({
     mutationFn: async () => {
+      // Se crea siempre activa; la baja se hace desde la lista (activar/desactivar).
       const payload: BranchPayload = {
         business_name: businessName,
         fantasy_name: fantasyName || undefined,
@@ -62,21 +94,37 @@ export function BranchForm({ branch, onClose, onSuccess }: BranchFormProps) {
         province: province || undefined,
         commune: commune || undefined,
         dni: dni || undefined,
-        is_active: isActive,
+        is_active: branch?.is_active ?? true,
       };
       if (isSuperAdmin && ownerId) {
         payload.owner_id = Number(ownerId);
       }
 
       if (isEditing && branch) {
-        return updateBranch(branch.branch_id, payload);
+        payload.plan = effectivePlanId ? Number(effectivePlanId) : null;
+        const res = await updateBranch(branch.branch_id, payload);
+        // Si cambió el plan o se definió una etapa de prueba, se re-aplica con
+        // su fecha de término (crea/renueva la suscripción).
+        const planChanged = effectivePlanId !== (branch.plan ? String(branch.plan) : "");
+        if (effectivePlanId && (planChanged || (trial && endDate))) {
+          await applyBranchPlan(
+            Number(branch.branch_id),
+            Number(effectivePlanId),
+            trial ? endDate || undefined : undefined,
+          );
+        }
+        return res;
       }
 
       const created = await createBranch(payload);
-      // FRIG usa un plan fijo de gestión gastronómica/comercial; se aplica
-      // automáticamente al crear la sucursal.
-      if (frigPlan) {
-        await applyBranchPlan(Number(created.branch_id), Number(frigPlan.id));
+      // Se aplica el plan elegido (por defecto el plan FRIG); con etapa de
+      // prueba queda con fecha de término.
+      if (effectivePlanId) {
+        await applyBranchPlan(
+          Number(created.branch_id),
+          Number(effectivePlanId),
+          trial ? endDate || undefined : undefined,
+        );
       }
       return created;
     },
@@ -119,148 +167,207 @@ export function BranchForm({ branch, onClose, onSuccess }: BranchFormProps) {
           onSubmit={handleSubmit}
           className="flex flex-1 flex-col overflow-hidden"
         >
-          <div className="flex-1 overflow-y-auto p-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="flex flex-col gap-1.5 sm:col-span-2">
-                <label htmlFor="business_name" className="text-sm font-medium">
-                  Nombre de la sucursal
-                </label>
-                <Input
-                  id="business_name"
-                  value={businessName}
-                  onChange={(e) => setBusinessName(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5 sm:col-span-2">
-                <label htmlFor="fantasy_name" className="text-sm font-medium">
-                  Nombre de fantasía
-                </label>
-                <Input
-                  id="fantasy_name"
-                  value={fantasyName}
-                  onChange={(e) => setFantasyName(e.target.value)}
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5 sm:col-span-2">
-                <label htmlFor="commercial_business" className="text-sm font-medium">
-                  Giro comercial
-                </label>
-                <Input
-                  id="commercial_business"
-                  value={commercialBusiness}
-                  onChange={(e) => setCommercialBusiness(e.target.value)}
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="phone" className="text-sm font-medium">
-                  Teléfono
-                </label>
-                <Input
-                  id="phone"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="email" className="text-sm font-medium">
-                  Email
-                </label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5 sm:col-span-2">
-                <label htmlFor="address" className="text-sm font-medium">
-                  Dirección
-                </label>
-                <Input
-                  id="address"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="region" className="text-sm font-medium">
-                  Región
-                </label>
-                <Input
-                  id="region"
-                  value={region}
-                  onChange={(e) => setRegion(e.target.value)}
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="province" className="text-sm font-medium">
-                  Provincia
-                </label>
-                <Input
-                  id="province"
-                  value={province}
-                  onChange={(e) => setProvince(e.target.value)}
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="commune" className="text-sm font-medium">
-                  Comuna
-                </label>
-                <Input
-                  id="commune"
-                  value={commune}
-                  onChange={(e) => setCommune(e.target.value)}
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="dni" className="text-sm font-medium">
-                  RUT
-                </label>
-                <Input
-                  id="dni"
-                  value={dni}
-                  onChange={(e) => setDni(e.target.value)}
-                  placeholder="12.345.678-9"
-                />
-              </div>
-              {isSuperAdmin && (
-                <div className="flex flex-col gap-1.5">
-                  <label htmlFor="owner_id" className="text-sm font-medium">
-                    ID propietario
-                  </label>
+          <div className="flex-1 space-y-5 overflow-y-auto p-4">
+            {/* Identificación */}
+            <div className="space-y-3">
+              <SectionLabel>Identificación</SectionLabel>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field label="Nombre de la sucursal" className="sm:col-span-2">
                   <Input
-                    id="owner_id"
-                    type="number"
-                    value={ownerId}
-                    onChange={(e) => setOwnerId(e.target.value)}
-                    placeholder="Opcional"
+                    id="business_name"
+                    value={businessName}
+                    onChange={(e) => setBusinessName(e.target.value)}
+                    required
                   />
-                </div>
-              )}
-
-              <label className="flex items-center gap-2 text-sm sm:col-span-2">
-                <input
-                  type="checkbox"
-                  checked={isActive}
-                  onChange={(e) => setIsActive(e.target.checked)}
-                  className="h-4 w-4 rounded border-input"
-                />
-                Sucursal activa
-              </label>
-
-              {error && (
-                <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger sm:col-span-2">
-                  {error}
-                </p>
-              )}
+                </Field>
+                <Field label="Nombre de fantasía" hint="El nombre comercial que ven los clientes.">
+                  <Input
+                    id="fantasy_name"
+                    value={fantasyName}
+                    onChange={(e) => setFantasyName(e.target.value)}
+                  />
+                </Field>
+                <Field label="Giro comercial">
+                  <Input
+                    id="commercial_business"
+                    value={commercialBusiness}
+                    onChange={(e) => setCommercialBusiness(e.target.value)}
+                    required
+                  />
+                </Field>
+                <Field label="RUT">
+                  <Input
+                    id="dni"
+                    value={dni}
+                    onChange={(e) => setDni(e.target.value)}
+                    placeholder="12.345.678-9"
+                  />
+                </Field>
+                {isSuperAdmin && (
+                  <Field label="ID propietario" hint="Dueño de la sucursal. Opcional.">
+                    <Input
+                      id="owner_id"
+                      type="number"
+                      value={ownerId}
+                      onChange={(e) => setOwnerId(e.target.value)}
+                      placeholder="Opcional"
+                    />
+                  </Field>
+                )}
+              </div>
             </div>
+
+            {/* Contacto y ubicación */}
+            <div className="space-y-3">
+              <SectionLabel>Contacto y ubicación</SectionLabel>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field label="Teléfono">
+                  <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                </Field>
+                <Field label="Email">
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                </Field>
+                <Field label="Dirección" className="sm:col-span-2">
+                  <Input
+                    id="address"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    required
+                  />
+                </Field>
+                <Field label="Región">
+                  <Input
+                    id="region"
+                    value={region}
+                    onChange={(e) => setRegion(e.target.value)}
+                    required
+                  />
+                </Field>
+                <Field label="Provincia">
+                  <Input
+                    id="province"
+                    value={province}
+                    onChange={(e) => setProvince(e.target.value)}
+                    required
+                  />
+                </Field>
+                <Field label="Comuna">
+                  <Input
+                    id="commune"
+                    value={commune}
+                    onChange={(e) => setCommune(e.target.value)}
+                    required
+                  />
+                </Field>
+              </div>
+            </div>
+
+            {/* Plan */}
+            <div className="space-y-3">
+              <SectionLabel>Plan</SectionLabel>
+              <div role="radiogroup" aria-label="Plan de la sucursal" className="grid gap-2 sm:grid-cols-2">
+                {currentPlanMissing && (
+                  <div
+                    role="radio"
+                    aria-checked={true}
+                    className="rounded-xl border border-dashed border-border p-3 text-left"
+                  >
+                    <span className="text-sm font-semibold">
+                      {branch?.plan_name ?? "Plan actual"} (no frig)
+                    </span>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Plan actual de la sucursal, de otra app.
+                    </p>
+                  </div>
+                )}
+                {frigPlans.map((p) => {
+                  const selected = effectivePlanId === String(p.id);
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      onClick={() => setPlanId(String(p.id))}
+                      className={cn(
+                        "rounded-xl border p-3 text-left transition-colors",
+                        selected
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-primary/50",
+                      )}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-semibold">{p.name}</span>
+                        {selected && <Check className="h-4 w-4 shrink-0 text-primary" />}
+                      </div>
+                      {p.description && (
+                        <p className="mt-1 text-xs text-muted-foreground">{p.description}</p>
+                      )}
+                    </button>
+                  );
+                })}
+                {frigPlans.length === 0 && !currentPlanMissing && (
+                  <p className="rounded-xl border border-dashed border-border p-3 text-sm text-muted-foreground">
+                    Cargando planes…
+                  </p>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-border p-3">
+                <label className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-2 text-sm font-medium">
+                    <Gift className="h-4 w-4 text-primary" />
+                    Etapa de prueba
+                  </span>
+                  <Switch
+                    checked={trial}
+                    onCheckedChange={(v) => {
+                      setTrial(v);
+                      if (v && !endDate) setEndDate(trialDate(14));
+                    }}
+                    label={trial ? "Con etapa de prueba" : "Sin etapa de prueba"}
+                  />
+                </label>
+                {trial && (
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <Input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="h-8 w-40"
+                      aria-label="Fecha de término de la prueba"
+                    />
+                    {TRIAL_DAYS.map((d) => (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => setEndDate(trialDate(d))}
+                        className={cn(
+                          "rounded-lg border px-2 py-1 text-xs font-medium transition-colors",
+                          endDate === trialDate(d)
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border text-muted-foreground hover:border-primary/50",
+                        )}
+                      >
+                        {d} días
+                      </button>
+                    ))}
+                    <p className="w-full text-xs text-muted-foreground">
+                      El plan vence en esa fecha; después se puede renovar desde la acción “Plan”.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {error && (
+              <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>
+            )}
           </div>
 
           <div className="flex shrink-0 justify-end gap-2 border-t border-border px-4 py-3">
@@ -268,7 +375,7 @@ export function BranchForm({ branch, onClose, onSuccess }: BranchFormProps) {
               Cancelar
             </Button>
             <Button type="submit" isLoading={save.isPending}>
-              Guardar
+              {isEditing ? "Guardar cambios" : "Crear sucursal"}
             </Button>
           </div>
         </form>

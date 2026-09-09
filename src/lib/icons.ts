@@ -36,6 +36,7 @@ import {
   Wallet,
   ArrowLeftRight,
   TrendingDown,
+  Building2,
 } from "lucide-react";
 
 /**
@@ -80,6 +81,7 @@ export const ICON_MAP: Record<string, LucideIcon> = {
   Wallet,
   ArrowLeftRight,
   TrendingDown,
+  Building2,
 };
 
 export type IconName = keyof typeof ICON_MAP;

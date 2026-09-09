@@ -15,6 +15,8 @@ export type YggdraPaymentCreate = YggdraSchemas["PaymentCreateRequest"] & {
 export interface PaymentsFilter {
   payment_direction?: "INCOME" | "EXPENSE";
   payment_source?: YggdraPayment["payment_source"];
+  /** Filtro por estado (el FilterSet del backend soporta exact/in). */
+  status?: YggdraPaymentList["status"];
   payment_date__gte?: string;
   payment_date__lte?: string;
   search?: string;
@@ -129,6 +131,7 @@ function paymentsQueryString(filter: PaymentsFilter): string {
   const qs = new URLSearchParams();
   if (filter.payment_direction) qs.set("payment_direction", filter.payment_direction);
   if (filter.payment_source) qs.set("payment_source", filter.payment_source);
+  if (filter.status) qs.set("status", filter.status);
   if (filter.payment_date__gte) qs.set("payment_date__gte", filter.payment_date__gte);
   if (filter.payment_date__lte) qs.set("payment_date__lte", filter.payment_date__lte);
   if (filter.search) qs.set("search", filter.search);

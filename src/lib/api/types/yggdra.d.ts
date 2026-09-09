@@ -191,7 +191,7 @@ export interface paths {
     post: operations["accounts_users_login_complete_create"];
   };
   "/api/accounts/users/logout/": {
-    /** @description Cerrar sesión eliminando el token del usuario y la cookie. */
+    /** @description Cerrar sesión eliminando el token presentado y la cookie. */
     post: operations["accounts_users_logout_create"];
   };
   "/api/accounts/users/me/": {
@@ -4182,6 +4182,15 @@ export interface paths {
      *         # No es necesario definir permission_classes
      */
     post: operations["customers_clients_bulk_import_create"];
+  };
+  "/api/customers/clients/me/": {
+    /**
+     * @description Ficha del cliente autenticado (portal de cliente).
+     *
+     * Devuelve el Client vinculado al usuario en la sucursal activa,
+     * incluyendo sus campos extra dinámicos. Solo datos propios.
+     */
+    get: operations["customers_clients_me_retrieve"];
   };
   "/api/customers/clients/search/": {
     /**
@@ -8979,6 +8988,70 @@ export interface paths {
     /** @description Obtener datos del dashboard de conductores. */
     get: operations["logistics_driver_profiles_dashboard_retrieve"];
   };
+  "/api/plan-checkout/groups/": {
+    /**
+     * Listar grupos de planes gestionables
+     * @description Lista los grupos de planes gestionables por el usuario autenticado.
+     *
+     * GET /api/plan-checkout/groups/
+     * Superuser/staff: todos los grupos (cualquier estado). Resto: grupos
+     * alcanzables vía sus Organizations con plan_group ligado.
+     */
+    get: operations["plan_checkout_groups_list"];
+  };
+  "/api/plan-checkout/groups/{name}/": {
+    /**
+     * Detalle de grupo de planes
+     * @description Detalle y edición de un grupo de planes.
+     *
+     * GET   /api/plan-checkout/groups/<name>/
+     * PATCH /api/plan-checkout/groups/<name>/
+     */
+    get: operations["plan_checkout_groups_retrieve"];
+    /**
+     * Actualizar grupo de planes
+     * @description Detalle y edición de un grupo de planes.
+     *
+     * GET   /api/plan-checkout/groups/<name>/
+     * PATCH /api/plan-checkout/groups/<name>/
+     */
+    patch: operations["plan_checkout_groups_partial_update"];
+  };
+  "/api/plan-checkout/groups/{name}/plans/": {
+    /**
+     * Crear plan de grupo
+     * @description Crea un plan dentro de un grupo de planes.
+     *
+     * POST /api/plan-checkout/groups/<name>/plans/
+     */
+    post: operations["plan_checkout_groups_plans_create"];
+  };
+  "/api/plan-checkout/groups/{name}/plans/{id}/": {
+    /**
+     * Eliminar plan de grupo
+     * @description Actualiza o elimina un plan de grupo.
+     *
+     * PATCH: edición parcial (incl. is_active para dar de baja).
+     * DELETE: eliminación física; solo es posible si el plan nunca fue
+     * contratado (las contrataciones protegen el plan con FK PROTECT) — en ese
+     * caso responde 409 y la baja correcta es is_active=False.
+     *
+     * /api/plan-checkout/groups/<name>/plans/<pk>/
+     */
+    delete: operations["plan_checkout_groups_plans_destroy"];
+    /**
+     * Actualizar plan de grupo
+     * @description Actualiza o elimina un plan de grupo.
+     *
+     * PATCH: edición parcial (incl. is_active para dar de baja).
+     * DELETE: eliminación física; solo es posible si el plan nunca fue
+     * contratado (las contrataciones protegen el plan con FK PROTECT) — en ese
+     * caso responde 409 y la baja correcta es is_active=False.
+     *
+     * /api/plan-checkout/groups/<name>/plans/<pk>/
+     */
+    patch: operations["plan_checkout_groups_plans_partial_update"];
+  };
   "/api/production/items/": {
     /**
      * Listar items de producción
@@ -9450,6 +9523,13 @@ export interface paths {
      */
     get: operations["public_catalog_public_retrieve"];
   };
+  "/api/public-catalog/public/{slug}/pay/": {
+    /**
+     * @description Vista pública anónima para iniciar un pago Flow.cl de un producto.
+     * POST /api/public-catalog/public/<slug>/pay/
+     */
+    post: operations["public_catalog_public_pay_create"];
+  };
   "/api/public-catalog/qr-codes/": {
     /** @description ViewSet para gestión de códigos QR del catálogo público. */
     get: operations["public_catalog_qr_codes_list"];
@@ -9508,6 +9588,57 @@ export interface paths {
      * POST /api/public_catalog/qr-codes/scan/
      */
     post: operations["public_catalog_qr_codes_scan_create"];
+  };
+  "/api/public/{group_slug}-checkout/": {
+    /**
+     * Crear checkout de plan
+     * @description Crea una sesión de checkout de plan (público, sin auth).
+     *
+     * POST /api/public/<grupo>-checkout/
+     * Idempotente: mismo email + plan pendiente en 24h devuelve el mismo
+     * checkout_id. Throttle 5/min por IP.
+     */
+    post: operations["public__checkout_create"];
+  };
+  "/api/public/{group_slug}-checkout/{checkout_id}/": {
+    /**
+     * Estado de checkout de plan
+     * @description Estado de un checkout (polling del front).
+     *
+     * GET /api/public/<grupo>-checkout/{checkout_id}/
+     */
+    get: operations["public__checkout_retrieve"];
+  };
+  "/api/public/{group_slug}-plans/": {
+    /**
+     * Catálogo público de planes
+     * @description Catálogo público de planes de un grupo (landing).
+     *
+     * GET /api/public/<grupo>-plans/
+     */
+    get: operations["public__plans_retrieve"];
+  };
+  "/api/public/checkout/magic-login/": {
+    /**
+     * Canje de magic-link de acceso
+     * @description Canje del magic-link firmado enviado por correo post-pago.
+     *
+     * POST /api/public/plan-checkout/magic-login/
+     */
+    post: operations["public_checkout_magic_login_create"];
+  };
+  "/api/public/landing-config/": {
+    /**
+     * Config pública de landing (white-label)
+     * @description Config completa de la landing (white-label): grupo + brand + planes.
+     *
+     * GET /api/public/landing-config/?group=<slug> | ?slug=<login_slug> | Host
+     *
+     * Resolución: ?group > ?slug > Host (branch custom_domain > org custom_domain
+     * > subdominio > Origin). Sin resolución → 404 (el front usa su fallback).
+     * Throttle anónimo estándar (igual que el catálogo de planes).
+     */
+    get: operations["public_landing_config_retrieve"];
   };
   "/api/recipes/ingredients/": {
     /**
@@ -10490,6 +10621,13 @@ export interface paths {
      */
     post: operations["sales_quotations_convert_to_order_create"];
   };
+  "/api/sales/quotations/{id}/generate-pdf/": {
+    /**
+     * Generar PDF de cotización (A4)
+     * @description Genera un PDF de la cotización en formato A4, con ítems y desglose de totales. Disponible en cualquier estado (incluida PENDIENTE).
+     */
+    get: operations["sales_quotations_generate_pdf_retrieve"];
+  };
   "/api/sales/quotations/export/": {
     /**
      * Exportar cotizaciones a Excel
@@ -11257,7 +11395,7 @@ export interface paths {
     get: operations["shared_global_audit_logs_summary_retrieve"];
   };
   "/api/shared/health/": {
-    /** @description Health check endpoint extendido. */
+    /** @description Health check endpoint: estado de servicios + marcador de deploy. */
     get: operations["shared_health_retrieve"];
   };
   "/api/shared/module-configs/": {
@@ -13770,7 +13908,7 @@ export interface paths {
     get: operations["workflows_workflows_executions_retrieve"];
   };
   "/health/": {
-    /** @description Health check endpoint extendido. */
+    /** @description Health check endpoint: estado de servicios + marcador de deploy. */
     get: operations["health_retrieve"];
   };
 }
@@ -18869,11 +19007,6 @@ export interface components {
     };
     /** @description Serializer para suscripciones de sucursales. */
     BranchSubscriptionRequest: {
-      /**
-       * Sucursal
-       * @description Sucursal a la que pertenece este registro
-       */
-      branch: number;
       plan: number;
       /**
        * Estado
@@ -21780,7 +21913,7 @@ export interface components {
       /** Cliente */
       client: number;
       client_name: string;
-      branch?: number | null;
+      branch: number;
       branch_name: string;
       /**
        * Tomador de Decisiones
@@ -21894,7 +22027,6 @@ export interface components {
       contact_type?: "PRIMARY" | "SECONDARY" | "BILLING" | "TECHNICAL" | "ADMINISTRATIVE" | "DECISION_MAKER";
       /** Cliente */
       client: number;
-      branch?: number | null;
       /**
        * Tomador de Decisiones
        * @description Indica si es quien toma las decisiones de compra
@@ -22164,9 +22296,14 @@ export interface components {
        * @description Si es True, no aparece en dashboards ni stats
        */
       hide_in_stats?: boolean;
+      /**
+       * Grupo
+       * Format: uuid
+       * @description Grupo/section donde aparece este campo (ej: 'Datos Médicos')
+       */
+      group?: string | null;
       group_name: string;
-      /** Orden del Grupo */
-      group_order?: number;
+      group_order: string;
       is_quantifiable: boolean;
       is_numeric: boolean;
       /**
@@ -22303,8 +22440,12 @@ export interface components {
        * @description Si es True, no aparece en dashboards ni stats
        */
       hide_in_stats?: boolean;
-      /** Orden del Grupo */
-      group_order?: number;
+      /**
+       * Grupo
+       * Format: uuid
+       * @description Grupo/section donde aparece este campo (ej: 'Datos Médicos')
+       */
+      group?: string | null;
       /**
        * Activo
        * @description Indica si el registro está activo. Use esto en lugar de eliminar.
@@ -23352,7 +23493,7 @@ export interface components {
        * @enum {string}
        */
       department_type?: "SALES" | "PURCHASING" | "FINANCE" | "OPERATIONS" | "HR" | "IT" | "MARKETING" | "ADMINISTRATION" | "OTHER";
-      branch?: number | null;
+      branch: number;
       branch_name: string;
       /**
        * Activo
@@ -23433,7 +23574,6 @@ export interface components {
        * @enum {string}
        */
       department_type?: "SALES" | "PURCHASING" | "FINANCE" | "OPERATIONS" | "HR" | "IT" | "MARKETING" | "ADMINISTRATION" | "OTHER";
-      branch?: number | null;
       /**
        * Activo
        * @description Indica si el departamento está disponible para usar
@@ -27534,6 +27674,11 @@ export interface components {
       /** @description Ej: {'requests': 100, 'window_seconds': 60} */
       rate_limit?: unknown;
       /**
+       * Claves de credenciales requeridas
+       * @description Lista de claves obligatorias en las credenciales de cada instalación (ej: ['api_key', 'secret_key']). Vacío = sin requisito explícito.
+       */
+      required_credential_keys?: unknown;
+      /**
        * URL de icono
        * Format: uri
        */
@@ -27827,6 +27972,11 @@ export interface components {
       retry_policy?: unknown;
       /** @description Ej: {'requests': 100, 'window_seconds': 60} */
       rate_limit?: unknown;
+      /**
+       * Claves de credenciales requeridas
+       * @description Lista de claves obligatorias en las credenciales de cada instalación (ej: ['api_key', 'secret_key']). Vacío = sin requisito explícito.
+       */
+      required_credential_keys?: unknown;
       /**
        * URL de icono
        * Format: uri
@@ -28148,7 +28298,7 @@ export interface components {
       changed_by?: number | null;
       changed_by_name: string;
       /** Sucursal */
-      branch?: number | null;
+      branch: number | null;
       branch_name: string;
       /** Detalles Adicionales */
       details?: unknown;
@@ -28334,6 +28484,142 @@ export interface components {
        * Format: date-time
        */
       last_sync_at?: string | null;
+    };
+    /** @description Plan de grupo expuesto en la gestión autenticada del catálogo. */
+    GroupPlanManage: {
+      id: number;
+      /**
+       * Slug del plan
+       * @description Identificador del plan dentro del grupo (ej: 'local')
+       */
+      plan_id: string;
+      display_name?: string;
+      /**
+       * Descripción
+       * @description Bajada corta mostrada en la landing del plan.
+       */
+      description?: string;
+      /**
+       * Características
+       * @description Lista de bullets (strings) mostrados en la landing del plan.
+       */
+      features?: unknown;
+      /**
+       * Límites
+       * @description Diccionario de límites del plan (ej: usuarios, sucursales, productos).
+       */
+      limits?: unknown;
+      /**
+       * Precio (UF)
+       * Format: double
+       * @description Precio del plan en UF. Vacío = contacto manual, sin pago online.
+       */
+      price_uf?: number | null;
+      /**
+       * Plan de módulos
+       * @description Plan de módulos asignado a la sucursal al provisionar.
+       */
+      branch_module_plan?: number | null;
+      sort_order?: number;
+      /**
+       * Destacado
+       * @description Sello "el más elegido" / plan destacado en la landing.
+       */
+      highlighted?: boolean;
+      /**
+       * Sello
+       * @description Texto opcional del sello ("EL MÁS ELEGIDO", "NUEVO", …).
+       */
+      badge?: string | null;
+      is_active?: boolean;
+    };
+    /** @description Plan de grupo expuesto en la gestión autenticada del catálogo. */
+    GroupPlanManageRequest: {
+      /**
+       * Slug del plan
+       * @description Identificador del plan dentro del grupo (ej: 'local')
+       */
+      plan_id: string;
+      display_name?: string;
+      /**
+       * Descripción
+       * @description Bajada corta mostrada en la landing del plan.
+       */
+      description?: string;
+      /**
+       * Características
+       * @description Lista de bullets (strings) mostrados en la landing del plan.
+       */
+      features?: unknown;
+      /**
+       * Límites
+       * @description Diccionario de límites del plan (ej: usuarios, sucursales, productos).
+       */
+      limits?: unknown;
+      /**
+       * Precio (UF)
+       * Format: double
+       * @description Precio del plan en UF. Vacío = contacto manual, sin pago online.
+       */
+      price_uf?: number | null;
+      /**
+       * Plan de módulos
+       * @description Plan de módulos asignado a la sucursal al provisionar.
+       */
+      branch_module_plan?: number | null;
+      sort_order?: number;
+      /**
+       * Destacado
+       * @description Sello "el más elegido" / plan destacado en la landing.
+       */
+      highlighted?: boolean;
+      /**
+       * Sello
+       * @description Texto opcional del sello ("EL MÁS ELEGIDO", "NUEVO", …).
+       */
+      badge?: string | null;
+      is_active?: boolean;
+    };
+    /** @description Plan de grupo expuesto públicamente para la landing. */
+    GroupPlanPublic: {
+      /**
+       * Slug del plan
+       * @description Identificador del plan dentro del grupo (ej: 'local')
+       */
+      plan_id: string;
+      display_name: string;
+      /**
+       * Descripción
+       * @description Bajada corta mostrada en la landing del plan.
+       */
+      description: string;
+      /**
+       * Características
+       * @description Lista de bullets (strings) mostrados en la landing del plan.
+       */
+      features: unknown;
+      /**
+       * Límites
+       * @description Diccionario de límites del plan (ej: usuarios, sucursales, productos).
+       */
+      limits: unknown;
+      /**
+       * Precio (UF)
+       * Format: double
+       * @description Precio del plan en UF. Vacío = contacto manual, sin pago online.
+       */
+      price_uf: number | null;
+      sort_order: number;
+      /**
+       * Destacado
+       * @description Sello "el más elegido" / plan destacado en la landing.
+       */
+      highlighted: boolean;
+      /**
+       * Sello
+       * @description Texto opcional del sello ("EL MÁS ELEGIDO", "NUEVO", …).
+       */
+      badge: string | null;
     };
     /** @description Item de consumo de insumo/ingrediente. */
     IngredientConsumptionItem: {
@@ -29127,7 +29413,7 @@ export interface components {
       department_name: string;
       /** @description Obtener tipo del departamento o None si no existe. */
       department_type: string;
-      branch?: number | null;
+      branch: number;
       branch_name: string;
       /**
        * Activo
@@ -29222,7 +29508,6 @@ export interface components {
        */
       level?: "EXECUTIVE" | "MANAGER" | "SUPERVISOR" | "ANALYST" | "ASSISTANT" | "OPERATOR" | "OTHER";
       department?: number | null;
-      branch?: number | null;
       /**
        * Activo
        * @description Indica si el cargo está disponible para usar
@@ -29237,8 +29522,6 @@ export interface components {
     /** @description Serializer para estaciones de cocina. */
     KitchenStation: {
       id: number;
-      /** Sucursal */
-      branch?: number;
       branch_name: string;
       /**
        * Nombre
@@ -29246,7 +29529,10 @@ export interface components {
        */
       name: string;
       categories: readonly components["schemas"]["CategoryProduct"][];
-      /** Activo */
+      /**
+       * Activo
+       * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+       */
       is_active?: boolean;
       /**
        * Created at
@@ -29263,15 +29549,16 @@ export interface components {
     };
     /** @description Serializer para estaciones de cocina. */
     KitchenStationRequest: {
-      /** Sucursal */
-      branch?: number;
       /**
        * Nombre
        * @description Ej: Cocina caliente, Barra, Pastelería
        */
       name: string;
       category_ids?: number[];
-      /** Activo */
+      /**
+       * Activo
+       * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+       */
       is_active?: boolean;
     };
     /** @description Serializer para comandas de cocina. */
@@ -30114,7 +30401,7 @@ export interface components {
        * @description Código del medidor (opcional). Si se proporciona, debe ser único por sucursal.
        */
       code?: string | null;
-      branch?: number | null;
+      branch: number;
       /** @description Obtener nombre de sucursal, manejando caso NULL. */
       branch_name: string;
       client?: number | null;
@@ -30260,7 +30547,6 @@ export interface components {
        * @description Código del medidor (opcional). Si se proporciona, debe ser único por sucursal.
        */
       code?: string | null;
-      branch?: number | null;
       client?: number | null;
       product: number;
       /**
@@ -31267,7 +31553,7 @@ export interface components {
        * Sucursal (Opcional)
        * @description Dejar vacío para configuración global por defecto
        */
-      branch?: number | null;
+      branch: number | null;
       branch_name: string;
       /** Configuración JSON */
       config?: unknown;
@@ -31298,11 +31584,6 @@ export interface components {
        * @enum {string}
        */
       key: "SALES" | "INVENTORY" | "FINANCE" | "HR" | "POS";
-      /**
-       * Sucursal (Opcional)
-       * @description Dejar vacío para configuración global por defecto
-       */
-      branch?: number | null;
       /** Configuración JSON */
       config?: unknown;
       /** Activo */
@@ -37815,11 +38096,6 @@ export interface components {
     };
     /** @description Serializer para suscripciones de sucursales. */
     PatchedBranchSubscriptionRequest: {
-      /**
-       * Sucursal
-       * @description Sucursal a la que pertenece este registro
-       */
-      branch?: number;
       plan?: number;
       /**
        * Estado
@@ -38806,7 +39082,6 @@ export interface components {
       contact_type?: "PRIMARY" | "SECONDARY" | "BILLING" | "TECHNICAL" | "ADMINISTRATIVE" | "DECISION_MAKER";
       /** Cliente */
       client?: number;
-      branch?: number | null;
       /**
        * Tomador de Decisiones
        * @description Indica si es quien toma las decisiones de compra
@@ -38933,8 +39208,12 @@ export interface components {
        * @description Si es True, no aparece en dashboards ni stats
        */
       hide_in_stats?: boolean;
-      /** Orden del Grupo */
-      group_order?: number;
+      /**
+       * Grupo
+       * Format: uuid
+       * @description Grupo/section donde aparece este campo (ej: 'Datos Médicos')
+       */
+      group?: string | null;
       /**
        * Activo
        * @description Indica si el registro está activo. Use esto en lugar de eliminar.
@@ -39340,7 +39619,6 @@ export interface components {
        * @enum {string}
        */
       department_type?: "SALES" | "PURCHASING" | "FINANCE" | "OPERATIONS" | "HR" | "IT" | "MARKETING" | "ADMINISTRATION" | "OTHER";
-      branch?: number | null;
       /**
        * Activo
        * @description Indica si el departamento está disponible para usar
@@ -40762,6 +41040,11 @@ export interface components {
       /** @description Ej: {'requests': 100, 'window_seconds': 60} */
       rate_limit?: unknown;
       /**
+       * Claves de credenciales requeridas
+       * @description Lista de claves obligatorias en las credenciales de cada instalación (ej: ['api_key', 'secret_key']). Vacío = sin requisito explícito.
+       */
+      required_credential_keys?: unknown;
+      /**
        * URL de icono
        * Format: uri
        */
@@ -40946,6 +41229,53 @@ export interface components {
        * Format: date-time
        */
       last_sync_at?: string | null;
+    };
+    /** @description Plan de grupo expuesto en la gestión autenticada del catálogo. */
+    PatchedGroupPlanManageRequest: {
+      /**
+       * Slug del plan
+       * @description Identificador del plan dentro del grupo (ej: 'local')
+       */
+      plan_id?: string;
+      display_name?: string;
+      /**
+       * Descripción
+       * @description Bajada corta mostrada en la landing del plan.
+       */
+      description?: string;
+      /**
+       * Características
+       * @description Lista de bullets (strings) mostrados en la landing del plan.
+       */
+      features?: unknown;
+      /**
+       * Límites
+       * @description Diccionario de límites del plan (ej: usuarios, sucursales, productos).
+       */
+      limits?: unknown;
+      /**
+       * Precio (UF)
+       * Format: double
+       * @description Precio del plan en UF. Vacío = contacto manual, sin pago online.
+       */
+      price_uf?: number | null;
+      /**
+       * Plan de módulos
+       * @description Plan de módulos asignado a la sucursal al provisionar.
+       */
+      branch_module_plan?: number | null;
+      sort_order?: number;
+      /**
+       * Destacado
+       * @description Sello "el más elegido" / plan destacado en la landing.
+       */
+      highlighted?: boolean;
+      /**
+       * Sello
+       * @description Texto opcional del sello ("EL MÁS ELEGIDO", "NUEVO", …).
+       */
+      badge?: string | null;
+      is_active?: boolean;
     };
     /** @description Serializer para tareas internas. */
     PatchedInternalTaskRequest: {
@@ -41161,7 +41491,6 @@ export interface components {
        */
       level?: "EXECUTIVE" | "MANAGER" | "SUPERVISOR" | "ANALYST" | "ASSISTANT" | "OPERATOR" | "OTHER";
       department?: number | null;
-      branch?: number | null;
       /**
        * Activo
        * @description Indica si el cargo está disponible para usar
@@ -41175,15 +41504,16 @@ export interface components {
     };
     /** @description Serializer para estaciones de cocina. */
     PatchedKitchenStationRequest: {
-      /** Sucursal */
-      branch?: number;
       /**
        * Nombre
        * @description Ej: Cocina caliente, Barra, Pastelería
        */
       name?: string;
       category_ids?: number[];
-      /** Activo */
+      /**
+       * Activo
+       * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+       */
       is_active?: boolean;
     };
     /** @description Serializer para items de comanda. */
@@ -41462,7 +41792,6 @@ export interface components {
        * @description Código del medidor (opcional). Si se proporciona, debe ser único por sucursal.
        */
       code?: string | null;
-      branch?: number | null;
       client?: number | null;
       product?: number;
       /**
@@ -41781,11 +42110,6 @@ export interface components {
        * @enum {string}
        */
       key?: "SALES" | "INVENTORY" | "FINANCE" | "HR" | "POS";
-      /**
-       * Sucursal (Opcional)
-       * @description Dejar vacío para configuración global por defecto
-       */
-      branch?: number | null;
       /** Configuración JSON */
       config?: unknown;
       /** Activo */
@@ -42510,6 +42834,50 @@ export interface components {
       status?: "DRAFT" | "CALCULATED" | "APPROVED" | "PAID" | "CANCELLED";
       /** Notas */
       notes?: string | null;
+    };
+    /** @description Campos editables de un grupo de planes (name es de solo lectura). */
+    PatchedPlanGroupUpdateRequest: {
+      /**
+       * Nombre visible
+       * @description Marca mostrada en correos y pantallas de pago
+       */
+      display_name?: string;
+      description?: string;
+      /**
+       * Email de contacto
+       * Format: email
+       * @description Contacto demo / mailto fallback del modal de la landing.
+       */
+      contact_email?: string;
+      /**
+       * Nota de pricing
+       * @description Nota mostrada bajo la parrilla de planes de la landing.
+       */
+      pricing_note?: string;
+      /** Titular del hero */
+      hero_headline?: string;
+      /** Bajada del hero */
+      hero_subhead?: string;
+      /** Texto del CTA del hero */
+      hero_cta_label?: string;
+      /**
+       * Funciones de la landing
+       * @description Lista de {icon, title, description}. El front mapea el icono a su librería.
+       */
+      landing_features?: unknown;
+      /**
+       * URL del frontend
+       * Format: uri
+       * @description Base de magic-links y sitio de la marca. Vacío = FRONTEND_URL global.
+       */
+      frontend_url?: string;
+      /**
+       * UF de integración
+       * Format: double
+       * @description UF cobrada una vez, sumada al precio del plan.
+       */
+      integration_uf?: number;
+      is_active?: boolean;
     };
     /** @description Position serializer. */
     PatchedPositionRequest: {
@@ -43851,11 +44219,6 @@ export interface components {
        */
       category?: string;
       /**
-       * Orden
-       * Format: uuid
-       */
-      order?: string | null;
-      /**
        * Cliente
        * @description Cliente asociado al ingreso (para ingresos antiguos o directos)
        */
@@ -44065,11 +44428,6 @@ export interface components {
        * Format: uuid
        */
       supplier?: string;
-      /**
-       * Sucursal
-       * @description Sucursal a la que pertenece este registro
-       */
-      branch?: number;
       /** Proveedor Preferido */
       is_preferred?: boolean;
       /** Activo */
@@ -45597,11 +45955,6 @@ export interface components {
        */
       data_type?: "string" | "number" | "boolean" | "json" | "array" | "date" | "datetime";
       /**
-       * Sucursal
-       * @description Dejar vacío para configuración global
-       */
-      branch?: number | null;
-      /**
        * ¿Se Puede Sobrescribir?
        * @description Indica si las sucursales pueden sobrescribir esta configuración
        */
@@ -46356,6 +46709,14 @@ export interface components {
        * @description Monto del pago
        */
       amount: number;
+      /** Format: double */
+      processing_fee: number;
+      /**
+       * Comisión de Procesamiento
+       * Format: double
+       * @description Monto de la comisión por procesamiento
+       */
+      processing_fee_amount?: number;
       /**
        * Monto Neto
        * Format: double
@@ -47201,6 +47562,155 @@ export interface components {
       status?: "DRAFT" | "CALCULATED" | "APPROVED" | "PAID" | "CANCELLED";
       /** Notas */
       notes?: string | null;
+    };
+    /** @description Payload de creación de un checkout de plan. */
+    PlanCheckoutCreateRequest: {
+      plan_id: string;
+      business_name: string;
+      contact_name: string;
+      /** Format: email */
+      email: string;
+      website?: string;
+    };
+    PlanCheckoutResponse: {
+      /** Format: uuid */
+      checkout_id: string;
+      payment_url: string | null;
+      status: string;
+    };
+    PlanCheckoutStatusResponse: {
+      status: string;
+      payment_url: string | null;
+    };
+    /** @description Detalle completo de un grupo con todos sus planes (activos e inactivos). */
+    PlanGroupDetail: {
+      /**
+       * Slug del grupo
+       * @description Identificador único del grupo (ej: 'frig'). Define la URL pública.
+       */
+      name: string;
+      /**
+       * Nombre visible
+       * @description Marca mostrada en correos y pantallas de pago
+       */
+      display_name: string;
+      description: string;
+      /**
+       * Email de contacto
+       * Format: email
+       * @description Contacto demo / mailto fallback del modal de la landing.
+       */
+      contact_email: string;
+      /**
+       * Nota de pricing
+       * @description Nota mostrada bajo la parrilla de planes de la landing.
+       */
+      pricing_note: string;
+      /** Titular del hero */
+      hero_headline: string;
+      /** Bajada del hero */
+      hero_subhead: string;
+      /** Texto del CTA del hero */
+      hero_cta_label: string;
+      /**
+       * Funciones de la landing
+       * @description Lista de {icon, title, description}. El front mapea el icono a su librería.
+       */
+      landing_features: unknown;
+      /**
+       * URL del frontend
+       * Format: uri
+       * @description Base de magic-links y sitio de la marca. Vacío = FRONTEND_URL global.
+       */
+      frontend_url: string;
+      /**
+       * UF de integración
+       * Format: double
+       * @description UF cobrada una vez, sumada al precio del plan.
+       */
+      integration_uf: number;
+      is_active: boolean;
+      plans: readonly components["schemas"]["GroupPlanManage"][];
+    };
+    /** @description Grupo con el copy completo de la landing (hero + funciones). */
+    PlanGroupLanding: {
+      slug: string;
+      /**
+       * Nombre visible
+       * @description Marca mostrada en correos y pantallas de pago
+       */
+      display_name: string;
+      description: string;
+      /**
+       * UF de integración
+       * Format: double
+       * @description UF cobrada una vez, sumada al precio del plan.
+       */
+      integration_uf: number;
+      /**
+       * URL del frontend
+       * Format: uri
+       * @description Base de magic-links y sitio de la marca. Vacío = FRONTEND_URL global.
+       */
+      frontend_url: string;
+      /**
+       * Email de contacto
+       * Format: email
+       * @description Contacto demo / mailto fallback del modal de la landing.
+       */
+      contact_email: string;
+      /**
+       * Nota de pricing
+       * @description Nota mostrada bajo la parrilla de planes de la landing.
+       */
+      pricing_note: string;
+      hero: {
+        [key: string]: unknown;
+      } | null;
+      features: readonly {
+          [key: string]: unknown;
+        }[];
+    };
+    /** @description Listado resumido de grupos gestionables por el usuario autenticado. */
+    PlanGroupList: {
+      /**
+       * Slug del grupo
+       * @description Identificador único del grupo (ej: 'frig'). Define la URL pública.
+       */
+      name: string;
+      /**
+       * Nombre visible
+       * @description Marca mostrada en correos y pantallas de pago
+       */
+      display_name: string;
+      is_active: boolean;
+    };
+    /** @description Grupo de planes con su catálogo activo (landing pública). */
+    PlanGroupPublic: {
+      /**
+       * Slug del grupo
+       * @description Identificador único del grupo (ej: 'frig'). Define la URL pública.
+       */
+      name: string;
+      /**
+       * Nombre visible
+       * @description Marca mostrada en correos y pantallas de pago
+       */
+      display_name: string;
+      description: string;
+      /**
+       * UF de integración
+       * Format: double
+       * @description UF cobrada una vez, sumada al precio del plan.
+       */
+      integration_uf: number;
+      plans: readonly {
+          [key: string]: unknown;
+        }[];
+    };
+    /** @description Canje del magic-link firmado enviado por correo post-pago. */
+    PlanMagicLoginRequestRequest: {
+      token: string;
     };
     /** @description Position serializer. */
     Position: {
@@ -50047,6 +50557,22 @@ export interface components {
       phone_number?: string | null;
       address?: string | null;
     };
+    /** @description Marca (branding) resuelta por dominio; null = la web usa su marca propia. */
+    PublicLandingBrand: {
+      app_name: string;
+      logo_url: string | null;
+      favicon_url: string | null;
+      primary_color: string;
+      secondary_color: string;
+      color_mode: string;
+      tagline: string;
+    };
+    /** @description Config completa de la landing: grupo + brand + planes (una sola llamada). */
+    PublicLandingConfig: {
+      group: components["schemas"]["PlanGroupLanding"];
+      brand: components["schemas"]["PublicLandingBrand"] | null;
+      plans: components["schemas"]["GroupPlanPublic"][];
+    };
     /** @description Serializador público para configuración de login */
     PublicLoginTheme: {
       /**
@@ -51579,11 +52105,8 @@ export interface components {
        */
       category: string;
       category_name: string;
-      /**
-       * Orden
-       * Format: uuid
-       */
-      order?: string | null;
+      /** Format: uuid */
+      order: string;
       /**
        * Cliente
        * @description Cliente asociado al ingreso (para ingresos antiguos o directos)
@@ -51789,11 +52312,6 @@ export interface components {
        * Format: uuid
        */
       category: string;
-      /**
-       * Orden
-       * Format: uuid
-       */
-      order?: string | null;
       /**
        * Cliente
        * @description Cliente asociado al ingreso (para ingresos antiguos o directos)
@@ -52340,11 +52858,6 @@ export interface components {
        * Format: uuid
        */
       supplier: string;
-      /**
-       * Sucursal
-       * @description Sucursal a la que pertenece este registro
-       */
-      branch: number;
       /** Proveedor Preferido */
       is_preferred?: boolean;
       /** Activo */
@@ -53362,11 +53875,6 @@ export interface components {
        * @description Número o identificador de la mesa
        */
       number: string;
-      /**
-       * Sucursal
-       * @description Sucursal a la que pertenece este registro
-       */
-      branch: number;
       /**
        * Capacidad
        * @description Número máximo de personas que pueden sentarse
@@ -57091,7 +57599,7 @@ export interface components {
        * Sucursal
        * @description Dejar vacío para configuración global
        */
-      branch?: number | null;
+      branch: number | null;
       /**
        * ¿Se Puede Sobrescribir?
        * @description Indica si las sucursales pueden sobrescribir esta configuración
@@ -57197,11 +57705,6 @@ export interface components {
        * @enum {string}
        */
       data_type?: "string" | "number" | "boolean" | "json" | "array" | "date" | "datetime";
-      /**
-       * Sucursal
-       * @description Dejar vacío para configuración global
-       */
-      branch?: number | null;
       /**
        * ¿Se Puede Sobrescribir?
        * @description Indica si las sucursales pueden sobrescribir esta configuración
@@ -59144,11 +59647,11 @@ export interface operations {
         field_definition?: string;
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         user?: number;
       };
@@ -59195,7 +59698,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Valor de Campo Extra de Usuario. */
+        /** @description Un Cadena UUID que identifique este Valor de Campo Extra de Usuario. */
         id: string;
       };
     };
@@ -59215,7 +59718,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Valor de Campo Extra de Usuario. */
+        /** @description Un Cadena UUID que identifique este Valor de Campo Extra de Usuario. */
         id: string;
       };
     };
@@ -59242,7 +59745,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Valor de Campo Extra de Usuario. */
+        /** @description Un Cadena UUID que identifique este Valor de Campo Extra de Usuario. */
         id: string;
       };
     };
@@ -59260,7 +59763,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Valor de Campo Extra de Usuario. */
+        /** @description Un Cadena UUID que identifique este Valor de Campo Extra de Usuario. */
         id: string;
       };
     };
@@ -59306,13 +59809,13 @@ export interface operations {
         format?: "binary" | "json";
         is_active?: boolean;
         is_required?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
       };
     };
@@ -59358,7 +59861,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Campo Extra de Usuario. */
+        /** @description Un Cadena UUID que identifique este Campo Extra de Usuario. */
         id: string;
       };
     };
@@ -59378,7 +59881,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Campo Extra de Usuario. */
+        /** @description Un Cadena UUID que identifique este Campo Extra de Usuario. */
         id: string;
       };
     };
@@ -59405,7 +59908,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Campo Extra de Usuario. */
+        /** @description Un Cadena UUID que identifique este Campo Extra de Usuario. */
         id: string;
       };
     };
@@ -59423,7 +59926,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Campo Extra de Usuario. */
+        /** @description Un Cadena UUID que identifique este Campo Extra de Usuario. */
         id: string;
       };
     };
@@ -59468,11 +59971,11 @@ export interface operations {
         is_active?: boolean;
         /** @description Filtrar solo usuarios con rol METER activo */
         meters_only?: boolean;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
         /**
          * @description Tipo de usuario a nivel de sistema. Los roles específicos se manejan en BranchUser.
@@ -59536,7 +60039,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Usuario. */
+        /** @description Un valor de entero único que identifique este Usuario. */
         id: number;
       };
     };
@@ -59570,7 +60073,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Usuario. */
+        /** @description Un valor de entero único que identifique este Usuario. */
         id: number;
       };
     };
@@ -59611,7 +60114,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Usuario. */
+        /** @description Un valor de entero único que identifique este Usuario. */
         id: number;
       };
     };
@@ -59643,7 +60146,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Usuario. */
+        /** @description Un valor de entero único que identifique este Usuario. */
         id: number;
       };
     };
@@ -59670,7 +60173,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Usuario. */
+        /** @description Un valor de entero único que identifique este Usuario. */
         id: number;
       };
     };
@@ -59697,7 +60200,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Usuario. */
+        /** @description Un valor de entero único que identifique este Usuario. */
         id: number;
       };
     };
@@ -59717,7 +60220,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Usuario. */
+        /** @description Un valor de entero único que identifique este Usuario. */
         id: number;
       };
     };
@@ -59737,7 +60240,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Usuario. */
+        /** @description Un valor de entero único que identifique este Usuario. */
         id: number;
       };
     };
@@ -59764,7 +60267,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Usuario. */
+        /** @description Un valor de entero único que identifique este Usuario. */
         id: number;
       };
     };
@@ -59987,7 +60490,7 @@ export interface operations {
       };
     };
   };
-  /** @description Cerrar sesión eliminando el token del usuario y la cookie. */
+  /** @description Cerrar sesión eliminando el token presentado y la cookie. */
   accounts_users_logout_create: {
     parameters: {
       query?: {
@@ -60257,9 +60760,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -60569,9 +61072,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -60614,7 +61117,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuracion de Agente. */
+        /** @description Un valor de entero único que identifique este Configuracion de Agente. */
         id: number;
       };
     };
@@ -60634,7 +61137,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuracion de Agente. */
+        /** @description Un valor de entero único que identifique este Configuracion de Agente. */
         id: number;
       };
     };
@@ -60661,7 +61164,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuracion de Agente. */
+        /** @description Un valor de entero único que identifique este Configuracion de Agente. */
         id: number;
       };
     };
@@ -60679,7 +61182,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuracion de Agente. */
+        /** @description Un valor de entero único que identifique este Configuracion de Agente. */
         id: number;
       };
     };
@@ -60710,7 +61213,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuracion de Agente. */
+        /** @description Un valor de entero único que identifique este Configuracion de Agente. */
         id: number;
         skill_id: string;
       };
@@ -60735,7 +61238,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuracion de Agente. */
+        /** @description Un valor de entero único que identifique este Configuracion de Agente. */
         id: number;
         skill_id: string;
       };
@@ -60767,7 +61270,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuracion de Agente. */
+        /** @description Un valor de entero único que identifique este Configuracion de Agente. */
         id: number;
         skill_id: string;
       };
@@ -60790,7 +61293,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuracion de Agente. */
+        /** @description Un valor de entero único que identifique este Configuracion de Agente. */
         id: number;
         skill_id: string;
       };
@@ -60821,7 +61324,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuracion de Agente. */
+        /** @description Un valor de entero único que identifique este Configuracion de Agente. */
         id: number;
       };
     };
@@ -60848,7 +61351,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuracion de Agente. */
+        /** @description Un valor de entero único que identifique este Configuracion de Agente. */
         id: number;
       };
     };
@@ -60987,9 +61490,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -61032,7 +61535,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Cuenta de Aplicación. */
+        /** @description Un Cadena UUID que identifique este Cuenta de Aplicación. */
         id: string;
       };
     };
@@ -61052,7 +61555,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Cuenta de Aplicación. */
+        /** @description Un Cadena UUID que identifique este Cuenta de Aplicación. */
         id: string;
       };
     };
@@ -61070,7 +61573,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Cuenta de Aplicación. */
+        /** @description Un Cadena UUID que identifique este Cuenta de Aplicación. */
         id: string;
       };
     };
@@ -61147,9 +61650,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -61192,7 +61695,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Canal de Comunicación. */
+        /** @description Un Cadena UUID que identifique este Canal de Comunicación. */
         id: string;
       };
     };
@@ -61212,7 +61715,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Canal de Comunicación. */
+        /** @description Un Cadena UUID que identifique este Canal de Comunicación. */
         id: string;
       };
     };
@@ -61239,7 +61742,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Canal de Comunicación. */
+        /** @description Un Cadena UUID que identifique este Canal de Comunicación. */
         id: string;
       };
     };
@@ -61257,7 +61760,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Canal de Comunicación. */
+        /** @description Un Cadena UUID que identifique este Canal de Comunicación. */
         id: string;
       };
     };
@@ -61290,7 +61793,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Canal de Comunicación. */
+        /** @description Un Cadena UUID que identifique este Canal de Comunicación. */
         id: string;
       };
     };
@@ -61320,7 +61823,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Canal de Comunicación. */
+        /** @description Un Cadena UUID que identifique este Canal de Comunicación. */
         id: string;
       };
     };
@@ -61353,7 +61856,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Canal de Comunicación. */
+        /** @description Un Cadena UUID que identifique este Canal de Comunicación. */
         id: string;
       };
     };
@@ -61376,7 +61879,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Canal de Comunicación. */
+        /** @description Un Cadena UUID que identifique este Canal de Comunicación. */
         id: string;
       };
     };
@@ -61407,7 +61910,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Canal de Comunicación. */
+        /** @description Un Cadena UUID que identifique este Canal de Comunicación. */
         id: string;
       };
     };
@@ -61452,9 +61955,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -61474,7 +61977,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Sesión de Chatbot. */
+        /** @description Un Cadena UUID que identifique este Sesión de Chatbot. */
         id: string;
       };
     };
@@ -61497,7 +62000,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Sesión de Chatbot. */
+        /** @description Un Cadena UUID que identifique este Sesión de Chatbot. */
         id: string;
       };
     };
@@ -61522,9 +62025,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -61558,7 +62061,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Conversacion. */
+        /** @description Un valor de entero único que identifique este Conversacion. */
         id: number;
       };
     };
@@ -61576,7 +62079,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Conversacion. */
+        /** @description Un valor de entero único que identifique este Conversacion. */
         id: number;
       };
     };
@@ -61594,7 +62097,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Conversacion. */
+        /** @description Un valor de entero único que identifique este Conversacion. */
         id: number;
       };
     };
@@ -61612,7 +62115,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Conversacion. */
+        /** @description Un valor de entero único que identifique este Conversacion. */
         id: number;
       };
     };
@@ -61633,7 +62136,7 @@ export interface operations {
         format?: "event-stream" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Conversacion. */
+        /** @description Un valor de entero único que identifique este Conversacion. */
         id: number;
       };
     };
@@ -61654,7 +62157,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Conversacion. */
+        /** @description Un valor de entero único que identifique este Conversacion. */
         id: number;
       };
     };
@@ -61675,7 +62178,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Conversacion. */
+        /** @description Un valor de entero único que identifique este Conversacion. */
         id: number;
       };
     };
@@ -61696,7 +62199,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Conversacion. */
+        /** @description Un valor de entero único que identifique este Conversacion. */
         id: number;
       };
     };
@@ -61718,7 +62221,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Conversacion. */
+        /** @description Un valor de entero único que identifique este Conversacion. */
         id: number;
       };
     };
@@ -61737,9 +62240,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -61788,7 +62291,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Volumen de datos de agente. */
+        /** @description Un Cadena UUID que identifique este Volumen de datos de agente. */
         id: string;
       };
     };
@@ -61811,7 +62314,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Volumen de datos de agente. */
+        /** @description Un Cadena UUID que identifique este Volumen de datos de agente. */
         id: string;
       };
     };
@@ -61841,7 +62344,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Volumen de datos de agente. */
+        /** @description Un Cadena UUID que identifique este Volumen de datos de agente. */
         id: string;
       };
     };
@@ -61862,7 +62365,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Volumen de datos de agente. */
+        /** @description Un Cadena UUID que identifique este Volumen de datos de agente. */
         id: string;
       };
     };
@@ -61893,7 +62396,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Volumen de datos de agente. */
+        /** @description Un Cadena UUID que identifique este Volumen de datos de agente. */
         id: string;
       };
     };
@@ -61924,7 +62427,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Volumen de datos de agente. */
+        /** @description Un Cadena UUID que identifique este Volumen de datos de agente. */
         id: string;
       };
     };
@@ -61955,7 +62458,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Volumen de datos de agente. */
+        /** @description Un Cadena UUID que identifique este Volumen de datos de agente. */
         id: string;
       };
     };
@@ -61979,7 +62482,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Volumen de datos de agente. */
+        /** @description Un Cadena UUID que identifique este Volumen de datos de agente. */
         id: string;
       };
     };
@@ -62031,9 +62534,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -62076,7 +62579,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Instalación de Aplicación. */
+        /** @description Un Cadena UUID que identifique este Instalación de Aplicación. */
         id: string;
       };
     };
@@ -62096,7 +62599,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Instalación de Aplicación. */
+        /** @description Un Cadena UUID que identifique este Instalación de Aplicación. */
         id: string;
       };
     };
@@ -62114,7 +62617,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Instalación de Aplicación. */
+        /** @description Un Cadena UUID que identifique este Instalación de Aplicación. */
         id: string;
       };
     };
@@ -62149,7 +62652,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Instalación de Aplicación. */
+        /** @description Un Cadena UUID que identifique este Instalación de Aplicación. */
         id: string;
       };
     };
@@ -62179,7 +62682,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Instalación de Aplicación. */
+        /** @description Un Cadena UUID que identifique este Instalación de Aplicación. */
         id: string;
       };
     };
@@ -62204,9 +62707,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -62249,7 +62752,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this API Externa. */
+        /** @description Un Cadena UUID que identifique este API Externa. */
         id: string;
       };
     };
@@ -62269,7 +62772,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this API Externa. */
+        /** @description Un Cadena UUID que identifique este API Externa. */
         id: string;
       };
     };
@@ -62296,7 +62799,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this API Externa. */
+        /** @description Un Cadena UUID que identifique este API Externa. */
         id: string;
       };
     };
@@ -62314,7 +62817,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this API Externa. */
+        /** @description Un Cadena UUID que identifique este API Externa. */
         id: string;
       };
     };
@@ -62344,7 +62847,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this API Externa. */
+        /** @description Un Cadena UUID que identifique este API Externa. */
         id: string;
       };
     };
@@ -62373,7 +62876,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this API Externa. */
+        /** @description Un Cadena UUID que identifique este API Externa. */
         id: string;
       };
     };
@@ -62409,7 +62912,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this API Externa. */
+        /** @description Un Cadena UUID que identifique este API Externa. */
         id: string;
       };
     };
@@ -62434,9 +62937,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -62456,7 +62959,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Log de ejecución de función. */
+        /** @description Un Cadena UUID que identifique este Log de ejecución de función. */
         id: string;
       };
     };
@@ -62477,9 +62980,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -62653,9 +63156,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -62698,7 +63201,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Conocimiento RAG. */
+        /** @description Un valor de entero único que identifique este Conocimiento RAG. */
         id: number;
       };
     };
@@ -62718,7 +63221,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Conocimiento RAG. */
+        /** @description Un valor de entero único que identifique este Conocimiento RAG. */
         id: number;
       };
     };
@@ -62750,7 +63253,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Conocimiento RAG. */
+        /** @description Un valor de entero único que identifique este Conocimiento RAG. */
         id: number;
       };
     };
@@ -62768,7 +63271,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Conocimiento RAG. */
+        /** @description Un valor de entero único que identifique este Conocimiento RAG. */
         id: number;
       };
     };
@@ -62801,7 +63304,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Conocimiento RAG. */
+        /** @description Un valor de entero único que identifique este Conocimiento RAG. */
         id: number;
       };
     };
@@ -62824,7 +63327,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Conocimiento RAG. */
+        /** @description Un valor de entero único que identifique este Conocimiento RAG. */
         id: number;
       };
     };
@@ -62854,7 +63357,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Conocimiento RAG. */
+        /** @description Un valor de entero único que identifique este Conocimiento RAG. */
         id: number;
       };
     };
@@ -62877,7 +63380,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Conocimiento RAG. */
+        /** @description Un valor de entero único que identifique este Conocimiento RAG. */
         id: number;
       };
     };
@@ -62907,7 +63410,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Conocimiento RAG. */
+        /** @description Un valor de entero único que identifique este Conocimiento RAG. */
         id: number;
       };
     };
@@ -62930,7 +63433,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Conocimiento RAG. */
+        /** @description Un valor de entero único que identifique este Conocimiento RAG. */
         id: number;
       };
     };
@@ -62960,7 +63463,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Conocimiento RAG. */
+        /** @description Un valor de entero único que identifique este Conocimiento RAG. */
         id: number;
       };
     };
@@ -63191,12 +63694,12 @@ export interface operations {
         format?: "binary" | "json";
         is_active?: boolean;
         is_free?: boolean;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         provider?: string;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
       };
     };
@@ -63245,7 +63748,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Modelo de LLM. */
+        /** @description Un Cadena UUID que identifique este Modelo de LLM. */
         id: string;
       };
     };
@@ -63268,7 +63771,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Modelo de LLM. */
+        /** @description Un Cadena UUID que identifique este Modelo de LLM. */
         id: string;
       };
     };
@@ -63298,7 +63801,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Modelo de LLM. */
+        /** @description Un Cadena UUID que identifique este Modelo de LLM. */
         id: string;
       };
     };
@@ -63319,7 +63822,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Modelo de LLM. */
+        /** @description Un Cadena UUID que identifique este Modelo de LLM. */
         id: string;
       };
     };
@@ -63385,7 +63888,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Proveedor de LLM. */
+        /** @description Un Cadena UUID que identifique este Proveedor de LLM. */
         id: string;
       };
     };
@@ -63405,7 +63908,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Proveedor de LLM. */
+        /** @description Un Cadena UUID que identifique este Proveedor de LLM. */
         id: string;
       };
     };
@@ -63432,7 +63935,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Proveedor de LLM. */
+        /** @description Un Cadena UUID que identifique este Proveedor de LLM. */
         id: string;
       };
     };
@@ -63450,7 +63953,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Proveedor de LLM. */
+        /** @description Un Cadena UUID que identifique este Proveedor de LLM. */
         id: string;
       };
     };
@@ -63480,7 +63983,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Proveedor de LLM. */
+        /** @description Un Cadena UUID que identifique este Proveedor de LLM. */
         id: string;
       };
     };
@@ -63500,7 +64003,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Proveedor de LLM. */
+        /** @description Un Cadena UUID que identifique este Proveedor de LLM. */
         id: string;
       };
     };
@@ -63524,7 +64027,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Proveedor de LLM. */
+        /** @description Un Cadena UUID que identifique este Proveedor de LLM. */
         id: string;
       };
     };
@@ -63555,7 +64058,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Proveedor de LLM. */
+        /** @description Un Cadena UUID que identifique este Proveedor de LLM. */
         id: string;
       };
     };
@@ -63585,7 +64088,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Proveedor de LLM. */
+        /** @description Un Cadena UUID que identifique este Proveedor de LLM. */
         id: string;
       };
     };
@@ -63615,7 +64118,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Proveedor de LLM. */
+        /** @description Un Cadena UUID que identifique este Proveedor de LLM. */
         id: string;
       };
     };
@@ -63640,9 +64143,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -63685,7 +64188,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Template de Mensaje. */
+        /** @description Un Cadena UUID que identifique este Template de Mensaje. */
         id: string;
       };
     };
@@ -63705,7 +64208,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Template de Mensaje. */
+        /** @description Un Cadena UUID que identifique este Template de Mensaje. */
         id: string;
       };
     };
@@ -63732,7 +64235,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Template de Mensaje. */
+        /** @description Un Cadena UUID que identifique este Template de Mensaje. */
         id: string;
       };
     };
@@ -63750,7 +64253,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Template de Mensaje. */
+        /** @description Un Cadena UUID que identifique este Template de Mensaje. */
         id: string;
       };
     };
@@ -63780,7 +64283,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Template de Mensaje. */
+        /** @description Un Cadena UUID que identifique este Template de Mensaje. */
         id: string;
       };
     };
@@ -63805,9 +64308,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -63850,7 +64353,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Mensaje. */
+        /** @description Un valor de entero único que identifique este Mensaje. */
         id: number;
       };
     };
@@ -63870,7 +64373,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Mensaje. */
+        /** @description Un valor de entero único que identifique este Mensaje. */
         id: number;
       };
     };
@@ -63897,7 +64400,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Mensaje. */
+        /** @description Un valor de entero único que identifique este Mensaje. */
         id: number;
       };
     };
@@ -63915,7 +64418,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Mensaje. */
+        /** @description Un valor de entero único que identifique este Mensaje. */
         id: number;
       };
     };
@@ -63940,9 +64443,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -63985,7 +64488,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Plantilla de Prompt. */
+        /** @description Un valor de entero único que identifique este Plantilla de Prompt. */
         id: number;
       };
     };
@@ -64005,7 +64508,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Plantilla de Prompt. */
+        /** @description Un valor de entero único que identifique este Plantilla de Prompt. */
         id: number;
       };
     };
@@ -64032,7 +64535,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Plantilla de Prompt. */
+        /** @description Un valor de entero único que identifique este Plantilla de Prompt. */
         id: number;
       };
     };
@@ -64050,7 +64553,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Plantilla de Prompt. */
+        /** @description Un valor de entero único que identifique este Plantilla de Prompt. */
         id: number;
       };
     };
@@ -64080,7 +64583,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Plantilla de Prompt. */
+        /** @description Un valor de entero único que identifique este Plantilla de Prompt. */
         id: number;
       };
     };
@@ -64110,7 +64613,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Plantilla de Prompt. */
+        /** @description Un valor de entero único que identifique este Plantilla de Prompt. */
         id: number;
       };
     };
@@ -64241,9 +64744,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -64286,7 +64789,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Suscripción Push. */
+        /** @description Un Cadena UUID que identifique este Suscripción Push. */
         id: string;
       };
     };
@@ -64306,7 +64809,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Suscripción Push. */
+        /** @description Un Cadena UUID que identifique este Suscripción Push. */
         id: string;
       };
     };
@@ -64333,7 +64836,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Suscripción Push. */
+        /** @description Un Cadena UUID que identifique este Suscripción Push. */
         id: string;
       };
     };
@@ -64351,7 +64854,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Suscripción Push. */
+        /** @description Un Cadena UUID que identifique este Suscripción Push. */
         id: string;
       };
     };
@@ -64752,9 +65255,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -64803,7 +65306,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ítem de plan de trabajo. */
+        /** @description Un Cadena UUID que identifique este Ítem de plan de trabajo. */
         id: string;
       };
     };
@@ -64826,7 +65329,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ítem de plan de trabajo. */
+        /** @description Un Cadena UUID que identifique este Ítem de plan de trabajo. */
         id: string;
       };
     };
@@ -64856,7 +65359,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ítem de plan de trabajo. */
+        /** @description Un Cadena UUID que identifique este Ítem de plan de trabajo. */
         id: string;
       };
     };
@@ -64877,7 +65380,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ítem de plan de trabajo. */
+        /** @description Un Cadena UUID que identifique este Ítem de plan de trabajo. */
         id: string;
       };
     };
@@ -64908,7 +65411,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ítem de plan de trabajo. */
+        /** @description Un Cadena UUID que identifique este Ítem de plan de trabajo. */
         id: string;
       };
     };
@@ -64939,7 +65442,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ítem de plan de trabajo. */
+        /** @description Un Cadena UUID que identifique este Ítem de plan de trabajo. */
         id: string;
       };
     };
@@ -64967,9 +65470,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -65018,7 +65521,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Plan de trabajo de agente. */
+        /** @description Un Cadena UUID que identifique este Plan de trabajo de agente. */
         id: string;
       };
     };
@@ -65041,7 +65544,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Plan de trabajo de agente. */
+        /** @description Un Cadena UUID que identifique este Plan de trabajo de agente. */
         id: string;
       };
     };
@@ -65071,7 +65574,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Plan de trabajo de agente. */
+        /** @description Un Cadena UUID que identifique este Plan de trabajo de agente. */
         id: string;
       };
     };
@@ -65092,7 +65595,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Plan de trabajo de agente. */
+        /** @description Un Cadena UUID que identifique este Plan de trabajo de agente. */
         id: string;
       };
     };
@@ -65123,7 +65626,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Plan de trabajo de agente. */
+        /** @description Un Cadena UUID que identifique este Plan de trabajo de agente. */
         id: string;
       };
     };
@@ -65154,7 +65657,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Plan de trabajo de agente. */
+        /** @description Un Cadena UUID que identifique este Plan de trabajo de agente. */
         id: string;
       };
     };
@@ -65206,9 +65709,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -65251,7 +65754,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Conexión de Workflow. */
+        /** @description Un Cadena UUID que identifique este Conexión de Workflow. */
         id: string;
       };
     };
@@ -65271,7 +65774,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Conexión de Workflow. */
+        /** @description Un Cadena UUID que identifique este Conexión de Workflow. */
         id: string;
       };
     };
@@ -65298,7 +65801,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Conexión de Workflow. */
+        /** @description Un Cadena UUID que identifique este Conexión de Workflow. */
         id: string;
       };
     };
@@ -65316,7 +65819,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Conexión de Workflow. */
+        /** @description Un Cadena UUID que identifique este Conexión de Workflow. */
         id: string;
       };
     };
@@ -65341,9 +65844,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -65363,7 +65866,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Log de Ejecución. */
+        /** @description Un Cadena UUID que identifique este Log de Ejecución. */
         id: string;
       };
     };
@@ -65381,9 +65884,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -65403,7 +65906,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ejecución de Workflow. */
+        /** @description Un Cadena UUID que identifique este Ejecución de Workflow. */
         id: string;
       };
     };
@@ -65426,7 +65929,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ejecución de Workflow. */
+        /** @description Un Cadena UUID que identifique este Ejecución de Workflow. */
         id: string;
       };
     };
@@ -65456,7 +65959,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ejecución de Workflow. */
+        /** @description Un Cadena UUID que identifique este Ejecución de Workflow. */
         id: string;
       };
     };
@@ -65474,9 +65977,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -65519,7 +66022,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Nodo de Workflow. */
+        /** @description Un Cadena UUID que identifique este Nodo de Workflow. */
         id: string;
       };
     };
@@ -65539,7 +66042,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Nodo de Workflow. */
+        /** @description Un Cadena UUID que identifique este Nodo de Workflow. */
         id: string;
       };
     };
@@ -65566,7 +66069,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Nodo de Workflow. */
+        /** @description Un Cadena UUID que identifique este Nodo de Workflow. */
         id: string;
       };
     };
@@ -65584,7 +66087,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Nodo de Workflow. */
+        /** @description Un Cadena UUID que identifique este Nodo de Workflow. */
         id: string;
       };
     };
@@ -65609,9 +66112,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -65654,7 +66157,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Workflow. */
+        /** @description Un Cadena UUID que identifique este Workflow. */
         id: string;
       };
     };
@@ -65674,7 +66177,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Workflow. */
+        /** @description Un Cadena UUID que identifique este Workflow. */
         id: string;
       };
     };
@@ -65701,7 +66204,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Workflow. */
+        /** @description Un Cadena UUID que identifique este Workflow. */
         id: string;
       };
     };
@@ -65719,7 +66222,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Workflow. */
+        /** @description Un Cadena UUID que identifique este Workflow. */
         id: string;
       };
     };
@@ -65750,7 +66253,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Workflow. */
+        /** @description Un Cadena UUID que identifique este Workflow. */
         id: string;
       };
     };
@@ -65780,7 +66283,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Workflow. */
+        /** @description Un Cadena UUID que identifique este Workflow. */
         id: string;
       };
     };
@@ -65810,7 +66313,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Workflow. */
+        /** @description Un Cadena UUID que identifique este Workflow. */
         id: string;
       };
     };
@@ -65840,7 +66343,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Workflow. */
+        /** @description Un Cadena UUID que identifique este Workflow. */
         id: string;
       };
     };
@@ -65870,7 +66373,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Workflow. */
+        /** @description Un Cadena UUID que identifique este Workflow. */
         id: string;
       };
     };
@@ -66142,15 +66645,15 @@ export interface operations {
         created__gte?: string;
         created__lte?: string;
         format?: "binary" | "json";
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         resource?: string;
         resource__icontains?: string;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
         user?: number;
       };
@@ -66174,7 +66677,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Registro de Auditoría. */
+        /** @description Un valor de entero único que identifique este Registro de Auditoría. */
         id: number;
       };
     };
@@ -66254,13 +66757,13 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
       };
     };
@@ -66331,7 +66834,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tienda. */
+        /** @description Un valor de entero único que identifique este Tienda. */
         id: number;
       };
     };
@@ -66365,7 +66868,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tienda. */
+        /** @description Un valor de entero único que identifique este Tienda. */
         id: number;
       };
     };
@@ -66406,7 +66909,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tienda. */
+        /** @description Un valor de entero único que identifique este Tienda. */
         id: number;
       };
     };
@@ -66438,7 +66941,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tienda. */
+        /** @description Un valor de entero único que identifique este Tienda. */
         id: number;
       };
     };
@@ -66472,7 +66975,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tienda. */
+        /** @description Un valor de entero único que identifique este Tienda. */
         id: number;
       };
     };
@@ -66503,7 +67006,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tienda. */
+        /** @description Un valor de entero único que identifique este Tienda. */
         id: number;
       };
     };
@@ -66528,7 +67031,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tienda. */
+        /** @description Un valor de entero único que identifique este Tienda. */
         id: number;
       };
     };
@@ -66563,7 +67066,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tienda. */
+        /** @description Un valor de entero único que identifique este Tienda. */
         id: number;
       };
     };
@@ -66583,7 +67086,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tienda. */
+        /** @description Un valor de entero único que identifique este Tienda. */
         id: number;
       };
     };
@@ -66613,7 +67116,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tienda. */
+        /** @description Un valor de entero único que identifique este Tienda. */
         id: number;
       };
     };
@@ -66643,7 +67146,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tienda. */
+        /** @description Un valor de entero único que identifique este Tienda. */
         id: number;
       };
     };
@@ -66663,7 +67166,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tienda. */
+        /** @description Un valor de entero único que identifique este Tienda. */
         id: number;
       };
     };
@@ -66690,7 +67193,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tienda. */
+        /** @description Un valor de entero único que identifique este Tienda. */
         id: number;
       };
     };
@@ -66720,7 +67223,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tienda. */
+        /** @description Un valor de entero único que identifique este Tienda. */
         id: number;
       };
     };
@@ -66750,7 +67253,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tienda. */
+        /** @description Un valor de entero único que identifique este Tienda. */
         id: number;
       };
     };
@@ -66768,7 +67271,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tienda. */
+        /** @description Un valor de entero único que identifique este Tienda. */
         id: number;
       };
     };
@@ -66788,7 +67291,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tienda. */
+        /** @description Un valor de entero único que identifique este Tienda. */
         id: number;
       };
     };
@@ -66811,7 +67314,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tienda. */
+        /** @description Un valor de entero único que identifique este Tienda. */
         id: number;
       };
     };
@@ -66834,7 +67337,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tienda. */
+        /** @description Un valor de entero único que identifique este Tienda. */
         id: number;
       };
     };
@@ -66865,7 +67368,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tienda. */
+        /** @description Un valor de entero único que identifique este Tienda. */
         id: number;
       };
     };
@@ -66890,7 +67393,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tienda. */
+        /** @description Un valor de entero único que identifique este Tienda. */
         id: number;
       };
     };
@@ -66921,7 +67424,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tienda. */
+        /** @description Un valor de entero único que identifique este Tienda. */
         id: number;
       };
     };
@@ -66945,7 +67448,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tienda. */
+        /** @description Un valor de entero único que identifique este Tienda. */
         id: number;
       };
     };
@@ -66986,7 +67489,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tienda. */
+        /** @description Un valor de entero único que identifique este Tienda. */
         id: number;
       };
     };
@@ -67013,7 +67516,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tienda. */
+        /** @description Un valor de entero único que identifique este Tienda. */
         id: number;
       };
     };
@@ -67040,7 +67543,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tienda. */
+        /** @description Un valor de entero único que identifique este Tienda. */
         id: number;
       };
     };
@@ -67067,7 +67570,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tienda. */
+        /** @description Un valor de entero único que identifique este Tienda. */
         id: number;
       };
     };
@@ -67094,7 +67597,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tienda. */
+        /** @description Un valor de entero único que identifique este Tienda. */
         id: number;
       };
     };
@@ -67114,7 +67617,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tienda. */
+        /** @description Un valor de entero único que identifique este Tienda. */
         id: number;
       };
     };
@@ -67170,11 +67673,11 @@ export interface operations {
         field_definition?: string;
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -67220,7 +67723,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Valor de Campo Extra de Sucursal. */
+        /** @description Un Cadena UUID que identifique este Valor de Campo Extra de Sucursal. */
         id: string;
       };
     };
@@ -67240,7 +67743,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Valor de Campo Extra de Sucursal. */
+        /** @description Un Cadena UUID que identifique este Valor de Campo Extra de Sucursal. */
         id: string;
       };
     };
@@ -67267,7 +67770,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Valor de Campo Extra de Sucursal. */
+        /** @description Un Cadena UUID que identifique este Valor de Campo Extra de Sucursal. */
         id: string;
       };
     };
@@ -67285,7 +67788,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Valor de Campo Extra de Sucursal. */
+        /** @description Un Cadena UUID que identifique este Valor de Campo Extra de Sucursal. */
         id: string;
       };
     };
@@ -67330,13 +67833,13 @@ export interface operations {
         format?: "binary" | "json";
         is_active?: boolean;
         is_required?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
       };
     };
@@ -67382,7 +67885,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Campo Extra de Sucursal. */
+        /** @description Un Cadena UUID que identifique este Campo Extra de Sucursal. */
         id: string;
       };
     };
@@ -67402,7 +67905,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Campo Extra de Sucursal. */
+        /** @description Un Cadena UUID que identifique este Campo Extra de Sucursal. */
         id: string;
       };
     };
@@ -67429,7 +67932,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Campo Extra de Sucursal. */
+        /** @description Un Cadena UUID que identifique este Campo Extra de Sucursal. */
         id: string;
       };
     };
@@ -67447,7 +67950,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Campo Extra de Sucursal. */
+        /** @description Un Cadena UUID que identifique este Campo Extra de Sucursal. */
         id: string;
       };
     };
@@ -67505,9 +68008,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -67556,7 +68059,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración de Módulo por Sucursal. */
+        /** @description Un valor de entero único que identifique este Configuración de Módulo por Sucursal. */
         id: number;
       };
     };
@@ -67579,7 +68082,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración de Módulo por Sucursal. */
+        /** @description Un valor de entero único que identifique este Configuración de Módulo por Sucursal. */
         id: number;
       };
     };
@@ -67609,7 +68112,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración de Módulo por Sucursal. */
+        /** @description Un valor de entero único que identifique este Configuración de Módulo por Sucursal. */
         id: number;
       };
     };
@@ -67631,7 +68134,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración de Módulo por Sucursal. */
+        /** @description Un valor de entero único que identifique este Configuración de Módulo por Sucursal. */
         id: number;
       };
     };
@@ -67661,7 +68164,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración de Módulo por Sucursal. */
+        /** @description Un valor de entero único que identifique este Configuración de Módulo por Sucursal. */
         id: number;
       };
     };
@@ -67692,7 +68195,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración de Módulo por Sucursal. */
+        /** @description Un valor de entero único que identifique este Configuración de Módulo por Sucursal. */
         id: number;
       };
     };
@@ -67724,7 +68227,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración de Módulo por Sucursal. */
+        /** @description Un valor de entero único que identifique este Configuración de Módulo por Sucursal. */
         id: number;
       };
     };
@@ -67761,7 +68264,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración de Módulo por Sucursal. */
+        /** @description Un valor de entero único que identifique este Configuración de Módulo por Sucursal. */
         id: number;
       };
     };
@@ -67792,7 +68295,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración de Módulo por Sucursal. */
+        /** @description Un valor de entero único que identifique este Configuración de Módulo por Sucursal. */
         id: number;
       };
     };
@@ -67817,7 +68320,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración de Módulo por Sucursal. */
+        /** @description Un valor de entero único que identifique este Configuración de Módulo por Sucursal. */
         id: number;
       };
     };
@@ -67844,7 +68347,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración de Módulo por Sucursal. */
+        /** @description Un valor de entero único que identifique este Configuración de Módulo por Sucursal. */
         id: number;
       };
     };
@@ -68143,9 +68646,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -68202,7 +68705,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Organización. */
+        /** @description Un valor de entero único que identifique este Organización. */
         id: number;
       };
     };
@@ -68229,7 +68732,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Organización. */
+        /** @description Un valor de entero único que identifique este Organización. */
         id: number;
       };
     };
@@ -68263,7 +68766,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Organización. */
+        /** @description Un valor de entero único que identifique este Organización. */
         id: number;
       };
     };
@@ -68288,7 +68791,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Organización. */
+        /** @description Un valor de entero único que identifique este Organización. */
         id: number;
       };
     };
@@ -68323,7 +68826,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Organización. */
+        /** @description Un valor de entero único que identifique este Organización. */
         id: number;
       };
     };
@@ -68351,7 +68854,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Organización. */
+        /** @description Un valor de entero único que identifique este Organización. */
         id: number;
       };
     };
@@ -68386,7 +68889,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Organización. */
+        /** @description Un valor de entero único que identifique este Organización. */
         id: number;
       };
     };
@@ -68421,7 +68924,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Organización. */
+        /** @description Un valor de entero único que identifique este Organización. */
         id: number;
       };
     };
@@ -68456,7 +68959,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Organización. */
+        /** @description Un valor de entero único que identifique este Organización. */
         id: number;
       };
     };
@@ -68484,7 +68987,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Organización. */
+        /** @description Un valor de entero único que identifique este Organización. */
         id: number;
       };
     };
@@ -68519,7 +69022,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Organización. */
+        /** @description Un valor de entero único que identifique este Organización. */
         id: number;
       };
     };
@@ -68547,7 +69050,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Organización. */
+        /** @description Un valor de entero único que identifique este Organización. */
         id: number;
       };
     };
@@ -68575,7 +69078,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Organización. */
+        /** @description Un valor de entero único que identifique este Organización. */
         id: number;
       };
     };
@@ -68610,7 +69113,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Organización. */
+        /** @description Un valor de entero único que identifique este Organización. */
         id: number;
       };
     };
@@ -68654,9 +69157,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -68699,7 +69202,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración POS de Sucursal. */
+        /** @description Un valor de entero único que identifique este Configuración POS de Sucursal. */
         id: number;
       };
     };
@@ -68719,7 +69222,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración POS de Sucursal. */
+        /** @description Un valor de entero único que identifique este Configuración POS de Sucursal. */
         id: number;
       };
     };
@@ -68746,7 +69249,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración POS de Sucursal. */
+        /** @description Un valor de entero único que identifique este Configuración POS de Sucursal. */
         id: number;
       };
     };
@@ -68764,7 +69267,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración POS de Sucursal. */
+        /** @description Un valor de entero único que identifique este Configuración POS de Sucursal. */
         id: number;
       };
     };
@@ -68792,9 +69295,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -68847,7 +69350,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración de Tipos de Producto. */
+        /** @description Un valor de entero único que identifique este Configuración de Tipos de Producto. */
         id: number;
       };
     };
@@ -68874,7 +69377,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración de Tipos de Producto. */
+        /** @description Un valor de entero único que identifique este Configuración de Tipos de Producto. */
         id: number;
       };
     };
@@ -68908,7 +69411,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración de Tipos de Producto. */
+        /** @description Un valor de entero único que identifique este Configuración de Tipos de Producto. */
         id: number;
       };
     };
@@ -68935,7 +69438,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración de Tipos de Producto. */
+        /** @description Un valor de entero único que identifique este Configuración de Tipos de Producto. */
         id: number;
       };
     };
@@ -69111,9 +69614,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -69156,7 +69659,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Definición de rol. */
+        /** @description Un valor de entero único que identifique este Definición de rol. */
         id: number;
       };
     };
@@ -69176,7 +69679,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Definición de rol. */
+        /** @description Un valor de entero único que identifique este Definición de rol. */
         id: number;
       };
     };
@@ -69203,7 +69706,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Definición de rol. */
+        /** @description Un valor de entero único que identifique este Definición de rol. */
         id: number;
       };
     };
@@ -69221,7 +69724,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Definición de rol. */
+        /** @description Un valor de entero único que identifique este Definición de rol. */
         id: number;
       };
     };
@@ -69246,9 +69749,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -69291,7 +69794,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración Temática de Sucursal. */
+        /** @description Un valor de entero único que identifique este Configuración Temática de Sucursal. */
         id: number;
       };
     };
@@ -69311,7 +69814,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración Temática de Sucursal. */
+        /** @description Un valor de entero único que identifique este Configuración Temática de Sucursal. */
         id: number;
       };
     };
@@ -69338,7 +69841,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración Temática de Sucursal. */
+        /** @description Un valor de entero único que identifique este Configuración Temática de Sucursal. */
         id: number;
       };
     };
@@ -69356,7 +69859,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración Temática de Sucursal. */
+        /** @description Un valor de entero único que identifique este Configuración Temática de Sucursal. */
         id: number;
       };
     };
@@ -69381,9 +69884,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -69426,7 +69929,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Acceso de Usuario a Sucursal. */
+        /** @description Un valor de entero único que identifique este Acceso de Usuario a Sucursal. */
         id: number;
       };
     };
@@ -69446,7 +69949,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Acceso de Usuario a Sucursal. */
+        /** @description Un valor de entero único que identifique este Acceso de Usuario a Sucursal. */
         id: number;
       };
     };
@@ -69473,7 +69976,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Acceso de Usuario a Sucursal. */
+        /** @description Un valor de entero único que identifique este Acceso de Usuario a Sucursal. */
         id: number;
       };
     };
@@ -69491,7 +69994,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Acceso de Usuario a Sucursal. */
+        /** @description Un valor de entero único que identifique este Acceso de Usuario a Sucursal. */
         id: number;
       };
     };
@@ -69530,9 +70033,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -69603,7 +70106,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Paciente en Campaña. */
+        /** @description Un Cadena UUID que identifique este Paciente en Campaña. */
         id: string;
       };
     };
@@ -69637,7 +70140,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Paciente en Campaña. */
+        /** @description Un Cadena UUID que identifique este Paciente en Campaña. */
         id: string;
       };
     };
@@ -69678,7 +70181,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Paciente en Campaña. */
+        /** @description Un Cadena UUID que identifique este Paciente en Campaña. */
         id: string;
       };
     };
@@ -69710,7 +70213,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Paciente en Campaña. */
+        /** @description Un Cadena UUID que identifique este Paciente en Campaña. */
         id: string;
       };
     };
@@ -69751,7 +70254,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Paciente en Campaña. */
+        /** @description Un Cadena UUID que identifique este Paciente en Campaña. */
         id: string;
       };
     };
@@ -69790,9 +70293,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -69863,7 +70366,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Campaña. */
+        /** @description Un Cadena UUID que identifique este Campaña. */
         id: string;
       };
     };
@@ -69897,7 +70400,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Campaña. */
+        /** @description Un Cadena UUID que identifique este Campaña. */
         id: string;
       };
     };
@@ -69938,7 +70441,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Campaña. */
+        /** @description Un Cadena UUID que identifique este Campaña. */
         id: string;
       };
     };
@@ -69970,7 +70473,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Campaña. */
+        /** @description Un Cadena UUID que identifique este Campaña. */
         id: string;
       };
     };
@@ -70011,7 +70514,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Campaña. */
+        /** @description Un Cadena UUID que identifique este Campaña. */
         id: string;
       };
     };
@@ -70052,7 +70555,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Campaña. */
+        /** @description Un Cadena UUID que identifique este Campaña. */
         id: string;
       };
     };
@@ -70093,7 +70596,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Campaña. */
+        /** @description Un Cadena UUID que identifique este Campaña. */
         id: string;
       };
     };
@@ -70127,7 +70630,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Campaña. */
+        /** @description Un Cadena UUID que identifique este Campaña. */
         id: string;
       };
     };
@@ -70221,13 +70724,13 @@ export interface operations {
       query?: {
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
       };
     };
@@ -70300,7 +70803,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Fuente de Lead. */
+        /** @description Un Cadena UUID que identifique este Fuente de Lead. */
         id: string;
       };
     };
@@ -70335,7 +70838,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Fuente de Lead. */
+        /** @description Un Cadena UUID que identifique este Fuente de Lead. */
         id: string;
       };
     };
@@ -70377,7 +70880,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Fuente de Lead. */
+        /** @description Un Cadena UUID que identifique este Fuente de Lead. */
         id: string;
       };
     };
@@ -70409,7 +70912,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Fuente de Lead. */
+        /** @description Un Cadena UUID que identifique este Fuente de Lead. */
         id: string;
       };
     };
@@ -70451,13 +70954,13 @@ export interface operations {
         assigned_to?: number;
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
         source?: string;
         /**
@@ -70540,7 +71043,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Lead. */
+        /** @description Un Cadena UUID que identifique este Lead. */
         id: string;
       };
     };
@@ -70575,7 +71078,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Lead. */
+        /** @description Un Cadena UUID que identifique este Lead. */
         id: string;
       };
     };
@@ -70617,7 +71120,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Lead. */
+        /** @description Un Cadena UUID que identifique este Lead. */
         id: string;
       };
     };
@@ -70649,7 +71152,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Lead. */
+        /** @description Un Cadena UUID que identifique este Lead. */
         id: string;
       };
     };
@@ -70679,7 +71182,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Lead. */
+        /** @description Un Cadena UUID que identifique este Lead. */
         id: string;
       };
     };
@@ -70723,13 +71226,13 @@ export interface operations {
         format?: "binary" | "json";
         is_active?: boolean;
         lead?: string;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
         stage?: string;
       };
@@ -70803,7 +71306,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Oportunidad. */
+        /** @description Un Cadena UUID que identifique este Oportunidad. */
         id: string;
       };
     };
@@ -70838,7 +71341,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Oportunidad. */
+        /** @description Un Cadena UUID que identifique este Oportunidad. */
         id: string;
       };
     };
@@ -70880,7 +71383,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Oportunidad. */
+        /** @description Un Cadena UUID que identifique este Oportunidad. */
         id: string;
       };
     };
@@ -70912,7 +71415,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Oportunidad. */
+        /** @description Un Cadena UUID que identifique este Oportunidad. */
         id: string;
       };
     };
@@ -70942,7 +71445,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Oportunidad. */
+        /** @description Un Cadena UUID que identifique este Oportunidad. */
         id: string;
       };
     };
@@ -70965,7 +71468,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Oportunidad. */
+        /** @description Un Cadena UUID que identifique este Oportunidad. */
         id: string;
       };
     };
@@ -70995,7 +71498,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Oportunidad. */
+        /** @description Un Cadena UUID que identifique este Oportunidad. */
         id: string;
       };
     };
@@ -71042,11 +71545,11 @@ export interface operations {
         format?: "binary" | "json";
         is_completed?: boolean;
         opportunity?: string;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -71119,7 +71622,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Actividad de Oportunidad. */
+        /** @description Un Cadena UUID que identifique este Actividad de Oportunidad. */
         id: string;
       };
     };
@@ -71154,7 +71657,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Actividad de Oportunidad. */
+        /** @description Un Cadena UUID que identifique este Actividad de Oportunidad. */
         id: string;
       };
     };
@@ -71196,7 +71699,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Actividad de Oportunidad. */
+        /** @description Un Cadena UUID que identifique este Actividad de Oportunidad. */
         id: string;
       };
     };
@@ -71228,7 +71731,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Actividad de Oportunidad. */
+        /** @description Un Cadena UUID que identifique este Actividad de Oportunidad. */
         id: string;
       };
     };
@@ -71258,7 +71761,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Actividad de Oportunidad. */
+        /** @description Un Cadena UUID que identifique este Actividad de Oportunidad. */
         id: string;
       };
     };
@@ -71299,11 +71802,11 @@ export interface operations {
       query?: {
         format?: "binary" | "json";
         opportunity?: string;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         product?: number;
         service?: string;
@@ -71378,7 +71881,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Producto de Oportunidad. */
+        /** @description Un Cadena UUID que identifique este Producto de Oportunidad. */
         id: string;
       };
     };
@@ -71413,7 +71916,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Producto de Oportunidad. */
+        /** @description Un Cadena UUID que identifique este Producto de Oportunidad. */
         id: string;
       };
     };
@@ -71455,7 +71958,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Producto de Oportunidad. */
+        /** @description Un Cadena UUID que identifique este Producto de Oportunidad. */
         id: string;
       };
     };
@@ -71487,7 +71990,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Producto de Oportunidad. */
+        /** @description Un Cadena UUID que identifique este Producto de Oportunidad. */
         id: string;
       };
     };
@@ -71530,11 +72033,11 @@ export interface operations {
         is_active?: boolean;
         is_closed?: boolean;
         is_won?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -71607,7 +72110,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Etapa de Oportunidad. */
+        /** @description Un Cadena UUID que identifique este Etapa de Oportunidad. */
         id: string;
       };
     };
@@ -71642,7 +72145,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Etapa de Oportunidad. */
+        /** @description Un Cadena UUID que identifique este Etapa de Oportunidad. */
         id: string;
       };
     };
@@ -71684,7 +72187,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Etapa de Oportunidad. */
+        /** @description Un Cadena UUID que identifique este Etapa de Oportunidad. */
         id: string;
       };
     };
@@ -71716,7 +72219,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Etapa de Oportunidad. */
+        /** @description Un Cadena UUID que identifique este Etapa de Oportunidad. */
         id: string;
       };
     };
@@ -71758,11 +72261,11 @@ export interface operations {
         base_currency?: number;
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         secondary_currency?: number;
       };
@@ -71836,7 +72339,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Configuración de Moneda por Sucursal. */
+        /** @description Un Cadena UUID que identifique este Configuración de Moneda por Sucursal. */
         id: string;
       };
     };
@@ -71871,7 +72374,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Configuración de Moneda por Sucursal. */
+        /** @description Un Cadena UUID que identifique este Configuración de Moneda por Sucursal. */
         id: string;
       };
     };
@@ -71913,7 +72416,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Configuración de Moneda por Sucursal. */
+        /** @description Un Cadena UUID que identifique este Configuración de Moneda por Sucursal. */
         id: string;
       };
     };
@@ -71945,7 +72448,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Configuración de Moneda por Sucursal. */
+        /** @description Un Cadena UUID que identifique este Configuración de Moneda por Sucursal. */
         id: string;
       };
     };
@@ -72013,13 +72516,13 @@ export interface operations {
         format?: "binary" | "json";
         is_active?: boolean;
         is_default?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
       };
     };
@@ -72092,7 +72595,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Moneda. */
+        /** @description Un valor de entero único que identifique este Moneda. */
         id: number;
       };
     };
@@ -72127,7 +72630,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Moneda. */
+        /** @description Un valor de entero único que identifique este Moneda. */
         id: number;
       };
     };
@@ -72169,7 +72672,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Moneda. */
+        /** @description Un valor de entero único que identifique este Moneda. */
         id: number;
       };
     };
@@ -72201,7 +72704,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Moneda. */
+        /** @description Un valor de entero único que identifique este Moneda. */
         id: number;
       };
     };
@@ -72244,11 +72747,11 @@ export interface operations {
         format?: "binary" | "json";
         from_currency?: number;
         is_active?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         to_currency?: number;
       };
@@ -72322,7 +72825,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tasa de Cambio. */
+        /** @description Un valor de entero único que identifique este Tasa de Cambio. */
         id: number;
       };
     };
@@ -72357,7 +72860,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tasa de Cambio. */
+        /** @description Un valor de entero único que identifique este Tasa de Cambio. */
         id: number;
       };
     };
@@ -72399,7 +72902,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tasa de Cambio. */
+        /** @description Un valor de entero único que identifique este Tasa de Cambio. */
         id: number;
       };
     };
@@ -72431,7 +72934,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tasa de Cambio. */
+        /** @description Un valor de entero único que identifique este Tasa de Cambio. */
         id: number;
       };
     };
@@ -72473,18 +72976,18 @@ export interface operations {
         format?: "binary" | "json";
         is_active?: boolean;
         is_default?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
         /**
          * @description * `PORTRAIT` - Vertical
          * * `LANDSCAPE` - Horizontal
          */
         orientation?: "LANDSCAPE" | "PORTRAIT";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
       };
     };
@@ -72557,7 +73060,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Plantilla de Ficha de Cliente. */
+        /** @description Un Cadena UUID que identifique este Plantilla de Ficha de Cliente. */
         id: string;
       };
     };
@@ -72592,7 +73095,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Plantilla de Ficha de Cliente. */
+        /** @description Un Cadena UUID que identifique este Plantilla de Ficha de Cliente. */
         id: string;
       };
     };
@@ -72634,7 +73137,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Plantilla de Ficha de Cliente. */
+        /** @description Un Cadena UUID que identifique este Plantilla de Ficha de Cliente. */
         id: string;
       };
     };
@@ -72666,7 +73169,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Plantilla de Ficha de Cliente. */
+        /** @description Un Cadena UUID que identifique este Plantilla de Ficha de Cliente. */
         id: string;
       };
     };
@@ -72708,13 +73211,13 @@ export interface operations {
         client?: number;
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
         /**
          * @description * `DRAFT` - Borrador
@@ -72794,7 +73297,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ficha de Cliente. */
+        /** @description Un Cadena UUID que identifique este Ficha de Cliente. */
         id: string;
       };
     };
@@ -72829,7 +73332,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ficha de Cliente. */
+        /** @description Un Cadena UUID que identifique este Ficha de Cliente. */
         id: string;
       };
     };
@@ -72871,7 +73374,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ficha de Cliente. */
+        /** @description Un Cadena UUID que identifique este Ficha de Cliente. */
         id: string;
       };
     };
@@ -72903,7 +73406,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ficha de Cliente. */
+        /** @description Un Cadena UUID que identifique este Ficha de Cliente. */
         id: string;
       };
     };
@@ -72945,7 +73448,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ficha de Cliente. */
+        /** @description Un Cadena UUID que identifique este Ficha de Cliente. */
         id: string;
       };
     };
@@ -72980,7 +73483,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ficha de Cliente. */
+        /** @description Un Cadena UUID que identifique este Ficha de Cliente. */
         id: string;
       };
     };
@@ -73062,9 +73565,9 @@ export interface operations {
         dni__icontains?: string;
         format?: "binary" | "json";
         name__icontains?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         phone_number__icontains?: string;
         tags?: string;
@@ -73137,7 +73640,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Cliente. */
+        /** @description Un valor de entero único que identifique este Cliente. */
         id: number;
       };
     };
@@ -73171,7 +73674,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Cliente. */
+        /** @description Un valor de entero único que identifique este Cliente. */
         id: number;
       };
     };
@@ -73212,7 +73715,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Cliente. */
+        /** @description Un valor de entero único que identifique este Cliente. */
         id: number;
       };
     };
@@ -73244,7 +73747,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Cliente. */
+        /** @description Un valor de entero único que identifique este Cliente. */
         id: number;
       };
     };
@@ -73328,6 +73831,27 @@ export interface operations {
         "application/json": components["schemas"]["ClientDepthRequest"];
         "application/x-www-form-urlencoded": components["schemas"]["ClientDepthRequest"];
         "multipart/form-data": components["schemas"]["ClientDepthRequest"];
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["ClientDepth"];
+          "*/*": components["schemas"]["ClientDepth"];
+        };
+      };
+    };
+  };
+  /**
+   * @description Ficha del cliente autenticado (portal de cliente).
+   *
+   * Devuelve el Client vinculado al usuario en la sucursal activa,
+   * incluyendo sus campos extra dinámicos. Solo datos propios.
+   */
+  customers_clients_me_retrieve: {
+    parameters: {
+      query?: {
+        format?: "binary" | "json";
       };
     };
     responses: {
@@ -73451,13 +73975,13 @@ export interface operations {
         /** @description Múltiples valores separados por comas. */
         job_title__in?: number[];
         job_title__isnull?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
       };
     };
@@ -73500,7 +74024,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Contacto de Cliente. */
+        /** @description Un Cadena UUID que identifique este Contacto de Cliente. */
         id: string;
       };
     };
@@ -73520,7 +74044,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Contacto de Cliente. */
+        /** @description Un Cadena UUID que identifique este Contacto de Cliente. */
         id: string;
       };
     };
@@ -73547,7 +74071,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Contacto de Cliente. */
+        /** @description Un Cadena UUID que identifique este Contacto de Cliente. */
         id: string;
       };
     };
@@ -73565,7 +74089,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Contacto de Cliente. */
+        /** @description Un Cadena UUID que identifique este Contacto de Cliente. */
         id: string;
       };
     };
@@ -73608,13 +74132,13 @@ export interface operations {
         department_type__in?: string[];
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
       };
     };
@@ -73657,7 +74181,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Departamento. */
+        /** @description Un valor de entero único que identifique este Departamento. */
         id: number;
       };
     };
@@ -73677,7 +74201,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Departamento. */
+        /** @description Un valor de entero único que identifique este Departamento. */
         id: number;
       };
     };
@@ -73704,7 +74228,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Departamento. */
+        /** @description Un valor de entero único que identifique este Departamento. */
         id: number;
       };
     };
@@ -73722,7 +74246,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Departamento. */
+        /** @description Un valor de entero único que identifique este Departamento. */
         id: number;
       };
     };
@@ -73780,9 +74304,9 @@ export interface operations {
          * * `OTHER` - Otro
          */
         insurance_type?: "FONASA" | "ISAPRE" | "NONE" | "OTHER" | "PRIVATE" | "PUBLIC" | null;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -73825,7 +74349,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ficha médica (EMH). */
+        /** @description Un Cadena UUID que identifique este Ficha médica (EMH). */
         id: string;
       };
     };
@@ -73845,7 +74369,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ficha médica (EMH). */
+        /** @description Un Cadena UUID que identifique este Ficha médica (EMH). */
         id: string;
       };
     };
@@ -73872,7 +74396,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ficha médica (EMH). */
+        /** @description Un Cadena UUID que identifique este Ficha médica (EMH). */
         id: string;
       };
     };
@@ -73890,7 +74414,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ficha médica (EMH). */
+        /** @description Un Cadena UUID que identifique este Ficha médica (EMH). */
         id: string;
       };
     };
@@ -74015,11 +74539,11 @@ export interface operations {
         indicator_type?: "BAR_CHART" | "GAUGE" | "LINE_CHART" | "NONE" | "NUMBER" | "PIE_CHART" | "TABLE" | "TIMELINE";
         is_active?: boolean;
         is_required?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         /**
          * @description Qué tanto se procesa este campo: sin procesamiento, solo validaciones, stats o dashboard completo
@@ -74030,7 +74554,7 @@ export interface operations {
          * * `FULL` - Validaciones + Estadísticas + Dashboard
          */
         processing_level?: "FULL" | "NONE" | "STATS" | "VALIDATE";
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
       };
     };
@@ -74103,7 +74627,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Campo Extra de Cliente. */
+        /** @description Un Cadena UUID que identifique este Campo Extra de Cliente. */
         id: string;
       };
     };
@@ -74138,7 +74662,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Campo Extra de Cliente. */
+        /** @description Un Cadena UUID que identifique este Campo Extra de Cliente. */
         id: string;
       };
     };
@@ -74180,7 +74704,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Campo Extra de Cliente. */
+        /** @description Un Cadena UUID que identifique este Campo Extra de Cliente. */
         id: string;
       };
     };
@@ -74212,7 +74736,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Campo Extra de Cliente. */
+        /** @description Un Cadena UUID que identifique este Campo Extra de Cliente. */
         id: string;
       };
     };
@@ -74242,7 +74766,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Campo Extra de Cliente. */
+        /** @description Un Cadena UUID que identifique este Campo Extra de Cliente. */
         id: string;
       };
     };
@@ -74276,13 +74800,13 @@ export interface operations {
       query?: {
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
       };
     };
@@ -74355,7 +74879,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Grupo de Campos Extra. */
+        /** @description Un Cadena UUID que identifique este Grupo de Campos Extra. */
         id: string;
       };
     };
@@ -74390,7 +74914,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Grupo de Campos Extra. */
+        /** @description Un Cadena UUID que identifique este Grupo de Campos Extra. */
         id: string;
       };
     };
@@ -74432,7 +74956,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Grupo de Campos Extra. */
+        /** @description Un Cadena UUID que identifique este Grupo de Campos Extra. */
         id: string;
       };
     };
@@ -74464,7 +74988,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Grupo de Campos Extra. */
+        /** @description Un Cadena UUID que identifique este Grupo de Campos Extra. */
         id: string;
       };
     };
@@ -74507,11 +75031,11 @@ export interface operations {
         field_definition?: string;
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -74584,7 +75108,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Valor de Campo Extra. */
+        /** @description Un Cadena UUID que identifique este Valor de Campo Extra. */
         id: string;
       };
     };
@@ -74619,7 +75143,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Valor de Campo Extra. */
+        /** @description Un Cadena UUID que identifique este Valor de Campo Extra. */
         id: string;
       };
     };
@@ -74661,7 +75185,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Valor de Campo Extra. */
+        /** @description Un Cadena UUID que identifique este Valor de Campo Extra. */
         id: string;
       };
     };
@@ -74693,7 +75217,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Valor de Campo Extra. */
+        /** @description Un Cadena UUID que identifique este Valor de Campo Extra. */
         id: string;
       };
     };
@@ -74766,13 +75290,13 @@ export interface operations {
         level?: "ANALYST" | "ASSISTANT" | "EXECUTIVE" | "MANAGER" | "OPERATOR" | "OTHER" | "SUPERVISOR";
         /** @description Múltiples valores separados por comas. */
         level__in?: string[];
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
       };
     };
@@ -74815,7 +75339,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Cargo. */
+        /** @description Un valor de entero único que identifique este Cargo. */
         id: number;
       };
     };
@@ -74835,7 +75359,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Cargo. */
+        /** @description Un valor de entero único que identifique este Cargo. */
         id: number;
       };
     };
@@ -74862,7 +75386,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Cargo. */
+        /** @description Un valor de entero único que identifique este Cargo. */
         id: number;
       };
     };
@@ -74880,7 +75404,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Cargo. */
+        /** @description Un valor de entero único que identifique este Cargo. */
         id: number;
       };
     };
@@ -74959,13 +75483,13 @@ export interface operations {
         folder?: string;
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
         /**
          * @description * `DRAFT` - Borrador
@@ -75053,7 +75577,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Documento. */
+        /** @description Un Cadena UUID que identifique este Documento. */
         id: string;
       };
     };
@@ -75088,7 +75612,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Documento. */
+        /** @description Un Cadena UUID que identifique este Documento. */
         id: string;
       };
     };
@@ -75130,7 +75654,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Documento. */
+        /** @description Un Cadena UUID que identifique este Documento. */
         id: string;
       };
     };
@@ -75163,7 +75687,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Documento. */
+        /** @description Un Cadena UUID que identifique este Documento. */
         id: string;
       };
     };
@@ -75193,7 +75717,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Documento. */
+        /** @description Un Cadena UUID que identifique este Documento. */
         id: string;
       };
     };
@@ -75223,7 +75747,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Documento. */
+        /** @description Un Cadena UUID que identifique este Documento. */
         id: string;
       };
     };
@@ -75276,14 +75800,14 @@ export interface operations {
       query?: {
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         parent?: string;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
       };
     };
@@ -75356,7 +75880,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Carpeta de Documentos. */
+        /** @description Un Cadena UUID que identifique este Carpeta de Documentos. */
         id: string;
       };
     };
@@ -75391,7 +75915,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Carpeta de Documentos. */
+        /** @description Un Cadena UUID que identifique este Carpeta de Documentos. */
         id: string;
       };
     };
@@ -75433,7 +75957,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Carpeta de Documentos. */
+        /** @description Un Cadena UUID que identifique este Carpeta de Documentos. */
         id: string;
       };
     };
@@ -75466,7 +75990,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Carpeta de Documentos. */
+        /** @description Un Cadena UUID que identifique este Carpeta de Documentos. */
         id: string;
       };
     };
@@ -75527,11 +76051,11 @@ export interface operations {
         document?: string;
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         /**
          * @description * `VIEW` - Ver
@@ -75614,7 +76138,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Permiso de Documento. */
+        /** @description Un Cadena UUID que identifique este Permiso de Documento. */
         id: string;
       };
     };
@@ -75649,7 +76173,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Permiso de Documento. */
+        /** @description Un Cadena UUID que identifique este Permiso de Documento. */
         id: string;
       };
     };
@@ -75691,7 +76215,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Permiso de Documento. */
+        /** @description Un Cadena UUID que identifique este Permiso de Documento. */
         id: string;
       };
     };
@@ -75723,7 +76247,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Permiso de Documento. */
+        /** @description Un Cadena UUID que identifique este Permiso de Documento. */
         id: string;
       };
     };
@@ -75764,11 +76288,11 @@ export interface operations {
       query?: {
         document?: string;
         format?: "binary" | "json";
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         signer?: number;
         signer_email?: string;
@@ -75851,7 +76375,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Firma de Documento. */
+        /** @description Un Cadena UUID que identifique este Firma de Documento. */
         id: string;
       };
     };
@@ -75886,7 +76410,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Firma de Documento. */
+        /** @description Un Cadena UUID que identifique este Firma de Documento. */
         id: string;
       };
     };
@@ -75928,7 +76452,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Firma de Documento. */
+        /** @description Un Cadena UUID que identifique este Firma de Documento. */
         id: string;
       };
     };
@@ -75960,7 +76484,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Firma de Documento. */
+        /** @description Un Cadena UUID que identifique este Firma de Documento. */
         id: string;
       };
     };
@@ -75990,7 +76514,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Firma de Documento. */
+        /** @description Un Cadena UUID que identifique este Firma de Documento. */
         id: string;
       };
     };
@@ -76020,7 +76544,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Firma de Documento. */
+        /** @description Un Cadena UUID que identifique este Firma de Documento. */
         id: string;
       };
     };
@@ -76052,14 +76576,14 @@ export interface operations {
       query?: {
         adjustment?: string;
         format?: "binary" | "json";
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         payroll_entry?: string;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
       };
     };
@@ -76114,7 +76638,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Aplicación de Ajuste. */
+        /** @description Un Cadena UUID que identifique este Aplicación de Ajuste. */
         id: string;
       };
     };
@@ -76139,7 +76663,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Aplicación de Ajuste. */
+        /** @description Un Cadena UUID que identifique este Aplicación de Ajuste. */
         id: string;
       };
     };
@@ -76171,7 +76695,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Aplicación de Ajuste. */
+        /** @description Un Cadena UUID que identifique este Aplicación de Ajuste. */
         id: string;
       };
     };
@@ -76194,7 +76718,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Aplicación de Ajuste. */
+        /** @description Un Cadena UUID que identifique este Aplicación de Ajuste. */
         id: string;
       };
     };
@@ -76232,13 +76756,13 @@ export interface operations {
         concept?: string;
         employee?: number;
         format?: "binary" | "json";
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
         /**
          * @description * `ACTIVE` - Activo
@@ -76300,7 +76824,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ajuste de Contrato. */
+        /** @description Un Cadena UUID que identifique este Ajuste de Contrato. */
         id: string;
       };
     };
@@ -76326,7 +76850,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ajuste de Contrato. */
+        /** @description Un Cadena UUID que identifique este Ajuste de Contrato. */
         id: string;
       };
     };
@@ -76359,7 +76883,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ajuste de Contrato. */
+        /** @description Un Cadena UUID que identifique este Ajuste de Contrato. */
         id: string;
       };
     };
@@ -76382,7 +76906,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ajuste de Contrato. */
+        /** @description Un Cadena UUID que identifique este Ajuste de Contrato. */
         id: string;
       };
     };
@@ -76412,7 +76936,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ajuste de Contrato. */
+        /** @description Un Cadena UUID que identifique este Ajuste de Contrato. */
         id: string;
       };
     };
@@ -76442,7 +76966,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ajuste de Contrato. */
+        /** @description Un Cadena UUID que identifique este Ajuste de Contrato. */
         id: string;
       };
     };
@@ -76506,13 +77030,13 @@ export interface operations {
       query?: {
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
       };
     };
@@ -76555,7 +77079,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Departamento. */
+        /** @description Un valor de entero único que identifique este Departamento. */
         id: number;
       };
     };
@@ -76575,7 +77099,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Departamento. */
+        /** @description Un valor de entero único que identifique este Departamento. */
         id: number;
       };
     };
@@ -76602,7 +77126,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Departamento. */
+        /** @description Un valor de entero único que identifique este Departamento. */
         id: number;
       };
     };
@@ -76620,7 +77144,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Departamento. */
+        /** @description Un valor de entero único que identifique este Departamento. */
         id: number;
       };
     };
@@ -76667,15 +77191,15 @@ export interface operations {
         employment_type__in?: string[];
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         position?: number;
         position__isnull?: boolean;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
       };
     };
@@ -76718,7 +77242,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Empleado. */
+        /** @description Un valor de entero único que identifique este Empleado. */
         id: number;
       };
     };
@@ -76738,7 +77262,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Empleado. */
+        /** @description Un valor de entero único que identifique este Empleado. */
         id: number;
       };
     };
@@ -76765,7 +77289,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Empleado. */
+        /** @description Un valor de entero único que identifique este Empleado. */
         id: number;
       };
     };
@@ -76783,7 +77307,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Empleado. */
+        /** @description Un valor de entero único que identifique este Empleado. */
         id: number;
       };
     };
@@ -76840,14 +77364,14 @@ export interface operations {
         concept_type?: "ADJUSTMENT" | "BONUS" | "DEDUCTION";
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         requires_installments?: boolean;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
       };
     };
@@ -76902,7 +77426,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Concepto de Nómina. */
+        /** @description Un Cadena UUID que identifique este Concepto de Nómina. */
         id: string;
       };
     };
@@ -76928,7 +77452,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Concepto de Nómina. */
+        /** @description Un Cadena UUID que identifique este Concepto de Nómina. */
         id: string;
       };
     };
@@ -76958,7 +77482,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Concepto de Nómina. */
+        /** @description Un Cadena UUID que identifique este Concepto de Nómina. */
         id: string;
       };
     };
@@ -76981,7 +77505,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Concepto de Nómina. */
+        /** @description Un Cadena UUID que identifique este Concepto de Nómina. */
         id: string;
       };
     };
@@ -77044,9 +77568,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -77089,7 +77613,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Entrada de Nómina. */
+        /** @description Un Cadena UUID que identifique este Entrada de Nómina. */
         id: string;
       };
     };
@@ -77109,7 +77633,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Entrada de Nómina. */
+        /** @description Un Cadena UUID que identifique este Entrada de Nómina. */
         id: string;
       };
     };
@@ -77136,7 +77660,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Entrada de Nómina. */
+        /** @description Un Cadena UUID que identifique este Entrada de Nómina. */
         id: string;
       };
     };
@@ -77154,7 +77678,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Entrada de Nómina. */
+        /** @description Un Cadena UUID que identifique este Entrada de Nómina. */
         id: string;
       };
     };
@@ -77193,7 +77717,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Entrada de Nómina. */
+        /** @description Un Cadena UUID que identifique este Entrada de Nómina. */
         id: string;
       };
     };
@@ -77233,7 +77757,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Entrada de Nómina. */
+        /** @description Un Cadena UUID que identifique este Entrada de Nómina. */
         id: string;
       };
     };
@@ -77264,7 +77788,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Entrada de Nómina. */
+        /** @description Un Cadena UUID que identifique este Entrada de Nómina. */
         id: string;
       };
     };
@@ -77295,7 +77819,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Entrada de Nómina. */
+        /** @description Un Cadena UUID que identifique este Entrada de Nómina. */
         id: string;
       };
     };
@@ -77320,9 +77844,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -77342,7 +77866,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Pago de Nómina. */
+        /** @description Un Cadena UUID que identifique este Pago de Nómina. */
         id: string;
       };
     };
@@ -77360,9 +77884,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -77405,7 +77929,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Período de Nómina. */
+        /** @description Un Cadena UUID que identifique este Período de Nómina. */
         id: string;
       };
     };
@@ -77425,7 +77949,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Período de Nómina. */
+        /** @description Un Cadena UUID que identifique este Período de Nómina. */
         id: string;
       };
     };
@@ -77457,7 +77981,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Período de Nómina. */
+        /** @description Un Cadena UUID que identifique este Período de Nómina. */
         id: string;
       };
     };
@@ -77475,7 +77999,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Período de Nómina. */
+        /** @description Un Cadena UUID que identifique este Período de Nómina. */
         id: string;
       };
     };
@@ -77512,7 +78036,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Período de Nómina. */
+        /** @description Un Cadena UUID que identifique este Período de Nómina. */
         id: string;
       };
     };
@@ -77543,7 +78067,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Período de Nómina. */
+        /** @description Un Cadena UUID que identifique este Período de Nómina. */
         id: string;
       };
     };
@@ -77567,7 +78091,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Período de Nómina. */
+        /** @description Un Cadena UUID que identifique este Período de Nómina. */
         id: string;
       };
     };
@@ -77591,7 +78115,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Período de Nómina. */
+        /** @description Un Cadena UUID que identifique este Período de Nómina. */
         id: string;
       };
     };
@@ -77621,7 +78145,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Período de Nómina. */
+        /** @description Un Cadena UUID que identifique este Período de Nómina. */
         id: string;
       };
     };
@@ -77652,7 +78176,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Período de Nómina. */
+        /** @description Un Cadena UUID que identifique este Período de Nómina. */
         id: string;
       };
     };
@@ -77673,13 +78197,13 @@ export interface operations {
         department__isnull?: boolean;
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
       };
     };
@@ -77722,7 +78246,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Cargo. */
+        /** @description Un valor de entero único que identifique este Cargo. */
         id: number;
       };
     };
@@ -77742,7 +78266,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Cargo. */
+        /** @description Un valor de entero único que identifique este Cargo. */
         id: number;
       };
     };
@@ -77769,7 +78293,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Cargo. */
+        /** @description Un valor de entero único que identifique este Cargo. */
         id: number;
       };
     };
@@ -77787,7 +78311,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Cargo. */
+        /** @description Un valor de entero único que identifique este Cargo. */
         id: number;
       };
     };
@@ -77829,13 +78353,13 @@ export interface operations {
         employee?: number;
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
       };
     };
@@ -77878,7 +78402,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Historial de Salario. */
+        /** @description Un valor de entero único que identifique este Historial de Salario. */
         id: number;
       };
     };
@@ -77898,7 +78422,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Historial de Salario. */
+        /** @description Un valor de entero único que identifique este Historial de Salario. */
         id: number;
       };
     };
@@ -77925,7 +78449,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Historial de Salario. */
+        /** @description Un valor de entero único que identifique este Historial de Salario. */
         id: number;
       };
     };
@@ -77943,7 +78467,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Historial de Salario. */
+        /** @description Un valor de entero único que identifique este Historial de Salario. */
         id: number;
       };
     };
@@ -77971,13 +78495,13 @@ export interface operations {
         date?: string;
         employee?: number;
         format?: "binary" | "json";
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
         /**
          * @description * `SCHEDULED` - Programado
@@ -78027,7 +78551,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Turno. */
+        /** @description Un valor de entero único que identifique este Turno. */
         id: number;
       };
     };
@@ -78047,7 +78571,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Turno. */
+        /** @description Un valor de entero único que identifique este Turno. */
         id: number;
       };
     };
@@ -78074,7 +78598,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Turno. */
+        /** @description Un valor de entero único que identifique este Turno. */
         id: number;
       };
     };
@@ -78092,7 +78616,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Turno. */
+        /** @description Un valor de entero único que identifique este Turno. */
         id: number;
       };
     };
@@ -78165,14 +78689,14 @@ export interface operations {
       query?: {
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         product?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
         user?: number;
       };
@@ -78216,7 +78740,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Asignación de Equipo. */
+        /** @description Un valor de entero único que identifique este Asignación de Equipo. */
         id: number;
       };
     };
@@ -78236,7 +78760,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Asignación de Equipo. */
+        /** @description Un valor de entero único que identifique este Asignación de Equipo. */
         id: number;
       };
     };
@@ -78263,7 +78787,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Asignación de Equipo. */
+        /** @description Un valor de entero único que identifique este Asignación de Equipo. */
         id: number;
       };
     };
@@ -78281,7 +78805,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Asignación de Equipo. */
+        /** @description Un valor de entero único que identifique este Asignación de Equipo. */
         id: number;
       };
     };
@@ -78308,7 +78832,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Asignación de Equipo. */
+        /** @description Un valor de entero único que identifique este Asignación de Equipo. */
         id: number;
       };
     };
@@ -78355,14 +78879,14 @@ export interface operations {
          * * `EMERGENCY` - Emergencia
          */
         maintenance_type?: "CORRECTIVE" | "EMERGENCY" | "PREVENTIVE";
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         product?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
       };
     };
@@ -78405,7 +78929,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Mantenimiento. */
+        /** @description Un valor de entero único que identifique este Mantenimiento. */
         id: number;
       };
     };
@@ -78425,7 +78949,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Mantenimiento. */
+        /** @description Un valor de entero único que identifique este Mantenimiento. */
         id: number;
       };
     };
@@ -78452,7 +78976,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Mantenimiento. */
+        /** @description Un valor de entero único que identifique este Mantenimiento. */
         id: number;
       };
     };
@@ -78470,7 +78994,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Mantenimiento. */
+        /** @description Un valor de entero único que identifique este Mantenimiento. */
         id: number;
       };
     };
@@ -78508,14 +79032,14 @@ export interface operations {
          * * `other` - Otro
          */
         measurement_type?: "current" | "flow" | "hours" | "humidity" | "other" | "pressure" | "temperature" | "vibration" | "voltage";
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         product?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
       };
     };
@@ -78558,7 +79082,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Medición de Equipo. */
+        /** @description Un valor de entero único que identifique este Medición de Equipo. */
         id: number;
       };
     };
@@ -78578,7 +79102,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Medición de Equipo. */
+        /** @description Un valor de entero único que identifique este Medición de Equipo. */
         id: number;
       };
     };
@@ -78605,7 +79129,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Medición de Equipo. */
+        /** @description Un valor de entero único que identifique este Medición de Equipo. */
         id: number;
       };
     };
@@ -78623,7 +79147,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Medición de Equipo. */
+        /** @description Un valor de entero único que identifique este Medición de Equipo. */
         id: number;
       };
     };
@@ -78655,15 +79179,15 @@ export interface operations {
          */
         equipment_status?: "AVAILABLE" | "IN_USE" | "MAINTENANCE" | "OUT_OF_SERVICE";
         format?: "binary" | "json";
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         product?: number;
         requires_measurements?: boolean;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
       };
     };
@@ -78706,7 +79230,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Perfil de Equipo. */
+        /** @description Un valor de entero único que identifique este Perfil de Equipo. */
         id: number;
       };
     };
@@ -78726,7 +79250,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Perfil de Equipo. */
+        /** @description Un valor de entero único que identifique este Perfil de Equipo. */
         id: number;
       };
     };
@@ -78753,7 +79277,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Perfil de Equipo. */
+        /** @description Un valor de entero único que identifique este Perfil de Equipo. */
         id: number;
       };
     };
@@ -78771,7 +79295,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Perfil de Equipo. */
+        /** @description Un valor de entero único que identifique este Perfil de Equipo. */
         id: number;
       };
     };
@@ -78797,13 +79321,13 @@ export interface operations {
       query?: {
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
       };
     };
@@ -78846,7 +79370,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tipo de Equipo. */
+        /** @description Un valor de entero único que identifique este Tipo de Equipo. */
         id: number;
       };
     };
@@ -78866,7 +79390,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tipo de Equipo. */
+        /** @description Un valor de entero único que identifique este Tipo de Equipo. */
         id: number;
       };
     };
@@ -78893,7 +79417,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tipo de Equipo. */
+        /** @description Un valor de entero único que identifique este Tipo de Equipo. */
         id: number;
       };
     };
@@ -78911,7 +79435,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tipo de Equipo. */
+        /** @description Un valor de entero único que identifique este Tipo de Equipo. */
         id: number;
       };
     };
@@ -78960,9 +79484,9 @@ export interface operations {
          * * `DELETE` - DELETE
          */
         method?: "DELETE" | "GET" | "PATCH" | "POST" | "PUT";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -79033,7 +79557,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Endpoint de App Externa. */
+        /** @description Un Cadena UUID que identifique este Endpoint de App Externa. */
         id: string;
       };
     };
@@ -79067,7 +79591,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Endpoint de App Externa. */
+        /** @description Un Cadena UUID que identifique este Endpoint de App Externa. */
         id: string;
       };
     };
@@ -79108,7 +79632,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Endpoint de App Externa. */
+        /** @description Un Cadena UUID que identifique este Endpoint de App Externa. */
         id: string;
       };
     };
@@ -79140,7 +79664,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Endpoint de App Externa. */
+        /** @description Un Cadena UUID que identifique este Endpoint de App Externa. */
         id: string;
       };
     };
@@ -79181,9 +79705,9 @@ export interface operations {
         format?: "binary" | "json";
         installation?: string;
         installation__branch?: number;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         success?: boolean;
         /**
@@ -79226,7 +79750,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Log de Ejecución. */
+        /** @description Un Cadena UUID que identifique este Log de Ejecución. */
         id: string;
       };
     };
@@ -79261,9 +79785,9 @@ export interface operations {
         external_app?: string;
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -79334,7 +79858,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Instalación de App Externa. */
+        /** @description Un Cadena UUID que identifique este Instalación de App Externa. */
         id: string;
       };
     };
@@ -79368,7 +79892,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Instalación de App Externa. */
+        /** @description Un Cadena UUID que identifique este Instalación de App Externa. */
         id: string;
       };
     };
@@ -79409,7 +79933,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Instalación de App Externa. */
+        /** @description Un Cadena UUID que identifique este Instalación de App Externa. */
         id: string;
       };
     };
@@ -79441,7 +79965,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Instalación de App Externa. */
+        /** @description Un Cadena UUID que identifique este Instalación de App Externa. */
         id: string;
       };
     };
@@ -79482,7 +80006,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Instalación de App Externa. */
+        /** @description Un Cadena UUID que identifique este Instalación de App Externa. */
         id: string;
       };
     };
@@ -79532,9 +80056,9 @@ export interface operations {
         category?: "communication" | "crm" | "erp" | "logistics" | "other" | "payment" | "sii";
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -79605,7 +80129,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this App Externa. */
+        /** @description Un Cadena UUID que identifique este App Externa. */
         id: string;
       };
     };
@@ -79639,7 +80163,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this App Externa. */
+        /** @description Un Cadena UUID que identifique este App Externa. */
         id: string;
       };
     };
@@ -79680,7 +80204,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this App Externa. */
+        /** @description Un Cadena UUID que identifique este App Externa. */
         id: string;
       };
     };
@@ -79712,7 +80236,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this App Externa. */
+        /** @description Un Cadena UUID que identifique este App Externa. */
         id: string;
       };
     };
@@ -79754,9 +80278,9 @@ export interface operations {
         format?: "binary" | "json";
         is_active?: boolean;
         is_default?: boolean;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -79807,7 +80331,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Cuenta Bancaria. */
+        /** @description Un Cadena UUID que identifique este Cuenta Bancaria. */
         id: string;
       };
     };
@@ -79831,7 +80355,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Cuenta Bancaria. */
+        /** @description Un Cadena UUID que identifique este Cuenta Bancaria. */
         id: string;
       };
     };
@@ -79862,7 +80386,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Cuenta Bancaria. */
+        /** @description Un Cadena UUID que identifique este Cuenta Bancaria. */
         id: string;
       };
     };
@@ -79884,7 +80408,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Cuenta Bancaria. */
+        /** @description Un Cadena UUID que identifique este Cuenta Bancaria. */
         id: string;
       };
     };
@@ -79911,7 +80435,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Cuenta Bancaria. */
+        /** @description Un Cadena UUID que identifique este Cuenta Bancaria. */
         id: string;
       };
     };
@@ -79931,7 +80455,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Cuenta Bancaria. */
+        /** @description Un Cadena UUID que identifique este Cuenta Bancaria. */
         id: string;
       };
     };
@@ -79951,7 +80475,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Cuenta Bancaria. */
+        /** @description Un Cadena UUID que identifique este Cuenta Bancaria. */
         id: string;
       };
     };
@@ -79978,7 +80502,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Cuenta Bancaria. */
+        /** @description Un Cadena UUID que identifique este Cuenta Bancaria. */
         id: string;
       };
     };
@@ -80033,9 +80557,9 @@ export interface operations {
       query?: {
         bank_account?: string;
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         reconciled_by?: number;
         /**
@@ -80094,7 +80618,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Conciliación Bancaria. */
+        /** @description Un Cadena UUID que identifique este Conciliación Bancaria. */
         id: string;
       };
     };
@@ -80118,7 +80642,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Conciliación Bancaria. */
+        /** @description Un Cadena UUID que identifique este Conciliación Bancaria. */
         id: string;
       };
     };
@@ -80149,7 +80673,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Conciliación Bancaria. */
+        /** @description Un Cadena UUID que identifique este Conciliación Bancaria. */
         id: string;
       };
     };
@@ -80171,7 +80695,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Conciliación Bancaria. */
+        /** @description Un Cadena UUID que identifique este Conciliación Bancaria. */
         id: string;
       };
     };
@@ -80198,7 +80722,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Conciliación Bancaria. */
+        /** @description Un Cadena UUID que identifique este Conciliación Bancaria. */
         id: string;
       };
     };
@@ -80225,7 +80749,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Conciliación Bancaria. */
+        /** @description Un Cadena UUID que identifique este Conciliación Bancaria. */
         id: string;
       };
     };
@@ -80252,7 +80776,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Conciliación Bancaria. */
+        /** @description Un Cadena UUID que identifique este Conciliación Bancaria. */
         id: string;
       };
     };
@@ -80342,9 +80866,9 @@ export interface operations {
         country?: string;
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -80395,7 +80919,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Banco. */
+        /** @description Un Cadena UUID que identifique este Banco. */
         id: string;
       };
     };
@@ -80419,7 +80943,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Banco. */
+        /** @description Un Cadena UUID que identifique este Banco. */
         id: string;
       };
     };
@@ -80450,7 +80974,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Banco. */
+        /** @description Un Cadena UUID que identifique este Banco. */
         id: string;
       };
     };
@@ -80472,7 +80996,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Banco. */
+        /** @description Un Cadena UUID que identifique este Banco. */
         id: string;
       };
     };
@@ -80525,9 +81049,9 @@ export interface operations {
       query?: {
         branch?: number;
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -80592,7 +81116,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración Financiera de Sucursal. */
+        /** @description Un valor de entero único que identifique este Configuración Financiera de Sucursal. */
         id: number;
       };
     };
@@ -80623,7 +81147,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración Financiera de Sucursal. */
+        /** @description Un valor de entero único que identifique este Configuración Financiera de Sucursal. */
         id: number;
       };
     };
@@ -80661,7 +81185,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración Financiera de Sucursal. */
+        /** @description Un valor de entero único que identifique este Configuración Financiera de Sucursal. */
         id: number;
       };
     };
@@ -80690,7 +81214,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración Financiera de Sucursal. */
+        /** @description Un valor de entero único que identifique este Configuración Financiera de Sucursal. */
         id: number;
       };
     };
@@ -80720,7 +81244,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración Financiera de Sucursal. */
+        /** @description Un valor de entero único que identifique este Configuración Financiera de Sucursal. */
         id: number;
       };
     };
@@ -80798,9 +81322,9 @@ export interface operations {
         code?: string;
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -80843,7 +81367,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Estación de Caja. */
+        /** @description Un valor de entero único que identifique este Estación de Caja. */
         id: number;
       };
     };
@@ -80863,7 +81387,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Estación de Caja. */
+        /** @description Un valor de entero único que identifique este Estación de Caja. */
         id: number;
       };
     };
@@ -80890,7 +81414,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Estación de Caja. */
+        /** @description Un valor de entero único que identifique este Estación de Caja. */
         id: number;
       };
     };
@@ -80908,7 +81432,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Estación de Caja. */
+        /** @description Un valor de entero único que identifique este Estación de Caja. */
         id: number;
       };
     };
@@ -80935,13 +81459,13 @@ export interface operations {
         branch?: number;
         date?: string;
         format?: "binary" | "json";
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
         station?: number;
         /**
@@ -80990,7 +81514,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Registro de Caja. */
+        /** @description Un valor de entero único que identifique este Registro de Caja. */
         id: number;
       };
     };
@@ -81010,7 +81534,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Registro de Caja. */
+        /** @description Un valor de entero único que identifique este Registro de Caja. */
         id: number;
       };
     };
@@ -81037,7 +81561,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Registro de Caja. */
+        /** @description Un valor de entero único que identifique este Registro de Caja. */
         id: number;
       };
     };
@@ -81055,7 +81579,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Registro de Caja. */
+        /** @description Un valor de entero único que identifique este Registro de Caja. */
         id: number;
       };
     };
@@ -81085,7 +81609,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Registro de Caja. */
+        /** @description Un valor de entero único que identifique este Registro de Caja. */
         id: number;
       };
     };
@@ -81115,7 +81639,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Registro de Caja. */
+        /** @description Un valor de entero único que identifique este Registro de Caja. */
         id: number;
       };
     };
@@ -81145,7 +81669,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Registro de Caja. */
+        /** @description Un valor de entero único que identifique este Registro de Caja. */
         id: number;
       };
     };
@@ -81175,7 +81699,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Registro de Caja. */
+        /** @description Un valor de entero único que identifique este Registro de Caja. */
         id: number;
       };
     };
@@ -81205,7 +81729,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Registro de Caja. */
+        /** @description Un valor de entero único que identifique este Registro de Caja. */
         id: number;
       };
     };
@@ -81228,7 +81752,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Registro de Caja. */
+        /** @description Un valor de entero único que identifique este Registro de Caja. */
         id: number;
       };
     };
@@ -81251,13 +81775,13 @@ export interface operations {
         branch?: number;
         date?: string;
         format?: "binary" | "json";
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
         station?: number;
         /**
@@ -81267,7 +81791,7 @@ export interface operations {
         status?: "CLOSED" | "OPEN";
       };
       path: {
-        /** @description A unique integer value identifying this Registro de Caja. */
+        /** @description Un valor de entero único que identifique este Registro de Caja. */
         id: number;
       };
     };
@@ -81395,9 +81919,9 @@ export interface operations {
         format?: "binary" | "json";
         is_active?: boolean;
         is_default?: boolean;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         /**
          * @description Para qué se usa esta asociación
@@ -81456,7 +81980,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Cuenta Bancaria de Cliente. */
+        /** @description Un Cadena UUID que identifique este Cuenta Bancaria de Cliente. */
         id: string;
       };
     };
@@ -81480,7 +82004,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Cuenta Bancaria de Cliente. */
+        /** @description Un Cadena UUID que identifique este Cuenta Bancaria de Cliente. */
         id: string;
       };
     };
@@ -81511,7 +82035,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Cuenta Bancaria de Cliente. */
+        /** @description Un Cadena UUID que identifique este Cuenta Bancaria de Cliente. */
         id: string;
       };
     };
@@ -81533,7 +82057,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Cuenta Bancaria de Cliente. */
+        /** @description Un Cadena UUID que identifique este Cuenta Bancaria de Cliente. */
         id: string;
       };
     };
@@ -81632,9 +82156,9 @@ export interface operations {
         category_type?: "EQUIPMENT" | "INSURANCE" | "LICENSES" | "MAINTENANCE" | "MARKETING" | "OTHER" | "RENT" | "SALARIES" | "SUPPLIES" | "UTILITIES";
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -81685,7 +82209,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Categoría de Gasto. */
+        /** @description Un Cadena UUID que identifique este Categoría de Gasto. */
         id: string;
       };
     };
@@ -81709,7 +82233,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Categoría de Gasto. */
+        /** @description Un Cadena UUID que identifique este Categoría de Gasto. */
         id: string;
       };
     };
@@ -81740,7 +82264,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Categoría de Gasto. */
+        /** @description Un Cadena UUID que identifique este Categoría de Gasto. */
         id: string;
       };
     };
@@ -81762,7 +82286,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Categoría de Gasto. */
+        /** @description Un Cadena UUID que identifique este Categoría de Gasto. */
         id: string;
       };
     };
@@ -81789,7 +82313,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Categoría de Gasto. */
+        /** @description Un Cadena UUID que identifique este Categoría de Gasto. */
         id: string;
       };
     };
@@ -81835,9 +82359,9 @@ export interface operations {
       query?: {
         branch?: number;
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -81888,7 +82412,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Métrica Financiera. */
+        /** @description Un Cadena UUID que identifique este Métrica Financiera. */
         id: string;
       };
     };
@@ -81912,7 +82436,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Métrica Financiera. */
+        /** @description Un Cadena UUID que identifique este Métrica Financiera. */
         id: string;
       };
     };
@@ -81943,7 +82467,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Métrica Financiera. */
+        /** @description Un Cadena UUID que identifique este Métrica Financiera. */
         id: string;
       };
     };
@@ -81965,7 +82489,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Métrica Financiera. */
+        /** @description Un Cadena UUID que identifique este Métrica Financiera. */
         id: string;
       };
     };
@@ -81992,7 +82516,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Métrica Financiera. */
+        /** @description Un Cadena UUID que identifique este Métrica Financiera. */
         id: string;
       };
     };
@@ -82099,9 +82623,9 @@ export interface operations {
          */
         frequency?: "ANNUAL" | "MONTHLY" | "ONE_TIME" | "QUARTERLY" | "SEMI_ANNUAL";
         is_recurring?: boolean;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         /**
          * @description * `ACTIVE` - Activo
@@ -82159,7 +82683,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Gasto Fijo. */
+        /** @description Un Cadena UUID que identifique este Gasto Fijo. */
         id: string;
       };
     };
@@ -82183,7 +82707,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Gasto Fijo. */
+        /** @description Un Cadena UUID que identifique este Gasto Fijo. */
         id: string;
       };
     };
@@ -82214,7 +82738,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Gasto Fijo. */
+        /** @description Un Cadena UUID que identifique este Gasto Fijo. */
         id: string;
       };
     };
@@ -82236,7 +82760,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Gasto Fijo. */
+        /** @description Un Cadena UUID que identifique este Gasto Fijo. */
         id: string;
       };
     };
@@ -82266,7 +82790,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Gasto Fijo. */
+        /** @description Un Cadena UUID que identifique este Gasto Fijo. */
         id: string;
       };
     };
@@ -82300,7 +82824,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Gasto Fijo. */
+        /** @description Un Cadena UUID que identifique este Gasto Fijo. */
         id: string;
       };
     };
@@ -82330,7 +82854,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Gasto Fijo. */
+        /** @description Un Cadena UUID que identifique este Gasto Fijo. */
         id: string;
       };
     };
@@ -82360,7 +82884,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Gasto Fijo. */
+        /** @description Un Cadena UUID que identifique este Gasto Fijo. */
         id: string;
       };
     };
@@ -82387,7 +82911,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Gasto Fijo. */
+        /** @description Un Cadena UUID que identifique este Gasto Fijo. */
         id: string;
       };
     };
@@ -82407,7 +82931,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Gasto Fijo. */
+        /** @description Un Cadena UUID que identifique este Gasto Fijo. */
         id: string;
       };
     };
@@ -82507,9 +83031,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -82567,7 +83091,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Archivo de Folios (CAF). */
+        /** @description Un valor de entero único que identifique este Archivo de Folios (CAF). */
         id: number;
       };
     };
@@ -82595,7 +83119,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Archivo de Folios (CAF). */
+        /** @description Un valor de entero único que identifique este Archivo de Folios (CAF). */
         id: number;
       };
     };
@@ -82621,7 +83145,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Archivo de Folios (CAF). */
+        /** @description Un valor de entero único que identifique este Archivo de Folios (CAF). */
         id: number;
       };
     };
@@ -82647,7 +83171,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Archivo de Folios (CAF). */
+        /** @description Un valor de entero único que identifique este Archivo de Folios (CAF). */
         id: number;
       };
     };
@@ -82673,7 +83197,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Archivo de Folios (CAF). */
+        /** @description Un valor de entero único que identifique este Archivo de Folios (CAF). */
         id: number;
       };
     };
@@ -82699,7 +83223,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Archivo de Folios (CAF). */
+        /** @description Un valor de entero único que identifique este Archivo de Folios (CAF). */
         id: number;
       };
     };
@@ -82786,9 +83310,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -82831,7 +83355,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Método de Pago. */
+        /** @description Un Cadena UUID que identifique este Método de Pago. */
         id: string;
       };
     };
@@ -82851,7 +83375,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Método de Pago. */
+        /** @description Un Cadena UUID que identifique este Método de Pago. */
         id: string;
       };
     };
@@ -82878,7 +83402,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Método de Pago. */
+        /** @description Un Cadena UUID que identifique este Método de Pago. */
         id: string;
       };
     };
@@ -82896,7 +83420,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Método de Pago. */
+        /** @description Un Cadena UUID que identifique este Método de Pago. */
         id: string;
       };
     };
@@ -82968,9 +83492,9 @@ export interface operations {
         branch__in?: number[];
         end_date?: string;
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         payment_date?: string;
         payment_date__gte?: string;
@@ -82998,6 +83522,8 @@ export interface operations {
         payment_source?: "EXPENSE" | "ORDER" | "OTHER" | "REFUND" | "REVENUE";
         /** @description Múltiples valores separados por comas. */
         payment_source__in?: string[];
+        /** @description Un término de búsqueda. */
+        search?: string;
         start_date?: string;
         /**
          * @description * `PENDING` - Pendiente
@@ -83051,7 +83577,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Pago. */
+        /** @description Un Cadena UUID que identifique este Pago. */
         id: string;
       };
     };
@@ -83071,7 +83597,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Pago. */
+        /** @description Un Cadena UUID que identifique este Pago. */
         id: string;
       };
     };
@@ -83098,7 +83624,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Pago. */
+        /** @description Un Cadena UUID que identifique este Pago. */
         id: string;
       };
     };
@@ -83116,7 +83642,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Pago. */
+        /** @description Un Cadena UUID que identifique este Pago. */
         id: string;
       };
     };
@@ -83146,7 +83672,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Pago. */
+        /** @description Un Cadena UUID que identifique este Pago. */
         id: string;
       };
     };
@@ -83189,7 +83715,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Pago. */
+        /** @description Un Cadena UUID que identifique este Pago. */
         id: string;
       };
     };
@@ -83220,7 +83746,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Pago. */
+        /** @description Un Cadena UUID que identifique este Pago. */
         id: string;
       };
     };
@@ -83240,7 +83766,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Pago. */
+        /** @description Un Cadena UUID que identifique este Pago. */
         id: string;
       };
     };
@@ -83267,7 +83793,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Pago. */
+        /** @description Un Cadena UUID que identifique este Pago. */
         id: string;
       };
     };
@@ -83439,9 +83965,9 @@ export interface operations {
         branch?: number;
         format?: "binary" | "json";
         is_automated?: boolean;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         /**
          * @description * `DAILY` - Diario
@@ -83500,7 +84026,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Reporte de Rentabilidad. */
+        /** @description Un Cadena UUID que identifique este Reporte de Rentabilidad. */
         id: string;
       };
     };
@@ -83524,7 +84050,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Reporte de Rentabilidad. */
+        /** @description Un Cadena UUID que identifique este Reporte de Rentabilidad. */
         id: string;
       };
     };
@@ -83555,7 +84081,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Reporte de Rentabilidad. */
+        /** @description Un Cadena UUID que identifique este Reporte de Rentabilidad. */
         id: string;
       };
     };
@@ -83577,7 +84103,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Reporte de Rentabilidad. */
+        /** @description Un Cadena UUID que identifique este Reporte de Rentabilidad. */
         id: string;
       };
     };
@@ -83604,7 +84130,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Reporte de Rentabilidad. */
+        /** @description Un Cadena UUID que identifique este Reporte de Rentabilidad. */
         id: string;
       };
     };
@@ -83732,9 +84258,9 @@ export interface operations {
         category_type?: "COMMISSION" | "INVESTMENT" | "OTHER" | "REFUND" | "RENTAL" | "SALES" | "SERVICES";
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -83785,7 +84311,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Categoría de Ingreso. */
+        /** @description Un Cadena UUID que identifique este Categoría de Ingreso. */
         id: string;
       };
     };
@@ -83809,7 +84335,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Categoría de Ingreso. */
+        /** @description Un Cadena UUID que identifique este Categoría de Ingreso. */
         id: string;
       };
     };
@@ -83840,7 +84366,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Categoría de Ingreso. */
+        /** @description Un Cadena UUID que identifique este Categoría de Ingreso. */
         id: string;
       };
     };
@@ -83862,7 +84388,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Categoría de Ingreso. */
+        /** @description Un Cadena UUID que identifique este Categoría de Ingreso. */
         id: string;
       };
     };
@@ -83889,7 +84415,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Categoría de Ingreso. */
+        /** @description Un Cadena UUID que identifique este Categoría de Ingreso. */
         id: string;
       };
     };
@@ -83942,9 +84468,9 @@ export interface operations {
          */
         category__category_type?: "COMMISSION" | "INVESTMENT" | "OTHER" | "REFUND" | "RENTAL" | "SALES" | "SERVICES";
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         /**
          * @description * `PENDING` - Pendiente
@@ -84003,7 +84529,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ingreso. */
+        /** @description Un Cadena UUID que identifique este Ingreso. */
         id: string;
       };
     };
@@ -84027,7 +84553,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ingreso. */
+        /** @description Un Cadena UUID que identifique este Ingreso. */
         id: string;
       };
     };
@@ -84058,7 +84584,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ingreso. */
+        /** @description Un Cadena UUID que identifique este Ingreso. */
         id: string;
       };
     };
@@ -84080,7 +84606,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ingreso. */
+        /** @description Un Cadena UUID que identifique este Ingreso. */
         id: string;
       };
     };
@@ -84107,7 +84633,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ingreso. */
+        /** @description Un Cadena UUID que identifique este Ingreso. */
         id: string;
       };
     };
@@ -84137,7 +84663,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ingreso. */
+        /** @description Un Cadena UUID que identifique este Ingreso. */
         id: string;
       };
     };
@@ -84172,7 +84698,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ingreso. */
+        /** @description Un Cadena UUID que identifique este Ingreso. */
         id: string;
       };
     };
@@ -84202,7 +84728,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ingreso. */
+        /** @description Un Cadena UUID que identifique este Ingreso. */
         id: string;
       };
     };
@@ -84231,7 +84757,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ingreso. */
+        /** @description Un Cadena UUID que identifique este Ingreso. */
         id: string;
       };
     };
@@ -84260,7 +84786,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ingreso. */
+        /** @description Un Cadena UUID que identifique este Ingreso. */
         id: string;
       };
     };
@@ -84287,7 +84813,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ingreso. */
+        /** @description Un Cadena UUID que identifique este Ingreso. */
         id: string;
       };
     };
@@ -84314,7 +84840,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ingreso. */
+        /** @description Un Cadena UUID que identifique este Ingreso. */
         id: string;
       };
     };
@@ -84334,7 +84860,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ingreso. */
+        /** @description Un Cadena UUID que identifique este Ingreso. */
         id: string;
       };
     };
@@ -84442,9 +84968,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -84487,7 +85013,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Item de Documento. */
+        /** @description Un valor de entero único que identifique este Item de Documento. */
         id: number;
       };
     };
@@ -84507,7 +85033,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Item de Documento. */
+        /** @description Un valor de entero único que identifique este Item de Documento. */
         id: number;
       };
     };
@@ -84534,7 +85060,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Item de Documento. */
+        /** @description Un valor de entero único que identifique este Item de Documento. */
         id: number;
       };
     };
@@ -84552,7 +85078,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Item de Documento. */
+        /** @description Un valor de entero único que identifique este Item de Documento. */
         id: number;
       };
     };
@@ -84577,9 +85103,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -84622,7 +85148,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Documento Tributario. */
+        /** @description Un Cadena UUID que identifique este Documento Tributario. */
         id: string;
       };
     };
@@ -84642,7 +85168,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Documento Tributario. */
+        /** @description Un Cadena UUID que identifique este Documento Tributario. */
         id: string;
       };
     };
@@ -84669,7 +85195,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Documento Tributario. */
+        /** @description Un Cadena UUID que identifique este Documento Tributario. */
         id: string;
       };
     };
@@ -84687,7 +85213,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Documento Tributario. */
+        /** @description Un Cadena UUID que identifique este Documento Tributario. */
         id: string;
       };
     };
@@ -84722,7 +85248,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Documento Tributario. */
+        /** @description Un Cadena UUID que identifique este Documento Tributario. */
         id: string;
       };
     };
@@ -84753,7 +85279,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Documento Tributario. */
+        /** @description Un Cadena UUID que identifique este Documento Tributario. */
         id: string;
       };
     };
@@ -84784,7 +85310,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Documento Tributario. */
+        /** @description Un Cadena UUID que identifique este Documento Tributario. */
         id: string;
       };
     };
@@ -84934,9 +85460,9 @@ export interface operations {
         branch?: number;
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -84997,7 +85523,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Tipo de Impuesto. */
+        /** @description Un Cadena UUID que identifique este Tipo de Impuesto. */
         id: string;
       };
     };
@@ -85026,7 +85552,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Tipo de Impuesto. */
+        /** @description Un Cadena UUID que identifique este Tipo de Impuesto. */
         id: string;
       };
     };
@@ -85062,7 +85588,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Tipo de Impuesto. */
+        /** @description Un Cadena UUID que identifique este Tipo de Impuesto. */
         id: string;
       };
     };
@@ -85089,7 +85615,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Tipo de Impuesto. */
+        /** @description Un Cadena UUID que identifique este Tipo de Impuesto. */
         id: string;
       };
     };
@@ -85114,9 +85640,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -85159,7 +85685,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Descuento de Beneficiario. */
+        /** @description Un valor de entero único que identifique este Descuento de Beneficiario. */
         id: number;
       };
     };
@@ -85179,7 +85705,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Descuento de Beneficiario. */
+        /** @description Un valor de entero único que identifique este Descuento de Beneficiario. */
         id: number;
       };
     };
@@ -85206,7 +85732,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Descuento de Beneficiario. */
+        /** @description Un valor de entero único que identifique este Descuento de Beneficiario. */
         id: number;
       };
     };
@@ -85224,7 +85750,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Descuento de Beneficiario. */
+        /** @description Un valor de entero único que identifique este Descuento de Beneficiario. */
         id: number;
       };
     };
@@ -85299,9 +85825,9 @@ export interface operations {
         format?: "binary" | "json";
         is_active?: boolean;
         name__icontains?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -85372,7 +85898,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Categoría de Producto. */
+        /** @description Un valor de entero único que identifique este Categoría de Producto. */
         id: number;
       };
     };
@@ -85406,7 +85932,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Categoría de Producto. */
+        /** @description Un valor de entero único que identifique este Categoría de Producto. */
         id: number;
       };
     };
@@ -85447,7 +85973,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Categoría de Producto. */
+        /** @description Un valor de entero único que identifique este Categoría de Producto. */
         id: number;
       };
     };
@@ -85479,7 +86005,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Categoría de Producto. */
+        /** @description Un valor de entero único que identifique este Categoría de Producto. */
         id: number;
       };
     };
@@ -85522,9 +86048,9 @@ export interface operations {
         branch?: number;
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         product?: number;
       };
@@ -85568,7 +86094,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Plantilla de Certificado. */
+        /** @description Un valor de entero único que identifique este Plantilla de Certificado. */
         id: number;
       };
     };
@@ -85588,7 +86114,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Plantilla de Certificado. */
+        /** @description Un valor de entero único que identifique este Plantilla de Certificado. */
         id: number;
       };
     };
@@ -85615,7 +86141,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Plantilla de Certificado. */
+        /** @description Un valor de entero único que identifique este Plantilla de Certificado. */
         id: number;
       };
     };
@@ -85633,7 +86159,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Plantilla de Certificado. */
+        /** @description Un valor de entero único que identifique este Plantilla de Certificado. */
         id: number;
       };
     };
@@ -85664,9 +86190,9 @@ export interface operations {
         is_valid?: boolean;
         issue_date__gte?: string;
         issue_date__lte?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         template?: number;
       };
@@ -85710,7 +86236,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Certificado. */
+        /** @description Un valor de entero único que identifique este Certificado. */
         id: number;
       };
     };
@@ -85730,7 +86256,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Certificado. */
+        /** @description Un valor de entero único que identifique este Certificado. */
         id: number;
       };
     };
@@ -85757,7 +86283,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Certificado. */
+        /** @description Un valor de entero único que identifique este Certificado. */
         id: number;
       };
     };
@@ -85775,7 +86301,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Certificado. */
+        /** @description Un valor de entero único que identifique este Certificado. */
         id: number;
       };
     };
@@ -85805,7 +86331,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Certificado. */
+        /** @description Un valor de entero único que identifique este Certificado. */
         id: number;
       };
     };
@@ -85828,7 +86354,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Certificado. */
+        /** @description Un valor de entero único que identifique este Certificado. */
         id: number;
       };
     };
@@ -85858,7 +86384,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Certificado. */
+        /** @description Un valor de entero único que identifique este Certificado. */
         id: number;
       };
     };
@@ -85887,7 +86413,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Certificado. */
+        /** @description Un valor de entero único que identifique este Certificado. */
         id: number;
       };
     };
@@ -85917,7 +86443,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Certificado. */
+        /** @description Un valor de entero único que identifique este Certificado. */
         id: number;
       };
     };
@@ -85941,7 +86467,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Certificado. */
+        /** @description Un valor de entero único que identifique este Certificado. */
         id: number;
       };
     };
@@ -86052,9 +86578,9 @@ export interface operations {
       query?: {
         combo?: number;
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         product?: number;
       };
@@ -86098,7 +86624,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Ítem de Combo. */
+        /** @description Un valor de entero único que identifique este Ítem de Combo. */
         id: number;
       };
     };
@@ -86118,7 +86644,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Ítem de Combo. */
+        /** @description Un valor de entero único que identifique este Ítem de Combo. */
         id: number;
       };
     };
@@ -86145,7 +86671,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Ítem de Combo. */
+        /** @description Un valor de entero único que identifique este Ítem de Combo. */
         id: number;
       };
     };
@@ -86163,7 +86689,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Ítem de Combo. */
+        /** @description Un valor de entero único que identifique este Ítem de Combo. */
         id: number;
       };
     };
@@ -86192,9 +86718,9 @@ export interface operations {
       query?: {
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -86243,7 +86769,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Combo. */
+        /** @description Un valor de entero único que identifique este Combo. */
         id: number;
       };
     };
@@ -86266,7 +86792,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Combo. */
+        /** @description Un valor de entero único que identifique este Combo. */
         id: number;
       };
     };
@@ -86296,7 +86822,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Combo. */
+        /** @description Un valor de entero único que identifique este Combo. */
         id: number;
       };
     };
@@ -86314,7 +86840,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Combo. */
+        /** @description Un valor de entero único que identifique este Combo. */
         id: number;
       };
     };
@@ -86339,9 +86865,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -86384,7 +86910,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Rango de Descuento. */
+        /** @description Un valor de entero único que identifique este Rango de Descuento. */
         id: number;
       };
     };
@@ -86404,7 +86930,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Rango de Descuento. */
+        /** @description Un valor de entero único que identifique este Rango de Descuento. */
         id: number;
       };
     };
@@ -86431,7 +86957,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Rango de Descuento. */
+        /** @description Un valor de entero único que identifique este Rango de Descuento. */
         id: number;
       };
     };
@@ -86449,7 +86975,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Rango de Descuento. */
+        /** @description Un valor de entero único que identifique este Rango de Descuento. */
         id: number;
       };
     };
@@ -86474,9 +87000,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -86519,7 +87045,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Descuento. */
+        /** @description Un valor de entero único que identifique este Descuento. */
         id: number;
       };
     };
@@ -86539,7 +87065,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Descuento. */
+        /** @description Un valor de entero único que identifique este Descuento. */
         id: number;
       };
     };
@@ -86566,7 +87092,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Descuento. */
+        /** @description Un valor de entero único que identifique este Descuento. */
         id: number;
       };
     };
@@ -86584,7 +87110,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Descuento. */
+        /** @description Un valor de entero único que identifique este Descuento. */
         id: number;
       };
     };
@@ -86611,7 +87137,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Descuento. */
+        /** @description Un valor de entero único que identifique este Descuento. */
         id: number;
       };
     };
@@ -86631,7 +87157,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Descuento. */
+        /** @description Un valor de entero único que identifique este Descuento. */
         id: number;
       };
     };
@@ -86656,9 +87182,9 @@ export interface operations {
         is_active?: boolean;
         /** @description Filtrar solo imágenes primarias */
         is_primary?: boolean;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         /** @description Filtrar por ID de producto */
         product_id?: number;
@@ -86709,7 +87235,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Imagen de Galería. */
+        /** @description Un valor de entero único que identifique este Imagen de Galería. */
         id: number;
       };
     };
@@ -86732,7 +87258,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Imagen de Galería. */
+        /** @description Un valor de entero único que identifique este Imagen de Galería. */
         id: number;
       };
     };
@@ -86762,7 +87288,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Imagen de Galería. */
+        /** @description Un valor de entero único que identifique este Imagen de Galería. */
         id: number;
       };
     };
@@ -86783,7 +87309,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Imagen de Galería. */
+        /** @description Un valor de entero único que identifique este Imagen de Galería. */
         id: number;
       };
     };
@@ -86920,14 +87446,14 @@ export interface operations {
          * * `EXPIRY` - Vencimiento
          */
         movement_type?: "ADJUSTMENT" | "CANCELLATION" | "DAMAGE" | "EXPIRY" | "IN" | "LOSS" | "OUT" | "RETURN" | "TRANSFER";
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         product?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
         /**
          * @description * `SALE` - Venta
@@ -87010,7 +87536,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Historial de Inventario. */
+        /** @description Un valor de entero único que identifique este Historial de Inventario. */
         id: number;
       };
     };
@@ -87041,7 +87567,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Historial de Inventario. */
+        /** @description Un valor de entero único que identifique este Historial de Inventario. */
         id: number;
       };
     };
@@ -87079,7 +87605,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Historial de Inventario. */
+        /** @description Un valor de entero único que identifique este Historial de Inventario. */
         id: number;
       };
     };
@@ -87108,7 +87634,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Historial de Inventario. */
+        /** @description Un valor de entero único que identifique este Historial de Inventario. */
         id: number;
       };
     };
@@ -87264,11 +87790,11 @@ export interface operations {
         format?: "binary" | "json";
         is_active?: boolean;
         location_description__icontains?: string;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         product?: number;
         /**
@@ -87288,7 +87814,7 @@ export interface operations {
          * * `SERVICE` - Servicio
          */
         product__product_type?: "CERTIFICATE" | "DIRECT_SALE" | "EQUIPMENT" | "IOT" | "MEASUREMENT_MATERIAL" | "RAW_MATERIAL" | "RECIPE_BASED" | "SERVICE" | "SUPPLIER_PRODUCT" | "TANK_CONTAINER" | "TOOL" | "WASTE_MATERIAL";
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
       };
     };
@@ -87359,7 +87885,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Punto de Medición. */
+        /** @description Un valor de entero único que identifique este Punto de Medición. */
         id: number;
       };
     };
@@ -87393,7 +87919,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Punto de Medición. */
+        /** @description Un valor de entero único que identifique este Punto de Medición. */
         id: number;
       };
     };
@@ -87434,7 +87960,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Punto de Medición. */
+        /** @description Un valor de entero único que identifique este Punto de Medición. */
         id: number;
       };
     };
@@ -87466,7 +87992,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Punto de Medición. */
+        /** @description Un valor de entero único que identifique este Punto de Medición. */
         id: number;
       };
     };
@@ -87502,7 +88028,7 @@ export interface operations {
         start_date?: string;
       };
       path: {
-        /** @description A unique integer value identifying this Punto de Medición. */
+        /** @description Un valor de entero único que identifique este Punto de Medición. */
         id: number;
       };
     };
@@ -87522,7 +88048,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Punto de Medición. */
+        /** @description Un valor de entero único que identifique este Punto de Medición. */
         id: number;
       };
     };
@@ -87616,15 +88142,15 @@ export interface operations {
         measurement_point__code?: string;
         measurement_point__code__icontains?: string;
         measurement_point__location_description__icontains?: string;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         product?: number;
         reader?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
       };
     };
@@ -87667,7 +88193,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Medición de Materia Prima. */
+        /** @description Un valor de entero único que identifique este Medición de Materia Prima. */
         id: number;
       };
     };
@@ -87687,7 +88213,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Medición de Materia Prima. */
+        /** @description Un valor de entero único que identifique este Medición de Materia Prima. */
         id: number;
       };
     };
@@ -87714,7 +88240,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Medición de Materia Prima. */
+        /** @description Un valor de entero único que identifique este Medición de Materia Prima. */
         id: number;
       };
     };
@@ -87732,7 +88258,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Medición de Materia Prima. */
+        /** @description Un valor de entero único que identifique este Medición de Materia Prima. */
         id: number;
       };
     };
@@ -87762,7 +88288,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Medición de Materia Prima. */
+        /** @description Un valor de entero único que identifique este Medición de Materia Prima. */
         id: number;
       };
     };
@@ -87783,7 +88309,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Medición de Materia Prima. */
+        /** @description Un valor de entero único que identifique este Medición de Materia Prima. */
         id: number;
       };
     };
@@ -87806,7 +88332,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Medición de Materia Prima. */
+        /** @description Un valor de entero único que identifique este Medición de Materia Prima. */
         id: number;
       };
     };
@@ -87836,7 +88362,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Medición de Materia Prima. */
+        /** @description Un valor de entero único que identifique este Medición de Materia Prima. */
         id: number;
       };
     };
@@ -87860,7 +88386,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Medición de Materia Prima. */
+        /** @description Un valor de entero único que identifique este Medición de Materia Prima. */
         id: number;
       };
     };
@@ -88041,9 +88567,9 @@ export interface operations {
         format?: "binary" | "json";
         is_active?: boolean;
         is_required?: boolean;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -88092,7 +88618,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Grupo de Modificadores. */
+        /** @description Un valor de entero único que identifique este Grupo de Modificadores. */
         id: number;
       };
     };
@@ -88115,7 +88641,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Grupo de Modificadores. */
+        /** @description Un valor de entero único que identifique este Grupo de Modificadores. */
         id: number;
       };
     };
@@ -88145,7 +88671,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Grupo de Modificadores. */
+        /** @description Un valor de entero único que identifique este Grupo de Modificadores. */
         id: number;
       };
     };
@@ -88163,7 +88689,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Grupo de Modificadores. */
+        /** @description Un valor de entero único que identifique este Grupo de Modificadores. */
         id: number;
       };
     };
@@ -88191,9 +88717,9 @@ export interface operations {
         group?: number;
         is_active?: boolean;
         is_default?: boolean;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -88236,7 +88762,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Opción de Modificador. */
+        /** @description Un valor de entero único que identifique este Opción de Modificador. */
         id: number;
       };
     };
@@ -88256,7 +88782,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Opción de Modificador. */
+        /** @description Un valor de entero único que identifique este Opción de Modificador. */
         id: number;
       };
     };
@@ -88283,7 +88809,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Opción de Modificador. */
+        /** @description Un valor de entero único que identifique este Opción de Modificador. */
         id: number;
       };
     };
@@ -88301,7 +88827,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Opción de Modificador. */
+        /** @description Un valor de entero único que identifique este Opción de Modificador. */
         id: number;
       };
     };
@@ -88326,9 +88852,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -88371,7 +88897,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Documento de Producto. */
+        /** @description Un valor de entero único que identifique este Documento de Producto. */
         id: number;
       };
     };
@@ -88391,7 +88917,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Documento de Producto. */
+        /** @description Un valor de entero único que identifique este Documento de Producto. */
         id: number;
       };
     };
@@ -88418,7 +88944,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Documento de Producto. */
+        /** @description Un valor de entero único que identifique este Documento de Producto. */
         id: number;
       };
     };
@@ -88436,7 +88962,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Documento de Producto. */
+        /** @description Un valor de entero único que identifique este Documento de Producto. */
         id: number;
       };
     };
@@ -88463,13 +88989,13 @@ export interface operations {
         branch?: number;
         category?: number;
         format?: "binary" | "json";
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
       };
     };
@@ -88489,7 +89015,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Producto. */
+        /** @description Un valor de entero único que identifique este Producto. */
         id: number;
       };
     };
@@ -88643,9 +89169,9 @@ export interface operations {
       query?: {
         format?: "binary" | "json";
         modifier_group?: number;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         product?: number;
       };
@@ -88689,7 +89215,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Producto con Modificadores. */
+        /** @description Un valor de entero único que identifique este Producto con Modificadores. */
         id: number;
       };
     };
@@ -88709,7 +89235,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Producto con Modificadores. */
+        /** @description Un valor de entero único que identifique este Producto con Modificadores. */
         id: number;
       };
     };
@@ -88736,7 +89262,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Producto con Modificadores. */
+        /** @description Un valor de entero único que identifique este Producto con Modificadores. */
         id: number;
       };
     };
@@ -88754,7 +89280,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Producto con Modificadores. */
+        /** @description Un valor de entero único que identifique este Producto con Modificadores. */
         id: number;
       };
     };
@@ -88789,7 +89315,7 @@ export interface operations {
         is_for_internal_use?: boolean;
         is_for_sale?: boolean;
         name__icontains?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
         /**
          * @description Define cómo se gestiona el inventario
@@ -88855,7 +89381,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Producto. */
+        /** @description Un valor de entero único que identifique este Producto. */
         id: number;
       };
     };
@@ -88875,7 +89401,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Producto. */
+        /** @description Un valor de entero único que identifique este Producto. */
         id: number;
       };
     };
@@ -88902,7 +89428,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Producto. */
+        /** @description Un valor de entero único que identifique este Producto. */
         id: number;
       };
     };
@@ -88920,7 +89446,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Producto. */
+        /** @description Un valor de entero único que identifique este Producto. */
         id: number;
       };
     };
@@ -88952,7 +89478,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Producto. */
+        /** @description Un valor de entero único que identifique este Producto. */
         id: number;
       };
     };
@@ -88977,7 +89503,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Producto. */
+        /** @description Un valor de entero único que identifique este Producto. */
         id: number;
       };
     };
@@ -89009,7 +89535,7 @@ export interface operations {
         maintenance_type?: string;
       };
       path: {
-        /** @description A unique integer value identifying this Producto. */
+        /** @description Un valor de entero único que identifique este Producto. */
         id: number;
       };
     };
@@ -89034,7 +89560,7 @@ export interface operations {
         maintenance_type?: string;
       };
       path: {
-        /** @description A unique integer value identifying this Producto. */
+        /** @description Un valor de entero único que identifique este Producto. */
         id: number;
       };
     };
@@ -89066,7 +89592,7 @@ export interface operations {
         measurement_type?: string;
       };
       path: {
-        /** @description A unique integer value identifying this Producto. */
+        /** @description Un valor de entero único que identifique este Producto. */
         id: number;
       };
     };
@@ -89091,7 +89617,7 @@ export interface operations {
         measurement_type?: string;
       };
       path: {
-        /** @description A unique integer value identifying this Producto. */
+        /** @description Un valor de entero único que identifique este Producto. */
         id: number;
       };
     };
@@ -89121,7 +89647,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Producto. */
+        /** @description Un valor de entero único que identifique este Producto. */
         id: number;
       };
     };
@@ -89144,7 +89670,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Producto. */
+        /** @description Un valor de entero único que identifique este Producto. */
         id: number;
       };
     };
@@ -89174,7 +89700,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Producto. */
+        /** @description Un valor de entero único que identifique este Producto. */
         id: number;
       };
     };
@@ -89204,7 +89730,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Producto. */
+        /** @description Un valor de entero único que identifique este Producto. */
         id: number;
       };
     };
@@ -89244,7 +89770,7 @@ export interface operations {
         warehouse_id?: number;
       };
       path: {
-        /** @description A unique integer value identifying this Producto. */
+        /** @description Un valor de entero único que identifique este Producto. */
         id: number;
       };
     };
@@ -89493,9 +90019,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -89538,7 +90064,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Rango de Tarifario. */
+        /** @description Un valor de entero único que identifique este Rango de Tarifario. */
         id: number;
       };
     };
@@ -89558,7 +90084,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Rango de Tarifario. */
+        /** @description Un valor de entero único que identifique este Rango de Tarifario. */
         id: number;
       };
     };
@@ -89585,7 +90111,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Rango de Tarifario. */
+        /** @description Un valor de entero único que identifique este Rango de Tarifario. */
         id: number;
       };
     };
@@ -89603,7 +90129,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Rango de Tarifario. */
+        /** @description Un valor de entero único que identifique este Rango de Tarifario. */
         id: number;
       };
     };
@@ -89628,9 +90154,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -89673,7 +90199,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tarifario. */
+        /** @description Un valor de entero único que identifique este Tarifario. */
         id: number;
       };
     };
@@ -89693,7 +90219,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tarifario. */
+        /** @description Un valor de entero único que identifique este Tarifario. */
         id: number;
       };
     };
@@ -89720,7 +90246,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tarifario. */
+        /** @description Un valor de entero único que identifique este Tarifario. */
         id: number;
       };
     };
@@ -89738,7 +90264,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tarifario. */
+        /** @description Un valor de entero único que identifique este Tarifario. */
         id: number;
       };
     };
@@ -89765,7 +90291,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Tarifario. */
+        /** @description Un valor de entero único que identifique este Tarifario. */
         id: number;
       };
     };
@@ -89830,13 +90356,13 @@ export interface operations {
       query?: {
         format?: "binary" | "json";
         is_preferred_location?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
         warehouse?: number;
         /**
@@ -89890,7 +90416,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Producto en Bodega. */
+        /** @description Un valor de entero único que identifique este Producto en Bodega. */
         id: number;
       };
     };
@@ -89910,7 +90436,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Producto en Bodega. */
+        /** @description Un valor de entero único que identifique este Producto en Bodega. */
         id: number;
       };
     };
@@ -89937,7 +90463,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Producto en Bodega. */
+        /** @description Un valor de entero único que identifique este Producto en Bodega. */
         id: number;
       };
     };
@@ -89955,7 +90481,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Producto en Bodega. */
+        /** @description Un valor de entero único que identifique este Producto en Bodega. */
         id: number;
       };
     };
@@ -89982,7 +90508,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Producto en Bodega. */
+        /** @description Un valor de entero único que identifique este Producto en Bodega. */
         id: number;
       };
     };
@@ -90009,13 +90535,13 @@ export interface operations {
         branch?: number;
         format?: "binary" | "json";
         is_default?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
         /**
          * @description Tipo de bodega según el tipo de productos que almacena
@@ -90068,7 +90594,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Bodega. */
+        /** @description Un valor de entero único que identifique este Bodega. */
         id: number;
       };
     };
@@ -90088,7 +90614,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Bodega. */
+        /** @description Un valor de entero único que identifique este Bodega. */
         id: number;
       };
     };
@@ -90115,7 +90641,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Bodega. */
+        /** @description Un valor de entero único que identifique este Bodega. */
         id: number;
       };
     };
@@ -90133,7 +90659,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Bodega. */
+        /** @description Un valor de entero único que identifique este Bodega. */
         id: number;
       };
     };
@@ -90160,7 +90686,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Bodega. */
+        /** @description Un valor de entero único que identifique este Bodega. */
         id: number;
       };
     };
@@ -90180,7 +90706,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Bodega. */
+        /** @description Un valor de entero único que identifique este Bodega. */
         id: number;
       };
     };
@@ -90303,13 +90829,13 @@ export interface operations {
         channel_type__in?: string[];
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
       };
     };
@@ -90352,7 +90878,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Canal de Notificacion IoT. */
+        /** @description Un valor de entero único que identifique este Canal de Notificacion IoT. */
         id: number;
       };
     };
@@ -90372,7 +90898,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Canal de Notificacion IoT. */
+        /** @description Un valor de entero único que identifique este Canal de Notificacion IoT. */
         id: number;
       };
     };
@@ -90399,7 +90925,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Canal de Notificacion IoT. */
+        /** @description Un valor de entero único que identifique este Canal de Notificacion IoT. */
         id: number;
       };
     };
@@ -90417,7 +90943,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Canal de Notificacion IoT. */
+        /** @description Un valor de entero único que identifique este Canal de Notificacion IoT. */
         id: number;
       };
     };
@@ -90444,13 +90970,13 @@ export interface operations {
         device?: number;
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
         /**
          * @description * `INFO` - Informativo
@@ -90517,7 +91043,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Regla de Alerta IoT. */
+        /** @description Un valor de entero único que identifique este Regla de Alerta IoT. */
         id: number;
       };
     };
@@ -90537,7 +91063,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Regla de Alerta IoT. */
+        /** @description Un valor de entero único que identifique este Regla de Alerta IoT. */
         id: number;
       };
     };
@@ -90564,7 +91090,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Regla de Alerta IoT. */
+        /** @description Un valor de entero único que identifique este Regla de Alerta IoT. */
         id: number;
       };
     };
@@ -90582,7 +91108,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Regla de Alerta IoT. */
+        /** @description Un valor de entero único que identifique este Regla de Alerta IoT. */
         id: number;
       };
     };
@@ -90611,13 +91137,13 @@ export interface operations {
         format?: "binary" | "json";
         is_acknowledged?: boolean;
         notification_sent?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
         triggered_at__gte?: string;
         triggered_at__lte?: string;
@@ -90663,7 +91189,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Disparo de Alerta IoT. */
+        /** @description Un valor de entero único que identifique este Disparo de Alerta IoT. */
         id: number;
       };
     };
@@ -90683,7 +91209,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Disparo de Alerta IoT. */
+        /** @description Un valor de entero único que identifique este Disparo de Alerta IoT. */
         id: number;
       };
     };
@@ -90710,7 +91236,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Disparo de Alerta IoT. */
+        /** @description Un valor de entero único que identifique este Disparo de Alerta IoT. */
         id: number;
       };
     };
@@ -90728,7 +91254,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Disparo de Alerta IoT. */
+        /** @description Un valor de entero único que identifique este Disparo de Alerta IoT. */
         id: number;
       };
     };
@@ -90755,7 +91281,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Disparo de Alerta IoT. */
+        /** @description Un valor de entero único que identifique este Disparo de Alerta IoT. */
         id: number;
       };
     };
@@ -90804,9 +91330,9 @@ export interface operations {
       query?: {
         device?: number;
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         send_dga?: boolean;
         send_sma?: boolean;
@@ -90851,7 +91377,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuracion de Cumplimiento. */
+        /** @description Un valor de entero único que identifique este Configuracion de Cumplimiento. */
         id: number;
       };
     };
@@ -90871,7 +91397,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuracion de Cumplimiento. */
+        /** @description Un valor de entero único que identifique este Configuracion de Cumplimiento. */
         id: number;
       };
     };
@@ -90898,7 +91424,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuracion de Cumplimiento. */
+        /** @description Un valor de entero único que identifique este Configuracion de Cumplimiento. */
         id: number;
       };
     };
@@ -90916,7 +91442,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuracion de Cumplimiento. */
+        /** @description Un valor de entero único que identifique este Configuracion de Cumplimiento. */
         id: number;
       };
     };
@@ -90942,9 +91468,9 @@ export interface operations {
       query?: {
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         /**
          * @description * `HTTP_REST` - HTTP REST (JSON)
@@ -90994,7 +91520,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Proveedor de Cumplimiento. */
+        /** @description Un valor de entero único que identifique este Proveedor de Cumplimiento. */
         id: number;
       };
     };
@@ -91014,7 +91540,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Proveedor de Cumplimiento. */
+        /** @description Un valor de entero único que identifique este Proveedor de Cumplimiento. */
         id: number;
       };
     };
@@ -91041,7 +91567,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Proveedor de Cumplimiento. */
+        /** @description Un valor de entero único que identifique este Proveedor de Cumplimiento. */
         id: number;
       };
     };
@@ -91059,7 +91585,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Proveedor de Cumplimiento. */
+        /** @description Un valor de entero único que identifique este Proveedor de Cumplimiento. */
         id: number;
       };
     };
@@ -91085,9 +91611,9 @@ export interface operations {
       query?: {
         device?: number;
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -91130,7 +91656,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuracion de Dispositivo. */
+        /** @description Un valor de entero único que identifique este Configuracion de Dispositivo. */
         id: number;
       };
     };
@@ -91150,7 +91676,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuracion de Dispositivo. */
+        /** @description Un valor de entero único que identifique este Configuracion de Dispositivo. */
         id: number;
       };
     };
@@ -91177,7 +91703,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuracion de Dispositivo. */
+        /** @description Un valor de entero único que identifique este Configuracion de Dispositivo. */
         id: number;
       };
     };
@@ -91195,7 +91721,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuracion de Dispositivo. */
+        /** @description Un valor de entero único que identifique este Configuracion de Dispositivo. */
         id: number;
       };
     };
@@ -91232,14 +91758,14 @@ export interface operations {
         device_type?: "CUSTOM" | "FLOW" | "LEVEL" | "SURFACE" | "TANK" | "WEATHER" | "WELL";
         format?: "binary" | "json";
         is_online?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         project?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
         telemetry_provider?: number;
       };
@@ -91283,7 +91809,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Dispositivo IoT. */
+        /** @description Un valor de entero único que identifique este Dispositivo IoT. */
         id: number;
       };
     };
@@ -91303,7 +91829,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Dispositivo IoT. */
+        /** @description Un valor de entero único que identifique este Dispositivo IoT. */
         id: number;
       };
     };
@@ -91330,7 +91856,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Dispositivo IoT. */
+        /** @description Un valor de entero único que identifique este Dispositivo IoT. */
         id: number;
       };
     };
@@ -91348,7 +91874,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Dispositivo IoT. */
+        /** @description Un valor de entero único que identifique este Dispositivo IoT. */
         id: number;
       };
     };
@@ -91375,7 +91901,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Dispositivo IoT. */
+        /** @description Un valor de entero único que identifique este Dispositivo IoT. */
         id: number;
       };
     };
@@ -91395,7 +91921,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Dispositivo IoT. */
+        /** @description Un valor de entero único que identifique este Dispositivo IoT. */
         id: number;
       };
     };
@@ -91453,13 +91979,13 @@ export interface operations {
         /** @description Múltiples valores separados por comas. */
         event_type__in?: string[];
         format?: "binary" | "json";
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
         /**
          * @description * `INFO` - Informativo
@@ -91510,7 +92036,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Evento IoT. */
+        /** @description Un valor de entero único que identifique este Evento IoT. */
         id: number;
       };
     };
@@ -91530,7 +92056,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Evento IoT. */
+        /** @description Un valor de entero único que identifique este Evento IoT. */
         id: number;
       };
     };
@@ -91557,7 +92083,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Evento IoT. */
+        /** @description Un valor de entero único que identifique este Evento IoT. */
         id: number;
       };
     };
@@ -91575,7 +92101,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Evento IoT. */
+        /** @description Un valor de entero único que identifique este Evento IoT. */
         id: number;
       };
     };
@@ -91602,13 +92128,13 @@ export interface operations {
         branch?: number;
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
       };
     };
@@ -91651,7 +92177,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Proyecto de Telemetria. */
+        /** @description Un valor de entero único que identifique este Proyecto de Telemetria. */
         id: number;
       };
     };
@@ -91671,7 +92197,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Proyecto de Telemetria. */
+        /** @description Un valor de entero único que identifique este Proyecto de Telemetria. */
         id: number;
       };
     };
@@ -91698,7 +92224,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Proyecto de Telemetria. */
+        /** @description Un valor de entero único que identifique este Proyecto de Telemetria. */
         id: number;
       };
     };
@@ -91716,7 +92242,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Proyecto de Telemetria. */
+        /** @description Un valor de entero único que identifique este Proyecto de Telemetria. */
         id: number;
       };
     };
@@ -91751,9 +92277,9 @@ export interface operations {
          */
         handler_name?: "generic_json" | "tago" | "tdata" | "thethings";
         is_active?: boolean;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         /**
          * @description * `HTTP_REST` - HTTP REST (GET/POST JSON)
@@ -91804,7 +92330,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Proveedor de Telemetria. */
+        /** @description Un valor de entero único que identifique este Proveedor de Telemetria. */
         id: number;
       };
     };
@@ -91824,7 +92350,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Proveedor de Telemetria. */
+        /** @description Un valor de entero único que identifique este Proveedor de Telemetria. */
         id: number;
       };
     };
@@ -91851,7 +92377,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Proveedor de Telemetria. */
+        /** @description Un valor de entero único que identifique este Proveedor de Telemetria. */
         id: number;
       };
     };
@@ -91869,7 +92395,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Proveedor de Telemetria. */
+        /** @description Un valor de entero único que identifique este Proveedor de Telemetria. */
         id: number;
       };
     };
@@ -91898,11 +92424,11 @@ export interface operations {
         is_error?: boolean;
         is_online?: boolean;
         is_validated?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         send_dga?: boolean;
         variable?: number;
@@ -91947,7 +92473,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Lectura de Telemetria. */
+        /** @description Un valor de entero único que identifique este Lectura de Telemetria. */
         id: number;
       };
     };
@@ -91967,7 +92493,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Lectura de Telemetria. */
+        /** @description Un valor de entero único que identifique este Lectura de Telemetria. */
         id: number;
       };
     };
@@ -91994,7 +92520,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Lectura de Telemetria. */
+        /** @description Un valor de entero único que identifique este Lectura de Telemetria. */
         id: number;
       };
     };
@@ -92012,7 +92538,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Lectura de Telemetria. */
+        /** @description Un valor de entero único que identifique este Lectura de Telemetria. */
         id: number;
       };
     };
@@ -92079,13 +92605,13 @@ export interface operations {
         format?: "binary" | "json";
         is_counter?: boolean;
         is_visible?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
         /**
          * @description * `FLOW` - Caudal
@@ -92145,7 +92671,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Variable de Telemetria. */
+        /** @description Un valor de entero único que identifique este Variable de Telemetria. */
         id: number;
       };
     };
@@ -92165,7 +92691,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Variable de Telemetria. */
+        /** @description Un valor de entero único que identifique este Variable de Telemetria. */
         id: number;
       };
     };
@@ -92192,7 +92718,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Variable de Telemetria. */
+        /** @description Un valor de entero único que identifique este Variable de Telemetria. */
         id: number;
       };
     };
@@ -92210,7 +92736,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Variable de Telemetria. */
+        /** @description Un valor de entero único que identifique este Variable de Telemetria. */
         id: number;
       };
     };
@@ -92245,13 +92771,13 @@ export interface operations {
         delivery_order?: number;
         format?: "binary" | "json";
         order?: string;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
         /**
          * @description * `PENDING` - Pendiente
@@ -92320,7 +92846,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Item de Ruta. */
+        /** @description Un valor de entero único que identifique este Item de Ruta. */
         id: number;
       };
     };
@@ -92348,7 +92874,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Item de Ruta. */
+        /** @description Un valor de entero único que identifique este Item de Ruta. */
         id: number;
       };
     };
@@ -92383,7 +92909,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Item de Ruta. */
+        /** @description Un valor de entero único que identifique este Item de Ruta. */
         id: number;
       };
     };
@@ -92409,7 +92935,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Item de Ruta. */
+        /** @description Un valor de entero único que identifique este Item de Ruta. */
         id: number;
       };
     };
@@ -92436,7 +92962,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Item de Ruta. */
+        /** @description Un valor de entero único que identifique este Item de Ruta. */
         id: number;
       };
     };
@@ -92463,7 +92989,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Item de Ruta. */
+        /** @description Un valor de entero único que identifique este Item de Ruta. */
         id: number;
       };
     };
@@ -92504,14 +93030,14 @@ export interface operations {
         driver_profile?: number;
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         planned_date?: string;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
         /**
          * @description * `PENDING` - Pendiente
@@ -92591,7 +93117,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Ruta de Reparto. */
+        /** @description Un valor de entero único que identifique este Ruta de Reparto. */
         id: number;
       };
     };
@@ -92624,7 +93150,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Ruta de Reparto. */
+        /** @description Un valor de entero único que identifique este Ruta de Reparto. */
         id: number;
       };
     };
@@ -92664,7 +93190,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Ruta de Reparto. */
+        /** @description Un valor de entero único que identifique este Ruta de Reparto. */
         id: number;
       };
     };
@@ -92695,7 +93221,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Ruta de Reparto. */
+        /** @description Un valor de entero único que identifique este Ruta de Reparto. */
         id: number;
       };
     };
@@ -92722,7 +93248,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Ruta de Reparto. */
+        /** @description Un valor de entero único que identifique este Ruta de Reparto. */
         id: number;
       };
     };
@@ -92749,7 +93275,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Ruta de Reparto. */
+        /** @description Un valor de entero único que identifique este Ruta de Reparto. */
         id: number;
       };
     };
@@ -92776,7 +93302,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Ruta de Reparto. */
+        /** @description Un valor de entero único que identifique este Ruta de Reparto. */
         id: number;
       };
     };
@@ -92803,7 +93329,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Ruta de Reparto. */
+        /** @description Un valor de entero único que identifique este Ruta de Reparto. */
         id: number;
       };
     };
@@ -92909,13 +93435,13 @@ export interface operations {
         delivery_order?: number;
         driver_profile?: number;
         format?: "binary" | "json";
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
       };
     };
@@ -92976,7 +93502,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Ubicación de Conductor. */
+        /** @description Un valor de entero único que identifique este Ubicación de Conductor. */
         id: number;
       };
     };
@@ -93005,7 +93531,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Ubicación de Conductor. */
+        /** @description Un valor de entero único que identifique este Ubicación de Conductor. */
         id: number;
       };
     };
@@ -93041,7 +93567,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Ubicación de Conductor. */
+        /** @description Un valor de entero único que identifique este Ubicación de Conductor. */
         id: number;
       };
     };
@@ -93068,7 +93594,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Ubicación de Conductor. */
+        /** @description Un valor de entero único que identifique este Ubicación de Conductor. */
         id: number;
       };
     };
@@ -93166,9 +93692,9 @@ export interface operations {
         max_base_fee?: number;
         /** @description Tarifa base mínima */
         min_base_fee?: number;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         /** @description Filtrar por email del usuario */
         user_email?: string;
@@ -93217,7 +93743,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Perfil de Conductor. */
+        /** @description Un valor de entero único que identifique este Perfil de Conductor. */
         id: number;
       };
     };
@@ -93237,7 +93763,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Perfil de Conductor. */
+        /** @description Un valor de entero único que identifique este Perfil de Conductor. */
         id: number;
       };
     };
@@ -93264,7 +93790,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Perfil de Conductor. */
+        /** @description Un valor de entero único que identifique este Perfil de Conductor. */
         id: number;
       };
     };
@@ -93282,7 +93808,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Perfil de Conductor. */
+        /** @description Un valor de entero único que identifique este Perfil de Conductor. */
         id: number;
       };
     };
@@ -93309,7 +93835,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Perfil de Conductor. */
+        /** @description Un valor de entero único que identifique este Perfil de Conductor. */
         id: number;
       };
     };
@@ -93336,7 +93862,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Perfil de Conductor. */
+        /** @description Un valor de entero único que identifique este Perfil de Conductor. */
         id: number;
       };
     };
@@ -93356,7 +93882,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Perfil de Conductor. */
+        /** @description Un valor de entero único que identifique este Perfil de Conductor. */
         id: number;
       };
     };
@@ -93409,6 +93935,238 @@ export interface operations {
     };
   };
   /**
+   * Listar grupos de planes gestionables
+   * @description Lista los grupos de planes gestionables por el usuario autenticado.
+   *
+   * GET /api/plan-checkout/groups/
+   * Superuser/staff: todos los grupos (cualquier estado). Resto: grupos
+   * alcanzables vía sus Organizations con plan_group ligado.
+   */
+  plan_checkout_groups_list: {
+    parameters: {
+      query?: {
+        format?: "binary" | "json";
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["PlanGroupList"][];
+          "*/*": components["schemas"]["PlanGroupList"][];
+        };
+      };
+    };
+  };
+  /**
+   * Detalle de grupo de planes
+   * @description Detalle y edición de un grupo de planes.
+   *
+   * GET   /api/plan-checkout/groups/<name>/
+   * PATCH /api/plan-checkout/groups/<name>/
+   */
+  plan_checkout_groups_retrieve: {
+    parameters: {
+      query?: {
+        format?: "binary" | "json";
+      };
+      path: {
+        name: string;
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["PlanGroupDetail"];
+          "*/*": components["schemas"]["PlanGroupDetail"];
+        };
+      };
+      /** @description No response body */
+      403: {
+        content: never;
+      };
+      /** @description No response body */
+      404: {
+        content: never;
+      };
+    };
+  };
+  /**
+   * Actualizar grupo de planes
+   * @description Detalle y edición de un grupo de planes.
+   *
+   * GET   /api/plan-checkout/groups/<name>/
+   * PATCH /api/plan-checkout/groups/<name>/
+   */
+  plan_checkout_groups_partial_update: {
+    parameters: {
+      query?: {
+        format?: "binary" | "json";
+      };
+      path: {
+        name: string;
+      };
+    };
+    requestBody?: {
+      content: {
+        "application/json": components["schemas"]["PatchedPlanGroupUpdateRequest"];
+        "application/x-www-form-urlencoded": components["schemas"]["PatchedPlanGroupUpdateRequest"];
+        "multipart/form-data": components["schemas"]["PatchedPlanGroupUpdateRequest"];
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["PlanGroupDetail"];
+          "*/*": components["schemas"]["PlanGroupDetail"];
+        };
+      };
+      /** @description No response body */
+      400: {
+        content: never;
+      };
+      /** @description No response body */
+      403: {
+        content: never;
+      };
+      /** @description No response body */
+      404: {
+        content: never;
+      };
+    };
+  };
+  /**
+   * Crear plan de grupo
+   * @description Crea un plan dentro de un grupo de planes.
+   *
+   * POST /api/plan-checkout/groups/<name>/plans/
+   */
+  plan_checkout_groups_plans_create: {
+    parameters: {
+      query?: {
+        format?: "binary" | "json";
+      };
+      path: {
+        name: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["GroupPlanManageRequest"];
+        "application/x-www-form-urlencoded": components["schemas"]["GroupPlanManageRequest"];
+        "multipart/form-data": components["schemas"]["GroupPlanManageRequest"];
+      };
+    };
+    responses: {
+      201: {
+        content: {
+          "application/json": components["schemas"]["GroupPlanManage"];
+          "*/*": components["schemas"]["GroupPlanManage"];
+        };
+      };
+      /** @description No response body */
+      400: {
+        content: never;
+      };
+      /** @description No response body */
+      403: {
+        content: never;
+      };
+      /** @description No response body */
+      404: {
+        content: never;
+      };
+    };
+  };
+  /**
+   * Eliminar plan de grupo
+   * @description Actualiza o elimina un plan de grupo.
+   *
+   * PATCH: edición parcial (incl. is_active para dar de baja).
+   * DELETE: eliminación física; solo es posible si el plan nunca fue
+   * contratado (las contrataciones protegen el plan con FK PROTECT) — en ese
+   * caso responde 409 y la baja correcta es is_active=False.
+   *
+   * /api/plan-checkout/groups/<name>/plans/<pk>/
+   */
+  plan_checkout_groups_plans_destroy: {
+    parameters: {
+      query?: {
+        format?: "binary" | "json";
+      };
+      path: {
+        id: number;
+        name: string;
+      };
+    };
+    responses: {
+      /** @description No response body */
+      204: {
+        content: never;
+      };
+      /** @description No response body */
+      403: {
+        content: never;
+      };
+      /** @description No response body */
+      404: {
+        content: never;
+      };
+      /** @description No response body */
+      409: {
+        content: never;
+      };
+    };
+  };
+  /**
+   * Actualizar plan de grupo
+   * @description Actualiza o elimina un plan de grupo.
+   *
+   * PATCH: edición parcial (incl. is_active para dar de baja).
+   * DELETE: eliminación física; solo es posible si el plan nunca fue
+   * contratado (las contrataciones protegen el plan con FK PROTECT) — en ese
+   * caso responde 409 y la baja correcta es is_active=False.
+   *
+   * /api/plan-checkout/groups/<name>/plans/<pk>/
+   */
+  plan_checkout_groups_plans_partial_update: {
+    parameters: {
+      query?: {
+        format?: "binary" | "json";
+      };
+      path: {
+        id: number;
+        name: string;
+      };
+    };
+    requestBody?: {
+      content: {
+        "application/json": components["schemas"]["PatchedGroupPlanManageRequest"];
+        "application/x-www-form-urlencoded": components["schemas"]["PatchedGroupPlanManageRequest"];
+        "multipart/form-data": components["schemas"]["PatchedGroupPlanManageRequest"];
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["GroupPlanManage"];
+          "*/*": components["schemas"]["GroupPlanManage"];
+        };
+      };
+      /** @description No response body */
+      400: {
+        content: never;
+      };
+      /** @description No response body */
+      403: {
+        content: never;
+      };
+      /** @description No response body */
+      404: {
+        content: never;
+      };
+    };
+  };
+  /**
    * Listar items de producción
    * @description Mixin base para todos los ViewSets de negocio del ERP.
    *
@@ -93429,11 +94187,11 @@ export interface operations {
       query?: {
         batch?: string;
         format?: "binary" | "json";
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         product?: number;
         production_order?: string;
@@ -93508,7 +94266,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Item de Orden de Producción. */
+        /** @description Un Cadena UUID que identifique este Item de Orden de Producción. */
         id: string;
       };
     };
@@ -93543,7 +94301,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Item de Orden de Producción. */
+        /** @description Un Cadena UUID que identifique este Item de Orden de Producción. */
         id: string;
       };
     };
@@ -93585,7 +94343,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Item de Orden de Producción. */
+        /** @description Un Cadena UUID que identifique este Item de Orden de Producción. */
         id: string;
       };
     };
@@ -93617,7 +94375,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Item de Orden de Producción. */
+        /** @description Un Cadena UUID que identifique este Item de Orden de Producción. */
         id: string;
       };
     };
@@ -93658,16 +94416,16 @@ export interface operations {
       query?: {
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         recipe?: string;
         requested_by?: number;
         resulting_product?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
         /**
          * @description * `DRAFT` - Borrador
@@ -93749,7 +94507,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Orden de Producción. */
+        /** @description Un Cadena UUID que identifique este Orden de Producción. */
         id: string;
       };
     };
@@ -93784,7 +94542,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Orden de Producción. */
+        /** @description Un Cadena UUID que identifique este Orden de Producción. */
         id: string;
       };
     };
@@ -93826,7 +94584,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Orden de Producción. */
+        /** @description Un Cadena UUID que identifique este Orden de Producción. */
         id: string;
       };
     };
@@ -93858,7 +94616,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Orden de Producción. */
+        /** @description Un Cadena UUID que identifique este Orden de Producción. */
         id: string;
       };
     };
@@ -93888,7 +94646,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Orden de Producción. */
+        /** @description Un Cadena UUID que identifique este Orden de Producción. */
         id: string;
       };
     };
@@ -93918,7 +94676,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Orden de Producción. */
+        /** @description Un Cadena UUID que identifique este Orden de Producción. */
         id: string;
       };
     };
@@ -93948,7 +94706,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Orden de Producción. */
+        /** @description Un Cadena UUID que identifique este Orden de Producción. */
         id: string;
       };
     };
@@ -93971,7 +94729,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Orden de Producción. */
+        /** @description Un Cadena UUID que identifique este Orden de Producción. */
         id: string;
       };
     };
@@ -94001,7 +94759,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Orden de Producción. */
+        /** @description Un Cadena UUID que identifique este Orden de Producción. */
         id: string;
       };
     };
@@ -94034,11 +94792,11 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         product?: number;
         production_order?: string;
@@ -94113,7 +94871,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Merma de Producción. */
+        /** @description Un Cadena UUID que identifique este Merma de Producción. */
         id: string;
       };
     };
@@ -94148,7 +94906,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Merma de Producción. */
+        /** @description Un Cadena UUID que identifique este Merma de Producción. */
         id: string;
       };
     };
@@ -94190,7 +94948,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Merma de Producción. */
+        /** @description Un Cadena UUID que identifique este Merma de Producción. */
         id: string;
       };
     };
@@ -94222,7 +94980,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Merma de Producción. */
+        /** @description Un Cadena UUID que identifique este Merma de Producción. */
         id: string;
       };
     };
@@ -94251,9 +95009,9 @@ export interface operations {
         discount?: string;
         format?: "binary" | "json";
         order?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         user?: number;
       };
@@ -94274,7 +95032,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Uso de Descuento. */
+        /** @description Un valor de entero único que identifique este Uso de Descuento. */
         id: number;
       };
     };
@@ -94309,9 +95067,9 @@ export interface operations {
         is_first_time_only?: boolean;
         is_stackable?: boolean;
         name__icontains?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         start_date__gte?: string;
         start_date__lte?: string;
@@ -94363,7 +95121,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Descuento. */
+        /** @description Un Cadena UUID que identifique este Descuento. */
         id: string;
       };
     };
@@ -94383,7 +95141,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Descuento. */
+        /** @description Un Cadena UUID que identifique este Descuento. */
         id: string;
       };
     };
@@ -94410,7 +95168,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Descuento. */
+        /** @description Un Cadena UUID que identifique este Descuento. */
         id: string;
       };
     };
@@ -94428,7 +95186,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Descuento. */
+        /** @description Un Cadena UUID que identifique este Descuento. */
         id: string;
       };
     };
@@ -94458,7 +95216,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Descuento. */
+        /** @description Un Cadena UUID que identifique este Descuento. */
         id: string;
       };
     };
@@ -94663,9 +95421,9 @@ export interface operations {
          * * `PAGAR` - Ordenar y pagar
          */
         mode?: "ORDENAR" | "PAGAR" | "VITRINA";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         slug?: string;
         /**
@@ -94716,7 +95474,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Catálogo Público. */
+        /** @description Un valor de entero único que identifique este Catálogo Público. */
         id: number;
       };
     };
@@ -94736,7 +95494,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Catálogo Público. */
+        /** @description Un valor de entero único que identifique este Catálogo Público. */
         id: number;
       };
     };
@@ -94763,7 +95521,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Catálogo Público. */
+        /** @description Un valor de entero único que identifique este Catálogo Público. */
         id: number;
       };
     };
@@ -94781,7 +95539,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Catálogo Público. */
+        /** @description Un valor de entero único que identifique este Catálogo Público. */
         id: number;
       };
     };
@@ -94824,6 +95582,26 @@ export interface operations {
       };
     };
   };
+  /**
+   * @description Vista pública anónima para iniciar un pago Flow.cl de un producto.
+   * POST /api/public-catalog/public/<slug>/pay/
+   */
+  public_catalog_public_pay_create: {
+    parameters: {
+      query?: {
+        format?: "binary" | "json";
+      };
+      path: {
+        slug: string;
+      };
+    };
+    responses: {
+      /** @description No response body */
+      200: {
+        content: never;
+      };
+    };
+  };
   /** @description ViewSet para gestión de códigos QR del catálogo público. */
   public_catalog_qr_codes_list: {
     parameters: {
@@ -94831,9 +95609,9 @@ export interface operations {
         branch?: number;
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         product?: number;
       };
@@ -94877,7 +95655,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Código QR. */
+        /** @description Un valor de entero único que identifique este Código QR. */
         id: number;
       };
     };
@@ -94897,7 +95675,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Código QR. */
+        /** @description Un valor de entero único que identifique este Código QR. */
         id: number;
       };
     };
@@ -94924,7 +95702,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Código QR. */
+        /** @description Un valor de entero único que identifique este Código QR. */
         id: number;
       };
     };
@@ -94942,7 +95720,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Código QR. */
+        /** @description Un valor de entero único que identifique este Código QR. */
         id: number;
       };
     };
@@ -94972,7 +95750,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Código QR. */
+        /** @description Un valor de entero único que identifique este Código QR. */
         id: number;
       };
     };
@@ -94995,7 +95773,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Código QR. */
+        /** @description Un valor de entero único que identifique este Código QR. */
         id: number;
       };
     };
@@ -95025,7 +95803,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Código QR. */
+        /** @description Un valor de entero único que identifique este Código QR. */
         id: number;
       };
     };
@@ -95118,6 +95896,181 @@ export interface operations {
     };
   };
   /**
+   * Crear checkout de plan
+   * @description Crea una sesión de checkout de plan (público, sin auth).
+   *
+   * POST /api/public/<grupo>-checkout/
+   * Idempotente: mismo email + plan pendiente en 24h devuelve el mismo
+   * checkout_id. Throttle 5/min por IP.
+   */
+  public__checkout_create: {
+    parameters: {
+      query?: {
+        format?: "binary" | "json";
+      };
+      path: {
+        group_slug: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PlanCheckoutCreateRequest"];
+        "application/x-www-form-urlencoded": components["schemas"]["PlanCheckoutCreateRequest"];
+        "multipart/form-data": components["schemas"]["PlanCheckoutCreateRequest"];
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["PlanCheckoutResponse"];
+          "*/*": components["schemas"]["PlanCheckoutResponse"];
+        };
+      };
+      201: {
+        content: {
+          "application/json": components["schemas"]["PlanCheckoutResponse"];
+          "*/*": components["schemas"]["PlanCheckoutResponse"];
+        };
+      };
+      /** @description No response body */
+      400: {
+        content: never;
+      };
+      /** @description No response body */
+      409: {
+        content: never;
+      };
+      /** @description No response body */
+      429: {
+        content: never;
+      };
+    };
+  };
+  /**
+   * Estado de checkout de plan
+   * @description Estado de un checkout (polling del front).
+   *
+   * GET /api/public/<grupo>-checkout/{checkout_id}/
+   */
+  public__checkout_retrieve: {
+    parameters: {
+      query?: {
+        format?: "binary" | "json";
+      };
+      path: {
+        checkout_id: string;
+        group_slug: string;
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["PlanCheckoutStatusResponse"];
+          "*/*": components["schemas"]["PlanCheckoutStatusResponse"];
+        };
+      };
+      /** @description No response body */
+      404: {
+        content: never;
+      };
+    };
+  };
+  /**
+   * Catálogo público de planes
+   * @description Catálogo público de planes de un grupo (landing).
+   *
+   * GET /api/public/<grupo>-plans/
+   */
+  public__plans_retrieve: {
+    parameters: {
+      query?: {
+        format?: "binary" | "json";
+      };
+      path: {
+        group_slug: string;
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["PlanGroupPublic"];
+          "*/*": components["schemas"]["PlanGroupPublic"];
+        };
+      };
+      /** @description No response body */
+      404: {
+        content: never;
+      };
+    };
+  };
+  /**
+   * Canje de magic-link de acceso
+   * @description Canje del magic-link firmado enviado por correo post-pago.
+   *
+   * POST /api/public/plan-checkout/magic-login/
+   */
+  public_checkout_magic_login_create: {
+    parameters: {
+      query?: {
+        format?: "binary" | "json";
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PlanMagicLoginRequestRequest"];
+        "application/x-www-form-urlencoded": components["schemas"]["PlanMagicLoginRequestRequest"];
+        "multipart/form-data": components["schemas"]["PlanMagicLoginRequestRequest"];
+      };
+    };
+    responses: {
+      /** @description No response body */
+      200: {
+        content: never;
+      };
+      /** @description No response body */
+      400: {
+        content: never;
+      };
+      /** @description No response body */
+      404: {
+        content: never;
+      };
+      /** @description No response body */
+      429: {
+        content: never;
+      };
+    };
+  };
+  /**
+   * Config pública de landing (white-label)
+   * @description Config completa de la landing (white-label): grupo + brand + planes.
+   *
+   * GET /api/public/landing-config/?group=<slug> | ?slug=<login_slug> | Host
+   *
+   * Resolución: ?group > ?slug > Host (branch custom_domain > org custom_domain
+   * > subdominio > Origin). Sin resolución → 404 (el front usa su fallback).
+   * Throttle anónimo estándar (igual que el catálogo de planes).
+   */
+  public_landing_config_retrieve: {
+    parameters: {
+      query?: {
+        format?: "binary" | "json";
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["PublicLandingConfig"];
+          "*/*": components["schemas"]["PublicLandingConfig"];
+        };
+      };
+      /** @description No response body */
+      404: {
+        content: never;
+      };
+    };
+  };
+  /**
    * @description ViewSet para gestión de ingredientes de recetas.
    * Permite agregar, modificar y eliminar ingredientes de las recetas.
    */
@@ -95125,9 +96078,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         recipe?: string;
       };
@@ -95177,7 +96130,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Ingrediente de Receta. */
+        /** @description Un valor de entero único que identifique este Ingrediente de Receta. */
         id: number;
       };
     };
@@ -95200,7 +96153,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Ingrediente de Receta. */
+        /** @description Un valor de entero único que identifique este Ingrediente de Receta. */
         id: number;
       };
     };
@@ -95230,7 +96183,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Ingrediente de Receta. */
+        /** @description Un valor de entero único que identifique este Ingrediente de Receta. */
         id: number;
       };
     };
@@ -95251,7 +96204,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Ingrediente de Receta. */
+        /** @description Un valor de entero único que identifique este Ingrediente de Receta. */
         id: number;
       };
     };
@@ -95276,9 +96229,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -95321,7 +96274,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Auditoría Nutricional. */
+        /** @description Un valor de entero único que identifique este Auditoría Nutricional. */
         id: number;
       };
     };
@@ -95341,7 +96294,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Auditoría Nutricional. */
+        /** @description Un valor de entero único que identifique este Auditoría Nutricional. */
         id: number;
       };
     };
@@ -95368,7 +96321,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Auditoría Nutricional. */
+        /** @description Un valor de entero único que identifique este Auditoría Nutricional. */
         id: number;
       };
     };
@@ -95386,7 +96339,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Auditoría Nutricional. */
+        /** @description Un valor de entero único que identifique este Auditoría Nutricional. */
         id: number;
       };
     };
@@ -95425,9 +96378,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -95497,7 +96450,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Certificado Nutricional. */
+        /** @description Un valor de entero único que identifique este Certificado Nutricional. */
         id: number;
       };
     };
@@ -95531,7 +96484,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Certificado Nutricional. */
+        /** @description Un valor de entero único que identifique este Certificado Nutricional. */
         id: number;
       };
     };
@@ -95571,7 +96524,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Certificado Nutricional. */
+        /** @description Un valor de entero único que identifique este Certificado Nutricional. */
         id: number;
       };
     };
@@ -95603,7 +96556,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Certificado Nutricional. */
+        /** @description Un valor de entero único que identifique este Certificado Nutricional. */
         id: number;
       };
     };
@@ -95629,7 +96582,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Certificado Nutricional. */
+        /** @description Un valor de entero único que identifique este Certificado Nutricional. */
         id: number;
       };
     };
@@ -95655,7 +96608,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Certificado Nutricional. */
+        /** @description Un valor de entero único que identifique este Certificado Nutricional. */
         id: number;
       };
     };
@@ -95715,9 +96668,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -95768,7 +96721,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Receta. */
+        /** @description Un Cadena UUID que identifique este Receta. */
         id: string;
       };
     };
@@ -95792,7 +96745,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Receta. */
+        /** @description Un Cadena UUID que identifique este Receta. */
         id: string;
       };
     };
@@ -95823,7 +96776,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Receta. */
+        /** @description Un Cadena UUID que identifique este Receta. */
         id: string;
       };
     };
@@ -95845,7 +96798,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Receta. */
+        /** @description Un Cadena UUID que identifique este Receta. */
         id: string;
       };
     };
@@ -95872,7 +96825,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Receta. */
+        /** @description Un Cadena UUID que identifique este Receta. */
         id: string;
       };
     };
@@ -95892,7 +96845,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Receta. */
+        /** @description Un Cadena UUID que identifique este Receta. */
         id: string;
       };
     };
@@ -95912,7 +96865,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Receta. */
+        /** @description Un Cadena UUID que identifique este Receta. */
         id: string;
       };
     };
@@ -95942,7 +96895,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Receta. */
+        /** @description Un Cadena UUID que identifique este Receta. */
         id: string;
       };
     };
@@ -95962,7 +96915,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Receta. */
+        /** @description Un Cadena UUID que identifique este Receta. */
         id: string;
       };
     };
@@ -95982,7 +96935,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Receta. */
+        /** @description Un Cadena UUID que identifique este Receta. */
         id: string;
       };
     };
@@ -96002,7 +96955,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Receta. */
+        /** @description Un Cadena UUID que identifique este Receta. */
         id: string;
       };
     };
@@ -96022,7 +96975,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Receta. */
+        /** @description Un Cadena UUID que identifique este Receta. */
         id: string;
       };
     };
@@ -96049,7 +97002,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Receta. */
+        /** @description Un Cadena UUID que identifique este Receta. */
         id: string;
       };
     };
@@ -96076,7 +97029,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Receta. */
+        /** @description Un Cadena UUID que identifique este Receta. */
         id: string;
       };
     };
@@ -96103,7 +97056,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Receta. */
+        /** @description Un Cadena UUID que identifique este Receta. */
         id: string;
       };
     };
@@ -96207,9 +97160,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -96258,7 +97211,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Paso de Receta. */
+        /** @description Un valor de entero único que identifique este Paso de Receta. */
         id: number;
       };
     };
@@ -96281,7 +97234,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Paso de Receta. */
+        /** @description Un valor de entero único que identifique este Paso de Receta. */
         id: number;
       };
     };
@@ -96311,7 +97264,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Paso de Receta. */
+        /** @description Un valor de entero único que identifique este Paso de Receta. */
         id: number;
       };
     };
@@ -96332,7 +97285,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Paso de Receta. */
+        /** @description Un valor de entero único que identifique este Paso de Receta. */
         id: number;
       };
     };
@@ -96357,9 +97310,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -96402,7 +97355,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Variante de Receta. */
+        /** @description Un valor de entero único que identifique este Variante de Receta. */
         id: number;
       };
     };
@@ -96422,7 +97375,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Variante de Receta. */
+        /** @description Un valor de entero único que identifique este Variante de Receta. */
         id: number;
       };
     };
@@ -96449,7 +97402,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Variante de Receta. */
+        /** @description Un valor de entero único que identifique este Variante de Receta. */
         id: number;
       };
     };
@@ -96467,7 +97420,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Variante de Receta. */
+        /** @description Un valor de entero único que identifique este Variante de Receta. */
         id: number;
       };
     };
@@ -96561,9 +97514,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -96606,7 +97559,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Ítem de menú del día. */
+        /** @description Un valor de entero único que identifique este Ítem de menú del día. */
         id: number;
       };
     };
@@ -96626,7 +97579,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Ítem de menú del día. */
+        /** @description Un valor de entero único que identifique este Ítem de menú del día. */
         id: number;
       };
     };
@@ -96653,7 +97606,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Ítem de menú del día. */
+        /** @description Un valor de entero único que identifique este Ítem de menú del día. */
         id: number;
       };
     };
@@ -96671,7 +97624,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Ítem de menú del día. */
+        /** @description Un valor de entero único que identifique este Ítem de menú del día. */
         id: number;
       };
     };
@@ -96701,9 +97654,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -96756,7 +97709,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Menú del día. */
+        /** @description Un valor de entero único que identifique este Menú del día. */
         id: number;
       };
     };
@@ -96781,7 +97734,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Menú del día. */
+        /** @description Un valor de entero único que identifique este Menú del día. */
         id: number;
       };
     };
@@ -96813,7 +97766,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Menú del día. */
+        /** @description Un valor de entero único que identifique este Menú del día. */
         id: number;
       };
     };
@@ -96836,7 +97789,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Menú del día. */
+        /** @description Un valor de entero único que identifique este Menú del día. */
         id: number;
       };
     };
@@ -96863,7 +97816,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Menú del día. */
+        /** @description Un valor de entero único que identifique este Menú del día. */
         id: number;
       };
     };
@@ -96890,7 +97843,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Menú del día. */
+        /** @description Un valor de entero único que identifique este Menú del día. */
         id: number;
       };
     };
@@ -96920,7 +97873,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Order. */
+        /** @description Un Cadena UUID que identifique este Order. */
         id: string;
       };
     };
@@ -96955,7 +97908,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Order. */
+        /** @description Un Cadena UUID que identifique este Order. */
         id: string;
       };
     };
@@ -96984,7 +97937,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Order. */
+        /** @description Un Cadena UUID que identifique este Order. */
         id: string;
       };
     };
@@ -97082,9 +98035,9 @@ export interface operations {
         branch?: number;
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -97127,7 +98080,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Estación de cocina. */
+        /** @description Un valor de entero único que identifique este Estación de cocina. */
         id: number;
       };
     };
@@ -97147,7 +98100,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Estación de cocina. */
+        /** @description Un valor de entero único que identifique este Estación de cocina. */
         id: number;
       };
     };
@@ -97174,7 +98127,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Estación de cocina. */
+        /** @description Un valor de entero único que identifique este Estación de cocina. */
         id: number;
       };
     };
@@ -97192,7 +98145,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Estación de cocina. */
+        /** @description Un valor de entero único que identifique este Estación de cocina. */
         id: number;
       };
     };
@@ -97218,9 +98171,9 @@ export interface operations {
       query?: {
         format?: "binary" | "json";
         kitchen_ticket?: number;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         /**
          * @description * `PENDING` - Pendiente
@@ -97269,7 +98222,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Item de Comanda. */
+        /** @description Un valor de entero único que identifique este Item de Comanda. */
         id: number;
       };
     };
@@ -97289,7 +98242,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Item de Comanda. */
+        /** @description Un valor de entero único que identifique este Item de Comanda. */
         id: number;
       };
     };
@@ -97316,7 +98269,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Item de Comanda. */
+        /** @description Un valor de entero único que identifique este Item de Comanda. */
         id: number;
       };
     };
@@ -97334,7 +98287,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Item de Comanda. */
+        /** @description Un valor de entero único que identifique este Item de Comanda. */
         id: number;
       };
     };
@@ -97361,9 +98314,9 @@ export interface operations {
         branch?: number;
         format?: "binary" | "json";
         order?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         /**
          * @description * `PENDING` - Pendiente
@@ -97414,7 +98367,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Comanda. */
+        /** @description Un valor de entero único que identifique este Comanda. */
         id: number;
       };
     };
@@ -97434,7 +98387,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Comanda. */
+        /** @description Un valor de entero único que identifique este Comanda. */
         id: number;
       };
     };
@@ -97461,7 +98414,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Comanda. */
+        /** @description Un valor de entero único que identifique este Comanda. */
         id: number;
       };
     };
@@ -97479,7 +98432,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Comanda. */
+        /** @description Un valor de entero único que identifique este Comanda. */
         id: number;
       };
     };
@@ -97509,7 +98462,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Comanda. */
+        /** @description Un valor de entero único que identifique este Comanda. */
         id: number;
       };
     };
@@ -97539,7 +98492,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Comanda. */
+        /** @description Un valor de entero único que identifique este Comanda. */
         id: number;
       };
     };
@@ -97569,7 +98522,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Comanda. */
+        /** @description Un valor de entero único que identifique este Comanda. */
         id: number;
       };
     };
@@ -97599,7 +98552,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Comanda. */
+        /** @description Un valor de entero único que identifique este Comanda. */
         id: number;
       };
     };
@@ -97629,9 +98582,9 @@ export interface operations {
         format?: "binary" | "json";
         modifier_option?: number;
         order_product?: number;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -97680,7 +98633,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Modificador de Producto en Orden. */
+        /** @description Un valor de entero único que identifique este Modificador de Producto en Orden. */
         id: number;
       };
     };
@@ -97703,7 +98656,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Modificador de Producto en Orden. */
+        /** @description Un valor de entero único que identifique este Modificador de Producto en Orden. */
         id: number;
       };
     };
@@ -97733,7 +98686,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Modificador de Producto en Orden. */
+        /** @description Un valor de entero único que identifique este Modificador de Producto en Orden. */
         id: number;
       };
     };
@@ -97751,7 +98704,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Modificador de Producto en Orden. */
+        /** @description Un valor de entero único que identifique este Modificador de Producto en Orden. */
         id: number;
       };
     };
@@ -97780,9 +98733,9 @@ export interface operations {
         order?: string;
         /** @description Múltiples valores separados por comas. */
         order__in?: string[];
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         product?: number;
         /** @description Múltiples valores separados por comas. */
@@ -97828,7 +98781,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Order Product. */
+        /** @description Un valor de entero único que identifique este Order Product. */
         id: number;
       };
     };
@@ -97848,7 +98801,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Order Product. */
+        /** @description Un valor de entero único que identifique este Order Product. */
         id: number;
       };
     };
@@ -97875,7 +98828,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Order Product. */
+        /** @description Un valor de entero único que identifique este Order Product. */
         id: number;
       };
     };
@@ -97893,7 +98846,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Order Product. */
+        /** @description Un valor de entero único que identifique este Order Product. */
         id: number;
       };
     };
@@ -97939,9 +98892,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -97984,7 +98937,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Order Resource. */
+        /** @description Un valor de entero único que identifique este Order Resource. */
         id: number;
       };
     };
@@ -98004,7 +98957,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Order Resource. */
+        /** @description Un valor de entero único que identifique este Order Resource. */
         id: number;
       };
     };
@@ -98031,7 +98984,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Order Resource. */
+        /** @description Un valor de entero único que identifique este Order Resource. */
         id: number;
       };
     };
@@ -98049,7 +99002,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Order Resource. */
+        /** @description Un valor de entero único que identifique este Order Resource. */
         id: number;
       };
     };
@@ -98074,9 +99027,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -98119,7 +99072,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Ítem de división. */
+        /** @description Un valor de entero único que identifique este Ítem de división. */
         id: number;
       };
     };
@@ -98139,7 +99092,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Ítem de división. */
+        /** @description Un valor de entero único que identifique este Ítem de división. */
         id: number;
       };
     };
@@ -98166,7 +99119,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Ítem de división. */
+        /** @description Un valor de entero único que identifique este Ítem de división. */
         id: number;
       };
     };
@@ -98184,7 +99137,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Ítem de división. */
+        /** @description Un valor de entero único que identifique este Ítem de división. */
         id: number;
       };
     };
@@ -98214,9 +99167,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -98269,7 +99222,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this División de cuenta. */
+        /** @description Un valor de entero único que identifique este División de cuenta. */
         id: number;
       };
     };
@@ -98294,7 +99247,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this División de cuenta. */
+        /** @description Un valor de entero único que identifique este División de cuenta. */
         id: number;
       };
     };
@@ -98326,7 +99279,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this División de cuenta. */
+        /** @description Un valor de entero único que identifique este División de cuenta. */
         id: number;
       };
     };
@@ -98349,7 +99302,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this División de cuenta. */
+        /** @description Un valor de entero único que identifique este División de cuenta. */
         id: number;
       };
     };
@@ -98376,7 +99329,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this División de cuenta. */
+        /** @description Un valor de entero único que identifique este División de cuenta. */
         id: number;
       };
     };
@@ -98403,7 +99356,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this División de cuenta. */
+        /** @description Un valor de entero único que identifique este División de cuenta. */
         id: number;
       };
     };
@@ -98462,11 +99415,11 @@ export interface operations {
         order_type?: "AGREEMENT" | "ORDER" | "SALE";
         /** @description Múltiples valores separados por comas. */
         order_type__in?: string[];
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         /**
          * @description * `PENDING` - Pending
@@ -98478,7 +99431,7 @@ export interface operations {
         payment_status?: "INVOICED" | "PAID" | "PARTIAL" | "PENDING" | "REFUNDED";
         /** @description Múltiples valores separados por comas. */
         payment_status__in?: string[];
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
         start_date?: string;
         /**
@@ -98544,7 +99497,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Order. */
+        /** @description Un Cadena UUID que identifique este Order. */
         id: string;
       };
     };
@@ -98564,7 +99517,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Order. */
+        /** @description Un Cadena UUID que identifique este Order. */
         id: string;
       };
     };
@@ -98595,7 +99548,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Order. */
+        /** @description Un Cadena UUID que identifique este Order. */
         id: string;
       };
     };
@@ -98617,7 +99570,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Order. */
+        /** @description Un Cadena UUID que identifique este Order. */
         id: string;
       };
     };
@@ -98647,7 +99600,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Order. */
+        /** @description Un Cadena UUID que identifique este Order. */
         id: string;
       };
     };
@@ -98678,7 +99631,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Order. */
+        /** @description Un Cadena UUID que identifique este Order. */
         id: string;
       };
     };
@@ -98737,11 +99690,11 @@ export interface operations {
         order_type?: "AGREEMENT" | "ORDER" | "SALE";
         /** @description Múltiples valores separados por comas. */
         order_type__in?: string[];
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         /**
          * @description * `PENDING` - Pending
@@ -98753,7 +99706,7 @@ export interface operations {
         payment_status?: "INVOICED" | "PAID" | "PARTIAL" | "PENDING" | "REFUNDED";
         /** @description Múltiples valores separados por comas. */
         payment_status__in?: string[];
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
         start_date?: string;
         /**
@@ -98772,7 +99725,7 @@ export interface operations {
         status__in?: string[];
       };
       path: {
-        /** @description A UUID string identifying this Order. */
+        /** @description Un Cadena UUID que identifique este Order. */
         id: string;
       };
     };
@@ -98802,7 +99755,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Order. */
+        /** @description Un Cadena UUID que identifique este Order. */
         id: string;
       };
     };
@@ -98838,7 +99791,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Order. */
+        /** @description Un Cadena UUID que identifique este Order. */
         id: string;
       };
     };
@@ -98868,7 +99821,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Order. */
+        /** @description Un Cadena UUID que identifique este Order. */
         id: string;
       };
     };
@@ -98897,7 +99850,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Order. */
+        /** @description Un Cadena UUID que identifique este Order. */
         id: string;
       };
     };
@@ -98926,7 +99879,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Order. */
+        /** @description Un Cadena UUID que identifique este Order. */
         id: string;
       };
     };
@@ -98983,11 +99936,11 @@ export interface operations {
         order_type?: "AGREEMENT" | "ORDER" | "SALE";
         /** @description Múltiples valores separados por comas. */
         order_type__in?: string[];
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         /**
          * @description * `PENDING` - Pending
@@ -98999,7 +99952,7 @@ export interface operations {
         payment_status?: "INVOICED" | "PAID" | "PARTIAL" | "PENDING" | "REFUNDED";
         /** @description Múltiples valores separados por comas. */
         payment_status__in?: string[];
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
         start_date?: string;
         /**
@@ -99018,7 +99971,7 @@ export interface operations {
         status__in?: string[];
       };
       path: {
-        /** @description A UUID string identifying this Order. */
+        /** @description Un Cadena UUID que identifique este Order. */
         id: string;
       };
     };
@@ -99041,7 +99994,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Order. */
+        /** @description Un Cadena UUID que identifique este Order. */
         id: string;
         installment_id: string;
       };
@@ -99072,7 +100025,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Order. */
+        /** @description Un Cadena UUID que identifique este Order. */
         id: string;
       };
     };
@@ -99096,7 +100049,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Order. */
+        /** @description Un Cadena UUID que identifique este Order. */
         id: string;
       };
     };
@@ -99126,7 +100079,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Order. */
+        /** @description Un Cadena UUID que identifique este Order. */
         id: string;
       };
     };
@@ -99164,7 +100117,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Order. */
+        /** @description Un Cadena UUID que identifique este Order. */
         id: string;
       };
     };
@@ -99508,15 +100461,15 @@ export interface operations {
         order_type?: "AGREEMENT" | "ORDER" | "SALE";
         /** @description Múltiples valores separados por comas. */
         order_type__in?: string[];
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         /** @description Múltiples valores separados por comas. */
         processed_by__in?: number[];
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
         start_date?: string;
         /**
@@ -99580,7 +100533,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Order. */
+        /** @description Un Cadena UUID que identifique este Order. */
         id: string;
       };
     };
@@ -99603,7 +100556,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Order. */
+        /** @description Un Cadena UUID que identifique este Order. */
         id: string;
       };
     };
@@ -99633,7 +100586,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Order. */
+        /** @description Un Cadena UUID que identifique este Order. */
         id: string;
       };
     };
@@ -99654,7 +100607,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Order. */
+        /** @description Un Cadena UUID que identifique este Order. */
         id: string;
       };
     };
@@ -99684,7 +100637,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Order. */
+        /** @description Un Cadena UUID que identifique este Order. */
         id: string;
       };
     };
@@ -99700,6 +100653,35 @@ export interface operations {
         content: {
           "application/json": components["schemas"]["Order"];
           "*/*": components["schemas"]["Order"];
+        };
+      };
+    };
+  };
+  /**
+   * Generar PDF de cotización (A4)
+   * @description Genera un PDF de la cotización en formato A4, con ítems y desglose de totales. Disponible en cualquier estado (incluida PENDIENTE).
+   */
+  sales_quotations_generate_pdf_retrieve: {
+    parameters: {
+      query?: {
+        format?: "binary" | "json";
+      };
+      path: {
+        /** @description Un Cadena UUID que identifique este Order. */
+        id: string;
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": string;
+          "*/*": string;
+        };
+      };
+      404: {
+        content: {
+          "application/json": Record<string, never>;
+          "*/*": Record<string, never>;
         };
       };
     };
@@ -99749,9 +100731,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -99804,7 +100786,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Propina. */
+        /** @description Un valor de entero único que identifique este Propina. */
         id: number;
       };
     };
@@ -99829,7 +100811,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Propina. */
+        /** @description Un valor de entero único que identifique este Propina. */
         id: number;
       };
     };
@@ -99861,7 +100843,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Propina. */
+        /** @description Un valor de entero único que identifique este Propina. */
         id: number;
       };
     };
@@ -99884,7 +100866,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Propina. */
+        /** @description Un valor de entero único que identifique este Propina. */
         id: number;
       };
     };
@@ -99925,9 +100907,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -99970,7 +100952,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Reserva. */
+        /** @description Un Cadena UUID que identifique este Reserva. */
         id: string;
       };
     };
@@ -99990,7 +100972,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Reserva. */
+        /** @description Un Cadena UUID que identifique este Reserva. */
         id: string;
       };
     };
@@ -100017,7 +100999,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Reserva. */
+        /** @description Un Cadena UUID que identifique este Reserva. */
         id: string;
       };
     };
@@ -100035,7 +101017,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Reserva. */
+        /** @description Un Cadena UUID que identifique este Reserva. */
         id: string;
       };
     };
@@ -100062,7 +101044,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Reserva. */
+        /** @description Un Cadena UUID que identifique este Reserva. */
         id: string;
       };
     };
@@ -100156,13 +101138,13 @@ export interface operations {
         format?: "binary" | "json";
         is_active?: boolean;
         is_public?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
         /**
          * @description * `LOCAL` - Solo Local
@@ -100236,7 +101218,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Evento de Sucursal. */
+        /** @description Un valor de entero único que identifique este Evento de Sucursal. */
         id: number;
       };
     };
@@ -100268,7 +101250,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Evento de Sucursal. */
+        /** @description Un valor de entero único que identifique este Evento de Sucursal. */
         id: number;
       };
     };
@@ -100307,7 +101289,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Evento de Sucursal. */
+        /** @description Un valor de entero único que identifique este Evento de Sucursal. */
         id: number;
       };
     };
@@ -100337,7 +101319,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Evento de Sucursal. */
+        /** @description Un valor de entero único que identifique este Evento de Sucursal. */
         id: number;
       };
     };
@@ -100364,7 +101346,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Evento de Sucursal. */
+        /** @description Un valor de entero único que identifique este Evento de Sucursal. */
         id: number;
       };
     };
@@ -100391,7 +101373,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Evento de Sucursal. */
+        /** @description Un valor de entero único que identifique este Evento de Sucursal. */
         id: number;
       };
     };
@@ -100464,9 +101446,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -100509,7 +101491,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Calendario. */
+        /** @description Un valor de entero único que identifique este Calendario. */
         id: number;
       };
     };
@@ -100529,7 +101511,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Calendario. */
+        /** @description Un valor de entero único que identifique este Calendario. */
         id: number;
       };
     };
@@ -100556,7 +101538,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Calendario. */
+        /** @description Un valor de entero único que identifique este Calendario. */
         id: number;
       };
     };
@@ -100574,7 +101556,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Calendario. */
+        /** @description Un valor de entero único que identifique este Calendario. */
         id: number;
       };
     };
@@ -100601,7 +101583,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Calendario. */
+        /** @description Un valor de entero único que identifique este Calendario. */
         id: number;
       };
     };
@@ -100621,7 +101603,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Calendario. */
+        /** @description Un valor de entero único que identifique este Calendario. */
         id: number;
       };
     };
@@ -100641,7 +101623,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Calendario. */
+        /** @description Un valor de entero único que identifique este Calendario. */
         id: number;
       };
     };
@@ -100668,7 +101650,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Calendario. */
+        /** @description Un valor de entero único que identifique este Calendario. */
         id: number;
       };
     };
@@ -100688,7 +101670,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Calendario. */
+        /** @description Un valor de entero único que identifique este Calendario. */
         id: number;
       };
     };
@@ -100737,9 +101719,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -100782,7 +101764,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Excepción de Calendario. */
+        /** @description Un valor de entero único que identifique este Excepción de Calendario. */
         id: number;
       };
     };
@@ -100802,7 +101784,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Excepción de Calendario. */
+        /** @description Un valor de entero único que identifique este Excepción de Calendario. */
         id: number;
       };
     };
@@ -100829,7 +101811,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Excepción de Calendario. */
+        /** @description Un valor de entero único que identifique este Excepción de Calendario. */
         id: number;
       };
     };
@@ -100847,7 +101829,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Excepción de Calendario. */
+        /** @description Un valor de entero único que identifique este Excepción de Calendario. */
         id: number;
       };
     };
@@ -100872,9 +101854,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -100917,7 +101899,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración Google Calendar. */
+        /** @description Un valor de entero único que identifique este Configuración Google Calendar. */
         id: number;
       };
     };
@@ -100937,7 +101919,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración Google Calendar. */
+        /** @description Un valor de entero único que identifique este Configuración Google Calendar. */
         id: number;
       };
     };
@@ -100964,7 +101946,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración Google Calendar. */
+        /** @description Un valor de entero único que identifique este Configuración Google Calendar. */
         id: number;
       };
     };
@@ -100982,7 +101964,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración Google Calendar. */
+        /** @description Un valor de entero único que identifique este Configuración Google Calendar. */
         id: number;
       };
     };
@@ -101009,7 +101991,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración Google Calendar. */
+        /** @description Un valor de entero único que identifique este Configuración Google Calendar. */
         id: number;
       };
     };
@@ -101036,7 +102018,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración Google Calendar. */
+        /** @description Un valor de entero único que identifique este Configuración Google Calendar. */
         id: number;
       };
     };
@@ -101056,7 +102038,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración Google Calendar. */
+        /** @description Un valor de entero único que identifique este Configuración Google Calendar. */
         id: number;
       };
     };
@@ -101083,7 +102065,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración Google Calendar. */
+        /** @description Un valor de entero único que identifique este Configuración Google Calendar. */
         id: number;
       };
     };
@@ -101108,9 +102090,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -101153,7 +102135,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Reunión. */
+        /** @description Un Cadena UUID que identifique este Reunión. */
         id: string;
       };
     };
@@ -101173,7 +102155,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Reunión. */
+        /** @description Un Cadena UUID que identifique este Reunión. */
         id: string;
       };
     };
@@ -101200,7 +102182,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Reunión. */
+        /** @description Un Cadena UUID que identifique este Reunión. */
         id: string;
       };
     };
@@ -101218,7 +102200,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Reunión. */
+        /** @description Un Cadena UUID que identifique este Reunión. */
         id: string;
       };
     };
@@ -101245,7 +102227,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Reunión. */
+        /** @description Un Cadena UUID que identifique este Reunión. */
         id: string;
       };
     };
@@ -101318,9 +102300,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -101363,7 +102345,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Recurso de Calendario. */
+        /** @description Un valor de entero único que identifique este Recurso de Calendario. */
         id: number;
       };
     };
@@ -101383,7 +102365,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Recurso de Calendario. */
+        /** @description Un valor de entero único que identifique este Recurso de Calendario. */
         id: number;
       };
     };
@@ -101410,7 +102392,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Recurso de Calendario. */
+        /** @description Un valor de entero único que identifique este Recurso de Calendario. */
         id: number;
       };
     };
@@ -101428,7 +102410,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Recurso de Calendario. */
+        /** @description Un valor de entero único que identifique este Recurso de Calendario. */
         id: number;
       };
     };
@@ -101455,7 +102437,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Recurso de Calendario. */
+        /** @description Un valor de entero único que identifique este Recurso de Calendario. */
         id: number;
       };
     };
@@ -101473,9 +102455,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -101518,7 +102500,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Horario de Calendario. */
+        /** @description Un valor de entero único que identifique este Horario de Calendario. */
         id: number;
       };
     };
@@ -101538,7 +102520,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Horario de Calendario. */
+        /** @description Un valor de entero único que identifique este Horario de Calendario. */
         id: number;
       };
     };
@@ -101565,7 +102547,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Horario de Calendario. */
+        /** @description Un valor de entero único que identifique este Horario de Calendario. */
         id: number;
       };
     };
@@ -101583,7 +102565,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Horario de Calendario. */
+        /** @description Un valor de entero único que identifique este Horario de Calendario. */
         id: number;
       };
     };
@@ -101608,9 +102590,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -101653,7 +102635,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Tarea Interna. */
+        /** @description Un Cadena UUID que identifique este Tarea Interna. */
         id: string;
       };
     };
@@ -101673,7 +102655,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Tarea Interna. */
+        /** @description Un Cadena UUID que identifique este Tarea Interna. */
         id: string;
       };
     };
@@ -101700,7 +102682,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Tarea Interna. */
+        /** @description Un Cadena UUID que identifique este Tarea Interna. */
         id: string;
       };
     };
@@ -101718,7 +102700,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Tarea Interna. */
+        /** @description Un Cadena UUID que identifique este Tarea Interna. */
         id: string;
       };
     };
@@ -101745,7 +102727,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Tarea Interna. */
+        /** @description Un Cadena UUID que identifique este Tarea Interna. */
         id: string;
       };
     };
@@ -101960,9 +102942,9 @@ export interface operations {
         end_date__gte?: string;
         end_date__lte?: string;
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         service?: string;
         start_date__gte?: string;
@@ -102018,7 +103000,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Contrato. */
+        /** @description Un Cadena UUID que identifique este Contrato. */
         id: string;
       };
     };
@@ -102038,7 +103020,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Contrato. */
+        /** @description Un Cadena UUID que identifique este Contrato. */
         id: string;
       };
     };
@@ -102065,7 +103047,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Contrato. */
+        /** @description Un Cadena UUID que identifique este Contrato. */
         id: string;
       };
     };
@@ -102083,7 +103065,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Contrato. */
+        /** @description Un Cadena UUID que identifique este Contrato. */
         id: string;
       };
     };
@@ -102113,7 +103095,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Contrato. */
+        /** @description Un Cadena UUID que identifique este Contrato. */
         id: string;
       };
     };
@@ -102140,7 +103122,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Contrato. */
+        /** @description Un Cadena UUID que identifique este Contrato. */
         id: string;
       };
     };
@@ -102170,7 +103152,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Contrato. */
+        /** @description Un Cadena UUID que identifique este Contrato. */
         id: string;
       };
     };
@@ -102197,7 +103179,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Contrato. */
+        /** @description Un Cadena UUID que identifique este Contrato. */
         id: string;
       };
     };
@@ -102227,7 +103209,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Contrato. */
+        /** @description Un Cadena UUID que identifique este Contrato. */
         id: string;
       };
     };
@@ -102254,7 +103236,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Contrato. */
+        /** @description Un Cadena UUID que identifique este Contrato. */
         id: string;
       };
     };
@@ -102281,7 +103263,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Contrato. */
+        /** @description Un Cadena UUID que identifique este Contrato. */
         id: string;
       };
     };
@@ -102308,7 +103290,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Contrato. */
+        /** @description Un Cadena UUID que identifique este Contrato. */
         id: string;
       };
     };
@@ -102387,9 +103369,9 @@ export interface operations {
          */
         membership_type?: "BASIC" | "CUSTOM" | "ENTERPRISE" | "PREMIUM" | "SENIOR" | "STUDENT" | "VIP";
         name__icontains?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         service?: string;
         start_date__gte?: string;
@@ -102444,7 +103426,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Membresía. */
+        /** @description Un Cadena UUID que identifique este Membresía. */
         id: string;
       };
     };
@@ -102464,7 +103446,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Membresía. */
+        /** @description Un Cadena UUID que identifique este Membresía. */
         id: string;
       };
     };
@@ -102491,7 +103473,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Membresía. */
+        /** @description Un Cadena UUID que identifique este Membresía. */
         id: string;
       };
     };
@@ -102509,7 +103491,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Membresía. */
+        /** @description Un Cadena UUID que identifique este Membresía. */
         id: string;
       };
     };
@@ -102539,7 +103521,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Membresía. */
+        /** @description Un Cadena UUID que identifique este Membresía. */
         id: string;
       };
     };
@@ -102618,9 +103600,9 @@ export interface operations {
         format?: "binary" | "json";
         is_active?: boolean;
         name__icontains?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -102663,7 +103645,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Categoría de Servicio. */
+        /** @description Un Cadena UUID que identifique este Categoría de Servicio. */
         id: string;
       };
     };
@@ -102683,7 +103665,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Categoría de Servicio. */
+        /** @description Un Cadena UUID que identifique este Categoría de Servicio. */
         id: string;
       };
     };
@@ -102710,7 +103692,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Categoría de Servicio. */
+        /** @description Un Cadena UUID que identifique este Categoría de Servicio. */
         id: string;
       };
     };
@@ -102728,7 +103710,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Categoría de Servicio. */
+        /** @description Un Cadena UUID que identifique este Categoría de Servicio. */
         id: string;
       };
     };
@@ -102767,9 +103749,9 @@ export interface operations {
         is_active?: boolean;
         is_featured?: boolean;
         name__icontains?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         /**
          * @description * `ONE_TIME` - Una vez
@@ -102821,7 +103803,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Servicio. */
+        /** @description Un Cadena UUID que identifique este Servicio. */
         id: string;
       };
     };
@@ -102841,7 +103823,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Servicio. */
+        /** @description Un Cadena UUID que identifique este Servicio. */
         id: string;
       };
     };
@@ -102868,7 +103850,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Servicio. */
+        /** @description Un Cadena UUID que identifique este Servicio. */
         id: string;
       };
     };
@@ -102886,7 +103868,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Servicio. */
+        /** @description Un Cadena UUID que identifique este Servicio. */
         id: string;
       };
     };
@@ -102991,9 +103973,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -103013,7 +103995,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Backup del Sistema. */
+        /** @description Un valor de entero único que identifique este Backup del Sistema. */
         id: number;
       };
     };
@@ -103033,7 +104015,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Backup del Sistema. */
+        /** @description Un valor de entero único que identifique este Backup del Sistema. */
         id: number;
       };
     };
@@ -103070,9 +104052,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -103095,7 +104077,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Giro Comercial. */
+        /** @description Un valor de entero único que identifique este Giro Comercial. */
         id: number;
       };
     };
@@ -103132,9 +104114,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -103191,7 +104173,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración Global. */
+        /** @description Un valor de entero único que identifique este Configuración Global. */
         id: number;
       };
     };
@@ -103214,7 +104196,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración Global. */
+        /** @description Un valor de entero único que identifique este Configuración Global. */
         id: number;
       };
     };
@@ -103244,7 +104226,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración Global. */
+        /** @description Un valor de entero único que identifique este Configuración Global. */
         id: number;
       };
     };
@@ -103539,9 +104521,9 @@ export interface operations {
         config_type?: string;
         created?: string;
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -103564,7 +104546,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Log de Auditoría Global. */
+        /** @description Un valor de entero único que identifique este Log de Auditoría Global. */
         id: number;
       };
     };
@@ -103609,7 +104591,7 @@ export interface operations {
       };
     };
   };
-  /** @description Health check endpoint extendido. */
+  /** @description Health check endpoint: estado de servicios + marcador de deploy. */
   shared_health_retrieve: {
     parameters: {
       query?: {
@@ -103642,9 +104624,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -103715,7 +104697,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración de Módulo. */
+        /** @description Un valor de entero único que identifique este Configuración de Módulo. */
         id: number;
       };
     };
@@ -103749,7 +104731,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración de Módulo. */
+        /** @description Un valor de entero único que identifique este Configuración de Módulo. */
         id: number;
       };
     };
@@ -103790,7 +104772,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración de Módulo. */
+        /** @description Un valor de entero único que identifique este Configuración de Módulo. */
         id: number;
       };
     };
@@ -103822,7 +104804,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración de Módulo. */
+        /** @description Un valor de entero único que identifique este Configuración de Módulo. */
         id: number;
       };
     };
@@ -103864,9 +104846,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -103915,7 +104897,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Plan de Módulos. */
+        /** @description Un valor de entero único que identifique este Plan de Módulos. */
         id: number;
       };
     };
@@ -103938,7 +104920,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Plan de Módulos. */
+        /** @description Un valor de entero único que identifique este Plan de Módulos. */
         id: number;
       };
     };
@@ -103968,7 +104950,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Plan de Módulos. */
+        /** @description Un valor de entero único que identifique este Plan de Módulos. */
         id: number;
       };
     };
@@ -103989,7 +104971,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Plan de Módulos. */
+        /** @description Un valor de entero único que identifique este Plan de Módulos. */
         id: number;
       };
     };
@@ -104021,7 +105003,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Plan de Módulos. */
+        /** @description Un valor de entero único que identifique este Plan de Módulos. */
         id: number;
       };
     };
@@ -104046,9 +105028,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -104091,7 +105073,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Notificación Global. */
+        /** @description Un valor de entero único que identifique este Notificación Global. */
         id: number;
       };
     };
@@ -104111,7 +105093,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Notificación Global. */
+        /** @description Un valor de entero único que identifique este Notificación Global. */
         id: number;
       };
     };
@@ -104138,7 +105120,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Notificación Global. */
+        /** @description Un valor de entero único que identifique este Notificación Global. */
         id: number;
       };
     };
@@ -104156,7 +105138,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Notificación Global. */
+        /** @description Un valor de entero único que identifique este Notificación Global. */
         id: number;
       };
     };
@@ -104197,9 +105179,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -104242,7 +105224,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Suscripción. */
+        /** @description Un valor de entero único que identifique este Suscripción. */
         id: number;
       };
     };
@@ -104262,7 +105244,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Suscripción. */
+        /** @description Un valor de entero único que identifique este Suscripción. */
         id: number;
       };
     };
@@ -104289,7 +105271,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Suscripción. */
+        /** @description Un valor de entero único que identifique este Suscripción. */
         id: number;
       };
     };
@@ -104307,7 +105289,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Suscripción. */
+        /** @description Un valor de entero único que identifique este Suscripción. */
         id: number;
       };
     };
@@ -104353,9 +105335,9 @@ export interface operations {
          * * `water_management` - Gestión Hídrica
          */
         module_name?: "clients" | "config" | "dashboard" | "finance" | "inventory" | "logistics" | "measurements" | "promotions" | "sales" | "services" | "suppliers" | "water_management";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -104412,7 +105394,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración de Módulo. */
+        /** @description Un valor de entero único que identifique este Configuración de Módulo. */
         id: number;
       };
     };
@@ -104439,7 +105421,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración de Módulo. */
+        /** @description Un valor de entero único que identifique este Configuración de Módulo. */
         id: number;
       };
     };
@@ -104473,7 +105455,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración de Módulo. */
+        /** @description Un valor de entero único que identifique este Configuración de Módulo. */
         id: number;
       };
     };
@@ -104498,7 +105480,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración de Módulo. */
+        /** @description Un valor de entero único que identifique este Configuración de Módulo. */
         id: number;
       };
     };
@@ -104525,7 +105507,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración de Módulo. */
+        /** @description Un valor de entero único que identifique este Configuración de Módulo. */
         id: number;
       };
     };
@@ -104627,9 +105609,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -104672,7 +105654,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Item de Orden de Compra. */
+        /** @description Un valor de entero único que identifique este Item de Orden de Compra. */
         id: number;
       };
     };
@@ -104692,7 +105674,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Item de Orden de Compra. */
+        /** @description Un valor de entero único que identifique este Item de Orden de Compra. */
         id: number;
       };
     };
@@ -104719,7 +105701,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Item de Orden de Compra. */
+        /** @description Un valor de entero único que identifique este Item de Orden de Compra. */
         id: number;
       };
     };
@@ -104737,7 +105719,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Item de Orden de Compra. */
+        /** @description Un valor de entero único que identifique este Item de Orden de Compra. */
         id: number;
       };
     };
@@ -104764,7 +105746,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Item de Orden de Compra. */
+        /** @description Un valor de entero único que identifique este Item de Orden de Compra. */
         id: number;
       };
     };
@@ -104801,11 +105783,11 @@ export interface operations {
         order_date?: string;
         order_date__gte?: string;
         order_date__lte?: string;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         /**
          * @description * `PENDING` - Pendiente
@@ -104816,7 +105798,7 @@ export interface operations {
         payment_status?: "OVERDUE" | "PAID" | "PARTIAL" | "PENDING";
         /** @description Múltiples valores separados por comas. */
         payment_status__in?: string[];
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
         start_date?: string;
         /**
@@ -104879,7 +105861,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Orden de Compra. */
+        /** @description Un Cadena UUID que identifique este Orden de Compra. */
         id: string;
       };
     };
@@ -104903,7 +105885,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Orden de Compra. */
+        /** @description Un Cadena UUID que identifique este Orden de Compra. */
         id: string;
       };
     };
@@ -104934,7 +105916,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Orden de Compra. */
+        /** @description Un Cadena UUID que identifique este Orden de Compra. */
         id: string;
       };
     };
@@ -104956,7 +105938,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Orden de Compra. */
+        /** @description Un Cadena UUID que identifique este Orden de Compra. */
         id: string;
       };
     };
@@ -105009,7 +105991,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Orden de Compra. */
+        /** @description Un Cadena UUID que identifique este Orden de Compra. */
         id: string;
       };
     };
@@ -105045,7 +106027,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Orden de Compra. */
+        /** @description Un Cadena UUID que identifique este Orden de Compra. */
         id: string;
       };
     };
@@ -105087,7 +106069,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Orden de Compra. */
+        /** @description Un Cadena UUID que identifique este Orden de Compra. */
         id: string;
       };
     };
@@ -105120,7 +106102,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Orden de Compra. */
+        /** @description Un Cadena UUID que identifique este Orden de Compra. */
         id: string;
       };
     };
@@ -105161,7 +106143,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Orden de Compra. */
+        /** @description Un Cadena UUID que identifique este Orden de Compra. */
         id: string;
       };
     };
@@ -105192,7 +106174,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Orden de Compra. */
+        /** @description Un Cadena UUID que identifique este Orden de Compra. */
         id: string;
       };
     };
@@ -105249,7 +106231,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Orden de Compra. */
+        /** @description Un Cadena UUID que identifique este Orden de Compra. */
         id: string;
       };
     };
@@ -105281,7 +106263,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Orden de Compra. */
+        /** @description Un Cadena UUID que identifique este Orden de Compra. */
         id: string;
       };
     };
@@ -105404,9 +106386,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -105449,7 +106431,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Proveedor por Sucursal. */
+        /** @description Un valor de entero único que identifique este Proveedor por Sucursal. */
         id: number;
       };
     };
@@ -105469,7 +106451,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Proveedor por Sucursal. */
+        /** @description Un valor de entero único que identifique este Proveedor por Sucursal. */
         id: number;
       };
     };
@@ -105496,7 +106478,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Proveedor por Sucursal. */
+        /** @description Un valor de entero único que identifique este Proveedor por Sucursal. */
         id: number;
       };
     };
@@ -105514,7 +106496,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Proveedor por Sucursal. */
+        /** @description Un valor de entero único que identifique este Proveedor por Sucursal. */
         id: number;
       };
     };
@@ -105549,11 +106531,11 @@ export interface operations {
         format?: "binary" | "json";
         is_active?: boolean;
         is_preferred?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         product__code?: string;
         product__code__icontains?: string;
@@ -105561,7 +106543,7 @@ export interface operations {
         product__name?: string;
         product__name__icontains?: string;
         product__name__istartswith?: string;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
         supplier?: string;
         supplier_product_code?: string;
@@ -105611,7 +106593,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Producto de Proveedor. */
+        /** @description Un valor de entero único que identifique este Producto de Proveedor. */
         id: number;
       };
     };
@@ -105631,7 +106613,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Producto de Proveedor. */
+        /** @description Un valor de entero único que identifique este Producto de Proveedor. */
         id: number;
       };
     };
@@ -105658,7 +106640,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Producto de Proveedor. */
+        /** @description Un valor de entero único que identifique este Producto de Proveedor. */
         id: number;
       };
     };
@@ -105676,7 +106658,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Producto de Proveedor. */
+        /** @description Un valor de entero único que identifique este Producto de Proveedor. */
         id: number;
       };
     };
@@ -105709,13 +106691,13 @@ export interface operations {
         name?: string;
         name__icontains?: string;
         name__istartswith?: string;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
         /**
          * @description * `ACTIVE` - Activo
@@ -105777,7 +106759,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Proveedor. */
+        /** @description Un Cadena UUID que identifique este Proveedor. */
         id: string;
       };
     };
@@ -105797,7 +106779,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Proveedor. */
+        /** @description Un Cadena UUID que identifique este Proveedor. */
         id: string;
       };
     };
@@ -105824,7 +106806,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Proveedor. */
+        /** @description Un Cadena UUID que identifique este Proveedor. */
         id: string;
       };
     };
@@ -105842,7 +106824,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Proveedor. */
+        /** @description Un Cadena UUID que identifique este Proveedor. */
         id: string;
       };
     };
@@ -105944,13 +106926,13 @@ export interface operations {
         format?: "binary" | "json";
         is_active?: boolean;
         is_available?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
         workflow?: string;
       };
@@ -106024,7 +107006,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Agente de Soporte. */
+        /** @description Un Cadena UUID que identifique este Agente de Soporte. */
         id: string;
       };
     };
@@ -106059,7 +107041,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Agente de Soporte. */
+        /** @description Un Cadena UUID que identifique este Agente de Soporte. */
         id: string;
       };
     };
@@ -106101,7 +107083,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Agente de Soporte. */
+        /** @description Un Cadena UUID que identifique este Agente de Soporte. */
         id: string;
       };
     };
@@ -106133,7 +107115,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Agente de Soporte. */
+        /** @description Un Cadena UUID que identifique este Agente de Soporte. */
         id: string;
       };
     };
@@ -106175,14 +107157,14 @@ export interface operations {
         branch?: number;
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         parent?: string;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
       };
     };
@@ -106255,7 +107237,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Categoría de Ticket. */
+        /** @description Un Cadena UUID que identifique este Categoría de Ticket. */
         id: string;
       };
     };
@@ -106290,7 +107272,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Categoría de Ticket. */
+        /** @description Un Cadena UUID que identifique este Categoría de Ticket. */
         id: string;
       };
     };
@@ -106332,7 +107314,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Categoría de Ticket. */
+        /** @description Un Cadena UUID que identifique este Categoría de Ticket. */
         id: string;
       };
     };
@@ -106364,7 +107346,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Categoría de Ticket. */
+        /** @description Un Cadena UUID que identifique este Categoría de Ticket. */
         id: string;
       };
     };
@@ -106405,11 +107387,11 @@ export interface operations {
       query?: {
         format?: "binary" | "json";
         is_completed?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         work_order?: string;
       };
@@ -106483,7 +107465,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Item de Checklist. */
+        /** @description Un Cadena UUID que identifique este Item de Checklist. */
         id: string;
       };
     };
@@ -106518,7 +107500,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Item de Checklist. */
+        /** @description Un Cadena UUID que identifique este Item de Checklist. */
         id: string;
       };
     };
@@ -106560,7 +107542,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Item de Checklist. */
+        /** @description Un Cadena UUID que identifique este Item de Checklist. */
         id: string;
       };
     };
@@ -106592,7 +107574,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Item de Checklist. */
+        /** @description Un Cadena UUID que identifique este Item de Checklist. */
         id: string;
       };
     };
@@ -106634,7 +107616,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Item de Checklist. */
+        /** @description Un Cadena UUID que identifique este Item de Checklist. */
         id: string;
       };
     };
@@ -106675,11 +107657,11 @@ export interface operations {
       query?: {
         format?: "binary" | "json";
         is_resolution?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         ticket?: string;
         /**
@@ -106758,7 +107740,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Comentario de Ticket. */
+        /** @description Un Cadena UUID que identifique este Comentario de Ticket. */
         id: string;
       };
     };
@@ -106793,7 +107775,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Comentario de Ticket. */
+        /** @description Un Cadena UUID que identifique este Comentario de Ticket. */
         id: string;
       };
     };
@@ -106835,7 +107817,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Comentario de Ticket. */
+        /** @description Un Cadena UUID que identifique este Comentario de Ticket. */
         id: string;
       };
     };
@@ -106867,7 +107849,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Comentario de Ticket. */
+        /** @description Un Cadena UUID que identifique este Comentario de Ticket. */
         id: string;
       };
     };
@@ -106908,11 +107890,11 @@ export interface operations {
       query?: {
         format?: "binary" | "json";
         from_agent?: string;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         ticket?: string;
         to_agent?: string;
@@ -106987,7 +107969,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Escalamiento de Ticket. */
+        /** @description Un Cadena UUID que identifique este Escalamiento de Ticket. */
         id: string;
       };
     };
@@ -107022,7 +108004,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Escalamiento de Ticket. */
+        /** @description Un Cadena UUID que identifique este Escalamiento de Ticket. */
         id: string;
       };
     };
@@ -107064,7 +108046,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Escalamiento de Ticket. */
+        /** @description Un Cadena UUID que identifique este Escalamiento de Ticket. */
         id: string;
       };
     };
@@ -107096,7 +108078,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Escalamiento de Ticket. */
+        /** @description Un Cadena UUID que identifique este Escalamiento de Ticket. */
         id: string;
       };
     };
@@ -107138,13 +108120,13 @@ export interface operations {
         branch?: number;
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
       };
     };
@@ -107217,7 +108199,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Política SLA. */
+        /** @description Un Cadena UUID que identifique este Política SLA. */
         id: string;
       };
     };
@@ -107252,7 +108234,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Política SLA. */
+        /** @description Un Cadena UUID que identifique este Política SLA. */
         id: string;
       };
     };
@@ -107294,7 +108276,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Política SLA. */
+        /** @description Un Cadena UUID que identifique este Política SLA. */
         id: string;
       };
     };
@@ -107326,7 +108308,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Política SLA. */
+        /** @description Un Cadena UUID que identifique este Política SLA. */
         id: string;
       };
     };
@@ -107368,14 +108350,14 @@ export interface operations {
         branch?: number;
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         requires_visit?: boolean;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
       };
     };
@@ -107448,7 +108430,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Tipo de Ticket. */
+        /** @description Un Cadena UUID que identifique este Tipo de Ticket. */
         id: string;
       };
     };
@@ -107483,7 +108465,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Tipo de Ticket. */
+        /** @description Un Cadena UUID que identifique este Tipo de Ticket. */
         id: string;
       };
     };
@@ -107525,7 +108507,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Tipo de Ticket. */
+        /** @description Un Cadena UUID que identifique este Tipo de Ticket. */
         id: string;
       };
     };
@@ -107557,7 +108539,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Tipo de Ticket. */
+        /** @description Un Cadena UUID que identifique este Tipo de Ticket. */
         id: string;
       };
     };
@@ -107593,11 +108575,11 @@ export interface operations {
         due_date?: string;
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         /**
          * @description * `LOW` - Baja
@@ -107606,7 +108588,7 @@ export interface operations {
          * * `CRITICAL` - Crítica
          */
         priority?: "CRITICAL" | "HIGH" | "LOW" | "MEDIUM";
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
         /**
          * @description * `INTERNAL` - Interno
@@ -107674,7 +108656,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ticket. */
+        /** @description Un Cadena UUID que identifique este Ticket. */
         id: string;
       };
     };
@@ -107698,7 +108680,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ticket. */
+        /** @description Un Cadena UUID que identifique este Ticket. */
         id: string;
       };
     };
@@ -107729,7 +108711,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ticket. */
+        /** @description Un Cadena UUID que identifique este Ticket. */
         id: string;
       };
     };
@@ -107750,7 +108732,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ticket. */
+        /** @description Un Cadena UUID que identifique este Ticket. */
         id: string;
       };
     };
@@ -107781,7 +108763,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ticket. */
+        /** @description Un Cadena UUID que identifique este Ticket. */
         id: string;
       };
     };
@@ -107812,7 +108794,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ticket. */
+        /** @description Un Cadena UUID que identifique este Ticket. */
         id: string;
       };
     };
@@ -107843,7 +108825,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ticket. */
+        /** @description Un Cadena UUID que identifique este Ticket. */
         id: string;
       };
     };
@@ -107992,11 +108974,11 @@ export interface operations {
         agent?: string;
         format?: "binary" | "json";
         is_running?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         ticket?: string;
       };
@@ -108070,7 +109052,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Temporizador de Ticket. */
+        /** @description Un Cadena UUID que identifique este Temporizador de Ticket. */
         id: string;
       };
     };
@@ -108105,7 +109087,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Temporizador de Ticket. */
+        /** @description Un Cadena UUID que identifique este Temporizador de Ticket. */
         id: string;
       };
     };
@@ -108147,7 +109129,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Temporizador de Ticket. */
+        /** @description Un Cadena UUID que identifique este Temporizador de Ticket. */
         id: string;
       };
     };
@@ -108179,7 +109161,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Temporizador de Ticket. */
+        /** @description Un Cadena UUID que identifique este Temporizador de Ticket. */
         id: string;
       };
     };
@@ -108221,7 +109203,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Temporizador de Ticket. */
+        /** @description Un Cadena UUID que identifique este Temporizador de Ticket. */
         id: string;
       };
     };
@@ -108261,11 +109243,11 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         work_order?: string;
       };
@@ -108339,7 +109321,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Adjunto de OT. */
+        /** @description Un Cadena UUID que identifique este Adjunto de OT. */
         id: string;
       };
     };
@@ -108374,7 +109356,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Adjunto de OT. */
+        /** @description Un Cadena UUID que identifique este Adjunto de OT. */
         id: string;
       };
     };
@@ -108416,7 +109398,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Adjunto de OT. */
+        /** @description Un Cadena UUID que identifique este Adjunto de OT. */
         id: string;
       };
     };
@@ -108448,7 +109430,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Adjunto de OT. */
+        /** @description Un Cadena UUID que identifique este Adjunto de OT. */
         id: string;
       };
     };
@@ -108488,11 +109470,11 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         work_order?: string;
       };
@@ -108566,7 +109548,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Retroalimentación de OT. */
+        /** @description Un Cadena UUID que identifique este Retroalimentación de OT. */
         id: string;
       };
     };
@@ -108601,7 +109583,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Retroalimentación de OT. */
+        /** @description Un Cadena UUID que identifique este Retroalimentación de OT. */
         id: string;
       };
     };
@@ -108643,7 +109625,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Retroalimentación de OT. */
+        /** @description Un Cadena UUID que identifique este Retroalimentación de OT. */
         id: string;
       };
     };
@@ -108675,7 +109657,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Retroalimentación de OT. */
+        /** @description Un Cadena UUID que identifique este Retroalimentación de OT. */
         id: string;
       };
     };
@@ -108716,13 +109698,13 @@ export interface operations {
       query?: {
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
         /**
          * @description * `SCHEDULED` - Programada
@@ -108805,7 +109787,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Orden de Trabajo. */
+        /** @description Un Cadena UUID que identifique este Orden de Trabajo. */
         id: string;
       };
     };
@@ -108840,7 +109822,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Orden de Trabajo. */
+        /** @description Un Cadena UUID que identifique este Orden de Trabajo. */
         id: string;
       };
     };
@@ -108882,7 +109864,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Orden de Trabajo. */
+        /** @description Un Cadena UUID que identifique este Orden de Trabajo. */
         id: string;
       };
     };
@@ -108914,7 +109896,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Orden de Trabajo. */
+        /** @description Un Cadena UUID que identifique este Orden de Trabajo. */
         id: string;
       };
     };
@@ -108956,7 +109938,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Orden de Trabajo. */
+        /** @description Un Cadena UUID que identifique este Orden de Trabajo. */
         id: string;
       };
     };
@@ -108998,7 +109980,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Orden de Trabajo. */
+        /** @description Un Cadena UUID que identifique este Orden de Trabajo. */
         id: string;
       };
     };
@@ -109134,11 +110116,11 @@ export interface operations {
         client?: number;
         format?: "binary" | "json";
         nps_score?: number;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         survey?: string;
       };
@@ -109212,7 +110194,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Respuesta de Encuesta. */
+        /** @description Un Cadena UUID que identifique este Respuesta de Encuesta. */
         id: string;
       };
     };
@@ -109247,7 +110229,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Respuesta de Encuesta. */
+        /** @description Un Cadena UUID que identifique este Respuesta de Encuesta. */
         id: string;
       };
     };
@@ -109289,7 +110271,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Respuesta de Encuesta. */
+        /** @description Un Cadena UUID que identifique este Respuesta de Encuesta. */
         id: string;
       };
     };
@@ -109321,7 +110303,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Respuesta de Encuesta. */
+        /** @description Un Cadena UUID que identifique este Respuesta de Encuesta. */
         id: string;
       };
     };
@@ -109381,13 +110363,13 @@ export interface operations {
       query?: {
         format?: "binary" | "json";
         is_active?: boolean;
-        /** @description Which field to use when ordering the results. */
+        /** @description Qué campo usar para ordenar los resultados. */
         ordering?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
-        /** @description A search term. */
+        /** @description Un término de búsqueda. */
         search?: string;
         /**
          * @description * `DRAFT` - Borrador
@@ -109475,7 +110457,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Encuesta. */
+        /** @description Un Cadena UUID que identifique este Encuesta. */
         id: string;
       };
     };
@@ -109510,7 +110492,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Encuesta. */
+        /** @description Un Cadena UUID que identifique este Encuesta. */
         id: string;
       };
     };
@@ -109552,7 +110534,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Encuesta. */
+        /** @description Un Cadena UUID que identifique este Encuesta. */
         id: string;
       };
     };
@@ -109584,7 +110566,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Encuesta. */
+        /** @description Un Cadena UUID que identifique este Encuesta. */
         id: string;
       };
     };
@@ -109626,7 +110608,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Encuesta. */
+        /** @description Un Cadena UUID que identifique este Encuesta. */
         id: string;
       };
     };
@@ -109656,7 +110638,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Encuesta. */
+        /** @description Un Cadena UUID que identifique este Encuesta. */
         id: string;
       };
     };
@@ -109691,7 +110673,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Encuesta. */
+        /** @description Un Cadena UUID que identifique este Encuesta. */
         id: string;
       };
     };
@@ -109725,9 +110707,9 @@ export interface operations {
         is_available?: boolean;
         number?: string;
         number__icontains?: string;
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
         status?: string;
         unassigned?: boolean;
@@ -109772,7 +110754,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Mesa. */
+        /** @description Un valor de entero único que identifique este Mesa. */
         id: number;
       };
     };
@@ -109792,7 +110774,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Mesa. */
+        /** @description Un valor de entero único que identifique este Mesa. */
         id: number;
       };
     };
@@ -109819,7 +110801,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Mesa. */
+        /** @description Un valor de entero único que identifique este Mesa. */
         id: number;
       };
     };
@@ -109837,7 +110819,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Mesa. */
+        /** @description Un valor de entero único que identifique este Mesa. */
         id: number;
       };
     };
@@ -109864,7 +110846,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Mesa. */
+        /** @description Un valor de entero único que identifique este Mesa. */
         id: number;
       };
     };
@@ -109891,7 +110873,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Mesa. */
+        /** @description Un valor de entero único que identifique este Mesa. */
         id: number;
       };
     };
@@ -110025,9 +111007,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -110047,7 +111029,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Log de Auditoría de Configuración. */
+        /** @description Un valor de entero único que identifique este Log de Auditoría de Configuración. */
         id: number;
       };
     };
@@ -110084,9 +111066,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -110135,7 +111117,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración Unificada de Módulo. */
+        /** @description Un valor de entero único que identifique este Configuración Unificada de Módulo. */
         id: number;
       };
     };
@@ -110158,7 +111140,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración Unificada de Módulo. */
+        /** @description Un valor de entero único que identifique este Configuración Unificada de Módulo. */
         id: number;
       };
     };
@@ -110188,7 +111170,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración Unificada de Módulo. */
+        /** @description Un valor de entero único que identifique este Configuración Unificada de Módulo. */
         id: number;
       };
     };
@@ -110209,7 +111191,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Configuración Unificada de Módulo. */
+        /** @description Un valor de entero único que identifique este Configuración Unificada de Módulo. */
         id: number;
       };
     };
@@ -110299,9 +111281,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -110350,7 +111332,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Esquema de Configuración Unificada. */
+        /** @description Un valor de entero único que identifique este Esquema de Configuración Unificada. */
         id: number;
       };
     };
@@ -110373,7 +111355,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Esquema de Configuración Unificada. */
+        /** @description Un valor de entero único que identifique este Esquema de Configuración Unificada. */
         id: number;
       };
     };
@@ -110403,7 +111385,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Esquema de Configuración Unificada. */
+        /** @description Un valor de entero único que identifique este Esquema de Configuración Unificada. */
         id: number;
       };
     };
@@ -110424,7 +111406,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A unique integer value identifying this Esquema de Configuración Unificada. */
+        /** @description Un valor de entero único que identifique este Esquema de Configuración Unificada. */
         id: number;
       };
     };
@@ -110465,9 +111447,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -110510,7 +111492,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Mapeo de Datos. */
+        /** @description Un Cadena UUID que identifique este Mapeo de Datos. */
         id: string;
       };
     };
@@ -110530,7 +111512,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Mapeo de Datos. */
+        /** @description Un Cadena UUID que identifique este Mapeo de Datos. */
         id: string;
       };
     };
@@ -110557,7 +111539,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Mapeo de Datos. */
+        /** @description Un Cadena UUID que identifique este Mapeo de Datos. */
         id: string;
       };
     };
@@ -110575,7 +111557,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Mapeo de Datos. */
+        /** @description Un Cadena UUID que identifique este Mapeo de Datos. */
         id: string;
       };
     };
@@ -110600,9 +111582,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -110622,7 +111604,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ejecución de Automation Workflow. */
+        /** @description Un Cadena UUID que identifique este Ejecución de Automation Workflow. */
         id: string;
       };
     };
@@ -110642,7 +111624,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Ejecución de Automation Workflow. */
+        /** @description Un Cadena UUID que identifique este Ejecución de Automation Workflow. */
         id: string;
       };
     };
@@ -110660,9 +111642,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -110705,7 +111687,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Webhook Endpoint. */
+        /** @description Un Cadena UUID que identifique este Webhook Endpoint. */
         id: string;
       };
     };
@@ -110725,7 +111707,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Webhook Endpoint. */
+        /** @description Un Cadena UUID que identifique este Webhook Endpoint. */
         id: string;
       };
     };
@@ -110752,7 +111734,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Webhook Endpoint. */
+        /** @description Un Cadena UUID que identifique este Webhook Endpoint. */
         id: string;
       };
     };
@@ -110770,7 +111752,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Webhook Endpoint. */
+        /** @description Un Cadena UUID que identifique este Webhook Endpoint. */
         id: string;
       };
     };
@@ -110795,9 +111777,9 @@ export interface operations {
     parameters: {
       query?: {
         format?: "binary" | "json";
-        /** @description A page number within the paginated result set. */
+        /** @description Un número de página dentro del conjunto de resultados paginado. */
         page?: number;
-        /** @description Number of results to return per page. */
+        /** @description Número de resultados a devolver por página. */
         page_size?: number;
       };
     };
@@ -110840,7 +111822,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Automation Workflow. */
+        /** @description Un Cadena UUID que identifique este Automation Workflow. */
         id: string;
       };
     };
@@ -110860,7 +111842,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Automation Workflow. */
+        /** @description Un Cadena UUID que identifique este Automation Workflow. */
         id: string;
       };
     };
@@ -110887,7 +111869,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Automation Workflow. */
+        /** @description Un Cadena UUID que identifique este Automation Workflow. */
         id: string;
       };
     };
@@ -110905,7 +111887,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Automation Workflow. */
+        /** @description Un Cadena UUID que identifique este Automation Workflow. */
         id: string;
       };
     };
@@ -110932,7 +111914,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Automation Workflow. */
+        /** @description Un Cadena UUID que identifique este Automation Workflow. */
         id: string;
       };
     };
@@ -110959,7 +111941,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Automation Workflow. */
+        /** @description Un Cadena UUID que identifique este Automation Workflow. */
         id: string;
       };
     };
@@ -110986,7 +111968,7 @@ export interface operations {
         format?: "binary" | "json";
       };
       path: {
-        /** @description A UUID string identifying this Automation Workflow. */
+        /** @description Un Cadena UUID que identifique este Automation Workflow. */
         id: string;
       };
     };
@@ -110999,7 +111981,7 @@ export interface operations {
       };
     };
   };
-  /** @description Health check endpoint extendido. */
+  /** @description Health check endpoint: estado de servicios + marcador de deploy. */
   health_retrieve: {
     parameters: {
       query?: {

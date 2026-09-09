@@ -1,6 +1,6 @@
 "use client";
 
-import { Children, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Children, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -14,17 +14,14 @@ import {
   PanelLeft,
   Pin,
   PinOff,
-  Store,
   User as UserIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { branchName } from "@/lib/types";
 import {
   useSessionStore,
   useCurrentBranch,
   useIsCashier,
   useIsWaiter,
-  useCanSwitchBranch,
   useIsModuleEnabledFromConfig,
   useCashierAllowedPaths,
   useWaiterAllowedPaths,
@@ -37,6 +34,7 @@ import { clearToken } from "@/lib/api/session-storage";
 import { fetchKitchenStations } from "@/lib/api/kitchen-stations";
 import { fetchKitchenTickets } from "@/lib/api/kitchen";
 import { BrandLogo } from "@/components/brand-logo";
+import { BranchSwitcher } from "@/components/branch-switcher";
 import { CommandPalette, type CommandPaletteItem } from "@/components/command-palette/command-palette";
 
 interface NavItem {
@@ -62,6 +60,34 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
   const hovering = useSidebarStore((s) => s.hovering);
   const setHovering = useSidebarStore((s) => s.setHovering);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  // Cerrar el menú del perfil al hacer click fuera de él.
+  useEffect(() => {
+    if (!profileMenuOpen) return;
+    function onPointerDown(e: MouseEvent) {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target as Node)) {
+        setProfileMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, [profileMenuOpen]);
+
+  const handleToggle = () => {
+    // Al colapsar con el pointer sobre el sidebar hay que limpiar el hover:
+    // si no, effectivelyExpanded sigue en true y el click parece no hacer
+    // nada (el panel se queda expandido hasta que el mouse sale).
+    if (expanded) setHovering(false);
+    toggleExpanded();
+  };
+
+  // Si el sidebar se desmonta con el pointer encima (navegar a una ruta que
+  // lo oculta, o pasar a ventana móvil), onMouseLeave nunca llega y el flag
+  // de hover quedaría pegado: al volver, se vería expandido (w-60) con el
+  // contenido reservado a ml-16.
+  useEffect(() => () => setHovering(false), [setHovering]);
   const [openGroup, setOpenGroup] = useState<string | null>(defaultOpenGroups === "all" ? "all" : null);
   const effectivelyExpanded = expanded || hovering;
 
@@ -75,7 +101,6 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
   const menuGroups = useFrigMenu();
   const isCashier = useIsCashier();
   const isWaiter = useIsWaiter();
-  const canSwitchBranch = useCanSwitchBranch();
   const appName = theme?.app_name ?? "FRIG";
   const { favorites, toggleFavorite, isFavorite } = useNavFavorites();
 
@@ -180,12 +205,9 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
       );
     const actions: CommandPaletteItem[] = [
       { href: "", label: "Cerrar sesión", group: "Acciones", icon: LogOut, action: handleLogout },
-      ...(canSwitchBranch
-        ? [{ href: "", label: "Cambiar sucursal", group: "Acciones" as const, icon: Store, action: () => router.push("/select-branch") }]
-        : []),
     ];
     return [...ops, ...stations, ...admin, ...actions];
-  }, [visibleMenuGroups, kitchenStations, canSwitchBranch, handleLogout, router]);
+  }, [visibleMenuGroups, kitchenStations, handleLogout]);
 
   const allNavHrefs = useMemo(
     () => [...visibleMenuGroups.flatMap((g) => g.items), ...stationItems],
@@ -216,9 +238,23 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
   const stationActiveHref = getActiveHref(stationItems, pathname);
 
   // Auto-abrir el grupo que contiene la página activa. El usuario SÍ puede
-  // volver a cerrarlo: este efecto solo corre al cambiar de ruta.
+  // volver a cerrarlo: solo corre cuando cambia la ruta o en la primera carga
+  // de grupos. Cambios de datos (refresh de frontend-config, estaciones, etc.)
+  // no deben reabrir un grupo que el usuario cerró.
   /* eslint-disable react-hooks/set-state-in-effect */
+  const autoOpenRef = useRef<{ path: string | null; hadGroups: boolean }>({
+    path: null,
+    hadGroups: false,
+  });
   useEffect(() => {
+    const pathChanged = autoOpenRef.current.path !== pathname;
+    const groupsJustLoaded =
+      !autoOpenRef.current.hadGroups && visibleMenuGroups.length > 0;
+    if (!pathChanged && !groupsJustLoaded) return;
+    autoOpenRef.current = {
+      path: pathname,
+      hadGroups: visibleMenuGroups.length > 0,
+    };
     if (stationActiveHref) {
       setOpenGroup("Estaciones");
       return;
@@ -268,20 +304,16 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -8 }}
                 transition={{ duration: 0.2 }}
-                className="min-w-0"
+                className="flex min-w-0 flex-1 items-center"
               >
-                <p className="truncate text-sm font-semibold text-white">
-                  {branch ? branchName(branch) : appName}
-                </p>
-                {branch && branchName(branch) !== appName && (
-                  <p className="truncate text-xs text-white/70">{appName}</p>
-                )}
+                <BranchSwitcher appName={appName} />
               </m.div>
             )}
           </AnimatePresence>
+          {!effectivelyExpanded && <BranchSwitcher appName={appName} collapsed />}
           <button
             type="button"
-            onClick={toggleExpanded}
+            onClick={handleToggle}
             className={cn(
               "ml-auto rounded-lg p-1.5 text-white/70 transition-colors hover:bg-white/10 hover:text-white",
               !effectivelyExpanded && "ml-0"
@@ -432,13 +464,16 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
             })}
         </div>
 
-        <div className="flex shrink-0 flex-col gap-0.5 border-t border-white/15 p-1.5">
-          <Link
-            href="/profile"
+        <div ref={profileMenuRef} className="relative flex shrink-0 flex-col gap-0.5 border-t border-white/15 p-1.5">
+          <button
+            type="button"
+            onClick={() => setProfileMenuOpen((v) => !v)}
+            aria-expanded={profileMenuOpen}
+            aria-haspopup="menu"
             className={cn(
-              "flex items-center gap-2.5 rounded-lg px-3 py-1.5 transition-colors",
-              pathname.startsWith("/profile")
-                ? "bg-white text-[color:var(--brand-primary)]"
+              "flex w-full items-center gap-2.5 rounded-lg px-3 py-1.5 text-left transition-colors",
+              profileMenuOpen || pathname.startsWith("/profile")
+                ? "bg-white/[0.16] text-white shadow-sm shadow-black/25 ring-1 ring-inset ring-white/25 backdrop-blur-sm"
                 : "text-white/80 hover:bg-white/10 hover:text-white",
               !effectivelyExpanded && "justify-center px-0"
             )}
@@ -453,35 +488,38 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
                 <p className="truncate text-xs opacity-75">{user?.email}</p>
               </div>
             )}
-          </Link>
-          {effectivelyExpanded && (
-            <>
-              {canSwitchBranch && (
-                <Link
-                  href="/select-branch"
-                  className="rounded-lg px-3 py-1.5 text-xs font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-                >
-                  Cambiar sucursal
-                </Link>
-              )}
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+          </button>
+
+          <AnimatePresence>
+            {profileMenuOpen && (
+              <m.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 6 }}
+                transition={{ duration: 0.15 }}
+                role="menu"
+                className="absolute bottom-full left-1.5 right-1.5 z-50 mb-1 overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-lg"
               >
-                <LogOut className="h-4 w-4" />
-                Cerrar sesión
-              </button>
-            </>
-          )}
-          {!effectivelyExpanded && (
-            <button
-              onClick={handleLogout}
-              className="flex items-center justify-center rounded-lg px-0 py-2 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-              title="Cerrar sesión"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
-          )}
+                <Link
+                  href="/profile"
+                  role="menuitem"
+                  onClick={() => setProfileMenuOpen(false)}
+                  className="flex items-center gap-2.5 px-3 py-2.5 text-sm transition-colors hover:bg-primary/10 hover:text-primary"
+                >
+                  <UserIcon className="h-4 w-4 text-muted-foreground" />
+                  Mi perfil
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  role="menuitem"
+                  className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm text-rose-600 transition-colors hover:bg-rose-500/10"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Cerrar sesión
+                </button>
+              </m.div>
+            )}
+          </AnimatePresence>
         </div>
       </aside>
     </>
@@ -508,12 +546,7 @@ function NavGroup({
   }
 
   return (
-    <div
-      className={cn(
-        "flex flex-col rounded-xl transition-colors duration-200",
-        isOpen ? "bg-white/[0.08] p-1.5" : "p-0"
-      )}
-    >
+    <div className="flex flex-col">
       <button
         type="button"
         onClick={onToggle}
@@ -590,7 +623,9 @@ function NavItem({
           "relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
           active
-            ? "bg-white text-[color:var(--brand-primary)] shadow-sm shadow-black/20"
+            ? // Glass translúcido en vez de pill blanco sólido: deja ver la
+              // textura del fondo y se siente más ligero.
+              "bg-white/[0.16] text-white shadow-sm shadow-black/25 ring-1 ring-inset ring-white/25 backdrop-blur-sm"
             : "text-white/80 hover:bg-white/10 hover:text-white",
           !expanded && "h-9 w-9 justify-center p-0"
         )}
@@ -632,7 +667,15 @@ function NavItem({
           }}
           className={cn(
             "absolute right-1 top-1/2 z-10 -translate-y-1/2 rounded p-1 opacity-0 transition-opacity group-hover:opacity-100",
-            favorited ? "text-white opacity-100" : "text-white/70 hover:text-white"
+            // El item activo tiene fondo blanco: un pin blanco quedaría
+            // invisible sobre él, hay que teñirlo del color de marca.
+            favorited
+              ? active
+                ? "text-[color:var(--brand-primary)] opacity-100"
+                : "text-white opacity-100"
+              : active
+                ? "text-[color:var(--brand-primary)]/70 hover:text-[color:var(--brand-primary)]"
+                : "text-white/70 hover:text-white"
           )}
           title={favorited ? "Quitar de favoritos" : "Añadir a favoritos"}
         >

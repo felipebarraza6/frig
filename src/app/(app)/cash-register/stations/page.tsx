@@ -294,24 +294,19 @@ export default function CashRegisterStationsPage() {
                   className="rounded-2xl border border-border bg-card p-4 shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary">
-                        <Monitor className="h-5 w-5 text-muted-foreground" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="truncate font-medium">{station.name}</p>
-                        <p className="text-xs text-muted-foreground">{station.branch_name}</p>
-                        <span
-                          className={cn(
-                            "mt-1 inline-flex rounded px-2 py-0.5 text-[10px] font-medium",
-                            station.is_active
-                              ? "bg-emerald-500/10 text-emerald-700"
-                              : "bg-rose-500/10 text-rose-700",
-                          )}
-                        >
-                          {station.is_active ? "Activa" : "Inactiva"}
-                        </span>
-                      </div>
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{station.name}</p>
+                      <p className="text-xs text-muted-foreground">{station.branch_name}</p>
+                      <span
+                        className={cn(
+                          "mt-1 inline-flex rounded px-2 py-0.5 text-[10px] font-medium",
+                          station.is_active
+                            ? "bg-emerald-500/10 text-emerald-700"
+                            : "bg-rose-500/10 text-rose-700",
+                        )}
+                      >
+                        {station.is_active ? "Activa" : "Inactiva"}
+                      </span>
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
                       <Button

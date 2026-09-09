@@ -26,7 +26,6 @@ import {
   deleteBank,
   type Bank,
 } from "@/lib/api/banks";
-import { useToast } from "@/lib/store/toast";
 
 const BANK_NAME_OPTIONS = [
   { value: "BANCO_ESTADO", label: "Banco Estado" },
@@ -54,7 +53,6 @@ export default function BanksPage() {
   const [confirmDelete, setConfirmDelete] = useState<Bank | null>(null);
 
   const queryClient = useQueryClient();
-  const toast = useToast();
 
   const { data: banks = [], isLoading, isError, refetch } = useQuery({
     queryKey: ["banks"],
@@ -72,7 +70,6 @@ export default function BanksPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["banks"] });
       setModalOpen(false);
-      toast.success("Billetera creada");
     },
   });
 
@@ -82,7 +79,6 @@ export default function BanksPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["banks"] });
       setEditing(null);
-      toast.success("Billetera actualizada");
     },
   });
 
@@ -91,7 +87,6 @@ export default function BanksPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["banks"] });
       setConfirmDelete(null);
-      toast.success("Billetera eliminada");
     },
   });
 

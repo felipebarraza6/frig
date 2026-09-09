@@ -36,6 +36,7 @@ import {
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
 import { OrderSplitsPanel } from "@/components/sales/order-splits-panel";
 import { OrderReturnPanel } from "@/components/sales/order-return-panel";
+import QuickSaleModal from "@/components/sales/quick-sale-modal";
 import { useToast } from "@/lib/store/toast";
 import type { YggdraSchemas } from "@/lib/api/types";
 import { AnimatePresence, motion } from "framer-motion";
@@ -877,6 +878,13 @@ export default function SalesPage() {
     orderType: null,
   });
 
+  // Modal rápido y liviano de registro manual de ventas/órdenes (sin iframe del POS).
+  const [quickModal, setQuickModal] = useState<{
+    open: boolean;
+    orderType: "SALE" | "ORDER";
+    existingOrderId?: string | null;
+  }>({ open: false, orderType: "SALE" });
+
   // Modal rápido para crear cuenta (ORDER) con cliente/mesa.
   const [accountModal, setAccountModal] = useState(false);
   const [accountError, setAccountError] = useState<string | null>(null);
@@ -915,6 +923,13 @@ export default function SalesPage() {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
     }
   }, [posModal.open, queryClient]);
+
+  // Refrescar lista de órdenes al cerrar el modal rápido de registro manual.
+  useEffect(() => {
+    if (!quickModal.open) {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    }
+  }, [quickModal.open, queryClient]);
 
   // Modales de acciones por orden
   const [delivering, setDelivering] = useState<Order | null>(null);
@@ -1156,16 +1171,8 @@ export default function SalesPage() {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       setAccountModal(false);
       resetAccountForm();
-      // Abrir POS embebido con la nueva cuenta abierta (SALE pending) para agregar productos.
-      setPosModal({ open: true, orderType: "SALE", isAccount: true });
-      // Navegar el iframe a la orden. Como el modal usa state, actualizamos src vía query param.
-      // Usamos un pequeño timeout para asegurar que el iframe exista.
-      setTimeout(() => {
-        const iframe = document.querySelector<HTMLIFrameElement>("iframe[title='Nueva cuenta']");
-        if (iframe) {
-          iframe.src = `/pos/terminal?order_id=${order.id}&open_account=1`;
-        }
-      }, 150);
+      // Abrir el registro rápido con la cuenta creada para agregar productos y cobrar.
+      setQuickModal({ open: true, orderType: "SALE", existingOrderId: order.id });
     } catch {
       // ignore - error handled by api client
     } finally {
@@ -1215,11 +1222,11 @@ export default function SalesPage() {
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-transparent" />
         <div className="relative flex flex-col gap-4 px-4 py-5 sm:px-6">
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
-            <Button onClick={() => setPosModal({ open: true, orderType: "SALE" })} className="h-11 justify-center shadow-sm transition-transform touch-manipulation active:scale-[0.97] sm:h-9">
+            <Button onClick={() => setQuickModal({ open: true, orderType: "SALE" })} className="h-11 justify-center shadow-sm transition-transform touch-manipulation active:scale-[0.97] sm:h-9">
               <Plus className="mr-1.5 h-4 w-4" />
               Nueva venta
             </Button>
-            <Button variant="outline" onClick={() => setPosModal({ open: true, orderType: "ORDER" })} className="h-11 justify-center transition-transform touch-manipulation active:scale-[0.97] sm:h-9">
+            <Button variant="outline" onClick={() => setQuickModal({ open: true, orderType: "ORDER" })} className="h-11 justify-center transition-transform touch-manipulation active:scale-[0.97] sm:h-9">
               <ClipboardList className="mr-1.5 h-4 w-4" />
               Nueva orden
             </Button>
@@ -2189,6 +2196,15 @@ export default function SalesPage() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Modal rápido y liviano de registro manual de venta/orden/cuenta */}
+      <QuickSaleModal
+        open={quickModal.open}
+        orderType={quickModal.orderType}
+        existingOrderId={quickModal.existingOrderId}
+        onClose={() => setQuickModal({ open: false, orderType: quickModal.orderType })}
+        onOpenFullPos={() => setPosModal({ open: true, orderType: quickModal.orderType })}
+      />
 
       {/* Drawer de filtros avanzados en móvil */}
       {filtersOpen && (

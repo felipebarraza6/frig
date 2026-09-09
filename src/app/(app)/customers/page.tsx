@@ -396,9 +396,9 @@ export default function CustomersPage() {
                   key={i}
                   className="flex items-center gap-3 border-b border-border px-3 py-3 last:border-0"
                 >
-                  <Skeleton className="h-8 w-8 rounded-md" />
                   <Skeleton className="h-4 w-36" />
                   <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-40" />
                   <Skeleton className="h-4 w-28" />
                   <Skeleton className="ml-auto h-5 w-16 rounded-full" />
                 </div>
@@ -439,13 +439,12 @@ export default function CustomersPage() {
           <>
             {/* Vista desktop */}
             <div className="hidden overflow-x-auto rounded-xl border border-border sm:block">
-              <table className="w-full min-w-[820px] text-sm">
+              <table className="w-full min-w-[720px] text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
                     <th className="px-3 py-3">Cliente</th>
                     <th className="px-3 py-3">RUT/DNI</th>
-                    <th className="px-3 py-3">Teléfono</th>
-                    <th className="px-3 py-3">Email</th>
+                    <th className="px-3 py-3">Contacto</th>
                     <th className="px-3 py-3">Giro</th>
                     <th className="px-3 py-3">Tags</th>
                     <th className="w-24 px-2 py-3 text-center">Estado</th>
@@ -456,21 +455,31 @@ export default function CustomersPage() {
                   {filteredCustomers.map((c) => (
                     <tr key={c.id} className="border-b border-border last:border-0">
                       <td className="px-3 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-secondary">
-                            <User className="h-4 w-4 text-muted-foreground" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="truncate font-medium">{c.name}</p>
-                            {c.address && (
-                              <p className="text-xs text-muted-foreground">{c.address}</p>
-                            )}
-                          </div>
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">{c.name}</p>
+                          {c.address && (
+                            <p className="text-xs text-muted-foreground">{c.address}</p>
+                          )}
                         </div>
                       </td>
                       <td className="px-3 py-3 text-muted-foreground">{c.dni ?? "—"}</td>
-                      <td className="px-3 py-3 text-muted-foreground">{c.phone_number ?? "—"}</td>
-                      <td className="px-3 py-3 text-muted-foreground">{c.email ?? "—"}</td>
+                      <td className="px-3 py-3">
+                        <div className="flex flex-col gap-0.5 text-muted-foreground">
+                          {c.phone_number ? (
+                            <span className="flex items-center gap-1.5">
+                              <Phone className="h-3 w-3 shrink-0" />
+                              <span className="truncate">{c.phone_number}</span>
+                            </span>
+                          ) : null}
+                          {c.email ? (
+                            <span className="flex items-center gap-1.5">
+                              <Mail className="h-3 w-3 shrink-0" />
+                              <span className="truncate">{c.email}</span>
+                            </span>
+                          ) : null}
+                          {!c.phone_number && !c.email && <span>—</span>}
+                        </div>
+                      </td>
                       <td className="px-3 py-3 text-muted-foreground">{c.commercial_business ?? "—"}</td>
                       <td className="px-3 py-3">
                         <div className="flex flex-wrap gap-1">
@@ -542,26 +551,21 @@ export default function CustomersPage() {
                   className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary">
-                        <User className="h-5 w-5 text-muted-foreground" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="truncate font-medium">{c.name}</p>
-                        <button
-                          onClick={() =>
-                            toggleActive.mutate({ id: c.id, isActive: !c.is_active })
-                          }
-                          className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                            c.is_active
-                              ? "bg-success/10 text-success"
-                              : "bg-muted text-muted-foreground"
-                          }`}
-                        >
-                          <Power className="h-3 w-3" />
-                          {c.is_active ? "Activo" : "Inactivo"}
-                        </button>
-                      </div>
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{c.name}</p>
+                      <button
+                        onClick={() =>
+                          toggleActive.mutate({ id: c.id, isActive: !c.is_active })
+                        }
+                        className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                          c.is_active
+                            ? "bg-success/10 text-success"
+                            : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        <Power className="h-3 w-3" />
+                        {c.is_active ? "Activo" : "Inactivo"}
+                      </button>
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
                       <Button

@@ -27,7 +27,6 @@ import {
   type FixedExpense,
 } from "@/lib/api/fixed-expenses";
 import { fetchExpenseCategories, type ExpenseCategory } from "@/lib/api/expenses";
-import { useToast } from "@/lib/store/toast";
 
 const FREQUENCY_OPTIONS = [
   { value: "MONTHLY", label: "Mensual" },
@@ -83,7 +82,6 @@ export default function FixedExpensesPage() {
   const [confirmDelete, setConfirmDelete] = useState<FixedExpense | null>(null);
 
   const queryClient = useQueryClient();
-  const toast = useToast();
 
   const { data: expenses = [], isLoading, isError, refetch } = useQuery({
     queryKey: ["fixed-expenses", statusFilter],
@@ -109,7 +107,6 @@ export default function FixedExpensesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["fixed-expenses"] });
       setModalOpen(false);
-      toast.success("Gasto creado");
     },
   });
 
@@ -119,7 +116,6 @@ export default function FixedExpensesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["fixed-expenses"] });
       setEditing(null);
-      toast.success("Gasto actualizado");
     },
   });
 
@@ -128,7 +124,6 @@ export default function FixedExpensesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["fixed-expenses"] });
       setConfirmDelete(null);
-      toast.success("Gasto eliminado");
     },
   });
 

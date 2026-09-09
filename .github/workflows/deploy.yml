@@ -17,15 +17,11 @@ name: Deploy FRIG web a FTP
 on:
   push:
     branches: [master]
-    paths: ["apps/web/**", ".github/workflows/deploy.yml"]
   workflow_dispatch:
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/web
     env:
       NEXT_TELEMETRY_DISABLED: "1"
       # Se inyecta en build time: NEXT_PUBLIC_* se sustituye en el bundle.
@@ -38,7 +34,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: apps/web/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Instalar dependencias
         run: npm ci
@@ -56,7 +52,7 @@ jobs:
           port: 21
           username: frig_cd@yggdra.cl
           password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: apps/web/out/
+          local-dir: out/
           server-dir: ${{ secrets.FTP_TARGET_DIR }}
           # Sin dangerous-clean-slate: la raíz del hosting contiene cgi-bin/
           # y .well-known/ (renovación SSL) que no deben borrarse.
@@ -68,6 +64,6 @@ jobs:
           port: 21
           username: cd@macanuobowl.cl
           password: ${{ secrets.MACANUO_FTP_PASSWORD }}
-          local-dir: apps/web/out/
+          local-dir: out/
           server-dir: ${{ secrets.MACANUO_FTP_TARGET_DIR }}
           # Sin dangerous-clean-slate por el mismo motivo (.well-known de SSL).

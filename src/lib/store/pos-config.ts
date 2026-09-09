@@ -18,6 +18,8 @@ export interface PosConfig {
   self_service: boolean;
   expenses: boolean;
   cash_movements: boolean;
+  purchase_order_payments: boolean;
+  inventory_movements: boolean;
   tables: boolean;
   delivery: boolean;
   pickup: boolean;
@@ -31,6 +33,8 @@ export const DEFAULT_POS_CONFIG: PosConfig = {
   self_service: false,
   expenses: true,
   cash_movements: true,
+  purchase_order_payments: true,
+  inventory_movements: true,
   tables: true,
   delivery: true,
   pickup: true,
@@ -48,6 +52,8 @@ export const POS_CONFIG_MODULE_REQUIREMENTS: Record<keyof PosConfig, ModuleName 
   self_service: null,
   expenses: "finance",
   cash_movements: "cash_register",
+  purchase_order_payments: "suppliers",
+  inventory_movements: "inventory",
   tables: "tables",
   delivery: "deliveries",
   pickup: "deliveries",
@@ -64,10 +70,14 @@ const LEGACY_STORAGE_KEY = "frig.pos-config";
 
 type PosStationsMap = Record<string, PosConfig>;
 
-function isPosConfig(value: unknown): value is PosConfig {
+function isPosConfig(value: unknown): value is Partial<PosConfig> {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  return Object.keys(DEFAULT_POS_CONFIG).every(
-    (k) => typeof (value as Record<string, unknown>)[k] === "boolean",
+  // Tolerante a claves nuevas: valida que las claves conocidas presentes sean
+  // booleanos; las que falten se rellenan con DEFAULT_POS_CONFIG al parsear.
+  return Object.entries(DEFAULT_POS_CONFIG).every(
+    ([k, _]) =>
+      !(k in (value as Record<string, unknown>)) ||
+      typeof (value as Record<string, unknown>)[k] === "boolean",
   );
 }
 
@@ -76,7 +86,7 @@ function parsePosStations(configurationData: unknown): PosStationsMap {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
   const stations: PosStationsMap = {};
   for (const [id, cfg] of Object.entries(raw as Record<string, unknown>)) {
-    if (isPosConfig(cfg)) stations[id] = cfg;
+    if (isPosConfig(cfg)) stations[id] = { ...DEFAULT_POS_CONFIG, ...cfg };
   }
   return stations;
 }
@@ -92,7 +102,7 @@ function drainLegacyStations(): PosStationsMap {
     if (!stations || typeof stations !== "object") return {};
     const result: PosStationsMap = {};
     for (const [id, cfg] of Object.entries(stations)) {
-      if (isPosConfig(cfg)) result[id] = cfg;
+      if (isPosConfig(cfg)) result[id] = { ...DEFAULT_POS_CONFIG, ...cfg };
     }
     window.localStorage.removeItem(LEGACY_STORAGE_KEY);
     return result;
