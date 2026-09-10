@@ -182,6 +182,11 @@ export function PosInventoryModal({ open, onClose }: { open: boolean; onClose: (
               <ul className="divide-y divide-border/60">
                 {filtered.map((p) => {
                   const isSelected = String(p.id) === productId;
+                  // El catálogo (listado de productos) trae tracks_inventory;
+                  // el type generado aún no lo declara en ProductList.
+                  const noStockLimit =
+                    (productsById.get(p.id) as { tracks_inventory?: boolean } | undefined)
+                      ?.tracks_inventory === false;
                   return (
                     <li key={p.id}>
                       <button
@@ -202,16 +207,20 @@ export function PosInventoryModal({ open, onClose }: { open: boolean; onClose: (
                         <span
                           className={cn(
                             "shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums",
-                            p.minimum_stock != null && p.stock_available <= p.minimum_stock
+                            !noStockLimit &&
+                              p.minimum_stock != null &&
+                              p.stock_available <= p.minimum_stock
                               ? "bg-amber-500/10 text-amber-700"
                               : "bg-muted text-foreground",
                           )}
                           title="Stock actual"
                         >
-                          {formatStock(p.stock_available)}
-                          {productsById.get(p.id)?.measurement_unit
-                            ? ` ${productsById.get(p.id)!.measurement_unit}`
-                            : ""}
+                          {noStockLimit
+                            ? "Sin límite"
+                            : formatStock(p.stock_available) +
+                              (productsById.get(p.id)?.measurement_unit
+                                ? ` ${productsById.get(p.id)!.measurement_unit}`
+                                : "")}
                         </span>
                       </button>
                     </li>

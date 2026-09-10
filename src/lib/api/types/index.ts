@@ -26,6 +26,7 @@ export interface PosProduct {
   stock_available?: number | null;
   minimum_stock?: number;
   measurement_unit?: string | null;
+  tracks_inventory?: boolean;
   image?: string | null;
 }
 
@@ -61,6 +62,9 @@ export function toPosProduct(p: YggdraProduct): PosProduct {
     stock_available: rawStockAvailable,
     minimum_stock: p.minimum_stock,
     measurement_unit: p.measurement_unit,
+    // tracks_inventory ahora viene en el listado, pero el type generado aún no
+    // lo declara; default true = comportamiento actual si el backend no lo envía.
+    tracks_inventory: (p as { tracks_inventory?: boolean }).tracks_inventory ?? true,
     image: imageUrl,
   };
 }

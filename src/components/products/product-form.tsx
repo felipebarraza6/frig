@@ -114,6 +114,7 @@ interface YggdraProductDetail extends Omit<YggdraProduct, "category" | "branch" 
   category?: number | null | { id: number; name?: string };
   is_nutritional_ingredient?: boolean;
   is_public?: boolean;
+  tracks_inventory?: boolean;
   energy_kcal?: number | null;
   proteins_g?: number | null;
   total_fats_g?: number | null;
@@ -434,6 +435,14 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
   }, [supplierProductsForProduct]);
 
   const [tracksWarehouseStock, setTracksWarehouseStock] = useState(false);
+
+  // "Controla inventario": inicializa desde el producto (default true, igual
+  // que el backend). Resetea igual que el form cuando cambia el producto
+  // editado (el detalle llega asíncrono cuando se abre por productId).
+  useEffect(() => {
+    setTracksWarehouseStock(effectiveProduct?.tracks_inventory ?? true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveProduct?.id]);
   const [warehouseAssignments, setWarehouseAssignments] = useState<
     {
       localId: string;
@@ -556,13 +565,10 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
     }
   }, [tracksWarehouseStock, warehouseAssignments.length]);
 
-  // Al entrar al tab Bodegas se activa la gestión de stock por bodega. Los
-  // compuestos no gestionan stock propio: solo muestran disponibilidad.
-  useEffect(() => {
-    if (activeTab === "warehouses" && !isCompound && !tracksWarehouseStock) {
-      setTracksWarehouseStock(true);
-    }
-  }, [activeTab, isCompound, tracksWarehouseStock]);
+  // Antes el tab Bodegas activaba silenciosamente la gestión de stock. Ahora el
+  // switch "Controla inventario" es visible en Precios y venta e inicializa
+  // desde el producto, así que se respeta la elección del usuario: entrar a
+  // Bodegas no vuelve a prenderlo si el usuario lo apagó.
 
   const {
     data: existingRecipes = [],
@@ -935,6 +941,9 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
           effectiveProduct?.id && !isCompound ? (form.minimumStock ? Number(form.minimumStock) : undefined) : undefined,
         measurement_unit: form.measurementUnit || null,
         category: form.category ? Number(form.category) : null,
+        // Los compuestos siempre trackean inventario vía receta; el backend lo
+        // fuerza en la creación, así que solo lo enviamos para no compuestos.
+        tracks_inventory: !isCompound ? tracksWarehouseStock : undefined,
         product_type: form.productType as unknown as ProductPayload["product_type"],
         is_for_sale: isRawMaterial ? false : form.isForSale,
         is_for_internal_use: form.isForInternalUse,
@@ -954,6 +963,14 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
         sodium_mg: form.sodiumMg ? Number(form.sodiumMg) : null,
       };
       const savedProduct = await onSubmit(payload, effectiveProduct?.id);
+
+      // El backend fuerza tracks_inventory=True en la CREACIÓN
+      // (configure_by_type); para un producto nuevo con el control de
+      // inventario apagado lo corregimos con un PATCH posterior. onSubmit con
+      // id hace PATCH parcial e invalida las queries de productos.
+      if (!effectiveProduct?.id && !isCompound && !tracksWarehouseStock) {
+        await onSubmit({ tracks_inventory: false }, savedProduct.id);
+      }
 
       await saveSupplierRelation(savedProduct.id);
 
@@ -1244,6 +1261,22 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
           </div>
           )}
 
+          {activeTab === "pricing" && !isCompound && (
+            <div className="flex items-start justify-between gap-3 rounded-lg border border-border bg-muted/40 px-4 py-3">
+              <div>
+                <p className="text-sm font-medium">Controla inventario</p>
+                <p className="text-xs text-muted-foreground">
+                  Si se apaga, el producto se vende sin límite de stock y no aparece en alertas.
+                </p>
+              </div>
+              <Switch
+                checked={tracksWarehouseStock}
+                onCheckedChange={setTracksWarehouseStock}
+                label="Controla inventario"
+              />
+            </div>
+          )}
+
           {activeTab === "basic" && orphanRecipe && (
             <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
               El producto ya no es del tipo <strong>Producto compuesto</strong>, pero su receta
@@ -1338,7 +1371,7 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
                     {effectiveProduct ? "Agregar a nueva bodega" : "Asignación a bodegas"}
                   </h3>
                   <p className="text-xs text-muted-foreground">
-                    Entraste a Bodegas: el stock de este producto se gestionará por bodega.
+                    El stock de este producto se gestiona por bodega según el switch &quot;Controla inventario&quot; en Precios y venta.
                   </p>
                 </div>
 

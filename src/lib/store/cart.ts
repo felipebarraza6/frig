@@ -46,9 +46,11 @@ function generateId(): string {
 }
 
 function availableStock(product: PosProduct): number {
-  // El backend siempre envía cantidades numéricas, pero un valor ausente o
-  // no finito NO debe significar "stock infinito": se trata como 0 (producto
-  // sin bodega/sin stock) para no vender más allá de lo real.
+  // Flag explícito del backend: los productos que no controlan inventario se
+  // venden sin límite de stock.
+  if (product.tracks_inventory === false) return Infinity;
+  // Un valor ausente o no finito NO significa "stock infinito": se trata como
+  // 0 (producto sin bodega/sin stock) para no vender más allá de lo real.
   return typeof product.quantity === "number" && Number.isFinite(product.quantity)
     ? product.quantity
     : 0;

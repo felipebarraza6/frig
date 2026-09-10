@@ -20,6 +20,10 @@ function stockStatus(product: PosProduct): {
   shortText: string;
   variant: "ok" | "low" | "empty";
 } {
+  // Productos que no controlan inventario: se venden sin límite de stock.
+  if (product.tracks_inventory === false) {
+    return { text: "Sin límite", shortText: "Sin límite", variant: "ok" };
+  }
   const qty = product.quantity ?? 0;
   const min = product.minimum_stock ?? 0;
   const unit = product.measurement_unit ? ` ${product.measurement_unit}` : "";
@@ -88,7 +92,9 @@ function ProductCardRaw({ product, recipe, ingredients, onClick, onKeyDown }: Pr
   // Sin módulo Inventario no hay control de stock: se oculta el badge y
   // el producto nunca queda bloqueado por cantidad.
   const inventoryEnabled = useIsModuleEnabledFromConfig("inventory");
-  const disabled = inventoryEnabled && (product.quantity ?? 0) === 0;
+  // Los que no controlan inventario nunca quedan bloqueados por cantidad.
+  const disabled =
+    inventoryEnabled && product.tracks_inventory !== false && (product.quantity ?? 0) === 0;
   const hasImage = Boolean(product.image);
 
   return (

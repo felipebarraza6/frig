@@ -25,6 +25,7 @@ export type ProductPayload = Partial<
     | "cost_price"
     | "minimum_stock"
     | "quantity"
+    | "tracks_inventory"
     | "is_nutritional_ingredient"
     | "energy_kcal"
     | "proteins_g"
