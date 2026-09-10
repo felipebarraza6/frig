@@ -46,7 +46,12 @@ function generateId(): string {
 }
 
 function availableStock(product: PosProduct): number {
-  return typeof product.quantity === "number" ? product.quantity : Infinity;
+  // El backend siempre envía cantidades numéricas, pero un valor ausente o
+  // no finito NO debe significar "stock infinito": se trata como 0 (producto
+  // sin bodega/sin stock) para no vender más allá de lo real.
+  return typeof product.quantity === "number" && Number.isFinite(product.quantity)
+    ? product.quantity
+    : 0;
 }
 
 function modifiersMatch(a: CartItemModifier[], b: CartItemModifier[]): boolean {
