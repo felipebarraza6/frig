@@ -77,3 +77,17 @@ export async function resetPasswordConfirm(payload: ResetPasswordConfirmPayload)
     branch: "none",
   });
 }
+
+export interface SetInitialPasswordPayload {
+  new_password: string;
+  confirm_password: string;
+}
+
+export async function setInitialPassword(payload: SetInitialPasswordPayload): Promise<{ message?: string; error?: string }> {
+  return apiFetch<{ message?: string; error?: string }>("/accounts/users/set-initial-password/", {
+    method: "POST",
+    body: payload,
+    auth: "required",
+    branch: "none",
+  });
+}

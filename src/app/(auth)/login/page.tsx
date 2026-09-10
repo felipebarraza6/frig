@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSessionStore, normalizeDashboardRoute } from "@/lib/store/session";
-import { loginComplete, forgotPassword } from "@/lib/api/auth";
+import { loginComplete, forgotPassword, setInitialPassword } from "@/lib/api/auth";
 import { fetchMagicLogin } from "@/lib/api/checkout";
 import { fetchFrontendConfig } from "@/lib/api/frontend-config";
 import {
@@ -64,7 +64,7 @@ export default function LoginPage() {
   const setFrontendConfig = useSessionStore((s) => s.setFrontendConfig);
   const setTheme = useSessionStore((s) => s.setTheme);
 
-  const [mode, setMode] = useState<"login" | "forgot">("login");
+  const [mode, setMode] = useState<"login" | "forgot" | "set_password">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(() => {
@@ -89,6 +89,12 @@ export default function LoginPage() {
   const [forgotError, setForgotError] = useState<string | null>(null);
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
+
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [setPasswordError, setSetPasswordError] = useState<string | null>(null);
+  const [setPasswordLoading, setSetPasswordLoading] = useState(false);
+  const [magicLoginResult, setMagicLoginResult] = useState<LoginCompleteResponse | null>(null);
 
   // Login personalizado por sucursal: branding público según el dominio
   // (by-host) o según ?branch=<slug>. Sin branding (p. ej. localhost) se
@@ -222,7 +228,12 @@ export default function LoginPage() {
       try {
         const res = await fetchMagicLogin(magicToken);
         if (cancelled) return;
-        await completeLogin(res);
+        if (res.must_set_password) {
+          setMagicLoginResult(res);
+          setMode("set_password");
+        } else {
+          await completeLogin(res);
+        }
       } catch (err) {
         if (cancelled) return;
         setError(
@@ -262,6 +273,32 @@ export default function LoginPage() {
     setForgotError(null);
     setForgotEmail("");
     setError(null);
+  }
+
+  async function handleSetPasswordSubmit(e: FormEvent) {
+    e.preventDefault();
+    setSetPasswordError(null);
+    if (newPassword.length < 8) {
+      setSetPasswordError("La contraseña debe tener al menos 8 caracteres.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setSetPasswordError("Las contraseñas no coinciden.");
+      return;
+    }
+    setSetPasswordLoading(true);
+    try {
+      await setInitialPassword({ new_password: newPassword, confirm_password: confirmPassword });
+      if (magicLoginResult) {
+        await completeLogin(magicLoginResult);
+      }
+    } catch (err) {
+      setSetPasswordError(
+        err instanceof Error ? err.message : "No se pudo definir la contraseña.",
+      );
+    } finally {
+      setSetPasswordLoading(false);
+    }
   }
 
   return (
@@ -364,7 +401,57 @@ export default function LoginPage() {
             </div>
           )}
 
-          {mode === "forgot" ? (
+          {mode === "set_password" ? (
+            <form onSubmit={handleSetPasswordSubmit} className="flex flex-col gap-4">
+              <div className="rounded-lg bg-primary/10 px-3 py-3 text-sm text-primary">
+                <p className="font-medium">Define tu contraseña</p>
+                <p className="mt-1 opacity-90">
+                  Es tu primer ingreso. Crea una contraseña para acceder a tu cuenta.
+                </p>
+              </div>
+              <div className="flex flex-col gap-2">
+                <label htmlFor="new_password" className="text-sm font-medium">
+                  Nueva contraseña
+                </label>
+                <Input
+                  id="new_password"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  minLength={8}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="••••••••"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Mínimo 8 caracteres.
+                </p>
+              </div>
+              <div className="flex flex-col gap-2">
+                <label htmlFor="confirm_password" className="text-sm font-medium">
+                  Confirmar contraseña
+                </label>
+                <Input
+                  id="confirm_password"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  minLength={8}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                />
+              </div>
+              {setPasswordError && (
+                <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
+                  {setPasswordError}
+                </p>
+              )}
+              <Button type="submit" size="lg" disabled={setPasswordLoading} className="mt-2">
+                {setPasswordLoading ? "Guardando…" : "Definir contraseña"}
+              </Button>
+            </form>
+          ) : mode === "forgot" ? (
             forgotSent ? (
               <div className="flex flex-col gap-4">
                 <div className="rounded-lg bg-emerald-500/10 px-3 py-3 text-sm text-emerald-700">

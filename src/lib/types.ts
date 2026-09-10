@@ -219,6 +219,8 @@ export interface LoginCompleteResponse {
   token: string;
   /** Solo usuarios demo: ISO datetime en que expira la sesión (1 hora). */
   demo_expires_at?: string | null;
+  /** true cuando el usuario fue creado vía checkout sin contraseña y debe definir una. */
+  must_set_password?: boolean;
   user: User;
   branches: Branch[];
   owned_organizations?: Organization[];
