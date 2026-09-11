@@ -3,7 +3,8 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { X, Plus, Trash2, Search, FileDown, Warehouse } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { X, Plus, Trash2, Search, FileDown, Warehouse, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1039,6 +1040,14 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
           </div>
 
           <div className="mt-6">
+          <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, x: 12 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -12 }}
+            transition={{ duration: 0.2 }}
+          >
           {activeTab === "basic" && (
           <div className="flex flex-col gap-4">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -1871,9 +1880,11 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
               </div>
             </div>
           )}
+          </motion.div>
+          </AnimatePresence>
 
           {error && (
-            <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>
+            <p className="mt-4 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>
           )}
 
           </div>
@@ -1889,6 +1900,7 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
               }}
               disabled={tabs.findIndex((t) => t.id === activeTab) === 0}
             >
+              <ChevronLeft className="mr-1 h-4 w-4" />
               Anterior
             </Button>
             <div className="flex items-center gap-2">
@@ -1905,6 +1917,7 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
                   }}
                 >
                   Siguiente
+                  <ChevronRight className="ml-1 h-4 w-4" />
                 </Button>
               ) : (
                 <Button type="submit" isLoading={loading}>
