@@ -6,16 +6,15 @@ import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   LayoutGrid,
+  LineChart,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { BrandLogo } from "@/components/brand-logo";
 import {
   useIsCashier,
   useIsWaiter,
   useCashierAllowedPaths,
   useWaiterAllowedPaths,
-  useCurrentBranch,
   useSessionStore,
 } from "@/lib/store/session";
 import { useFrigMenu } from "@/lib/hooks/useFrigMenu";
@@ -47,10 +46,6 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
   const waiterAllowedPaths = useWaiterAllowedPaths();
   const menuGroups = useFrigMenu();
   const { favorites } = useNavFavorites();
-  const branch = useCurrentBranch();
-  const theme = useSessionStore((s) => s.theme);
-  const branchLogo = theme?.logo ?? branch?.logo ?? null;
-  const branchName = branch?.business_name ?? theme?.app_name ?? null;
 
   const allMenuItems = useMemo(
     () => menuGroups.flatMap((g) => g.items),
@@ -70,7 +65,10 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
     const starred = favorites
       .map((href) => visibleMenuItems.find((i) => i.href === href))
       .filter((item): item is NonNullable<typeof item> => Boolean(item))
-      .map((item) => ({ ...item, badge: item.badge })) as NavItem[];
+      .map((item) => {
+        const icon = item.href === "/dashboard" ? LineChart : item.icon;
+        return { ...item, icon, badge: item.badge };
+      }) as NavItem[];
 
     // Si el usuario definió favoritos, se muestran SOLO esos (sin mezclar con defaults).
     if (starred.length > 0) return starred.slice(0, BOTTOM_NAV_SLOTS);
@@ -79,7 +77,11 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
     const defaults: NavItem[] = preferred
       .map((href) => visibleMenuItems.find((i) => i.href === href))
       .filter((item): item is NonNullable<typeof item> => Boolean(item))
-      .map((item) => ({ href: item.href, label: item.label, icon: item.icon, badge: item.badge, description: item.description }));
+      .map((item) => {
+        // Dashboard siempre usa LineChart (gráfico de barras) como ícono convencional
+        const icon = item.href === "/dashboard" ? LineChart : item.icon;
+        return { href: item.href, label: item.label, icon, badge: item.badge, description: item.description };
+      });
 
     return defaults.slice(0, BOTTOM_NAV_SLOTS);
   }, [visibleMenuItems, favorites]);
@@ -116,19 +118,10 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
               )}
               <div className="relative">
                 {isMenu ? (
-                  branchLogo || branchName ? (
-                    <BrandLogo
-                      src={branchLogo}
-                      name={branchName}
-                      className="h-6 w-6"
-                      containerClassName="h-[26px] w-[26px] !rounded-[9px] shadow-sm"
-                    />
-                  ) : (
-                    <LayoutGrid
-                      className="relative z-10 h-[22px] w-[22px]"
-                      strokeWidth={1.8}
-                    />
-                  )
+                  <LayoutGrid
+                    className="relative z-10 h-[22px] w-[22px]"
+                    strokeWidth={1.8}
+                  />
                 ) : (
                   <item.icon
                     className="relative z-10 h-[22px] w-[22px]"
