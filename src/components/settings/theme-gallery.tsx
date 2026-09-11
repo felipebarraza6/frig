@@ -36,9 +36,9 @@ function DashboardMiniCard({
         </p>
         <div
           className="flex h-4 w-4 items-center justify-center rounded-full"
-          style={{ backgroundColor: theme.primary + "33" }}
+          style={{ backgroundColor: theme.primary + "33", color: theme.primary }}
         >
-          <Icon className="h-2 w-2" style={{ color: theme.primary }} />
+          <Icon className="h-2 w-2" />
         </div>
       </div>
       <p className="mt-0.5 text-[11px] font-bold tabular-nums" style={{ color: theme.text }}>
