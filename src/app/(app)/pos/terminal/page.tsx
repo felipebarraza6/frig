@@ -95,6 +95,7 @@ import {
   useIsSuperAdmin,
   useIsAdminLocal,
   useCanViewCashRegisterHistory,
+  useIsModuleEnabledFromConfig,
 } from "@/lib/store/session";
 import { useBranchModules } from "@/lib/hooks/useBranchModules";
 import { useBranchProductTypes } from "@/lib/hooks/useBranchProductTypes";
@@ -127,6 +128,7 @@ export default function PosPage() {
   const isSuperAdmin = useIsSuperAdmin();
   const isAdminLocal = useIsAdminLocal();
   const canConfigurePos = isOwner || isAdminLocal;
+  const inventoryEnabled = useIsModuleEnabledFromConfig("inventory");
   const [configOpen, setConfigOpen] = useState(false);
   const [inventoryOpen, setInventoryOpen] = useState(false);
   const canViewHistory = useCanViewCashRegisterHistory();
@@ -915,7 +917,7 @@ export default function PosPage() {
 
           {/* Inventario: stock actual y mermas/movimientos manuales (configurable).
               En móvil sale de la barra inferior; acá solo desktop/tablet. */}
-          {effectiveConfig.inventory_movements && !isWaiter && (
+          {inventoryEnabled && effectiveConfig.inventory_movements && !isWaiter && (
             <button
               type="button"
               onClick={() => setInventoryOpen(true)}
@@ -1606,7 +1608,7 @@ export default function PosPage() {
       {!cartOpen && !(isWaiter && !selectedTable && !isEditingOrder) && (
         <div className="fixed bottom-0 left-0 right-0 z-40 flex items-center gap-1.5 border-t border-border/60 bg-background px-2 py-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-lg md:hidden">
           {/* Inventario: solo si está activo en la config de la estación */}
-          {effectiveConfig.inventory_movements && !isWaiter && (
+          {inventoryEnabled && effectiveConfig.inventory_movements && !isWaiter && (
             <button
               type="button"
               onClick={() => setInventoryOpen(true)}
@@ -2710,10 +2712,12 @@ export default function PosPage() {
       />
 
       {/* Inventario del POS (stock + movimientos manuales) */}
+      {inventoryEnabled && (
       <PosInventoryModal
         open={inventoryOpen}
         onClose={() => setInventoryOpen(false)}
       />
+      )}
     </div>
   );
 }

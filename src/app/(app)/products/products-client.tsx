@@ -329,6 +329,7 @@ export function ProductsClient() {
   const [active, setActive] = useState("");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [pageUrl, setPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
+  const inventoryEnabled = useIsModuleEnabledFromConfig("inventory");
 
   // Debounce del buscador. Evitamos correr el efecto en el montaje inicial para
   // no generar un queryKey distinto (setPageUrl({}) crea una nueva referencia)
@@ -940,7 +941,7 @@ export function ProductsClient() {
                         <th className="px-4 py-3">Categoría</th>
                         <th className="px-4 py-3">Tipo</th>
                         <th className="px-4 py-3 text-right">Precio</th>
-                        <th className="px-4 py-3 text-center">Stock</th>
+                        {inventoryEnabled && <th className="px-4 py-3 text-center">Stock</th>}
                         <th className="px-4 py-3 text-center">Venta</th>
                         <th className="px-4 py-3 text-center">Activo</th>
                         <th className="px-4 py-3 text-right">Acciones</th>
@@ -987,20 +988,22 @@ export function ProductsClient() {
                           <td className="px-4 py-3 text-right tabular-nums">
                             {formatCLP(p.sale_price ?? p.price ?? "0")}
                           </td>
+                          {inventoryEnabled && (
                           <td className="px-4 py-3 text-center">
                           {((p as { tracks_inventory?: boolean }).tracks_inventory === false) ? (
-                            <span className="text-xs font-medium text-emerald-700">Sin límite</span>
+                            <span className="text-xs font-medium text-success">Sin límite</span>
                           ) : (
                             <div className="flex items-center justify-center gap-1">
                               <span className="tabular-nums">{productStock(p)}</span>
                               {isLowStock(p) && (
                                 <span title="Stock bajo">
-                                  <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                                  <AlertTriangle className="h-3.5 w-3.5 text-warning" />
                                 </span>
                               )}
                             </div>
                           )}
                           </td>
+                          )}
                           <td className="px-4 py-3 text-center">
                             <span
                               className={
