@@ -319,7 +319,7 @@ export function ProductsClient() {
   const branch = useCurrentBranch();
   const { download: downloadFile, isLoading: isExporting } = useDownloadFile();
   const { options: productTypeOptions, labelFor: productTypeLabel } = useBranchProductTypes();
-  const { options: categoryOptions, isLoading: loadingCategories, error: categoriesError, refetch: refetchCategories } = useCategoryOptions();
+  const { options: categoryOptions, isLoading: loadingCategories, error: categoriesError } = useCategoryOptions();
 
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
@@ -615,7 +615,14 @@ export function ProductsClient() {
           {/* Desktop filters */}
           <div className="hidden flex-wrap items-end gap-3 lg:flex">
             <div className="flex flex-col gap-1">
-              <label htmlFor="filter-category" className="text-xs text-muted-foreground">Categoría</label>
+              <div className="flex items-center justify-between gap-2">
+                <label htmlFor="filter-category" className="text-xs text-muted-foreground">Categoría</label>
+                {!loadingCategories && categoryOptions.length === 0 && (
+                  <a href="/products/categories" className="text-[11px] text-primary hover:underline">
+                    + Crear categoría
+                  </a>
+                )}
+              </div>
               <Select
                 id="filter-category"
                 value={category}
@@ -628,24 +635,9 @@ export function ProductsClient() {
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </Select>
-              {!loadingCategories && categoryOptions.length === 0 && (
-                <div className="flex flex-col gap-1 text-xs text-warning">
-                  <div className="flex items-center gap-1">
-                    <AlertTriangle className="h-3 w-3 shrink-0" />
-                    <span>Sin categorías para <strong>{branch?.branch_name ?? "esta sucursal"}</strong>.</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => refetchCategories()}
-                    className="w-fit underline hover:text-warning/80"
-                  >
-                    Reintentar
-                  </button>
-                </div>
-              )}
               {categoriesError && (
                 <p className="text-xs text-danger">
-                  Error: {categoriesError.message || "No se pudieron cargar las categorías."}
+                  Error al cargar categorías.
                 </p>
               )}
             </div>
@@ -717,7 +709,14 @@ export function ProductsClient() {
 
             <div className={`flex flex-col gap-3 ${showMobileFilters ? "" : "hidden"}`}>
               <div className="flex flex-col gap-1">
-                <label htmlFor="filter-category-mobile" className="text-xs text-muted-foreground">Categoría</label>
+                <div className="flex items-center justify-between gap-2">
+                  <label htmlFor="filter-category-mobile" className="text-xs text-muted-foreground">Categoría</label>
+                  {!loadingCategories && categoryOptions.length === 0 && (
+                    <a href="/products/categories" className="text-[11px] text-primary hover:underline">
+                      + Crear categoría
+                    </a>
+                  )}
+                </div>
                 <Select
                   id="filter-category-mobile"
                   value={category}
@@ -729,24 +728,9 @@ export function ProductsClient() {
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </Select>
-                {!loadingCategories && categoryOptions.length === 0 && (
-                  <div className="flex flex-col gap-1 text-xs text-warning">
-                    <div className="flex items-center gap-1">
-                      <AlertTriangle className="h-3 w-3 shrink-0" />
-                      <span>Sin categorías para <strong>{branch?.branch_name ?? "esta sucursal"}</strong>.</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => refetchCategories()}
-                      className="w-fit underline hover:text-warning/80"
-                    >
-                      Reintentar
-                    </button>
-                  </div>
-                )}
                 {categoriesError && (
                   <p className="text-xs text-danger">
-                    Error: {categoriesError.message || "No se pudieron cargar las categorías."}
+                    Error al cargar categorías.
                   </p>
                 )}
               </div>
