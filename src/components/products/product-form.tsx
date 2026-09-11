@@ -375,12 +375,13 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
       const data = await fetchWarehouses({});
       return data.results;
     },
+    enabled: inventoryEnabled,
   });
 
   const { data: productWarehouses = [], isLoading: loadingProductWarehouses } = useQuery({
     queryKey: ["warehouse-products", "product", effectiveProduct?.id],
     queryFn: () => fetchProductWarehouses(effectiveProduct!.id),
-    enabled: !!effectiveProduct?.id,
+    enabled: !!effectiveProduct?.id && inventoryEnabled,
   });
 
   const groupedProductWarehouses = useMemo(
