@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import type { PosProduct } from "@/lib/api/types";
+import { useSessionStore } from "@/lib/store/session";
 
 export interface CartItemModifier {
   modifierOptionId: number;
@@ -46,6 +47,11 @@ function generateId(): string {
 }
 
 function availableStock(product: PosProduct): number {
+  // Sin el módulo Inventario no existe control de stock en la sucursal: nada
+  // debe limitar la cantidad, aunque el producto llegue con quantity 0.
+  if (!(useSessionStore.getState().modules["inventory"]?.is_enabled ?? false)) {
+    return Infinity;
+  }
   // Flag explícito del backend: los productos que no controlan inventario se
   // venden sin límite de stock.
   if (product.tracks_inventory === false) return Infinity;
