@@ -233,6 +233,8 @@ export function BranchThemeDialog({ branch, onClose }: BranchThemeDialogProps) {
                     />
                   </div>
 
+                  {/* Modo de color gestionado por la galería — oculto */}
+                  <div className="hidden">
                   <div className="flex flex-col gap-1.5">
                     <label htmlFor="algorithm" className="text-sm font-medium">
                       Modo de color
@@ -246,6 +248,7 @@ export function BranchThemeDialog({ branch, onClose }: BranchThemeDialogProps) {
                       <option value="dark">Oscuro</option>
                       <option value="auto">Auto</option>
                     </Select>
+                  </div>
                   </div>
 
                   {/* Colores gestionados por la galería de temas — ocultos pero funcionales */}
