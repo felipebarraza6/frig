@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { PRESET_THEMES, type ThemePalette } from "@/lib/themes";
+import { PRESET_THEMES, getThemeById, type ThemePalette } from "@/lib/themes";
 import { Check } from "lucide-react";
 
 /** Muestra una mini-card con preview del theme (fondo + bordes + acento). */
