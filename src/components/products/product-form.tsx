@@ -1151,9 +1151,10 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
 
           {activeTab === "pricing" && (
           <>
-          <div className={`grid grid-cols-1 gap-3 ${isSellable ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+          {/* Precios */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {isSellable && (
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-1.5">
                 <label htmlFor="product-price" className="text-sm font-medium">Precio venta</label>
                 <Input
                   id="product-price"
@@ -1166,7 +1167,7 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
                 />
               </div>
             )}
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5">
               <label htmlFor="product-cost" className="text-sm font-medium">Costo</label>
               <Input
                 id="product-cost"
@@ -1178,7 +1179,7 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
                 placeholder="Opcional"
               />
             </div>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5">
               <label htmlFor="product-wholesale" className="text-sm font-medium">Precio mayorista</label>
               <Input
                 id="product-wholesale"
@@ -1190,10 +1191,7 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
                 placeholder="Opcional"
               />
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5">
               <label htmlFor="product-internal" className="text-sm font-medium">Precio interno</label>
               <Input
                 id="product-internal"
@@ -1206,56 +1204,78 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
               />
             </div>
           </div>
-          </>
-          )}
 
-          {activeTab === "pricing" && (
-          <div className="flex flex-wrap items-center gap-6">
+          {/* Estado del producto */}
+          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
             {isSellable && (
-              <label className="flex items-center gap-2 text-sm">
+              <label className={cn(
+                "flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2.5 text-sm transition-colors",
+                form.isForSale ? "border-primary/40 bg-primary/8" : "border-border bg-muted/30",
+              )}>
                 <input
                   type="checkbox"
                   checked={form.isForSale}
                   onChange={(e) => updateField("isForSale", e.target.checked)}
                   className="h-4 w-4 accent-primary"
                 />
-                Disponible para venta
+                <div>
+                  <p className="font-medium">Disponible para venta</p>
+                  <p className="text-[11px] text-muted-foreground">Aparece en POS y catálogo</p>
+                </div>
               </label>
             )}
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={form.isForInternalUse}
-                onChange={(e) => updateField("isForInternalUse", e.target.checked)}
-                className="h-4 w-4 accent-primary"
-              />
-              Uso interno
-            </label>
-            <label className="flex items-center gap-2 text-sm">
+            <label className={cn(
+              "flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2.5 text-sm transition-colors",
+              form.isActive ? "border-primary/40 bg-primary/8" : "border-border bg-muted/30",
+            )}>
               <input
                 type="checkbox"
                 checked={form.isActive}
                 onChange={(e) => updateField("isActive", e.target.checked)}
                 className="h-4 w-4 accent-primary"
               />
-              Activo
+              <div>
+                <p className="font-medium">Activo</p>
+                <p className="text-[11px] text-muted-foreground">Visible en el sistema</p>
+              </div>
+            </label>
+            <label className={cn(
+              "flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2.5 text-sm transition-colors",
+              form.isForInternalUse ? "border-primary/40 bg-primary/8" : "border-border bg-muted/30",
+            )}>
+              <input
+                type="checkbox"
+                checked={form.isForInternalUse}
+                onChange={(e) => updateField("isForInternalUse", e.target.checked)}
+                className="h-4 w-4 accent-primary"
+              />
+              <div>
+                <p className="font-medium">Uso interno</p>
+                <p className="text-[11px] text-muted-foreground">Consumo del equipo</p>
+              </div>
             </label>
             {isSellable && publicCatalogEnabled && (
-              <label className="flex items-center gap-2 text-sm">
+              <label className={cn(
+                "flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2.5 text-sm transition-colors",
+                form.isPublic ? "border-primary/40 bg-primary/8" : "border-border bg-muted/30",
+              )}>
                 <input
                   type="checkbox"
                   checked={form.isPublic}
                   onChange={(e) => updateField("isPublic", e.target.checked)}
                   className="h-4 w-4 accent-primary"
                 />
-                Público en menú QR
+                <div>
+                  <p className="font-medium">Público en menú QR</p>
+                  <p className="text-[11px] text-muted-foreground">Visible en el catálogo digital</p>
+                </div>
               </label>
             )}
           </div>
-          )}
 
-          {activeTab === "pricing" && !isCompound && (
-            <div className="flex items-start justify-between gap-3 rounded-lg border border-border bg-muted/40 px-4 py-3">
+          {/* Controla inventario — solo si el módulo está activo */}
+          {inventoryEnabled && !isCompound && (
+            <div className="mt-2 flex items-start justify-between gap-3 rounded-xl border border-border bg-muted/40 px-4 py-3">
               <div>
                 <p className="text-sm font-medium">Controla inventario</p>
                 <p className="text-xs text-muted-foreground">
@@ -1268,6 +1288,8 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
                 label="Controla inventario"
               />
             </div>
+          )}
+          </>
           )}
 
           {activeTab === "basic" && orphanRecipe && (
