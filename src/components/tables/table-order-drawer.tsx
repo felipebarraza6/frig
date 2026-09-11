@@ -66,7 +66,7 @@ export function TableOrderDrawer({ table, isWaiter, onClose }: TableOrderDrawerP
               {table.area ? `${table.area} · ` : ""}
               {table.capacity} puestos
               {orderId && (
-                <span className="ml-1 inline-flex items-center gap-0.5 text-amber-700">
+                <span className="ml-1 inline-flex items-center gap-0.5 text-warning">
                   <Clock className="h-3 w-3" /> {elapsed.text}
                 </span>
               )}
@@ -74,7 +74,7 @@ export function TableOrderDrawer({ table, isWaiter, onClose }: TableOrderDrawerP
           </div>
           <div className="flex items-center gap-3">
             {order && (
-              <span className="text-base font-bold tabular-nums text-emerald-700">
+              <span className="text-base font-bold tabular-nums text-success">
                 {formatCLP(order.total_amount ?? 0)}
               </span>
             )}
@@ -127,7 +127,7 @@ export function TableOrderDrawer({ table, isWaiter, onClose }: TableOrderDrawerP
                     onClose();
                     router.push(`/pos/terminal?order_id=${orderId}&return_to=${returnTo}`);
                   }}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 text-sm font-semibold text-white transition-colors hover:bg-emerald-600/90"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-success text-sm font-semibold text-white transition-colors hover:bg-success/90"
                 >
                   <Banknote className="h-4 w-4" />
                   Cobrar
@@ -165,7 +165,7 @@ function OrderDetail({ order }: { order: Order }) {
             {new Date(order.date).toLocaleString()}
           </p>
         </div>
-        <span className="rounded-md bg-amber-500/10 px-2 py-1 text-[11px] font-medium text-amber-700">
+        <span className="rounded-md bg-warning/10 px-2 py-1 text-[11px] font-medium text-warning">
           {order.payment_status === "PENDING" ? "Sin pagar" : order.payment_status}
         </span>
       </div>

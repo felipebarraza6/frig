@@ -107,7 +107,7 @@ export function OrdersMetricDetail({
 
   if (error) {
     return (
-      <div className="flex items-center justify-center gap-2 rounded-lg border border-amber-200 bg-amber-50 py-4 text-sm text-amber-700">
+      <div className="flex items-center justify-center gap-2 rounded-lg border border-warning/30 bg-warning/10 py-4 text-sm text-warning">
         <AlertTriangle className="h-4 w-4" />
         No se pudo cargar el detalle.
       </div>
@@ -163,7 +163,7 @@ export function IncomeMetricDetail({
 
   if (error) {
     return (
-      <div className="flex items-center justify-center gap-2 rounded-lg border border-amber-200 bg-amber-50 py-4 text-sm text-amber-700">
+      <div className="flex items-center justify-center gap-2 rounded-lg border border-warning/30 bg-warning/10 py-4 text-sm text-warning">
         <AlertTriangle className="h-4 w-4" />
         No se pudo cargar el detalle.
       </div>
@@ -205,7 +205,7 @@ export function CustomersMetricDetail({
 
   if (error) {
     return (
-      <div className="flex items-center justify-center gap-2 rounded-lg border border-amber-200 bg-amber-50 py-4 text-sm text-amber-700">
+      <div className="flex items-center justify-center gap-2 rounded-lg border border-warning/30 bg-warning/10 py-4 text-sm text-warning">
         <AlertTriangle className="h-4 w-4" />
         No se pudo cargar el detalle.
       </div>

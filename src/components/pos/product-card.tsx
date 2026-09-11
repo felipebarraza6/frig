@@ -62,9 +62,9 @@ function StockBadge({ product }: { product: PosProduct }) {
     <span
       className={cn(
         "inline-flex h-5 items-center gap-0.5 rounded-md px-1.5 text-[10px] font-medium",
-        status.variant === "ok" && "bg-emerald-500/10 text-emerald-700",
-        status.variant === "low" && "bg-amber-500/10 text-amber-700",
-        status.variant === "empty" && "bg-red-500/10 text-red-700",
+        status.variant === "ok" && "bg-success/10 text-success",
+        status.variant === "low" && "bg-warning/10 text-warning",
+        status.variant === "empty" && "bg-danger/10 text-danger",
       )}
     >
       {status.variant !== "ok" && <AlertTriangle className="h-2.5 w-2.5" />}

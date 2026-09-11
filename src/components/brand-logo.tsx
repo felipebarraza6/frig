@@ -68,7 +68,7 @@ export function BrandLogo({
   return (
     <div
       className={cn(
-        "flex items-center justify-center overflow-hidden rounded-lg bg-white",
+        "flex items-center justify-center overflow-hidden rounded-lg bg-background",
         containerClassName ?? "h-9 w-9",
       )}
     >

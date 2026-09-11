@@ -45,9 +45,9 @@ const COLUMNS: {
   icon: React.ComponentType<{ className?: string }>;
   color: string;
 }[] = [
-  { key: "PENDING", label: "Pendientes", icon: Clock, color: "bg-amber-500" },
+  { key: "PENDING", label: "Pendientes", icon: Clock, color: "bg-warning" },
   { key: "PREPARING", label: "En preparación", icon: ChefHat, color: "bg-primary" },
-  { key: "READY", label: "Listos", icon: Utensils, color: "bg-emerald-500" },
+  { key: "READY", label: "Listos", icon: Utensils, color: "bg-success" },
 ];
 
 function visibleItems(items: KitchenTicket["items"], stationId: number | null) {
@@ -365,7 +365,7 @@ function TicketCard({
       </div>
 
       {ticket.notes && (
-        <p className="mb-2 text-xs text-amber-700">{ticket.notes}</p>
+        <p className="mb-2 text-xs text-warning">{ticket.notes}</p>
       )}
 
       <ul className="mb-3 flex flex-col gap-1">

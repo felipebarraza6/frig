@@ -1138,7 +1138,7 @@ export default function QuickSaleModal({
                       </div>
                     )}
                     {openRegisters.length === 0 && (
-                      <p className="text-[11px] text-amber-600">
+                      <p className="text-[11px] text-warning">
                         No hay cajas abiertas: regístralo sin caja o ábrela en Caja.
                       </p>
                     )}
@@ -1181,7 +1181,7 @@ export default function QuickSaleModal({
                     <span
                       className={cn(
                         "font-semibold tabular-nums",
-                        missing ? "text-amber-600" : "text-emerald-600",
+                        missing ? "text-warning" : "text-success",
                       )}
                     >
                       {formatCLP(paidTotal)}

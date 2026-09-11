@@ -1271,7 +1271,7 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
           )}
 
           {activeTab === "basic" && orphanRecipe && (
-            <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
+            <p className="rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">
               El producto ya no es del tipo <strong>Producto compuesto</strong>, pero su receta
               asociada se mantendrá en el catálogo de recetas.
             </p>
