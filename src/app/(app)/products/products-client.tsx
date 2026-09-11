@@ -196,26 +196,26 @@ function ProductCard({
           <div className="text-right">
             <p className="text-xs text-muted-foreground">Stock</p>
           {((product as { tracks_inventory?: boolean }).tracks_inventory === false) ? (
-            <p className="text-lg font-semibold text-emerald-700">Sin límite</p>
+            <p className="text-lg font-semibold text-success">Sin límite</p>
           ) : (
           <>
           <div className="flex items-center justify-end gap-1.5">
             <span
               className={cn(
                 "text-lg font-semibold tabular-nums",
-                lowStock ? "text-amber-600" : "text-foreground",
+                lowStock ? "text-warning" : "text-foreground",
               )}
             >
               {stock}
             </span>
             {lowStock && (
               <span title="Stock bajo">
-                <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
+                <AlertTriangle className="h-4 w-4 shrink-0 text-warning" />
               </span>
             )}
           </div>
           {lowStock && (
-            <p className="text-xs font-medium text-amber-600">Stock bajo</p>
+            <p className="text-xs font-medium text-warning">Stock bajo</p>
           )}
           </>
           )}
@@ -228,7 +228,7 @@ function ProductCard({
           className={cn(
             "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
             product.is_for_sale
-              ? "bg-emerald-500/10 text-emerald-700"
+              ? "bg-success/10 text-success"
               : "bg-muted text-muted-foreground",
           )}
         >
@@ -238,7 +238,7 @@ function ProductCard({
           className={cn(
             "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
             product.is_active
-              ? "bg-emerald-500/10 text-emerald-700"
+              ? "bg-success/10 text-success"
               : "bg-danger/10 text-danger",
           )}
         >
@@ -298,7 +298,7 @@ function ProductCard({
           className={cn(
             "h-8 w-8 rounded-full",
             product.is_active
-              ? "text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700"
+              ? "text-success hover:bg-success/10 hover:text-success/80"
               : "text-muted-foreground hover:bg-muted hover:text-danger",
           )}
           onClick={onToggleActive}
@@ -629,7 +629,7 @@ export function ProductsClient() {
                 ))}
               </Select>
               {!loadingCategories && categoryOptions.length === 0 && (
-                <div className="flex flex-col gap-1 text-xs text-amber-700">
+                <div className="flex flex-col gap-1 text-xs text-warning">
                   <div className="flex items-center gap-1">
                     <AlertTriangle className="h-3 w-3 shrink-0" />
                     <span>Sin categorías para <strong>{branch?.branch_name ?? "esta sucursal"}</strong>.</span>
@@ -637,7 +637,7 @@ export function ProductsClient() {
                   <button
                     type="button"
                     onClick={() => refetchCategories()}
-                    className="w-fit underline hover:text-amber-800"
+                    className="w-fit underline hover:text-warning/80"
                   >
                     Reintentar
                   </button>
@@ -730,7 +730,7 @@ export function ProductsClient() {
                   ))}
                 </Select>
                 {!loadingCategories && categoryOptions.length === 0 && (
-                  <div className="flex flex-col gap-1 text-xs text-amber-700">
+                  <div className="flex flex-col gap-1 text-xs text-warning">
                     <div className="flex items-center gap-1">
                       <AlertTriangle className="h-3 w-3 shrink-0" />
                       <span>Sin categorías para <strong>{branch?.branch_name ?? "esta sucursal"}</strong>.</span>
@@ -738,7 +738,7 @@ export function ProductsClient() {
                     <button
                       type="button"
                       onClick={() => refetchCategories()}
-                      className="w-fit underline hover:text-amber-800"
+                      className="w-fit underline hover:text-warning/80"
                     >
                       Reintentar
                     </button>
@@ -1008,7 +1008,7 @@ export function ProductsClient() {
                             <span
                               className={
                                 p.is_for_sale
-                                  ? "rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-700"
+                                  ? "rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success"
                                   : "rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
                               }
                             >
@@ -1023,7 +1023,7 @@ export function ProductsClient() {
                               aria-label={`${p.is_active ? "Desactivar" : "Activar"} ${p.name}`}
                               className={
                                 p.is_active
-                                  ? "text-emerald-600 hover:text-emerald-700"
+                                  ? "text-success hover:text-success/80"
                                   : "text-muted-foreground hover:text-danger"
                               }
                             >
