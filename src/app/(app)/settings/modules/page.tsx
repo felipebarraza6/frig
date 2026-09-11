@@ -279,8 +279,6 @@ export default function BranchModulesPage() {
       if (context?.previous) {
         queryClient.setQueryData(["branch-modules", branchId], context.previous);
       } else if (vars && context !== undefined) {
-        // La card era sintetizada (sin fila en `by_branch`): el optimismo la
-        // agregó al cache; al fallar se retira para no dejar un estado falso.
         queryClient.setQueryData<ModuleConfig[]>(["branch-modules", branchId], (old = []) =>
           old.filter((c) => c.module_name !== vars.moduleName),
         );
@@ -291,15 +289,27 @@ export default function BranchModulesPage() {
       const meta = getModuleMetadata(vars.moduleName, metadataByName);
       const moduleLabel = MODULE_LABELS[vars.moduleName] ?? meta.label ?? vars.moduleName;
 
-      console.error("[modules] toggle error:", err);
+      const apiDetail = err instanceof ApiError ? { status: err.status, detail: err.detail } : {};
+      console.error("[modules] toggle error:", {
+        module: vars.moduleName,
+        action: vars.isEnabled ? "activate" : "deactivate",
+        branchId,
+        ...apiDetail,
+        error: err,
+      });
 
       const isPlanError = err instanceof ApiError && err.status === 403;
+      const isServerError = err instanceof ApiError && err.status >= 500;
       const isPermissionMessage = /permiso|permission|no tiene/i.test(err.message);
 
       if (isPlanError || isPermissionMessage) {
         toast.error(
-          `No se pudo cambiar "${moduleLabel}". El módulo no está incluido en el plan activo de esta sucursal o tu rol no tiene permisos.`,
+          `No se pudo ${vars.isEnabled ? "activar" : "desactivar"} "${moduleLabel}". Este módulo no está incluido en el plan activo de esta sucursal.`,
           6000,
+        );
+      } else if (isServerError) {
+        toast.error(
+          `Error del servidor al ${vars.isEnabled ? "activar" : "desactivar"} "${moduleLabel}". Intenta de nuevo en unos segundos.`,
         );
       } else {
         toast.error(err.message);

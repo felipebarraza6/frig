@@ -964,14 +964,6 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
       };
       const savedProduct = await onSubmit(payload, effectiveProduct?.id);
 
-      // El backend fuerza tracks_inventory=True en la CREACIÓN
-      // (configure_by_type); para un producto nuevo con el control de
-      // inventario apagado lo corregimos con un PATCH posterior. onSubmit con
-      // id hace PATCH parcial e invalida las queries de productos.
-      if (!effectiveProduct?.id && !isCompound && !tracksWarehouseStock) {
-        await onSubmit({ tracks_inventory: false }, savedProduct.id);
-      }
-
       await saveSupplierRelation(savedProduct.id);
 
       if (isCompound) {

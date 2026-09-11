@@ -49,12 +49,17 @@ import { useBranchRecipeMaps } from "@/lib/hooks/useBranchRecipeMaps";
 import type { YggdraProduct, YggdraSchemas } from "@/lib/api/types";
 
 function productStock(p: YggdraProduct): number {
+  // Productos que no controlan inventario no tienen stock relevante.
   // El backend anota stock_available (stock efectivo, incluido el de bowls
   // derivado de recetas). Si no viene, caemos al quantity plano del producto.
+  const tracks = (p as { tracks_inventory?: boolean }).tracks_inventory;
+  if (tracks === false) return 0;
   return p.stock_available ?? p.quantity ?? 0;
 }
 
 function isLowStock(p: YggdraProduct): boolean {
+  const tracks = (p as { tracks_inventory?: boolean }).tracks_inventory;
+  if (tracks === false) return false;
   if (p.minimum_stock === undefined || p.minimum_stock === null) return false;
   return productStock(p) <= p.minimum_stock;
 }
@@ -190,6 +195,10 @@ function ProductCard({
         {inventoryEnabled && (
           <div className="text-right">
             <p className="text-xs text-muted-foreground">Stock</p>
+          {((product as { tracks_inventory?: boolean }).tracks_inventory === false) ? (
+            <p className="text-lg font-semibold text-emerald-700">Sin límite</p>
+          ) : (
+          <>
           <div className="flex items-center justify-end gap-1.5">
             <span
               className={cn(
@@ -207,6 +216,8 @@ function ProductCard({
           </div>
           {lowStock && (
             <p className="text-xs font-medium text-amber-600">Stock bajo</p>
+          )}
+          </>
           )}
           </div>
         )}
@@ -977,6 +988,9 @@ export function ProductsClient() {
                             {formatCLP(p.sale_price ?? p.price ?? "0")}
                           </td>
                           <td className="px-4 py-3 text-center">
+                          {((p as { tracks_inventory?: boolean }).tracks_inventory === false) ? (
+                            <span className="text-xs font-medium text-emerald-700">Sin límite</span>
+                          ) : (
                             <div className="flex items-center justify-center gap-1">
                               <span className="tabular-nums">{productStock(p)}</span>
                               {isLowStock(p) && (
@@ -985,6 +999,7 @@ export function ProductsClient() {
                                 </span>
                               )}
                             </div>
+                          )}
                           </td>
                           <td className="px-4 py-3 text-center">
                             <span

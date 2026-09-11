@@ -1710,9 +1710,9 @@ function MetricItem({
         <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
         <span className="leading-tight">{label}</span>
       </div>
-      <p className={cn("break-words text-sm font-bold tabular-nums tracking-tight sm:text-base", muted && "text-muted-foreground")}>
+      <div className={cn("break-words text-sm font-bold tabular-nums tracking-tight sm:text-base", muted && "text-muted-foreground")}>
         {loading ? <SkeletonText width="60%" height="md" /> : value}
-      </p>
+      </div>
     </div>
   );
 }

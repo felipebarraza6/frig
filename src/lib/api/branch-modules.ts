@@ -72,6 +72,9 @@ interface ToggleBranchModuleResponse {
  * Activa/desactiva un módulo por nombre y sucursal.
  * El backend crea la fila si no existe y propaga el estado a los submódulos
  * cuando el módulo es compuesto (por ejemplo Nutrición → Recetas/Ingredientes).
+ *
+ * El endpoint puede devolver el config directamente o envuelto en
+ * { config, activated_submodules, deactivated_submodules }.
  */
 export async function toggleBranchModule({
   branchId,
@@ -85,7 +88,15 @@ export async function toggleBranchModule({
       body: { branch_id: branchId, module_name: moduleName, is_enabled: isEnabled },
     },
   );
-  return data.config;
+  // Soporta ambas formas: respuesta directa (BranchModuleConfiguration) o
+  // envuelta en { config: … } (ToggleBranchModuleResponse).
+  const config = (data as unknown as BranchModuleConfiguration).module_name
+    ? (data as unknown as BranchModuleConfiguration)
+    : (data as ToggleBranchModuleResponse).config;
+  if (!config) {
+    throw new Error("El servidor no devolvió la configuración del módulo.");
+  }
+  return config;
 }
 
 export interface UpdateSubmoduleConfigPayload {

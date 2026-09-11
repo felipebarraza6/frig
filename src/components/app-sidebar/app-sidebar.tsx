@@ -60,20 +60,6 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
   const hovering = useSidebarStore((s) => s.hovering);
   const setHovering = useSidebarStore((s) => s.setHovering);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const profileMenuRef = useRef<HTMLDivElement>(null);
-
-  // Cerrar el menú del perfil al hacer click fuera de él.
-  useEffect(() => {
-    if (!profileMenuOpen) return;
-    function onPointerDown(e: MouseEvent) {
-      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target as Node)) {
-        setProfileMenuOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", onPointerDown);
-    return () => document.removeEventListener("mousedown", onPointerDown);
-  }, [profileMenuOpen]);
 
   const handleToggle = () => {
     // Al colapsar con el pointer sobre el sidebar hay que limpiar el hover:
@@ -464,62 +450,34 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
             })}
         </div>
 
-        <div ref={profileMenuRef} className="relative flex shrink-0 flex-col gap-0.5 border-t border-white/15 p-1.5">
-          <button
-            type="button"
-            onClick={() => setProfileMenuOpen((v) => !v)}
-            aria-expanded={profileMenuOpen}
-            aria-haspopup="menu"
+        <div className="flex shrink-0 flex-col border-t border-white/15 p-1.5">
+          <div
             className={cn(
-              "flex w-full items-center gap-2.5 rounded-lg px-3 py-1.5 text-left transition-colors",
-              profileMenuOpen || pathname.startsWith("/profile")
-                ? "bg-white/[0.16] text-white shadow-sm shadow-black/25 ring-1 ring-inset ring-white/25 backdrop-blur-sm"
-                : "text-white/80 hover:bg-white/10 hover:text-white",
-              !effectivelyExpanded && "justify-center px-0"
+              "flex flex-col rounded-lg",
+              effectivelyExpanded ? "px-1.5 py-1" : "items-center"
             )}
-            title={!effectivelyExpanded ? "Perfil" : undefined}
           >
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/15">
-              <UserIcon className="h-4 w-4" />
-            </div>
-            {effectivelyExpanded && (
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{user?.first_name ?? user?.email}</p>
-                <p className="truncate text-xs opacity-75">{user?.email}</p>
+            {/* Avatar + nombre + email → link a perfil */}
+            <Link
+              href="/profile"
+              className={cn(
+                "flex w-full cursor-pointer items-center gap-2.5 rounded-lg transition-colors hover:bg-white/10",
+                !effectivelyExpanded && "justify-center"
+              )}
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/20">
+                <UserIcon className="h-4 w-4 text-white" />
               </div>
-            )}
-          </button>
-
-          <AnimatePresence>
-            {profileMenuOpen && (
-              <m.div
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 6 }}
-                transition={{ duration: 0.15 }}
-                role="menu"
-                className="absolute bottom-full left-1.5 right-1.5 z-50 mb-1 overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-lg"
-              >
-                <Link
-                  href="/profile"
-                  role="menuitem"
-                  onClick={() => setProfileMenuOpen(false)}
-                  className="flex items-center gap-2.5 px-3 py-2.5 text-sm transition-colors hover:bg-primary/10 hover:text-primary"
-                >
-                  <UserIcon className="h-4 w-4 text-muted-foreground" />
-                  Mi perfil
-                </Link>
-                <button
-                  onClick={handleLogout}
-                  role="menuitem"
-                  className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm text-rose-600 transition-colors hover:bg-rose-500/10"
-                >
-                  <LogOut className="h-4 w-4" />
-                  Cerrar sesión
-                </button>
-              </m.div>
-            )}
-          </AnimatePresence>
+              {effectivelyExpanded && (
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-white">
+                    {user?.first_name ?? user?.email}
+                  </p>
+                  <p className="truncate text-xs text-white/75">{user?.email}</p>
+                </div>
+              )}
+            </Link>
+          </div>
         </div>
       </aside>
     </>

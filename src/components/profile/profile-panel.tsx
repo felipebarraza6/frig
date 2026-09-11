@@ -1,14 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { User as UserIcon, KeyRound, Store, Check, AlertCircle, Building2, CalendarDays, Clock, RefreshCw, Smartphone, type LucideIcon } from "lucide-react";
+import { User as UserIcon, KeyRound, Store, LogOut, Check, AlertCircle, Building2, CalendarDays, Clock, RefreshCw, Smartphone, type LucideIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSessionStore } from "@/lib/store/session";
+import { logout } from "@/lib/api/auth";
 import { useToast } from "@/lib/store/toast";
 import { APP_BUILD, checkForAppUpdate, isStandalonePwa } from "@/lib/pwa";
 import { getRoleLabel } from "@/lib/roles";
@@ -73,9 +75,11 @@ function Feedback({ tone, children }: { tone: "error" | "success"; children: Rea
 }
 
 export function ProfilePanel() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const user = useSessionStore((s) => s.user);
   const setUser = useSessionStore((s) => s.setUser);
+  const clearSession = useSessionStore((s) => s.clearSession);
   const assignments = user?.branch_assignments ?? [];
 
   const { data: profile, isLoading: loadingProfile } = useQuery({
@@ -260,6 +264,20 @@ export function ProfilePanel() {
             </div>
           )}
         </div>
+        <button
+          type="button"
+          onClick={async () => {
+            try { await logout(); } catch { /* ignora errores de red */ }
+            clearSession();
+            queryClient.clear();
+            router.push("/login");
+          }}
+          className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600"
+          title="Cerrar sesión"
+        >
+          <LogOut className="h-3.5 w-3.5" />
+          Cerrar sesión
+        </button>
       </motion.header>
 
       {/* Tabs segmentadas: mismo control en móvil y escritorio */}
