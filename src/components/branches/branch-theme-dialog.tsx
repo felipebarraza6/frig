@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { X, Palette, ImageIcon } from "lucide-react";
+import { X, Palette } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -300,6 +300,8 @@ export function BranchThemeDialog({ branch, onClose }: BranchThemeDialogProps) {
                   </div>
                   </div>
 
+                  {/* Radio de bordes — gestionado por el theme, oculto */}
+                  <div className="hidden">
                   <div className="flex flex-col gap-1.5">
                     <label htmlFor="borderRadius" className="text-sm font-medium">
                       Radio de bordes (px)
@@ -313,105 +315,162 @@ export function BranchThemeDialog({ branch, onClose }: BranchThemeDialogProps) {
                       onChange={(e) => setBorderRadius(e.target.value)}
                     />
                   </div>
+                  </div>
                 </div>
 
-                <div className="mt-4 flex flex-wrap items-center gap-6 rounded-xl border border-border bg-muted/50 p-4">
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={motion}
-                      onChange={(e) => setMotion(e.target.checked)}
-                      className="h-4 w-4 rounded border-border text-primary"
-                    />
-                    Animaciones
-                  </label>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={compact}
-                      onChange={(e) => setCompact(e.target.checked)}
-                      className="h-4 w-4 rounded border-border text-primary"
-                    />
-                    Modo compacto
-                  </label>
+                {/* Opciones visuales — cards clickeables estilo toggle */}
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setMotion((v) => !v)}
+                    className={cn(
+                      "flex items-center gap-3 rounded-xl border p-3 text-left transition-all",
+                      motion
+                        ? "border-primary/40 bg-primary/10"
+                        : "border-border bg-muted/30",
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "flex h-5 w-5 shrink-0 items-center justify-center rounded-md transition-colors",
+                        motion ? "bg-primary" : "bg-muted",
+                      )}
+                    >
+                      {motion && (
+                        <svg viewBox="0 0 12 12" fill="none" className="h-3 w-3" style={{ color: "#fff" }}>
+                          <path d="M2.5 6L5 8.5L9.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium" style={{ color: motion ? undefined : "var(--muted-foreground)" }}>
+                        Animaciones
+                      </p>
+                      <p className="text-[11px]" style={{ color: "var(--muted-foreground)" }}>
+                        Transiciones suaves
+                      </p>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setCompact((v) => !v)}
+                    className={cn(
+                      "flex items-center gap-3 rounded-xl border p-3 text-left transition-all",
+                      compact
+                        ? "border-primary/40 bg-primary/10"
+                        : "border-border bg-muted/30",
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "flex h-5 w-5 shrink-0 items-center justify-center rounded-md transition-colors",
+                        compact ? "bg-primary" : "bg-muted",
+                      )}
+                    >
+                      {compact && (
+                        <svg viewBox="0 0 12 12" fill="none" className="h-3 w-3" style={{ color: "#fff" }}>
+                          <path d="M2.5 6L5 8.5L9.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium" style={{ color: compact ? undefined : "var(--muted-foreground)" }}>
+                        Modo compacto
+                      </p>
+                      <p className="text-[11px]" style={{ color: "var(--muted-foreground)" }}>
+                        Menos espaciado
+                      </p>
+                    </div>
+                  </button>
                 </div>
 
-                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="flex flex-col gap-1.5">
-                    <label htmlFor="logo" className="text-sm font-medium">
-                      Logo
-                    </label>
-                    <Input
-                      id="logo"
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => handleFileChange(e, setLogoFile, setLogoPreview)}
-                    />
-                    {logoPreview && (
-                      <div className="mt-2 flex items-center gap-2 rounded-lg border border-border bg-muted/30 p-2">
-                        <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={logoPreview}
-                          alt="Vista previa del logo"
-                          className="h-10 w-10 rounded-md object-contain"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setLogoFile(null);
-                            setLogoPreview(null);
-                          }}
-                          className="ml-auto text-xs text-danger hover:underline"
-                        >
-                          Quitar
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                {/* Assets de marca — logo, favicon, banner */}
+                <div className="mt-4">
+                  <h3 className="mb-3 text-sm font-semibold text-foreground">Identidad visual</h3>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    {/* Logo con preview mejorado */}
+                    <div className="rounded-xl border border-border bg-muted/20 p-3">
+                      <label className="mb-2 block text-xs font-medium text-muted-foreground">Logo</label>
+                      <Input
+                        id="logo"
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleFileChange(e, setLogoFile, setLogoPreview)}
+                        className="text-xs"
+                      />
+                      {logoPreview && (
+                        <div className="mt-2 flex items-center gap-3 rounded-lg border border-border bg-card p-2">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={logoPreview}
+                            alt="Vista previa del logo"
+                            className="h-12 w-12 rounded-lg object-contain bg-white"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[11px] text-muted-foreground">
+                              {logoFile?.name ?? "Logo actual"}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setLogoFile(null);
+                              setLogoPreview(null);
+                            }}
+                            className="shrink-0 text-[11px] text-danger hover:underline"
+                          >
+                            Quitar
+                          </button>
+                        </div>
+                      )}
+                    </div>
 
-                  <div className="flex flex-col gap-1.5">
-                    <label htmlFor="favicon" className="text-sm font-medium">
-                      Favicon
-                    </label>
-                    <Input
-                      id="favicon"
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => handleFileChange(e, setFaviconFile)}
-                    />
-                  </div>
+                    {/* Favicon */}
+                    <div className="rounded-xl border border-border bg-muted/20 p-3">
+                      <label className="mb-2 block text-xs font-medium text-muted-foreground">Favicon</label>
+                      <Input
+                        id="favicon"
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleFileChange(e, setFaviconFile)}
+                        className="text-xs"
+                      />
+                    </div>
 
-                  <div className="flex flex-col gap-1.5 sm:col-span-2">
-                    <label htmlFor="banner" className="text-sm font-medium">
-                      Banner de login
-                    </label>
-                    <Input
-                      id="banner"
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => handleFileChange(e, setBannerFile, setBannerPreview)}
-                    />
-                    {bannerPreview && (
-                      <div className="mt-2 overflow-hidden rounded-lg border border-border">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={bannerPreview}
-                          alt="Vista previa del banner"
-                          className="h-32 w-full object-cover"
+                    {/* Banner */}
+                    <div className="sm:col-span-2">
+                      <div className="rounded-xl border border-border bg-muted/20 p-3">
+                        <label className="mb-2 block text-xs font-medium text-muted-foreground">Banner de login</label>
+                        <Input
+                          id="banner"
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleFileChange(e, setBannerFile, setBannerPreview)}
+                          className="text-xs"
                         />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setBannerFile(null);
-                            setBannerPreview(null);
-                          }}
-                          className="w-full bg-muted py-1 text-xs text-danger hover:underline"
-                        >
-                          Quitar banner
-                        </button>
+                        {bannerPreview && (
+                          <div className="mt-2 overflow-hidden rounded-lg border border-border">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={bannerPreview}
+                              alt="Vista previa del banner"
+                              className="h-28 w-full object-cover"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setBannerFile(null);
+                                setBannerPreview(null);
+                              }}
+                              className="w-full bg-muted py-1.5 text-xs text-danger hover:underline"
+                            >
+                              Quitar banner
+                            </button>
+                          </div>
+                        )}
                       </div>
-                    )}
+                    </div>
                   </div>
                 </div>
               </div>
