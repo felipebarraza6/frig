@@ -1000,36 +1000,36 @@ function StatCard({
   tone?: "emerald" | "blue" | "amber" | "violet" | "orange" | "teal" | "rose" | "slate";
 }) {
   const toneStyles = {
-    emerald: "from-emerald-50/50 via-white/80 to-white/80 shadow-emerald-500/5",
-    blue: "from-primary/5 via-white/80 to-white/80 shadow-primary/5",
-    amber: "from-amber-50/50 via-white/80 to-white/80 shadow-amber-500/5",
-    violet: "from-primary/6 via-white/80 to-white/80 shadow-primary/5",
-    orange: "from-primary/8 via-white/80 to-white/80 shadow-primary/5",
-    teal: "from-primary/4 via-white/80 to-white/80 shadow-primary/5",
-    rose: "from-rose-50/50 via-white/80 to-white/80 shadow-rose-500/5",
-    slate: "from-primary/5 via-white/80 to-white/80 shadow-primary/5",
+    emerald: "from-emerald-500/10 via-background to-background shadow-emerald-500/5",
+    blue: "from-primary/10 via-background to-background shadow-primary/5",
+    amber: "from-amber-500/10 via-background to-background shadow-amber-500/5",
+    violet: "from-primary/10 via-background to-background shadow-primary/5",
+    orange: "from-primary/15 via-background to-background shadow-primary/5",
+    teal: "from-primary/8 via-background to-background shadow-primary/5",
+    rose: "from-rose-500/10 via-background to-background shadow-rose-500/5",
+    slate: "from-muted/50 via-background to-background shadow-primary/5",
   };
 
   const toneText = {
-    emerald: "text-emerald-700/90",
+    emerald: "text-success/80",
     blue: "text-primary/80",
-    amber: "text-amber-700/90",
+    amber: "text-warning/80",
     violet: "text-primary/80",
     orange: "text-primary/80",
     teal: "text-primary/80",
-    rose: "text-rose-700/90",
-    slate: "text-primary/80",
+    rose: "text-danger/80",
+    slate: "text-muted-foreground",
   };
 
   const toneIcon = {
-    emerald: "bg-emerald-500/12 text-emerald-600",
+    emerald: "bg-success/12 text-success",
     blue: "bg-primary/10 text-primary",
-    amber: "bg-amber-500/12 text-amber-600",
+    amber: "bg-warning/12 text-warning",
     violet: "bg-primary/12 text-primary",
     orange: "bg-primary/15 text-primary",
     teal: "bg-primary/8 text-primary",
-    rose: "bg-rose-500/12 text-rose-600",
-    slate: "bg-primary/10 text-primary",
+    rose: "bg-danger/12 text-danger",
+    slate: "bg-muted/12 text-muted-foreground",
   };
 
   const content = (
