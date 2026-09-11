@@ -3,7 +3,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { X, Plus, Trash2, Search, FileDown, Warehouse, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -1041,7 +1041,7 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
 
           <div className="mt-6">
           <AnimatePresence mode="wait">
-          <motion.div
+          <m.div
             key={activeTab}
             initial={{ opacity: 0, x: 12 }}
             animate={{ opacity: 1, x: 0 }}
@@ -1880,7 +1880,7 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
               </div>
             </div>
           )}
-          </motion.div>
+          </m.div>
           </AnimatePresence>
 
           {error && (
