@@ -10,6 +10,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import { useToast } from "@/lib/store/toast";
 import { useSessionStore } from "@/lib/store/session";
+import { ThemeGallery, ThemeDescription } from "@/components/settings/theme-gallery";
+import { getThemeById, PRESET_THEMES } from "@/lib/themes";
 import {
   fetchBranchThemeById,
   updateBranchTheme,
@@ -37,6 +39,7 @@ export function BranchThemeDialog({ branch, onClose }: BranchThemeDialogProps) {
   const [appName, setAppName] = useState("");
   const [loginWelcome, setLoginWelcome] = useState("");
   const [tagline, setTagline] = useState("");
+  const [selectedThemeId, setSelectedThemeId] = useState<string>("");
   const [primaryColor, setPrimaryColor] = useState("#2f6b3c");
   const [secondaryColor, setSecondaryColor] = useState("#f2e8cf");
   const [algorithm, setAlgorithm] = useState<"light" | "dark" | "auto">("light");
@@ -66,6 +69,13 @@ export function BranchThemeDialog({ branch, onClose }: BranchThemeDialogProps) {
     setTagline(theme.tagline ?? "");
     setPrimaryColor(theme.primary_color ?? "#2f6b3c");
     setSecondaryColor(theme.secondary_color ?? "#f2e8cf");
+    // Detectar si los colores del servidor coinciden con un preset
+    const matching = PRESET_THEMES.find(
+      (t) =>
+        t.primary.toLowerCase() === (theme.primary_color ?? "").toLowerCase() &&
+        t.secondary.toLowerCase() === (theme.secondary_color ?? "").toLowerCase(),
+    );
+    setSelectedThemeId(matching?.id ?? "");
     setAlgorithm((theme.algorithm as "light" | "dark" | "auto") ?? "light");
     setBorderRadius(String(theme.borderRadius ?? 12));
     setMotion(theme.motion ?? true);
@@ -74,6 +84,20 @@ export function BranchThemeDialog({ branch, onClose }: BranchThemeDialogProps) {
     setBannerPreview((theme as unknown as { banner_image?: string | null }).banner_image ?? null);
   }, [theme]);
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  /** Cuando el usuario elige un preset, actualiza los colores del formulario. */
+  function handleThemeSelect(id: string) {
+    const preset = getThemeById(id);
+    if (!preset) return;
+    setSelectedThemeId(id);
+    setPrimaryColor(preset.primary);
+    setSecondaryColor(preset.secondary);
+    // Ajustar modo de color según el surface del preset
+    const isDark = preset.surface.toLowerCase().startsWith("#0") ||
+      preset.surface.toLowerCase() === "#0f172a" ||
+      preset.surface.toLowerCase() === "#1c1917";
+    setAlgorithm(isDark ? "dark" : "light");
+  }
 
   const save = useMutation({
     mutationFn: () => {
@@ -166,6 +190,16 @@ export function BranchThemeDialog({ branch, onClose }: BranchThemeDialogProps) {
           ) : (
             <>
               <div className="flex-1 overflow-y-auto p-4 md:p-6">
+                {/* Galería de temas presets */}
+                <div className="mb-5">
+                  <h3 className="mb-3 text-sm font-semibold text-foreground">Temas predefinidos</h3>
+                  <p className="mb-3 text-xs text-muted-foreground">
+                    Elige un tema y ajusta los colores a tu gusto.
+                  </p>
+                  <ThemeGallery value={selectedThemeId} onChange={handleThemeSelect} />
+                  {selectedThemeId && <ThemeDescription themeId={selectedThemeId} />}
+                </div>
+
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="flex flex-col gap-1.5">
                     <label htmlFor="app_name" className="text-sm font-medium">
