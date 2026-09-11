@@ -243,7 +243,7 @@ function buildInitialForm(product?: YggdraProductDetail, defaultProductType?: st
 
 function ProductFormSkeleton() {
   return (
-    <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg sm:h-auto sm:max-h-[90vh] sm:max-w-3xl sm:rounded-xl sm:border">
+    <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg sm:h-[85vh] sm:max-w-3xl sm:rounded-xl sm:border">
       <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 sm:px-6">
         <Skeleton className="h-5 w-40" />
         <Skeleton className="h-8 w-8 rounded-lg" />
@@ -1007,7 +1007,7 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
       {isInitializing ? (
         <ProductFormSkeleton />
       ) : (
-      <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg sm:h-auto sm:max-h-[90vh] sm:max-w-3xl sm:rounded-xl sm:border">
+      <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg sm:h-[85vh] sm:max-w-3xl sm:rounded-xl sm:border">
         <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 sm:px-6">
           <h2 className="text-base font-semibold">
             {effectiveProduct ? "Editar producto" : "Nuevo producto"}
@@ -1049,44 +1049,50 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
             transition={{ duration: 0.2 }}
           >
           {activeTab === "basic" && (
-          <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="flex flex-col gap-2">
-                <label htmlFor="product-name" className="text-sm font-medium">Nombre</label>
-                <Input
-                  id="product-name"
-                  value={form.name}
-                  onChange={(e) => updateField("name", e.target.value)}
-                  required
-                  placeholder="Ej: Cono artesanal"
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <label htmlFor="product-code" className="text-sm font-medium">Código</label>
-                <Input
-                  id="product-code"
-                  value={form.code}
-                  onChange={(e) => updateField("code", e.target.value)}
-                  placeholder="Opcional"
-                />
+          <div className="flex flex-col gap-5">
+            {/* Identificación */}
+            <div>
+              <h3 className="mb-3 text-sm font-semibold text-foreground">Identificación</h3>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="product-name" className="text-sm font-medium">Nombre</label>
+                  <Input
+                    id="product-name"
+                    value={form.name}
+                    onChange={(e) => updateField("name", e.target.value)}
+                    required
+                    placeholder="Ej: Cono artesanal"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="product-code" className="text-sm font-medium">Código</label>
+                  <Input
+                    id="product-code"
+                    value={form.code}
+                    onChange={(e) => updateField("code", e.target.value)}
+                    placeholder="Opcional"
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="flex flex-col gap-2">
-                <label htmlFor="product-type" className="text-sm font-medium">Tipo</label>
-                <Select
-                  id="product-type"
-                  value={form.productType}
-                  onChange={(e) => updateField("productType", e.target.value)}
-                >
-                  {productTypeOptions.map((t) => (
-                    <option key={t.value} value={t.value}>{t.label}</option>
-                  ))}
-                </Select>
-                <ProductTypeHelp productType={form.productType} />
-              </div>
-              <div className="flex flex-col gap-3">
+            {/* Clasificación */}
+            <div>
+              <h3 className="mb-3 text-sm font-semibold text-foreground">Clasificación</h3>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="product-type" className="text-sm font-medium">Tipo</label>
+                  <Select
+                    id="product-type"
+                    value={form.productType}
+                    onChange={(e) => updateField("productType", e.target.value)}
+                  >
+                    {productTypeOptions.map((t) => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </Select>
+                  <ProductTypeHelp productType={form.productType} />
+                </div>
                 <div className="flex flex-col gap-2">
                   <label htmlFor="product-category" className="text-sm font-medium">Categoría</label>
                   <Select
@@ -1101,58 +1107,63 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
                     ))}
                   </Select>
                 </div>
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="product-description" className="text-sm font-medium">Descripción</label>
-                  <textarea
-                    id="product-description"
-                    value={form.description}
-                    onChange={(e) => updateField("description", e.target.value)}
-                    placeholder="Describe el producto para el equipo de ventas o cocina..."
-                    rows={3}
-                    className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                  />
-                </div>
               </div>
             </div>
 
+            {/* Descripción */}
+            <div>
+              <h3 className="mb-3 text-sm font-semibold text-foreground">Descripción</h3>
+              <textarea
+                id="product-description"
+                value={form.description}
+                onChange={(e) => updateField("description", e.target.value)}
+                placeholder="Describe el producto para el equipo de ventas o cocina..."
+                rows={3}
+                className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+
             {!isCompound && (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="product-unit" className="text-sm font-medium">Unidad de medida</label>
-                  <Select
-                    id="product-unit"
-                    value={isCustomUnit ? "otro" : form.measurementUnit}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      updateField("measurementUnit", value === "otro" ? "" : value);
-                    }}
-                  >
-                    <option value="">Selecciona</option>
-                    {MEASUREMENT_UNITS.map((u) => (
-                      <option key={u.value} value={u.value}>{u.label}</option>
-                    ))}
-                  </Select>
-                  {isCustomUnit && (
-                    <Input
-                      value={form.measurementUnit}
-                      onChange={(e) => updateField("measurementUnit", e.target.value.toLowerCase().trim())}
-                      placeholder="Escribe la unidad (ej: galón)"
-                    />
-                  )}
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="product-supplier" className="text-sm font-medium">Proveedor principal</label>
-                  <Select
-                    id="product-supplier"
-                    value={form.supplier}
-                    disabled={loadingSuppliers || loadingSupplierProduct}
-                    onChange={(e) => updateField("supplier", e.target.value)}
-                  >
-                    <option value="">Sin proveedor</option>
-                    {suppliers.map((s) => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </Select>
+              <div>
+                <h3 className="mb-3 text-sm font-semibold text-foreground">Unidad y proveedor</h3>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="product-unit" className="text-sm font-medium">Unidad de medida</label>
+                    <Select
+                      id="product-unit"
+                      value={isCustomUnit ? "otro" : form.measurementUnit}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        updateField("measurementUnit", value === "otro" ? "" : value);
+                      }}
+                    >
+                      <option value="">Selecciona</option>
+                      {MEASUREMENT_UNITS.map((u) => (
+                        <option key={u.value} value={u.value}>{u.label}</option>
+                      ))}
+                    </Select>
+                    {isCustomUnit && (
+                      <Input
+                        value={form.measurementUnit}
+                        onChange={(e) => updateField("measurementUnit", e.target.value.toLowerCase().trim())}
+                        placeholder="Escribe la unidad (ej: galón)"
+                      />
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="product-supplier" className="text-sm font-medium">Proveedor principal</label>
+                    <Select
+                      id="product-supplier"
+                      value={form.supplier}
+                      disabled={loadingSuppliers || loadingSupplierProduct}
+                      onChange={(e) => updateField("supplier", e.target.value)}
+                    >
+                      <option value="">Sin proveedor</option>
+                      {suppliers.map((s) => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </Select>
+                  </div>
                 </div>
               </div>
             )}
