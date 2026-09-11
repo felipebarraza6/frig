@@ -941,7 +941,7 @@ export function ProductsClient() {
                                 colorFor(p.name || p.code || String(p.id)).bg,
                                 colorFor(p.name || p.code || String(p.id)).text,
                               )}>
-                                <Package className="h-4.5 w-4.5" />
+                                <Package className="h-5 w-5" />
                               </div>
                               <div className="min-w-0">
                                 <p className="truncate font-medium">{p.name}</p>
