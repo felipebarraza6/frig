@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
+import { cn } from "@/lib/utils";
 import { useToast } from "@/lib/store/toast";
 import { useSessionStore } from "@/lib/store/session";
 import { ThemeGallery, ThemeDescription } from "@/components/settings/theme-gallery";

@@ -13,9 +13,9 @@ const icons = {
 };
 
 const styles = {
-  success: "bg-emerald-500 text-white",
+  success: "bg-success text-white",
   error: "bg-danger text-white",
-  warning: "bg-amber-500 text-white",
+  warning: "bg-warning text-white",
   info: "bg-primary text-primary-foreground",
 };
 

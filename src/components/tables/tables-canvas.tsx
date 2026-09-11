@@ -12,11 +12,11 @@ import type { YggdraSchemas } from "@/lib/api/types";
 type TableItem = YggdraSchemas["Table"];
 
 const STATUS_STYLES: Record<string, string> = {
-  FREE: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700",
+  FREE: "border-success/40 bg-success/10 text-success",
   OCCUPIED: "border-primary/40 bg-primary/10 text-primary",
-  RESERVED: "border-amber-500/40 bg-amber-500/10 text-amber-700",
+  RESERVED: "border-warning/40 bg-warning/10 text-warning",
   CLEANING: "border-primary/40 bg-primary/10 text-primary",
-  OUT_OF_SERVICE: "border-slate-500/40 bg-slate-500/10 text-slate-700",
+  OUT_OF_SERVICE: "border-muted/40 bg-muted/10 text-muted-foreground",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -394,7 +394,7 @@ export function TablesCanvas({
                 </span>
               )}
               {table.is_overdue && (
-                <AlertTriangle className="absolute -right-1 -top-1 h-4 w-4 text-amber-600" />
+                <AlertTriangle className="absolute -right-1 -top-1 h-4 w-4 text-warning" />
               )}
             </motion.div>
           );
@@ -448,7 +448,7 @@ function TableTooltip({
         {elapsed.text} en consumo
       </p>
       {order && (
-        <p className="mt-1 font-bold tabular-nums text-emerald-700">
+        <p className="mt-1 font-bold tabular-nums text-success">
           {formatCLP(total)} consumidos
         </p>
       )}
