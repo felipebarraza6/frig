@@ -92,11 +92,7 @@ export function BranchThemeDialog({ branch, onClose }: BranchThemeDialogProps) {
     setSelectedThemeId(id);
     setPrimaryColor(preset.primary);
     setSecondaryColor(preset.secondary);
-    // Ajustar modo de color según el surface del preset
-    const isDark = preset.surface.toLowerCase().startsWith("#0") ||
-      preset.surface.toLowerCase() === "#0f172a" ||
-      preset.surface.toLowerCase() === "#1c1917";
-    setAlgorithm(isDark ? "dark" : "light");
+    setAlgorithm(preset.mode);
   }
 
   const save = useMutation({
@@ -252,6 +248,8 @@ export function BranchThemeDialog({ branch, onClose }: BranchThemeDialogProps) {
                     </Select>
                   </div>
 
+                  {/* Colores gestionados por la galería de temas — ocultos pero funcionales */}
+                  <div className="hidden">
                   <div className="flex flex-col gap-1.5">
                     <label htmlFor="primary_color" className="text-sm font-medium">
                       Color primario
@@ -296,6 +294,7 @@ export function BranchThemeDialog({ branch, onClose }: BranchThemeDialogProps) {
                         className="flex-1"
                       />
                     </div>
+                  </div>
                   </div>
 
                   <div className="flex flex-col gap-1.5">
