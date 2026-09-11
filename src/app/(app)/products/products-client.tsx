@@ -935,9 +935,13 @@ export function ProductsClient() {
                       {products.map((p) => (
                         <tr key={p.id} className="border-b border-border last:border-0">
                           <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-secondary">
-                                <Package className="h-3.5 w-3.5 text-muted-foreground" />
+                            <div className="flex items-center gap-3">
+                              <div className={cn(
+                                "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+                                colorFor(p.name || p.code || String(p.id)).bg,
+                                colorFor(p.name || p.code || String(p.id)).text,
+                              )}>
+                                <Package className="h-4.5 w-4.5" />
                               </div>
                               <div className="min-w-0">
                                 <p className="truncate font-medium">{p.name}</p>
