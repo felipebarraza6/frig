@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { API_BASE } from "@/lib/api/client";
 
 export type BranchEventScope = "pos" | "cash_register" | "dashboard" | "order" | "modules";
 
@@ -19,8 +20,7 @@ const MAX_RECONNECT_DELAY_MS = 30000;
 const DEFAULT_SCOPES: BranchEventScope[] = ["pos", "cash_register", "dashboard", "modules"];
 
 function getWsBaseUrl(): string {
-  const apiBase = process.env.NEXT_PUBLIC_YGGDRA_API_BASE ?? "http://localhost:8000/api";
-  return apiBase
+  return API_BASE
     .replace(/^http/, "ws")
     .replace(/\/api\/?$/, "");
 }
