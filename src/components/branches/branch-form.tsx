@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { X, Check, Gift } from "lucide-react";
+import { X, Check, Gift, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
@@ -11,6 +11,7 @@ import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import { useSessionStore } from "@/lib/store/session";
 import { createBranch, updateBranch } from "@/lib/api/branches";
 import { fetchModulePlans, applyBranchPlan } from "@/lib/api/module-plans";
+import { fetchOrganizations } from "@/lib/api/organizations";
 import { FRIG_PLAN_NAME } from "@/lib/modules";
 import { isFrigPlanName } from "@/lib/plans";
 import { branchName } from "@/lib/types";
@@ -42,7 +43,11 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 export function BranchForm({ branch, onClose, onSuccess }: BranchFormProps) {
   const user = useSessionStore((s) => s.user);
   const isSuperAdmin = Boolean(user?.is_superuser || user?.type_user === "ADM");
+  const isOrgOwner = Boolean(user?.is_organization_owner);
   const isEditing = Boolean(branch);
+
+  // Solo super admin u org owner pueden ver la etapa de prueba
+  const canManageTrial = isSuperAdmin || isOrgOwner;
 
   const [businessName, setBusinessName] = useState(branch?.business_name ?? "");
   const [fantasyName, setFantasyName] = useState(branch?.fantasy_name ?? "");
@@ -55,6 +60,9 @@ export function BranchForm({ branch, onClose, onSuccess }: BranchFormProps) {
   const [commune, setCommune] = useState(branch?.commune ?? "");
   const [dni, setDni] = useState(branch?.dni ?? "");
   const [ownerId, setOwnerId] = useState<string>(branch?.owner_id ? String(branch.owner_id) : "");
+  const [organizationId, setOrganizationId] = useState<string>(
+    branch?.organization ? String(branch.organization) : "",
+  );
   const [planId, setPlanId] = useState<string>(branch?.plan ? String(branch.plan) : "");
   // Etapa de prueba: aplica el plan con fecha de término (suscripción finita).
   const [trial, setTrial] = useState(Boolean(branch?.plan_expiration_date));
@@ -63,7 +71,13 @@ export function BranchForm({ branch, onClose, onSuccess }: BranchFormProps) {
 
   const { data: plans = [] } = useQuery({
     queryKey: ["module-plans"],
-    queryFn: fetchModulePlans,
+    queryFn: () => fetchModulePlans(),
+  });
+
+  const { data: organizations = [] } = useQuery({
+    queryKey: ["organizations"],
+    queryFn: fetchOrganizations,
+    enabled: isSuperAdmin,
   });
 
   // Catálogo compartido: aquí solo se ofrecen los planes frig (prefijo
@@ -98,6 +112,9 @@ export function BranchForm({ branch, onClose, onSuccess }: BranchFormProps) {
       };
       if (isSuperAdmin && ownerId) {
         payload.owner_id = Number(ownerId);
+      }
+      if (isSuperAdmin && organizationId) {
+        payload.organization = Number(organizationId);
       }
 
       if (isEditing && branch) {
@@ -204,15 +221,32 @@ export function BranchForm({ branch, onClose, onSuccess }: BranchFormProps) {
                   />
                 </Field>
                 {isSuperAdmin && (
-                  <Field label="ID propietario" hint="Dueño de la sucursal. Opcional.">
-                    <Input
-                      id="owner_id"
-                      type="number"
-                      value={ownerId}
-                      onChange={(e) => setOwnerId(e.target.value)}
-                      placeholder="Opcional"
-                    />
-                  </Field>
+                  <>
+                    <Field label="Organización" hint="Organización a la que pertenece esta sucursal.">
+                      <select
+                        id="organization"
+                        value={organizationId}
+                        onChange={(e) => setOrganizationId(e.target.value)}
+                        className="h-9 w-full rounded-lg border border-border bg-background px-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                      >
+                        <option value="">Sin organización</option>
+                        {organizations.map((org) => (
+                          <option key={org.id} value={org.id}>
+                            {org.name}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="ID propietario" hint="Dueño de la sucursal. Opcional.">
+                      <Input
+                        id="owner_id"
+                        type="number"
+                        value={ownerId}
+                        onChange={(e) => setOwnerId(e.target.value)}
+                        placeholder="Opcional"
+                      />
+                    </Field>
+                  </>
                 )}
               </div>
             </div>
@@ -318,51 +352,53 @@ export function BranchForm({ branch, onClose, onSuccess }: BranchFormProps) {
                 )}
               </div>
 
-              <div className="rounded-xl border border-border p-3">
-                <label className="flex items-center justify-between gap-2">
-                  <span className="flex items-center gap-2 text-sm font-medium">
-                    <Gift className="h-4 w-4 text-primary" />
-                    Etapa de prueba
-                  </span>
-                  <Switch
-                    checked={trial}
-                    onCheckedChange={(v) => {
-                      setTrial(v);
-                      if (v && !endDate) setEndDate(trialDate(14));
-                    }}
-                    label={trial ? "Con etapa de prueba" : "Sin etapa de prueba"}
-                  />
-                </label>
-                {trial && (
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <Input
-                      type="date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      className="h-8 w-40"
-                      aria-label="Fecha de término de la prueba"
+              {canManageTrial && (
+                <div className="rounded-xl border border-border p-3">
+                  <label className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-2 text-sm font-medium">
+                      <Gift className="h-4 w-4 text-primary" />
+                      Etapa de prueba
+                    </span>
+                    <Switch
+                      checked={trial}
+                      onCheckedChange={(v) => {
+                        setTrial(v);
+                        if (v && !endDate) setEndDate(trialDate(14));
+                      }}
+                      label={trial ? "Con etapa de prueba" : "Sin etapa de prueba"}
                     />
-                    {TRIAL_DAYS.map((d) => (
-                      <button
-                        key={d}
-                        type="button"
-                        onClick={() => setEndDate(trialDate(d))}
-                        className={cn(
-                          "rounded-lg border px-2 py-1 text-xs font-medium transition-colors",
-                          endDate === trialDate(d)
-                            ? "border-primary bg-primary/10 text-primary"
-                            : "border-border text-muted-foreground hover:border-primary/50",
-                        )}
-                      >
-                        {d} días
-                      </button>
-                    ))}
-                    <p className="w-full text-xs text-muted-foreground">
-                      El plan vence en esa fecha; después se puede renovar desde la acción “Plan”.
-                    </p>
-                  </div>
-                )}
-              </div>
+                  </label>
+                  {trial && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <Input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="h-8 w-40"
+                        aria-label="Fecha de término de la prueba"
+                      />
+                      {TRIAL_DAYS.map((d) => (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => setEndDate(trialDate(d))}
+                          className={cn(
+                            "rounded-lg border px-2 py-1 text-xs font-medium transition-colors",
+                            endDate === trialDate(d)
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border text-muted-foreground hover:border-primary/50",
+                          )}
+                        >
+                          {d} días
+                        </button>
+                      ))}
+                      <p className="w-full text-xs text-muted-foreground">
+                        El plan vence en esa fecha; después se puede renovar desde la acción "Plan".
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {error && (

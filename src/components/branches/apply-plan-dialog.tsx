@@ -49,7 +49,7 @@ export function ApplyPlanDialog({ branch, onClose, onApplied }: ApplyPlanDialogP
 
   const { data: plans = [], isLoading, isError } = useQuery({
     queryKey: ["module-plans"],
-    queryFn: fetchModulePlans,
+    queryFn: () => fetchModulePlans(),
     retry: false,
   });
 

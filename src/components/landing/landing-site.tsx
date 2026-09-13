@@ -646,7 +646,11 @@ export function LandingSite() {
     () => true,
     () => false,
   );
-  const byHost = status === "checking" ? "checking" : theme ? "tenant" : "landing";
+
+  // Si el tema es de "frig" (la app principal), mostrar la landing.
+  // Solo redirigir a /login si es un tenant white-label diferente.
+  const isFrigTheme = theme?.app_name?.toLowerCase().includes("frig") ?? false;
+  const byHost = status === "checking" ? "checking" : (theme && !isFrigTheme) ? "tenant" : "landing";
 
   // Sesión persistida de un ingreso anterior: solo se expone después de que
   // el store hidrató (hasHydrated) para no pelear con el SSR/hidratación.

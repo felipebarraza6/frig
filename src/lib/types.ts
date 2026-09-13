@@ -91,6 +91,8 @@ export interface BranchPayload {
   is_active?: boolean;
   owner_id?: ID | null;
   plan?: ID | null;
+  /** Organización a la que pertenece la sucursal (solo super admin). */
+  organization?: ID | null;
 }
 
 export function branchName(branch: Branch): string {

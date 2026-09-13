@@ -25,6 +25,8 @@ interface SessionState {
   ownedOrganizations: Organization[];
   currentBranchId: ID_STR | null;
   theme: BranchThemeConfig | null;
+  /** Tema de la organización (prioridad sobre el tema de sucursal). */
+  organizationTheme: BranchThemeConfig | null;
   permissions: SessionPermissions | null;
   menu: FrontendMenuGroup[];
   modules: Record<string, FrontendModuleState>;
@@ -154,6 +156,7 @@ export const useSessionStore = create<SessionState>()(
       ownedOrganizations: [],
       currentBranchId: null,
       theme: null,
+      organizationTheme: null,
       permissions: null,
       menu: [],
       modules: {},
@@ -184,6 +187,7 @@ export const useSessionStore = create<SessionState>()(
           dashboard: normalizeDashboardRoute(config.dashboard),
           featureFlags: config.feature_flags ?? {},
           frontendConfigBranchId: branchId ?? String(config.current_branch?.branch_id ?? config.branches[0]?.branch_id ?? ""),
+          organizationTheme: config.organizationTheme ?? null,
         });
       },
       setUser: (user) => set({ user }),

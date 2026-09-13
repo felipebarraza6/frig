@@ -5,6 +5,7 @@ import {
   useSessionStore,
   useCanViewBranches,
   useCanViewOrganization,
+  useIsSuperAdmin,
 } from "@/lib/store/session";
 import { FRIG_MENU_DEF, FRIG_ALWAYS_ON_MODULES } from "@/lib/modules";
 import { getIcon, type IconName } from "@/lib/icons";
@@ -37,6 +38,17 @@ const BRANCH_MANAGEMENT_PATHS = new Set<string>(["/branches"]);
 const ORGANIZATION_PATHS = new Set<string>(["/organization"]);
 
 /**
+ * Rutas administrativas que el superadmin puede ver.
+ * El superadmin administra organizaciones y sucursales, no opera.
+ * No incluye /settings/modules porque eso es para el owner de la org/sucursal.
+ */
+export const SUPERADMIN_ALLOWED_PATHS = new Set<string>([
+  "/organization",
+  "/users",
+  "/branches",
+]);
+
+/**
  * Genera el menú de Frig filtrado por los módulos habilitados en la sucursal activa.
  *
  * El backend envía `modules.enabled` / `modules.disabled` como lista plana: cada
@@ -51,6 +63,7 @@ export function useFrigMenu(): FrigNavGroup[] {
   const modules = useSessionStore((s) => s.modules);
   const canViewBranches = useCanViewBranches();
   const canViewOrganization = useCanViewOrganization();
+  const isSuperAdmin = useIsSuperAdmin();
 
   return useMemo(() => {
     const alwaysOn = new Set<string>(FRIG_ALWAYS_ON_MODULES);
@@ -64,6 +77,8 @@ export function useFrigMenu(): FrigNavGroup[] {
     for (const group of FRIG_MENU_DEF) {
       const items: FrigNavItem[] = [];
       for (const item of group.items) {
+        // Superadmin: solo ve rutas administrativas (org, usuarios, sucursales, módulos).
+        if (isSuperAdmin && !SUPERADMIN_ALLOWED_PATHS.has(item.href)) continue;
         if (!isVisible(item.module)) continue;
         // En Frig, Caja y estaciones POS se ocultan si POS está desactivado.
         if (POS_DEPENDENT_MODULES.has(item.module) && !isVisible("pos")) continue;
@@ -85,5 +100,5 @@ export function useFrigMenu(): FrigNavGroup[] {
       }
     }
     return groups;
-  }, [modules, canViewBranches, canViewOrganization]);
+  }, [modules, canViewBranches, canViewOrganization, isSuperAdmin]);
 }

@@ -1,4 +1,4 @@
-import type { User } from "@/lib/types";
+import type { User, BranchThemeConfig } from "@/lib/types";
 import type { Branch } from "@/lib/types";
 import type { SessionPermissions } from "@/lib/store/session";
 
@@ -36,6 +36,8 @@ export interface FrontendConfigResponse {
   dashboard?: string;
   feature_flags?: Record<string, boolean>;
   permissions?: SessionPermissions;
+  /** Tema de la organización (jerarquía: org → branch → default Frig). */
+  organizationTheme?: BranchThemeConfig | null;
 }
 
 export interface ModuleCatalogMetadata {

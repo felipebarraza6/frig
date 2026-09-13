@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { CreditCard, Plus, Save, Trash2, X } from "lucide-react";
+import { CreditCard, Plus, Save, Trash2, X, GripVertical, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
@@ -20,8 +20,6 @@ import { FRIG_GROUP_SLUG } from "@/lib/plans";
 import { useToast } from "@/lib/store/toast";
 import { cn } from "@/lib/utils";
 
-/** Draft local editable de un plan. Las características son una lista:
- *  se agregan y quitan líneas en vez de editar un bloque de texto crudo. */
 interface PlanDraft {
   display_name: string;
   description: string;
@@ -68,19 +66,13 @@ function draftToPayload(draft: PlanDraft): GroupPlanPayload {
   };
 }
 
-const selectCls =
-  "h-8 rounded-lg border border-border bg-background px-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary";
-
-interface FeaturesInputProps {
+function FeaturesInput({
+  value,
+  onChange,
+}: {
   value: string[];
   onChange: (features: string[]) => void;
-}
-
-/**
- * Editor interactivo de características: cada viñeta es una línea con su
- * propio campo y botón de quitar; "Añadir" (o Enter) agrega una línea nueva.
- */
-function FeaturesInput({ value, onChange }: FeaturesInputProps) {
+}) {
   const rows = value.length > 0 ? value : [""];
 
   const patchRow = (index: number, text: string) =>
@@ -92,8 +84,8 @@ function FeaturesInput({ value, onChange }: FeaturesInputProps) {
     <div className="flex flex-col gap-1.5">
       {rows.map((feature, index) => (
         <div key={index} className="flex items-center gap-1.5">
-          <span className="select-none text-xs text-muted-foreground" aria-hidden>
-            •
+          <span className="select-none text-primary" aria-hidden>
+            ✓
           </span>
           <Input
             value={feature}
@@ -104,7 +96,7 @@ function FeaturesInput({ value, onChange }: FeaturesInputProps) {
                 addRow();
               }
             }}
-            placeholder={`Ej: 1 sucursal, 5 usuarios…`}
+            placeholder="Ej: 1 sucursal, 5 usuarios…"
             className="h-8 flex-1"
             aria-label={`Característica ${index + 1}`}
           />
@@ -112,8 +104,6 @@ function FeaturesInput({ value, onChange }: FeaturesInputProps) {
             type="button"
             onClick={() => removeRow(index)}
             disabled={rows.length === 1 && feature === ""}
-            title="Quitar característica"
-            aria-label="Quitar característica"
             className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-danger disabled:opacity-30"
           >
             <X className="h-3.5 w-3.5" />
@@ -126,29 +116,65 @@ function FeaturesInput({ value, onChange }: FeaturesInputProps) {
         className="flex items-center gap-1.5 self-start rounded-lg px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
       >
         <Plus className="h-3.5 w-3.5" />
-        Añadir característica
+        Añadir
       </button>
     </div>
   );
 }
 
-/**
- * Editor inline del catálogo de planes de venta (GroupPlan) del grupo del
- * usuario: superadmin elige grupo; el dueño de organización edita el de su
- * org (ligado vía Organization.plan_group en el backend). Los cambios se
- * reflejan de inmediato en la landing y el checkout del grupo.
- */
+/** Card de preview de cómo se verá el plan en la landing. */
+function PlanPreview({ draft }: { draft: PlanDraft }) {
+  return (
+    <div
+      className={cn(
+        "relative flex flex-col rounded-xl border p-4 transition-all",
+        draft.highlighted
+          ? "border-primary bg-primary/5 shadow-sm"
+          : "border-border bg-muted/30",
+        !draft.is_active && "opacity-50",
+      )}
+    >
+      {draft.badge && (
+        <span className="absolute -top-2.5 left-4 rounded-full bg-primary px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-foreground">
+          {draft.badge}
+        </span>
+      )}
+      <h4 className="text-sm font-bold">{draft.display_name || "Sin nombre"}</h4>
+      {draft.description && (
+        <p className="mt-1 text-xs text-muted-foreground">{draft.description}</p>
+      )}
+      <div className="mt-3 flex items-baseline gap-1">
+        {draft.priceText ? (
+          <>
+            <span className="text-2xl font-bold tabular-nums">{draft.priceText}</span>
+            <span className="text-xs text-muted-foreground">UF/mes</span>
+          </>
+        ) : (
+          <span className="text-sm italic text-muted-foreground">Precio a consultar</span>
+        )}
+      </div>
+      {draft.features.length > 0 && (
+        <ul className="mt-3 flex flex-col gap-1">
+          {draft.features.filter(Boolean).map((f, i) => (
+            <li key={i} className="flex items-start gap-1.5 text-xs">
+              <span className="mt-0.5 text-primary">✓</span>
+              <span>{f}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export function PlanCatalogEditor() {
   const toast = useToast();
   const queryClient = useQueryClient();
-  // Slug elegido manualmente; sin elección y con un único grupo, se usa ese.
   const [manualSlug, setManualSlug] = useState<string | null>(null);
-  // Ediciones locales sobre el detalle fresco del backend (clave: pk del plan).
   const [edits, setEdits] = useState<Record<number, Partial<PlanDraft>>>({});
   const [newPlanId, setNewPlanId] = useState("");
+  const [expandedPlan, setExpandedPlan] = useState<number | null>(null);
 
-  // Solo el grupo frig: los demás grupos del catálogo compartido pertenecen
-  // a otras apps que consumen este mismo backend.
   const { data: allGroups = [], isLoading: groupsLoading } = useQuery({
     queryKey: ["plan-groups", "manage"],
     queryFn: fetchManageableGroups,
@@ -175,7 +201,6 @@ export function PlanCatalogEditor() {
     mutationFn: ({ pk, payload }: { pk: number; payload: GroupPlanPayload }) =>
       updateGroupPlan(selectedSlug!, pk, payload),
     onSuccess: (_res, vars) => {
-      // Suelta las ediciones locales de ese plan: la fuente de verdad es el refetch.
       setEdits((prev) => {
         const next = { ...prev };
         delete next[vars.pk];
@@ -200,7 +225,6 @@ export function PlanCatalogEditor() {
     onError: (err: Error) => toast.error(err.message),
   });
 
-  // Eliminación con confirmación en dos pasos (clave: pk del plan a confirmar).
   const [confirmDeletePk, setConfirmDeletePk] = useState<number | null>(null);
   const remove = useMutation({
     mutationFn: (pk: number) => deleteGroupPlan(selectedSlug!, pk),
@@ -224,7 +248,6 @@ export function PlanCatalogEditor() {
     [detail],
   );
 
-  /** Draft efectivo = valores del backend + ediciones locales del usuario. */
   const draftFor = (plan: (typeof plans)[number]): PlanDraft => ({
     ...draftFromPlan(plan),
     ...edits[plan.id],
@@ -235,9 +258,9 @@ export function PlanCatalogEditor() {
 
   if (groupsLoading) {
     return (
-      <div className="mt-3 grid gap-3 lg:grid-cols-2">
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
         {Array.from({ length: 2 }).map((_, i) => (
-          <Skeleton key={i} className="h-56 w-full" />
+          <Skeleton key={i} className="h-64 w-full rounded-xl" />
         ))}
       </div>
     );
@@ -245,17 +268,19 @@ export function PlanCatalogEditor() {
 
   if (groups.length === 0) {
     return (
-      <p className="mt-3 rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-        No tienes grupos de planes gestionables.
-      </p>
+      <div className="mt-4 rounded-xl border border-dashed border-border p-8 text-center">
+        <CreditCard className="mx-auto h-8 w-8 text-muted-foreground" />
+        <p className="mt-2 text-sm text-muted-foreground">
+          No tienes grupos de planes gestionables.
+        </p>
+      </div>
     );
   }
 
   return (
-    <div>
-      {/* Selector de grupo (solo relevante cuando hay varios) */}
+    <div className="mt-4">
       {groups.length > 1 && (
-        <div className="mt-3 flex items-center gap-2">
+        <div className="mb-4 flex items-center gap-2">
           <label className="text-xs font-medium text-muted-foreground">Grupo</label>
           <select
             value={selectedSlug ?? ""}
@@ -263,7 +288,7 @@ export function PlanCatalogEditor() {
               setManualSlug(e.target.value || null);
               setEdits({});
             }}
-            className={cn(selectCls, "min-w-48")}
+            className="h-8 rounded-lg border border-border bg-background px-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
           >
             <option value="" disabled>
               Selecciona un grupo…
@@ -278,162 +303,184 @@ export function PlanCatalogEditor() {
       )}
 
       {selectedSlug && detailLoading && (
-        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-2">
           {Array.from({ length: 2 }).map((_, i) => (
-            <Skeleton key={i} className="h-56 w-full" />
+            <Skeleton key={i} className="h-64 w-full rounded-xl" />
           ))}
         </div>
       )}
 
       {selectedSlug && detail && (
-        <div className="mt-4 grid items-start gap-3 lg:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-2">
           {plans.map((plan) => {
             const draft = draftFor(plan);
             const dirty = !!edits[plan.id];
+            const isExpanded = expandedPlan === plan.id;
+
             return (
               <article
                 key={plan.id}
                 className={cn(
-                  "flex flex-col rounded-xl border bg-card p-4 transition-colors",
-                  draft.highlighted ? "border-primary" : "border-border",
+                  "flex flex-col rounded-xl border transition-all",
+                  draft.highlighted ? "border-primary/60 shadow-sm" : "border-border",
                   !draft.is_active && "opacity-60",
                 )}
               >
-                {/* Cabecera: slug + visibilidad inmediata */}
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-pixel text-xs text-muted-foreground">{plan.plan_id}</span>
-                  <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                    Visible
-                    <Switch
-                      checked={draft.is_active}
-                      disabled={save.isPending}
-                      onCheckedChange={(v) => {
-                        patchDraft(plan.id, { is_active: v });
-                        save.mutate({ pk: plan.id, payload: { is_active: v } });
-                      }}
-                      label={`${draft.is_active ? "Ocultar" : "Mostrar"} ${plan.plan_id}`}
-                    />
-                  </label>
+                {/* Preview siempre visible */}
+                <div className="p-4">
+                  <PlanPreview draft={draft} />
                 </div>
 
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <Field label="Nombre del plan" hint="Así se muestra en la landing y el checkout.">
-                    <Input
-                      value={draft.display_name}
-                      onChange={(e) => patchDraft(plan.id, { display_name: e.target.value })}
-                      className="h-8"
-                      placeholder="Emprendimiento"
-                    />
-                  </Field>
-                  <Field
-                    label="Precio mensual (UF)"
-                    hint="Déjalo vacío si el precio se cotiza manualmente."
-                  >
-                    <Input
-                      value={draft.priceText}
-                      onChange={(e) => patchDraft(plan.id, { priceText: e.target.value })}
-                      className="h-8"
-                      inputMode="decimal"
-                      placeholder="20.00"
-                    />
-                  </Field>
-                  <Field label="Sello" hint="Texto corto que destaca el plan, ej: EL MÁS ELEGIDO.">
-                    <Input
-                      value={draft.badge}
-                      onChange={(e) => patchDraft(plan.id, { badge: e.target.value })}
-                      className="h-8"
-                      placeholder="EL MÁS ELEGIDO"
-                    />
-                  </Field>
-                  <Field label="Orden" hint="Posición en la que aparece (1 = primero).">
-                    <Input
-                      type="number"
-                      value={draft.sort_order}
-                      onChange={(e) =>
-                        patchDraft(plan.id, { sort_order: Number(e.target.value) || 0 })
-                      }
-                      className="h-8 w-20"
-                    />
-                  </Field>
-                  <Field
-                    label="Descripción"
-                    hint="Una frase que resume a qué negocio va dirigido."
-                    className="sm:col-span-2"
-                  >
-                    <Input
-                      value={draft.description}
-                      onChange={(e) => patchDraft(plan.id, { description: e.target.value })}
-                      className="h-8"
-                      placeholder="Kioscos y negocios de barrio"
-                    />
-                  </Field>
-                  <Field
-                    label="Características"
-                    hint="Viñetas que ve el cliente al contratar. Enter añade una nueva."
-                    className="sm:col-span-2"
-                  >
-                    <FeaturesInput
-                      value={draft.features}
-                      onChange={(features) => patchDraft(plan.id, { features })}
-                    />
-                  </Field>
-                </div>
+                {/* Toggle expandir/colapsar editor */}
+                <button
+                  type="button"
+                  onClick={() => setExpandedPlan(isExpanded ? null : plan.id)}
+                  className="flex items-center justify-between border-t border-border px-4 py-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+                >
+                  <span className="flex items-center gap-2">
+                    <GripVertical className="h-3.5 w-3.5" />
+                    <span className="font-mono">{plan.plan_id}</span>
+                    {dirty && (
+                      <span className="rounded-full bg-warning/20 px-1.5 py-0.5 text-[10px] font-bold text-warning">
+                        Sin guardar
+                      </span>
+                    )}
+                  </span>
+                  <span>{isExpanded ? "Ocultar editor" : "Editar plan"}</span>
+                </button>
 
-                <div className="mt-4 flex items-center justify-between gap-2 border-t border-border pt-3">
-                  {confirmDeletePk === plan.id ? (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-danger">¿Eliminar este plan?</span>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        isLoading={remove.isPending}
-                        disabled={remove.isPending}
-                        onClick={() => remove.mutate(plan.id)}
-                        className="h-7 border-danger/40 text-danger hover:bg-danger/10"
-                      >
-                        Sí, eliminar
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7"
-                        disabled={remove.isPending}
-                        onClick={() => setConfirmDeletePk(null)}
-                      >
-                        No
-                      </Button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setConfirmDeletePk(plan.id)}
-                      title="Eliminar plan"
-                      aria-label="Eliminar plan"
-                      className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-danger"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                  <div className="flex items-center gap-3">
-                    <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                {/* Editor expandible */}
+                {isExpanded && (
+                  <div className="flex flex-col gap-3 border-t border-border bg-muted/20 p-4">
+                    {/* Visibilidad */}
+                    <div className="flex items-center justify-between">
+                      <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                        {draft.is_active ? (
+                          <Eye className="h-3.5 w-3.5 text-success" />
+                        ) : (
+                          <EyeOff className="h-3.5 w-3.5" />
+                        )}
+                        {draft.is_active ? "Visible en landing" : "Oculto"}
+                      </label>
                       <Switch
-                        checked={draft.highlighted}
-                        onCheckedChange={(v) => patchDraft(plan.id, { highlighted: v })}
-                        label="Destacar plan"
+                        checked={draft.is_active}
+                        disabled={save.isPending}
+                        onCheckedChange={(v) => {
+                          patchDraft(plan.id, { is_active: v });
+                          save.mutate({ pk: plan.id, payload: { is_active: v } });
+                        }}
+                        label="Visibilidad del plan"
                       />
-                      Destacado
-                    </label>
-                    <Button
-                      size="sm"
-                      isLoading={save.isPending}
-                      disabled={!dirty && !save.isPending}
-                      onClick={() => save.mutate({ pk: plan.id, payload: draftToPayload(draft) })}
-                    >
-                      <Save className="mr-1.5 h-3.5 w-3.5" />
-                      Guardar
-                    </Button>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field label="Nombre">
+                        <Input
+                          value={draft.display_name}
+                          onChange={(e) => patchDraft(plan.id, { display_name: e.target.value })}
+                          className="h-8"
+                          placeholder="Emprendimiento"
+                        />
+                      </Field>
+                      <Field label="Precio (UF/mes)">
+                        <Input
+                          value={draft.priceText}
+                          onChange={(e) => patchDraft(plan.id, { priceText: e.target.value })}
+                          className="h-8"
+                          inputMode="decimal"
+                          placeholder="20.00"
+                        />
+                      </Field>
+                      <Field label="Sello" hint="Badge destacado">
+                        <Input
+                          value={draft.badge}
+                          onChange={(e) => patchDraft(plan.id, { badge: e.target.value })}
+                          className="h-8"
+                          placeholder="MÁS POPULAR"
+                        />
+                      </Field>
+                      <Field label="Orden">
+                        <Input
+                          type="number"
+                          value={draft.sort_order}
+                          onChange={(e) =>
+                            patchDraft(plan.id, { sort_order: Number(e.target.value) || 0 })
+                          }
+                          className="h-8 w-20"
+                        />
+                      </Field>
+                      <Field label="Descripción" className="sm:col-span-2">
+                        <Input
+                          value={draft.description}
+                          onChange={(e) => patchDraft(plan.id, { description: e.target.value })}
+                          className="h-8"
+                          placeholder="Para kioscos y negocios de barrio"
+                        />
+                      </Field>
+                      <Field label="Características" className="sm:col-span-2">
+                        <FeaturesInput
+                          value={draft.features}
+                          onChange={(features) => patchDraft(plan.id, { features })}
+                        />
+                      </Field>
+                    </div>
+
+                    {/* Acciones */}
+                    <div className="flex items-center justify-between border-t border-border pt-3">
+                      {confirmDeletePk === plan.id ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-danger">¿Eliminar?</span>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            isLoading={remove.isPending}
+                            onClick={() => remove.mutate(plan.id)}
+                            className="h-7 border-danger/40 text-danger hover:bg-danger/10"
+                          >
+                            Sí, eliminar
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7"
+                            onClick={() => setConfirmDeletePk(null)}
+                          >
+                            No
+                          </Button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeletePk(plan.id)}
+                          className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-danger"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                      <div className="flex items-center gap-3">
+                        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Switch
+                            checked={draft.highlighted}
+                            onCheckedChange={(v) => patchDraft(plan.id, { highlighted: v })}
+                            label="Destacar plan"
+                          />
+                          Destacado
+                        </label>
+                        <Button
+                          size="sm"
+                          isLoading={save.isPending}
+                          disabled={!dirty && !save.isPending}
+                          onClick={() =>
+                            save.mutate({ pk: plan.id, payload: draftToPayload(draft) })
+                          }
+                        >
+                          <Save className="mr-1.5 h-3.5 w-3.5" />
+                          Guardar
+                        </Button>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
               </article>
             );
           })}
@@ -460,7 +507,7 @@ export function PlanCatalogEditor() {
         </div>
       )}
 
-      <p className="mt-3 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+      <p className="mt-4 flex items-center gap-1.5 text-[11px] text-muted-foreground">
         <CreditCard className="h-3 w-3" />
         Los cambios se reflejan de inmediato en la landing y el checkout del grupo.
       </p>

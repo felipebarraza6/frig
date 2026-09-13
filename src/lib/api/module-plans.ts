@@ -4,16 +4,67 @@ import type { YggdraSchemas } from "@/lib/api/types";
 
 export type BranchModulePlan = YggdraSchemas["BranchModulePlan"];
 
+/** Plan de módulos de una organización (BranchModulePlan). */
+export interface ModulePlan {
+  id: number;
+  name: string;
+  description: string | null;
+  organization: number | null;
+  modules: string[];
+  product_types: string[];
+  submodule_config: Record<string, Record<string, boolean>>;
+  allow_additional_branches: boolean;
+  max_branches: number;
+  max_agents: number;
+  max_channels: number;
+  max_llm_providers: number;
+  max_ai_functions: number;
+  max_knowledge_documents: number;
+  is_active: boolean;
+  modules_count: number;
+  product_types_count: number;
+  available_product_types: { key: string; label: string }[];
+}
+
+export type ModulePlanPayload = Partial<
+  Omit<ModulePlan, "id" | "modules_count" | "product_types_count" | "available_product_types">
+>;
+
 /**
  * GET /api/shared/module-plans/
  *
- * Lista los planes de módulos disponibles (solo superadmin).
+ * Lista los planes de módulos disponibles. Si se pasa organizationId, filtra
+ * por organización.
  */
-export async function fetchModulePlans(): Promise<BranchModulePlan[]> {
-  const data = await apiFetch<{ results?: BranchModulePlan[] } | BranchModulePlan[]>(
-    "/shared/module-plans/",
+export async function fetchModulePlans(organizationId?: number | string): Promise<ModulePlan[]> {
+  const params = organizationId ? `?organization=${organizationId}` : "";
+  const data = await apiFetch<{ results?: ModulePlan[] } | ModulePlan[]>(
+    `/shared/module-plans/${params}`,
   );
   return Array.isArray(data) ? data : (data.results ?? []);
+}
+
+/** POST /api/shared/module-plans/ */
+export function createModulePlan(payload: ModulePlanPayload): Promise<ModulePlan> {
+  return apiFetch<ModulePlan>("/shared/module-plans/", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+/** PATCH /api/shared/module-plans/<id>/ */
+export function updateModulePlan(id: number, payload: ModulePlanPayload): Promise<ModulePlan> {
+  return apiFetch<ModulePlan>(`/shared/module-plans/${id}/`, {
+    method: "PATCH",
+    body: payload,
+  });
+}
+
+/** DELETE /api/shared/module-plans/<id>/ */
+export function deleteModulePlan(id: number): Promise<void> {
+  return apiFetch<void>(`/shared/module-plans/${id}/`, {
+    method: "DELETE",
+  });
 }
 
 /**
@@ -21,8 +72,6 @@ export async function fetchModulePlans(): Promise<BranchModulePlan[]> {
  *
  * Aplica o cambia el plan de una sucursal. Crea/actualiza la suscripción,
  * activa los módulos del plan y sincroniza los tipos de producto.
- * Body real: { plan_id: number, end_date?: "YYYY-MM-DD" } (el schema OpenAPI
- * de esta operación está mal generado; el contrato real es este).
  */
 export async function applyBranchPlan(
   branchId: number,

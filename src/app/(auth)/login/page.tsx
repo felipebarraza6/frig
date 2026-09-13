@@ -47,7 +47,7 @@ function getHomeRouteForUser(
   const home = normalizeDashboardRoute(dashboard);
   if (home) return home;
   if (!user) return "/dashboard";
-  if (user.is_superuser || user.type_user === "ADM") return "/dashboard";
+  if (user.is_superuser || user.type_user === "ADM") return "/organization";
   const assignments = user.branch_assignments ?? [];
   const firstRole = assignments[0]?.role_code?.trim().toUpperCase();
   if (firstRole === "OWNER") return "/dashboard";

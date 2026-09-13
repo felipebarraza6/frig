@@ -11,6 +11,7 @@ import {
   useCashierAllowedPaths,
   useWaiterAllowedPaths,
   useBranchModulesState,
+  useIsSuperAdmin,
 } from "@/lib/store/session";
 import { useIsRouteModuleEnabled } from "@/lib/hooks/useRouteModuleAccess";
 import { fetchFrontendConfig } from "@/lib/api/frontend-config";
@@ -23,8 +24,19 @@ import { RealtimeProvider } from "@/components/realtime/realtime-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { ForbiddenListener } from "@/components/forbidden-listener";
 import { enabledModuleSet, firstEnabledAllowedPath } from "@/lib/modules";
+import { SUPERADMIN_ALLOWED_PATHS as SUPERADMIN_MENU_PATHS } from "@/lib/hooks/useFrigMenu";
 
 const HIDDEN_SIDEBAR_PATHS = ["/pos/terminal", "/kds/terminal", "/kds/monitor"];
+
+/**
+ * Rutas permitidas para el super admin (menú + rutas neutrales como profile/dashboard).
+ * El superadmin administra organizaciones y sucursales, no opera.
+ */
+const SUPERADMIN_ALLOWED_PATHS = new Set<string>([
+  ...SUPERADMIN_MENU_PATHS,
+  "/profile",
+  "/dashboard",
+]);
 
 function isAllowed(pathname: string, allowedPaths: string[]): boolean {
   return allowedPaths.some(
@@ -41,6 +53,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const currentBranchId = useSessionStore((s) => s.currentBranchId);
   const isCashier = useIsCashier();
   const isWaiter = useIsWaiter();
+  const isSuperAdmin = useIsSuperAdmin();
   const cashierAllowedPaths = useCashierAllowedPaths();
   const waiterAllowedPaths = useWaiterAllowedPaths();
   const sessionModules = useBranchModulesState();
@@ -119,6 +132,13 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Superadmin: solo administra organizaciones/sucursales, no opera.
+    // Si intenta acceder a una ruta operativa, redirigir a /organization.
+    if (isSuperAdmin && !SUPERADMIN_ALLOWED_PATHS.has(pathname)) {
+      router.replace("/organization");
+      return;
+    }
+
     // Cajero/mesero no necesitan ver el hub de estaciones; entran directo al terminal.
     if ((isCashier || isWaiter) && pathname === "/pos") {
       // Si por algún motivo el módulo POS quedó deshabilitado, los mandamos
@@ -150,6 +170,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     router,
     isCashier,
     isWaiter,
+    isSuperAdmin,
     cashierAllowedPaths,
     waiterAllowedPaths,
     isRouteModuleEnabled,
@@ -170,7 +191,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   // la página ni un frame (el efecto de arriba ya redirige a /dashboard).
   // Sin esto, al entrar a una ruta desactivada (p. ej. Inventario off) la
   // página completa se pintaba antes de la redirección.
-  if (!isRouteModuleEnabled && pathname !== "/dashboard") {
+  // Superadmin: tampoco renderiza rutas operativas (solo admin).
+  if (
+    (!isRouteModuleEnabled && pathname !== "/dashboard") ||
+    (isSuperAdmin && !SUPERADMIN_ALLOWED_PATHS.has(pathname))
+  ) {
     return (
       <div className="flex flex-1 items-center justify-center bg-background">
         <div className="h-6 w-6 animate-spin rounded-full border-2 border-muted border-t-primary" />

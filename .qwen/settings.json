@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git log *)",
+      "Bash(app)",
+      "Bash(/settings/modules/)",
+      "Bash(npx *)",
+      "Bash(findstr *)",
+      "Bash(git add *)",
+      "Bash(/cash-register/page.tsx *)",
+      "Bash(/products/products-client.tsx *)",
+      "Bash(/settings/modules/page.tsx *)",
+      "Bash(git commit *)",
+      "Bash(curl.exe *)",
+      "Bash(powershell *)",
+      "Bash(gh *)",
+      "Bash(git push *)",
+      "Bash(del *)",
+      "Agent(Explore)",
+      "Read(C:\\Users\\SH\\Documents\\GitHub\\yggdra_infra\\api\\apps\\shared\\views/**)",
+      "Read(C:\\Users\\SH\\Documents\\GitHub\\yggdra_infra/**)",
+      "Read(C:\\Users\\SH\\Documents\\GitHub\\yggdra_infra\\api\\apps\\branches\\models/**)",
+      "Read(C:\\Users\\SH\\Documents\\GitHub\\yggdra_infra\\api/**)",
+      "Read(C:\\Users\\SH\\Documents\\GitHub\\yggdra_infra\\api\\apps\\accounts\\views/**)",
+      "Read(C:\\Users\\SH\\Documents\\GitHub\\yggdra_infra\\api\\apps/**)",
+      "Read(C:\\Users\\SH\\Documents\\GitHub\\yggdra_infra\\api\\apps\\shared\\management\\commands/**)"
+    ]
+  },
+  "$version": 4
+}

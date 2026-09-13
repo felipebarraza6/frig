@@ -21,15 +21,28 @@ function themeMatchesBranch(theme: BranchThemeConfig | null, branchId: string | 
 }
 
 /**
- * Aplica el tema multi-tenant persistido (BranchThemeConfig) al `:root`.
- * Debe montarse una única vez, alto en el árbol, para evitar parpadeo de color.
+ * Resuelve el tema efectivo siguiendo la jerarquía:
+ * 1. Tema de la organización (si existe)
+ * 2. Tema de la sucursal (si existe)
+ * 3. Default (null → Frig default)
+ */
+function resolveEffectiveTheme(
+  orgTheme: BranchThemeConfig | null,
+  branchTheme: BranchThemeConfig | null,
+): BranchThemeConfig | null {
+  // Prioridad: org theme > branch theme > default
+  return orgTheme ?? branchTheme ?? null;
+}
+
+/**
+ * Aplica el tema multi-tenant persistido al `:root`.
+ * Jerarquía: organización → sucursal → default Frig.
  *
- * También se encarga de recargar el tema cuando cambia la sucursal activa o
- * cuando no hay tema en el store (por ejemplo tras un login directo o un
- * cambio de sucursal que no cargó el theme).
+ * Debe montarse una única vez, alto en el árbol, para evitar parpadeo de color.
  */
 export function ThemeApplier() {
   const theme = useSessionStore((s) => s.theme);
+  const orgTheme = useSessionStore((s) => s.organizationTheme);
   const currentBranchId = useSessionStore((s) => s.currentBranchId);
   const hasHydrated = useSessionStore((s) => s.hasHydrated);
   const setTheme = useSessionStore((s) => s.setTheme);
@@ -40,25 +53,28 @@ export function ThemeApplier() {
   // Evita requests simultáneos si el efecto se dispara varias veces seguidas.
   const loadingRef = useRef(false);
 
+  // Tema efectivo: org → branch → default
+  const effectiveTheme = resolveEffectiveTheme(orgTheme, theme);
+
   useEffect(() => {
     if (!hasHydrated) return;
 
+    // Aplicar el tema efectivo (org o branch)
+    applyThemeConfig(effectiveTheme);
+
     // Si ya tenemos el tema de la sucursal activa, solo lo aplicamos.
     if (themeMatchesBranch(theme, currentBranchId)) {
-      applyThemeConfig(theme);
       return;
     }
 
     // Sin sesión o sin sucursal activa: tema por defecto.
     if (!currentBranchId || !getToken()) {
-      applyThemeConfig(null);
       attemptedBranchIdRef.current = null;
       return;
     }
 
     // Ya intentamos cargar el tema de esta sucursal y no hay: usamos default.
     if (theme === null && attemptedBranchIdRef.current === currentBranchId) {
-      applyThemeConfig(null);
       return;
     }
 
@@ -74,16 +90,13 @@ export function ThemeApplier() {
         const normalized = next ? normalizeThemeBranch(next, currentBranchId) : null;
         if (normalized && themeMatchesBranch(normalized, currentBranchId)) {
           setTheme(normalized);
-          applyThemeConfig(normalized);
         } else {
           setTheme(null);
-          applyThemeConfig(null);
         }
       })
       .catch(() => {
         if (!cancelled) {
           setTheme(null);
-          applyThemeConfig(null);
         }
       })
       .finally(() => {
@@ -93,7 +106,7 @@ export function ThemeApplier() {
     return () => {
       cancelled = true;
     };
-  }, [theme, currentBranchId, hasHydrated, setTheme]);
+  }, [theme, orgTheme, effectiveTheme, currentBranchId, hasHydrated, setTheme]);
 
   return null;
 }
