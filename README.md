@@ -1,107 +1,143 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/chef-hat.svg" alt="FRIG Logo" width="80" height="80">
-  <h1 align="center">FRIG POS</h1>
+  <img src="https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/chef-hat.svg" alt="FRIG Logo" width="88" height="88">
+  <h1 align="center">FRIG</h1>
   <p align="center">
-    <strong>El punto de venta gastronómico que no te hace pelear con la tecnología.</strong>
+    <strong>El sistema operativo gastronómico que vive en la web.</strong><br/>
+    Punto de venta, cocina, mesas, inventario y finanzas — en una sola plataforma multi-sucursal y white-label.
   </p>
   <p align="center">
-    <a href="#qué-hace-frig">Características</a> •
-    <a href="#tecnología">Tecnología</a> •
-    <a href="#desarrollo">Desarrollo</a> •
-    <a href="#próximos-pasos">Próximos Pasos</a>
+    <a href="https://frig.yggdra.cl"><strong>🌐 frig.yggdra.cl</strong></a> ·
+    <a href="#-capacidades">Capacidades</a> ·
+    <a href="#-rendimiento">Rendimiento</a> ·
+    <a href="#-multicanal-y-multi-dispositivo">Multicanal</a> ·
+    <a href="#-tecnología">Tecnología</a> ·
+    <a href="#-desarrollo">Desarrollo</a>
+  </p>
+  <p align="center">
+    <img src="https://img.shields.io/badge/deploy-producci%C3%B3n-success" alt="Deploy" />
+    <img src="https://img.shields.io/badge/Next.js-16-black" alt="Next.js 16" />
+    <img src="https://img.shields.io/badge/React-19-blue" alt="React 19" />
+    <img src="https://img.shields.io/badge/build-est%C3%A1tico_(CDN_ready)-orange" alt="Static" />
   </p>
 </div>
 
 ---
 
-**FRIG** es un POS (*Point of Sale*) multi-tenant y white-label diseñado para restaurantes, cafeterías, locales de comida rápida y cualquier negocio gastronómico que necesite operar sin fricciones. Nace con una misión clara: ser rápido, táctil y ridículamente fácil de usar.
+FRIG es el ERP gastronómico que corre 100% en el navegador: sin instaladores, sin servidores locales, sin licencias por caja. Abres una pestaña en cualquier dispositivo y tienes un punto de venta listo para operar. Cada sucursal opera con su propia marca (white-label), sus propios módulos activados a la carta y su propio equipo, mientras el dueño controla todo desde una sola cuenta.
 
-## 🍔 ¿Qué hace FRIG?
+> **Pruébalo en vivo → [frig.yggdra.cl](https://frig.yggdra.cl)**
 
-- **Multi-sucursal en una sola cuenta:** Cada cajero puede operar el punto de venta de la sucursal que le corresponda.
-- **Identidad White-Label:** Logo, colores primarios y mensajes se configuran por sucursal. Cada local se siente como un software a medida.
-- **Checkout Rápido y Táctil:** Búsqueda rápida, carrito dinámico, ajuste de cantidades y cobro en milisegundos.
-- **Gestión Simplificada:** Creación de productos, precio, costo y stock inicial. Activación o desactivación de ítems según demanda.
-- **Cierre Eficiente:** Múltiples métodos de pago integrados (efectivo, tarjeta, transferencias, etc) gestionados a nivel de caja.
+## ✨ Capacidades
+
+### 🛒 Venta (POS)
+- **Punto de venta táctil** con búsqueda instantánea, carrito dinámico y checkout en segundos.
+- **Caja y cierre de turno** con múltiples métodos de pago: efectivo, tarjeta, transferencia y billeteras.
+- **Cotizaciones y ventas** con histórico completo por sucursal.
+- **Promociones y clientes**: fidelización, descuentos y perfiles de compra.
+
+### 🔥 Cocina y salón
+- **Pantalla de cocina (KDS)** y flujo de producción de pedidos.
+- **Gestión de mesas y mapa de mesas** interactivo para servicio en salón.
+
+### 📦 Catálogo e inventario
+- **Productos, combos, modificadores y categorías** con fotos, códigos y precios por sucursal.
+- **Recetas**: el stock de un plato se calcula automáticamente desde sus ingredientes — el POS siempre muestra disponibilidad real.
+- **Bodegas, inventario y movimientos** con alertas de stock bajo y quiebre, exportables a Excel/PDF.
+- **Proveedores y órdenes de compra** con recepción de mercadería.
+
+### 💰 Finanzas
+- **Ingresos, egresos y gastos fijos** con configuración tributaria (boletas, facturas, SII en Chile).
+- **Billeteras y conciliaciones bancarias**: cuadra los movimientos del negocio contra el banco.
+
+### 🥗 Menú digital y nutrición
+- **Menús digitales públicos** con el branding de cada sucursal.
+- **Etiquetado e informes nutricionales** por producto — listo para normativa de etiquetado.
+
+### 🏢 Gestión multi-sucursal
+- **Organización, usuarios y roles por sucursal** (propietario, administrador, cajero, cocina…) con permisos granulares.
+- **Módulos activables a la carta** por sucursal: cada local enciende solo lo que usa.
+- **Super admin**: gestión de organizaciones y planes por organización, con white-label total — cada sitio desplegado (frig.yggdra.cl, intranet.macanuobowl.cl, mani.agenciapatagoniachile.com) es la misma app con la marca de su cliente.
+
+## ⚡ Rendimiento
+
+La velocidad no es un detalle: es la diferencia entre cobrar una mesa o perderla.
+
+- **Build 100% estático (SSG)**: la app completa se exporta a HTML/JS y se sirve desde hosting con CDN. Sin cold starts, sin servidores que caer en la hora punta.
+- **Interacciones a 60 fps** con transiciones fluidas (Framer Motion), pensadas para tablets de gama baja en un salón con WiFi mediocre.
+- **Caché de datos inteligente** (TanStack Query): el catálogo y el stock se sienten instantáneos; las mutaciones invalidan solo lo necesario.
+- **Estado local persistente** (Zustand + localStorage): sesión, sucursal activa y preferencias sobreviven a recargas y cortes de red.
+- **CI/CD con gates de calidad**: lint + type-check + build en cada PR, y deploy atómico a producción con la misma batería de verificaciones.
+
+## 📱 Multicanal y multi-dispositivo
+
+Un mismo sistema, todos los formatos de trabajo:
+
+- **Tablet y touch**: el POS está diseñado táctil primero — botones grandes, gestos, cero teclado.
+- **Escritorio**: la gestión administrativa (finanzas, inventario, catálogo) aprovecha pantallas grandes con tablas y filtros completos.
+- **Móvil**: consulta de métricas y operaciones clave desde el bolsillo.
+- **Cliente final**: menú digital público con la marca de la sucursal, sin app que instalar.
+- **Multi-tenant por diseño**: cada request viaja con el contexto de sucursal (`X-Branch-ID`), así que una misma URL sirve negocios completamente distintos.
 
 ## 🛠 Tecnología
 
-Construido con un stack de vanguardia para asegurar la máxima fluidez en dispositivos de baja y alta gama.
-
 | Capa | Herramienta |
 |------|-------------|
-| **Frontend** | Next.js 16 (App Router), React 19, TypeScript |
-| **Estilos** | Tailwind CSS v4 |
-| **Animación** | Framer Motion (Transiciones fluidas a 60fps) |
-| **Estado** | Zustand + Persistencia en `localStorage` |
-| **Datos** | TanStack Query (Caché y Server State) |
-| **Backend** | API Yggdra (Django REST Framework) |
-
----
+| **Frontend** | Next.js 16 (App Router, output estático), React 19, TypeScript estricto |
+| **Estilos** | Tailwind CSS v4 + theming white-label por CSS custom properties |
+| **Animación** | Framer Motion (transiciones a 60 fps) |
+| **Estado** | Zustand (persistencia en `localStorage`) + TanStack Query (server state) |
+| **Iconografía** | Lucide |
+| **Backend** | API Yggdra (Django REST Framework), multi-tenant |
+| **CI/CD** | GitHub Actions → deploy FTP a 3 hostings de producción |
 
 ## 💻 Desarrollo
 
-La aplicación web ha sido reestructurada para operar directamente desde la raíz del repositorio, simplificando los flujos de despliegue y desarrollo.
-
-### Estructura de Carpetas
+### Estructura de carpetas
 ```
 frig/
-├── app/             # Rutas y páginas de Next.js (App Router)
-├── components/      # Componentes UI (ui/ compartidos, landing/, pos/, etc)
-├── lib/             # Integración con Yggdra API, hooks, utilidades y estado
-├── content/         # Copys y contenido estático
-├── docs/            # Documentación profunda y mapas del proyecto
-└── public/          # Assets estáticos (imágenes, fuentes, runas)
+├── src/app/         # Rutas y páginas (App Router)
+├── src/components/  # UI compartida (ui/), POS, branches, landing, etc.
+├── src/lib/         # Cliente de API Yggdra, hooks, stores y utilidades
+├── src/content/     # Copys y contenido estático
+├── docs/            # Auditorías y documentación profunda
+└── public/          # Assets estáticos
 ```
 
-### Levantando el Proyecto
+### Levantando el proyecto
 
 **Requisitos previos:**
 - Node.js 20+ (se recomienda `nvm`)
-- La API Yggdra corriendo en Docker (`yggdra-light-api`) en el puerto `:8000`.
+- La API Yggdra corriendo localmente en `:8000` (repo `yggdra_infra`)
 
-**Ejecución:**
 ```bash
-# 1. Instalar dependencias
 npm install
-
-# 2. Levantar servidor local
-npm run dev
+npm run dev        # http://localhost:3000
 ```
 
-El POS estará disponible en [http://localhost:3000](http://localhost:3000).
-
-**Credenciales de Prueba:**
-- **Email:** `admin@example.com`
-- **Password:** `admin123`
-*(Por defecto ingresará a la sucursal "Bizantni Gelato", permitiendo probar el sistema de theming white-label).*
-
-### Comandos Útiles
+### Comandos
 
 ```bash
-npm run lint         # Auditoría de código con ESLint
-npm run type-check   # Verificación estricta de TypeScript
-npm run build        # Compilar para producción en Vercel / Node
+npm run lint         # ESLint
+npm run type-check   # TypeScript estricto
+npm run build        # Build de producción (export estático)
 ```
 
-## 🔐 Detalles de Arquitectura
+### CI/CD
 
-- **Autenticación stateless:** Emplea `localStorage` para persistir el token (`frig.token`) y la sesión (`frig.session`).
-- **Contexto de sucursal:** Cada request incluye el header `X-Branch-ID` asegurando segregación de datos.
-- **Stock Predictivo:** El backend Yggdra valida inventario en cada venta para prevenir quiebres de stock.
+- **CI** (`.github/workflows/ci.yml`): lint + type-check + build en cada push a branches y PRs. No despliega.
+- **Deploy** (`.github/workflows/deploy.yml`): al pushear `master`, los mismos gates y luego FTP atómico a los tres hostings de producción.
 
-## 🚀 Próximos Pasos
+## 🔐 Detalles de arquitectura
 
-El producto se encuentra en evolución continua. El roadmap actual incluye:
-
-- [ ] **Impresión Ticked / Comandas:** Soporte para impresoras térmicas ESC/POS (80mm).
-- [ ] **KDS (Kitchen Display System):** Pantalla de comandas para la cocina.
-- [ ] **Dashboards:** Analítica de ventas multi-sucursal en tiempo real.
-- [ ] **Propinas y Descuentos:** Flexibilidad de cobro en mesa.
-- [ ] **Modo Offline:** Persistencia con `IndexedDB` y `Workbox` para ventas sin conexión.
+- **Autenticación stateless**: token y sesión persistidos en `localStorage` (`frig.token`, `frig.session`).
+- **Contexto de sucursal obligatorio**: cada request incluye el header `X-Branch-ID`, garantizando segregación total de datos entre tenants.
+- **Theming white-label**: colores, logo y mensajes se resuelven por sucursal y se inyectan como variables CSS al arrancar — sin rebuilds por cliente.
+- **Rutas dinámicas en hosting estático**: el build genera `.htaccess` (scripts/post-export.mjs) para servir la app correctamente en Apache.
 
 ---
 
 <div align="center">
-  <sub>Construido con la idea de que operar un restaurante debería ser tan simple como atender una mesa.</sub>
+  <sub><strong>FRIG</strong> — operar un restaurante debería ser tan simple como atender una mesa.</sub>
+  <br/>
+  <sub><a href="https://frig.yggdra.cl">frig.yggdra.cl</a></sub>
 </div>
