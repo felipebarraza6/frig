@@ -122,6 +122,9 @@ export async function fetchBranchRoles(branchId: ID): Promise<RoleDefinition[]> 
  */
 export async function fetchBranchTheme(branchId?: string): Promise<BranchThemeConfig | null> {
   const targetId = branchId ?? getBranchId();
+  // Sin sucursal objetivo NO se devuelve el primer tema de la lista: para un
+  // super admin (sin sucursal elegida) eso pintaba la app con colores ajenos.
+  if (!targetId) return null;
   try {
     const data = await apiFetch<{ results?: BranchThemeConfig[] } | BranchThemeConfig>(
       "/branches/themes/",

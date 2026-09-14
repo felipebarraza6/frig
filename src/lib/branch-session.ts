@@ -32,14 +32,20 @@ export function pickDefaultBranchId(user: User | null, branches: Branch[]): stri
 export async function activateBranch(branchId: string, queryClient?: QueryClient): Promise<void> {
   const config = await fetchFrontendConfig(Number(branchId));
   useSessionStore.getState().setFrontendConfig(config, branchId);
-  try {
-    const theme = await fetchBranchTheme(branchId);
-    if (theme) {
-      useSessionStore.getState().setTheme(theme);
-      applyThemeConfig(theme);
+  // Super admin: black puro — nunca aplica el tema de la sucursal activada.
+  const user = useSessionStore.getState().user;
+  if (user?.is_superuser || user?.type_user === "ADM") {
+    useSessionStore.getState().setTheme(null);
+  } else {
+    try {
+      const theme = await fetchBranchTheme(branchId);
+      if (theme) {
+        useSessionStore.getState().setTheme(theme);
+        applyThemeConfig(theme);
+      }
+    } catch {
+      // tema no crítico
     }
-  } catch {
-    // tema no crítico
   }
   if (queryClient) await queryClient.invalidateQueries();
 }

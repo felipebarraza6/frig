@@ -188,14 +188,17 @@ export default function LoginPage() {
         try {
           const config = await fetchFrontendConfig(Number(target));
           setFrontendConfig(config, target);
-          try {
-            const branchTheme = await fetchBranchTheme(target);
-            if (branchTheme) {
-              setTheme(branchTheme);
-              applyThemeConfig(branchTheme);
+          // Super admin: black puro, sin tema de ninguna sucursal/org.
+          if (!(res.user.is_superuser || res.user.type_user === "ADM")) {
+            try {
+              const branchTheme = await fetchBranchTheme(target);
+              if (branchTheme) {
+                setTheme(branchTheme);
+                applyThemeConfig(branchTheme);
+              }
+            } catch {
+              // tema no crítico
             }
-          } catch {
-            // tema no crítico
           }
           celebrateThen(() =>
             router.replace(getHomeRouteForUser(config.user, config.dashboard)),
