@@ -95,25 +95,46 @@ export async function createInventoryMovement(payload: InventoryHistoryRequest):
   });
 }
 
-function normalizeSummaryList(
-  data: ProductInventorySummary[] | { results?: ProductInventorySummary[] },
-): ProductInventorySummary[] {
-  if (Array.isArray(data)) return data;
-  return data.results ?? [];
+/**
+ * Los endpoints recipe-aware de /inventory/products/ devuelven ProductList
+ * (category anidado, quantity = stock efectivo). Se mapea al shape
+ * ProductInventorySummary que consume la página de alertas.
+ */
+function productToSummary(p: YggdraSchemas["ProductList"]): ProductInventorySummary {
+  const cat = p.category && typeof p.category === "object" ? p.category : null;
+  return {
+    id: p.id,
+    name: p.name,
+    code: p.code ?? null,
+    category: cat?.id ?? null,
+    category_name: cat?.name ?? "",
+    branch: typeof p.branch === "object" ? p.branch?.id : p.branch,
+    branch_name: typeof p.branch === "object" ? (p.branch?.business_name ?? "") : "",
+    quantity: p.quantity,
+    stock_available: p.stock_available,
+    minimum_stock: p.minimum_stock,
+  } as ProductInventorySummary;
 }
 
+/**
+ * Alertas de stock. Usan /inventory/products/{low-stock,out-of-stock}, que
+ * calculan el stock efectivo (para RECIPE_BASED lo derivan de los ingredientes
+ * de la receta activa), igual que el POS. Los endpoints equivalentes de
+ * /inventory/product-inventory/ leen la columna cruda quantity y reportan
+ * falsos "sin stock" en productos con receta.
+ */
 export async function fetchLowStock(): Promise<ProductInventorySummary[]> {
-  const data = await apiFetch<ProductInventorySummary[] | { results?: ProductInventorySummary[] }>(
-    "/inventory/product-inventory/low_stock/",
+  const data = await apiFetch<YggdraSchemas["ProductList"][]>(
+    "/inventory/products/low-stock/",
   );
-  return normalizeSummaryList(data);
+  return data.map(productToSummary);
 }
 
 export async function fetchOutOfStock(): Promise<ProductInventorySummary[]> {
-  const data = await apiFetch<ProductInventorySummary[] | { results?: ProductInventorySummary[] }>(
-    "/inventory/product-inventory/out_of_stock/",
+  const data = await apiFetch<YggdraSchemas["ProductList"][]>(
+    "/inventory/products/out-of-stock/",
   );
-  return normalizeSummaryList(data);
+  return data.map(productToSummary);
 }
 
 /**
