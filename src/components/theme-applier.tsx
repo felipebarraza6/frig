@@ -35,16 +35,6 @@ function resolveEffectiveTheme(
 }
 
 /**
- * Tema black puro del super admin: no hereda colores de ninguna organización
- * ni sucursal — la app completa en negro con texto blanco.
- */
-const SUPER_ADMIN_THEME: BranchThemeConfig = {
-  primary_color: "#18181b",
-  secondary_color: "#09090b",
-  algorithm: "dark",
-};
-
-/**
  * Aplica el tema multi-tenant persistido al `:root`.
  * Jerarquía: organización → sucursal → default Frig.
  *
@@ -72,16 +62,17 @@ export function ThemeApplier() {
   useEffect(() => {
     if (!hasHydrated) return;
 
-    // Super admin: estilo black puro. Sin tema de organización ni de sucursal —
-    // no hay sucursal "elegida" que coloree la app. Se limpia el store por si
-    // quedó un tema persistido de una sesión anterior.
+    // Super admin: tema Frig nativo (defaults de la web). Sin tema de
+    // organización ni de sucursal — no hay sucursal "elegida" que coloree la
+    // app. Se limpia el store por si quedó un tema persistido de una sesión
+    // anterior.
     if (isSuperAdmin) {
       if (theme !== null || orgTheme !== null) {
         setTheme(null);
         useSessionStore.setState({ organizationTheme: null });
       }
-      applyThemeConfig(SUPER_ADMIN_THEME);
-      document.documentElement.classList.add("dark");
+      applyThemeConfig(null);
+      document.documentElement.classList.remove("dark");
       return;
     }
 
