@@ -39,6 +39,11 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # Genera .next/types (LayoutProps, rutas tipadas) sin build completo;
+      # localmente lo genera next dev, en CI hay que pedirlo explícito.
+      - name: Generar tipos de rutas
+        run: npx next typegen
+
       - name: Type-check
         run: npm run type-check
 
