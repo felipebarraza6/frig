@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueries, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Plus, Search, Pencil, Power, Store, Users, Palette,
   Phone, Mail, CreditCard, CalendarDays, FileText, MapPin,
@@ -11,10 +11,10 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import {
   useSessionStore,
   useCanViewBranches,
-  useIsModuleEnabledFromConfig,
 } from "@/lib/store/session";
 import { branchName } from "@/lib/types";
 import { fetchBranches, updateBranch } from "@/lib/api/branches";
+import { fetchBranchModules } from "@/lib/api/branch-modules";
 import { getRoleLabel } from "@/lib/roles";
 import { BranchForm } from "@/components/branches/branch-form";
 import { BranchUsersDialog } from "@/components/branches/branch-users-dialog";
@@ -71,7 +71,6 @@ export default function BranchesPage() {
   const [editingPlan, setEditingPlan] = useState<Branch | null>(null);
   const [editingSii, setEditingSii] = useState<Branch | null>(null);
   const patchBranch = useSessionStore((s) => s.patchBranch);
-  const siiModuleEnabled = useIsModuleEnabledFromConfig("invoices");
 
   const filter = useMemo<BranchesFilter>(() => {
     const base: BranchesFilter = {};
@@ -87,6 +86,30 @@ export default function BranchesPage() {
 
   const branches = data?.results ?? [];
   const totalBranches = data?.count ?? 0;
+
+  // Estado del módulo invoices POR sucursal: el botón de configuración SII
+  // solo aparece en sucursales con facturación activa. El backend expone los
+  // módulos de a una sucursal (by_branch?branch_id=), así que hay un fetch por
+  // tarjeta; para las que fallan (sin permiso) el botón se oculta.
+  const moduleQueries = useQueries({
+    queries: branches.map((b) => ({
+      queryKey: ["branch-modules", b.branch_id],
+      queryFn: () => fetchBranchModules(Number(b.branch_id)),
+      enabled: canView,
+      staleTime: 60_000,
+    })),
+  });
+  const invoicesEnabledBranches = useMemo(() => {
+    const set = new Set<string>();
+    branches.forEach((b, i) => {
+      const configs = moduleQueries[i]?.data;
+      if (configs?.some((m) => m.module_name === "invoices" && m.is_enabled)) {
+        set.add(String(b.branch_id));
+      }
+    });
+    return set;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [branches, moduleQueries.map((q) => JSON.stringify(q.data)).join(",")]);
 
   const toggleActive = useMutation({
     mutationFn: ({ id, isActive }: { id: number; isActive: boolean }) =>
@@ -338,7 +361,7 @@ export default function BranchesPage() {
                           <Palette className="h-3.5 w-3.5" />
                         </Button>
                       )}
-                      {manageable && siiModuleEnabled && (
+                      {manageable && invoicesEnabledBranches.has(String(b.branch_id)) && (
                         <Button
                           variant="ghost"
                           size="sm"
