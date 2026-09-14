@@ -66,8 +66,15 @@ export function PosInventoryModal({ open, onClose }: { open: boolean; onClose: (
   const listable = useMemo(
     () =>
       inventory.filter((p) => {
-        const type = productsById.get(p.id)?.product_type;
-        return !type || !NO_INVENTORY_TYPES.has(type);
+        const prod = productsById.get(p.id) as
+          | { product_type?: string; tracks_inventory?: boolean }
+          | undefined;
+        // Sin catálogo no hay forma de saber si lleva inventario: lo excluimos
+        // para no mostrar bowls/servicios con filas de inventario residual.
+        if (!prod) return false;
+        if (prod.product_type && NO_INVENTORY_TYPES.has(prod.product_type)) return false;
+        if (prod.tracks_inventory === false) return false;
+        return true;
       }),
     [inventory, productsById],
   );
