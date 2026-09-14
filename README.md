@@ -6,6 +6,7 @@
   </p>
   <p align="center">
     <a href="https://frig.yggdra.cl"><strong>🌐 frig.yggdra.cl</strong></a> ·
+    <a href="#-libertad-total-se-acopla-a-tu-operación-no-al-revés">Flexibilidad</a> ·
     <a href="#-capacidades">Capacidades</a> ·
     <a href="#-rendimiento">Rendimiento</a> ·
     <a href="#-multicanal-y-multi-dispositivo">Multicanal</a> ·
@@ -25,6 +26,16 @@
 FRIG es el ERP gastronómico que corre 100% en el navegador: sin instaladores, sin servidores locales, sin licencias por caja. Abres una pestaña en cualquier dispositivo y tienes un punto de venta listo para operar. Cada sucursal opera con su propia marca (white-label), sus propios módulos activados a la carta y su propio equipo, mientras el dueño controla todo desde una sola cuenta.
 
 > **Pruébalo en vivo → [frig.yggdra.cl](https://frig.yggdra.cl)**
+
+## 🧩 Libertad total: se acopla a tu operación, no al revés
+
+FRIG no te impone un flujo de trabajo — se adapta al tuyo. Da igual si eres un local de comida rápida con una caja y fila afuera, un café con mesas y delivery, o un grupo con varias cocinas y central de compras:
+
+- **Activa solo lo que necesitas:** cada módulo (POS, mesas, cocina, inventario, finanzas, facturación…) se enciende o apaga por sucursal. Nada de funciones que estorban ni licencias por cosas que no usas.
+- **Tu proceso manda:** vende en mostrador, en mesa, para llevar o combinado; controla stock por receta o por unidad; factura o no. FRIG sigue tu operación, no un manual.
+- **Crece sin migrar:** empieza con una caja y suma sucursales, bodegas, proveedores y finanzas en la misma cuenta, al ritmo de tu negocio.
+- **Tu marca, tu sistema:** white-label por sucursal — para tu equipo y tus clientes se siente como software propio.
+- **Abierto por naturaleza:** corre en cualquier dispositivo con navegador y se integra a tu proceso existente sin hardware especializado.
 
 ## ✨ Capacidades
 
