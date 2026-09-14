@@ -35,9 +35,12 @@ export function isPathModuleEnabled(
  * frontend-config (session.modules). Usa ROUTE_MODULE_MAP como fallback.
  *
  * Devuelve true mientras carga para evitar parpadeo (session.modules
- * empieza vacío hasta que llega frontend-config).
+ * empieza vacío hasta que llega frontend-config). Si el módulo viene
+ * explícitamente como disabled, se respeta.
  */
 export function useIsRouteModuleEnabled(pathname: string): boolean {
   const modules = useBranchModulesState();
+  // Si modules está vacío, aún no cargó frontend-config → permitir para evitar redirect prematuro
+  if (Object.keys(modules).length === 0) return true;
   return isPathModuleEnabled(pathname, modules);
 }

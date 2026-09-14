@@ -26,6 +26,7 @@ import {
   useCashierAllowedPaths,
   useWaiterAllowedPaths,
 } from "@/lib/store/session";
+import { useIsSuperAdmin } from "@/lib/store/session";
 import { useFrigMenu } from "@/lib/hooks/useFrigMenu";
 import { useNavFavorites } from "@/lib/store/nav-favorites";
 import { useSidebarStore } from "@/lib/store/sidebar";
@@ -87,6 +88,7 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
   const menuGroups = useFrigMenu();
   const isCashier = useIsCashier();
   const isWaiter = useIsWaiter();
+  const isSuperAdmin = useIsSuperAdmin();
   const appName = theme?.app_name ?? "FRIG";
   const { favorites, toggleFavorite, isFavorite } = useNavFavorites();
 
@@ -276,7 +278,8 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
       <aside
         className={cn(
           "app-sidebar fixed inset-y-0 left-0 z-50 flex flex-col overflow-hidden text-white transition-[width,box-shadow] duration-300 ease-out",
-          widthClass
+          widthClass,
+          isSuperAdmin && "bg-[color:var(--brand-primary)]",
         )}
         onMouseEnter={() => setHovering(true)}
         onMouseLeave={() => setHovering(false)}
@@ -292,11 +295,17 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
                 transition={{ duration: 0.2 }}
                 className="flex min-w-0 flex-1 items-center"
               >
-                <BranchSwitcher appName={appName} />
+                {isSuperAdmin ? (
+                  <span className="truncate text-sm font-bold tracking-wide text-white/90">
+                    FRIG ROOT
+                  </span>
+                ) : (
+                  <BranchSwitcher appName={appName} />
+                )}
               </m.div>
             )}
           </AnimatePresence>
-          {!effectivelyExpanded && <BranchSwitcher appName={appName} collapsed />}
+          {!effectivelyExpanded && !isSuperAdmin && <BranchSwitcher appName={appName} collapsed />}
           <button
             type="button"
             onClick={handleToggle}
@@ -311,6 +320,7 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
         </div>
 
         <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-2.5 py-3 scrollbar-hide">
+          {!isSuperAdmin && (
           <button
             type="button"
             onClick={() => setSearchOpen(true)}
@@ -327,8 +337,9 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
               </>
             )}
           </button>
+          )}
 
-          {favorites.length > 0 && effectivelyExpanded && (
+          {!isSuperAdmin && favorites.length > 0 && effectivelyExpanded && (
             <nav className="flex flex-col gap-1">
               <p className="px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/60">
                 Accesos directos

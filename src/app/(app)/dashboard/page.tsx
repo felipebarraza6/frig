@@ -781,10 +781,12 @@ export default function DashboardPage() {
                 <li key={o.id} className="flex items-center justify-between gap-3 py-2">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">
-                      {o.order_number ?? o.id.slice(0, 8)}
-                      <span className="ml-2 text-xs font-normal text-muted-foreground">
-                        {o.client?.name ?? "Sin cliente"}
-                      </span>
+                      {o.order_number ? `#${o.order_number}` : o.client?.name ?? "Sin cliente"}
+                      {o.order_number && o.client?.name && (
+                        <span className="ml-2 text-xs font-normal text-muted-foreground">
+                          {o.client.name}
+                        </span>
+                      )}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {new Date(o.date).toLocaleDateString("es-CL", { day: "2-digit", month: "short" })}
@@ -823,10 +825,12 @@ export default function DashboardPage() {
                   <li key={o.id} className="flex items-center justify-between gap-3 py-2">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium">
-                        {o.order_number ?? o.id.slice(0, 8)}
-                        <span className="ml-2 text-xs font-normal text-muted-foreground">
-                          {o.client?.name ?? "Sin cliente"}
-                        </span>
+                        {o.order_number ? `#${o.order_number}` : o.client?.name ?? "Sin cliente"}
+                        {o.order_number && o.client?.name && (
+                          <span className="ml-2 text-xs font-normal text-muted-foreground">
+                            {o.client.name}
+                          </span>
+                        )}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {new Date(o.date).toLocaleDateString("es-CL", { day: "2-digit", month: "short" })}

@@ -263,7 +263,7 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
       { href: "/finance/settings", label: "Config. financiera", icon: "Settings", module: "finance", description: "Impuestos y configuración financiera" },
       { href: "/suppliers", label: "Proveedores", icon: "Truck", module: "suppliers", description: "Directorio de proveedores" },
       { href: "/purchase-orders", label: "Órdenes de compra", icon: "ShoppingCart", module: "suppliers", description: "Pedidos a proveedores y su recepción" },
-      { href: "/bank-accounts", label: "Cuentas bancarias", icon: "Wallet", module: "bank_accounts", description: "Cuentas y saldos bancarios" },
+      { href: "/bank-accounts", label: "Billeteras", icon: "Wallet", module: "bank_accounts", description: "Cuentas y saldos bancarios" },
       { href: "/reconciliations", label: "Conciliaciones", icon: "ArrowLeftRight", module: "bank_accounts", description: "Cuadra movimientos con el banco" },
     ],
   },

@@ -46,6 +46,9 @@ export function ThemeApplier() {
   const currentBranchId = useSessionStore((s) => s.currentBranchId);
   const hasHydrated = useSessionStore((s) => s.hasHydrated);
   const setTheme = useSessionStore((s) => s.setTheme);
+  const isSuperAdmin = useSessionStore(
+    (s) => s.user?.is_superuser || s.user?.type_user === "ADM",
+  );
 
   // Evita pedir el tema indefinidamente si el backend responde null/errores
   // para la sucursal activa. Se resetea cuando cambia la sucursal.
@@ -61,6 +64,13 @@ export function ThemeApplier() {
 
     // Aplicar el tema efectivo (org o branch)
     applyThemeConfig(effectiveTheme);
+
+    // Super admin: toda la app en dark mode.
+    if (isSuperAdmin) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
 
     // Si ya tenemos el tema de la sucursal activa, solo lo aplicamos.
     if (themeMatchesBranch(theme, currentBranchId)) {
@@ -106,7 +116,7 @@ export function ThemeApplier() {
     return () => {
       cancelled = true;
     };
-  }, [theme, orgTheme, effectiveTheme, currentBranchId, hasHydrated, setTheme]);
+  }, [theme, orgTheme, effectiveTheme, currentBranchId, hasHydrated, setTheme, isSuperAdmin]);
 
   return null;
 }

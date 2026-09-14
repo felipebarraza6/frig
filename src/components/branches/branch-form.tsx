@@ -59,7 +59,6 @@ export function BranchForm({ branch, onClose, onSuccess }: BranchFormProps) {
   const [province, setProvince] = useState(branch?.province ?? "");
   const [commune, setCommune] = useState(branch?.commune ?? "");
   const [dni, setDni] = useState(branch?.dni ?? "");
-  const [ownerId, setOwnerId] = useState<string>(branch?.owner_id ? String(branch.owner_id) : "");
   const [organizationId, setOrganizationId] = useState<string>(
     branch?.organization ? String(branch.organization) : "",
   );
@@ -110,9 +109,6 @@ export function BranchForm({ branch, onClose, onSuccess }: BranchFormProps) {
         dni: dni || undefined,
         is_active: branch?.is_active ?? true,
       };
-      if (isSuperAdmin && ownerId) {
-        payload.owner_id = Number(ownerId);
-      }
       if (isSuperAdmin && organizationId) {
         payload.organization = Number(organizationId);
       }
@@ -221,32 +217,21 @@ export function BranchForm({ branch, onClose, onSuccess }: BranchFormProps) {
                   />
                 </Field>
                 {isSuperAdmin && (
-                  <>
-                    <Field label="Organización" hint="Organización a la que pertenece esta sucursal.">
-                      <select
-                        id="organization"
-                        value={organizationId}
-                        onChange={(e) => setOrganizationId(e.target.value)}
-                        className="h-9 w-full rounded-lg border border-border bg-background px-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                      >
-                        <option value="">Sin organización</option>
-                        {organizations.map((org) => (
-                          <option key={org.id} value={org.id}>
-                            {org.name}
-                          </option>
-                        ))}
-                      </select>
-                    </Field>
-                    <Field label="ID propietario" hint="Dueño de la sucursal. Opcional.">
-                      <Input
-                        id="owner_id"
-                        type="number"
-                        value={ownerId}
-                        onChange={(e) => setOwnerId(e.target.value)}
-                        placeholder="Opcional"
-                      />
-                    </Field>
-                  </>
+                  <Field label="Organización" hint="Organización a la que pertenece esta sucursal.">
+                    <select
+                      id="organization"
+                      value={organizationId}
+                      onChange={(e) => setOrganizationId(e.target.value)}
+                      className="h-9 w-full rounded-lg border border-border bg-background px-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                    >
+                      <option value="">Sin organización</option>
+                      {organizations.map((org) => (
+                        <option key={org.id} value={org.id}>
+                          {org.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
                 )}
               </div>
             </div>

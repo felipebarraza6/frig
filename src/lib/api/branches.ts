@@ -260,33 +260,103 @@ function readableForegroundFor(hex: string): string {
 /**
  * Aplica el tema multi-tenant a `:root` inyectando CSS custom properties
  * de marca. Sin theme se usan los defaults de globals.css.
+ *
+ * Deriva todos los tokens del UI (background, card, muted, border, etc.)
+ * desde primary + secondary para que el tema se propague en toda la app.
  */
 export function applyThemeConfig(theme: BranchThemeConfig | null): void {
   const root = document.documentElement;
   const primary = theme?.primary_color ?? "#2f6b3c";
   const secondary = theme?.secondary_color ?? "#f2e8cf";
+
+  // Colores base
   root.style.setProperty("--brand-primary", primary);
   root.style.setProperty("--brand-secondary", secondary);
-  // Foreground derivado del color de marca para texto legible encima.
-  // Se setea también el alias --color-* por si algún consumo usa el token
-  // directo en vez del mapeo de @theme.
+  root.style.setProperty("--brand-radius", typeof theme?.borderRadius === "number" && theme.borderRadius > 0 ? `${theme.borderRadius}px` : "0.75rem");
+
+  // Foreground derivado (texto legible sobre el color)
   const primaryForeground = readableForegroundFor(primary);
   const secondaryForeground = readableForegroundFor(secondary);
   root.style.setProperty("--primary-foreground", primaryForeground);
   root.style.setProperty("--secondary-foreground", secondaryForeground);
   root.style.setProperty("--color-primary-foreground", primaryForeground);
   root.style.setProperty("--color-secondary-foreground", secondaryForeground);
-  root.style.setProperty(
-    "--brand-radius",
-    typeof theme?.borderRadius === "number" && theme.borderRadius > 0
-      ? `${theme.borderRadius}px`
-      : "0.75rem",
-  );
+
+  // Derivar tokens del UI desde secondary (modo light)
+  // --background: secondary muy diluido con blanco (superficie principal clara)
+  root.style.setProperty("--background", mixColor(secondary, "#ffffff", 0.75));
+  // --foreground: texto oscuro legible sobre background
+  root.style.setProperty("--foreground", mixColor(primary, "#1a1a1a", 0.5));
+  // --card: blanco puro para contraste con el background
+  root.style.setProperty("--card", "#ffffff");
+  root.style.setProperty("--card-foreground", mixColor(primary, "#1a1a1a", 0.5));
+  // --muted: variante suave del secondary (para badges, fondos sutiles)
+  root.style.setProperty("--muted", mixColor(secondary, "#ffffff", 0.7));
+  root.style.setProperty("--muted-foreground", mixColor(primary, "#1a1a1a", 0.35));
+  // --accent: mismo que muted
+  root.style.setProperty("--accent", mixColor(secondary, "#ffffff", 0.7));
+  root.style.setProperty("--accent-foreground", mixColor(primary, "#1a1a1a", 0.5));
+  // --border / --input: bordes visibles pero sutiles
+  root.style.setProperty("--border", mixColor(secondary, primary, 0.2));
+  root.style.setProperty("--input", mixColor(secondary, primary, 0.15));
+  // --surface: superficie secundaria
+  root.style.setProperty("--brand-surface", mixColor(secondary, "#ffffff", 0.8));
+  root.style.setProperty("--brand-foreground", mixColor(primary, "#1a1a1a", 0.5));
+
+  // Dark mode toggle
   if (theme?.algorithm === "dark") {
     root.classList.add("dark");
+    // Tokens dark derivados
+    root.style.setProperty("--background", mixColor(primary, "#000000", 0.92));
+    root.style.setProperty("--foreground", mixColor(secondary, "#ffffff", 0.85));
+    root.style.setProperty("--card", mixColor(primary, "#000000", 0.88));
+    root.style.setProperty("--card-foreground", mixColor(secondary, "#ffffff", 0.85));
+    root.style.setProperty("--muted", mixColor(primary, "#000000", 0.78));
+    root.style.setProperty("--muted-foreground", mixColor(secondary, "#ffffff", 0.55));
+    root.style.setProperty("--accent", mixColor(primary, "#000000", 0.78));
+    root.style.setProperty("--accent-foreground", mixColor(secondary, "#ffffff", 0.85));
+    root.style.setProperty("--border", mixColor(primary, "#ffffff", 0.15));
+    root.style.setProperty("--input", mixColor(primary, "#ffffff", 0.18));
   } else if (theme?.algorithm === "light") {
     root.classList.remove("dark");
   }
+}
+
+/**
+ * Mezcla dos colores CSS con un ratio (0-1).
+ * ratio=0 → color1 puro, ratio=1 → color2 puro.
+ */
+function mixColor(color1: string, color2: string, ratio: number): string {
+  // Soporta hex (#rrggbb) y nombres básicos
+  const c1 = hexToRgb(color1);
+  const c2 = hexToRgb(color2);
+  if (!c1 || !c2) return color1; // fallback
+  const r = Math.round(c1.r + (c2.r - c1.r) * ratio);
+  const g = Math.round(c1.g + (c2.g - c1.g) * ratio);
+  const b = Math.round(c1.b + (c2.b - c1.b) * ratio);
+  return `hsl(${rgbToHsl(r, g, b).join(" ")})`;
+}
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return m ? { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) } : null;
+}
+
+function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h = 0, s = 0;
+  const l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+      case g: h = ((b - r) / d + 2) / 6; break;
+      case b: h = ((r - g) / d + 4) / 6; break;
+    }
+  }
+  return [Math.round(h * 360), Math.round(s * 100), Math.round(l * 100)];
 }
 
 export type POSQuickActionType =

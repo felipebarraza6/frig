@@ -48,10 +48,7 @@ export function BranchThemeDialog({ branch, onClose }: BranchThemeDialogProps) {
   const [motion, setMotion] = useState(true);
   const [compact, setCompact] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null | undefined>(undefined);
-  const [faviconFile, setFaviconFile] = useState<File | null | undefined>(undefined);
-  const [bannerFile, setBannerFile] = useState<File | null | undefined>(undefined);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
 
   const branchId = String(branch.branch_id ?? branch.id ?? "");
 
@@ -82,7 +79,6 @@ export function BranchThemeDialog({ branch, onClose }: BranchThemeDialogProps) {
     setMotion(theme.motion ?? true);
     setCompact(theme.compact ?? false);
     setLogoPreview(theme.logo ?? null);
-    setBannerPreview((theme as unknown as { banner_image?: string | null }).banner_image ?? null);
   }, [theme]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -109,8 +105,6 @@ export function BranchThemeDialog({ branch, onClose }: BranchThemeDialogProps) {
         motion,
         compact,
         logo: fileOrNull(logoFile),
-        favicon: fileOrNull(faviconFile),
-        banner_image: fileOrNull(bannerFile),
       };
       return updateBranchTheme(branchId, payload);
     },
@@ -187,6 +181,25 @@ export function BranchThemeDialog({ branch, onClose }: BranchThemeDialogProps) {
           ) : (
             <>
               <div className="flex-1 overflow-y-auto p-4 md:p-6">
+                {/* Preview visual: logo + slogan */}
+                {appName && (
+                  <div className="mb-5 flex items-center gap-3 rounded-xl border border-border bg-muted/20 p-4">
+                    {logoPreview ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={logoPreview} alt="" className="h-14 w-14 rounded-xl object-contain bg-card shadow-sm" />
+                    ) : (
+                      <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary text-xl font-bold text-white shadow-sm">
+                        {(appName[0] || "A").toUpperCase()}
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-base font-semibold">{appName}</p>
+                      {tagline && <p className="text-sm text-muted-foreground">{tagline}</p>}
+                      {loginWelcome && <p className="mt-0.5 text-xs text-muted-foreground">{loginWelcome}</p>}
+                    </div>
+                  </div>
+                )}
+
                 {/* Galería de temas presets */}
                 <div className="mb-5">
                   <h3 className="mb-3 text-sm font-semibold text-foreground">Temas predefinidos</h3>
@@ -386,92 +399,42 @@ export function BranchThemeDialog({ branch, onClose }: BranchThemeDialogProps) {
                   </button>
                 </div>
 
-                {/* Assets de marca — logo, favicon, banner */}
+                {/* Assets de marca — solo logo */}
                 <div className="mt-4">
-                  <h3 className="mb-3 text-sm font-semibold text-foreground">Identidad visual</h3>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    {/* Logo con preview mejorado */}
-                    <div className="rounded-xl border border-border bg-muted/20 p-3">
-                      <label className="mb-2 block text-xs font-medium text-muted-foreground">Logo</label>
-                      <Input
-                        id="logo"
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handleFileChange(e, setLogoFile, setLogoPreview)}
-                        className="text-xs"
-                      />
-                      {logoPreview && (
-                        <div className="mt-2 flex items-center gap-3 rounded-lg border border-border bg-card p-2">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={logoPreview}
-                            alt="Vista previa del logo"
-                            className="h-12 w-12 rounded-lg object-contain bg-white"
-                          />
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-[11px] text-muted-foreground">
-                              {logoFile?.name ?? "Logo actual"}
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setLogoFile(null);
-                              setLogoPreview(null);
-                            }}
-                            className="shrink-0 text-[11px] text-danger hover:underline"
-                          >
-                            Quitar
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Favicon */}
-                    <div className="rounded-xl border border-border bg-muted/20 p-3">
-                      <label className="mb-2 block text-xs font-medium text-muted-foreground">Favicon</label>
-                      <Input
-                        id="favicon"
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handleFileChange(e, setFaviconFile)}
-                        className="text-xs"
-                      />
-                    </div>
-
-                    {/* Banner */}
-                    <div className="sm:col-span-2">
-                      <div className="rounded-xl border border-border bg-muted/20 p-3">
-                        <label className="mb-2 block text-xs font-medium text-muted-foreground">Banner de login</label>
-                        <Input
-                          id="banner"
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => handleFileChange(e, setBannerFile, setBannerPreview)}
-                          className="text-xs"
+                  <h3 className="mb-3 text-sm font-semibold text-foreground">Logo</h3>
+                  <div className="rounded-xl border border-border bg-muted/20 p-3">
+                    <Input
+                      id="logo"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleFileChange(e, setLogoFile, setLogoPreview)}
+                      className="text-xs"
+                    />
+                    {logoPreview && (
+                      <div className="mt-2 flex items-center gap-3 rounded-lg border border-border bg-card p-2">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={logoPreview}
+                          alt="Vista previa del logo"
+                          className="h-12 w-12 rounded-lg object-contain bg-white"
                         />
-                        {bannerPreview && (
-                          <div className="mt-2 overflow-hidden rounded-lg border border-border">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={bannerPreview}
-                              alt="Vista previa del banner"
-                              className="h-28 w-full object-cover"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setBannerFile(null);
-                                setBannerPreview(null);
-                              }}
-                              className="w-full bg-muted py-1.5 text-xs text-danger hover:underline"
-                            >
-                              Quitar banner
-                            </button>
-                          </div>
-                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[11px] text-muted-foreground">
+                            {logoFile?.name ?? "Logo actual"}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLogoFile(null);
+                            setLogoPreview(null);
+                          }}
+                          className="shrink-0 text-[11px] text-danger hover:underline"
+                        >
+                          Quitar
+                        </button>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               </div>

@@ -1,131 +1,50 @@
 "use client";
 
-/* eslint-disable react-hooks/static-components */
-import { useMemo } from "react";
+import { useMemo, useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  AlertTriangle,
-  CheckCircle2,
-  Sparkles,
-  Monitor,
-  Table,
-  ChefHat,
-  Boxes,
-  Apple,
-  QrCode,
-  FileText,
-  Banknote,
-  Percent,
-  Bike,
-  type LucideIcon,
+  Sparkles, Monitor, Banknote, Table, Bike, ChefHat, Boxes,
+  Apple, QrCode, FileText, Percent, X, Shield, Zap, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { useCurrentBranch, useIsOwner, useIsSuperAdmin, useSessionStore } from "@/lib/store/session";
 import { useToast } from "@/lib/store/toast";
 import {
-  fetchBranchModules,
-  toggleBranchModule,
-  parseSubmoduleConfig,
-  type ModuleName,
+  fetchBranchModules, toggleBranchModule, parseSubmoduleConfig, type ModuleName,
 } from "@/lib/api/branch-modules";
 import { fetchFrontendConfig } from "@/lib/api/frontend-config";
 import { ApiError } from "@/lib/api/client";
 import type { YggdraSchemas } from "@/lib/api/types";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PageHeader } from "@/components/page-header";
 import { cn } from "@/lib/utils";
-import { getIcon } from "@/lib/icons";
-import {
-  useModuleCatalog,
-  getModuleMetadata,
-} from "@/lib/hooks/useModuleCatalog";
-import type { ModuleCatalogMetadata } from "@/lib/api/types/modules";
 import { FRIG_ALWAYS_ON_MODULES, FRIG_SETTINGS_MODULES } from "@/lib/modules";
 
 type ModuleConfig = YggdraSchemas["BranchModuleConfiguration"];
 
-function isCore(moduleName: ModuleName): boolean {
-  return FRIG_ALWAYS_ON_MODULES.includes(moduleName);
+interface ModuleDef {
+  key: ModuleName;
+  label: string;
+  shortLabel: string;
+  icon: typeof Monitor;
+  desc: string;
+  detail: string;
+  properties: string[];
+  enables: ModuleName[];
+  requires: ModuleName[];
 }
 
-/** Labels claros en castellano chileno para los módulos configurables. */
-const MODULE_LABELS: Partial<Record<ModuleName, string>> = {
-  pos: "Terminal de ventas rápidas",
-  cash_register: "Caja y arqueo",
-  tables: "Mesas y mapa del local",
-  deliveries: "Delivery y retiro",
-  production: "Cocina / KDS",
-  inventory: "Bodegas y control de stock",
-  nutrition: "Etiquetado nutricional",
-  public_catalog: "Menús digitales con QR",
-  invoices: "Documentos tributarios",
-  promotions: "Promociones y descuentos",
-};
-
-/** Íconos únicos y minimalistas para cada módulo configurable. */
-const MODULE_ICONS: Partial<Record<ModuleName, LucideIcon>> = {
-  pos: Monitor,
-  cash_register: Banknote,
-  tables: Table,
-  deliveries: Bike,
-  production: ChefHat,
-  inventory: Boxes,
-  nutrition: Apple,
-  public_catalog: QrCode,
-  invoices: FileText,
-  promotions: Percent,
-};
-
-/** Categoría en castellano por módulo visible en Frig. */
-const MODULE_CATEGORY: Partial<Record<ModuleName, string>> = {
-  pos: "Operación",
-  cash_register: "Operación",
-  tables: "Operación",
-  deliveries: "Operación",
-  production: "Operación",
-  inventory: "Productos",
-  nutrition: "Productos",
-  recipes: "Productos",
-  ingredients: "Productos",
-  public_catalog: "Productos",
-  invoices: "Finanzas",
-  promotions: "Clientes",
-};
-
-/** Descripción breve por módulo para la card. */
-const MODULE_DESCRIPTIONS: Partial<Record<ModuleName, string>> = {
-  pos: "Activa el punto de venta para cobros rápidos, boletas y ventas presenciales. Sin él, la Caja tampoco está disponible.",
-  cash_register: "Apertura y cierre de caja, arqueo y movimientos de efectivo. Requiere que el módulo POS esté activo.",
-  tables: "Organiza el salón: mapa de mesas, asignación de garzones y cuentas por mesa.",
-  deliveries: "Muestra los paneles de delivery y retiro en local en el POS, y las órdenes con despacho.",
-  production: "Pantallas de cocina (KDS), estaciones y seguimiento de preparaciones.",
-  inventory: "Controla bodegas, stock disponible, movimientos y alertas de inventario.",
-  nutrition: "Muestra información nutricional en productos. Recetas e ingredientes siempre están disponibles.",
-  public_catalog: "Menús digitales con QR para que tus clientes vean y compartan.",
-  invoices: "Genera boletas, facturas y notas de crédito/débito electrónicas. Al activar, habilita la página de Documentos tributarios en el menú de Finanzas.",
-  promotions: "Descuentos y códigos promocionales que el cajero aplica en el carrito del POS.",
-};
-
-/** Orden de las secciones en la vista. */
-const CATEGORY_ORDER = ["Operación", "Productos", "Clientes", "Finanzas"];
-
-/** Resuelve la categoría de un módulo: mapa propio → meta → General. */
-function resolveCategory(moduleName: ModuleName, metaCategory?: string | null): string {
-  const own = MODULE_CATEGORY[moduleName];
-  if (own) return own;
-  const cat = metaCategory?.trim();
-  if (!cat) return "General";
-  const slug = cat.toLowerCase();
-  const translations: Record<string, string> = {
-    pos: "Operación",
-    tables: "Operación",
-    production: "Operación",
-    inventory: "Productos",
-    nutrition: "Productos",
-    public_catalog: "Clientes",
-  };
-  return translations[slug] ?? cat;
-}
+const MODULES: ModuleDef[] = [
+  { key: "pos", label: "Terminal POS", shortLabel: "POS", icon: Monitor, desc: "Cobros rápidos y boletas", detail: "Es el corazón de tu operación. Permite cobrar ventas presenciales de forma rápida: escanea productos, aplica descuentos, cobra con efectivo, tarjeta o transferencia, y emite boletas electrónicas al instante. Maneja cuentas abiertas para clientes que pagan después, y lleva el registro completo de cada transacción.", properties: ["Boletas electrónicas", "Cuentas abiertas", "Múltiples medios de pago", "Búsqueda rápida de productos"], enables: ["cash_register", "deliveries", "promotions", "invoices"], requires: [] },
+  { key: "cash_register", label: "Caja y arqueo", shortLabel: "Caja", icon: Banknote, desc: "Apertura, cierre y arqueo", detail: "Control total del dinero en efectivo. Abres la caja con un monto inicial, registras cada entrada y salida de dinero durante el día, y al cierre haces el arqueo comparando lo que debería haber vs lo que realmente hay. Detecta faltantes o sobrantes y genera un reporte diario para tu contabilidad.", properties: ["Apertura con monto inicial", "Arqueo de cierre", "Movimientos de efectivo", "Reporte diario de caja"], enables: [], requires: ["pos"] },
+  { key: "tables", label: "Mesas y garzones", shortLabel: "Mesas", icon: Table, desc: "Mapa del salón", detail: "Organiza tu salón como un mapa visual. Asigna garzones a mesas, crea cuentas individuales por mesa, y envía comandas directamente a cocina. Ideal para restaurantes donde los clientes se sientan y el garzon toma la orden. Puedes ver en tiempo real qué mesas están ocupadas, cuáles tienen cuenta abierta y cuáles están libres.", properties: ["Mapa visual de mesas", "Asignación de garzones", "Cuentas independientes por mesa", "Comandas directas a cocina"], enables: ["production"], requires: [] },
+  { key: "deliveries", label: "Delivery y retiro", shortLabel: "Delivery", icon: Bike, desc: "Despacho a domicilio", detail: "Gestiona pedidos para delivery y retiro en local desde el mismo POS. Registra la dirección del cliente, asigna repartidores, y lleva el estado de cada despacho (preparando, en camino, entregado). El panel de despacho muestra todas las órdenes pendientes organizadas por prioridad, para que nunca se te escape un pedido.", properties: ["Pedidos con dirección", "Retiro en local", "Panel de despacho en tiempo real", "Estado por pedido"], enables: ["production"], requires: ["pos"] },
+  { key: "production", label: "Cocina / KDS", shortLabel: "Cocina", icon: ChefHat, desc: "Pantallas de cocina", detail: "El Kitchen Display System reemplaza los tickets de papel en cocina. Las pantallas muestran las comandas que llegan desde mesas, POS y delivery, organizadas por tiempo de espera. Cada estación de cocina puede tener su propia pantalla. Los cocineros marcan items como listos y el sistema avisa al garzon o al repartidor automáticamente.", properties: ["Pantallas por estación", "Orden por tiempo de espera", "Marcado de items listos", "Historial de preparaciones"], enables: [], requires: ["tables", "deliveries"] },
+  { key: "inventory", label: "Inventario y bodegas", shortLabel: "Inventario", icon: Boxes, desc: "Stock y bodegas", detail: "Controla cuánto tienes de cada producto y materia prima. Registra entradas por compras a proveedores, salidas por ventas o mermas, y transferencias entre bodegas. Las alertas de stock mínimo te avisan antes de que se te acabe algo importante. Puedes tener múltiples bodegas (principal, secundaria, cámara fría) con stock independiente.", properties: ["Múltiples bodegas", "Stock en tiempo real", "Alertas de stock mínimo", "Transferencias entre bodegas"], enables: ["production"], requires: [] },
+  { key: "nutrition", label: "Etiquetado nutricional", shortLabel: "Nutricional", icon: Apple, desc: "Tablas nutricionales", detail: "Cumple con la normativa MINSAL de etiquetado nutricional. Vinculas recetas con sus ingredientes y el sistema calcula automáticamente las calorías, grasas, azúcares y sodio por porción. Genera las tablas nutricionales que puedes imprimir o mostrar en tu menú digital. Esencial si vendes productos envasados o quieres diferenciarte con información transparente.", properties: ["Recetas con ingredientes", "Cálculo automático por porción", "Cumplimiento normativa MINSAL", "Tablas imprimibles"], enables: ["public_catalog"], requires: [] },
+  { key: "public_catalog", label: "Menú digital QR", shortLabel: "Menú QR", icon: QrCode, desc: "Carta digital", detail: "Tus clientes escanean un QR y ven tu menú completo en su celular, con fotos, precios y descripción de cada producto. Si activaste el etiquetado nutricional, también se muestra ahí. Puedes generar un QR diferente por estación o mesa. El menú se actualiza automáticamente cuando cambias precios o disponibilidad en el sistema.", properties: ["QR único por estación", "Fotos y descripción", "Info nutricional integrada", "Actualización automática"], enables: [], requires: ["nutrition"] },
+  { key: "invoices", label: "SII", shortLabel: "SII", icon: FileText, desc: "Boletas y facturas", detail: "Emite documentos tributarios electrónicos válidos ante el SII. Boletas para clientes finales, facturas para empresas, y notas de crédito o débito para anulaciones y ajustes. Todo se envía automáticamente al SII, así que no tienes que hacer nada manual. Cumple con la ley de boleta electrónica y te evita multas.", properties: ["Boletas electrónicas", "Facturas empresas", "Notas de crédito/débito", "Envío automático al SII"], enables: [], requires: ["pos"] },
+  { key: "promotions", label: "Promos y descuentos", shortLabel: "Promos", icon: Percent, desc: "Descuentos y códigos", detail: "Crea promociones para atraer clientes y aumentar tus ventas. Descuentos por producto, por categoría, o por monto mínimo de compra. Códigos promocionales que el cajero aplica en el POS. Configura vigencias para que las promos se activen y desactiven solas. Ideal para happy hours, días especiales o campañas de marketing.", properties: ["Descuentos por producto o categoría", "Códigos promocionales", "Monto mínimo de compra", "Vigencia automática"], enables: [], requires: ["pos"] },
+];
 
 export default function BranchModulesPage() {
   const branch = useCurrentBranch();
@@ -145,456 +64,213 @@ export default function BranchModulesPage() {
     enabled: !!branchId,
   });
 
-  const { catalog, metadataByName, isLoading: catalogLoading } = useModuleCatalog();
+  const [optimisticState, setOptimisticState] = useState<Partial<Record<ModuleName, boolean>>>({});
+  const [selectedKey, setSelectedKey] = useState<ModuleName | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const filtered = useMemo(() => {
-    const existing = new Map<ModuleName, ModuleConfig>();
+  function scrollCarousel(dir: "left" | "right") {
+    if (!scrollRef.current) return;
+    const scrollAmount = 200;
+    scrollRef.current.scrollBy({ left: dir === "left" ? -scrollAmount : scrollAmount, behavior: "smooth" });
+  }
+
+  const effectiveEnabled = useMemo(() => {
+    const state: Record<ModuleName, boolean> = {} as Record<ModuleName, boolean>;
     for (const c of configs) {
-      if (FRIG_SETTINGS_MODULES.includes(c.module_name) && !isCore(c.module_name)) {
-        existing.set(c.module_name, c);
+      if (FRIG_SETTINGS_MODULES.includes(c.module_name) && !FRIG_ALWAYS_ON_MODULES.includes(c.module_name)) {
+        state[c.module_name] = !!c.is_enabled;
       }
     }
-    // Si el backend no devolvió una fila de configuración para un módulo
-    // configurable, la card se sintetiza. El estado real en ese caso lo entrega
-    // frontend-config (session.modules): módulos activos por plan pueden no
-    // tener fila en `by_branch`, y si aquí se asume `false` la card aparece
-    // "Inactivo" mientras el módulo está activo en la app, y el toggle acciona
-    // en dirección contraria (activa en vez de desactivar).
-    return FRIG_SETTINGS_MODULES.filter((name) => !isCore(name)).map((name) => {
-      const row = existing.get(name);
-      if (row) return row;
-      return {
-        id: 0,
-        branch: branchId ?? 0,
-        module_name: name,
-        is_enabled: sessionModules[name]?.is_enabled ?? false,
-        submodule_config: sessionModules[name]?.submodule_config ?? {},
-        created: "",
-        modified: "",
-      } as unknown as ModuleConfig;
-    });
-  }, [configs, branchId, sessionModules]);
+    for (const m of MODULES) {
+      if (!(m.key in state)) state[m.key] = sessionModules[m.key]?.is_enabled ?? false;
+    }
+    for (const [k, v] of Object.entries(optimisticState)) {
+      if (v !== undefined) state[k as ModuleName] = v;
+    }
+    return state;
+  }, [configs, sessionModules, optimisticState]);
 
-  const configByName = useMemo(() => {
-    const map = new Map<ModuleName, ModuleConfig>();
-    filtered.forEach((c) => map.set(c.module_name, c));
-    return map;
-  }, [filtered]);
-
-  const groups = useMemo(() => {
-    const map = new Map<string, ModuleConfig[]>();
-    filtered.forEach((config) => {
-      const meta = getModuleMetadata(config.module_name, metadataByName);
-      const category = resolveCategory(config.module_name, meta.category);
-      if (!map.has(category)) map.set(category, []);
-      map.get(category)!.push(config);
-    });
-    return Array.from(map.entries())
-      .map(([title, modules]) => ({ title, modules }))
-      .sort((a, b) => {
-        const ia = CATEGORY_ORDER.indexOf(a.title);
-        const ib = CATEGORY_ORDER.indexOf(b.title);
-        if (ia === -1 && ib === -1) return a.title.localeCompare(b.title);
-        if (ia === -1) return 1;
-        if (ib === -1) return -1;
-        return ia - ib;
-      });
-  }, [filtered, metadataByName]);
-
-  const stats = useMemo(() => {
-    const active = filtered.filter((c) => c.is_enabled).length;
-    const total = filtered.length;
-    const pct = total > 0 ? Math.round((active / total) * 100) : 0;
-    return { active, total, pct };
-  }, [filtered]);
+  const activeCount = useMemo(() => MODULES.filter((m) => effectiveEnabled[m.key]).length, [effectiveEnabled]);
+  const selectedDef = useMemo(() => MODULES.find((m) => m.key === selectedKey), [selectedKey]);
 
   const toggle = useMutation({
     mutationFn: toggleBranchModule,
-    // Optimistic: actualizamos cache de query y session store antes del
-    // round-trip. Si el backend rechaza, onError hace rollback desde el
-    // contexto y muestra el toast correspondiente. Si acepta, onSuccess
-    // reconcilia con la respuesta real del servidor.
     onMutate: async (vars) => {
       await queryClient.cancelQueries({ queryKey: ["branch-modules", branchId] });
-      const previous = queryClient.getQueryData<ModuleConfig[]>([
-        "branch-modules",
-        branchId,
-      ]);
-      // Capturar antes de setQueryData: el updater corre sincrónicamente y no
-      // puede leer una const declarada después (TDZ).
-      const prevSession = sessionModules[vars.moduleName];
-      queryClient.setQueryData<ModuleConfig[]>(
-        ["branch-modules", branchId],
-        (old = []) => {
-          const base = old.map((c) =>
-            c.module_name === vars.moduleName
-              ? { ...c, is_enabled: vars.isEnabled }
-              : c,
-          );
-          // El módulo puede no tener fila en `by_branch` (card sintetizada):
-          // agregarla al cache para que el switch haga flip optimista también
-          // en ese caso y no espere el refetch.
-          if (!base.some((c) => c.module_name === vars.moduleName)) {
-            base.push({
-              id: 0,
-              branch: branchId ?? 0,
-              module_name: vars.moduleName,
-              is_enabled: vars.isEnabled,
-              submodule_config: prevSession?.submodule_config ?? {},
-              created: "",
-              modified: "",
-            } as unknown as ModuleConfig);
-          }
-          return base;
-        },
-      );
-      setModuleState(vars.moduleName, {
-        is_enabled: vars.isEnabled,
-        submodule_config: prevSession?.submodule_config ?? {},
-      });
-      return { previous, prevSession };
+      const previous = queryClient.getQueryData<ModuleConfig[]>(["branch-modules", branchId]);
+      setOptimisticState((prev) => ({ ...prev, [vars.moduleName]: vars.isEnabled }));
+      return { previous };
     },
     onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ["branch-modules", branchId] });
-      setModuleState(data.module_name, {
-        is_enabled: !!data.is_enabled,
-        submodule_config: parseSubmoduleConfig(data.submodule_config),
-      });
-      // Recargar frontend-config para que el menú use la fuente de verdad del backend
-      if (branchId) {
-        try {
-          const config = await fetchFrontendConfig(branchId);
-          setFrontendConfig(config, String(branchId));
-        } catch (e) {
-          console.error("[modules] failed to refresh frontend-config after toggle:", e);
-        }
-      }
+      setModuleState(data.module_name, { is_enabled: !!data.is_enabled, submodule_config: parseSubmoduleConfig(data.submodule_config) });
+      if (branchId) { try { const c = await fetchFrontendConfig(branchId); setFrontendConfig(c, String(branchId)); } catch { /* */ } }
     },
-    onError: (
-      err: Error,
-      vars,
-      context: { previous?: ModuleConfig[]; prevSession?: typeof sessionModules[string] } | undefined,
-    ) => {
-      // Rollback del cambio optimista.
-      if (context?.previous) {
-        queryClient.setQueryData(["branch-modules", branchId], context.previous);
-      } else if (vars && context !== undefined) {
-        queryClient.setQueryData<ModuleConfig[]>(["branch-modules", branchId], (old = []) =>
-          old.filter((c) => c.module_name !== vars.moduleName),
-        );
-      }
-      if (context?.prevSession !== undefined) {
-        setModuleState(vars.moduleName, context.prevSession);
-      }
-      const meta = getModuleMetadata(vars.moduleName, metadataByName);
-      const moduleLabel = MODULE_LABELS[vars.moduleName] ?? meta.label ?? vars.moduleName;
-
-      const apiDetail = err instanceof ApiError ? { status: err.status, detail: err.detail } : {};
-      console.error("[modules] toggle error:", {
-        module: vars.moduleName,
-        action: vars.isEnabled ? "activate" : "deactivate",
-        branchId,
-        ...apiDetail,
-        error: err,
-      });
-
-      const isPlanError = err instanceof ApiError && err.status === 403;
-      const isServerError = err instanceof ApiError && err.status >= 500;
-      const isPermissionMessage = /permiso|permission|no tiene/i.test(err.message);
-
-      if (isPlanError || isPermissionMessage) {
-        toast.error(
-          `No se pudo ${vars.isEnabled ? "activar" : "desactivar"} "${moduleLabel}". Este módulo no está incluido en el plan activo de esta sucursal.`,
-          6000,
-        );
-      } else if (isServerError) {
-        toast.error(
-          `Error del servidor al ${vars.isEnabled ? "activar" : "desactivar"} "${moduleLabel}". Intenta de nuevo en unos segundos.`,
-        );
-      } else {
-        toast.error(err.message);
-      }
+    onError: (err: Error, vars, context) => {
+      if (context?.previous) queryClient.setQueryData(["branch-modules", branchId], context.previous);
+      setOptimisticState((prev) => { const n = { ...prev }; delete n[vars.moduleName]; return n; });
+      toast.error(err instanceof ApiError && (err.status === 403 || /plan/i.test(err.message)) ? "Módulo no incluido en tu plan" : err.message, 5000);
     },
   });
 
-  function handleToggle(moduleName: ModuleName) {
-    // Evita encolar mutaciones: mientras una está en vuelo, los clics se
-    // ignoran (si no, cada clic encolaba un toggle y el módulo alternaba
-    // activar/desactivar en un loop de peticiones).
-    if (toggle.isPending) return;
-    if (!canManage) {
-      toast.error("No tienes permisos para modificar módulos");
-      return;
-    }
-    if (!branchId) return;
-    const config = configByName.get(moduleName);
-    if (!config) return;
-    toggle.mutate({
-      branchId,
-      moduleName,
-      isEnabled: !config.is_enabled,
-    });
+  function handleToggle(key: ModuleName) {
+    if (toggle.isPending || !canManage || !branchId) return;
+    toggle.mutate({ branchId, moduleName: key, isEnabled: !effectiveEnabled[key] });
   }
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
-      {/* Header */}
-      <header className="border-b border-border bg-card px-6 py-5">
-        <PageHeader
-          title="Módulos"
-          subtitle="Activa y desactiva las funciones de tu sucursal"
-          icon={<Sparkles className="h-5 w-5" />}
-          badge={
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary" />
-              {stats.active}/{stats.total}
-            </span>
-          }
-          className="mb-0"
-        />
-
-        {/* Progress bar */}
-        <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-muted">
-          <motion.div
-            className="h-full rounded-full bg-gradient-to-r from-primary to-primary/60"
-            initial={{ width: 0 }}
-            animate={{ width: `${stats.pct}%` }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
-          />
+    <div className="mx-auto flex min-h-full w-full flex-col">
+      <header className="border-b border-border bg-card px-4 py-3 sm:px-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+              <Sparkles className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-base font-semibold">Módulos</h1>
+              <p className="text-[11px] text-muted-foreground">Conecta las funciones de tu sucursal</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground">{activeCount}/{MODULES.length}</span>
+            <div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted">
+              <motion.div className="h-full rounded-full bg-primary" animate={{ width: `${(activeCount / MODULES.length) * 100}%` }} />
+            </div>
+          </div>
         </div>
       </header>
 
-      {/* Content */}
-      <div className="flex flex-1 flex-col gap-6 p-6">
-        {!canManage && (
-          <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-            <AlertTriangle className="h-4 w-4 shrink-0" />
-            Solo el OWNER o superadmin pueden modificar módulos.
-          </div>
-        )}
-
-        {(error || (catalog?.modules?.length ?? 0) === 0) && !isLoading && !catalogLoading && (
-          <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
-              <AlertTriangle className="h-6 w-6 text-destructive" />
-            </div>
-            <p className="text-sm font-medium">No se pudieron cargar los módulos</p>
-            <p className="max-w-xs text-xs text-muted-foreground">
-              Revisa tu conexión e intenta recargar la página.
-            </p>
-          </div>
-        )}
-
-        {isLoading || catalogLoading ? (
-          <div className="flex flex-col gap-8">
-            {Array.from({ length: 2 }).map((_, g) => (
-              <section key={g}>
-                <div className="mb-3 flex items-center gap-2">
-                  <Skeleton className="h-3 w-28" />
-                  <Skeleton className="h-4 w-10 rounded-full" />
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm"
-                    >
-                      <div className="mb-3 flex items-center gap-3">
-                        <Skeleton className="h-9 w-9 rounded-lg" />
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="ml-auto h-5 w-9 rounded-full" />
-                      </div>
-                      <Skeleton className="h-3 w-full" />
-                    </div>
-                  ))}
-                </div>
-              </section>
-            ))}
+      <div className="flex flex-1 flex-col p-4 sm:p-6">
+        {error ? (
+          <p className="text-sm text-danger">Error al cargar módulos.</p>
+        ) : isLoading ? (
+          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            {Array.from({ length: 10 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />)}
           </div>
         ) : (
-          <div className="flex flex-col gap-8">
-            {groups.map((group) => (
-              <motion.section
-                key={group.title}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
-                <div className="mb-3 flex items-center gap-2">
-                  <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    {group.title}
-                  </h2>
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                    {group.modules.filter((c) => c.is_enabled).length}/{group.modules.length}
-                  </span>
+          <div className="flex flex-col gap-4">
+            {/* Grid 3 cols sin selección / Carrusel con selección */}
+            {selectedKey ? (
+              <div className="relative">
+                <button onClick={() => scrollCarousel("left")} className="absolute -left-1 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-card shadow-md ring-1 ring-border text-muted-foreground hover:text-foreground">
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <button onClick={() => scrollCarousel("right")} className="absolute -right-1 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-card shadow-md ring-1 ring-border text-muted-foreground hover:text-foreground">
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+                <div ref={scrollRef} className="flex gap-3 overflow-x-auto px-6 pb-2 scrollbar-hide">
+                  {MODULES.map((m) => {
+                    const active = effectiveEnabled[m.key];
+                    const Icon = m.icon;
+                    const selected = selectedKey === m.key;
+                    return (
+                      <motion.button key={m.key} layout type="button" disabled={toggle.isPending} onClick={() => setSelectedKey(selected ? null : m.key)} className="group flex flex-col items-center gap-1.5 p-2 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-opacity" style={{ opacity: selectedKey && !selected ? 0.5 : 1 }}>
+                        <motion.div layout animate={{ scale: selected ? 1.1 : active ? 1 : 0.85, opacity: selected ? 1 : active ? 1 : 0.4 }} transition={{ type: "spring", stiffness: 400, damping: 30 }} className={cn("flex items-center justify-center rounded-xl transition-all", selected ? "h-16 w-16 bg-primary text-primary-foreground shadow-xl ring-2 ring-primary/30" : active ? "h-14 w-14 bg-primary text-primary-foreground shadow-lg" : "h-14 w-14 bg-muted text-muted-foreground")}>
+                          <Icon className={cn(selected ? "h-7 w-7" : "h-6 w-6")} />
+                        </motion.div>
+                        <motion.span layout className={cn("text-[10px] font-medium", active ? "text-foreground" : "text-muted-foreground", selectedKey && !selected && "opacity-50")}>{m.shortLabel}</motion.span>
+                      </motion.button>
+                    );
+                  })}
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                  {group.modules.map((config) => (
-                    <ModuleCard
-                      key={config.module_name}
-                      config={config}
-                      canManage={canManage}
-                      isPending={toggle.isPending}
-                      metadataByName={metadataByName}
-                      animKey={toggle.variables?.moduleName === config.module_name && toggle.isPending ? "pending" : undefined}
-                      onToggle={() => handleToggle(config.module_name)}
-                    />
-                  ))}
-                </div>
-              </motion.section>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function ModuleCard({
-  config,
-  canManage,
-  isPending,
-  metadataByName,
-  animKey,
-  onToggle,
-}: {
-  config: ModuleConfig;
-  canManage: boolean;
-  isPending: boolean;
-  metadataByName: Record<string, ModuleCatalogMetadata>;
-  animKey?: string;
-  onToggle: () => void;
-}) {
-  const core = isCore(config.module_name);
-  const meta = getModuleMetadata(config.module_name, metadataByName);
-  const enabled = !!config.is_enabled;
-  const label = MODULE_LABELS[config.module_name] ?? meta.label;
-  const description = MODULE_DESCRIPTIONS[config.module_name];
-  const Icon = MODULE_ICONS[config.module_name] ?? getIcon(meta.icon);
-
-  return (
-    <div
-      className={cn(
-        "group relative rounded-2xl transition-all duration-200",
-        enabled ? "p-[2px]" : "border border-border bg-muted/30 shadow-sm",
-        !core && canManage && !isPending && "cursor-pointer",
-        core && "cursor-default"
-      )}
-      onClick={core || isPending ? undefined : onToggle}
-    >
-      {/* Borde que parpadea al activar y luego queda estático */}
-      <AnimatePresence>
-        {enabled && (
-          <motion.div
-            key={animKey ?? config.module_name}
-            aria-hidden
-            initial={{ opacity: 0, boxShadow: "0 0 0 0px var(--brand-primary)" }}
-            animate={{ opacity: 1, boxShadow: "0 0 0 1.5px var(--brand-primary)" }}
-            exit={{ opacity: 0, boxShadow: "0 0 0 0px var(--brand-primary)" }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
-            className="pointer-events-none absolute inset-0 rounded-2xl"
-          />
-        )}
-      </AnimatePresence>
-
-      <div
-        className={cn(
-          "relative flex h-full flex-col gap-3 rounded-[14px] p-4 transition-all duration-200",
-          enabled
-            ? "bg-gradient-to-br from-primary/5 to-muted/30 shadow-sm ring-1 ring-primary/20"
-            : "bg-muted/30 opacity-80 hover:opacity-100 hover:shadow-md",
-          !core && canManage && "hover:shadow-md"
-        )}
-      >
-        <div className="flex items-start gap-3">
-          <div
-            className={cn(
-              "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl transition-colors",
-              enabled ? "bg-primary/15" : "bg-muted"
-            )}
-          >
-            <Icon className={cn("h-5 w-5", enabled ? "text-primary" : "text-muted-foreground")} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold leading-tight">{label}</p>
-            {description && (
-              <p className="mt-1 text-xs leading-snug text-muted-foreground">
-                {description}
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div className="mt-auto flex items-center justify-between">
-          <span
-            className={cn(
-              "inline-flex items-center gap-1 text-[11px] font-medium",
-              enabled ? "text-primary" : "text-muted-foreground"
-            )}
-          >
-            {enabled ? (
-              <>
-                <CheckCircle2 className="h-3 w-3" />
-                Activo
-              </>
-            ) : core ? (
-              "Core — siempre activo"
+              </div>
             ) : (
-              "Inactivo"
+              <div className="grid grid-cols-3 gap-4 justify-items-center max-w-sm mx-auto">
+                {MODULES.map((m) => {
+                  const active = effectiveEnabled[m.key];
+                  const Icon = m.icon;
+                  return (
+                    <motion.button key={m.key} layout type="button" disabled={toggle.isPending} onClick={() => setSelectedKey(m.key)} className="group flex flex-col items-center gap-1.5 p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                      <motion.div layout animate={{ scale: active ? 1 : 0.85, opacity: active ? 1 : 0.4 }} transition={{ type: "spring", stiffness: 400, damping: 30 }} className={cn("flex h-14 w-14 items-center justify-center rounded-xl transition-all", active ? "bg-primary text-primary-foreground shadow-lg" : "bg-muted text-muted-foreground")}>
+                        <Icon className="h-6 w-6" />
+                      </motion.div>
+                      <span className={cn("text-[10px] font-medium", active ? "text-foreground" : "text-muted-foreground")}>{m.shortLabel}</span>
+                    </motion.button>
+                  );
+                })}
+              </div>
             )}
-          </span>
-          {!core && (
-            <ToggleSwitch
-              checked={enabled}
-              onChange={(e) => {
-                e.stopPropagation();
-                onToggle();
-              }}
-              disabled={isPending || !canManage}
-              label={enabled ? "Deshabilitar" : "Habilitar"}
-            />
-          )}
-        </div>
+
+            {/* Panel de detalle */}
+            <AnimatePresence>
+              {selectedDef && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden rounded-xl border border-border bg-card"
+                >
+                  <div className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                          <selectedDef.icon className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <h2 className="text-sm font-semibold">{selectedDef.label}</h2>
+                          <p className="text-xs text-muted-foreground">{selectedDef.desc}</p>
+                        </div>
+                      </div>
+                      <button onClick={() => setSelectedKey(null)} className="rounded p-1 text-muted-foreground hover:text-foreground">
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+
+                    <p className="mt-3 text-sm text-muted-foreground">{selectedDef.detail}</p>
+
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {selectedDef.properties.map((p) => (
+                        <span key={p} className="rounded bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">{p}</span>
+                      ))}
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-border pt-3">
+                      {selectedDef.requires.length > 0 && (
+                        <div className="flex items-center gap-1.5 text-xs">
+                          <Shield className="h-3.5 w-3.5 text-amber-500" />
+                          <span className="text-muted-foreground">Requiere:</span>
+                          {selectedDef.requires.map((r) => {
+                            const rm = MODULES.find((x) => x.key === r);
+                            const rActive = effectiveEnabled[r];
+                            return <span key={r} className={cn("rounded px-1.5 py-0.5 text-[10px] font-medium", rActive ? "bg-success/15 text-success" : "bg-muted text-muted-foreground")}>{rm?.shortLabel} {rActive ? "✓" : "✗"}</span>;
+                          })}
+                        </div>
+                      )}
+                      {selectedDef.enables.length > 0 && (
+                        <div className="flex items-center gap-1.5 text-xs">
+                          <Zap className="h-3.5 w-3.5 text-primary" />
+                          <span className="text-muted-foreground">Habilita:</span>
+                          {selectedDef.enables.map((e) => {
+                            const em = MODULES.find((x) => x.key === e);
+                            const eActive = effectiveEnabled[e];
+                            return <span key={e} className={cn("rounded px-1.5 py-0.5 text-[10px] font-medium", eActive ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground")}>{em?.shortLabel} {eActive ? "✓" : ""}</span>;
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
+                      <span className="text-xs text-muted-foreground">{effectiveEnabled[selectedDef.key] ? "Activo" : "Inactivo"}</span>
+                      <button
+                        type="button"
+                        disabled={!canManage || toggle.isPending}
+                        onClick={() => handleToggle(selectedDef.key)}
+                        className={cn(
+                          "rounded-lg px-4 py-1.5 text-xs font-medium transition-colors",
+                          effectiveEnabled[selectedDef.key] ? "bg-danger/10 text-danger hover:bg-danger/20" : "bg-primary text-primary-foreground hover:bg-primary/90",
+                          (!canManage || toggle.isPending) && "opacity-50",
+                        )}
+                      >
+                        {effectiveEnabled[selectedDef.key] ? "Desactivar" : "Activar"}
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
       </div>
     </div>
   );
 }
-
-function ToggleSwitch({
-  checked,
-  onChange,
-  disabled,
-  label,
-}: {
-  checked: boolean;
-  onChange: (e: React.MouseEvent) => void;
-  disabled: boolean;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      onClick={onChange}
-      disabled={disabled}
-      className={cn(
-        "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-        checked ? "bg-primary" : "bg-input",
-        disabled && "cursor-not-allowed opacity-50"
-      )}
-    >
-      <motion.span
-        layout
-        transition={{ type: "spring", stiffness: 500, damping: 30 }}
-        className={cn(
-          "inline-block h-4 w-4 rounded-full bg-white shadow-sm",
-          checked ? "translate-x-6" : "translate-x-1"
-        )}
-      />
-    </button>
-  );
-}
-
-

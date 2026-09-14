@@ -2,14 +2,15 @@
 
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Pencil, Power, Store, Users, Palette, Phone, Mail, CreditCard, CalendarDays, FileText } from "lucide-react";
+import {
+  Plus, Search, Pencil, Power, Store, Users, Palette,
+  Phone, Mail, CreditCard, CalendarDays, FileText, MapPin,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { TableSkeleton } from "@/components/ui/skeleton";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   useSessionStore,
   useCanViewBranches,
-  useCanManageBranches,
   useIsModuleEnabledFromConfig,
 } from "@/lib/store/session";
 import { branchName } from "@/lib/types";
@@ -23,6 +24,7 @@ import { ApplyPlanDialog } from "@/components/branches/apply-plan-dialog";
 import type { Branch } from "@/lib/types";
 import type { BranchesFilter } from "@/lib/api/branches";
 import { cn } from "@/lib/utils";
+import { BrandLogo } from "@/components/brand-logo";
 
 /** Cantidad de usuarios por rol de la sucursal, ordenada de mayor a menor. */
 function roleEntriesOf(branch: Branch): [string, number][] {
@@ -36,8 +38,6 @@ function roleEntriesOf(branch: Branch): [string, number][] {
 
 function formatPlanExpiry(iso?: string | null): { label: string; expired: boolean } | null {
   if (!iso) return null;
-  // Fecha corta (YYYY-MM-DD): se formatea como fecha pura, sin desfase de
-  // zona horaria (new Date("2026-10-08") en UTC-X cae en el día anterior).
   const dateOnly = /^\d{4}-\d{2}-\d{2}/.exec(iso)?.[0];
   if (dateOnly) {
     const [y, m, d] = dateOnly.split("-").map(Number);
@@ -59,7 +59,6 @@ export default function BranchesPage() {
   const queryClient = useQueryClient();
   const user = useSessionStore((s) => s.user);
   const canView = useCanViewBranches();
-  const _canManage = useCanManageBranches();
   const isSuperAdmin = Boolean(user?.is_superuser || user?.type_user === "ADM");
   const canCreateBranch = isSuperAdmin || user?.is_multi_branch;
 
@@ -72,7 +71,6 @@ export default function BranchesPage() {
   const [editingPlan, setEditingPlan] = useState<Branch | null>(null);
   const [editingSii, setEditingSii] = useState<Branch | null>(null);
   const patchBranch = useSessionStore((s) => s.patchBranch);
-  // Configuración SII solo con el módulo de documentos tributarios activo.
   const siiModuleEnabled = useIsModuleEnabledFromConfig("invoices");
 
   const filter = useMemo<BranchesFilter>(() => {
@@ -120,33 +118,20 @@ export default function BranchesPage() {
           </p>
         </div>
         {canCreateBranch && (
-          <div className="flex items-center gap-2">
-            <Button
-              size="icon"
-              onClick={() => setCreating(true)}
-              className="sm:hidden"
-              title="Nueva sucursal"
-              aria-label="Nueva sucursal"
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-            <Button onClick={() => setCreating(true)} className="hidden sm:flex">
-              <Plus className="mr-2 h-4 w-4" />
-              Nueva sucursal
-            </Button>
-          </div>
+          <Button size="sm" onClick={() => setCreating(true)}>
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
+            Nueva sucursal
+          </Button>
         )}
       </header>
 
       <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
+        {/* Buscador */}
         <div className="relative w-full sm:max-w-sm">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPageUrl({});
-            }}
+            onChange={(e) => { setSearch(e.target.value); setPageUrl({}); }}
             placeholder="Buscar por nombre, RUT o email…"
             className="pl-9"
             aria-label="Buscar sucursal"
@@ -156,7 +141,11 @@ export default function BranchesPage() {
         {error ? (
           <p className="text-sm text-danger">No se pudieron cargar las sucursales.</p>
         ) : isLoading ? (
-          <TableSkeleton rows={5} columns={4} />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-52 animate-pulse rounded-2xl border border-border bg-muted/30" />
+            ))}
+          </div>
         ) : branches.length === 0 ? (
           <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">
             <div>
@@ -175,435 +164,248 @@ export default function BranchesPage() {
           </div>
         ) : (
           <>
-            {/* Vista desktop */}
-            <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
-              <table className="w-full min-w-[640px] text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                    <th className="px-4 py-3">Sucursal</th>
-                    <th className="px-4 py-3">Plan</th>
-                    <th className="px-4 py-3">Contacto</th>
-                    <th className="px-4 py-3 text-center">Usuarios</th>
-                    <th className="px-4 py-3 text-center">Activa</th>
-                    <th className="px-4 py-3 text-right">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {branches.map((b, index) => {
-                    const manageable = isSuperAdmin || b.can_manage;
-                    const rowKey = String(b.branch_id ?? b.id ?? index);
-                    const roleEntries = roleEntriesOf(b);
-                    const activeBadgeClass = b.is_active
-                      ? "bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20"
-                      : "bg-danger/10 text-danger hover:bg-danger/20";
-                    return (
-                      <tr key={rowKey} className="border-b border-border last:border-0">
-                        <td className="px-4 py-3">
-                          <div className="min-w-0">
-                            <p className="truncate font-medium">{branchName(b)}</p>
-                            {b.commercial_business && (
-                              <p className="text-xs text-muted-foreground">{b.commercial_business}</p>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="min-w-0 text-xs">
-                            <p className="flex items-center gap-1 font-medium">
-                              <CreditCard className="h-3 w-3 shrink-0 text-muted-foreground" />
-                              <span className="truncate">{b.plan_name ?? "Sin plan"}</span>
-                            </p>
-                            {(() => {
-                              const expiry = formatPlanExpiry(b.plan_expiration_date);
-                              return (
-                                <p
-                                  className={cn(
-                                    "mt-0.5 flex items-center gap-1 tabular-nums",
-                                    expiry?.expired ? "text-danger" : "text-muted-foreground",
-                                  )}
-                                >
-                                  <CalendarDays className="h-3 w-3 shrink-0" />
-                                  {expiry
-                                    ? `vence ${expiry.label}${expiry.expired ? " (vencido)" : ""}`
-                                    : "sin vencimiento"}
-                                </p>
-                              );
-                            })()}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="min-w-0 space-y-0.5 text-xs">
-                            {b.phone ? (
-                              <p className="flex items-center gap-1.5 text-muted-foreground">
-                                <Phone className="h-3 w-3 shrink-0" />
-                                <span className="tabular-nums">{b.phone}</span>
-                              </p>
-                            ) : null}
-                            {b.email ? (
-                              <p className="flex items-center gap-1.5 text-muted-foreground">
-                                <Mail className="h-3 w-3 shrink-0" />
-                                <span className="truncate">{b.email}</span>
-                              </p>
-                            ) : null}
-                            {!b.phone && !b.email && (
-                              <span className="text-muted-foreground">—</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <button
-                            type="button"
-                            onClick={() => setViewingUsers(b)}
-                            title="Ver usuarios por tipo"
-                            className="group inline-flex max-w-[240px] flex-wrap items-center justify-center gap-1"
-                          >
-                            {roleEntries.length > 0 ? (
-                              roleEntries.map(([code, count]) => (
-                                <span
-                                  key={code}
-                                  className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground transition-colors group-hover:bg-primary/10"
-                                >
-                                  <span className="font-semibold tabular-nums">{count}</span>
-                                  {getRoleLabel(code)}
-                                </span>
-                              ))
-                            ) : (
-                              <span className="text-muted-foreground">{b.users_count ?? 0}</span>
-                            )}
-                          </button>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          {manageable ? (
-                            <button
-                              onClick={() =>
-                                toggleActive.mutate({ id: Number(b.branch_id), isActive: !b.is_active })
-                              }
-                              disabled={toggleActive.isPending}
-                              aria-label={`${b.is_active ? "Desactivar" : "Activar"} ${branchName(b)}`}
-                              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${activeBadgeClass}`}
-                            >
-                              <Power className="h-3 w-3" />
-                              {b.is_active ? "Sí" : "No"}
-                            </button>
-                          ) : (
-                            <span
-                              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${activeBadgeClass}`}
-                            >
-                              <Power className="h-3 w-3" />
-                              {b.is_active ? "Sí" : "No"}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                              title="Usuarios"
-                              aria-label="Usuarios"
-                              onClick={() => setViewingUsers(b)}
-                            >
-                              <Users className="h-3.5 w-3.5" />
-                            </Button>
-                            {manageable && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0"
-                                title="Plan"
-                                aria-label="Plan"
-                                onClick={() => setEditingPlan(b)}
-                              >
-                                <CreditCard className="h-3.5 w-3.5" />
-                              </Button>
-                            )}
-                            {manageable && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0"
-                                title="Editar"
-                                aria-label="Editar"
-                                onClick={() => setEditing(b)}
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </Button>
-                            )}
-                            {manageable && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0"
-                                title="Tema"
-                                aria-label="Tema"
-                                onClick={() => setEditingTheme(b)}
-                              >
-                                <Palette className="h-3.5 w-3.5" />
-                              </Button>
-                            )}
-                            {manageable && siiModuleEnabled && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0"
-                                title="Configuración SII"
-                                aria-label="Configuración SII"
-                                onClick={() => setEditingSii(b)}
-                              >
-                                <FileText className="h-3.5 w-3.5" />
-                              </Button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Vista móvil */}
-            <div className="grid gap-3 md:hidden">
-              {branches.map((b, index) => {
+            {/* Cards centradas en la página */}
+            <div className="flex flex-wrap justify-center gap-4">
+              {branches.map((b) => {
                 const manageable = isSuperAdmin || b.can_manage;
-                const rowKey = String(b.branch_id ?? b.id ?? index);
                 const roleEntries = roleEntriesOf(b);
+                const expiry = formatPlanExpiry(b.plan_expiration_date);
+                const branchLogo = b.logo ?? b.theme_config?.logo ?? null;
+
                 return (
-                  <div
-                    key={rowKey}
-                    className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm"
+                  <article
+                    key={b.branch_id}
+                    className={cn(
+                      "group relative flex w-full max-w-sm flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all hover:border-primary/40 hover:shadow-md",
+                      !b.is_active && "opacity-60",
+                    )}
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-medium">{branchName(b)}</p>
+                    {/* Header con avatar centrado */}
+                    <div className="relative flex flex-col items-center gap-3 border-b border-border bg-muted/30 px-4 pb-4 pt-5">
+                      <BrandLogo
+                        src={branchLogo}
+                        alt={branchName(b)}
+                        name={branchName(b)}
+                        fallbackColor={b.theme_config?.primary_color}
+                        containerClassName="h-16 w-16 rounded-2xl shadow-md text-xl"
+                      />
+                      {/* Badge de estado */}
+                      {manageable ? (
+                        <button
+                          onClick={() =>
+                            toggleActive.mutate({ id: Number(b.branch_id), isActive: !b.is_active })
+                          }
+                          disabled={toggleActive.isPending}
+                          className={cn(
+                            "absolute right-3 top-3 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold transition-colors",
+                            b.is_active
+                              ? "bg-success/15 text-success hover:bg-success/25"
+                              : "bg-danger/15 text-danger hover:bg-danger/25",
+                          )}
+                        >
+                          <Power className="h-2.5 w-2.5" />
+                          {b.is_active ? "Activa" : "Inactiva"}
+                        </button>
+                      ) : (
+                        <span
+                          className={cn(
+                            "absolute right-3 top-3 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                            b.is_active
+                              ? "bg-success/15 text-success"
+                              : "bg-danger/15 text-danger",
+                          )}
+                        >
+                          <Power className="h-2.5 w-2.5" />
+                          {b.is_active ? "Activa" : "Inactiva"}
+                        </span>
+                      )}
+                      {/* Nombre */}
+                      <div className="text-center">
+                        <h3 className="text-sm font-semibold">{branchName(b)}</h3>
                         {b.commercial_business && (
                           <p className="text-xs text-muted-foreground">{b.commercial_business}</p>
                         )}
-                        <span
-                          className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                            b.is_active
-                              ? "bg-emerald-500/10 text-emerald-700"
-                              : "bg-danger/10 text-danger"
-                          }`}
-                        >
-                          <Power className="h-3 w-3" />
-                          {b.is_active ? "Activa" : "Inactiva"}
-                        </span>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0"
-                          title="Usuarios"
-                          aria-label="Usuarios"
-                          onClick={() => setViewingUsers(b)}
-                        >
-                          <Users className="h-3.5 w-3.5" />
-                          <span className="sr-only">Usuarios</span>
-                        </Button>
-                        {manageable && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0"
-                            title="Plan"
-                            aria-label="Plan"
-                            onClick={() => setEditingPlan(b)}
-                          >
-                            <CreditCard className="h-3.5 w-3.5" />
-                            <span className="sr-only">Plan</span>
-                          </Button>
-                        )}
-                        {manageable && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0"
-                            title="Editar"
-                            aria-label="Editar"
-                            onClick={() => setEditing(b)}
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                            <span className="sr-only">Editar</span>
-                          </Button>
-                        )}
-                        {manageable && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0"
-                            title="Tema"
-                            aria-label="Tema"
-                            onClick={() => setEditingTheme(b)}
-                          >
-                            <Palette className="h-3.5 w-3.5" />
-                            <span className="sr-only">Tema</span>
-                          </Button>
-                        )}
-                        {manageable && siiModuleEnabled && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0"
-                            title="Configuración SII"
-                            aria-label="Configuración SII"
-                            onClick={() => setEditingSii(b)}
-                          >
-                            <FileText className="h-3.5 w-3.5" />
-                            <span className="sr-only">Configuración SII</span>
-                          </Button>
+                        {b.commune && (
+                          <p className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
+                            <MapPin className="h-3 w-3 shrink-0" />
+                            {b.commune}{b.region ? `, ${b.region}` : ""}
+                          </p>
                         )}
                       </div>
                     </div>
 
-                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                      <div className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-                        <span className="flex items-center gap-1 font-medium">
+                    {/* Contenido */}
+                    <div className="flex flex-1 flex-col gap-3 p-4">
+                      {/* Plan */}
+                      <div className="rounded-lg bg-muted/40 px-3 py-2 text-xs">
+                        <div className="flex items-center gap-1.5 font-medium">
                           <CreditCard className="h-3 w-3 shrink-0 text-muted-foreground" />
                           {b.plan_name ?? "Sin plan"}
-                        </span>
-                        {(() => {
-                          const expiry = formatPlanExpiry(b.plan_expiration_date);
-                          return (
-                            <span
-                              className={cn(
-                                "flex items-center gap-1 tabular-nums",
-                                expiry?.expired ? "text-danger" : "text-muted-foreground",
-                              )}
-                            >
-                              <CalendarDays className="h-3 w-3 shrink-0" />
-                              {expiry
-                                ? `vence ${expiry.label}${expiry.expired ? " (vencido)" : ""}`
-                                : "sin vencimiento"}
-                            </span>
-                          );
-                        })()}
-                      </div>
-                      {b.phone && (
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <Phone className="h-3 w-3" />
-                          <span className="truncate">{b.phone}</span>
                         </div>
-                      )}
-                      {b.email && (
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <Mail className="h-3 w-3" />
-                          <span className="truncate">{b.email}</span>
-                        </div>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => setViewingUsers(b)}
-                        className="col-span-2 flex flex-wrap items-center gap-1 text-left"
-                      >
-                        <Users className="h-3 w-3 shrink-0 text-muted-foreground" />
-                        {roleEntries.length > 0 ? (
-                          roleEntries.map(([code, count]) => (
-                            <span
-                              key={code}
-                              className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-foreground"
-                            >
-                              <span className="font-semibold tabular-nums">{count}</span>{" "}
-                              {getRoleLabel(code)}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-xs text-muted-foreground">
-                            <span className="font-medium text-foreground">{b.users_count ?? 0}</span>{" "}
-                            usuarios
-                          </span>
+                        {expiry && (
+                          <p className={cn(
+                            "mt-0.5 flex items-center gap-1 tabular-nums",
+                            expiry.expired ? "text-danger" : "text-muted-foreground",
+                          )}>
+                            <CalendarDays className="h-3 w-3 shrink-0" />
+                            vence {expiry.label}{expiry.expired ? " (vencido)" : ""}
+                          </p>
                         )}
-                      </button>
+                      </div>
+
+                      {/* Contact + Users */}
+                      <div className="flex flex-col gap-1.5 text-xs">
+                        {b.phone && (
+                          <div className="flex items-center gap-1.5 text-muted-foreground">
+                            <Phone className="h-3 w-3 shrink-0" />
+                            <span className="tabular-nums">{b.phone}</span>
+                          </div>
+                        )}
+                        {b.email && (
+                          <div className="flex items-center gap-1.5 text-muted-foreground">
+                            <Mail className="h-3 w-3 shrink-0" />
+                            <span className="truncate">{b.email}</span>
+                          </div>
+                        )}
+                        {/* Roles */}
+                        <button
+                          type="button"
+                          onClick={() => setViewingUsers(b)}
+                          className="flex flex-wrap items-center gap-1 pt-1 text-left"
+                        >
+                          <Users className="h-3 w-3 shrink-0 text-muted-foreground" />
+                          {roleEntries.length > 0 ? (
+                            roleEntries.map(([code, count]) => (
+                              <span
+                                key={code}
+                                className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-foreground"
+                              >
+                                <span className="font-semibold tabular-nums">{count}</span>{" "}
+                                {getRoleLabel(code)}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-muted-foreground">
+                              <span className="font-medium text-foreground">{b.users_count ?? 0}</span>{" "}
+                              usuarios
+                            </span>
+                          )}
+                        </button>
+                      </div>
                     </div>
-                  </div>
+
+                    {/* Acciones */}
+                    <div className="flex items-center justify-end gap-1 border-t border-border px-2 py-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        title="Usuarios"
+                        onClick={() => setViewingUsers(b)}
+                      >
+                        <Users className="h-3.5 w-3.5" />
+                      </Button>
+                      {manageable && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0"
+                          title="Plan"
+                          onClick={() => setEditingPlan(b)}
+                        >
+                          <CreditCard className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      {manageable && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0"
+                          title="Editar"
+                          onClick={() => setEditing(b)}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      {manageable && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0"
+                          title="Tema"
+                          onClick={() => setEditingTheme(b)}
+                        >
+                          <Palette className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      {manageable && siiModuleEnabled && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0"
+                          title="Configuración SII"
+                          onClick={() => setEditingSii(b)}
+                        >
+                          <FileText className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  </article>
                 );
               })}
             </div>
 
+            {/* Paginación */}
             <div className="flex flex-col items-center justify-between gap-3 text-sm sm:flex-row">
-              <p className="text-muted-foreground">
-                {totalBranches} sucursal{totalBranches === 1 ? "" : "es"} en total
+              <p className="text-xs text-muted-foreground">
+                Mostrando {branches.length} de {totalBranches} sucursales
               </p>
               <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPageUrl({ previous: data?.previous })}
-                  disabled={!data?.previous}
-                >
-                  <span className="sm:hidden">Ant.</span>
-                  <span className="hidden sm:inline">Anterior</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPageUrl({ next: data?.next })}
-                  disabled={!data?.next}
-                >
-                  <span className="sm:hidden">Sig.</span>
-                  <span className="hidden sm:inline">Siguiente</span>
-                </Button>
+                {pageUrl.previous && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPageUrl((prev) => ({ ...prev, previous: pageUrl.previous }))}
+                  >
+                    ← Anterior
+                  </Button>
+                )}
+                {pageUrl.next && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPageUrl((prev) => ({ ...prev, next: pageUrl.next }))}
+                  >
+                    Siguiente →
+                  </Button>
+                )}
               </div>
             </div>
           </>
         )}
       </div>
 
-      {(creating || editing) && (
-        <BranchForm
-          branch={editing ?? undefined}
-          onClose={() => {
-            setCreating(false);
-            setEditing(null);
-          }}
-          onSuccess={() => {
-            setCreating(false);
-            setEditing(null);
-            queryClient.invalidateQueries({ queryKey: ["branches"] });
-          }}
-        />
+      {/* Modales */}
+      {creating && (
+        <BranchForm onClose={() => setCreating(false)} onSuccess={() => { setCreating(false); queryClient.invalidateQueries({ queryKey: ["branches"] }); }} />
       )}
-
+      {editing && (
+        <BranchForm branch={editing} onClose={() => setEditing(null)} onSuccess={() => { setEditing(null); queryClient.invalidateQueries({ queryKey: ["branches"] }); }} />
+      )}
       {viewingUsers && (
-        <BranchUsersDialog
-          branch={viewingUsers}
-          onClose={() => setViewingUsers(null)}
-        />
+        <BranchUsersDialog branch={viewingUsers} onClose={() => setViewingUsers(null)} />
       )}
-
       {editingTheme && (
-        <BranchThemeDialog
-          branch={editingTheme}
-          onClose={() => setEditingTheme(null)}
-        />
+        <BranchThemeDialog branch={editingTheme} onClose={() => setEditingTheme(null)} />
       )}
-
       {editingPlan && (
-        <ApplyPlanDialog
-          branch={editingPlan}
-          onClose={() => setEditingPlan(null)}
-          onApplied={(res) => {
-            patchBranch(
-              editingPlan.branch_id,
-              res
-                ? {
-                    plan: res.plan_id,
-                    plan_name: res.plan_name,
-                    plan_expiration_date: res.end_date ?? null,
-                  }
-                : { plan: null, plan_name: null, plan_expiration_date: null },
-            );
-            queryClient.invalidateQueries({ queryKey: ["branches"] });
-          }}
-        />
+        <ApplyPlanDialog branch={editingPlan} onClose={() => setEditingPlan(null)} onApplied={() => {
+          queryClient.invalidateQueries({ queryKey: ["branches"] });
+          setEditingPlan(null);
+        }} />
       )}
-
       {editingSii && (
-        <BranchSiiDialog
-          branch={editingSii}
-          onClose={() => setEditingSii(null)}
-        />
+        <BranchSiiDialog branch={editingSii} onClose={() => setEditingSii(null)} />
       )}
     </div>
   );

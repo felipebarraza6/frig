@@ -49,7 +49,7 @@ export function ForbiddenListener() {
 
       // No mostrar toast si es una petición secundaria silenciosa de POS.
       const isPosRoute = pathname.startsWith("/pos");
-      const isSecondaryModule = /\b(tables|public_catalog|product_catalog|nutrition)\b/i.test(
+      const isSecondaryModule = /\b(tables|public_catalog|product_catalog|nutrition|catalogs)\b/i.test(
         rawMessage,
       );
       // Errores de "módulo no habilitado para esta sucursal": la UI ya oculta
@@ -60,8 +60,12 @@ export function ForbiddenListener() {
         toast.error(message);
       }
 
-      // Roles operativos se quedan donde están; /dashboard no redirige a sí mismo.
+      // No redirigir si estamos en POS y el error es de un módulo secundario.
+      // Tampoco redirigir para roles operativos ni si ya estamos en /dashboard.
       if (isPosFirstRole || pathname === "/dashboard") {
+        return;
+      }
+      if (isPosRoute && isSecondaryModule) {
         return;
       }
 
