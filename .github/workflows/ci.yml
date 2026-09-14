@@ -1,0 +1,46 @@
+# CI de FRIG web: corre en cada push a un branch distinto de master y en los
+# PRs hacia master. NO despliega nada — el deploy a producción es exclusivo
+# de master (ver deploy.yml).
+#
+# Gates: lint + type-check + build estático (con la API de producción
+# inyectada en build time, igual que el deploy, para que el build de CI
+# sea representativo).
+
+name: CI
+
+on:
+  push:
+    branches-ignore: [master]
+  pull_request:
+    branches: [master]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      NEXT_PUBLIC_YGGDRA_API_BASE: "https://api.yggdra.cl/api"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check
+        run: npm run type-check
+
+      - name: Build estático
+        run: npm run build

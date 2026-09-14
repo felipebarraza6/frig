@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -20,11 +20,11 @@ function extractTokenFromPath(): string {
 
 export default function ResetPasswordPage() {
   const router = useRouter();
-  const [token, setToken] = useState("");
-
-  useEffect(() => {
-    setToken(extractTokenFromPath());
-  }, []);
+  // El token viene de la URL, no de React: se lee lazy en el primer render
+  // (cliente) para no disparar un render en cascada desde un effect.
+  const [token, setToken] = useState(() =>
+    typeof window === "undefined" ? "" : extractTokenFromPath(),
+  );
 
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");

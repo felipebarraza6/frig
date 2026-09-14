@@ -378,7 +378,7 @@ export function BranchForm({ branch, onClose, onSuccess }: BranchFormProps) {
                         </button>
                       ))}
                       <p className="w-full text-xs text-muted-foreground">
-                        El plan vence en esa fecha; después se puede renovar desde la acción "Plan".
+                        El plan vence en esa fecha; después se puede renovar desde la acción &quot;Plan&quot;.
                       </p>
                     </div>
                   )}

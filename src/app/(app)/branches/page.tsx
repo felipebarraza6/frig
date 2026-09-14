@@ -99,17 +99,15 @@ export default function BranchesPage() {
       staleTime: 60_000,
     })),
   });
-  const invoicesEnabledBranches = useMemo(() => {
-    const set = new Set<string>();
-    branches.forEach((b, i) => {
-      const configs = moduleQueries[i]?.data;
-      if (configs?.some((m) => m.module_name === "invoices" && m.is_enabled)) {
-        set.add(String(b.branch_id));
-      }
-    });
-    return set;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [branches, moduleQueries.map((q) => JSON.stringify(q.data)).join(",")]);
+  // Cálculo directo (barato: una pasada por sucursal), sin memo para no
+  // pelear con la regla de dependencias de los hooks del compiler.
+  const invoicesEnabledBranches = new Set<string>();
+  branches.forEach((b, i) => {
+    const configs = moduleQueries[i]?.data;
+    if (configs?.some((m) => m.module_name === "invoices" && m.is_enabled)) {
+      invoicesEnabledBranches.add(String(b.branch_id));
+    }
+  });
 
   const toggleActive = useMutation({
     mutationFn: ({ id, isActive }: { id: number; isActive: boolean }) =>

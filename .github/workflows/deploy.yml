@@ -22,6 +22,11 @@ on:
     branches: [master]
   workflow_dispatch:
 
+# Un deploy a la vez: dos pushes seguidos a master no deben pisarse por FTP.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -43,6 +48,13 @@ jobs:
 
       - name: Instalar dependencias
         run: npm ci
+
+      # Mismos gates que el CI de branches: si no pasa, no se despliega.
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check
+        run: npm run type-check
 
       - name: Build estático
         run: npm run build

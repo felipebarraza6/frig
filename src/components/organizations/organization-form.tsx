@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Building2, Plus, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,31 +24,41 @@ interface OrganizationFormProps {
 }
 
 export function OrganizationForm({ open, onClose, organization }: OrganizationFormProps) {
+  // El modal vive montado en el padre; renderizando el formulario solo al
+  // abrir (y keyed por organización) el estado arranca limpio en cada apertura
+  // sin necesidad de sincronizarlo con un effect.
+  if (!open) return null;
+  return (
+    <OrganizationFormInner
+      key={organization?.id ?? "new"}
+      onClose={onClose}
+      organization={organization ?? null}
+    />
+  );
+}
+
+function OrganizationFormInner({
+  onClose,
+  organization,
+}: {
+  onClose: () => void;
+  organization: OrganizationDetail | null;
+}) {
   const toast = useToast();
   const queryClient = useQueryClient();
   const isEditing = !!organization;
 
-  const [form, setForm] = useState<OrganizationPayload>({
-    name: "",
-    business_name: "",
-    dni: "",
-    max_branches: null,
-    is_active: true,
-  });
-
-  useEffect(() => {
-    if (organization) {
-      setForm({
-        name: organization.name ?? "",
-        business_name: organization.business_name ?? "",
-        dni: organization.dni ?? "",
-        max_branches: organization.max_branches ?? null,
-        is_active: organization.is_active !== false,
-      });
-    } else {
-      setForm({ name: "", business_name: "", dni: "", max_branches: null, is_active: true });
-    }
-  }, [organization, open]);
+  const [form, setForm] = useState<OrganizationPayload>(() =>
+    organization
+      ? {
+          name: organization.name ?? "",
+          business_name: organization.business_name ?? "",
+          dni: organization.dni ?? "",
+          max_branches: organization.max_branches ?? null,
+          is_active: organization.is_active !== false,
+        }
+      : { name: "", business_name: "", dni: "", max_branches: null, is_active: true },
+  );
 
   const patch = (patch: Partial<OrganizationPayload>) =>
     setForm((prev) => ({ ...prev, ...patch }));
@@ -75,7 +85,7 @@ export function OrganizationForm({ open, onClose, organization }: OrganizationFo
   };
 
   return (
-    <Modal open={open} onClose={onClose} size="md">
+    <Modal open onClose={onClose} size="md">
       <form onSubmit={handleSubmit}>
         <ModalBody className="flex flex-col gap-4">
           <Field label="Nombre" required>
