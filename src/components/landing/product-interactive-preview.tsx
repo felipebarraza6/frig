@@ -145,21 +145,28 @@ interface CashMovement {
 export function ProductInteractivePreview() {
   const [activeTab, setActiveTab] = useState<TabKey>("pos");
   const [role, setRole] = useState<Role>("admin");
-  const [openGroup, setOpenGroup] = useState<string | null>("vender");
+  // undefined = el acordeón sigue a la pestaña activa; "" = todos cerrados.
+  const [openGroupOverride, setOpenGroupOverride] = useState<string | null | undefined>(undefined);
 
-  // Si el rol activo no puede ver la pestaña actual, salta a la primera permitida.
-  useEffect(() => {
-    if (!ROLE_TABS[role].includes(activeTab)) {
-      setActiveTab(ROLE_TABS[role][0]);
+  // Derivados en render (sin effects): pestañas visibles según rol y grupo abierto.
+  const allowedTabs = ROLE_TABS[role];
+  const effectiveTab = allowedTabs.includes(activeTab) ? activeTab : allowedTabs[0];
+  const activeGroupId =
+    SIDEBAR_GROUPS.find((g) => g.tabs.some((t) => t.key === effectiveTab))?.id ?? null;
+  const openGroup = openGroupOverride === undefined ? activeGroupId : openGroupOverride;
+
+  function changeRole(next: Role) {
+    setRole(next);
+    if (!ROLE_TABS[next].includes(effectiveTab)) {
+      setActiveTab(ROLE_TABS[next][0]);
+      setOpenGroupOverride(undefined);
     }
-  }, [role, activeTab]);
+  }
 
-  // El acordeón sigue siempre a la pestaña activa: su grupo queda abierto.
-  useEffect(() => {
-    const group = SIDEBAR_GROUPS.find((g) => g.tabs.some((t) => t.key === activeTab));
-    if (group && group.id !== openGroup) setOpenGroup(group.id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  function changeTab(next: TabKey) {
+    setActiveTab(next);
+    setOpenGroupOverride(undefined);
+  }
 
   // === ESTADO DEL POS ===
   const [selectedCategory, setSelectedCategory] = useState<string>("todos");
@@ -454,7 +461,7 @@ export function ProductInteractivePreview() {
           <button
             key={r.key}
             type="button"
-            onClick={() => setRole(r.key)}
+            onClick={() => changeRole(r.key)}
             className={`px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider transition-all ${
               role === r.key
                 ? "bg-[#c67d52] text-white shadow-sm"
@@ -479,7 +486,7 @@ export function ProductInteractivePreview() {
                 <div key={group.id} className="min-w-fit md:min-w-0 md:w-full">
                   <button
                     type="button"
-                    onClick={() => setOpenGroup(isOpen ? null : group.id)}
+                    onClick={() => setOpenGroupOverride(isOpen ? "" : group.id)}
                     className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider transition-colors whitespace-nowrap ${isOpen ? "text-white bg-[#181818]" : "text-zinc-400/80 hover:text-white"}`}
                   >
                     <span>{group.label}</span>
@@ -494,7 +501,7 @@ export function ProductInteractivePreview() {
                           <button
                             key={t.key}
                             type="button"
-                            onClick={() => setActiveTab(t.key)}
+                            onClick={() => changeTab(t.key)}
                             className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs transition-all whitespace-nowrap text-left ${isActive ? "bg-zinc-800 text-white font-semibold shadow-sm" : "text-zinc-300 hover:text-white hover:bg-[#181818]"}`}
                           >
                             <div className="flex items-center gap-2">
@@ -530,16 +537,16 @@ export function ProductInteractivePreview() {
             <div className="flex flex-wrap items-center justify-between pb-3 mb-4 border-b border-zinc-900/70 gap-2">
               <div>
                 <p className="text-[11px] text-zinc-400/80 font-mono">
-                  {tabLabels[activeTab].breadcrumb}
+                  {tabLabels[effectiveTab].breadcrumb}
                 </p>
                 <h3 className="text-base sm:text-lg font-bold text-white leading-tight">
-                  {tabLabels[activeTab].title}
+                  {tabLabels[effectiveTab].title}
                 </h3>
               </div>
 
               <div className="flex items-center gap-2">
                 <span className="text-[11px] px-2.5 py-1 rounded-md bg-zinc-950 border border-zinc-800/60 text-zinc-300 font-medium">
-                  {activeTab === "finance"
+                  {effectiveTab === "finance"
                     ? "Caja Salón · Turno Abierto"
                     : activeTab === "pos"
                     ? "Mesa 4 · Garzón Carlos M."
@@ -557,7 +564,7 @@ export function ProductInteractivePreview() {
               {/* ========================================== */}
               {/* 1. FINANZAS & ARQUEO                       */}
               {/* ========================================== */}
-              {activeTab === "finance" && (
+              {effectiveTab === "finance" && (
                 <motion.div
                   key="finance"
                   initial={{ opacity: 0, y: 6 }}
@@ -675,7 +682,7 @@ export function ProductInteractivePreview() {
               {/* ========================================== */}
               {/* 2. POS TÁCTIL                              */}
               {/* ========================================== */}
-              {activeTab === "pos" && (
+              {effectiveTab === "pos" && (
                 <motion.div
                   key="pos"
                   initial={{ opacity: 0, y: 6 }}
@@ -939,7 +946,7 @@ export function ProductInteractivePreview() {
               {/* ========================================== */}
               {/* 3. COCINA KDS                              */}
               {/* ========================================== */}
-              {activeTab === "kds" && (
+              {effectiveTab === "kds" && (
                 <motion.div
                   key="kds"
                   initial={{ opacity: 0, y: 6 }}
@@ -1074,7 +1081,7 @@ export function ProductInteractivePreview() {
               {/* ========================================== */}
               {/* 4. MESAS & SALÓN                           */}
               {/* ========================================== */}
-              {activeTab === "tables" && (
+              {effectiveTab === "tables" && (
                 <motion.div
                   key="tables"
                   initial={{ opacity: 0, y: 6 }}
@@ -1161,7 +1168,7 @@ export function ProductInteractivePreview() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => setActiveTab("pos")}
+                      onClick={() => changeTab("pos")}
                       className="px-3 py-1.5 rounded-lg bg-zinc-600 text-white font-bold hover:bg-[#c67d52]"
                     >
                       Abrir Comanda en POS
@@ -1173,7 +1180,7 @@ export function ProductInteractivePreview() {
               {/* ========================================== */}
               {/* 5. RECETAS & STOCK                         */}
               {/* ========================================== */}
-              {activeTab === "stock" && (
+              {effectiveTab === "stock" && (
                 <motion.div
                   key="stock"
                   initial={{ opacity: 0, y: 6 }}
@@ -1247,7 +1254,7 @@ export function ProductInteractivePreview() {
               {/* ========================================== */}
               {/* 6. DELIVERY & RETIRO                       */}
               {/* ========================================== */}
-              {activeTab === "delivery" && (
+              {effectiveTab === "delivery" && (
                 <motion.div
                   key="delivery"
                   initial={{ opacity: 0, y: 6 }}
@@ -1306,7 +1313,7 @@ export function ProductInteractivePreview() {
               {/* ========================================== */}
               {/* 7. MENÚ QR                                 */}
               {/* ========================================== */}
-              {activeTab === "qr" && (
+              {effectiveTab === "qr" && (
                 <motion.div
                   key="qr"
                   initial={{ opacity: 0, y: 6 }}
@@ -1349,7 +1356,7 @@ export function ProductInteractivePreview() {
               {/* ========================================== */}
               {/* 8. PROVEEDORES & COMPRAS                   */}
               {/* ========================================== */}
-              {activeTab === "compras" && (
+              {effectiveTab === "compras" && (
                 <motion.div
                   key="compras"
                   initial={{ opacity: 0, y: 6 }}
@@ -1392,7 +1399,7 @@ export function ProductInteractivePreview() {
               {/* ========================================== */}
               {/* 9. BOLETA SII & MEDIOS DE PAGO             */}
               {/* ========================================== */}
-              {activeTab === "facturacion" && (
+              {effectiveTab === "facturacion" && (
                 <motion.div
                   key="facturacion"
                   initial={{ opacity: 0, y: 6 }}
@@ -1446,7 +1453,7 @@ export function ProductInteractivePreview() {
               {/* ========================================== */}
               {/* 10. MULTI-SUCURSAL                         */}
               {/* ========================================== */}
-              {activeTab === "sucursales" && (
+              {effectiveTab === "sucursales" && (
                 <motion.div
                   key="sucursales"
                   initial={{ opacity: 0, y: 6 }}
@@ -1488,7 +1495,7 @@ export function ProductInteractivePreview() {
               {/* ========================================== */}
               {/* 11. VENTAS & COTIZACIONES                  */}
               {/* ========================================== */}
-              {activeTab === "ventas" && (
+              {effectiveTab === "ventas" && (
                 <motion.div
                   key="ventas"
                   initial={{ opacity: 0, y: 6 }}
@@ -1530,7 +1537,7 @@ export function ProductInteractivePreview() {
               {/* ========================================== */}
               {/* 12. BANCOS & CONCILIACIÓN                  */}
               {/* ========================================== */}
-              {activeTab === "bancos" && (
+              {effectiveTab === "bancos" && (
                 <motion.div
                   key="bancos"
                   initial={{ opacity: 0, y: 6 }}
@@ -1573,7 +1580,7 @@ export function ProductInteractivePreview() {
               {/* ========================================== */}
               {/* 13. CLIENTES & PROMOCIONES                 */}
               {/* ========================================== */}
-              {activeTab === "clientes" && (
+              {effectiveTab === "clientes" && (
                 <motion.div
                   key="clientes"
                   initial={{ opacity: 0, y: 6 }}
@@ -1618,7 +1625,7 @@ export function ProductInteractivePreview() {
               {/* ========================================== */}
               {/* 14. REPORTES                               */}
               {/* ========================================== */}
-              {activeTab === "reportes" && (
+              {effectiveTab === "reportes" && (
                 <motion.div
                   key="reportes"
                   initial={{ opacity: 0, y: 6 }}
