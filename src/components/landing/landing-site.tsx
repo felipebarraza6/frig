@@ -243,7 +243,7 @@ function Nav({ savedUser }: { savedUser: User | null }) {
                     onClick={() => setMobileMenuOpen(false)}
                     className="py-2 text-center rounded-lg border border-white/15 text-white"
                   >
-                    Entrar
+                    Login
                   </Link>
                 )}
                 <a
@@ -669,9 +669,6 @@ function UseCases() {
             <ScrollReveal key={useCase.slug} delay={(i % 3) * 0.05} className="h-full">
               <Link
                 href={`/login/${useCase.slug}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group flex h-full flex-col justify-between gap-4 rounded-xl border border-white/10 bg-white/[0.03] p-5 transition-all hover:border-[#c67d52]/50 hover:bg-white/[0.06]"
               >
                 <div>
                   <div className="flex items-center gap-3 mb-3">
@@ -696,7 +693,7 @@ function UseCases() {
                   className="flex items-center gap-1.5 text-sm font-medium"
                   style={{ color: COPPER }}
                 >
-                  <span>Entrar a la demo</span>
+                  <span>Abrir demo</span>
                   <ExternalLink className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
                 </div>
               </Link>
