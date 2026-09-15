@@ -1,34 +1,26 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
-  Banknote,
-  Bike,
-  Building2,
-  ChartColumn,
   Check,
-  ChefHat,
-  CreditCard,
   ExternalLink,
-  FileText,
-  LayoutGrid,
-  Package,
-  Percent,
-  Plug,
-  QrCode,
-  Receipt,
-  ShieldCheck,
-  Smartphone,
-  Store,
-  Truck,
-  Users,
-  Warehouse,
-  Zap,
-  type LucideIcon,
+  LayoutDashboard,
+  LogIn,
+  Menu,
+  X,
 } from "lucide-react";
+
+/* Marca oficial de GitHub (lucide ya no incluye íconos de marcas). */
+function GithubIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+      <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.55 0-.27-.01-1.17-.02-2.12-3.2.7-3.88-1.36-3.88-1.36-.52-1.33-1.28-1.68-1.28-1.68-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.03 1.76 2.69 1.25 3.35.96.1-.75.4-1.25.72-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.28 1.18-3.09-.12-.29-.51-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.78 0c2.2-1.49 3.17-1.18 3.17-1.18.62 1.59.23 2.76.11 3.05.73.81 1.18 1.83 1.18 3.09 0 4.42-2.7 5.39-5.27 5.68.41.36.78 1.06.78 2.14 0 1.55-.01 2.79-.01 3.17 0 .31.21.67.8.55A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z" />
+    </svg>
+  );
+}
 import { useQuery } from "@tanstack/react-query";
 import { useApp } from "@/lib/app-context";
 import { useSessionStore, normalizeDashboardRoute } from "@/lib/store/session";
@@ -37,8 +29,8 @@ import type { User } from "@/lib/types";
 import {
   LANDING_FEATURES,
   LANDING_PLANS,
-  LANDING_PRICING_NOTE,
   LANDING_INTEGRATION_UF,
+  LANDING_PRICING_NOTE,
   LANDING_USE_CASES,
   LANDING_VALUE_PROP,
   DEMO_CONTACTS,
@@ -47,27 +39,19 @@ import {
 import {
   fetchLandingConfig,
   type LandingConfig,
-  type LandingFeatureItem,
   type LandingHero,
 } from "@/lib/api/checkout";
 import { applyThemeConfig } from "@/lib/api/branches";
-import { PixelClouds } from "@/components/landing/pixel-clouds";
-import { PixelWind } from "@/components/landing/pixel-wind";
-import { PixelVillage } from "@/components/landing/pixel-village";
-import { PixelNightSky } from "@/components/landing/pixel-night-sky";
-import { PixelSlope } from "@/components/landing/pixel-slope";
 import { ScrollReveal } from "@/components/landing/scroll-reveal";
-import { PixelFoodMark } from "@/components/landing/pixel-food-mark";
+import { HeroPlexus } from "@/components/landing/hero-plexus";
 import { CheckoutModal } from "@/components/landing/checkout-modal";
-import { SectionTitle } from "@/components/landing/section-title";
-import { motion } from "framer-motion";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { ProductInteractivePreview } from "@/components/landing/product-interactive-preview";
+import { motion, AnimatePresence, useMotionValue, useTransform, useMotionTemplate, useScroll } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 /**
- * Cruza la config viva de la landing (GET /public/landing-config/) con el
- * copy local: planes (precio, nombre, bajada, bullets, sello) y copy de
- * grupo vienen del sistema; `src/content/landing.ts` queda como fallback.
+ * Landing simple de FRIG: mensaje claro, módulos reales de la app,
+ * el simulador del producto, demos operativas y precios. Nada más.
  */
 function resolvePlans(config: LandingConfig | undefined): {
   plans: LandingPlan[];
@@ -96,44 +80,26 @@ function resolvePlans(config: LandingConfig | undefined): {
   };
 }
 
-/** Botón chunky estilo juego (sombra dura, sin radios, se hunde al pulsar). */
-const PIXEL_BTN =
-  "pixel-btn font-pixel tracking-wider";
+/* Paleta del logo: cobre sobre negro neutro. Un solo acento. */
+const COPPER = "#c67d52";
+const COPPER_HOVER = "#d68c5f";
 
-const CREAM = "#f5efdd";
-const GOLD = "#e9bd4a";
+const NAV_LINKS = [
+  { href: "#demos", label: "Casos de uso" },
+  { href: "#producto", label: "Módulos" },
+];
 
-/** Mapea las claves de icono del sistema a componentes lucide. */
-const FEATURE_ICONS: Record<string, LucideIcon> = {
-  zap: Zap,
-  receipt: Receipt,
-  users: Users,
-  package: Package,
-  "chef-hat": ChefHat,
-  truck: Truck,
-  "bar-chart": ChartColumn,
-  percent: Percent,
-  shield: ShieldCheck,
-  smartphone: Smartphone,
-  "building-2": Building2,
-  plug: Plug,
-  banknote: Banknote,
-  bike: Bike,
-  "layout-grid": LayoutGrid,
-  warehouse: Warehouse,
-  "credit-card": CreditCard,
-  "file-text": FileText,
-  "qr-code": QrCode,
-  store: Store,
-};
-const DEFAULT_FEATURE_ICON = Store;
+const GITHUB_URL = "https://github.com/FelipeBarraza6/frig";
 
-/**
- * Nombre corto para saludar a un usuario con sesión persistida. En landing
- * FRIG (sin tema de tenant) el saludo es solo cosmético: la sesión real se
- * valida al entrar a la app (el shell reacciona a un 401 limpiando todo y
- * volviendo a /login con aviso).
- */
+/* Separador de sección: energía que fluye de un extremo al otro. */
+function SectionDivider() {
+  return (
+    <div className="relative mx-auto max-w-6xl px-4 sm:px-6" aria-hidden>
+      <div className="flow-line" />
+    </div>
+  );
+}
+
 function sessionDisplayName(user: User): string {
   const full = (
     user.full_name ??
@@ -142,255 +108,428 @@ function sessionDisplayName(user: User): string {
   return full || user.username || user.email.split("@")[0] || "tu cuenta";
 }
 
-/** Props comunes del punto de reingreso con sesión persistida. */
-interface ReenterProps {
-  /** Usuario con sesión persistida (null → UI de siempre). */
-  savedUser: User | null;
-  /** True mientras se navega de vuelta a la app. */
-  entering: boolean;
-  /** Navega al home persistido de la sesión. */
-  onReenter: () => void;
-}
-
 function Nav({ savedUser }: { savedUser: User | null }) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [active, setActive] = useState<string>("");
+
+  // Scrollspy: resalta la sección visible en el menú.
+  useEffect(() => {
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) setActive(`#${e.target.id}`);
+        }
+      },
+      { rootMargin: "-35% 0px -55% 0px" },
+    );
+    for (const link of NAV_LINKS) {
+      const el = document.getElementById(link.href.slice(1));
+      if (el) obs.observe(el);
+    }
+    return () => obs.disconnect();
+  }, []);
+
   return (
-    <header className="sticky top-0 z-40 border-b-2 border-[#241f1a] bg-[#14160f]">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
-        <Link href="/" className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center bg-primary text-primary-foreground">
-            <PixelFoodMark className="h-5 w-5" />
-          </span>
-          <span className="font-pixel text-base font-semibold tracking-[0.2em] text-white">
-            FRIG
-          </span>
+    <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-[#0a0a0a]/85 backdrop-blur-md">
+      <div className="mx-auto flex h-20 max-w-6xl items-center justify-between px-6 sm:px-8">
+        <Link href="/" className="flex items-center group">
+          <img
+            src="/brand/frig-symbol.png"
+            alt="FRIG"
+            className="h-12 w-auto transition-transform group-hover:scale-105"
+            style={{
+              filter: "drop-shadow(0 0 14px rgba(238,158,112,0.45))",
+            }}
+          />
         </Link>
-        <nav className="flex items-center gap-4 font-pixel text-xs tracking-widest text-emerald-100/70 sm:gap-6">
-          <a href="#funciones" className="hidden transition-colors hover:text-white sm:inline">FUNCIONES</a>
-          <a href="#planes" className="hidden transition-colors hover:text-white sm:inline">PLANES</a>
-          <a href="#casos" className="hidden transition-colors hover:text-white sm:inline">DEMOS</a>
-          {/* Sin sesión el acceso va acá; con sesión, el reingreso vive en el
-              banner del hero (VOLVISTE → REINGRESAR), no repetido en el header. */}
-          {!savedUser && (
-            <Link
-              href="/login"
-              className={cn(
-                buttonVariants({ variant: "outline", size: "sm" }),
-                PIXEL_BTN,
-                "border-emerald-100/30 bg-transparent text-emerald-50 hover:bg-white/10 hover:text-white",
-              )}
+
+        {/* Logo a la izquierda; todo lo demás agrupado a la derecha. */}
+        <div className="flex items-center gap-7 lg:gap-9">
+          <nav className="hidden md:flex items-center gap-8 text-sm font-medium">
+            {NAV_LINKS.map((link) => {
+              const isActive = active === link.href;
+              return (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  className={cn(
+                    "relative py-1 transition-colors",
+                    isActive
+                      ? "text-white"
+                      : "text-zinc-400 hover:text-white",
+                  )}
+                >
+                  {link.label}
+                  {isActive && (
+                    <span
+                      className="absolute -bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rotate-45"
+                      style={{ backgroundColor: COPPER }}
+                      aria-hidden
+                    />
+                  )}
+                </a>
+              );
+            })}
+          </nav>
+
+          <div className="hidden sm:block h-5 w-px bg-white/10" aria-hidden />
+
+          <div className="flex items-center gap-3">
+            <a
+              href={GITHUB_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="GitHub de Frig"
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-zinc-400 transition-colors hover:border-white/25 hover:text-white"
             >
-              Entrar
-            </Link>
-          )}
-        </nav>
+              <GithubIcon className="h-5 w-5" />
+            </a>
+            {savedUser ? (
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center gap-2 rounded-lg border border-white/15 px-4 py-2 text-sm font-medium text-white transition-colors hover:border-white/30 hover:bg-white/5"
+              >
+                <LayoutDashboard className="h-4 w-4 text-zinc-400" />
+                Ir al panel
+              </Link>
+            ) : (
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-2 rounded-lg border border-white/15 px-4 py-2 text-sm font-medium text-white transition-colors hover:border-white/30 hover:bg-white/5"
+              >
+                <LogIn className="h-4 w-4 text-zinc-400" />
+                Entrar
+              </Link>
+            )}
+          </div>
+        </div>
+
+        <div className="flex sm:hidden items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="p-1.5 rounded-lg text-zinc-300 hover:bg-white/10"
+            aria-label="Abrir menú"
+          >
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
       </div>
+
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="sm:hidden border-b border-white/10 bg-[#0a0a0a] px-4 py-4"
+          >
+            <div className="flex flex-col text-sm font-medium text-zinc-300">
+              {NAV_LINKS.map((link) => (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="py-2.5 px-2 rounded-lg hover:bg-white/5 hover:text-white"
+                >
+                  {link.label}
+                </a>
+              ))}
+              <div className="mt-3 pt-3 border-t border-white/10 flex flex-col gap-2.5">
+                {!savedUser && (
+                  <Link
+                    href="/login"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="py-2 text-center rounded-lg border border-white/15 text-white"
+                  >
+                    Entrar
+                  </Link>
+                )}
+                <a
+                  href="#precios"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="btn-copper inline-flex items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold text-white"
+                >
+                  Suscripción
+                </a>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </header>
   );
 }
 
+/* Brasas y corrientes de viento del hero: el paisaje del logo. */
+const EMBERS = [
+  { left: "2%", size: 4, dur: "11s", delay: "0s", drift: "24px" },
+  { left: "6%", size: 3, dur: "9s", delay: "1.4s", drift: "-18px" },
+  { left: "10%", size: 5, dur: "12s", delay: "3s", drift: "30px" },
+  { left: "14%", size: 4, dur: "8.5s", delay: "2.1s", drift: "-22px" },
+  { left: "18%", size: 3, dur: "10s", delay: "4.6s", drift: "16px" },
+  { left: "22%", size: 6, dur: "9.5s", delay: "0.8s", drift: "-26px" },
+  { left: "27%", size: 4, dur: "11.5s", delay: "3.7s", drift: "20px" },
+  { left: "31%", size: 5, dur: "8.8s", delay: "1.9s", drift: "-14px" },
+  { left: "36%", size: 3, dur: "10.2s", delay: "5.2s", drift: "28px" },
+  { left: "41%", size: 6, dur: "9.2s", delay: "2.6s", drift: "-20px" },
+  { left: "46%", size: 4, dur: "12.5s", delay: "0.4s", drift: "18px" },
+  { left: "51%", size: 3, dur: "9.8s", delay: "4.1s", drift: "-24px" },
+  { left: "56%", size: 5, dur: "10.8s", delay: "1.1s", drift: "22px" },
+  { left: "61%", size: 4, dur: "8.9s", delay: "3.3s", drift: "-16px" },
+  { left: "66%", size: 6, dur: "11.8s", delay: "5.6s", drift: "26px" },
+  { left: "71%", size: 3, dur: "9.4s", delay: "2.9s", drift: "-28px" },
+  { left: "76%", size: 4, dur: "10.4s", delay: "0.2s", drift: "19px" },
+  { left: "81%", size: 5, dur: "9.1s", delay: "4.8s", drift: "-21px" },
+  { left: "86%", size: 4, dur: "12.2s", delay: "2.4s", drift: "27px" },
+  { left: "90%", size: 3, dur: "9.6s", delay: "1.6s", drift: "-17px" },
+  { left: "94%", size: 5, dur: "10.9s", delay: "3.9s", drift: "23px" },
+  { left: "98%", size: 4, dur: "8.6s", delay: "5.0s", drift: "-25px" },
+];
+
+
 function Hero({
-  plans,
   hero,
-  onPickPlan,
   savedUser,
   entering,
   onReenter,
 }: {
-  plans: LandingPlan[];
-  /** Copy del hero desde el sistema (null → fallback local). */
   hero: LandingHero | null;
-  onPickPlan: (p: LandingPlan) => void;
-} & ReenterProps) {
-  const cta = plans[0];
-  const ctaLabel =
-    hero?.cta_label ??
-    (cta?.priceUf != null ? `EMPEZAR POR ${cta.priceUf} UF` : "EMPEZAR AHORA");
-  const headline = hero?.headline ?? LANDING_VALUE_PROP.headline;
-  const subhead = hero?.subhead ?? LANDING_VALUE_PROP.subhead;
-  // Acento dorado en la cola del titular (tras la última coma), como en el
-  // copy histórico; sin coma, el titular completo queda en crema.
-  const splitAt = headline.lastIndexOf(", ");
-  const head = splitAt > 0 ? headline.slice(0, splitAt + 1) : headline;
-  const tail = splitAt > 0 ? headline.slice(splitAt + 2) : null;
-  return (
-    <section className="pixel-sky-hero relative overflow-hidden min-h-[calc(100dvh-3.5rem)]">
-      <PixelNightSky />
-      <PixelClouds />
-      <PixelWind />
-      <PixelVillage />
-      {/* Bruma nocturna sobre el mosaico */}
-      <div
-        className="absolute inset-0"
-        aria-hidden
-        style={{
-          background:
-            "radial-gradient(900px 420px at 50% -10%, rgba(233,189,74,0.10), transparent 60%), radial-gradient(720px 400px at 28% 46%, rgba(10,24,15,0.45), transparent 70%), linear-gradient(180deg, rgba(15,36,23,0.22), rgba(15,36,23,0.38))",
-        }}
-      />
+  savedUser: User | null;
+  entering: boolean;
+  onReenter: () => void;
+}) {
+  // Contenido dinámico: el endpoint manda; el copy local es solo fallback.
+  const headline = hero?.headline || LANDING_VALUE_PROP.headline;
+  const narrative = hero?.subhead || LANDING_VALUE_PROP.subhead;
 
-      <div className="relative mx-auto flex min-h-[calc(100dvh-3.5rem)] max-w-6xl flex-col justify-start px-4 pt-[27vh] pb-[170px] sm:px-6 sm:justify-center sm:pt-12 sm:pb-[200px]">
-        <div className="flex flex-col items-center gap-3 text-center sm:gap-6 lg:items-start lg:text-left">
+  // Reacción al mouse: parallax del logo + resplandor que sigue el cursor.
+  const mx = useMotionValue(0.5);
+  const my = useMotionValue(0.5);
+  const logoX = useTransform(mx, [0, 1], [-16, 16]);
+  const logoY = useTransform(my, [0, 1], [-10, 10]);
+  const tiltY = useTransform(mx, [0, 1], [5, -5]);
+  const glowX = useTransform(mx, (v) => v * 100);
+  const glowY = useTransform(my, (v) => v * 100);
+  const mouseGlow = useMotionTemplate`radial-gradient(560px circle at ${glowX}% ${glowY}%, rgba(240,162,106,0.16), transparent 65%)`;
+
+  // Los tonos cálidos duermen hasta que el mouse entra en escena.
+  const [awake, setAwake] = useState(false);
+
+  // Salto dimensional: con el mouse encima, el wordmark atraviesa un
+  // portal cada tanto (glitch breve con segmentos desplazados).
+  const wordmarkRef = useRef<HTMLImageElement>(null);
+  useEffect(() => {
+    if (!awake) return;
+    const timer = window.setInterval(() => {
+      if (Math.random() > 0.45) return;
+      const el = wordmarkRef.current;
+      if (!el) return;
+      el.classList.remove("frig-dimension-jump");
+      void el.offsetWidth; // reinicia la animación
+      el.classList.add("frig-dimension-jump");
+      window.setTimeout(() => el.classList.remove("frig-dimension-jump"), 620);
+    }, 2100);
+    return () => window.clearInterval(timer);
+  }, [awake]);
+
+  function handleMouseMove(e: React.MouseEvent<HTMLElement>) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    mx.set((e.clientX - rect.left) / rect.width);
+    my.set((e.clientY - rect.top) / rect.height);
+    if (!awake) setAwake(true);
+  }
+
+  function handleMouseLeave() {
+    setAwake(false);
+  }
+
+  // Fundido ligado al scroll: el hero se desvanece, nunca corta de golpe.
+  const sectionRef = useRef<HTMLElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start start", "end start"],
+  });
+  const heroFade = useTransform(scrollYProgress, [0, 0.6], [1, 0]);
+  const heroLift = useTransform(scrollYProgress, [0, 1], [0, 120]);
+
+  return (
+    <section
+      id="inicio"
+      ref={sectionRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      className="relative overflow-hidden bg-[#0a0a0a]"
+    >
+      {/* Flujo abstracto de energía derivando en la base */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+        <span className="frig-flow frig-flow-1" />
+        <span className="frig-flow frig-flow-2" />
+        <span className="frig-flow frig-flow-3" />
+      </div>
+      {/* Paisaje del logo: duerme apagado; el mouse lo despierta */}
+      <motion.div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-[52%]"
+        style={{ background: "radial-gradient(120% 90% at 50% 115%, rgba(240,162,106,0.26) 0%, rgba(157,182,143,0.08) 42%, transparent 70%)" }}
+        animate={{ opacity: awake ? 1 : 0 }}
+        transition={{ duration: 1.1, ease: "easeInOut" }}
+      />
+      {/* Resplandor cálido que sigue el cursor (solo despierto) */}
+      <motion.div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{ background: mouseGlow }}
+        animate={{ opacity: awake ? 1 : 0 }}
+        transition={{ duration: 0.8, ease: "easeInOut" }}
+      />
+      {/* Red abstracta de energía: nodos que fluyen y se conectan */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          maskImage:
+            "radial-gradient(85% 75% at 50% 45%, black 35%, transparent 100%)",
+          WebkitMaskImage:
+            "radial-gradient(85% 75% at 50% 45%, black 35%, transparent 100%)",
+        }}
+      >
+        <HeroPlexus className="h-full w-full" />
+      </div>
+      {/* Brasas que suben desde el horizonte */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+        {EMBERS.map((e, i) => (
+          <span
+            key={i}
+            className={i % 5 === 2 ? "frig-ember frig-ember-hot" : "frig-ember"}
+            style={
+              {
+                left: e.left,
+                width: e.size,
+                height: e.size,
+                "--dur": e.dur,
+                "--delay": e.delay,
+                "--drift": e.drift,
+              } as React.CSSProperties
+            }
+          />
+        ))}
+      </div>
+
+      <motion.div
+        className="relative mx-auto flex min-h-[calc(100dvh-5rem)] max-w-6xl flex-col items-center justify-center px-4 py-12 sm:px-6"
+        style={{ opacity: heroFade, y: heroLift }}
+      >
+        <div className="flex flex-col items-center text-center gap-5">
           {savedUser && (
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.04, ease: "easeOut" }}
-              className="flex w-full max-w-xl flex-col items-center gap-3 border-2 border-emerald-100/25 bg-[#08170f]/85 p-3 shadow-[5px_5px_0_0_rgba(0,0,0,0.45)] sm:flex-row sm:items-center sm:gap-4 sm:p-3.5 lg:w-fit lg:max-w-none lg:self-end"
-            >
+            <div className="flex items-center gap-3 rounded-full border border-white/10 bg-white/[0.04] py-1.5 pl-1.5 pr-4">
               <span
-                aria-hidden
-                className="flex h-10 w-10 shrink-0 items-center justify-center font-pixel text-base font-semibold text-emerald-950"
-                style={{ backgroundColor: GOLD }}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-white"
+                style={{ backgroundColor: COPPER }}
               >
                 {sessionDisplayName(savedUser).charAt(0).toUpperCase()}
               </span>
-              <div className="min-w-0 max-w-48 flex-1 text-center sm:text-left">
-                <p className="font-pixel text-[10px] tracking-[0.2em] text-emerald-100/55">
-                  VOLVISTE
-                </p>
-                <p className="truncate font-pixel text-sm font-semibold tracking-wider text-emerald-50">
-                  {sessionDisplayName(savedUser)}
-                </p>
-              </div>
-              <div className="flex w-full flex-col items-center gap-2 sm:w-auto sm:flex-row sm:gap-3">
-                <Button
-                  size="sm"
-                  disabled={entering}
-                  className={cn(PIXEL_BTN, "text-emerald-950")}
-                  style={{ backgroundColor: GOLD }}
-                  onClick={onReenter}
-                >
-                  {entering ? "ENTRANDO…" : "REINGRESAR"}
-                </Button>
-                <Link
-                  href="/login"
-                  className="font-pixel text-[10px] tracking-[0.14em] text-emerald-100/60 transition-colors hover:text-white"
-                >
-                  ¿NO ERES TÚ?
-                </Link>
-              </div>
-            </motion.div>
+              <span className="text-sm text-zinc-300">
+                {sessionDisplayName(savedUser)}
+              </span>
+              <button
+                type="button"
+                disabled={entering}
+                onClick={onReenter}
+                className="text-sm font-medium hover:text-white disabled:opacity-60"
+                style={{ color: COPPER }}
+              >
+                {entering ? "Entrando…" : "Reingresar →"}
+              </button>
+            </div>
           )}
+
+          {/* El wordmark FRIG sobre el fuego: masas de brasa laten detrás */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.86, y: 18 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: "easeOut" }}
+            className="relative"
+            style={{ x: logoX, y: logoY, rotateY: tiltY }}
+          >
+            <div aria-hidden className="frig-fireglow" />
+            <div aria-hidden className="frig-fireglow frig-fireglow-2" />
+            <img
+              ref={wordmarkRef}
+              src="/brand/frig-wordmark.png"
+              alt="Frig"
+              className="frig-flame relative h-16 w-auto sm:h-24"
+            />
+          </motion.div>
+
           <motion.h1
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45, delay: 0.08, ease: "easeOut" }}
-            className={cn(
-              "max-w-xl font-pixel text-2xl font-semibold leading-snug tracking-wide sm:text-5xl",
-              // Con sesión en móvil el hero lo encabeza el banner de
-              // reingreso: el titular/CTA ya los conoce y rompen el fold.
-              savedUser && "max-sm:hidden",
-            )}
-            style={{ color: CREAM, textShadow: "3px 3px 0 rgba(0,0,0,0.5)" }}
+            transition={{ duration: 0.55, delay: 0.22, ease: "easeOut" }}
+            className="max-w-3xl text-4xl font-semibold leading-[1.1] tracking-tight text-white sm:text-6xl"
           >
-            {head} {tail && <span style={{ color: GOLD }}>{tail}</span>}
+            {headline}
           </motion.h1>
+
           <motion.p
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45, delay: 0.16, ease: "easeOut" }}
-            className={cn(
-              "max-w-lg text-pretty text-[13px] leading-relaxed text-emerald-100/85 sm:text-base",
-              savedUser && "max-sm:hidden",
-            )}
+            transition={{ duration: 0.55, delay: 0.3, ease: "easeOut" }}
+            className="max-w-2xl text-base leading-relaxed text-zinc-300 sm:text-lg"
           >
-            {subhead}{" "}
-            <span className="font-semibold" style={{ color: GOLD }}>
-              {cta?.priceUf != null
-                ? `Desde ${cta.priceUf} UF mensual.`
-                : "Precios a convenir según tu operación."}
-            </span>
+            {narrative}
           </motion.p>
+
+          {hero?.points && hero.points.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, delay: 0.38, ease: "easeOut" }}
+              className="grid max-w-2xl grid-cols-1 gap-x-8 gap-y-2.5 text-sm text-zinc-300 sm:grid-cols-2"
+            >
+              {hero.points.map((point) => (
+                <span key={point} className="flex items-center justify-center gap-2.5 sm:justify-start">
+                  <Check className="h-4 w-4 shrink-0" style={{ color: COPPER }} />
+                  <span className="text-left">{point}</span>
+                </span>
+              ))}
+            </motion.div>
+          )}
+
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45, delay: 0.24, ease: "easeOut" }}
-            className={cn(
-              "flex flex-col gap-3 sm:flex-row",
-              savedUser && "max-sm:hidden",
-            )}
+            transition={{ duration: 0.55, delay: 0.46, ease: "easeOut" }}
+            className="flex flex-wrap items-center justify-center gap-4 pt-1"
           >
-            <Button
-              size="lg"
-              className={cn(PIXEL_BTN, "text-emerald-950")}
-              style={{ backgroundColor: GOLD }}
-              onClick={() => cta && onPickPlan(cta)}
-            >
-              {ctaLabel}
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
             <a
-              href="#casos"
-              className={cn(
-                buttonVariants({ variant: "outline", size: "lg" }),
-                PIXEL_BTN,
-                "border-emerald-100/30 bg-transparent text-emerald-50 hover:bg-white/10 hover:text-white",
-              )}
+              href="#precios"
+              className="btn-copper inline-flex items-center gap-2 rounded-lg px-7 py-3 text-base font-semibold text-white"
             >
-              PROBAR UNA DEMO
+              Suscripción
+              <ArrowRight className="h-4 w-4" />
+            </a>
+            <a
+              href="#simulador"
+              className="rounded-lg border border-white/15 px-7 py-3 text-base font-semibold text-white transition-colors hover:bg-white/5"
+            >
+              Ver cómo funciona
             </a>
           </motion.div>
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.34 }}
-            className="hidden font-pixel text-[10px] tracking-[0.2em] text-emerald-100/50 sm:block"
-          >
-            TODOS LOS MÓDULOS · EN TODOS LOS PLANES · SIEMPRE
-          </motion.p>
         </div>
-      </div>
+      </motion.div>
+
+      {/* Fundido del borde inferior del hero hacia la sección siguiente */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-44 bg-gradient-to-b from-transparent to-[#0d0d0d]"
+      />
     </section>
   );
 }
 
-function Features({ items }: { items: LandingFeatureItem[] }) {
-  const features = items.length
-    ? items.map((f) => ({
-        icon: FEATURE_ICONS[f.icon] ?? DEFAULT_FEATURE_ICON,
-        title: f.title,
-        description: f.description,
-      }))
-    : LANDING_FEATURES;
-  return (
-    <section id="funciones" className="pixel-sky-forest scroll-mt-16">
-      <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
-        <ScrollReveal>
-          <SectionTitle
-            dark
-            kicker="Funciones"
-            title="Todo lo que tu local necesita, sin pagar módulo por módulo"
-            sub="FRIG no es una herramienta más: es el sistema completo. Todo lo que ves abajo viene incluido en cualquier plan."
-          />
-        </ScrollReveal>
-        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {features.map((feature, i) => {
-            const Icon = feature.icon;
-            return (
-              <ScrollReveal key={feature.title} delay={(i % 3) * 0.07} className="h-full">
-                <li className="pixel-frame flex h-full gap-3.5 p-4 transition-transform hover:-translate-y-0.5">
-                  <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center bg-primary/20 text-primary">
-                    <Icon className="h-[18px] w-[18px]" aria-hidden />
-                  </span>
-                  <div>
-                    <p className="font-pixel text-[13px] font-semibold tracking-wider leading-snug">
-                      {feature.title}
-                    </p>
-                    <p className="mt-1.5 text-[13px] leading-snug text-muted-foreground">
-                      {feature.description}
-                    </p>
-                  </div>
-                </li>
-              </ScrollReveal>
-            );
-          })}
-        </ul>
-      </div>
-    </section>
-  );
-}
-
-function Pricing({
+function PricingSection({
   plans,
   integrationUf,
   pricingNote,
@@ -398,83 +537,88 @@ function Pricing({
 }: {
   plans: LandingPlan[];
   integrationUf: number;
-  pricingNote: string;
+  pricingNote?: string;
   onPickPlan: (p: LandingPlan) => void;
 }) {
   return (
-    <section
-      id="planes"
-      className="pixel-sky-deep scroll-mt-16"
-    >
-      <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
-        <ScrollReveal>
-          <SectionTitle
-            dark
-            kicker="Planes"
-            title="Crece con tu negocio, no con tus funciones"
-            sub={pricingNote}
-          />
-        </ScrollReveal>
-        <p className="mb-10 max-w-2xl font-pixel text-[11px] tracking-[0.16em] text-emerald-100/60">
-          + {integrationUf} UF ÚNICA DE INTEGRACIÓN — DEJAMOS TU LOCAL OPERANDO CON SU MARCA
-        </p>
-
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5 lg:items-stretch">
-          {plans.map((plan, i) => (
-            <ScrollReveal key={plan.id} delay={i * 0.06} className="h-full">
-              <article
+    <section id="precios" className="bg-[#0a0a0a] pt-10 pb-28 sm:pt-14 sm:pb-44">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          {plans.map((p, i) => (
+            <ScrollReveal key={p.id} delay={i * 0.08} className="h-full">
+              <div
                 className={cn(
-                  "pixel-frame flex h-full flex-col p-5 transition-transform hover:-translate-y-1",
-                  plan.highlighted && "plan-glow",
+                  "flex h-full flex-col rounded-2xl border p-6 transition-colors sm:p-7",
+                  p.highlighted || p.badge
+                    ? "border-[#c67d52]/40 bg-[#131313]"
+                    : "border-white/10 bg-white/[0.02] hover:border-white/20",
                 )}
-                style={
-                  plan.highlighted
-                    ? {
-                        borderColor: GOLD,
-                      }
-                    : undefined
-                }
               >
-                {plan.highlighted && (
-                  <span
-                    className="landing-pixel-glow mb-3 inline-flex w-fit items-center px-2 py-0.5 font-pixel text-[10px] tracking-[0.14em] text-[#241f1a]"
-                    style={{ backgroundColor: GOLD }}
-                  >
-                    {plan.badge ?? "EL MÁS ELEGIDO"}
-                  </span>
-                )}
-                <h3 className="font-pixel text-sm font-semibold tracking-wider">{plan.name}</h3>
-                <p className="mt-1.5 text-xs leading-snug text-muted-foreground">{plan.tagline}</p>
-                <p className="mt-4">
-                  <span className="font-pixel text-xl font-bold tabular-nums">
-                    {plan.priceUf !== null ? `${plan.priceUf} UF` : "A convenir"}
-                  </span>
-                  {plan.priceUf !== null && (
-                    <span className="text-xs text-muted-foreground"> /mes</span>
+                <div className="mb-5 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-white">{p.name}</h3>
+                  {p.badge && (
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#c67d52]">
+                      {p.badge}
+                    </span>
                   )}
-                </p>
-                <ul className="mt-4 flex flex-col gap-1.5">
-                  {plan.resources.map((r) => (
-                    <li key={r} className="flex items-start gap-1.5 text-[13px] text-muted-foreground">
-                      <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                      {r}
+                </div>
+
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-4xl font-semibold tracking-tight text-white tabular-nums">
+                    {p.priceUf === 0 ? "0" : p.priceUf}
+                  </span>
+                  <span className="text-sm text-zinc-500">
+                    {p.priceUf === 0 ? "UF · gratis" : "UF / mes"}
+                  </span>
+                </div>
+
+                <p className="mt-2 text-sm text-zinc-500">{p.tagline}</p>
+
+                <div className="my-5 h-px bg-white/[0.06]" />
+
+                <ul className="flex-1 space-y-2.5 text-sm text-zinc-300">
+                  {(p.resources?.length
+                    ? p.resources
+                    : ["POS táctil", "Inventario y recetas", "Soporte incluido"]
+                  ).map((res, j) => (
+                    <li key={j} className="flex items-center gap-2.5">
+                      <span
+                        className="h-1 w-1 shrink-0 rotate-45"
+                        style={{ backgroundColor: COPPER }}
+                        aria-hidden
+                      />
+                      {res}
                     </li>
                   ))}
                 </ul>
-                <Button
-                  variant={plan.highlighted ? "default" : "outline"}
-                  className={cn(PIXEL_BTN, "mt-5 w-full")}
-                  onClick={() => onPickPlan(plan)}
+
+                <button
+                  type="button"
+                  onClick={() => onPickPlan(p)}
+                  className={cn(
+                    "mt-7 w-full rounded-lg py-2.5 text-sm font-semibold transition-colors",
+                    p.highlighted || p.badge
+                      ? "btn-copper text-white"
+                      : "border border-white/15 text-white hover:bg-white/5",
+                  )}
                 >
-                  {plan.priceUf !== null ? "CONTRATAR" : "HABLEMOS"}
-                </Button>
-              </article>
+                  {p.priceUf === 0 ? "Comenzar gratis" : "Suscribirse"}
+                </button>
+              </div>
             </ScrollReveal>
           ))}
         </div>
-        <p className="mt-8 text-center font-pixel text-[10px] tracking-[0.2em] text-emerald-100/40">
-          VALORES EN UF + IVA · SIN PERMANENCIA MÍNIMA
-        </p>
+      </div>
+    </section>
+  );
+
+}
+
+function SimuladorSection() {
+  return (
+    <section id="simulador" className="bg-[#0d0d0d] pt-10 pb-28 sm:pt-14 sm:pb-44">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <ProductInteractivePreview />
       </div>
     </section>
   );
@@ -482,49 +626,80 @@ function Pricing({
 
 function UseCases() {
   return (
-    <section id="casos" className="pixel-sky-forest scroll-mt-16">
-      <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
-        <ScrollReveal>
-          <SectionTitle
-            dark
-            kicker="Casos de uso"
-            title="FRIG se adapta a tu rubro — con tu marca"
-            sub="Estas demos ya están operativas. Entra a cualquiera y mira el sistema funcionando con el logo y color de cada negocio."
-          />
-        </ScrollReveal>
+    <section id="demos" className="bg-[#0a0a0a] pt-10 pb-28 sm:pt-14 sm:pb-44">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <div className="mb-12 flex flex-col gap-8 sm:flex-row sm:items-end sm:justify-between">
+          <div className="max-w-xl">
+            <p className="flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.22em] text-[#c67d52]">
+              <span
+                className="inline-block h-2 w-2 rotate-45"
+                style={{ backgroundColor: COPPER }}
+                aria-hidden
+              />
+              Demos en vivo
+            </p>
+            <h2 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+              Mira nuestras demos
+            </h2>
+            <p className="mt-4 text-sm leading-relaxed text-zinc-400">
+              Una demo operativa por cada rubro, con datos y flujos reales.
+              Accede libremente y evalúa Frig en primera persona.
+            </p>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-3 self-start rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 sm:self-auto">
+            <span className="relative flex h-2.5 w-2.5">
+              <span
+                className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60"
+                style={{ backgroundColor: COPPER }}
+              />
+              <span
+                className="relative inline-flex h-2.5 w-2.5 rounded-full"
+                style={{ backgroundColor: COPPER }}
+              />
+            </span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
+              {LANDING_USE_CASES.length} demos activas
+            </span>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {LANDING_USE_CASES.map((useCase, i) => (
-            <ScrollReveal key={useCase.slug} delay={(i % 3) * 0.07} className="h-full">
+            <ScrollReveal key={useCase.slug} delay={(i % 3) * 0.05} className="h-full">
               <Link
                 href={`/login/${useCase.slug}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="pixel-frame group flex h-full flex-col gap-3 p-5 transition-transform hover:-translate-y-1"
-                style={{
-                  borderColor: useCase.brandColor,
-                  boxShadow: `5px 5px 0 0 ${useCase.brandColor}55`,
-                }}
+                className="group flex h-full flex-col justify-between gap-4 rounded-xl border border-white/10 bg-white/[0.03] p-5 transition-all hover:border-[#c67d52]/50 hover:bg-white/[0.06]"
               >
-              <div className="flex items-center gap-3">
-                <span
-                  className="flex h-10 w-10 shrink-0 items-center justify-center text-white"
-                  style={{ backgroundColor: useCase.brandColor }}
-                >
-                  <PixelFoodMark className="h-5 w-5" />
-                </span>
-                <div className="min-w-0">
-                  <p className="truncate font-pixel text-[13px] font-semibold tracking-wider">
-                    {useCase.name}
+                <div>
+                  <div className="flex items-center gap-3 mb-3">
+                    <span
+                      className="h-2 w-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: useCase.brandColor }}
+                      aria-hidden
+                    />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-white">
+                        {useCase.name}
+                      </p>
+                      <p className="text-xs text-zinc-500">{useCase.rubro}</p>
+                    </div>
+                  </div>
+                  <p className="text-sm text-zinc-400 leading-relaxed">
+                    {useCase.highlight}
                   </p>
-                  <p className="text-xs text-muted-foreground">{useCase.rubro}</p>
                 </div>
-              </div>
-              <p className="text-[13px] text-muted-foreground">{useCase.highlight}</p>
-              <span className="mt-auto inline-flex items-center gap-1 font-pixel text-[11px] tracking-[0.14em] text-primary">
-                ENTRAR A LA DEMO
-                <ExternalLink className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
-              </span>
-            </Link>
+
+                <div
+                  className="flex items-center gap-1.5 text-sm font-medium"
+                  style={{ color: COPPER }}
+                >
+                  <span>Entrar a la demo</span>
+                  <ExternalLink className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                </div>
+              </Link>
             </ScrollReveal>
           ))}
         </div>
@@ -533,57 +708,81 @@ function UseCases() {
   );
 }
 
-function FinalCta({
-  plans,
-  onPickPlan,
-}: {
-  plans: LandingPlan[];
-  onPickPlan: (p: LandingPlan) => void;
-}) {
-  const cta = plans[0];
-  const ctaLabel =
-    cta?.priceUf != null ? `EMPEZAR POR ${cta.priceUf} UF` : "EMPEZAR AHORA";
+/* Alcance de cada módulo: a qué ámbito del negocio aporta. */
+const MODULE_SCOPES: Record<string, string> = {
+  "Punto de venta táctil": "Venta",
+  "Caja y arqueo": "Dinero",
+  "Mesas y salón": "Salón",
+  "Delivery y retiro": "Canales",
+  "Cocina y KDS": "Operación",
+  "Inventario y recetas": "Bodega",
+  "Facturación electrónica": "SII",
+  "Menú QR y pedidos": "Canales",
+  "Medios de pago": "Dinero",
+  "Multi-sucursal": "Gestión",
+  "Proveedores y compras": "Bodega",
+  "Roles y permisos": "Gestión",
+};
+
+function Features() {
   return (
-    <section className="pixel-sky-hero relative overflow-hidden">
-      {/* Estrellas pixel titilando sobre el CTA final. */}
-      {[12, 30, 48, 66, 84].map((left, i) => (
-        <span
-          key={left}
-          aria-hidden
-          className="login-twinkle absolute"
-          style={{
-            left: `${left}%`,
-            top: `${12 + i * 9}%`,
-            width: 3,
-            height: 3,
-            backgroundColor: GOLD,
-            animationDelay: `${i * 0.7}s`,
-            animationDuration: `${2.6 + i * 0.4}s`,
-          }}
-        />
-      ))}
-      <div className="mx-auto flex max-w-6xl flex-col items-center gap-5 px-4 py-16 text-center sm:px-6 sm:py-20">
-        <ScrollReveal className="flex flex-col items-center gap-5">
-          <h2
-            className="max-w-xl font-pixel text-2xl leading-snug tracking-wide sm:text-3xl"
-            style={{ color: CREAM, textShadow: "3px 3px 0 rgba(0,0,0,0.5)" }}
-          >
-            Tu local funcionando con FRIG <span style={{ color: GOLD }}>esta semana</span>
-          </h2>
-          <p className="max-w-md text-sm text-emerald-100/80 sm:text-base">
-            Elige tu plan, paga la integración y recibe tu código de acceso por correo.
-            Sin letra chica: todos los módulos, siempre.
-          </p>
-          <Button
-            size="lg"
-            className={cn(PIXEL_BTN, "text-emerald-950")}
-            style={{ backgroundColor: GOLD }}
-            onClick={() => cta && onPickPlan(cta)}
-          >
-            {ctaLabel}
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-        </ScrollReveal>
+    <section id="producto" className="bg-[#0a0a0a] pt-10 pb-28 sm:pt-14 sm:pb-44">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <div className="mb-8 flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.22em] text-[#c67d52]">
+          <span
+            className="inline-block h-2 w-2 rotate-45"
+            style={{ backgroundColor: COPPER }}
+            aria-hidden
+          />
+          Módulos · Alcance de Frig
+        </div>
+
+        {/* Tabla flexible: columnas en desktop, filas apiladas en móvil. */}
+        <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
+          <div className="hidden md:grid grid-cols-[1.1fr_1.6fr_auto] gap-6 border-b border-white/[0.06] px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+            <span>Módulo</span>
+            <span>Qué hace</span>
+            <span className="text-right">Ámbito</span>
+          </div>
+
+          {LANDING_FEATURES.map((feature, i) => {
+            const Icon = feature.icon;
+            const scope = MODULE_SCOPES[feature.title] ?? "Frig";
+            return (
+              <div
+                key={feature.title}
+                className={cn(
+                  "grid grid-cols-1 gap-2 px-5 py-5 transition-colors hover:bg-white/[0.03] md:grid-cols-[1.1fr_1.6fr_auto] md:items-center md:gap-6 md:px-6",
+                  i !== LANDING_FEATURES.length - 1 &&
+                    "border-b border-white/[0.05]",
+                )}
+              >
+                <div className="flex items-center gap-3.5">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#c67d52]/25 bg-[#c67d52]/[0.07]">
+                    <Icon className="h-4 w-4" style={{ color: COPPER }} />
+                  </span>
+                  <h3 className="text-sm font-semibold text-white">
+                    {feature.title}
+                  </h3>
+                </div>
+
+                <p className="text-sm leading-relaxed text-zinc-400 md:pr-4">
+                  {feature.description}
+                </p>
+
+                <div className="md:text-right">
+                  <span className="inline-block rounded-full border border-[#c67d52]/25 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#c67d52]">
+                    {scope}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <p className="mt-6 text-xs text-zinc-500">
+          Los 12 módulos vienen activos desde el día uno, en todos los planes.
+        </p>
       </div>
     </section>
   );
@@ -591,83 +790,82 @@ function FinalCta({
 
 function Footer({ contactEmail }: { contactEmail: string }) {
   return (
-    <footer className="bg-[#14160f]">
-      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 py-8 font-pixel text-[10px] tracking-[0.18em] text-emerald-100/50 sm:flex-row sm:px-6">
-        <span className="flex items-center gap-2">
-          <PixelFoodMark className="h-4 w-4" />
-          FRIG — GESTIÓN COMERCIAL Y GASTRONÓMICA
-        </span>
-        <nav className="flex items-center gap-5">
-          <Link href="/politicas" className="transition-colors hover:text-white">
-            POLÍTICA DE PRIVACIDAD
-          </Link>
-          <a href={`mailto:${contactEmail}`} className="text-emerald-100 hover:text-white">
-            CONTACTO: {contactEmail}
+    <footer className="relative overflow-hidden bg-[#0a0a0a] py-14">
+      {/* Energía de cierre: red de nodos + horizonte cálido, como el hero */}
+      <SectionDivider />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-[70%]"
+        style={{
+          background:
+            "radial-gradient(110% 100% at 50% 130%, rgba(240,162,106,0.14) 0%, rgba(157,182,143,0.04) 45%, transparent 72%)",
+        }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-60"
+        style={{
+          maskImage:
+            "radial-gradient(90% 120% at 50% 100%, black 30%, transparent 100%)",
+          WebkitMaskImage:
+            "radial-gradient(90% 120% at 50% 100%, black 30%, transparent 100%)",
+        }}
+      >
+        <HeroPlexus className="h-full w-full" />
+      </div>
+      <ScrollReveal className="relative mx-auto mt-12 flex max-w-6xl flex-col items-center justify-between gap-6 px-6 text-sm text-zinc-500 sm:flex-row sm:px-8">
+        <div className="flex items-center gap-3">
+          <img
+            src="/brand/frig-symbol.png"
+            alt="FRIG"
+            className="h-10 w-auto"
+            style={{ filter: "drop-shadow(0 0 10px rgba(238,158,112,0.35))" }}
+          />
+          <div className="flex flex-col">
+            <span className="font-semibold text-zinc-300">Frig</span>
+            <span className="text-xs">Tu negocio completo, en una sola pantalla · Chile</span>
+          </div>
+        </div>
+        <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm">
+          <a href="#producto" className="transition-colors hover:text-white">Módulos</a>
+          <a href="#precios" className="transition-colors hover:text-white">Precios</a>
+          <Link href="/politicas" className="transition-colors hover:text-white">Privacidad</Link>
+          <a href={`mailto:${contactEmail}`} className="transition-colors hover:text-white" style={{ color: COPPER }}>
+            {contactEmail}
           </a>
         </nav>
-      </div>
+      </ScrollReveal>
     </footer>
   );
 }
 
-/**
- * Sitio público de FRIG en `/`. Estilo juego medieval pixel-art: fondos en
- * mosaico oscuro, castillo en bitmap, marcos chunky con sombra dura y
- * tipografía pixel en los títulos. El login queda en /login.
- *
- * Gate by-host (splash-first): la exportación estática no puede detectar el
- * host en el servidor, así que el primer paint (SSR incluido) es SIEMPRE una
- * pantalla oscura mínima y la landing solo se monta tras resolver el host en
- * cliente. En dominio de tenant (by-host) se redirige a /login sin que la
- * landing llegue a pintarse jamás — un flash de landing rompe el contexto del
- * producto white-label. En dominio propio/desarrollo la splash cede paso a la
- * landing (las animaciones de entrada la hacen ver intencional).
- *
- * Reingreso: si hay una sesión persistida (frig.token + frig.session), la
- * animación de entrada muestra al usuario con un botón que vuelve directo al
- * home persistido. La validez real del token la confirma el shell de la app
- * (un 401 limpia la sesión y vuelve a /login con aviso).
- *
- * Todo el contenido de la landing viene de GET /public/landing-config/
- * (grupo según checkoutGroup): hero, funciones, nota de pricing, contacto,
- * UF de integración y planes. `src/content/landing.ts` queda solo como
- * fallback ante 404/error del backend.
- */
 export function LandingSite() {
   const router = useRouter();
   const [plan, setPlan] = useState<LandingPlan | null>(null);
   const { status, theme, checkoutGroup } = useApp();
-  // Primer paint del cliente: el SSR sirve la splash, pero el render inicial
-  // hidratado aún no ha resuelto el host — se vuelve a la splash hasta tener
-  // el veredicto (mounted && status !== "checking"). useSyncExternalStore da
-  // ese gate sin setState en effect (regla react-hooks/set-state-in-effect).
+
   const mounted = useSyncExternalStore(
     () => () => {},
     () => true,
     () => false,
   );
 
-  // Si el tema es de "frig" (la app principal), mostrar la landing.
-  // Solo redirigir a /login si es un tenant white-label diferente.
   const isFrigTheme = theme?.app_name?.toLowerCase().includes("frig") ?? false;
   const byHost = status === "checking" ? "checking" : (theme && !isFrigTheme) ? "tenant" : "landing";
 
-  // Sesión persistida de un ingreso anterior: solo se expone después de que
-  // el store hidrató (hasHydrated) para no pelear con el SSR/hidratación.
   const hasHydrated = useSessionStore((s) => s.hasHydrated);
   const sessionUser = useSessionStore((s) => s.user);
   const dashboard = useSessionStore((s) => s.dashboard);
   const [entering, setEntering] = useState(false);
   const savedUser = hasHydrated && sessionUser && getToken() ? sessionUser : null;
   const homeRoute = normalizeDashboardRoute(dashboard) ?? "/dashboard";
+
   function handleReenter() {
     if (entering) return;
     setEntering(true);
     router.push(homeRoute);
   }
 
-  // Config viva de la landing (una sola llamada: copy + planes). Solo cuando
-  // el host quedó resuelto como landing: en tenant ni se pide.
   const configQuery = useQuery({
     queryKey: ["landing-config", checkoutGroup],
     queryFn: () => fetchLandingConfig(checkoutGroup),
@@ -675,59 +873,61 @@ export function LandingSite() {
     retry: 1,
     enabled: mounted && byHost === "landing",
   });
+
   const { plans, integrationUf } = useMemo(
     () => resolvePlans(configQuery.data),
     [configQuery.data],
   );
+
   const group = configQuery.data?.group;
   const heroCopy = group?.hero ?? null;
-  const featureItems = group?.features ?? [];
-  const pricingNote = group?.pricing_note || LANDING_PRICING_NOTE;
   const contactEmail = group?.contact_email || DEMO_CONTACTS.to;
+  const pricingNote = group?.pricing_note || LANDING_PRICING_NOTE;
 
   useEffect(() => {
     if (byHost === "tenant") window.location.replace("/login");
   }, [byHost]);
 
-  // La landing fija la identidad FRIG (ver docs/tasks landing-login): un
-  // tema de tenant persistido en :root por un login previo (misma cookie de
-  // dominio) mancha las secciones pixel que usan tokens de tema (var(--card),
-  // var(--muted-foreground), …). Se limpia al montar.
   useEffect(() => {
     applyThemeConfig(null);
     document.documentElement.classList.remove("dark");
   }, []);
 
-  // Splash mínima mientras no hay veredicto de host (SSR, primer paint e
-  // identificación del tenant): la landing nunca se pinta en dominios
-  // by-branch — de haber branding se sale directo a /login.
   if (!mounted || byHost !== "landing") {
     return (
-      <div
-        className="flex min-h-dvh items-center justify-center"
-        style={{ background: "#0b110c" }}
-        aria-hidden
-      >
-        <PixelFoodMark className="h-10 w-10 text-emerald-100/60" />
+      <div className="flex min-h-dvh items-center justify-center bg-[#0a0a0a]" aria-hidden>
+        <img src="/brand/frig-symbol.png" alt="" className="h-10 w-10 opacity-60" />
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-dvh flex-1 flex-col bg-background font-sans">
+    <div className="flex min-h-dvh flex-1 flex-col bg-[#0a0a0a] font-sans">
       <Nav savedUser={savedUser} />
       <main>
-        <Hero plans={plans} hero={heroCopy} onPickPlan={setPlan} savedUser={savedUser} entering={entering} onReenter={handleReenter} />
-        <Features items={featureItems} />
-        <PixelSlope from="#122217" fill="#0b110c" seed={1} />
-        <Pricing plans={plans} integrationUf={integrationUf} pricingNote={pricingNote} onPickPlan={setPlan} />
+        <Hero
+          hero={heroCopy}
+          savedUser={savedUser}
+          entering={entering}
+          onReenter={handleReenter}
+        />
+        <SimuladorSection />
+        <PricingSection
+          plans={plans}
+          integrationUf={integrationUf}
+          pricingNote={pricingNote}
+          onPickPlan={setPlan}
+        />
         <UseCases />
-        <FinalCta plans={plans} onPickPlan={setPlan} />
+        <Features />
       </main>
-      {/* Contacto fijo de la marca; el checkout sigue usando el correo del
-          grupo configurado en el backend. */}
-      <Footer contactEmail={DEMO_CONTACTS.to} />
-      <CheckoutModal plan={plan} integrationUf={integrationUf} contactEmail={contactEmail} onClose={() => setPlan(null)} />
+      <Footer contactEmail={contactEmail} />
+      <CheckoutModal
+        plan={plan}
+        integrationUf={integrationUf}
+        contactEmail={contactEmail}
+        onClose={() => setPlan(null)}
+      />
     </div>
   );
 }

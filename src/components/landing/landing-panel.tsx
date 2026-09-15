@@ -1,153 +1,100 @@
 "use client";
 
-import type { CSSProperties } from "react";
-import { motion, useReducedMotion, type Variants } from "framer-motion";
+/**
+ * Panel izquierdo del login: identidad FRIG (negro + cobre + red de energía).
+ * Si la sucursal tiene marca propia, se muestra la de ella.
+ */
+
 import { LANDING_FEATURES, LANDING_VALUE_PROP } from "@/content/landing";
 import { BrandLogo } from "@/components/brand-logo";
-import { PixelFoodMark } from "@/components/landing/pixel-food-mark";
+import { HeroPlexus } from "@/components/landing/hero-plexus";
+import { useReducedMotion } from "framer-motion";
 
 type LandingBrand = { name: string; logo?: string | null } | null;
 
-type FrigScopeStyle = CSSProperties & {
-  readonly "--frig-bg": string;
-  readonly "--frig-bg-soft": string;
-  readonly "--frig-text": string;
-  readonly "--frig-text-muted": string;
-  readonly "--frig-accent": string;
-  readonly "--frig-accent-strong": string;
-  readonly "--frig-line": string;
-  readonly "--frig-coin": string;
-  readonly "--frig-dough": string;
-  readonly "--frig-tomato": string;
-  readonly "--frig-coffee": string;
-  readonly "--frig-meat": string;
-  readonly "--frig-apple": string;
-  readonly "--frig-bread": string;
-  readonly "--frig-bread-light": string;
-};
-
-const FRIG_SCOPE_VARS: FrigScopeStyle = {
-  "--frig-bg": "#0f2e1c",
-  "--frig-bg-soft": "#163b24",
-  "--frig-text": "#f3f7f4",
-  "--frig-text-muted": "#a9c9b8",
-  "--frig-accent": "#8dc4a3",
-  "--frig-accent-strong": "#a9d8bf",
-  "--frig-line": "rgba(141,196,163,0.18)",
-  "--frig-coin": "#e9bd4a",
-  "--frig-dough": "#e8c17a",
-  "--frig-tomato": "#d8783d",
-  "--frig-coffee": "#8a4f2b",
-  "--frig-meat": "#9f442f",
-  "--frig-apple": "#c95f4b",
-  "--frig-bread": "#d8a45c",
-  "--frig-bread-light": "#f1d195",
-};
-
 export function LandingPanel({ brand }: { brand?: LandingBrand }) {
-  const reduceMotion = useReducedMotion();
-
-  const container: Variants = {
-    hidden: {},
-    show: {
-      transition: { staggerChildren: reduceMotion ? 0 : 0.07 },
-    },
-  };
-
-  const item: Variants = {
-    hidden: { opacity: 0, y: reduceMotion ? 0 : 12 },
-    show: { opacity: 1, y: 0, transition: { duration: 0.32, ease: "easeOut" } },
-  };
+  const reduce = useReducedMotion();
 
   return (
-    <div
-      style={{
-        ...FRIG_SCOPE_VARS,
-        backgroundImage:
-          "radial-gradient(900px 420px at 8% -10%, rgba(141,196,163,0.18), transparent 58%)",
-      }}
-      className="relative flex h-full flex-col justify-center overflow-hidden bg-[var(--frig-bg)] px-8 py-8 font-pixel text-[var(--frig-text)] lg:px-12 lg:py-10"
-    >
-      <motion.div
-        variants={container}
-        initial="hidden"
-        animate="show"
-        className="relative z-10 flex flex-col gap-6"
-      >
-        <motion.header variants={item} className="flex flex-col items-center gap-2 text-center">
-          {brand ? (
-            <>
-              <motion.span
-                initial={reduceMotion ? false : { opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.4, ease: "easeOut" }}
-                className="flex items-center gap-2"
-              >
-                <BrandLogo src={brand.logo ?? null} name={brand.name} className="h-8 w-8" />
-                <span className="text-xl font-semibold tracking-wide text-[var(--frig-text)]">
-                  {brand.name}
-                </span>
-              </motion.span>
-              <span className="text-xs uppercase tracking-[0.18em] text-[var(--frig-text-muted)]">
-                powered by FRIG
-              </span>
-            </>
-          ) : (
-            <>
-              <motion.span
-                initial={reduceMotion ? false : { opacity: 0, rotate: -8, scale: 0.8 }}
-                animate={{ opacity: 1, rotate: 0, scale: 1 }}
-                transition={{ duration: 0.45, ease: "easeOut" }}
-                className="text-[var(--frig-accent)]"
-              >
-                <PixelFoodMark className="h-7 w-7" />
-              </motion.span>
-              <motion.span
-                className="font-pixel text-2xl font-semibold tracking-[0.3em] text-[var(--frig-text)]"
-                initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, ease: "easeOut", delay: 0.2 }}
-              >
-                FRIG
-              </motion.span>
-              <span className="text-xs uppercase tracking-[0.18em] text-[var(--frig-text-muted)]">
-                Gestión comercial y gastronómica
-              </span>
-            </>
-          )}
-        </motion.header>
+    <div className="relative hidden h-full flex-col justify-center overflow-hidden bg-[#0a0a0a] px-10 font-sans text-white lg:flex lg:px-14">
+      {/* Horizonte cálido + red de energía, como el hero */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-[55%]"
+        style={{
+          background:
+            "radial-gradient(120% 90% at 50% 115%, rgba(240,162,106,0.2) 0%, rgba(157,182,143,0.06) 42%, transparent 70%)",
+        }}
+      />
+      {!reduce && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-70"
+          style={{
+            maskImage:
+              "radial-gradient(90% 85% at 45% 50%, black 30%, transparent 100%)",
+            WebkitMaskImage:
+              "radial-gradient(90% 85% at 45% 50%, black 30%, transparent 100%)",
+          }}
+        >
+          <HeroPlexus className="h-full w-full" />
+        </div>
+      )}
 
-        <motion.div variants={item} className="flex flex-col items-center justify-center gap-4 text-center">
-          <p className="max-w-md text-pretty text-[15px] leading-relaxed text-[var(--frig-text-muted)]">
+      <div className="relative z-10 flex flex-col gap-8">
+        {brand ? (
+          <div className="flex items-center gap-3">
+            <BrandLogo
+              src={brand.logo ?? null}
+              alt={brand.name}
+              name={brand.name}
+              className="h-10 w-10"
+            />
+            <div className="flex flex-col">
+              <span className="text-lg font-semibold text-white">{brand.name}</span>
+              <span className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+                powered by Frig
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-4">
+            <img
+              src="/brand/frig-symbol.png"
+              alt=""
+              className="h-12 w-auto"
+              style={{ filter: "drop-shadow(0 0 12px rgba(238,158,112,0.4))" }}
+            />
+            <img src="/brand/frig-wordmark.png" alt="Frig" className="h-6 w-auto" />
+          </div>
+        )}
+
+        <div>
+          <h2 className="max-w-md text-3xl font-semibold leading-tight tracking-tight">
+            {LANDING_VALUE_PROP.headline}
+          </h2>
+          <p className="mt-3 max-w-md text-sm leading-relaxed text-zinc-400">
             {LANDING_VALUE_PROP.subhead}
           </p>
-        </motion.div>
+        </div>
 
-        <motion.ul
-          variants={item}
-          className="mx-auto grid w-full max-w-3xl grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 xl:grid-cols-3 place-content-center"
-        >
-          {LANDING_FEATURES.map((feature) => {
-            const Icon = feature.icon;
-            return (
-              <li key={feature.title} className="group flex gap-3">
-                <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[var(--frig-bg-soft)]">
-                  <Icon
-                    className="h-4 w-4 text-[var(--frig-accent)] transition-transform duration-150 group-hover:-translate-y-0.5"
-                    aria-hidden="true"
-                  />
-                </span>
-                <div>
-                  <p className="text-sm font-semibold leading-snug">{feature.title}</p>
-                  <p className="mt-0.5 text-[13px] leading-snug text-[var(--frig-text-muted)]">
-                    {feature.description}
-                  </p>
-                </div>
-              </li>
-            );
-          })}
-        </motion.ul>
-      </motion.div>
+        <ul className="grid max-w-md grid-cols-1 gap-x-8 gap-y-2.5 text-sm text-zinc-300 sm:grid-cols-2">
+          {LANDING_FEATURES.slice(0, 8).map((f) => (
+            <li key={f.title} className="flex items-center gap-2.5">
+              <span
+                className="h-1 w-1 shrink-0 rotate-45"
+                style={{ backgroundColor: "#c67d52" }}
+                aria-hidden
+              />
+              {f.title}
+            </li>
+          ))}
+        </ul>
+
+        <p className="text-xs text-zinc-500">
+          12 módulos incluidos · Boleta electrónica SII · Soporte en Chile
+        </p>
+      </div>
     </div>
   );
 }

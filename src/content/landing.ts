@@ -26,9 +26,9 @@ export interface LandingValueProp {
 }
 
 export const LANDING_VALUE_PROP: LandingValueProp = {
-  headline: "Gestión comercial y gastronómica, todo incluido.",
+  headline: "Tu negocio completo, en una sola pantalla",
   subhead:
-    "Punto de venta, mesas, cocina, delivery, inventario y finanzas en una sola app. Activa solo los módulos que tu negocio necesita — sin pagar de más.",
+    "Caja, mesas, cocina, inventario y facturación en un solo sistema. Todo incluido en todos los planes.",
 };
 
 /**
@@ -58,43 +58,43 @@ export const LANDING_FEATURES: LandingFeature[] = [
   },
   {
     icon: ChefHat,
-    title: "Cocina en vivo",
-    description: "Comandas por estación en la pantalla KDS, sin papeles.",
+    title: "Cocina y KDS",
+    description: "Comandas en pantalla con tiempos y estado en vivo.",
   },
   {
     icon: Warehouse,
-    title: "Inventario multi-bodega",
-    description: "Stock, movimientos y alertas en tiempo real.",
-  },
-  {
-    icon: Truck,
-    title: "Compras y proveedores",
-    description: "Órdenes de compra y pagos integrados a la caja.",
-  },
-  {
-    icon: CreditCard,
-    title: "Finanzas claras",
-    description: "Pagos, métodos, cuentas bancarias y conciliación.",
+    title: "Inventario y recetas",
+    description: "Descuento automático de insumos al vender.",
   },
   {
     icon: FileText,
-    title: "Documentos tributarios",
-    description: "Boletas y facturas electrónicas listas para el SII.",
+    title: "Facturación electrónica",
+    description: "Boletas y facturas al SII con un clic.",
   },
   {
     icon: QrCode,
-    title: "Menú QR público",
-    description: "Tu carta digital para que los clientes vean y compartan.",
+    title: "Menú QR y pedidos",
+    description: "Carta digital con pedidos desde la mesa.",
+  },
+  {
+    icon: CreditCard,
+    title: "Medios de pago",
+    description: "Transbank, efectivo, transferencia y propina del 10%.",
   },
   {
     icon: Store,
-    title: "Multi-sucursal con tu marca",
-    description: "Logo, colores, equipo y módulos por cada local.",
+    title: "Multi-sucursal",
+    description: "Gestiona varios locales desde una sola cuenta.",
+  },
+  {
+    icon: Truck,
+    title: "Proveedores y compras",
+    description: "Órdenes de compra y recepción de mercadería.",
   },
   {
     icon: ShieldCheck,
     title: "Roles y permisos",
-    description: "Cajero, garzón y administrador: cada uno ve lo suyo.",
+    description: "Acceso granular para administradores, cajeros y garzones.",
   },
 ];
 
@@ -114,9 +114,7 @@ export const DEMO_CONTACTS = {
 export interface LandingPlan {
   id: string;
   name: string;
-  /** Perfil de negocio al que apunta el nivel. */
   tagline: string;
-  /** Precio mensual en UF (null = a convenir). */
   priceUf: number | null;
   /** Recursos incluidos (lo que crece entre niveles). */
   resources: string[];
@@ -125,49 +123,35 @@ export interface LandingPlan {
   badge?: string | null;
 }
 
-export const LANDING_INTEGRATION_UF = 1;
+export const LANDING_INTEGRATION_UF = 0;
 
 export const LANDING_PLANS: LandingPlan[] = [
   {
-    id: "kiosco",
-    name: "Emprendimiento",
-    tagline: "Kioscos y negocios de barrio",
-    priceUf: 1,
-    resources: ["1 sucursal", "1 punto de venta", "2 usuarios"],
+    id: "demo",
+    name: "Plan Demo",
+    tagline: "Prueba gratuita sin compromiso",
+    priceUf: 0,
+    resources: ["POS básico", "Inventario", "1 sucursal", "Soporte email"],
   },
   {
     id: "local",
-    name: "Local en crecimiento",
-    tagline: "Minimarkets y cafeterías con su segunda caja",
-    priceUf: 2,
-    resources: ["1 sucursal", "2 puntos de venta", "5 usuarios", "Totem QR incluido"],
-  },
-  {
-    id: "restaurante",
-    name: "Restaurante",
-    tagline: "Salón con mesas, garzones y cocina en vivo",
-    priceUf: 3,
-    resources: ["2 sucursales", "3 puntos de venta", "10 usuarios", "KDS de cocina incluido"],
-    highlighted: true,
-  },
-  {
-    id: "grande",
-    name: "Operación grande",
-    tagline: "Varios salones, cajeros y turnos completos",
+    name: "Plan Local",
+    tagline: "Para locales pequeños",
     priceUf: 5,
-    resources: ["3 sucursales", "6 puntos de venta", "20 usuarios", "Multi-bodega completa"],
+    resources: ["POS avanzado", "Inventario completo", "3 sucursales", "Soporte prioritario", "Reportes básicos"],
+    highlighted: true,
+    badge: "Más Popular",
   },
   {
-    id: "cadena",
-    name: "Cadena",
-    tagline: "Franquicias y multi-local a escala",
-    priceUf: null,
-    resources: ["Sucursales ilimitadas", "POS ilimitados", "Usuarios ilimitados", "Acompañamiento dedicado"],
+    id: "pro",
+    name: "Plan Pro",
+    tagline: "Para redes y franquicias",
+    priceUf: 15,
+    resources: ["Todo en Local", "Sucursales ilimitadas", "Agentes IA", "Workflows", "Soporte 24/7", "API completa"],
   },
 ];
 
-export const LANDING_PRICING_NOTE =
-  "Todos los planes incluyen todos los módulos: POS, caja, mesas, cocina, delivery, inventario, finanzas, documentos tributarios, menú QR, promociones, reportes y multi-sucursal con tu marca. El precio crece con el tamaño de tu operación — nunca con las funciones.";
+export const LANDING_PRICING_NOTE = "Precios en UF. Plan demo sin costo.";
 
 // ── Casos de uso (demos) ─────────────────────────────────────────────────────
 

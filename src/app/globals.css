@@ -99,6 +99,15 @@
 html {
   /* App-like: sin rebote de overscroll ni pull-to-refresh "suelto" en PWA. */
   overscroll-behavior: none;
+  /* Navegación por anclas suave, con margen para el header fijo. */
+  scroll-behavior: smooth;
+  scroll-padding-top: 4.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
 }
 
 body {
@@ -488,7 +497,255 @@ a {
   animation: login-shake 0.4s steps(8);
 }
 
-/* ── Landing: longhouse vivo + nubes + viento + glow de planes ──────────── */
+/* ── Hero FRIG: paisaje del logo (fogata + viento) ───────────────────────── */
+
+/* Brasas que serpentean al subir (deriva en zigzag, como chispas reales). */
+@keyframes frig-ember {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.95;
+  }
+  35% {
+    transform: translate3d(calc(var(--drift, 20px) * -0.8), -18vh, 0) scale(0.8);
+    opacity: 0.85;
+  }
+  65% {
+    transform: translate3d(calc(var(--drift, 20px) * 1.1), -32vh, 0) scale(0.6);
+    opacity: 0.6;
+  }
+  100% {
+    transform: translate3d(calc(var(--drift, 20px) * -0.4), -46vh, 0) scale(0.3);
+    opacity: 0;
+  }
+}
+
+.frig-ember {
+  position: absolute;
+  bottom: -2%;
+  width: 5px;
+  height: 5px;
+  /* Destello de 4 puntas: chispa, no círculo. */
+  clip-path: polygon(50% 0%, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0% 50%, 38% 38%);
+  background: #f0a26a;
+  filter: drop-shadow(0 0 3px rgba(240, 162, 106, 0.7))
+    drop-shadow(0 0 9px rgba(232, 146, 94, 0.3));
+  animation: frig-ember var(--dur, 10s) linear infinite;
+  animation-delay: var(--delay, 0s);
+  will-change: transform, opacity;
+}
+
+/* Chispa blanca-caliente: más grande, más viva, aparece ocasionalmente. */
+.frig-ember-hot {
+  background: #ffd9a8;
+  filter: drop-shadow(0 0 4px rgba(255, 217, 168, 0.85))
+    drop-shadow(0 0 12px rgba(240, 162, 106, 0.4));
+}
+
+/* Cuerpo del fuego detrás del wordmark: masas de brasa difusas que laten. */
+.frig-fireglow {
+  position: absolute;
+  inset: -40% -14% -30% -14%;
+  border-radius: 50%;
+  background: radial-gradient(
+    52% 62% at 50% 68%,
+    rgba(240, 140, 60, 0.5) 0%,
+    rgba(230, 115, 50, 0.2) 52%,
+    transparent 74%
+  );
+  filter: blur(26px);
+  animation: frig-fireglow 3.6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.frig-fireglow-2 {
+  inset: -20% -4% -46% -4%;
+  background: radial-gradient(
+    46% 54% at 50% 74%,
+    rgba(255, 170, 90, 0.4) 0%,
+    rgba(240, 120, 50, 0.14) 55%,
+    transparent 76%
+  );
+  filter: blur(38px);
+  animation: frig-fireglow 2.7s ease-in-out infinite reverse;
+}
+
+/* Latido irregular del fuego: nunca es un vaivén perfecto. */
+@keyframes frig-fireglow {
+  0% {
+    transform: scale(1) translateY(0);
+    opacity: 0.72;
+  }
+  18% {
+    transform: scale(1.07) translateY(-3%);
+    opacity: 0.92;
+  }
+  36% {
+    transform: scale(0.96) translateY(1.5%);
+    opacity: 0.64;
+  }
+  53% {
+    transform: scale(1.1) translateY(-4%);
+    opacity: 0.98;
+  }
+  70% {
+    transform: scale(1.02) translateY(0.5%);
+    opacity: 0.78;
+  }
+  86% {
+    transform: scale(1.08) translateY(-2%);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 0.72;
+  }
+}
+
+/* Las letras reciben la luz del fuego: parpadeo corto e irregular. */
+@keyframes frig-flicker {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 22px rgba(240, 162, 106, 0.42))
+      drop-shadow(0 0 64px rgba(232, 146, 94, 0.2)) brightness(1);
+  }
+  23% {
+    filter: drop-shadow(0 0 30px rgba(240, 162, 106, 0.55))
+      drop-shadow(0 0 84px rgba(232, 146, 94, 0.26)) brightness(1.05);
+  }
+  41% {
+    filter: drop-shadow(0 0 18px rgba(240, 162, 106, 0.36))
+      drop-shadow(0 0 52px rgba(232, 146, 94, 0.16)) brightness(0.98);
+  }
+  63% {
+    filter: drop-shadow(0 0 34px rgba(255, 180, 110, 0.6))
+      drop-shadow(0 0 96px rgba(232, 146, 94, 0.3)) brightness(1.08);
+  }
+  81% {
+    filter: drop-shadow(0 0 24px rgba(240, 162, 106, 0.46))
+      drop-shadow(0 0 70px rgba(232, 146, 94, 0.22)) brightness(1.02);
+  }
+}
+
+.frig-flame {
+  animation: frig-flicker 2.6s ease-in-out infinite;
+  will-change: filter;
+}
+
+/* Salto dimensional del wordmark: glitch breve, como cruzar un portal. */
+@keyframes frig-dimension {
+  0% {
+    transform: translate(0, 0) skewX(0deg);
+    clip-path: none;
+    filter: brightness(1);
+    opacity: 1;
+  }
+  18% {
+    transform: translate(-12px, 3px) skewX(-8deg);
+    clip-path: inset(8% 0 46% 0);
+    filter: brightness(1.7) drop-shadow(0 0 16px rgba(157, 182, 143, 0.8));
+  }
+  38% {
+    transform: translate(14px, -4px) skewX(7deg);
+    clip-path: inset(48% 0 6% 0);
+    opacity: 0.8;
+    filter: brightness(1.4) drop-shadow(0 0 14px rgba(240, 162, 106, 0.9));
+  }
+  58% {
+    transform: translate(-7px, 2px) skewX(-4deg);
+    clip-path: inset(28% 0 22% 0);
+    filter: brightness(1.8) drop-shadow(0 0 20px rgba(157, 182, 143, 0.7));
+  }
+  78% {
+    transform: translate(5px, -1px) skewX(2deg);
+    clip-path: inset(0 0 0 0);
+    filter: brightness(1.2);
+  }
+  100% {
+    transform: none;
+    clip-path: none;
+    filter: brightness(1);
+    opacity: 1;
+  }
+}
+
+.frig-dimension-jump {
+  animation:
+    frig-dimension 0.55s steps(7) both,
+    frig-flicker 2.6s ease-in-out infinite;
+  will-change: transform, filter, clip-path;
+}
+
+/* Botón cobre reutilizable (anclas y botones). */
+.btn-copper {
+  background: #c67d52;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.btn-copper:hover {
+  background: #d68c5f;
+}
+.btn-copper:active {
+  transform: scale(0.98);
+}
+
+/* ── Separador fluido: energía cálida que recorre la línea ──────────────── */
+.flow-line {
+  position: relative;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(240, 162, 106, 0.14),
+    transparent
+  );
+  overflow: hidden;
+}
+.flow-line::after {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 0;
+  height: 3px;
+  width: 160px;
+  background: radial-gradient(
+    closest-side,
+    rgba(240, 162, 106, 0.5),
+    transparent
+  );
+  filter: blur(1px);
+  animation: flow-pulse 9s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+@keyframes flow-pulse {
+  0% {
+    transform: translateX(-160px);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.9;
+  }
+  80% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateX(calc(100vw));
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .frig-ember,
+  .frig-flame,
+  .frig-fireglow {
+    animation: none;
+  }
+  .flow-line::after {
+    animation: none;
+    opacity: 0;
+  }
+}
+
 
 /* Antorcha: parpadeo irregular estilo llama (steps = parpadeo duro retro). */
 @keyframes house-torch {
@@ -646,6 +903,78 @@ a {
   .login-float,
   .login-steam-anim,
   .login-shake {
+    animation: none;
+  }
+}
+
+/* ── Flujo abstracto de energía en la base del hero ─────────────────────── */
+.frig-flow {
+  position: absolute;
+  bottom: -18%;
+  width: 46vw;
+  height: 30vh;
+  border-radius: 50%;
+  filter: blur(60px);
+  pointer-events: none;
+  will-change: transform;
+}
+.frig-flow-1 {
+  left: -12%;
+  background: radial-gradient(
+    50% 55% at 50% 60%,
+    rgba(240, 150, 80, 0.2) 0%,
+    rgba(240, 130, 60, 0.06) 55%,
+    transparent 75%
+  );
+  animation: frig-flow-a 26s ease-in-out infinite alternate;
+}
+.frig-flow-2 {
+  right: -14%;
+  background: radial-gradient(
+    50% 55% at 50% 60%,
+    rgba(157, 182, 143, 0.14) 0%,
+    rgba(120, 150, 115, 0.05) 55%,
+    transparent 75%
+  );
+  animation: frig-flow-b 32s ease-in-out infinite alternate;
+}
+.frig-flow-3 {
+  left: 34%;
+  bottom: -26%;
+  width: 34vw;
+  height: 22vh;
+  background: radial-gradient(
+    50% 55% at 50% 60%,
+    rgba(255, 170, 90, 0.12) 0%,
+    transparent 70%
+  );
+  animation: frig-flow-a 21s ease-in-out infinite alternate-reverse;
+}
+@keyframes frig-flow-a {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(14vw, -4vh, 0) scale(1.18) rotate(8deg);
+  }
+  100% {
+    transform: translate3d(28vw, 2vh, 0) scale(0.94) rotate(-5deg);
+  }
+}
+@keyframes frig-flow-b {
+  0% {
+    transform: translate3d(0, 2vh, 0) scale(1.05);
+  }
+  50% {
+    transform: translate3d(-16vw, -3vh, 0) scale(0.9);
+  }
+  100% {
+    transform: translate3d(-30vw, 0, 0) scale(1.15);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .frig-flow {
     animation: none;
   }
 }

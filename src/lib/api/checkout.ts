@@ -84,6 +84,10 @@ export interface LandingHero {
   headline: string;
   subhead: string;
   cta_label: string;
+  /** Opcionales: el backend puede enviarlos para enriquecer el hero. */
+  badge?: string;
+  /** Bullets cortos de impacto; si no vienen, el hero no los muestra. */
+  points?: string[];
 }
 
 export interface LandingFeatureItem {

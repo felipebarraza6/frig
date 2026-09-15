@@ -44,7 +44,7 @@ const MOON_COLORS: Record<string, string> = {
   c: "#b3ab90", // cráter
 };
 
-function Moon({ className }: { className?: string }) {
+export function Moon({ className }: { className?: string }) {
   return (
     <div
       aria-hidden
@@ -90,14 +90,14 @@ function starField() {
       size: c > 0.85 ? 3 : c > 0.4 ? 2 : 1,
       delay: `${(rnd(i * 3 + 5) * 3.4).toFixed(2)}s`,
       duration: `${(2.2 + rnd(i * 7 + 9) * 2.8).toFixed(2)}s`,
-      color: c > 0.9 ? "#e9bd4a" : c > 0.55 ? "#ece7d4" : "#b8c4b4",
+      color: c > 0.85 ? "#f5f1e8" : c > 0.45 ? "#d1d5db" : "#94a3b8",
     };
   });
 }
 
 const STARS = starField();
 
-export function PixelNightSky() {
+export function PixelNightSky({ showMoon = true }: { showMoon?: boolean }) {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
       {/* Estrellas titilantes en la mitad superior del cielo. */}
@@ -118,20 +118,22 @@ export function PixelNightSky() {
       ))}
 
       {/* Luna con halo pulsante, arriba a la derecha (sobre la aldea). */}
-      <div
-        className="absolute"
-        style={{ left: "76%", top: "5%", width: "clamp(56px, 8vw, 104px)" }}
-      >
-        <span
-          className="moon-halo absolute"
-          style={{
-            inset: "-45%",
-            background:
-              "radial-gradient(circle, rgba(236,231,212,0.30) 0%, rgba(233,189,74,0.12) 45%, transparent 70%)",
-          }}
-        />
-        <Moon className="relative" />
-      </div>
+      {showMoon && (
+        <div
+          className="absolute"
+          style={{ left: "76%", top: "5%", width: "clamp(56px, 8vw, 104px)" }}
+        >
+          <span
+            className="moon-halo absolute"
+            style={{
+              inset: "-45%",
+              background:
+                "radial-gradient(circle, rgba(245,241,232,0.28) 0%, rgba(200,215,200,0.1) 45%, transparent 70%)",
+            }}
+          />
+          <Moon className="relative" />
+        </div>
+      )}
     </div>
   );
 }

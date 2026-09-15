@@ -19,15 +19,13 @@ import type { BranchThemeConfig } from "@/lib/types";
 import { setToken } from "@/lib/api/session-storage";
 import { pickDefaultBranchId } from "@/lib/branch-session";
 import { cn } from "@/lib/utils";
+import { HeroPlexus } from "@/components/landing/hero-plexus";
 import { LandingPanel } from "@/components/landing/landing-panel";
-import { PixelFoodMark } from "@/components/landing/pixel-food-mark";
 import { BrandLogo } from "@/components/brand-logo";
 import { LANDING_USE_CASES, LANDING_VALUE_PROP } from "@/content/landing";
 import type { LandingUseCase } from "@/content/landing";
 import type { LoginCompleteResponse } from "@/lib/types";
 import { Clock, Copy, KeyRound } from "lucide-react";
-import { FOOD_ICONS, FoodIcon } from "@/components/auth/pixel-food-icons";
-import { PixelLoginBg } from "@/components/auth/pixel-login-bg";
 import { PixelLoginSuccess } from "@/components/auth/pixel-login-success";
 
 /** Easing de "frames" (efecto retro): arranca en 6 pasos discretos. */
@@ -306,22 +304,29 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-dvh flex-1 flex-col lg:h-dvh lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)] lg:overflow-hidden">
-      <section className="relative flex flex-1 flex-col items-center justify-center bg-background px-4 py-10 lg:col-start-2 lg:row-start-1 lg:h-dvh lg:overflow-hidden">
-        <PixelLoginBg />
+      <section className="dark relative flex flex-1 flex-col items-center justify-center bg-[#0a0a0a] px-4 py-10 text-white lg:col-start-2 lg:row-start-1 lg:h-dvh lg:overflow-hidden">
+        <div aria-hidden className="pointer-events-none absolute inset-0 bg-[#0a0a0a]">
+          <div
+            className="absolute inset-x-0 bottom-0 h-1/2"
+            style={{ background: "radial-gradient(120% 90% at 50% 115%, rgba(240,162,106,0.16), transparent 70%)" }}
+          />
+        </div>
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25, ease: "easeOut" }}
-          className="relative flex w-full max-w-sm flex-col overflow-hidden px-1 font-pixel lg:min-h-[600px] lg:justify-center"
+          className="relative flex w-full max-w-sm flex-col overflow-hidden px-1 font-sans lg:min-h-[600px] lg:justify-center"
         >
           <div className="mb-8 flex flex-col items-center gap-3 text-center">
             {!brandTheme && (
-              <div className="mb-2 flex items-center gap-3">
-                {FOOD_ICONS.map((icon) => (
-                  <span key={icon.label} aria-label={icon.label} title={icon.label}>
-                    <FoodIcon kind={icon.kind} />
-                  </span>
-                ))}
+              <div className="mb-3 flex flex-col items-center gap-2">
+                <img
+                  src="/brand/frig-symbol.png"
+                  alt=""
+                  className="h-12 w-auto"
+                  style={{ filter: "drop-shadow(0 0 12px rgba(238,158,112,0.4))" }}
+                />
+                <img src="/brand/frig-wordmark.png" alt="Frig" className="h-5 w-auto" />
               </div>
             )}
             {brandTheme?.logo ? (
@@ -333,17 +338,14 @@ export default function LoginPage() {
                 className="max-h-14 max-w-14 p-1.5"
               />
             ) : (
-              <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-                <PixelFoodMark className="h-9 w-9" title="FRIG" withEyes animated />
-              </div>
+              <img
+                src="/brand/frig-wordmark.png"
+                alt="Frig"
+                className="h-7 w-auto"
+              />
             )}
             <div>
-              <h1
-                className={cn(
-                  "text-2xl font-semibold",
-                  !brandTheme && "font-pixel tracking-[0.16em]",
-                )}
-              >
+              <h1 className="text-2xl font-bold tracking-tight">
                 {brandTheme?.app_name ?? "FRIG"}
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -359,7 +361,7 @@ export default function LoginPage() {
               className="mb-6 rounded-lg border-2 bg-card/60 p-3"
               style={{ borderColor: demoCase.brandColor }}
             >
-              <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <p className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
                 <KeyRound className="h-3.5 w-3.5" style={{ color: demoCase.brandColor }} />
                 Acceso demo — {demoCase.name}
               </p>
@@ -375,14 +377,14 @@ export default function LoginPage() {
                     type="button"
                     onClick={() => copyCredential(item.kind, item.value)}
                     title="Clic para copiar"
-                    className="flex cursor-pointer items-center justify-between gap-2 rounded border border-border bg-background/80 px-2 py-1.5 text-left font-pixel text-xs transition-colors hover:border-foreground/40"
+                    className="flex cursor-pointer items-center justify-between gap-2 rounded border border-border bg-background/80 px-2 py-1.5 text-left font-sans text-xs transition-colors hover:border-foreground/40"
                   >
                     <span className="truncate">
                       <span className="text-muted-foreground">{item.label}: </span>
                       <span className="font-medium">{item.value}</span>
                     </span>
                     {copied === item.kind ? (
-                      <span className="shrink-0 text-[10px] text-emerald-600">¡Copiado!</span>
+                      <span className="shrink-0 text-[10px] text-[#c67d52]">¡Copiado!</span>
                     ) : (
                       <Copy className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                     )}
@@ -457,7 +459,7 @@ export default function LoginPage() {
           ) : mode === "forgot" ? (
             forgotSent ? (
               <div className="flex flex-col gap-4">
-                <div className="rounded-lg bg-emerald-500/10 px-3 py-3 text-sm text-emerald-700">
+                <div className="rounded-lg bg-white/[0.04] px-3 py-3 text-sm text-zinc-200">
                   <p className="font-medium">Revisa tu correo</p>
                   <p className="mt-1 opacity-90">
                     Si el email existe en nuestro sistema, recibirás un enlace

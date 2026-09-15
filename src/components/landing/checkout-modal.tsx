@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { CreditCard, Mail, Store } from "lucide-react";
+import { CreditCard, Mail, ShieldCheck, Store } from "lucide-react";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -162,11 +162,11 @@ export function CheckoutModal({ plan, integrationUf = LANDING_INTEGRATION_UF, co
     <Modal
       open={plan !== null}
       onClose={onClose}
-      title={state === "done" ? "¡Listo!" : `Contratar ${plan.name}`}
+      title={state === "done" ? "¡Suscripción lista!" : `Suscripción ${plan.name}`}
       description={
         state === "done"
           ? undefined
-          : `${monthly} + ${integrationUf} UF única de integración`
+          : `${monthly} · +${integrationUf} UF única de integración y puesta en marcha`
       }
     >
       {state === "polling" ? (
@@ -193,7 +193,7 @@ export function CheckoutModal({ plan, integrationUf = LANDING_INTEGRATION_UF, co
         </ModalBody>
       ) : state === "done" ? (
         <ModalBody className="flex flex-col items-center gap-4 py-8 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-500/10 text-zinc-300">
             <Mail className="h-7 w-7" />
           </div>
           <div>
@@ -288,18 +288,25 @@ export function CheckoutModal({ plan, integrationUf = LANDING_INTEGRATION_UF, co
             )}
           </ModalBody>
 
-          <ModalFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              Volver
-            </Button>
-            <Button
-              type="submit"
-              disabled={state === "processing"}
-              isLoading={state === "processing"}
-            >
-              <CreditCard className="mr-2 h-4 w-4" />
-              Ir a pagar
-            </Button>
+          <ModalFooter className="flex flex-col sm:flex-row items-center justify-between gap-2">
+            <p className="text-[11px] text-muted-foreground order-2 sm:order-1 text-center sm:text-left flex items-center gap-1">
+              <ShieldCheck className="h-3.5 w-3.5 text-[#c67d52]" />
+              <span>Pasarela de pago cifrada y segura</span>
+            </p>
+            <div className="flex items-center gap-2 order-1 sm:order-2 w-full sm:w-auto">
+              <Button type="button" variant="outline" onClick={onClose} className="flex-1 sm:flex-initial">
+                Volver
+              </Button>
+              <Button
+                type="submit"
+                disabled={state === "processing"}
+                isLoading={state === "processing"}
+                className="flex-1 sm:flex-initial bg-[#c67d52] text-white hover:bg-[#d68c5f]"
+              >
+                <CreditCard className="mr-2 h-4 w-4" />
+                Ir al Pago Seguro
+              </Button>
+            </div>
           </ModalFooter>
         </form>
       )}

@@ -35,7 +35,7 @@ export function DemoCta() {
         type="button"
         size="lg"
         onClick={() => setOpen(true)}
-        className="bg-[var(--frig-accent)] font-pixel text-[#0f2e1c] hover:bg-[var(--frig-accent-strong)]"
+        className="bg-[var(--frig-accent)] font-sans font-bold text-[#0f2e1c] hover:bg-[var(--frig-accent-strong)] shadow-sm"
       >
         Solicita una demo
         <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -47,10 +47,10 @@ export function DemoCta() {
         size="sm"
         title="Solicita una demo"
         description="Cuéntanos de tu negocio y te mostramos FRIG en acción."
-        className="font-pixel"
+        className="font-sans"
       >
-        <form onSubmit={handleSend} className="font-pixel">
-          <ModalBody className="flex flex-col gap-3 font-pixel">
+        <form onSubmit={handleSend} className="font-sans">
+          <ModalBody className="flex flex-col gap-3 font-sans">
             <div className="flex flex-col gap-1.5">
               <label htmlFor="demo-name" className="text-sm font-medium">
                 Nombre o restaurante

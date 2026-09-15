@@ -2,8 +2,6 @@
 
 import { cn } from "@/lib/utils";
 
-const GOLD = "#e9bd4a";
-
 export function SectionTitle({
   kicker,
   title,
@@ -19,18 +17,19 @@ export function SectionTitle({
     <div className="mb-10 max-w-2xl">
       <p
         className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em]"
-        style={{ color: dark ? GOLD : undefined }}
+        style={{ color: dark ? "#c67d52" : undefined }}
       >
+        {/* Rombo: guiño al hexágono del logo FRIG */}
         <span
-          className="inline-block h-2 w-2"
-          style={{ backgroundColor: dark ? GOLD : "var(--color-primary)" }}
+          className="inline-block h-2 w-2 rotate-45"
+          style={{ backgroundColor: dark ? "#c67d52" : "var(--color-primary)" }}
           aria-hidden
         />
-        <span className={dark ? undefined : "text-primary"}>{kicker}</span>
+        <span className={dark ? "text-[#c67d52]" : "text-primary"}>{kicker}</span>
       </p>
       <h2
         className={cn(
-          "mt-3 font-pixel text-2xl leading-snug tracking-wide sm:text-3xl",
+          "mt-3 font-sans text-2xl font-semibold tracking-tight sm:text-3xl lg:text-4xl",
           dark ? "text-white" : "text-foreground",
         )}
       >
@@ -39,7 +38,7 @@ export function SectionTitle({
       <p
         className={cn(
           "mt-3 text-sm leading-relaxed sm:text-base",
-          dark ? "text-emerald-100/80" : "text-muted-foreground",
+          dark ? "text-zinc-300" : "text-muted-foreground",
         )}
       >
         {sub}
