@@ -73,14 +73,14 @@ export default function ResetPasswordPage() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25, ease: "easeOut" }}
-          className="w-full max-w-sm font-pixel"
+          className="w-full max-w-sm font-sans"
         >
           <div className="mb-8 flex flex-col items-center gap-3 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
               <img src="/brand/frig-symbol.png" alt="Frig" className="h-9 w-9" />
             </div>
             <div>
-              <h1 className="font-pixel text-2xl font-semibold tracking-[0.16em]">
+              <h1 className="text-2xl font-semibold tracking-tight">
                 Nueva contraseña
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -91,7 +91,7 @@ export default function ResetPasswordPage() {
 
           {done ? (
             <div className="flex flex-col gap-4">
-              <div className="rounded-lg bg-emerald-500/10 px-3 py-3 text-sm text-emerald-700">
+              <div className="rounded-lg bg-white/[0.04] px-3 py-3 text-sm text-zinc-200">
                 <p className="font-medium">Contraseña actualizada</p>
                 <p className="mt-1 opacity-90">
                   Ya puedes iniciar sesión con tu nueva contraseña.
