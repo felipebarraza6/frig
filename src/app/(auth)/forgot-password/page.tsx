@@ -7,7 +7,6 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { forgotPassword } from "@/lib/api/auth";
 import { LandingPanel } from "@/components/landing/landing-panel";
-import { PixelFoodMark } from "@/components/landing/pixel-food-mark";
 import { cn } from "@/lib/utils";
 
 export default function ForgotPasswordPage() {
@@ -35,8 +34,18 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-1 flex-col lg:h-dvh lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)] lg:overflow-hidden">
-      <section className="flex flex-1 flex-col items-center justify-center bg-background px-4 py-10 lg:col-start-2 lg:row-start-1 lg:h-dvh lg:overflow-hidden">
+    <div className="relative flex min-h-dvh flex-1 flex-col bg-[#0a0a0a] lg:h-dvh lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)] lg:overflow-hidden">
+      {/* Fondo de identidad: horizonte cálido */}
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <div
+          className="absolute inset-x-0 bottom-0 h-1/2"
+          style={{
+            background:
+              "radial-gradient(120% 90% at 50% 115%, rgba(240,162,106,0.16), transparent 70%)",
+          }}
+        />
+      </div>
+      <section className="dark relative flex flex-1 flex-col items-center justify-center px-4 py-10 text-white lg:col-start-2 lg:row-start-1 lg:h-dvh lg:overflow-hidden">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -44,9 +53,11 @@ export default function ForgotPasswordPage() {
           className="w-full max-w-sm font-sans"
         >
           <div className="mb-8 flex flex-col items-center gap-3 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-              <PixelFoodMark className="h-9 w-9" title="FRIG" withEyes animated />
-            </div>
+            <img
+              src="/brand/frig-wordmark.png"
+              alt="Frig"
+              className="frig-flame h-10 w-auto"
+            />
             <div>
               <h1 className="text-2xl font-semibold tracking-tight">
                 Recuperar contraseña
