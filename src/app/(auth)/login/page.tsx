@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSessionStore, normalizeDashboardRoute } from "@/lib/store/session";
@@ -148,10 +148,18 @@ export default function LoginPage() {
     };
   }, []);
 
+  // Pulso de energía al intentar ingresar: la fogata responde.
+  const [pulse, setPulse] = useState(false);
+  function firePulse() {
+    setPulse(true);
+    window.setTimeout(() => setPulse(false), 750);
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
+    firePulse();
     try {
       const res = await loginComplete({ email, password });
       await completeLogin(res);
@@ -332,6 +340,15 @@ export default function LoginPage() {
           transition={{ duration: 0.25, ease: "easeOut" }}
           className="relative flex w-full max-w-sm flex-col overflow-hidden px-1 font-sans lg:min-h-[600px] lg:justify-center"
         >
+          {/* El iconito de la marca presidiendo el formulario */}
+          {!brandTheme && (
+            <img
+              src="/brand/frig-symbol.png"
+              alt=""
+              className="mb-8 h-14 w-auto self-center"
+              style={{ filter: "drop-shadow(0 0 14px rgba(238,158,112,0.45))" }}
+            />
+          )}
           {demoCase && mode === "login" && (
             <div
               className="mb-6 rounded-lg border-2 bg-card/60 p-3"
@@ -527,7 +544,13 @@ export default function LoginPage() {
                 </p>
               )}
 
-              <Button type="submit" size="lg" disabled={loading} className="btn-copper mt-2 rounded-lg text-white active:scale-[0.97] transition-transform">
+              <Button
+                type="submit"
+                size="lg"
+                disabled={loading}
+                onClick={firePulse}
+                className="btn-copper mt-2 rounded-lg text-white active:scale-[0.97] transition-transform"
+              >
                 {loading ? "Ingresando…" : "Ingresar"}
               </Button>
 
@@ -615,6 +638,22 @@ export default function LoginPage() {
           }
         />
       </aside>
+      {/* Pulso de energía al ingresar */}
+      <AnimatePresence>
+        {pulse && (
+          <motion.div
+            className="pointer-events-none fixed inset-0 z-50"
+            initial={{ opacity: 0.9 }}
+            animate={{ opacity: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.7, ease: "easeOut" }}
+            style={{
+              background:
+                "radial-gradient(120% 120% at 50% 100%, rgba(240,162,106,0.4), transparent 60%)",
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
