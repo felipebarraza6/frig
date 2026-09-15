@@ -39,7 +39,7 @@ export default function CheckoutResultPage() {
       style={{ background: "#0b110c", color: "#f5efdd" }}
     >
       <span className="flex h-12 w-12 items-center justify-center bg-primary text-primary-foreground">
-        <PixelFoodMark className="h-7 w-7" />
+        <img src="/brand/frig-symbol.png" alt="Frig" className="h-7 w-7" />
       </span>
       <div className="pixel-frame flex flex-col items-center gap-4 px-8 py-10 text-center" style={{ background: "#10160f" }}>
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-primary" />
