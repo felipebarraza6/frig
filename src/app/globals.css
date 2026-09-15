@@ -556,7 +556,7 @@ a {
     transparent 74%
   );
   filter: blur(26px);
-  animation: frig-fireglow 3.6s ease-in-out infinite;
+  animation: frig-fireglow 7s ease-in-out infinite;
   pointer-events: none;
 }
 
@@ -569,68 +569,44 @@ a {
     transparent 76%
   );
   filter: blur(38px);
-  animation: frig-fireglow 2.7s ease-in-out infinite reverse;
+  animation: frig-fireglow 5.4s ease-in-out infinite reverse;
 }
 
-/* Latido irregular del fuego: nunca es un vaivén perfecto. */
+/* Respiración del fuego: lenta y contenida, casi imperceptible. */
 @keyframes frig-fireglow {
   0% {
     transform: scale(1) translateY(0);
-    opacity: 0.72;
+    opacity: 0.82;
   }
-  18% {
-    transform: scale(1.07) translateY(-3%);
-    opacity: 0.92;
-  }
-  36% {
-    transform: scale(0.96) translateY(1.5%);
-    opacity: 0.64;
-  }
-  53% {
-    transform: scale(1.1) translateY(-4%);
-    opacity: 0.98;
+  40% {
+    transform: scale(1.03) translateY(-1.5%);
+    opacity: 0.9;
   }
   70% {
-    transform: scale(1.02) translateY(0.5%);
-    opacity: 0.78;
-  }
-  86% {
-    transform: scale(1.08) translateY(-2%);
-    opacity: 0.9;
+    transform: scale(0.985) translateY(0.5%);
+    opacity: 0.82;
   }
   100% {
     transform: scale(1) translateY(0);
-    opacity: 0.72;
+    opacity: 0.82;
   }
 }
 
-/* Las letras reciben la luz del fuego: parpadeo corto e irregular. */
+/* Las letras reciben la luz del fuego: brillo estable con vaivén mínimo. */
 @keyframes frig-flicker {
   0%,
   100% {
-    filter: drop-shadow(0 0 22px rgba(240, 162, 106, 0.42))
-      drop-shadow(0 0 64px rgba(232, 146, 94, 0.2)) brightness(1);
+    filter: drop-shadow(0 0 24px rgba(240, 162, 106, 0.44))
+      drop-shadow(0 0 68px rgba(232, 146, 94, 0.22)) brightness(1);
   }
-  23% {
-    filter: drop-shadow(0 0 30px rgba(240, 162, 106, 0.55))
-      drop-shadow(0 0 84px rgba(232, 146, 94, 0.26)) brightness(1.05);
-  }
-  41% {
-    filter: drop-shadow(0 0 18px rgba(240, 162, 106, 0.36))
-      drop-shadow(0 0 52px rgba(232, 146, 94, 0.16)) brightness(0.98);
-  }
-  63% {
-    filter: drop-shadow(0 0 34px rgba(255, 180, 110, 0.6))
-      drop-shadow(0 0 96px rgba(232, 146, 94, 0.3)) brightness(1.08);
-  }
-  81% {
-    filter: drop-shadow(0 0 24px rgba(240, 162, 106, 0.46))
-      drop-shadow(0 0 70px rgba(232, 146, 94, 0.22)) brightness(1.02);
+  50% {
+    filter: drop-shadow(0 0 27px rgba(240, 162, 106, 0.5))
+      drop-shadow(0 0 76px rgba(232, 146, 94, 0.25)) brightness(1.02);
   }
 }
 
 .frig-flame {
-  animation: frig-flicker 2.6s ease-in-out infinite;
+  animation: frig-flicker 5s ease-in-out infinite;
   will-change: filter;
 }
 
