@@ -41,14 +41,14 @@ export default function ForgotPasswordPage() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25, ease: "easeOut" }}
-          className="w-full max-w-sm font-pixel"
+          className="w-full max-w-sm font-sans"
         >
           <div className="mb-8 flex flex-col items-center gap-3 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
               <PixelFoodMark className="h-9 w-9" title="FRIG" withEyes animated />
             </div>
             <div>
-              <h1 className="font-pixel text-2xl font-semibold tracking-[0.16em]">
+              <h1 className="text-2xl font-semibold tracking-tight">
                 Recuperar contraseña
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -59,7 +59,7 @@ export default function ForgotPasswordPage() {
 
           {sent ? (
             <div className="flex flex-col gap-4">
-              <div className="rounded-lg bg-emerald-500/10 px-3 py-3 text-sm text-emerald-700">
+              <div className="rounded-lg bg-white/[0.04] px-3 py-3 text-sm text-zinc-200">
                 <p className="font-medium">Revisa tu correo</p>
                 <p className="mt-1 opacity-90">
                   Si el email existe en nuestro sistema, recibirás un enlace
@@ -68,7 +68,7 @@ export default function ForgotPasswordPage() {
               </div>
               <Link
                 href="/login"
-                className={cn(buttonVariants({ size: "lg" }), "mt-2")}
+                className={cn(buttonVariants({ size: "lg" }), "btn-copper mt-2 rounded-lg text-white")}
               >
                 Volver al inicio de sesión
               </Link>

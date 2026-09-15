@@ -303,54 +303,35 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-1 flex-col lg:h-dvh lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)] lg:overflow-hidden">
-      <section className="dark relative flex flex-1 flex-col items-center justify-center bg-[#0a0a0a] px-4 py-10 text-white lg:col-start-2 lg:row-start-1 lg:h-dvh lg:overflow-hidden">
-        <div aria-hidden className="pointer-events-none absolute inset-0 bg-[#0a0a0a]">
-          <div
-            className="absolute inset-x-0 bottom-0 h-1/2"
-            style={{ background: "radial-gradient(120% 90% at 50% 115%, rgba(240,162,106,0.16), transparent 70%)" }}
-          />
+    <div className="relative flex min-h-dvh flex-1 flex-col bg-[#0a0a0a] lg:h-dvh lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)] lg:overflow-hidden">
+      {/* Fondo único de identidad: horizonte cálido + red que reacciona al mouse */}
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <div
+          className="absolute inset-x-0 bottom-0 h-1/2"
+          style={{
+            background:
+              "radial-gradient(120% 90% at 50% 115%, rgba(240,162,106,0.16), transparent 70%)",
+          }}
+        />
+        <div
+          className="absolute inset-0 opacity-70"
+          style={{
+            maskImage:
+              "radial-gradient(140% 140% at 50% 50%, black 55%, transparent 100%)",
+            WebkitMaskImage:
+              "radial-gradient(140% 140% at 50% 50%, black 55%, transparent 100%)",
+          }}
+        >
+          <HeroPlexus className="h-full w-full" />
         </div>
+      </div>
+      <section className="dark relative flex flex-1 flex-col items-center justify-center px-4 py-10 text-white lg:col-start-2 lg:row-start-1 lg:h-dvh lg:overflow-hidden">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25, ease: "easeOut" }}
           className="relative flex w-full max-w-sm flex-col overflow-hidden px-1 font-sans lg:min-h-[600px] lg:justify-center"
         >
-          <div className="mb-8 flex flex-col items-start gap-3 text-left">
-            {/* Lockup único: iconito + FRIG, una sola vez, a la izquierda */}
-            {!brandTheme && (
-              <div className="flex items-center gap-3">
-                <img
-                  src="/brand/frig-symbol.png"
-                  alt=""
-                  className="h-12 w-auto"
-                  style={{ filter: "drop-shadow(0 0 12px rgba(238,158,112,0.4))" }}
-                />
-                <img src="/brand/frig-wordmark.png" alt="Frig" className="h-6 w-auto" />
-              </div>
-            )}
-            {brandTheme && (
-              <div className="flex items-center gap-3">
-                <BrandLogo
-                  src={brandTheme.logo}
-                  alt={brandTheme.app_name ?? "Logo"}
-                  name={brandTheme.app_name}
-                  containerClassName="h-12 w-12 rounded-xl shadow-sm"
-                  className="max-h-10 max-w-10 p-1.5"
-                />
-                <h1 className="text-xl font-semibold tracking-tight">
-                  {brandTheme.app_name}
-                </h1>
-              </div>
-            )}
-            <p className="text-sm text-muted-foreground">
-              {brandTheme?.login_welcome_message ||
-                brandTheme?.tagline ||
-                LANDING_VALUE_PROP.headline}
-            </p>
-          </div>
-
           {demoCase && mode === "login" && (
             <div
               className="mb-6 rounded-lg border-2 bg-card/60 p-3"
@@ -447,7 +428,7 @@ export default function LoginPage() {
                   {setPasswordError}
                 </p>
               )}
-              <Button type="submit" size="lg" disabled={setPasswordLoading} className="mt-2">
+              <Button type="submit" size="lg" disabled={setPasswordLoading} className="btn-copper mt-2 rounded-lg text-white">
                 {setPasswordLoading ? "Guardando…" : "Definir contraseña"}
               </Button>
             </form>
@@ -461,7 +442,7 @@ export default function LoginPage() {
                     para recuperar tu contraseña (válido por 24 horas).
                   </p>
                 </div>
-                <Button type="button" size="lg" className="mt-2" onClick={backToLogin}>
+                <Button type="button" size="lg" className="btn-copper mt-2 rounded-lg text-white" onClick={backToLogin}>
                   Volver al inicio de sesión
                 </Button>
               </div>
@@ -491,7 +472,7 @@ export default function LoginPage() {
                   </p>
                 )}
 
-                <Button type="submit" size="lg" disabled={forgotLoading} className="mt-2">
+                <Button type="submit" size="lg" disabled={forgotLoading} className="btn-copper mt-2 rounded-lg text-white">
                   {forgotLoading ? "Enviando…" : "Enviar correo de recuperación"}
                 </Button>
 
@@ -546,7 +527,7 @@ export default function LoginPage() {
                 </p>
               )}
 
-              <Button type="submit" size="lg" disabled={loading} className="mt-2 active:scale-[0.97] transition-transform">
+              <Button type="submit" size="lg" disabled={loading} className="btn-copper mt-2 rounded-lg text-white active:scale-[0.97] transition-transform">
                 {loading ? "Ingresando…" : "Ingresar"}
               </Button>
 
