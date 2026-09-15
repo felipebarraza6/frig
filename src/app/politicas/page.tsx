@@ -1,16 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { PixelFoodMark } from "@/components/landing/pixel-food-mark";
-import { PixelSlope } from "@/components/landing/pixel-slope";
 
 export const metadata: Metadata = {
   title: "Política de Privacidad — FRIG",
   description:
     "Cómo FRIG trata tus datos: Ley 19.628, no divulgación a terceros, transparencia como producto de código abierto y estado del servicio.",
 };
-
-const GOLD = "#e9bd4a";
-const CREAM = "#f5efdd";
 
 const SECTIONS = [
   {
@@ -92,13 +87,11 @@ const SECTIONS = [
 
 function Section({ h, body }: { h: string; body: readonly string[] }) {
   return (
-    <section className="pixel-frame p-5 sm:p-6" style={{ background: "#10160f" }}>
-      <h2 className="font-pixel text-sm font-semibold tracking-wider" style={{ color: GOLD }}>
-        {h}
-      </h2>
+    <section className="rounded-xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
+      <h2 className="text-sm font-semibold tracking-wide text-primary">{h}</h2>
       <div className="mt-3 flex flex-col gap-2">
         {body.map((p) => (
-          <p key={p.slice(0, 24)} className="text-sm leading-relaxed text-emerald-100/80">
+          <p key={p.slice(0, 24)} className="text-sm leading-relaxed text-zinc-300">
             {p}
           </p>
         ))}
@@ -109,87 +102,60 @@ function Section({ h, body }: { h: string; body: readonly string[] }) {
 
 export default function PoliticasPage() {
   return (
-    <div
-      className="flex min-h-dvh flex-1 flex-col font-sans"
-      style={{ background: "#0b110c", color: CREAM }}
-    >
+    <div className="flex min-h-dvh flex-1 flex-col bg-[#0a0a0a] text-zinc-100">
       {/* Barra superior */}
-      <header className="sticky top-0 z-40 border-b-2 border-[#241f1a] bg-[#14160f]">
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0a0a0a]/95 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-4xl items-center justify-between px-4 sm:px-6">
           <Link href="/" className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center bg-primary text-primary-foreground">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <img src="/brand/frig-symbol.png" alt="Frig" className="h-5 w-5" />
             </span>
-            <span className="font-pixel text-base font-semibold tracking-[0.2em] text-white">
-              FRIG
-            </span>
+            <span className="text-base font-semibold tracking-[0.2em] text-white">FRIG</span>
           </Link>
           <Link
             href="/"
-            className="font-pixel text-xs tracking-widest text-emerald-100/70 transition-colors hover:text-white"
+            className="text-xs font-medium uppercase tracking-widest text-zinc-400 transition-colors hover:text-white"
           >
-            ← VOLVER
+            ← Volver
           </Link>
         </div>
       </header>
 
-      {/* Cielo con estrellas sobre el encabezado */}
-      <div className="pixel-sky-deep relative overflow-hidden">
-        {[10, 22, 35, 48, 60, 73, 86].map((left, i) => (
-          <span
-            key={left}
-            aria-hidden
-            className="login-twinkle absolute"
-            style={{
-              left: `${left}%`,
-              top: `${18 + ((i * 13) % 55)}%`,
-              width: 2 + (i % 2),
-              height: 2 + (i % 2),
-              backgroundColor: i % 3 === 0 ? GOLD : "#ece7d4",
-              animationDelay: `${i * 0.6}s`,
-              animationDuration: `${2.4 + (i % 3) * 0.5}s`,
-            }}
-          />
-        ))}
+      {/* Encabezado con el resplandor cálido de Frig */}
+      <div className="relative overflow-hidden border-b border-white/10">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-56"
+          style={{
+            background:
+              "radial-gradient(120% 100% at 50% 120%, rgba(240,162,106,0.22) 0%, rgba(240,162,106,0.06) 50%, transparent 75%)",
+          }}
+        />
         <div className="relative mx-auto max-w-4xl px-4 pt-14 pb-10 sm:px-6">
-          <p
-            className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em]"
-            style={{ color: GOLD }}
-          >
-            <span className="inline-block h-2 w-2" style={{ backgroundColor: GOLD }} aria-hidden />
+          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-primary">
             Transparencia
           </p>
-          <h1
-            className="mt-3 max-w-2xl font-pixel text-2xl leading-snug tracking-wide sm:text-4xl"
-            style={{ color: CREAM, textShadow: "3px 3px 0 rgba(0,0,0,0.5)" }}
-          >
-            Política de <span style={{ color: GOLD }}>Privacidad</span>
+          <h1 className="mt-3 max-w-2xl text-3xl font-semibold leading-snug tracking-tight text-white sm:text-4xl">
+            Política de <span className="text-primary">Privacidad</span>
           </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-emerald-100/80 sm:text-base">
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400 sm:text-base">
             Qué datos recolectamos, para qué, y lo que jamás haremos con ellos. Conforme a la
             Ley 19.628 (Chile). Última actualización: septiembre de 2026.
           </p>
         </div>
       </div>
 
-      <PixelSlope from="#1a271b" fill="#0b110c" seed={2} />
-
       <main className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-4 py-12 sm:px-6">
         {SECTIONS.map((s) => (
           <Section key={s.h} {...s} />
         ))}
 
-        <section
-          className="pixel-frame p-5 sm:p-6"
-          style={{ background: "#10160f", borderColor: `${GOLD}66` }}
-        >
-          <h2 className="font-pixel text-sm font-semibold tracking-wider" style={{ color: GOLD }}>
-            12 · Contacto
-          </h2>
-          <p className="mt-3 text-sm leading-relaxed text-emerald-100/80">
+        <section className="rounded-xl border border-primary/40 bg-white/[0.03] p-5 sm:p-6">
+          <h2 className="text-sm font-semibold tracking-wide text-primary">12 · Contacto</h2>
+          <p className="mt-3 text-sm leading-relaxed text-zinc-300">
             Para ejercer tus derechos, resolver dudas sobre esta política o reportar un problema
             de seguridad:{" "}
-            <a href="mailto:frig@yggdra.cl" className="font-semibold" style={{ color: GOLD }}>
+            <a href="mailto:frig@yggdra.cl" className="font-semibold text-primary hover:underline">
               frig@yggdra.cl
             </a>
             . Los reportes de seguridad se responden con prioridad.
@@ -197,20 +163,17 @@ export default function PoliticasPage() {
         </section>
       </main>
 
-      <div className="mt-auto">
-        <PixelSlope from="#0b110c" fill="#14160f" seed={5} highlight="#234026" />
-        <footer className="bg-[#14160f]">
-          <div className="mx-auto flex max-w-4xl flex-col items-center justify-between gap-3 px-4 py-8 font-pixel text-[10px] tracking-[0.18em] text-emerald-100/50 sm:flex-row sm:px-6">
-            <span className="flex items-center gap-2">
-              <img src="/brand/frig-symbol.png" alt="Frig" className="h-4 w-4" />
-              FRIG — GESTIÓN COMERCIAL Y GASTRONÓMICA
-            </span>
-            <a href="mailto:frig@yggdra.cl" className="text-emerald-100 hover:text-white">
-              CONTACTO: frig@yggdra.cl
-            </a>
-          </div>
-        </footer>
-      </div>
+      <footer className="mt-auto border-t border-white/10">
+        <div className="mx-auto flex max-w-4xl flex-col items-center justify-between gap-3 px-4 py-8 text-xs text-zinc-500 sm:flex-row sm:px-6">
+          <span className="flex items-center gap-2">
+            <img src="/brand/frig-symbol.png" alt="Frig" className="h-4 w-4" />
+            FRIG — Gestión comercial y gastronómica
+          </span>
+          <a href="mailto:frig@yggdra.cl" className="transition-colors hover:text-white">
+            Contacto: frig@yggdra.cl
+          </a>
+        </div>
+      </footer>
     </div>
   );
 }

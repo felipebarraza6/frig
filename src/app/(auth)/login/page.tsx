@@ -19,18 +19,13 @@ import type { BranchThemeConfig } from "@/lib/types";
 import { setToken } from "@/lib/api/session-storage";
 import { pickDefaultBranchId } from "@/lib/branch-session";
 import { cn } from "@/lib/utils";
+import { FrigWordmarkMatrix } from "@/components/landing/frig-wordmark-matrix";
 import { HeroPlexus } from "@/components/landing/hero-plexus";
-import { LandingPanel } from "@/components/landing/landing-panel";
 import { BrandLogo } from "@/components/brand-logo";
 import { LANDING_USE_CASES, LANDING_VALUE_PROP } from "@/content/landing";
 import type { LandingUseCase } from "@/content/landing";
 import type { LoginCompleteResponse } from "@/lib/types";
 import { Clock, Copy, KeyRound } from "lucide-react";
-
-/** Easing de "frames" (efecto retro): arranca en 6 pasos discretos. */
-function stepEase(steps = 6) {
-  return (value: number) => Math.round(value * steps) / steps;
-}
 
 
 function getHomeRouteForUser(
@@ -123,6 +118,12 @@ export default function LoginPage() {
   const [forgotError, setForgotError] = useState<string | null>(null);
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
+
+  // El fondo participa en cada cambio de modo: los nodos hacen una ola
+  // que cubre la pantalla y decae revelando el nuevo formulario.
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("frig:matrix-sweep"));
+  }, [mode, forgotSent]);
 
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -347,7 +348,28 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative flex min-h-dvh flex-1 flex-col bg-[#0a0a0a] lg:h-dvh lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)] lg:overflow-hidden">
+    <div
+      className="relative flex min-h-dvh flex-1 flex-col bg-[#0a0a0a]"
+      // Identidad Frig (cobre): evita que un brand.primary_color verde del
+      // backend tiña inputs, focus rings y avisos del formulario.
+      style={
+        {
+          "--brand-primary": "#c67d52",
+          "--color-primary": "#c67d52",
+          "--primary": "#c67d52",
+          "--ring": "#c67d52",
+          // neutros oscuros: el theme del branch (verde) setea estos en root
+          "--input": "#27272a",
+          "--border": "#27272a",
+          "--background": "#0a0a0a",
+          "--card": "#141414",
+          "--muted": "#1c1c1f",
+          "--muted-foreground": "#a1a1aa",
+          "--accent": "#1c1c1f",
+          "--secondary": "#1c1c1f",
+        } as React.CSSProperties
+      }
+    >
       {/* Fondo único de identidad: horizonte cálido + red que reacciona al mouse */}
       <div aria-hidden className="pointer-events-none absolute inset-0">
         <div
@@ -369,21 +391,33 @@ export default function LoginPage() {
           <HeroPlexus className="h-full w-full" />
         </div>
       </div>
-      <section className="dark relative flex flex-1 flex-col items-center justify-center px-4 py-10 text-white lg:col-start-2 lg:row-start-1 lg:h-dvh lg:overflow-hidden">
+      <section
+        style={{ "--input": "#27272a", "--border": "#27272a", "--muted": "#1c1c1f", "--muted-foreground": "#a1a1aa", "--accent": "#1c1c1f", "--background": "#0a0a0a", "--card": "#141414" } as React.CSSProperties}
+        className="dark relative flex min-h-dvh flex-1 flex-col items-center justify-center px-4 py-10 text-white"
+      >
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25, ease: "easeOut" }}
           className="relative flex w-full max-w-sm flex-col overflow-hidden px-1 font-sans lg:min-h-[600px] lg:justify-center"
         >
-          {/* El iconito de la marca presidiendo el formulario */}
+          {/* Fade marcado entre modos: el contenido se desvanece con blur
+              mientras la ola de nodos cubre el fondo y trae el siguiente. */}
+          <AnimatePresence mode="wait">
+          <motion.div
+            key={`${mode}-${forgotSent}`}
+            initial={{ opacity: 0, y: 14, filter: "blur(8px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            exit={{ opacity: 0, y: -10, filter: "blur(8px)", transition: { duration: 0.25, ease: "easeIn" } }}
+            // El contenido ESPERA a que la ola de nodos cubra todo (0.45s)
+            // y recién emerge: primero el fondo, después el formulario.
+            transition={{ duration: 0.65, delay: 0.45, ease: [0.22, 0.61, 0.36, 1] }}
+            className="flex w-full flex-col"
+            style={{ textShadow: "0 2px 18px rgba(0,0,0,0.75)" }}
+          >
+          {/* El wordmark de la marca presidiendo el formulario */}
           {!brandTheme && (
-            <img
-              src="/brand/frig-symbol.png"
-              alt=""
-              className="mb-8 h-14 w-auto self-center"
-              style={{ filter: "drop-shadow(0 0 14px rgba(238,158,112,0.45))" }}
-            />
+            <FrigWordmarkMatrix className="mb-8 h-12 w-auto self-center" />
           )}
           {demoCase && mode === "login" && (
             <div
@@ -608,56 +642,8 @@ export default function LoginPage() {
           <p className={cn("mt-8 text-center text-xs text-muted-foreground")}>
             Gestión comercial y gastronómica por FRIG
           </p>
-
-          {/* Cortina retro pixel: base oscura + cuadrícula de bloques (checkerboard) + degradado derecho.
-              La cuadrícula con separación visible evita el rectángulo liso: siempre se leen cuadros. */}
-          <div aria-hidden className="pointer-events-none absolute inset-0 z-20 overflow-hidden">
-            {/* Base oscura: oculta el contenido y da las "líneas" entre cuadros. */}
-            <motion.div
-              key={`curtain-cover-${mode}-${forgotSent}`}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: [0, 1, 1, 0] }}
-              transition={{ duration: 0.9, times: [0, 0.15, 0.85, 1], ease: "easeOut" }}
-              className="absolute inset-0"
-              style={{ backgroundColor: "color-mix(in srgb, var(--color-primary) 30%, #0b3b22)" }}
-            />
-
-            {/* Cuadrícula de bloques pixel con separación, aparece en cascada. */}
-            <div className="absolute inset-0 grid grid-cols-6 grid-rows-5 gap-1 p-1">
-              {Array.from({ length: 30 }).map((_, i) => (
-                <motion.span
-                  key={`curtain-${mode}-${forgotSent}-${i}`}
-                  initial={{ scaleY: 0, opacity: 0 }}
-                  animate={{ scaleY: [0, 1, 1, 0], opacity: [0, 1, 1, 0] }}
-                  transition={{
-                    duration: 0.9,
-                    times: [0, 0.25, 0.85, 1],
-                    delay: (i % 6) * 0.03 + Math.floor(i / 6) * 0.04,
-                    ease: stepEase(6),
-                  }}
-                  className="h-full w-full"
-                  style={{
-                    backgroundColor:
-                      i % 2 === 0 ? "var(--color-primary)" : "color-mix(in srgb, var(--color-primary) 70%, #0b3b22)",
-                  }}
-                />
-              ))}
-            </div>
-
-            {/* Degradado en el borde derecho (efecto scan, bien visible). */}
-            <motion.div
-              key={`curtain-degrade-${mode}-${forgotSent}`}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: [0, 1, 1, 0] }}
-              transition={{ duration: 0.9, times: [0, 0.25, 0.85, 1], ease: "easeOut" }}
-              className="absolute inset-y-0 right-0 w-1/3"
-              style={{
-                background:
-                  "linear-gradient(to left, #06230f 0%, color-mix(in srgb, var(--color-primary) 45%, #0b3b22) 45%, transparent 100%)",
-                boxShadow: "inset -6px 0 0 rgba(0,0,0,0.25)",
-              }}
-            />
-          </div>
+          </motion.div>
+          </AnimatePresence>
         </motion.div>
 
         {success && (
@@ -665,15 +651,6 @@ export default function LoginPage() {
         )}
       </section>
 
-      <aside className="hidden lg:col-start-1 lg:row-start-1 lg:block lg:h-dvh lg:overflow-hidden">
-        <LandingPanel
-          brand={
-            brandTheme
-              ? { name: brandTheme.app_name ?? "FRIG", logo: brandTheme.logo }
-              : null
-          }
-        />
-      </aside>
       {/* Pulso de energía al ingresar */}
       <AnimatePresence>
         {pulse && (

@@ -5,12 +5,24 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
+  Banknote,
+  Bike,
   Check,
-  ExternalLink,
+  ChefHat,
+  CreditCard,
+  FileText,
   LayoutDashboard,
+  LayoutGrid,
   LogIn,
   Menu,
+  QrCode,
+  ShieldCheck,
+  Store,
+  Truck,
+  Warehouse,
   X,
+  Zap,
+  type LucideIcon,
 } from "lucide-react";
 
 /* Marca oficial de GitHub (lucide ya no incluye íconos de marcas). */
@@ -40,13 +52,19 @@ import {
   fetchLandingConfig,
   type LandingConfig,
   type LandingHero,
+  type LandingCta,
+  type LandingNavItem,
+  type LandingUseCaseItem,
+  type LandingFeatureItem,
+  type LandingFooterSocial,
 } from "@/lib/api/checkout";
 import { applyThemeConfig } from "@/lib/api/branches";
 import { ScrollReveal } from "@/components/landing/scroll-reveal";
 import { HeroPlexus } from "@/components/landing/hero-plexus";
+import { FrigWordmarkMatrix } from "@/components/landing/frig-wordmark-matrix";
 import { CheckoutModal } from "@/components/landing/checkout-modal";
 import { ProductInteractivePreview } from "@/components/landing/product-interactive-preview";
-import { motion, AnimatePresence, useMotionValue, useTransform, useMotionTemplate, useScroll } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 /**
@@ -108,7 +126,13 @@ function sessionDisplayName(user: User): string {
   return full || user.username || user.email.split("@")[0] || "tu cuenta";
 }
 
-function Nav({ savedUser }: { savedUser: User | null }) {
+function Nav({
+  savedUser,
+  links = NAV_LINKS,
+}: {
+  savedUser: User | null;
+  links?: LandingNavItem[];
+}) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [active, setActive] = useState<string>("");
 
@@ -122,7 +146,7 @@ function Nav({ savedUser }: { savedUser: User | null }) {
       },
       { rootMargin: "-35% 0px -55% 0px" },
     );
-    for (const link of NAV_LINKS) {
+    for (const link of links) {
       const el = document.getElementById(link.href.slice(1));
       if (el) obs.observe(el);
     }
@@ -146,7 +170,7 @@ function Nav({ savedUser }: { savedUser: User | null }) {
         {/* Logo a la izquierda; todo lo demás agrupado a la derecha. */}
         <div className="flex items-center gap-7 lg:gap-9">
           <nav className="hidden md:flex items-center gap-8 text-sm font-medium">
-            {NAV_LINKS.map((link) => {
+            {links.map((link) => {
               const isActive = active === link.href;
               return (
                 <a
@@ -195,10 +219,12 @@ function Nav({ savedUser }: { savedUser: User | null }) {
             ) : (
               <Link
                 href="/login"
+                target="_blank"
+                rel="noreferrer"
                 className="inline-flex items-center gap-2 rounded-lg border border-white/15 px-4 py-2 text-sm font-medium text-white transition-colors hover:border-white/30 hover:bg-white/5"
               >
                 <LogIn className="h-4 w-4 text-zinc-400" />
-                Entrar
+                Login
               </Link>
             )}
           </div>
@@ -226,7 +252,7 @@ function Nav({ savedUser }: { savedUser: User | null }) {
             className="sm:hidden border-b border-white/10 bg-[#0a0a0a] px-4 py-4"
           >
             <div className="flex flex-col text-sm font-medium text-zinc-300">
-              {NAV_LINKS.map((link) => (
+              {links.map((link) => (
                 <a
                   key={link.href}
                   href={link.href}
@@ -240,6 +266,8 @@ function Nav({ savedUser }: { savedUser: User | null }) {
                 {!savedUser && (
                   <Link
                     href="/login"
+                    target="_blank"
+                    rel="noreferrer"
                     onClick={() => setMobileMenuOpen(false)}
                     className="py-2 text-center rounded-lg border border-white/15 text-white"
                   >
@@ -291,11 +319,13 @@ const EMBERS = [
 
 function Hero({
   hero,
+  ctas,
   savedUser,
   entering,
   onReenter,
 }: {
   hero: LandingHero | null;
+  ctas?: { primary?: LandingCta; secondary?: LandingCta };
   savedUser: User | null;
   entering: boolean;
   onReenter: () => void;
@@ -304,122 +334,17 @@ function Hero({
   const headline = hero?.headline || LANDING_VALUE_PROP.headline;
   const narrative = hero?.subhead || LANDING_VALUE_PROP.subhead;
 
-  // Reacción al mouse: parallax del logo + resplandor que sigue el cursor.
-  const mx = useMotionValue(0.5);
-  const my = useMotionValue(0.5);
-  const logoX = useTransform(mx, [0, 1], [-16, 16]);
-  const logoY = useTransform(my, [0, 1], [-10, 10]);
-  const tiltY = useTransform(mx, [0, 1], [5, -5]);
-  const glowX = useTransform(mx, (v) => v * 100);
-  const glowY = useTransform(my, (v) => v * 100);
-  const mouseGlow = useMotionTemplate`radial-gradient(560px circle at ${glowX}% ${glowY}%, rgba(240,162,106,0.16), transparent 65%)`;
-
-  // Los tonos cálidos duermen hasta que el mouse entra en escena.
-  const [awake, setAwake] = useState(false);
-
-  // Salto dimensional: con el mouse encima, el wordmark atraviesa un
-  // portal cada tanto (glitch breve con segmentos desplazados).
-  const wordmarkRef = useRef<HTMLImageElement>(null);
-  useEffect(() => {
-    if (!awake) return;
-    const timer = window.setInterval(() => {
-      if (Math.random() > 0.45) return;
-      const el = wordmarkRef.current;
-      if (!el) return;
-      el.classList.remove("frig-dimension-jump");
-      void el.offsetWidth; // reinicia la animación
-      el.classList.add("frig-dimension-jump");
-      window.setTimeout(() => el.classList.remove("frig-dimension-jump"), 620);
-    }, 2100);
-    return () => window.clearInterval(timer);
-  }, [awake]);
-
-  function handleMouseMove(e: React.MouseEvent<HTMLElement>) {
-    const rect = e.currentTarget.getBoundingClientRect();
-    mx.set((e.clientX - rect.left) / rect.width);
-    my.set((e.clientY - rect.top) / rect.height);
-    if (!awake) setAwake(true);
-  }
-
-  function handleMouseLeave() {
-    setAwake(false);
-  }
-
-  // Fundido ligado al scroll: el hero se desvanece, nunca corta de golpe.
-  const sectionRef = useRef<HTMLElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: sectionRef,
-    offset: ["start start", "end start"],
-  });
-  const heroFade = useTransform(scrollYProgress, [0, 0.6], [1, 0]);
-  const heroLift = useTransform(scrollYProgress, [0, 1], [0, 120]);
+  // Sin fundido ligado al scroll: la capa compositada de opacity+transform
+  // producía una costura de 1px en el borde del hero con escala de Windows
+  // no entera. El contenido del hero queda estático (el fondo ya se mueve).
 
   return (
-    <section
-      id="inicio"
-      ref={sectionRef}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      className="relative overflow-hidden bg-[#0a0a0a]"
-    >
-      {/* Flujo abstracto de energía derivando en la base */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-        <span className="frig-flow frig-flow-1" />
-        <span className="frig-flow frig-flow-2" />
-        <span className="frig-flow frig-flow-3" />
-      </div>
-      {/* Paisaje del logo: duerme apagado; el mouse lo despierta */}
-      <motion.div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-[52%]"
-        style={{ background: "radial-gradient(120% 90% at 50% 115%, rgba(240,162,106,0.26) 0%, rgba(157,182,143,0.08) 42%, transparent 70%)" }}
-        animate={{ opacity: awake ? 1 : 0 }}
-        transition={{ duration: 1.1, ease: "easeInOut" }}
-      />
-      {/* Resplandor cálido que sigue el cursor (solo despierto) */}
-      <motion.div
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{ background: mouseGlow }}
-        animate={{ opacity: awake ? 1 : 0 }}
-        transition={{ duration: 0.8, ease: "easeInOut" }}
-      />
-      {/* Red abstracta de energía: nodos que fluyen y se conectan */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{
-          maskImage:
-            "radial-gradient(85% 75% at 50% 45%, black 35%, transparent 100%)",
-          WebkitMaskImage:
-            "radial-gradient(85% 75% at 50% 45%, black 35%, transparent 100%)",
-        }}
-      >
-        <HeroPlexus className="h-full w-full" />
-      </div>
-      {/* Brasas que suben desde el horizonte */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-        {EMBERS.map((e, i) => (
-          <span
-            key={i}
-            className={i % 5 === 2 ? "frig-ember frig-ember-hot" : "frig-ember"}
-            style={
-              {
-                left: e.left,
-                width: e.size,
-                height: e.size,
-                "--dur": e.dur,
-                "--delay": e.delay,
-                "--drift": e.drift,
-              } as React.CSSProperties
-            }
-          />
-        ))}
-      </div>
+    <section id="inicio" className="relative z-10">
+      {/* Sin atmósfera local: la capa cósmica global (nebulosas, plexus,
+          brasas, glow del cursor) da toda la energía sin costuras. */}
 
-      <motion.div
+      <div
         className="relative mx-auto flex min-h-[calc(100dvh-5rem)] max-w-6xl flex-col items-center justify-center px-4 py-12 sm:px-6"
-        style={{ opacity: heroFade, y: heroLift }}
       >
         <div className="flex flex-col items-center text-center gap-5">
           {savedUser && (
@@ -445,29 +370,22 @@ function Hero({
             </div>
           )}
 
-          {/* El wordmark FRIG sobre el fuego: masas de brasa laten detrás */}
+          {/* Wordmark como matriz de datos: cuadritos que titilan y hacen
+              glitch, mismo lenguaje que los nodos del fondo. Autónomo. */}
           <motion.div
             initial={{ opacity: 0, scale: 0.86, y: 18 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             transition={{ duration: 0.7, ease: "easeOut" }}
             className="relative"
-            style={{ x: logoX, y: logoY, rotateY: tiltY }}
           >
-            <div aria-hidden className="frig-fireglow" />
-            <div aria-hidden className="frig-fireglow frig-fireglow-2" />
-            <img
-              ref={wordmarkRef}
-              src="/brand/frig-wordmark.png"
-              alt="Frig"
-              className="frig-flame relative h-16 w-auto sm:h-24"
-            />
+            <FrigWordmarkMatrix className="h-16 w-auto sm:h-24" />
           </motion.div>
 
           <motion.h1
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55, delay: 0.22, ease: "easeOut" }}
-            className="max-w-3xl text-4xl font-semibold leading-[1.1] tracking-tight text-white sm:text-6xl"
+            className="font-display max-w-3xl text-4xl font-semibold leading-[1.1] tracking-tight text-white sm:text-6xl"
           >
             {headline}
           </motion.h1>
@@ -504,27 +422,21 @@ function Hero({
             className="flex flex-wrap items-center justify-center gap-4 pt-1"
           >
             <a
-              href="#precios"
+              href={ctas?.primary?.href ?? "#precios"}
               className="btn-copper inline-flex items-center gap-2 rounded-lg px-7 py-3 text-base font-semibold text-white"
             >
-              Suscripción
+              {ctas?.primary?.label ?? "Suscripción"}
               <ArrowRight className="h-4 w-4" />
             </a>
             <a
-              href="#simulador"
+              href={ctas?.secondary?.href ?? "#simulador"}
               className="rounded-lg border border-white/15 px-7 py-3 text-base font-semibold text-white transition-colors hover:bg-white/5"
             >
-              Ver cómo funciona
+              {ctas?.secondary?.label ?? "Ver cómo funciona"}
             </a>
           </motion.div>
         </div>
-      </motion.div>
-
-      {/* Fundido del borde inferior del hero hacia la sección siguiente */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-44 bg-gradient-to-b from-transparent to-[#0d0d0d]"
-      />
+      </div>
     </section>
   );
 }
@@ -541,20 +453,35 @@ function PricingSection({
   onPickPlan: (p: LandingPlan) => void;
 }) {
   return (
-    <section id="precios" className="bg-[#0a0a0a] pt-10 pb-28 sm:pt-14 sm:pb-44">
+    <section id="precios" className="relative z-10 pt-10 pb-28 sm:pt-14 sm:pb-44">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        {/* Flex centrado: con 1, 2 o 3 planes (dinámicos a futuro) todo
+            se acomoda perfecto al medio. */}
+        <div className="flex flex-col items-stretch justify-center gap-4 md:flex-row md:flex-wrap md:items-center">
           {plans.map((p, i) => (
-            <ScrollReveal key={p.id} delay={i * 0.08} className="h-full">
+            <ScrollReveal
+              key={p.id}
+              delay={i * 0.08}
+              className="w-full max-w-sm md:w-[calc(50%-0.5rem)] lg:w-[calc(33.333%-1.334rem)]"
+            >
               <div
                 className={cn(
-                  "flex h-full flex-col rounded-2xl border p-6 transition-colors sm:p-7",
+                  "demo-card relative flex h-full flex-col overflow-hidden rounded-2xl border p-6 transition-colors sm:p-7",
                   p.highlighted || p.badge
                     ? "border-[#c67d52]/40 bg-[#131313]"
-                    : "border-white/10 bg-white/[0.02] hover:border-white/20",
+                    : "dim border-white/10 bg-[#101010] hover:border-white/20",
                 )}
+                style={
+                  {
+                    "--brand": COPPER,
+                    "--energy-dur": `${7.5 + i * 1.4}s`,
+                    "--energy-delay": `${i * -2.3}s`,
+                    "--energy-spin-dur": `${2.4 + i * 0.5}s`,
+                  } as React.CSSProperties
+                }
               >
-                <div className="mb-5 flex items-center justify-between">
+                <span className="plan-texture" aria-hidden />
+                <div className="relative mb-5 flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-white">{p.name}</h3>
                   {p.badge && (
                     <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#c67d52]">
@@ -564,7 +491,7 @@ function PricingSection({
                 </div>
 
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-4xl font-semibold tracking-tight text-white tabular-nums">
+                  <span className="font-display text-4xl font-semibold tracking-tight text-white tabular-nums">
                     {p.priceUf === 0 ? "0" : p.priceUf}
                   </span>
                   <span className="text-sm text-zinc-500">
@@ -616,7 +543,10 @@ function PricingSection({
 
 function SimuladorSection() {
   return (
-    <section id="simulador" className="bg-[#0d0d0d] pt-10 pb-28 sm:pt-14 sm:pb-44">
+    <section
+      id="simulador"
+      className="relative z-10 pt-10 pb-28 sm:pt-14 sm:pb-44"
+    >
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <ProductInteractivePreview />
       </div>
@@ -624,9 +554,32 @@ function SimuladorSection() {
   );
 }
 
-function UseCases() {
+/* Monograma de la demo (máx. 2 iniciales) para la tarjeta. */
+function demoMonogram(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter((w) => /[a-záéíóúñ]/i.test(w[0] ?? ""))
+    .slice(0, 2)
+    .map((w) => w[0]!.toUpperCase())
+    .join("");
+}
+
+function UseCases({ items }: { items?: LandingUseCaseItem[] }) {
+  // Endpoint manda (orden + activos); fallback local si no viene nada.
+  const cases = items
+    ? items
+        .filter((u) => u.active)
+        .sort((a, b) => a.order - b.order)
+        .map((u) => ({
+          slug: u.slug,
+          name: u.name,
+          rubro: u.rubro,
+          brandColor: u.brand_color,
+          highlight: u.highlight,
+        }))
+    : LANDING_USE_CASES;
   return (
-    <section id="demos" className="bg-[#0a0a0a] pt-10 pb-28 sm:pt-14 sm:pb-44">
+    <section id="demos" className="relative z-10 pt-10 pb-28 sm:pt-14 sm:pb-44">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="mb-12 flex flex-col gap-8 sm:flex-row sm:items-end sm:justify-between">
           <div className="max-w-xl">
@@ -638,7 +591,7 @@ function UseCases() {
               />
               Demos en vivo
             </p>
-            <h2 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+            <h2 className="font-display mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
               Mira nuestras demos
             </h2>
             <p className="mt-4 text-sm leading-relaxed text-zinc-400">
@@ -659,42 +612,64 @@ function UseCases() {
               />
             </span>
             <span className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
-              {LANDING_USE_CASES.length} demos activas
+              {cases.length} demos activas
             </span>
           </div>
         </div>
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {LANDING_USE_CASES.map((useCase, i) => (
+          {cases.map((useCase, i) => (
             <ScrollReveal key={useCase.slug} delay={(i % 3) * 0.05} className="h-full">
               <Link
                 href={`/login/${useCase.slug}`}
+                target="_blank"
+                rel="noreferrer"
+                className="demo-card group relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#101010] p-5"
+                style={
+                  {
+                    "--brand": useCase.brandColor,
+                    // Fase y ritmo propios: las 9 tarjetas nunca laten al unísono.
+                    "--energy-dur": `${7 + (i % 4) * 1.7}s`,
+                    "--energy-delay": `${(i % 5) * -1.9}s`,
+                    "--energy-spin-dur": `${2.2 + (i % 3) * 0.7}s`,
+                  } as React.CSSProperties
+                }
               >
-                <div>
-                  <div className="flex items-center gap-3 mb-3">
+                <div className="relative flex items-center gap-3">
+                  <span
+                    className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-sm font-bold text-white"
+                    style={{ backgroundColor: useCase.brandColor }}
+                    aria-hidden
+                  >
+                    {demoMonogram(useCase.name)}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="truncate text-sm font-semibold text-white">
+                      {useCase.name}
+                    </h3>
+                    <p className="truncate text-xs text-zinc-500">{useCase.rubro}</p>
+                  </div>
+                  <span className="relative flex h-2 w-2 shrink-0" title="Demo en vivo">
                     <span
-                      className="h-2 w-2 shrink-0 rounded-full"
+                      className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-50"
                       style={{ backgroundColor: useCase.brandColor }}
                       aria-hidden
                     />
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-white">
-                        {useCase.name}
-                      </p>
-                      <p className="text-xs text-zinc-500">{useCase.rubro}</p>
-                    </div>
-                  </div>
-                  <p className="text-sm text-zinc-400 leading-relaxed">
-                    {useCase.highlight}
-                  </p>
+                    <span
+                      className="relative inline-flex h-2 w-2 rounded-full"
+                      style={{ backgroundColor: useCase.brandColor }}
+                      aria-hidden
+                    />
+                  </span>
                 </div>
 
-                <div
-                  className="flex items-center gap-1.5 text-sm font-medium"
-                  style={{ color: COPPER }}
-                >
+                <p className="relative mt-3.5 text-sm leading-relaxed text-zinc-400">
+                  {useCase.highlight}
+                </p>
+
+                <div className="relative mt-auto flex items-center gap-1.5 pt-4 text-sm font-medium text-[#c67d52]">
                   <span>Abrir demo</span>
-                  <ExternalLink className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                  <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
                 </div>
               </Link>
             </ScrollReveal>
@@ -702,6 +677,71 @@ function UseCases() {
         </div>
       </div>
     </section>
+  );
+}
+
+/**
+ * Capa cósmica fija al viewport (plexus + brasas): primera capa de la
+ * página, SIEMPRE por debajo del contenido (nav z-40, secciones z-10).
+ * Los efectos nunca interrumpen las tarjetas.
+ */
+function CosmicBackdrop() {
+  // Cuando el cursor está revelando nodos, nebulosas y brasas se apartan;
+  // al quedar inactivo, regresan. Nunca se reinician: solo se desvanecen.
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let timer: number | undefined;
+    function onMove() {
+      ref.current?.classList.add("is-revealing");
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => ref.current?.classList.remove("is-revealing"), 1400);
+    }
+    window.addEventListener("pointermove", onMove, { passive: true });
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.clearTimeout(timer);
+    };
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      aria-hidden
+      className="cosmic-backdrop pointer-events-none fixed inset-0 z-0"
+    >
+      {/* Red abstracta de energía: nodos que fluyen y se conectan */}
+      <div
+        className="absolute inset-0"
+        style={{
+          maskImage:
+            "radial-gradient(85% 75% at 50% 45%, black 35%, transparent 100%)",
+          WebkitMaskImage:
+            "radial-gradient(85% 75% at 50% 45%, black 35%, transparent 100%)",
+        }}
+      >
+        <HeroPlexus className="h-full w-full" />
+      </div>
+      {/* Brasas que suben desde el horizonte (solo en reposo) */}
+      <div className="absolute inset-0 fade-on-idle">
+        {EMBERS.map((e, i) => (
+          <span
+            key={i}
+            className={i % 5 === 2 ? "frig-ember frig-ember-hot" : "frig-ember"}
+            style={
+              {
+                left: e.left,
+                width: e.size,
+                height: e.size,
+                "--dur": e.dur,
+                "--delay": e.delay,
+                "--drift": e.drift,
+              } as React.CSSProperties
+            }
+          />
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -721,35 +761,52 @@ const MODULE_SCOPES: Record<string, string> = {
   "Roles y permisos": "Gestión",
 };
 
-function Features() {
-  return (
-    <section id="producto" className="bg-[#0a0a0a] pt-10 pb-28 sm:pt-14 sm:pb-44">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <div className="mb-8 flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.22em] text-[#c67d52]">
-          <span
-            className="inline-block h-2 w-2 rotate-45"
-            style={{ backgroundColor: COPPER }}
-            aria-hidden
-          />
-          Módulos · Alcance de Frig
-        </div>
+/* Mapa de tokens de ícono del endpoint → componentes Lucide. */
+const ICON_MAP: Record<string, LucideIcon> = {
+  zap: Zap,
+  banknote: Banknote,
+  "layout-grid": LayoutGrid,
+  bike: Bike,
+  "chef-hat": ChefHat,
+  warehouse: Warehouse,
+  "file-text": FileText,
+  "qr-code": QrCode,
+  "credit-card": CreditCard,
+  store: Store,
+  truck: Truck,
+  "shield-check": ShieldCheck,
+};
 
-        {/* Tabla flexible: columnas en desktop, filas apiladas en móvil. */}
-        <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
+function Features({ items }: { items?: LandingFeatureItem[] }) {
+  // Endpoint manda (token de ícono → Lucide, fallback si es desconocido);
+  // sin contenido del endpoint, se usa el copy local.
+  const feats = items?.length
+    ? items.map((f) => ({
+        icon: ICON_MAP[f.icon] ?? LayoutGrid,
+        title: f.title,
+        description: f.description,
+      }))
+    : LANDING_FEATURES;
+  return (
+    <section id="producto" className="relative z-10 pt-10 pb-28 sm:pt-14 sm:pb-44">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        {/* Tabla flexible: columnas en desktop, filas apiladas en móvil.
+            Fondo sólido: las líneas de energía quedan fuera de la tabla. */}
+        <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#101010]">
           <div className="hidden md:grid grid-cols-[1.1fr_1.6fr_auto] gap-6 border-b border-white/[0.06] px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
             <span>Módulo</span>
             <span>Qué hace</span>
             <span className="text-right">Ámbito</span>
           </div>
 
-          {LANDING_FEATURES.map((feature, i) => {
+          {feats.map((feature, i) => {
             const Icon = feature.icon;
             const scope = MODULE_SCOPES[feature.title] ?? "Frig";
             return (
               <div
                 key={feature.title}
                 className={cn(
-                  "grid grid-cols-1 gap-2 px-5 py-5 transition-colors hover:bg-white/[0.03] md:grid-cols-[1.1fr_1.6fr_auto] md:items-center md:gap-6 md:px-6",
+                  "grid grid-cols-1 gap-2 px-5 py-5 transition-colors hover:bg-[#161616] md:grid-cols-[1.1fr_1.6fr_auto] md:items-center md:gap-6 md:px-6",
                   i !== LANDING_FEATURES.length - 1 &&
                     "border-b border-white/[0.05]",
                 )}
@@ -776,18 +833,22 @@ function Features() {
             );
           })}
         </div>
-
-        <p className="mt-6 text-xs text-zinc-500">
-          Los 12 módulos vienen activos desde el día uno, en todos los planes.
-        </p>
       </div>
     </section>
   );
 }
 
-function Footer({ contactEmail }: { contactEmail: string }) {
+function Footer({
+  contactEmail,
+  demoSubject,
+  social = [],
+}: {
+  contactEmail: string;
+  demoSubject?: string;
+  social?: LandingFooterSocial[];
+}) {
   return (
-    <footer className="relative overflow-hidden bg-[#0a0a0a] py-14">
+    <footer className="relative z-10 overflow-hidden py-14">
       {/* Energía de cierre: red de nodos + horizonte cálido, como el hero */}
       <SectionDivider />
       <div
@@ -827,9 +888,27 @@ function Footer({ contactEmail }: { contactEmail: string }) {
           <a href="#producto" className="transition-colors hover:text-white">Módulos</a>
           <a href="#precios" className="transition-colors hover:text-white">Precios</a>
           <Link href="/politicas" className="transition-colors hover:text-white">Privacidad</Link>
-          <a href={`mailto:${contactEmail}`} className="transition-colors hover:text-white" style={{ color: COPPER }}>
+          <a
+            href={`mailto:${contactEmail}${demoSubject ? `?subject=${encodeURIComponent(demoSubject)}` : ""}`}
+            className="transition-colors hover:text-white"
+            style={{ color: COPPER }}
+          >
             {contactEmail}
           </a>
+          {social.map((s) =>
+            s.network === "github" ? (
+              <a
+                key={s.href}
+                href={s.href}
+                target="_blank"
+                rel="noreferrer"
+                aria-label="GitHub"
+                className="transition-colors hover:text-white"
+              >
+                <GithubIcon className="h-4 w-4" />
+              </a>
+            ) : null,
+          )}
         </nav>
       </ScrollReveal>
     </footer>
@@ -877,9 +956,13 @@ export function LandingSite() {
   );
 
   const group = configQuery.data?.group;
+  const content = configQuery.data?.content ?? null;
   const heroCopy = group?.hero ?? null;
-  const contactEmail = group?.contact_email || DEMO_CONTACTS.to;
-  const pricingNote = group?.pricing_note || LANDING_PRICING_NOTE;
+  const contactEmail =
+    content?.contact?.email || group?.contact_email || DEMO_CONTACTS.to;
+  const demoSubject = content?.contact?.demo_subject || DEMO_CONTACTS.subject;
+  const pricingNote =
+    content?.pricing_note || group?.pricing_note || LANDING_PRICING_NOTE;
 
   useEffect(() => {
     if (byHost === "tenant") window.location.replace("/login");
@@ -900,10 +983,12 @@ export function LandingSite() {
 
   return (
     <div className="flex min-h-dvh flex-1 flex-col bg-[#0a0a0a] font-sans">
-      <Nav savedUser={savedUser} />
+      <CosmicBackdrop />
+      <Nav savedUser={savedUser} links={content?.nav} />
       <main>
         <Hero
           hero={heroCopy}
+          ctas={content?.hero ? { primary: content.hero.cta_primary, secondary: content.hero.cta_secondary } : undefined}
           savedUser={savedUser}
           entering={entering}
           onReenter={handleReenter}
@@ -915,10 +1000,14 @@ export function LandingSite() {
           pricingNote={pricingNote}
           onPickPlan={setPlan}
         />
-        <UseCases />
-        <Features />
+        <UseCases items={content?.use_cases} />
+        <Features items={content?.features} />
       </main>
-      <Footer contactEmail={contactEmail} />
+      <Footer
+        contactEmail={contactEmail}
+        demoSubject={demoSubject}
+        social={content?.footer?.social}
+      />
       <CheckoutModal
         plan={plan}
         integrationUf={integrationUf}

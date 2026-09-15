@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { PixelFoodMark } from "@/components/landing/pixel-food-mark";
 
 const PREFIX = "frig.checkout_id.";
 
@@ -35,17 +34,16 @@ export default function CheckoutResultPage() {
 
   return (
     <div
-      className="flex min-h-dvh flex-1 flex-col items-center justify-center gap-6 px-4 font-sans"
-      style={{ background: "#0b110c", color: "#f5efdd" }}
+      className="flex min-h-dvh flex-1 flex-col items-center justify-center gap-6 bg-[#0a0a0a] px-4 text-zinc-100"
     >
       <span className="flex h-12 w-12 items-center justify-center bg-primary text-primary-foreground">
         <img src="/brand/frig-symbol.png" alt="Frig" className="h-7 w-7" />
       </span>
-      <div className="pixel-frame flex flex-col items-center gap-4 px-8 py-10 text-center" style={{ background: "#10160f" }}>
+      <div className="flex w-full max-w-sm flex-col items-center gap-4 rounded-xl border border-white/10 bg-white/[0.03] px-8 py-10 text-center">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-primary" />
         <div>
-          <p className="font-pixel text-sm font-semibold tracking-wider">PROCESANDO TU PAGO…</p>
-          <p className="mt-2 text-sm leading-relaxed text-emerald-100/70">
+          <p className="text-sm font-semibold tracking-wide">Procesando tu pago…</p>
+          <p className="mt-2 text-sm leading-relaxed text-zinc-400">
             Te llevamos de vuelta para confirmar tu contratación.
           </p>
         </div>

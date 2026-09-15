@@ -125,6 +125,65 @@ export interface LandingConfig {
   group: LandingGroupConfig;
   brand: LandingBrand | null;
   plans: GroupPlanPublic[];
+  /** Bloque de contenido de la landing (todo opcional: el front tiene fallbacks). */
+  content?: LandingContent | null;
+}
+
+// ── Bloque `content`: todo el copy/contenido editable del landing ───────────
+
+export interface LandingNavItem {
+  href: string;
+  label: string;
+}
+
+export interface LandingCta {
+  href: string;
+  label: string;
+}
+
+export interface LandingContentHero {
+  headline: string;
+  subhead: string;
+  cta_primary?: LandingCta;
+  cta_secondary?: LandingCta;
+}
+
+export interface LandingUseCaseItem {
+  slug: string;
+  name: string;
+  rubro: string;
+  brand_color: string;
+  highlight: string;
+  demo_user: string;
+  demo_password: string;
+  order: number;
+  active: boolean;
+}
+
+export interface LandingFooterLink {
+  label: string;
+  href: string;
+}
+
+export interface LandingFooterSocial {
+  network: string;
+  href: string;
+}
+
+export interface LandingContent {
+  nav?: LandingNavItem[];
+  hero?: LandingContentHero;
+  features?: LandingFeatureItem[];
+  use_cases?: LandingUseCaseItem[];
+  pricing_note?: string;
+  contact?: {
+    email: string;
+    demo_subject?: string;
+  };
+  footer?: {
+    links?: LandingFooterLink[];
+    social?: LandingFooterSocial[];
+  };
 }
 
 /**

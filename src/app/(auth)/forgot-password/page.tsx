@@ -6,7 +6,6 @@ import { motion } from "framer-motion";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { forgotPassword } from "@/lib/api/auth";
-import { LandingPanel } from "@/components/landing/landing-panel";
 import { cn } from "@/lib/utils";
 
 export default function ForgotPasswordPage() {
@@ -34,7 +33,25 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="relative flex min-h-dvh flex-1 flex-col bg-[#0a0a0a] lg:h-dvh lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)] lg:overflow-hidden">
+    <div
+      className="relative flex min-h-dvh flex-1 flex-col bg-[#0a0a0a]"
+      style={
+        {
+          "--brand-primary": "#c67d52",
+          "--color-primary": "#c67d52",
+          "--primary": "#c67d52",
+          "--ring": "#c67d52",
+          "--input": "#27272a",
+          "--border": "#27272a",
+          "--background": "#0a0a0a",
+          "--card": "#141414",
+          "--muted": "#1c1c1f",
+          "--muted-foreground": "#a1a1aa",
+          "--accent": "#1c1c1f",
+          "--secondary": "#1c1c1f",
+        } as React.CSSProperties
+      }
+    >
       {/* Fondo de identidad: horizonte cálido */}
       <div aria-hidden className="pointer-events-none absolute inset-0">
         <div
@@ -45,7 +62,7 @@ export default function ForgotPasswordPage() {
           }}
         />
       </div>
-      <section className="dark relative flex flex-1 flex-col items-center justify-center px-4 py-10 text-white lg:col-start-2 lg:row-start-1 lg:h-dvh lg:overflow-hidden">
+      <section style={{ "--input": "#27272a", "--border": "#27272a", "--muted": "#1c1c1f", "--muted-foreground": "#a1a1aa", "--accent": "#1c1c1f", "--background": "#0a0a0a", "--card": "#141414" } as React.CSSProperties} className="dark relative flex flex-1 flex-col items-center justify-center px-4 py-10 text-white">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -130,10 +147,6 @@ export default function ForgotPasswordPage() {
           </p>
         </motion.div>
       </section>
-
-      <aside className="lg:col-start-1 lg:row-start-1 lg:h-dvh lg:overflow-hidden">
-        <LandingPanel />
-      </aside>
     </div>
   );
 }

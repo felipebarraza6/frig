@@ -26,16 +26,9 @@ export function LandingPanel({ brand }: { brand?: LandingBrand }) {
           </div>
         </div>
       ) : (
-        /* El FRIG del hero: grande, con su fuego respirando detrás */
-        <div className="relative pl-16 lg:pl-24">
-          <div aria-hidden className="frig-fireglow" />
-          <div aria-hidden className="frig-fireglow frig-fireglow-2" />
-          <img
-            src="/brand/frig-wordmark.png"
-            alt="Frig"
-            className="frig-flame relative h-20 w-auto lg:h-28"
-          />
-        </div>
+        /* Sin marca propia: el wordmark animado ya preside el formulario
+           (centrado), el panel queda solo con su energía de fondo. */
+        null
       )}
     </div>
   );

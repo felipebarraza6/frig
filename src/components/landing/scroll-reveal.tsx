@@ -12,7 +12,7 @@ export function ScrollReveal({
   children,
   className,
   delay = 0,
-  y = 12,
+  y = 8,
 }: {
   children: ReactNode;
   className?: string;
@@ -32,7 +32,7 @@ export function ScrollReveal({
          el contenido entre en pantalla, así una sección nunca se ve vacía
          "popeando" al llegar por ancla o scroll. */
       viewport={{ once: true, margin: "0px 0px 18% 0px" }}
-      transition={{ duration: 0.35, delay, ease: "easeOut" }}
+      transition={{ duration: 0.9, delay, ease: [0.22, 0.61, 0.36, 1] }}
     >
       {children}
     </motion.div>

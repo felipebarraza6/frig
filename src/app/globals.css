@@ -44,6 +44,7 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-pixel: var(--font-pixelify), ui-sans-serif, sans-serif;
+  --font-display: var(--font-space), var(--font-geist-sans), ui-sans-serif, sans-serif;
 }
 
 :root,
@@ -202,10 +203,10 @@ a {
 @keyframes sidebar-breathe {
   0%,
   100% {
-    background-position: 0 0, 0 0, 0 0, 0 0, 0% 0%;
+    background-position: 0 0, 0 0, 0% 0%;
   }
   50% {
-    background-position: 0 0, 0 0, 0 0, 0 0, 100% 100%;
+    background-position: 0 0, 0 0, 100% 100%;
   }
 }
 
@@ -223,207 +224,6 @@ a {
 
 .animate-bump {
   animation: bump 200ms ease-out;
-}
-
-@keyframes landing-pixel-bob {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0);
-  }
-  50% {
-    transform: translate3d(0, -9px, 0);
-  }
-}
-
-@keyframes landing-pixel-wind {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0);
-  }
-  50% {
-    transform: translate3d(16px, 5px, 0);
-  }
-}
-
-@keyframes landing-pixel-steam {
-  0% {
-    transform: translate3d(0, 0, 0) scale(0.8);
-    opacity: 0;
-  }
-  25% {
-    opacity: 0.42;
-  }
-  100% {
-    transform: translate3d(-22px, -56px, 0) scale(1.15);
-    opacity: 0;
-  }
-}
-
-.landing-pixel-drift {
-  animation-name: landing-pixel-bob, landing-pixel-wind;
-  animation-timing-function: ease-in-out, ease-in-out;
-  animation-iteration-count: infinite, infinite;
-}
-
-.landing-pixel-steam {
-  animation: landing-pixel-steam 5s ease-out infinite;
-}
-
-.landing-pixel-glow {
-  animation: landing-pixel-bob 6s ease-in-out infinite;
-}
-
-@keyframes frig-blink {
-  0%, 90%, 100% { transform: scale(1.85) scaleY(1); }
-  92%, 96% { transform: scale(1.85) scaleY(0.15); }
-}
-
-@keyframes frig-smoke-rise {
-  0% { transform: translateY(0) translateX(0); opacity: 0; }
-  12% { opacity: .82; }
-  35% { transform: translateY(-3px) translateX(.6px); opacity: .62; }
-  62% { transform: translateY(-6px) translateX(-.4px); opacity: .28; }
-  85% { transform: translateY(-9px) translateX(.3px); opacity: .08; }
-  100% { transform: translateY(-11px) translateX(-.6px); opacity: 0; }
-}
-
-.frig-eye {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: frig-blink 4.5s steps(1) infinite;
-}
-
-.frig-smoke {
-  animation: frig-smoke-rise 2.6s ease-out infinite;
-}
-
-.frig-smoke-2 { animation-delay: .5s; animation-duration: 3s; }
-.frig-smoke-3 { animation-delay: 1s; animation-duration: 2.8s; }
-
-/* ── Landing pixel-game (estilo juego medieval) ─────────────────────────── */
-
-/* Marco chunky: borde duro + sombra offset, sin radios (look retro). */
-.pixel-frame {
-  border: 2px solid color-mix(in srgb, var(--brand-foreground) 34%, transparent);
-  border-radius: 0;
-  background: var(--card);
-  box-shadow: 5px 5px 0 0 color-mix(in srgb, var(--brand-foreground) 16%, transparent);
-}
-
-.pixel-btn {
-  border-radius: 0;
-  box-shadow: 3px 3px 0 0 rgba(0, 0, 0, 0.45);
-  transition: transform 60ms steps(2), box-shadow 60ms steps(2);
-}
-.pixel-btn:active {
-  transform: translate(2px, 2px);
-  box-shadow: 1px 1px 0 0 rgba(0, 0, 0, 0.45);
-}
-
-/* ── Fondos pixel-art con gradiente ───────────────────────────────────────
-   Gradiente SUAVE + dithering fino encima (checker pixel a muy baja
-   opacidad): textura retro sin cortes de capa visibles. */
-
-/* Cielo nocturno del hero / CTA final: verde profundo → verde bosque,
-   con resplandor cálido del "horizonte" (fuego del castillo). */
-.pixel-sky-hero {
-  background-color: #08170f;
-  background-image:
-    /* Dither fino (4px) sobre todo el cielo. */
-    repeating-conic-gradient(rgba(255, 255, 255, 0.022) 0% 25%, transparent 0% 50%),
-    /* Dither grueso (16px) muy tenue: rompe la lisura sin marcar bandas. */
-    repeating-conic-gradient(rgba(141, 196, 163, 0.02) 0% 25%, transparent 0% 50%),
-    /* Resplandor cálido del horizonte, suave. */
-    radial-gradient(120% 55% at 50% 108%, rgba(233, 189, 74, 0.13) 0%, rgba(216, 120, 61, 0.06) 45%, transparent 72%),
-    /* Gradiente principal, continuo. */
-    linear-gradient(180deg, #050d09 0%, #08170f 32%, #0c2317 58%, #123020 78%, #1a4226 100%);
-  background-size: 4px 4px, 16px 16px, 100% 100%, 100% 100%;
-}
-
-/* Fondo de secciones oscuras (planes): más frío, casi pizarra. */
-.pixel-sky-deep {
-  background-color: #10160f;
-  background-image:
-    repeating-conic-gradient(rgba(255, 255, 255, 0.02) 0% 25%, transparent 0% 50%),
-    repeating-conic-gradient(rgba(141, 196, 163, 0.018) 0% 25%, transparent 0% 50%),
-    radial-gradient(140% 40% at 50% -8%, rgba(233, 189, 74, 0.05) 0%, transparent 60%),
-    linear-gradient(180deg, #0b110c 0%, #10160f 40%, #151e14 72%, #1a271b 100%);
-  background-size: 4px 4px, 16px 16px, 100% 100%, 100% 100%;
-}
-
-/* Dither claro para secciones crema (funciones / demos): textura sutil. */
-.pixel-dither-light {
-  background-image:
-    repeating-conic-gradient(color-mix(in srgb, var(--color-primary) 4%, transparent) 0% 25%, transparent 0% 50%),
-    linear-gradient(180deg,
-      var(--background) 0%,
-      color-mix(in srgb, var(--color-primary) 4%, var(--background)) 100%);
-  background-size: 4px 4px, 100% 100%;
-}
-
-/* Bosque nocturno: secciones intermedias del "viaje" (funciones, demos).
-   Mismo lenguaje que pixel-sky-deep pero más verde, como ladera baja el
-   bosque. La cima (#0b110c) coincide con el relleno de PixelSlope. */
-.pixel-sky-forest {
-  background-color: #0b110c;
-  background-image:
-    repeating-conic-gradient(rgba(255, 255, 255, 0.02) 0% 25%, transparent 0% 50%),
-    repeating-conic-gradient(rgba(141, 196, 163, 0.018) 0% 25%, transparent 0% 50%),
-    radial-gradient(120% 45% at 50% 112%, rgba(233, 189, 74, 0.08) 0%, transparent 70%),
-    linear-gradient(180deg, #0b110c 0%, #0e1810 45%, #122217 100%);
-  background-size: 4px 4px, 16px 16px, 100% 100%, 100% 100%;
-}
-
-/* ── Login pixel (fondo vivo + éxito) ────────────────────────────────────── */
-
-/* Estrellas pixel: titilan con steps para parpadeo duro retro. */
-@keyframes login-twinkle {
-  0%,
-  100% {
-    opacity: 0.12;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.85;
-    transform: scale(1.4);
-  }
-}
-
-/* Flotación suave de los sprites de comida. */
-@keyframes login-float {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0);
-  }
-  50% {
-    transform: translate3d(0, -10px, 0);
-  }
-}
-
-/* Vapor subiendo desde el "suelo" del login. */
-@keyframes login-steam {
-  0% {
-    transform: translate3d(0, 8px, 0) scale(0.8);
-    opacity: 0;
-  }
-  30% {
-    opacity: 0.3;
-  }
-  100% {
-    transform: translate3d(0, -34px, 0) scale(1.25);
-    opacity: 0;
-  }
-}
-
-/* Cielo: gradiente que respira muy lento. */
-@keyframes login-sky {
-  0%,
-  100% {
-    background-position: 0% 0%;
-  }
-  50% {
-    background-position: 100% 100%;
-  }
 }
 
 /* Shake del error de login (pasos duros, estilo retro). */
@@ -446,78 +246,41 @@ a {
   }
 }
 
-/* Moneda que salta en la animación de éxito (usa --tx/--ty por moneda). */
-@keyframes login-coin-pop {
-  0% {
-    transform: translate(0, 0) scale(0.3);
-    opacity: 0;
-  }
-  20% {
-    opacity: 1;
-  }
-  55% {
-    transform: translate(var(--tx, 0), var(--ty, -52px)) scale(1);
-    opacity: 1;
-  }
-  100% {
-    transform: translate(var(--tx, 0), calc(var(--ty, -52px) - 34px)) scale(0.6);
-    opacity: 0;
-  }
-}
-
-/* Estrella de éxito: gira con steps (rotación pixel) y aparece con pop. */
-@keyframes login-success-pop {
-  0% {
-    transform: scale(0);
-    opacity: 0;
-  }
-  55% {
-    transform: scale(1.18);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-/* Halo que crece una vez tras la estrella de éxito. */
-@keyframes login-success-halo {
-  0% {
-    transform: scale(0.4);
-    opacity: 0.5;
-  }
-  100% {
-    transform: scale(2.6);
-    opacity: 0;
-  }
-}
-
 .login-shake {
   animation: login-shake 0.4s steps(8);
 }
 
 /* ── Hero FRIG: paisaje del logo (fogata + viento) ───────────────────────── */
 
-/* Brasas que serpentean al subir (deriva en zigzag, como chispas reales). */
+/* Brasas que serpentean al subir: curva amplia y continua, sin tirones.
+   El vaivén crece con la altura y el brillo entra y sale suave. */
 @keyframes frig-ember {
   0% {
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translate3d(0, 0, 0) scale(0.9) rotate(0deg);
     opacity: 0;
   }
-  10% {
-    opacity: 0.95;
+  12% {
+    transform: translate3d(calc(var(--drift, 20px) * 0.25), -5vh, 0) scale(1) rotate(15deg);
+    opacity: 0.9;
   }
-  35% {
-    transform: translate3d(calc(var(--drift, 20px) * -0.8), -18vh, 0) scale(0.8);
-    opacity: 0.85;
+  30% {
+    transform: translate3d(calc(var(--drift, 20px) * -0.55), -14vh, 0) scale(0.9) rotate(-20deg);
+    opacity: 0.8;
   }
-  65% {
-    transform: translate3d(calc(var(--drift, 20px) * 1.1), -32vh, 0) scale(0.6);
-    opacity: 0.6;
+  48% {
+    transform: translate3d(calc(var(--drift, 20px) * 0.85), -23vh, 0) scale(0.78) rotate(25deg);
+    opacity: 0.68;
+  }
+  66% {
+    transform: translate3d(calc(var(--drift, 20px) * -0.75), -31vh, 0) scale(0.62) rotate(-15deg);
+    opacity: 0.5;
+  }
+  82% {
+    transform: translate3d(calc(var(--drift, 20px) * 0.5), -38vh, 0) scale(0.48) rotate(10deg);
+    opacity: 0.3;
   }
   100% {
-    transform: translate3d(calc(var(--drift, 20px) * -0.4), -46vh, 0) scale(0.3);
+    transform: translate3d(calc(var(--drift, 20px) * -0.3), -45vh, 0) scale(0.34) rotate(0deg);
     opacity: 0;
   }
 }
@@ -532,9 +295,32 @@ a {
   background: #f0a26a;
   filter: drop-shadow(0 0 3px rgba(240, 162, 106, 0.7))
     drop-shadow(0 0 9px rgba(232, 146, 94, 0.3));
-  animation: frig-ember var(--dur, 10s) linear infinite;
-  animation-delay: var(--delay, 0s);
+  /* Titileo suave tipo seno, desfasado del trayecto. */
+  animation:
+    frig-ember var(--dur, 10s) ease-in-out infinite,
+    frig-ember-flicker 2.6s ease-in-out infinite;
+  animation-delay: var(--delay, 0s), calc(var(--delay, 0s) * -0.37);
   will-change: transform, opacity;
+}
+
+@keyframes frig-ember-flicker {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 3px rgba(240, 162, 106, 0.6))
+      drop-shadow(0 0 9px rgba(232, 146, 94, 0.26)) brightness(0.95);
+  }
+  25% {
+    filter: drop-shadow(0 0 4px rgba(240, 162, 106, 0.8))
+      drop-shadow(0 0 11px rgba(232, 146, 94, 0.36)) brightness(1.18);
+  }
+  50% {
+    filter: drop-shadow(0 0 3px rgba(240, 162, 106, 0.62))
+      drop-shadow(0 0 9px rgba(232, 146, 94, 0.28)) brightness(1);
+  }
+  75% {
+    filter: drop-shadow(0 0 2px rgba(240, 162, 106, 0.5))
+      drop-shadow(0 0 7px rgba(232, 146, 94, 0.2)) brightness(0.85);
+  }
 }
 
 /* Chispa blanca-caliente: más grande, más viva, aparece ocasionalmente. */
@@ -606,52 +392,20 @@ a {
 }
 
 .frig-flame {
-  animation: frig-flicker 5s ease-in-out infinite;
-  will-change: filter;
+  /* Sin drop-shadow animado: el filtro gigante fuerza una capa GPU que
+     oscurecía el fondo detrás (la "marca" entre hero y el resto). El
+     resplandor lo dan los .frig-fireglow detrás; aquí solo respira. */
+  animation: frig-flame-breathe 5s ease-in-out infinite;
 }
 
-/* Salto dimensional del wordmark: glitch breve, como cruzar un portal. */
-@keyframes frig-dimension {
-  0% {
-    transform: translate(0, 0) skewX(0deg);
-    clip-path: none;
-    filter: brightness(1);
-    opacity: 1;
-  }
-  18% {
-    transform: translate(-12px, 3px) skewX(-8deg);
-    clip-path: inset(8% 0 46% 0);
-    filter: brightness(1.7) drop-shadow(0 0 16px rgba(157, 182, 143, 0.8));
-  }
-  38% {
-    transform: translate(14px, -4px) skewX(7deg);
-    clip-path: inset(48% 0 6% 0);
-    opacity: 0.8;
-    filter: brightness(1.4) drop-shadow(0 0 14px rgba(240, 162, 106, 0.9));
-  }
-  58% {
-    transform: translate(-7px, 2px) skewX(-4deg);
-    clip-path: inset(28% 0 22% 0);
-    filter: brightness(1.8) drop-shadow(0 0 20px rgba(157, 182, 143, 0.7));
-  }
-  78% {
-    transform: translate(5px, -1px) skewX(2deg);
-    clip-path: inset(0 0 0 0);
-    filter: brightness(1.2);
-  }
+@keyframes frig-flame-breathe {
+  0%,
   100% {
-    transform: none;
-    clip-path: none;
-    filter: brightness(1);
     opacity: 1;
   }
-}
-
-.frig-dimension-jump {
-  animation:
-    frig-dimension 0.55s steps(7) both,
-    frig-flicker 2.6s ease-in-out infinite;
-  will-change: transform, filter, clip-path;
+  50% {
+    opacity: 0.9;
+  }
 }
 
 /* Botón cobre reutilizable (anclas y botones). */
@@ -664,6 +418,241 @@ a {
 }
 .btn-copper:active {
   transform: scale(0.98);
+}
+
+/* ── Tarjeta de demo: energía del color de marca ──────────────────────────
+   El color llega como --brand (inline). Brillo ambiental tenue siempre
+   presente; al hover, un arco de energía recorre el borde. */
+@property --energy-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.demo-card {
+  --brand: #c67d52;
+  transition: box-shadow 0.6s ease;
+}
+.demo-card::before {
+  content: "";
+  position: absolute;
+  inset: -22%;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0.55;
+  transition: opacity 0.6s ease;
+  /* Duración y fase propias de cada tarjeta (vías --energy-dur/--energy-delay). */
+  animation: energy-breathe var(--energy-dur, 8s) ease-in-out infinite;
+  animation-delay: var(--energy-delay, 0s);
+  background:
+    radial-gradient(
+      42% 40% at 24% 12%,
+      color-mix(in srgb, var(--brand) 15%, transparent),
+      transparent 72%
+    ),
+    radial-gradient(
+      34% 34% at 82% 92%,
+      color-mix(in srgb, var(--brand) 11%, transparent),
+      transparent 70%
+    );
+}
+.demo-card:hover::before {
+  opacity: 1;
+  animation-duration: 4.5s;
+}
+.demo-card:hover {
+  box-shadow: 0 18px 45px -18px color-mix(in srgb, var(--brand) 55%, transparent);
+}
+.demo-card::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  background: conic-gradient(
+    from var(--energy-angle),
+    transparent 0deg,
+    var(--brand) 55deg,
+    transparent 125deg
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+.demo-card:hover::after {
+  opacity: 1;
+  animation: energy-spin var(--energy-spin-dur, 2.8s) linear infinite;
+}
+@keyframes energy-spin {
+  to {
+    --energy-angle: 360deg;
+  }
+}
+/* El glow respira: deriva orgánica (asimétrica, con leve giro) dentro de la
+   tarjeta; más vivo al hover. Cada tarjeta va en fase propia. */
+@keyframes energy-breathe {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+  27% {
+    transform: translate(2.5%, -2.5%) scale(1.05) rotate(1.2deg);
+  }
+  53% {
+    transform: translate(-2%, -3.5%) scale(1.09) rotate(-0.8deg);
+  }
+  78% {
+    transform: translate(3.5%, -1%) scale(1.03) rotate(0.6deg);
+  }
+}
+
+/* ── Capa cósmica global: nebulosas + barrido de luz ──────────────────────
+   Masas de color difusas que derivan muy lento detrás de todo el contenido. */
+.cosmic-nebula {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+  will-change: transform;
+}
+.cosmic-nebula-1 {
+  width: 58vw;
+  height: 58vw;
+  left: -14vw;
+  top: -16vh;
+  background: radial-gradient(circle, rgba(240, 162, 106, 0.14) 0%, transparent 65%);
+  animation: nebula-drift-a 34s ease-in-out infinite alternate;
+}
+.cosmic-nebula-2 {
+  width: 52vw;
+  height: 52vw;
+  left: 30vw;
+  top: 22vh;
+  background: radial-gradient(circle, rgba(157, 182, 143, 0.11) 0%, transparent 65%);
+  animation: nebula-drift-b 46s ease-in-out infinite alternate;
+}
+.cosmic-nebula-3 {
+  width: 56vw;
+  height: 56vw;
+  left: 12vw;
+  bottom: -22vh;
+  background: radial-gradient(circle, rgba(198, 125, 82, 0.15) 0%, transparent 65%);
+  animation: nebula-drift-c 29s ease-in-out infinite alternate;
+}
+@keyframes nebula-drift-a {
+  0% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+  50% {
+    transform: translate(9vw, 6vh) scale(1.15) rotate(8deg);
+  }
+  100% {
+    transform: translate(-4vw, 12vh) scale(0.92) rotate(-5deg);
+  }
+}
+@keyframes nebula-drift-b {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-7vw, -9vh) scale(1.12);
+  }
+  100% {
+    transform: translate(5vw, -3vh) scale(0.95);
+  }
+}
+@keyframes nebula-drift-c {
+  0% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+  45% {
+    transform: translate(6vw, -7vh) scale(1.18) rotate(10deg);
+  }
+  100% {
+    transform: translate(-6vw, -2vh) scale(0.9) rotate(-8deg);
+  }
+}
+
+/* Barrido de luz: una banda diagonal muy tenue que cruza la pantalla. */
+.cosmic-sheen {
+  position: absolute;
+  inset: -30%;
+  background: linear-gradient(
+    115deg,
+    transparent 42%,
+    rgba(240, 162, 106, 0.05) 50%,
+    rgba(157, 182, 143, 0.03) 54%,
+    transparent 62%
+  );
+  background-size: 260% 260%;
+  /* alternate: la banda va y vuelve; nunca se "reinicia" con un salto. */
+  animation: sheen-sweep 34s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+@keyframes sheen-sweep {
+  0% {
+    background-position: 120% 0%;
+  }
+  100% {
+    background-position: -120% 100%;
+  }
+}
+
+/* Mientras el cursor revela nodos, nebulosas y brasas se apartan (fade);
+   al quedar inactivo regresan. Nunca se reinician, solo se desvanecen. */
+.cosmic-backdrop .fade-on-idle {
+  transition: opacity 1s ease;
+}
+.cosmic-backdrop.is-revealing .fade-on-idle {
+  opacity: 0;
+}
+
+/* Variante atenuada (planes no destacados): energía más contenida. */
+.demo-card.dim::before {
+  opacity: 0.3;
+}
+.demo-card.dim:hover::before {
+  opacity: 0.75;
+}
+.demo-card.dim::after {
+  background: conic-gradient(
+    from var(--energy-angle),
+    transparent 0deg,
+    color-mix(in srgb, var(--brand) 60%, transparent) 55deg,
+    transparent 125deg
+  );
+}
+
+/* Textura abstracta interior: trazos diagonales + mancha suave, deriva lenta. */
+.plan-texture {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0.6;
+  background-image:
+    repeating-linear-gradient(
+      115deg,
+      color-mix(in srgb, var(--brand, #c67d52) 5%, transparent) 0 1px,
+      transparent 1px 11px
+    ),
+    radial-gradient(
+      50% 40% at 85% 10%,
+      color-mix(in srgb, var(--brand, #c67d52) 8%, transparent),
+      transparent 70%
+    );
+  animation: texture-drift 16s linear infinite;
+}
+@keyframes texture-drift {
+  to {
+    background-position:
+      132px 66px,
+      0 0;
+  }
 }
 
 /* ── Separador fluido: energía cálida que recorre la línea ──────────────── */
@@ -722,98 +711,6 @@ a {
   }
 }
 
-
-/* Antorcha: parpadeo irregular estilo llama (steps = parpadeo duro retro). */
-@keyframes house-torch {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  25% {
-    opacity: 0.5;
-  }
-  45% {
-    opacity: 0.95;
-  }
-  70% {
-    opacity: 0.35;
-  }
-  85% {
-    opacity: 0.8;
-  }
-}
-
-/* Ventana: brillo de vela que respira lento. */
-@keyframes house-window {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.55;
-  }
-}
-
-/* Bandera: aleteo lateral con 2 pasos (pixel flutter). */
-@keyframes house-flag {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  50% {
-    transform: translateX(-18%);
-  }
-}
-
-/* Nube: cruza el hero de izquierda a derecha, en bucle.
-   translateX(-100%) = ancho propio fuera de pantalla (el contenedor recorta).
-   steps() = avance a saltos, estilo pixel. */
-@keyframes landing-cloud {
-  from {
-    transform: translate3d(-100%, 0, 0);
-  }
-  to {
-    transform: translate3d(100vw, 0, 0);
-  }
-}
-
-.landing-cloud {
-  animation-name: landing-cloud;
-  animation-timing-function: steps(160);
-  animation-iteration-count: infinite;
-}
-
-/* Glow pulsante del plan destacado. */
-@keyframes plan-glow {
-  0%,
-  100% {
-    box-shadow: 6px 6px 0 0 rgba(0, 0, 0, 0.45), 0 0 0 0 rgba(233, 189, 74, 0);
-  }
-  50% {
-    box-shadow: 6px 6px 0 0 rgba(0, 0, 0, 0.45), 0 0 0 5px rgba(233, 189, 74, 0.28);
-  }
-}
-
-.plan-glow {
-  animation: plan-glow 2.4s ease-in-out infinite;
-}
-
-/* Halo de la luna: respira lento (brillo + leve escala). */
-@keyframes moon-halo {
-  0%,
-  100% {
-    opacity: 0.4;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.8;
-    transform: scale(1.1);
-  }
-}
-
-.moon-halo {
-  animation: moon-halo 6s ease-in-out infinite;
-}
 
 /* ── Borde neón animado (paleta ⌘K) ──────────────────────────────────────
    Gradiente cónico rotando sobre un aro de 1px: dos pulsos de luz recorren
@@ -955,10 +852,8 @@ a {
   }
 }
 
-/* Salto dimensional en bucle (transición de entrada al sistema) */
+/* Transición de entrada al sistema: solo el resplandor del fuego, sin glitch. */
 .frig-dimension-loop {
-  animation:
-    frig-dimension 0.55s steps(7) 2 both,
-    frig-flicker 2.6s ease-in-out infinite;
-  will-change: transform, filter, clip-path;
+  animation: frig-flicker 2.6s ease-in-out infinite;
+  will-change: filter;
 }

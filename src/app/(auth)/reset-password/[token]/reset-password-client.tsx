@@ -7,8 +7,6 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { resetPasswordConfirm } from "@/lib/api/auth";
-import { LandingPanel } from "@/components/landing/landing-panel";
-import { PixelFoodMark } from "@/components/landing/pixel-food-mark";
 import { cn } from "@/lib/utils";
 
 function extractTokenFromPath(): string {
@@ -67,8 +65,26 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-1 flex-col lg:h-dvh lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)] lg:overflow-hidden">
-      <section className="flex flex-1 flex-col items-center justify-center bg-background px-4 py-10 lg:col-start-2 lg:row-start-1 lg:h-dvh lg:overflow-hidden">
+    <div
+      className="flex min-h-dvh flex-1 flex-col"
+      style={
+        {
+          "--brand-primary": "#c67d52",
+          "--color-primary": "#c67d52",
+          "--primary": "#c67d52",
+          "--ring": "#c67d52",
+          "--input": "#27272a",
+          "--border": "#27272a",
+          "--background": "#0a0a0a",
+          "--card": "#141414",
+          "--muted": "#1c1c1f",
+          "--muted-foreground": "#a1a1aa",
+          "--accent": "#1c1c1f",
+          "--secondary": "#1c1c1f",
+        } as React.CSSProperties
+      }
+    >
+      <section className="flex flex-1 flex-col items-center justify-center bg-background px-4 py-10">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -168,10 +184,6 @@ export default function ResetPasswordPage() {
           </p>
         </motion.div>
       </section>
-
-      <aside className="lg:col-start-1 lg:row-start-1 lg:h-dvh lg:overflow-hidden">
-        <LandingPanel />
-      </aside>
     </div>
   );
 }

@@ -3,9 +3,11 @@
 import { useEffect, useRef } from "react";
 
 /**
- * Red digital oculta del hero: los nodos flotan invisibles y solo se
- * revelan cerca del cursor, como si el mouse revelara la matriz.
- * Los nodos son destellos de 4 puntas (nada de círculos).
+ * Muralla viva de datos a toda la página: grilla densa de cuadros anclados,
+ * SIEMPRE tenuemente visibles (laten en su lugar) y teñidos con la paleta
+ * de tonos de las demos. El cursor REVELA con fuerza a su paso: los bloques
+ * cercanos se encienden, vibran más, quedan "tibios" y a veces se rompen
+ * en fragmentos. Los calientes se conectan con trazos de circuito.
  */
 export function HeroPlexus({ className }: { className?: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -22,11 +24,34 @@ export function HeroPlexus({ className }: { className?: string }) {
     let h = 0;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const mouse = { x: -9999, y: -9999 };
-    // 0 = todo oculto; 1 = matriz revelada. Sigue al cursor con suavidad.
     let wake = 0;
+    let t = 0;
 
-    type P = { x: number; y: number; vx: number; vy: number; r: number; tw: number };
+    // Paleta de marca Frig: cobres, brasas y un toque de salvia.
+    const PALETTE = [
+      "240, 162, 106", // brasa clara
+      "198, 125, 82", // cobre
+      "232, 146, 94", // cobre cálido
+      "240, 140, 60", // naranja profundo
+      "157, 182, 143", // salvia (contraste frío de la marca)
+      "255, 217, 168", // chispa caliente
+    ];
+
+    type P = {
+      ax: number;
+      ay: number;
+      s: number;
+      ox: number; // offset cuantizado: el cuadro SALTA, no fluye
+      oy: number;
+      next: number; // instante del próximo salto
+      rgb: string;
+      base: number; // visibilidad en reposo (0.04..0.1)
+      heat: number;
+      glitch: number;
+    };
+    type F = { x: number; y: number; vx: number; vy: number; s: number; life: number; rgb: string };
     let pts: P[] = [];
+    let frags: F[] = [];
 
     function resize() {
       const rect = canvas!.getBoundingClientRect();
@@ -35,15 +60,26 @@ export function HeroPlexus({ className }: { className?: string }) {
       canvas!.width = w * dpr;
       canvas!.height = h * dpr;
       ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const count = Math.min(110, Math.round((w * h) / 13000));
-      pts = Array.from({ length: count }, () => ({
-        x: Math.random() * w,
-        y: Math.random() * h,
-        vx: (Math.random() - 0.5) * 0.3,
-        vy: (Math.random() - 0.5) * 0.3,
-        r: 1.2 + Math.random() * 2,
-        tw: Math.random() * Math.PI * 2,
-      }));
+      const spacing = 38; // denso: poco espacio vacío
+      pts = [];
+      for (let gx = spacing / 2; gx < w + spacing; gx += spacing) {
+        for (let gy = spacing / 2; gy < h + spacing; gy += spacing) {
+          if (Math.random() < 0.22) continue;
+          pts.push({
+            ax: gx + (Math.random() - 0.5) * 16,
+            ay: gy + (Math.random() - 0.5) * 16,
+            s: 2 + Math.random() * 3.5,
+            ox: 0,
+            oy: 0,
+            next: Math.random() * 1.6,
+            rgb: PALETTE[Math.floor(Math.random() * PALETTE.length)],
+            base: 0.04 + Math.random() * 0.07,
+            heat: 0,
+            glitch: 0,
+          });
+        }
+      }
+      frags = [];
     }
 
     function onMove(e: PointerEvent) {
@@ -56,107 +92,188 @@ export function HeroPlexus({ className }: { className?: string }) {
       mouse.y = -9999;
     }
 
-    function sparkle(x: number, y: number, r: number, alpha: number, hot: boolean) {
+    function block(x: number, y: number, s: number, alpha: number, rgb: string, hot: boolean) {
       const c = ctx!;
-      c.save();
-      c.translate(x, y);
-      c.rotate(Math.PI / 4);
-      c.strokeStyle = hot
-        ? `rgba(255, 200, 140, ${alpha})`
-        : `rgba(240, 162, 106, ${alpha})`;
+      const half = s / 2;
+      c.fillStyle = hot
+        ? `rgba(255, 235, 210, ${alpha * 0.4})`
+        : `rgba(${rgb}, ${alpha * 0.3})`;
+      c.strokeStyle = `rgba(${rgb}, ${alpha})`;
       c.lineWidth = 1;
-      c.beginPath();
-      c.moveTo(-r, 0);
-      c.lineTo(r, 0);
-      c.moveTo(0, -r);
-      c.lineTo(0, r);
-      c.stroke();
-      // rayos diagonales cortos: brillo de estrella
-      const d = r * 0.45;
-      c.strokeStyle = hot
-        ? `rgba(255, 200, 140, ${alpha * 0.6})`
-        : `rgba(240, 162, 106, ${alpha * 0.6})`;
-      c.beginPath();
-      c.moveTo(-d, -d);
-      c.lineTo(d, d);
-      c.moveTo(d, -d);
-      c.lineTo(-d, d);
-      c.stroke();
-      c.restore();
+      c.fillRect(x - half, y - half, s, s);
+      c.strokeRect(x - half, y - half, s, s);
+      if (alpha > 0.22) {
+        const inner = Math.max(1.5, s * 0.36);
+        c.fillStyle = hot
+          ? `rgba(255, 245, 230, ${alpha})`
+          : `rgba(${rgb}, ${alpha * 0.8})`;
+        c.fillRect(x - inner / 2, y - inner / 2, inner, inner);
+      }
     }
 
-    const REVEAL = 240; // radio en que el cursor revela la matriz
-    const LINK = 110;
+    function trace(ax: number, ay: number, bx: number, by: number, alpha: number, rgb: string) {
+      const c = ctx!;
+      c.strokeStyle = `rgba(${rgb}, ${alpha})`;
+      c.lineWidth = 1;
+      c.setLineDash([4, 4]);
+      c.beginPath();
+      c.moveTo(ax, ay);
+      c.lineTo(bx, ay);
+      c.lineTo(bx, by);
+      c.stroke();
+      c.setLineDash([]);
+      c.fillStyle = `rgba(255, 220, 180, ${alpha * 1.3})`;
+      c.fillRect(bx - 1.5, ay - 1.5, 3, 3);
+    }
+
+    const REVEAL = 330;
+    const LINK = 120;
+    const HEAT_DECAY = 0.994;
+
+    // Ola de barrido (evento "frig:matrix-sweep"): un frente vertical
+    // enciende todos los nodos a su paso — el fondo "se traga" la pantalla
+    // y luego los nodos decaen revelando el nuevo contenido.
+    let sweep: { start: number; dur: number } | null = null;
+    let sweepGlowUntil = -1; // la pared se mantiene encendida mientras cambia el contenido
+    function onSweep() {
+      sweep = { start: -1, dur: 0.9 };
+      sweepGlowUntil = -1;
+    }
 
     function tick() {
       ctx!.clearRect(0, 0, w, h);
+      t += 0.016;
 
-      // El despertar sigue la presencia del cursor.
+      if (sweep) {
+        if (sweep.start < 0) sweep.start = t;
+        if (t - sweep.start > sweep.dur) sweep = null;
+        // mantener la pared encendida un poco después de la ola:
+        // da tiempo a que el contenido nuevo emerja "desde" ella.
+        sweepGlowUntil = t + 1.1;
+      }
+      const holdGlow = t < sweepGlowUntil;
+      const decay = holdGlow ? 0.9988 : HEAT_DECAY;
+      const sweepP = sweep ? (t - sweep.start) / sweep.dur : -1;
+      const frontX = sweepP >= 0 ? sweepP * (w + 200) - 100 : -9999;
+
       const target = mouse.x > -999 ? 1 : 0;
       wake += (target - wake) * 0.06;
-      if (wake < 0.02) {
-        raf = requestAnimationFrame(tick);
-        return;
-      }
+
+      const hot: Array<{ x: number; y: number; alpha: number; rgb: string; p: { ax: number; ay: number; s: number; glitch: number } }> = [];
 
       for (const p of pts) {
-        p.x += p.vx;
-        p.y += p.vy;
-        p.tw += 0.03;
-        if (p.x < -20) p.x = w + 20;
-        else if (p.x > w + 20) p.x = -20;
-        if (p.y < -20) p.y = h + 20;
-        else if (p.y > h + 20) p.y = -20;
+        const dx = p.ax - mouse.x;
+        const dy = p.ay - mouse.y;
+        const d = Math.sqrt(dx * dx + dy * dy) || 1;
+        if (d < REVEAL) {
+          const near = 1 - d / REVEAL;
+          if (near * wake > p.heat) p.heat = near * wake;
+          if (p.heat > 0.85 && Math.random() < 0.004 && frags.length < 60) {
+            for (let f = 0; f < 2; f++) {
+              frags.push({
+                x: p.ax,
+                y: p.ay,
+                vx: (Math.random() - 0.5) * 2,
+                vy: (Math.random() - 0.5) * 2 - 0.3,
+                s: p.s * (0.3 + Math.random() * 0.3),
+                life: 1,
+                rgb: p.rgb,
+              });
+            }
+            p.glitch = 10;
+          }
+        }
+        // ola de barrido: el frente enciende todo lo que toca
+        if (sweepP >= 0) {
+          const sd = frontX - p.ax;
+          if (sd > 0 && sd < 130) {
+            p.heat = Math.max(p.heat, (1 - sd / 130) * 0.95);
+          }
+        }
+        if (p.heat < 0.03) p.heat = 0;
+        else p.heat *= decay;
+        if (p.glitch > 0) p.glitch -= 1;
+        // glint autónomo: sin mouse, un bloque brilla suave de vez en cuando
+        // ("acá hay algo") — se enciende y se apaga con la misma decaída.
+        if (p.heat < 0.02 && Math.random() < 0.0006) {
+          p.heat = 0.14 + Math.random() * 0.14;
+        }
+
+        // reposo: latido tenue siempre visible; calor: encendido pleno
+        // (parpadeo también cuantizado: cambia con cada salto, no fluye)
+        const twinkle = 0.55 + 0.45 * Math.sin(p.next * 41.7 + p.ox * 13.1);
+        const idle = p.base * twinkle * Math.max(wake, 0.25);
+        const lit = p.heat > 0 ? Math.min(1, p.heat * twinkle + p.heat * 0.3) : 0;
+        const alpha = Math.max(idle, lit);
+        if (alpha < 0.02) continue;
+
+        // movimiento DIGITAL: quieto en su celda; a intervalos aleatorios
+        // SALTA (teletransporte cuantizado) a otra micro-posición. Nada de ondas.
+        if (t > p.next) {
+          const amp = 1 + p.heat * 3.5;
+          p.ox = (Math.random() - 0.5) * 2 * amp;
+          p.oy = (Math.random() - 0.5) * 2 * amp;
+          // de vez en cuando, un salto largo: paquete de datos recolocado
+          if (Math.random() < 0.08) {
+            p.ox = (Math.random() - 0.5) * amp * 6;
+            p.oy = (Math.random() - 0.5) * amp * 6;
+          }
+          p.next = t + 0.5 + Math.random() * 1.4;
+        }
+        const x = p.ax + p.ox;
+        const y = p.ay + p.oy;
+        const isHot = p.heat > 0.5;
+        if (p.heat > 0.15) {
+          hot.push({ x, y, alpha, rgb: p.rgb, p });
+        }
+        const grow = 1 + (p.heat > 0 ? p.heat * 0.55 : 0) + (p.glitch > 0 ? 0.45 : 0);
+        block(x, y, p.s * grow, alpha, p.rgb, isHot);
       }
 
-      for (let i = 0; i < pts.length; i++) {
-        const a = pts[i];
-        const adx = a.x - mouse.x;
-        const ady = a.y - mouse.y;
-        const ad = Math.sqrt(adx * adx + ady * ady);
-        // Visibilidad individual: solo nodos cerca del cursor se revelan.
-        const near = Math.max(0, 1 - ad / REVEAL);
-        const aAlpha = near * near * wake;
-        if (aAlpha < 0.03) continue;
-
-        for (let j = i + 1; j < pts.length; j++) {
-          const b = pts[j];
-          const bdx = b.x - mouse.x;
-          const bdy = b.y - mouse.y;
-          const bd = Math.sqrt(bdx * bdx + bdy * bdy);
-          const bNear = Math.max(0, 1 - bd / REVEAL);
-          if (bNear < 0.05) continue;
-
+      // trazos solo entre bloques calientes (barato: lista chica)
+      // + paquetes de datos viajando por el circuito
+      for (let i = 0; i < hot.length; i++) {
+        const a = hot[i];
+        for (let j = i + 1; j < hot.length; j++) {
+          const b = hot[j];
           const dx = a.x - b.x;
           const dy = a.y - b.y;
           const d2 = dx * dx + dy * dy;
           if (d2 < LINK * LINK) {
-            const alpha = 0.3 * (1 - Math.sqrt(d2) / LINK) * aAlpha * bNear * wake;
+            const alpha = 0.24 * (1 - Math.sqrt(d2) / LINK) * a.alpha * b.alpha;
             if (alpha > 0.02) {
-              ctx!.strokeStyle = `rgba(240, 162, 106, ${alpha})`;
-              ctx!.lineWidth = 1;
-              ctx!.beginPath();
-              ctx!.moveTo(a.x, a.y);
-              ctx!.lineTo(b.x, b.y);
-              ctx!.stroke();
+              trace(a.x, a.y, b.x, b.y, alpha, a.rgb);
+              // paquete: un cuadrito brillante recorre la ruta L
+              if ((i + j) % 3 === 0) {
+                const k = (t * 0.9 + i * 0.37 + j * 0.11) % 1;
+                let px: number, py: number;
+                if (k < 0.5) {
+                  px = a.x + (b.x - a.x) * (k * 2);
+                  py = a.y;
+                } else {
+                  px = b.x;
+                  py = a.y + (b.y - a.y) * ((k - 0.5) * 2);
+                }
+                ctx!.fillStyle = `rgba(255, 230, 200, ${alpha * 2.2})`;
+                ctx!.fillRect(px - 1.5, py - 1.5, 3, 3);
+              }
             }
           }
         }
+      }
 
-        // Enlace directo al cursor: la energía converge hacia ti
-        if (ad < REVEAL * 1.25) {
-          const alpha = 0.42 * (1 - ad / (REVEAL * 1.25)) * wake;
-          ctx!.strokeStyle = `rgba(255, 190, 130, ${alpha})`;
-          ctx!.lineWidth = 1.2;
-          ctx!.beginPath();
-          ctx!.moveTo(a.x, a.y);
-          ctx!.lineTo(mouse.x, mouse.y);
-          ctx!.stroke();
+      // fragmentos de matrix
+      for (let i = frags.length - 1; i >= 0; i--) {
+        const f = frags[i];
+        f.x += f.vx;
+        f.y += f.vy;
+        f.vy += 0.01;
+        f.life -= 0.014;
+        if (f.life <= 0) {
+          frags.splice(i, 1);
+          continue;
         }
-
-        // Destello con parpadeo propio (titila como estrella)
-        const twinkle = 0.55 + 0.45 * Math.sin(a.tw);
-        sparkle(a.x, a.y, a.r * (1 + 0.3 * twinkle), aAlpha * twinkle, near > 0.7);
+        block(f.x, f.y, f.s, f.life * 0.8, f.rgb, false);
       }
 
       raf = requestAnimationFrame(tick);
@@ -166,11 +283,13 @@ export function HeroPlexus({ className }: { className?: string }) {
     tick();
     window.addEventListener("resize", resize);
     window.addEventListener("pointermove", onMove);
+    window.addEventListener("frig:matrix-sweep", onSweep);
     document.documentElement.addEventListener("pointerleave", onLeave);
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
       window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("frig:matrix-sweep", onSweep);
       document.documentElement.removeEventListener("pointerleave", onLeave);
     };
   }, []);
