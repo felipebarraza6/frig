@@ -1,5 +1,8 @@
 <div align="center">
-  <img src="public/icons/logo-horizontal.png" alt="FRIG" width="360">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="public/brand/frig-wordmark.png">
+    <img src="public/brand/frig-wordmark-on-light.png" alt="frig" width="420">
+  </picture>
   <p align="center">
     <strong>El sistema operativo gastronómico que vive en la web.</strong><br/>
     Punto de venta, cocina, mesas, inventario y finanzas — en una sola plataforma multi-sucursal y white-label.
