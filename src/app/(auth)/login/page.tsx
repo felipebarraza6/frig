@@ -317,43 +317,38 @@ export default function LoginPage() {
           transition={{ duration: 0.25, ease: "easeOut" }}
           className="relative flex w-full max-w-sm flex-col overflow-hidden px-1 font-sans lg:min-h-[600px] lg:justify-center"
         >
-          <div className="mb-8 flex flex-col items-center gap-3 text-center">
+          <div className="mb-8 flex flex-col items-start gap-3 text-left">
+            {/* Lockup único: iconito + FRIG, una sola vez, a la izquierda */}
             {!brandTheme && (
-              <div className="mb-3 flex flex-col items-center gap-2">
+              <div className="flex items-center gap-3">
                 <img
                   src="/brand/frig-symbol.png"
                   alt=""
                   className="h-12 w-auto"
                   style={{ filter: "drop-shadow(0 0 12px rgba(238,158,112,0.4))" }}
                 />
-                <img src="/brand/frig-wordmark.png" alt="Frig" className="h-5 w-auto" />
+                <img src="/brand/frig-wordmark.png" alt="Frig" className="h-6 w-auto" />
               </div>
             )}
-            {brandTheme?.logo ? (
-              <BrandLogo
-                src={brandTheme.logo}
-                alt={brandTheme.app_name ?? "Logo"}
-                name={brandTheme.app_name}
-                containerClassName="h-16 w-16 rounded-xl shadow-sm"
-                className="max-h-14 max-w-14 p-1.5"
-              />
-            ) : (
-              <img
-                src="/brand/frig-wordmark.png"
-                alt="Frig"
-                className="h-7 w-auto"
-              />
+            {brandTheme && (
+              <div className="flex items-center gap-3">
+                <BrandLogo
+                  src={brandTheme.logo}
+                  alt={brandTheme.app_name ?? "Logo"}
+                  name={brandTheme.app_name}
+                  containerClassName="h-12 w-12 rounded-xl shadow-sm"
+                  className="max-h-10 max-w-10 p-1.5"
+                />
+                <h1 className="text-xl font-semibold tracking-tight">
+                  {brandTheme.app_name}
+                </h1>
+              </div>
             )}
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">
-                {brandTheme?.app_name ?? "FRIG"}
-              </h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {brandTheme?.login_welcome_message ||
-                  brandTheme?.tagline ||
-                  LANDING_VALUE_PROP.headline}
-              </p>
-            </div>
+            <p className="text-sm text-muted-foreground">
+              {brandTheme?.login_welcome_message ||
+                brandTheme?.tagline ||
+                LANDING_VALUE_PROP.headline}
+            </p>
           </div>
 
           {demoCase && mode === "login" && (
