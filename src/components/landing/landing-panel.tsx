@@ -1,8 +1,9 @@
 "use client";
 
 /**
- * Panel izquierdo del login: solo el wordmark FRIG centrado.
- * El fondo de energía vive en la raíz de la página (sin divisiones).
+ * Panel izquierdo del login: el wordmark FRIG grande, con el fuego del hero
+ * (masas de brasa latiendo detrás). Fondo de energía a nivel raíz.
+ * Si la sucursal tiene marca propia, se muestra la de ella.
  */
 
 import { BrandLogo } from "@/components/brand-logo";
@@ -11,9 +12,9 @@ type LandingBrand = { name: string; logo?: string | null } | null;
 
 export function LandingPanel({ brand }: { brand?: LandingBrand }) {
   return (
-    <div className="relative flex h-full items-center">
-      <div className="pl-16 lg:pl-24">
-        {brand ? (
+    <div className="relative flex h-full items-center overflow-hidden">
+      {brand ? (
+        <div className="pl-16 lg:pl-24">
           <div className="flex items-center gap-3">
             <BrandLogo
               src={brand.logo ?? null}
@@ -23,14 +24,19 @@ export function LandingPanel({ brand }: { brand?: LandingBrand }) {
             />
             <span className="text-lg font-semibold text-white">{brand.name}</span>
           </div>
-        ) : (
+        </div>
+      ) : (
+        /* El FRIG del hero: grande, con su fuego respirando detrás */
+        <div className="relative pl-16 lg:pl-24">
+          <div aria-hidden className="frig-fireglow" />
+          <div aria-hidden className="frig-fireglow frig-fireglow-2" />
           <img
             src="/brand/frig-wordmark.png"
             alt="Frig"
-            className="frig-flame h-10 w-auto"
+            className="frig-flame relative h-20 w-auto lg:h-28"
           />
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

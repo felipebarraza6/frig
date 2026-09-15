@@ -26,7 +26,6 @@ import { LANDING_USE_CASES, LANDING_VALUE_PROP } from "@/content/landing";
 import type { LandingUseCase } from "@/content/landing";
 import type { LoginCompleteResponse } from "@/lib/types";
 import { Clock, Copy, KeyRound } from "lucide-react";
-import { PixelLoginSuccess } from "@/components/auth/pixel-login-success";
 
 /** Easing de "frames" (efecto retro): arranca en 6 pasos discretos. */
 function stepEase(steps = 6) {
@@ -53,6 +52,43 @@ function getHomeRouteForUser(
   if (firstRole === "CAJERO") return "/pos/terminal";
   if (firstRole === "WAITER") return "/pos/terminal";
   return "/dashboard";
+}
+
+/* Transición de entrada: el wordmark atraviesa un portal antes de navegar. */
+function DimensionExit({ brandName }: { brandName: string | null }) {
+  return (
+    <motion.div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-[#0a0a0a]"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.25 }}
+    >
+      <div
+        aria-hidden
+        className="absolute inset-x-0 bottom-0 h-2/3"
+        style={{
+          background:
+            "radial-gradient(120% 90% at 50% 115%, rgba(240,162,106,0.5) 0%, rgba(240,162,106,0.14) 45%, transparent 70%)",
+        }}
+      />
+      <div className="relative flex flex-col items-center gap-8">
+        {!brandName && (
+          <img
+            src="/brand/frig-symbol.png"
+            alt=""
+            className="h-16 w-auto"
+            style={{ filter: "drop-shadow(0 0 16px rgba(238,158,112,0.5))" }}
+          />
+        )}
+        <img
+          src="/brand/frig-wordmark.png"
+          alt="Frig"
+          className="frig-dimension-loop relative h-16 w-auto sm:h-24"
+        />
+        <p className="text-sm text-zinc-400">Entrando…</p>
+      </div>
+    </motion.div>
+  );
 }
 
 export default function LoginPage() {
@@ -625,7 +661,7 @@ export default function LoginPage() {
         </motion.div>
 
         {success && (
-          <PixelLoginSuccess brandName={brandTheme?.app_name ?? null} />
+          <DimensionExit brandName={brandTheme?.app_name ?? null} />
         )}
       </section>
 

@@ -978,3 +978,11 @@ a {
     animation: none;
   }
 }
+
+/* Salto dimensional en bucle (transición de entrada al sistema) */
+.frig-dimension-loop {
+  animation:
+    frig-dimension 0.55s steps(7) 2 both,
+    frig-flicker 2.6s ease-in-out infinite;
+  will-change: transform, filter, clip-path;
+}
