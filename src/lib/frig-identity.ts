@@ -23,3 +23,21 @@ export const FRIG_IDENTITY_STYLE = {
 
 /** Repo público de Frig — atribución sutil en logins de tenants. */
 export const FRIG_REPO_URL = "https://github.com/FelipeBarraza6/frig";
+
+/**
+ * Favicon del tenant con cascada: favicon propio → logo del header →
+ * nada (queda el de Frig). Reemplaza TODOS los link[rel=icon] existentes
+ * (el layout define varios: icon.png, icon-192, apple-touch) para que el
+ * navegador no siga mostrando uno viejo.
+ */
+export function setTenantFavicon(favicon: string | null | undefined, logo: string | null | undefined): void {
+  const href = favicon || logo;
+  if (!href) return;
+  document
+    .querySelectorAll<HTMLLinkElement>("link[rel='icon'], link[rel='apple-touch-icon'], link[rel='shortcut icon']")
+    .forEach((link) => link.remove());
+  const link = document.createElement("link");
+  link.rel = "icon";
+  link.href = href;
+  document.head.appendChild(link);
+}

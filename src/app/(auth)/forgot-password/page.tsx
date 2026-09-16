@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { forgotPassword } from "@/lib/api/auth";
 import { fetchPublicLoginThemeByHost, applyThemeConfig } from "@/lib/api/branches";
 import { BrandLogo } from "@/components/brand-logo";
-import { FRIG_IDENTITY_STYLE, FRIG_REPO_URL } from "@/lib/frig-identity";
+import { FRIG_IDENTITY_STYLE, FRIG_REPO_URL, setTenantFavicon } from "@/lib/frig-identity";
 import type { BranchThemeConfig } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -29,16 +29,7 @@ export default function ForgotPasswordPage() {
       setBrandTheme(theme);
       applyThemeConfig(theme);
       // Favicon del tenant; sin favicon propio usa su logo del header.
-      const fav = theme.favicon ?? theme.logo;
-      if (fav) {
-        let link = document.querySelector<HTMLLinkElement>("link[rel='icon']");
-        if (!link) {
-          link = document.createElement("link");
-          link.rel = "icon";
-          document.head.appendChild(link);
-        }
-        link.href = fav;
-      }
+      setTenantFavicon(theme.favicon, theme.logo);
     })();
     const name = "FRIG";
     document.title = `${name} — Recuperar contraseña`;

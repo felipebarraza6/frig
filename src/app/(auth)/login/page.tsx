@@ -19,7 +19,7 @@ import type { BranchThemeConfig } from "@/lib/types";
 import { setToken } from "@/lib/api/session-storage";
 import { pickDefaultBranchId } from "@/lib/branch-session";
 import { cn } from "@/lib/utils";
-import { FRIG_IDENTITY_STYLE, FRIG_REPO_URL } from "@/lib/frig-identity";
+import { FRIG_IDENTITY_STYLE, FRIG_REPO_URL, setTenantFavicon } from "@/lib/frig-identity";
 import { FrigWordmarkMatrix } from "@/components/landing/frig-wordmark-matrix";
 import { HeroPlexus } from "@/components/landing/hero-plexus";
 import { BrandLogo } from "@/components/brand-logo";
@@ -178,16 +178,7 @@ export default function LoginPage() {
         setBrandTheme(theme);
         applyThemeConfig(theme);
         // Favicon del tenant; sin favicon propio usa su logo del header.
-        const fav = theme.favicon ?? theme.logo;
-        if (fav) {
-          let link = document.querySelector<HTMLLinkElement>("link[rel='icon']");
-          if (!link) {
-            link = document.createElement("link");
-            link.rel = "icon";
-            document.head.appendChild(link);
-          }
-          link.href = fav;
-        }
+        setTenantFavicon(theme.favicon, theme.logo);
       }
       // Título del documento con la marca resuelta (tenant o Frig).
       const name = isFrigBranding ? "FRIG" : theme?.app_name ?? "FRIG";
