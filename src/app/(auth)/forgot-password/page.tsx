@@ -135,7 +135,7 @@ export default function ForgotPasswordPage() {
               </div>
               <Link
                 href="/login"
-                className={cn(buttonVariants({ size: "lg" }), "btn-copper mt-2 rounded-lg text-white")}
+                className={cn(buttonVariants({ size: "lg" }), "bg-primary text-primary-foreground hover:bg-primary/90 mt-2 rounded-lg text-white")}
               >
                 Volver al inicio de sesión
               </Link>

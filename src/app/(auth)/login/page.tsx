@@ -538,7 +538,7 @@ export default function LoginPage() {
                   {setPasswordError}
                 </p>
               )}
-              <Button type="submit" size="lg" disabled={setPasswordLoading} className="btn-copper mt-2 rounded-lg text-white">
+              <Button type="submit" size="lg" disabled={setPasswordLoading} className="bg-primary text-primary-foreground hover:bg-primary/90 mt-2 rounded-lg text-white">
                 {setPasswordLoading ? "Guardando…" : "Definir contraseña"}
               </Button>
             </form>
@@ -552,7 +552,7 @@ export default function LoginPage() {
                     para recuperar tu contraseña (válido por 24 horas).
                   </p>
                 </div>
-                <Button type="button" size="lg" className="btn-copper mt-2 rounded-lg text-white" onClick={backToLogin}>
+                <Button type="button" size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 mt-2 rounded-lg text-white" onClick={backToLogin}>
                   Volver al inicio de sesión
                 </Button>
               </div>
@@ -582,7 +582,7 @@ export default function LoginPage() {
                   </p>
                 )}
 
-                <Button type="submit" size="lg" disabled={forgotLoading} className="btn-copper mt-2 rounded-lg text-white">
+                <Button type="submit" size="lg" disabled={forgotLoading} className="bg-primary text-primary-foreground hover:bg-primary/90 mt-2 rounded-lg text-white">
                   {forgotLoading ? "Enviando…" : "Enviar correo de recuperación"}
                 </Button>
 
@@ -642,7 +642,7 @@ export default function LoginPage() {
                 size="lg"
                 disabled={loading}
                 onClick={firePulse}
-                className="btn-copper mt-2 rounded-lg text-white active:scale-[0.97] transition-transform"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 mt-2 rounded-lg text-white active:scale-[0.97] transition-transform"
               >
                 {loading ? "Ingresando…" : "Ingresar"}
               </Button>
