@@ -1,11 +1,15 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { forgotPassword } from "@/lib/api/auth";
+import { fetchPublicLoginThemeByHost, applyThemeConfig } from "@/lib/api/branches";
+import { BrandLogo } from "@/components/brand-logo";
+import { FRIG_IDENTITY_STYLE, FRIG_REPO_URL } from "@/lib/frig-identity";
+import type { BranchThemeConfig } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export default function ForgotPasswordPage() {
@@ -13,6 +17,23 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  // Branding público del tenant por dominio (carga directa, sin sesión).
+  const [brandTheme, setBrandTheme] = useState<BranchThemeConfig | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const theme = await fetchPublicLoginThemeByHost();
+      if (cancelled || !theme) return;
+      setBrandTheme(theme);
+      applyThemeConfig(theme);
+    })();
+    const name = "FRIG";
+    document.title = `${name} — Recuperar contraseña`;
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -32,25 +53,15 @@ export default function ForgotPasswordPage() {
     }
   }
 
+  const isFrigIdentity = !brandTheme;
+
   return (
     <div
-      className="relative flex min-h-dvh flex-1 flex-col bg-[#0a0a0a]"
-      style={
-        {
-          "--brand-primary": "#c67d52",
-          "--color-primary": "#c67d52",
-          "--primary": "#c67d52",
-          "--ring": "#c67d52",
-          "--input": "#27272a",
-          "--border": "#27272a",
-          "--background": "#0a0a0a",
-          "--card": "#141414",
-          "--muted": "#1c1c1f",
-          "--muted-foreground": "#a1a1aa",
-          "--accent": "#1c1c1f",
-          "--secondary": "#1c1c1f",
-        } as React.CSSProperties
-      }
+      className={cn(
+        "relative flex min-h-dvh flex-1 flex-col",
+        isFrigIdentity ? "bg-[#0a0a0a]" : "bg-background text-foreground",
+      )}
+      style={isFrigIdentity ? FRIG_IDENTITY_STYLE : undefined}
     >
       {/* Fondo de identidad: horizonte cálido */}
       <div aria-hidden className="pointer-events-none absolute inset-0">
@@ -62,7 +73,13 @@ export default function ForgotPasswordPage() {
           }}
         />
       </div>
-      <section style={{ "--input": "#27272a", "--border": "#27272a", "--muted": "#1c1c1f", "--muted-foreground": "#a1a1aa", "--accent": "#1c1c1f", "--background": "#0a0a0a", "--card": "#141414" } as React.CSSProperties} className="dark relative flex flex-1 flex-col items-center justify-center px-4 py-10 text-white">
+      <section
+        style={isFrigIdentity ? { "--input": "#27272a", "--border": "#27272a", "--muted": "#1c1c1f", "--muted-foreground": "#a1a1aa", "--accent": "#1c1c1f", "--background": "#0a0a0a", "--card": "#141414" } as React.CSSProperties : undefined}
+        className={cn(
+          "relative flex flex-1 flex-col items-center justify-center px-4 py-10",
+          isFrigIdentity || brandTheme?.algorithm === "dark" ? "dark text-white" : "text-foreground",
+        )}
+      >
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -70,13 +87,23 @@ export default function ForgotPasswordPage() {
           className="w-full max-w-sm font-sans"
         >
           <div className="mb-8 flex flex-col items-center gap-3 text-center">
-            <img
-              src="/brand/frig-wordmark.png"
-              alt="Frig"
-              className="frig-flame h-10 w-auto"
-            />
+            {brandTheme ? (
+              <BrandLogo
+                src={brandTheme.logo}
+                alt={brandTheme.app_name ?? "Logo"}
+                name={brandTheme.app_name}
+                containerClassName="h-12 w-12 rounded-xl"
+                className="h-12 w-12 rounded-xl object-contain"
+              />
+            ) : (
+              <img
+                src="/brand/frig-wordmark.png"
+                alt="Frig"
+                className="frig-flame h-10 w-auto"
+              />
+            )}
             <div>
-              <h1 className="text-2xl font-semibold tracking-tight">
+              <h1 className="font-display text-2xl font-semibold tracking-tight">
                 Recuperar contraseña
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -142,9 +169,23 @@ export default function ForgotPasswordPage() {
             </form>
           )}
 
-          <p className={cn("mt-8 text-center text-xs text-muted-foreground")}>
-            Gestión comercial y gastronómica por FRIG
-          </p>
+          {brandTheme ? (
+            <p className="mt-8 text-center text-xs text-muted-foreground">
+              by{" "}
+              <a
+                href={FRIG_REPO_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium underline-offset-4 transition-colors hover:text-foreground hover:underline"
+              >
+                FRIG
+              </a>
+            </p>
+          ) : (
+            <p className={cn("mt-8 text-center text-xs text-muted-foreground")}>
+              Gestión comercial y gastronómica por FRIG
+            </p>
+          )}
         </motion.div>
       </section>
     </div>

@@ -216,17 +216,27 @@ export async function fetchPublicLoginThemeByHost(): Promise<BranchThemeConfig |
   }
 }
 
-/** Mapea la respuesta pública (PublicLoginTheme) a BranchThemeConfig. */
+/** Mapea la respuesta pública (PublicLoginTheme) a BranchThemeConfig.
+ *  Acepta los alias que envía el backend (color_mode, welcome_message,
+ *  subtitle) y el bloque ui_preferences (radio, motion). */
 function normalizePublicLoginTheme(data: Record<string, unknown> | null): BranchThemeConfig | null {
   if (!data || typeof data !== "object") return null;
   const hasBranding = data.app_name || data.logo_url || data.primary_color;
   if (!hasBranding) return null;
+  const algorithmRaw = data.algorithm ?? data.color_mode;
+  const ui = (data.ui_preferences && typeof data.ui_preferences === "object"
+    ? data.ui_preferences
+    : {}) as Record<string, unknown>;
   return {
     app_name: typeof data.app_name === "string" ? data.app_name : undefined,
     tagline:
       typeof data.login_subtitle === "string" && data.login_subtitle
         ? data.login_subtitle
-        : undefined,
+        : typeof data.subtitle === "string" && data.subtitle
+          ? data.subtitle
+          : typeof data.tagline === "string" && data.tagline
+            ? data.tagline
+            : undefined,
     logo: typeof data.logo_url === "string" && data.logo_url ? data.logo_url : null,
     favicon:
       typeof data.favicon_url === "string" && data.favicon_url ? data.favicon_url : null,
@@ -235,11 +245,18 @@ function normalizePublicLoginTheme(data: Record<string, unknown> | null): Branch
     secondary_color:
       typeof data.secondary_color === "string" ? data.secondary_color : undefined,
     algorithm:
-      data.algorithm === "dark" || data.algorithm === "light" ? data.algorithm : undefined,
+      algorithmRaw === "dark" || algorithmRaw === "light" ? algorithmRaw : undefined,
     login_welcome_message:
-      typeof data.login_welcome_message === "string"
+      typeof data.login_welcome_message === "string" && data.login_welcome_message
         ? data.login_welcome_message
+        : typeof data.welcome_message === "string" && data.welcome_message
+          ? data.welcome_message
+          : undefined,
+    borderRadius:
+      typeof ui.border_radius_px === "number" && ui.border_radius_px > 0
+        ? ui.border_radius_px
         : undefined,
+    motion: typeof ui.motion_enabled === "boolean" ? ui.motion_enabled : undefined,
   };
 }
 
@@ -338,6 +355,10 @@ export function applyThemeConfig(theme: BranchThemeConfig | null): void {
 
   // Secondary: tal cual el usuario lo eligió (superficie/borde secundario).
   root.style.setProperty("--color-secondary", secondary);
+
+  // Avisar a los canvas decorativos (matriz de datos del login/landing)
+  // para re-teñir su paleta con la marca recién aplicada.
+  window.dispatchEvent(new CustomEvent("frig:theme-changed"));
 }
 
 /**

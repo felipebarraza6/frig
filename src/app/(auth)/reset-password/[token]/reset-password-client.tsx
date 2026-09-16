@@ -1,12 +1,16 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { resetPasswordConfirm } from "@/lib/api/auth";
+import { fetchPublicLoginThemeByHost, applyThemeConfig } from "@/lib/api/branches";
+import { BrandLogo } from "@/components/brand-logo";
+import { FRIG_IDENTITY_STYLE, FRIG_REPO_URL } from "@/lib/frig-identity";
+import type { BranchThemeConfig } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 function extractTokenFromPath(): string {
@@ -20,7 +24,7 @@ export default function ResetPasswordPage() {
   const router = useRouter();
   // El token viene de la URL, no de React: se lee lazy en el primer render
   // (cliente) para no disparar un render en cascada desde un effect.
-  const [token, setToken] = useState(() =>
+  const [token] = useState(() =>
     typeof window === "undefined" ? "" : extractTokenFromPath(),
   );
 
@@ -29,6 +33,24 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  // Branding público del tenant por dominio: el enlace llega por email y
+  // abre directo en el dominio propio, sin sesión que re-aplique el tema.
+  const [brandTheme, setBrandTheme] = useState<BranchThemeConfig | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    document.title = "FRIG — Nueva contraseña";
+    (async () => {
+      const theme = await fetchPublicLoginThemeByHost();
+      if (cancelled || !theme) return;
+      setBrandTheme(theme);
+      applyThemeConfig(theme);
+      if (theme.app_name) document.title = `${theme.app_name} — Nueva contraseña`;
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -64,25 +86,15 @@ export default function ResetPasswordPage() {
     }
   }
 
+  const isFrigIdentity = !brandTheme;
+
   return (
     <div
-      className="flex min-h-dvh flex-1 flex-col"
-      style={
-        {
-          "--brand-primary": "#c67d52",
-          "--color-primary": "#c67d52",
-          "--primary": "#c67d52",
-          "--ring": "#c67d52",
-          "--input": "#27272a",
-          "--border": "#27272a",
-          "--background": "#0a0a0a",
-          "--card": "#141414",
-          "--muted": "#1c1c1f",
-          "--muted-foreground": "#a1a1aa",
-          "--accent": "#1c1c1f",
-          "--secondary": "#1c1c1f",
-        } as React.CSSProperties
-      }
+      className={cn(
+        "flex min-h-dvh flex-1 flex-col",
+        isFrigIdentity ? "bg-[#0a0a0a]" : "bg-background text-foreground",
+      )}
+      style={isFrigIdentity ? FRIG_IDENTITY_STYLE : undefined}
     >
       <section className="flex flex-1 flex-col items-center justify-center bg-background px-4 py-10">
         <motion.div
@@ -92,11 +104,21 @@ export default function ResetPasswordPage() {
           className="w-full max-w-sm font-sans"
         >
           <div className="mb-8 flex flex-col items-center gap-3 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-              <img src="/brand/frig-symbol.png" alt="Frig" className="h-9 w-9" />
-            </div>
+            {brandTheme ? (
+              <BrandLogo
+                src={brandTheme.logo}
+                alt={brandTheme.app_name ?? "Logo"}
+                name={brandTheme.app_name}
+                containerClassName="h-14 w-14 rounded-xl"
+                className="h-14 w-14 rounded-xl object-contain"
+              />
+            ) : (
+              <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+                <img src="/brand/frig-symbol.png" alt="Frig" className="h-9 w-9" />
+              </div>
+            )}
             <div>
-              <h1 className="text-2xl font-semibold tracking-tight">
+              <h1 className="font-display text-2xl font-semibold tracking-tight">
                 Nueva contraseña
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -179,9 +201,23 @@ export default function ResetPasswordPage() {
             </form>
           )}
 
-          <p className={cn("mt-8 text-center text-xs text-muted-foreground")}>
-            Gestión comercial y gastronómica por FRIG
-          </p>
+          {brandTheme ? (
+            <p className="mt-8 text-center text-xs text-muted-foreground">
+              by{" "}
+              <a
+                href={FRIG_REPO_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium underline-offset-4 transition-colors hover:text-foreground hover:underline"
+              >
+                FRIG
+              </a>
+            </p>
+          ) : (
+            <p className={cn("mt-8 text-center text-xs text-muted-foreground")}>
+              Gestión comercial y gastronómica por FRIG
+            </p>
+          )}
         </motion.div>
       </section>
     </div>

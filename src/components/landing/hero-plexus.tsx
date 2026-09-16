@@ -27,8 +27,9 @@ export function HeroPlexus({ className }: { className?: string }) {
     let wake = 0;
     let t = 0;
 
-    // Paleta de marca Frig: cobres, brasas y un toque de salvia.
-    const PALETTE = [
+    // Paleta por defecto: cobres de Frig. Se re-teñe con el primary de la
+    // marca activa al cambiar el tema (evento "frig:theme-changed").
+    const FRIG_PALETTE = [
       "240, 162, 106", // brasa clara
       "198, 125, 82", // cobre
       "232, 146, 94", // cobre cálido
@@ -36,6 +37,30 @@ export function HeroPlexus({ className }: { className?: string }) {
       "157, 182, 143", // salvia (contraste frío de la marca)
       "255, 217, 168", // chispa caliente
     ];
+    let PALETTE = FRIG_PALETTE;
+
+    function mix(a: number, b: number, k: number) {
+      return Math.round(a + (b - a) * k);
+    }
+    function retint() {
+      const cs = getComputedStyle(document.documentElement);
+      const hex = (cs.getPropertyValue("--color-primary") || "").trim();
+      const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      if (!m) return; // var no hex (hsl/empty): mantener la actual
+      const r = parseInt(m[1], 16);
+      const g = parseInt(m[2], 16);
+      const b = parseInt(m[3], 16);
+      PALETTE = [
+        `${mix(r, 255, 0.25)}, ${mix(g, 255, 0.25)}, ${mix(b, 255, 0.25)}`,
+        `${r}, ${g}, ${b}`,
+        `${mix(r, 255, 0.15)}, ${mix(g, 255, 0.15)}, ${mix(b, 255, 0.15)}`,
+        `${mix(r, 0, 0.2)}, ${mix(g, 0, 0.2)}, ${mix(b, 0, 0.2)}`,
+        `${mix(r, 255, 0.45)}, ${mix(g, 255, 0.45)}, ${mix(b, 255, 0.45)}`,
+        `${mix(r, 255, 0.6)}, ${mix(g, 255, 0.6)}, ${mix(b, 255, 0.6)}`,
+      ];
+      for (const p of pts) p.rgb = PALETTE[Math.floor(Math.random() * PALETTE.length)];
+      for (const f of frags) f.rgb = PALETTE[Math.floor(Math.random() * PALETTE.length)];
+    }
 
     type P = {
       ax: number;
@@ -281,15 +306,18 @@ export function HeroPlexus({ className }: { className?: string }) {
 
     resize();
     tick();
+    retint();
     window.addEventListener("resize", resize);
     window.addEventListener("pointermove", onMove);
     window.addEventListener("frig:matrix-sweep", onSweep);
+    window.addEventListener("frig:theme-changed", retint);
     document.documentElement.addEventListener("pointerleave", onLeave);
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("frig:matrix-sweep", onSweep);
+      window.removeEventListener("frig:theme-changed", retint);
       document.documentElement.removeEventListener("pointerleave", onLeave);
     };
   }, []);

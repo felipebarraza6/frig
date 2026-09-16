@@ -19,10 +19,11 @@ import type { BranchThemeConfig } from "@/lib/types";
 import { setToken } from "@/lib/api/session-storage";
 import { pickDefaultBranchId } from "@/lib/branch-session";
 import { cn } from "@/lib/utils";
+import { FRIG_IDENTITY_STYLE, FRIG_REPO_URL } from "@/lib/frig-identity";
 import { FrigWordmarkMatrix } from "@/components/landing/frig-wordmark-matrix";
 import { HeroPlexus } from "@/components/landing/hero-plexus";
 import { BrandLogo } from "@/components/brand-logo";
-import { LANDING_USE_CASES, LANDING_VALUE_PROP } from "@/content/landing";
+import { LANDING_USE_CASES } from "@/content/landing";
 import type { LandingUseCase } from "@/content/landing";
 import type { LoginCompleteResponse } from "@/lib/types";
 import { Clock, Copy, KeyRound } from "lucide-react";
@@ -167,18 +168,23 @@ export default function LoginPage() {
       const theme = slug
         ? await fetchPublicLoginTheme(slug)
         : await fetchPublicLoginThemeByHost();
-      if (cancelled || !theme) return;
-      setBrandTheme(theme);
-      applyThemeConfig(theme);
-      if (theme.favicon) {
-        let link = document.querySelector<HTMLLinkElement>("link[rel='icon']");
-        if (!link) {
-          link = document.createElement("link");
-          link.rel = "icon";
-          document.head.appendChild(link);
+      if (cancelled) return;
+      if (theme) {
+        setBrandTheme(theme);
+        applyThemeConfig(theme);
+        if (theme.favicon) {
+          let link = document.querySelector<HTMLLinkElement>("link[rel='icon']");
+          if (!link) {
+            link = document.createElement("link");
+            link.rel = "icon";
+            document.head.appendChild(link);
+          }
+          link.href = theme.favicon;
         }
-        link.href = theme.favicon;
       }
+      // Título del documento con la marca resuelta (tenant o Frig).
+      const name = theme?.app_name ?? "FRIG";
+      document.title = `${name} — Iniciar sesión`;
     })();
     return () => {
       cancelled = true;
@@ -347,28 +353,15 @@ export default function LoginPage() {
     }
   }
 
+  // Identidad Frig SOLO sin tenant: con branding de sucursal la paleta la
+  // deriva applyThemeConfig desde su primary (lo que eligió es lo que ve).
+  const isFrigIdentity = !brandTheme;
+  const darkSection = isFrigIdentity || brandTheme?.algorithm === "dark";
+
   return (
     <div
-      className="relative flex min-h-dvh flex-1 flex-col bg-[#0a0a0a]"
-      // Identidad Frig (cobre): evita que un brand.primary_color verde del
-      // backend tiña inputs, focus rings y avisos del formulario.
-      style={
-        {
-          "--brand-primary": "#c67d52",
-          "--color-primary": "#c67d52",
-          "--primary": "#c67d52",
-          "--ring": "#c67d52",
-          // neutros oscuros: el theme del branch (verde) setea estos en root
-          "--input": "#27272a",
-          "--border": "#27272a",
-          "--background": "#0a0a0a",
-          "--card": "#141414",
-          "--muted": "#1c1c1f",
-          "--muted-foreground": "#a1a1aa",
-          "--accent": "#1c1c1f",
-          "--secondary": "#1c1c1f",
-        } as React.CSSProperties
-      }
+      className={cn("relative flex min-h-dvh flex-1 flex-col", isFrigIdentity ? "bg-[#0a0a0a]" : "bg-background text-foreground")}
+      style={isFrigIdentity ? FRIG_IDENTITY_STYLE : undefined}
     >
       {/* Fondo único de identidad: horizonte cálido + red que reacciona al mouse */}
       <div aria-hidden className="pointer-events-none absolute inset-0">
@@ -392,8 +385,11 @@ export default function LoginPage() {
         </div>
       </div>
       <section
-        style={{ "--input": "#27272a", "--border": "#27272a", "--muted": "#1c1c1f", "--muted-foreground": "#a1a1aa", "--accent": "#1c1c1f", "--background": "#0a0a0a", "--card": "#141414" } as React.CSSProperties}
-        className="dark relative flex min-h-dvh flex-1 flex-col items-center justify-center px-4 py-10 text-white"
+        style={isFrigIdentity ? { "--input": "#27272a", "--border": "#27272a", "--muted": "#1c1c1f", "--muted-foreground": "#a1a1aa", "--accent": "#1c1c1f", "--background": "#0a0a0a", "--card": "#141414" } as React.CSSProperties : undefined}
+        className={cn(
+          "relative flex min-h-dvh flex-1 flex-col items-center justify-center px-4 py-10",
+          darkSection ? "dark text-white" : "text-foreground",
+        )}
       >
         <motion.div
           initial={{ opacity: 0, y: 12 }}
@@ -416,7 +412,27 @@ export default function LoginPage() {
             style={{ textShadow: "0 2px 18px rgba(0,0,0,0.75)" }}
           >
           {/* El wordmark de la marca presidiendo el formulario */}
-          {!brandTheme && (
+          {/* Marca que preside el formulario: la del tenant si hay branding
+              por host/slug; si no, el wordmark animado de Frig. */}
+          {brandTheme ? (
+            <div className="mb-8 flex flex-col items-center gap-3 text-center">
+              <BrandLogo
+                src={brandTheme.logo}
+                alt={brandTheme.app_name ?? "Logo"}
+                name={brandTheme.app_name}
+                containerClassName="h-14 w-14 rounded-xl"
+                className="h-14 w-14 rounded-xl object-contain"
+              />
+              <div>
+                <h1 className="font-display text-2xl font-semibold tracking-tight">
+                  {brandTheme.login_welcome_message ?? brandTheme.app_name ?? "Bienvenido"}
+                </h1>
+                {brandTheme.tagline && (
+                  <p className="mt-1 text-sm text-muted-foreground">{brandTheme.tagline}</p>
+                )}
+              </div>
+            </div>
+          ) : (
             <FrigWordmarkMatrix className="mb-8 h-12 w-auto self-center" />
           )}
           {demoCase && mode === "login" && (
@@ -639,9 +655,24 @@ export default function LoginPage() {
             </form>
           )}
 
-          <p className={cn("mt-8 text-center text-xs text-muted-foreground")}>
-            Gestión comercial y gastronómica por FRIG
-          </p>
+          {/* Atribución: el login del tenant solo menciona sutilmente a Frig. */}
+          {brandTheme ? (
+            <p className="mt-8 text-center text-xs text-muted-foreground">
+              by{" "}
+              <a
+                href={FRIG_REPO_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium underline-offset-4 transition-colors hover:text-foreground hover:underline"
+              >
+                FRIG
+              </a>
+            </p>
+          ) : (
+            <p className={cn("mt-8 text-center text-xs text-muted-foreground")}>
+              Gestión comercial y gastronómica por FRIG
+            </p>
+          )}
           </motion.div>
           </AnimatePresence>
         </motion.div>

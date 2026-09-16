@@ -292,9 +292,9 @@ a {
   bottom: -2%;
   width: 5px;
   height: 5px;
-  /* Destello de 4 puntas: chispa, no círculo. */
+  /* Destello de 4 puntas: chispa, no círculo. Se tiñe con la marca activa. */
   clip-path: polygon(50% 0%, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0% 50%, 38% 38%);
-  background: #f0a26a;
+  background: color-mix(in srgb, var(--color-primary, #c67d52) 72%, #ffd9a8);
   filter: drop-shadow(0 0 3px rgba(240, 162, 106, 0.7))
     drop-shadow(0 0 9px rgba(232, 146, 94, 0.3));
   /* Titileo suave tipo seno, desfasado del trayecto. */
@@ -327,7 +327,7 @@ a {
 
 /* Chispa blanca-caliente: más grande, más viva, aparece ocasionalmente. */
 .frig-ember-hot {
-  background: #ffd9a8;
+  background: color-mix(in srgb, var(--color-primary, #c67d52) 45%, #ffd9a8);
   filter: drop-shadow(0 0 4px rgba(255, 217, 168, 0.85))
     drop-shadow(0 0 12px rgba(240, 162, 106, 0.4));
 }
