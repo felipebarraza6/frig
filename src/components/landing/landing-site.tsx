@@ -362,10 +362,13 @@ function Hero({
                 type="button"
                 disabled={entering}
                 onClick={onReenter}
-                className="text-sm font-medium hover:text-white disabled:opacity-60"
+                className={cn(
+                  "text-sm font-medium disabled:opacity-60",
+                  !entering && "hover:text-white",
+                )}
                 style={{ color: COPPER }}
               >
-                {entering ? "Entrando…" : "Reingresar →"}
+                {entering ? "Cargando tu panel…" : "Reingresar →"}
               </button>
             </div>
           )}
@@ -940,6 +943,12 @@ export function LandingSite() {
     if (entering) return;
     setEntering(true);
     router.push(homeRoute);
+    // Red de seguridad: si la SPA no navega en 4s, recarga dura al panel.
+    window.setTimeout(() => {
+      if (window.location.pathname.startsWith("/login")) {
+        window.location.href = homeRoute;
+      }
+    }, 4000);
   }
 
   const configQuery = useQuery({

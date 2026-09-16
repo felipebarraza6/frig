@@ -50,8 +50,15 @@ function getHomeRouteForUser(
   return "/dashboard";
 }
 
-/* Transición de entrada: el wordmark atraviesa un portal antes de navegar. */
-function DimensionExit({ brandName }: { brandName: string | null }) {
+/* Transición de entrada: el logo de la sucursal (o Frig) antes de navegar.
+   Sin texto "Entrando…": una línea de energía da el feedback de carga. */
+function DimensionExit({
+  brandName,
+  brandLogo,
+}: {
+  brandName: string | null;
+  brandLogo: string | null;
+}) {
   return (
     <motion.div
       className="fixed inset-0 z-[60] flex items-center justify-center bg-[#0a0a0a]"
@@ -68,20 +75,39 @@ function DimensionExit({ brandName }: { brandName: string | null }) {
         }}
       />
       <div className="relative flex flex-col items-center gap-8">
-        {!brandName && (
-          <img
-            src="/brand/frig-symbol.png"
-            alt=""
-            className="h-16 w-auto"
-            style={{ filter: "drop-shadow(0 0 16px rgba(238,158,112,0.5))" }}
+        {brandLogo ? (
+          <BrandLogo
+            src={brandLogo}
+            alt={brandName ?? "Logo"}
+            name={brandName}
+            containerClassName="h-24 w-24 rounded-2xl"
+            className="h-24 w-24 rounded-2xl object-contain"
           />
+        ) : (
+          <>
+            {!brandName && (
+              <img
+                src="/brand/frig-symbol.png"
+                alt=""
+                className="h-16 w-auto"
+                style={{ filter: "drop-shadow(0 0 16px rgba(238,158,112,0.5))" }}
+              />
+            )}
+            <img
+              src="/brand/frig-wordmark.png"
+              alt="Frig"
+              className="frig-dimension-loop relative h-16 w-auto sm:h-24"
+            />
+          </>
         )}
-        <img
-          src="/brand/frig-wordmark.png"
-          alt="Frig"
-          className="frig-dimension-loop relative h-16 w-auto sm:h-24"
-        />
-        <p className="text-sm text-zinc-400">Entrando…</p>
+        {/* Línea de energía: feedback de carga sin texto */}
+        <div className="h-0.5 w-40 overflow-hidden rounded-full bg-white/10">
+          <motion.div
+            className="h-full w-1/3 rounded-full bg-[#c67d52]"
+            animate={{ x: ["-100%", "300%"] }}
+            transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
+          />
+        </div>
       </div>
     </motion.div>
   );
@@ -112,7 +138,14 @@ export default function LoginPage() {
 
   function celebrateThen(callback: () => void) {
     setSuccess(true);
-    window.setTimeout(callback, 1150);
+    // Navegar pronto (el overlay sigue hasta el desmonte) y con red de
+    // seguridad: si a los 4s seguimos en /login, la SPA se trabó → dura.
+    window.setTimeout(callback, 700);
+    window.setTimeout(() => {
+      if (window.location.pathname === "/login") {
+        window.location.href = "/dashboard";
+      }
+    }, 4000);
   }
 
   const [forgotEmail, setForgotEmail] = useState("");
@@ -684,7 +717,10 @@ export default function LoginPage() {
         </motion.div>
 
         {success && (
-          <DimensionExit brandName={brandTheme?.app_name ?? null} />
+          <DimensionExit
+            brandName={brandTheme?.app_name ?? null}
+            brandLogo={brandTheme?.logo ?? null}
+          />
         )}
       </section>
 
