@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { useSessionStore } from "@/lib/store/session";
 import { applyThemeConfig, fetchBranchTheme } from "@/lib/api/branches";
 import { getToken } from "@/lib/api/session-storage";
+import { setFaviconHref } from "@/lib/frig-identity";
 import type { BranchThemeConfig } from "@/lib/types";
 
 function normalizeThemeBranch(
@@ -74,11 +75,16 @@ export function ThemeApplier() {
       }
       applyThemeConfig(null);
       document.documentElement.classList.remove("dark");
+      setFaviconHref("/icon.png");
       return;
     }
 
     // Aplicar el tema efectivo (org o branch)
     applyThemeConfig(effectiveTheme);
+    // El favicon del tenant persiste durante toda la sesión en la app;
+    // sin tema, vuelve al ícono de Frig.
+    if (effectiveTheme) setFaviconHref(effectiveTheme.favicon ?? effectiveTheme.logo ?? "/icon.png");
+    else setFaviconHref("/icon.png");
 
     document.documentElement.classList.remove("dark");
 

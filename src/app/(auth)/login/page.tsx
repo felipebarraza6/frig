@@ -138,14 +138,15 @@ export default function LoginPage() {
 
   function celebrateThen(callback: () => void) {
     setSuccess(true);
-    // Navegar pronto (el overlay sigue hasta el desmonte) y con red de
-    // seguridad: si a los 4s seguimos en /login, la SPA se trabó → dura.
+    // Navegar pronto (el overlay sigue hasta el desmonte). La red de
+    // seguridad es tardía a propósito: un 4s en conexiones lentas forzaba
+    // una recarga dura a mitad de carga (doble render y parpadeo).
     window.setTimeout(callback, 700);
     window.setTimeout(() => {
       if (window.location.pathname === "/login") {
         window.location.href = "/dashboard";
       }
-    }, 4000);
+    }, 8000);
   }
 
   const [forgotEmail, setForgotEmail] = useState("");

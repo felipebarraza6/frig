@@ -943,12 +943,13 @@ export function LandingSite() {
     if (entering) return;
     setEntering(true);
     router.push(homeRoute);
-    // Red de seguridad: si la SPA no navega en 4s, recarga dura al panel.
+    // Red de seguridad tardía: si la SPA no navega en 8s (conexión lenta),
+    // recarga dura al panel. Antes (4s) reiniciaba la carga a mitad.
     window.setTimeout(() => {
       if (window.location.pathname.startsWith("/login")) {
         window.location.href = homeRoute;
       }
-    }, 4000);
+    }, 8000);
   }
 
   const configQuery = useQuery({

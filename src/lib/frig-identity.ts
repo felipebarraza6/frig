@@ -25,19 +25,31 @@ export const FRIG_IDENTITY_STYLE = {
 export const FRIG_REPO_URL = "https://github.com/FelipeBarraza6/frig";
 
 /**
- * Favicon del tenant con cascada: favicon propio → logo del header →
- * nada (queda el de Frig). Reemplaza TODOS los link[rel=icon] existentes
- * (el layout define varios: icon.png, icon-192, apple-touch) para que el
- * navegador no siga mostrando uno viejo.
+ * Reemplaza TODOS los link[rel=icon] del head por uno nuevo. Necesario
+ * porque el layout define varios (icon.png, icon-192, apple-touch...) y
+ * cambiar solo el primero no garantiza que el navegador lo use.
  */
-export function setTenantFavicon(favicon: string | null | undefined, logo: string | null | undefined): void {
-  const href = favicon || logo;
-  if (!href) return;
+export function setFaviconHref(href: string): void {
   document
-    .querySelectorAll<HTMLLinkElement>("link[rel='icon'], link[rel='apple-touch-icon'], link[rel='shortcut icon']")
+    .querySelectorAll<HTMLLinkElement>(
+      "link[rel='icon'], link[rel='apple-touch-icon'], link[rel='shortcut icon']",
+    )
     .forEach((link) => link.remove());
   const link = document.createElement("link");
   link.rel = "icon";
   link.href = href;
   document.head.appendChild(link);
+}
+
+/**
+ * Favicon del tenant con cascada: favicon propio → logo del header →
+ * nada (queda el de Frig).
+ */
+export function setTenantFavicon(
+  favicon: string | null | undefined,
+  logo: string | null | undefined,
+): void {
+  const href = favicon || logo;
+  if (!href) return;
+  setFaviconHref(href);
 }

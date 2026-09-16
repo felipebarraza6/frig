@@ -90,6 +90,9 @@ root.style.setProperty("--secondary-foreground",fg(secondary));
 root.style.setProperty("--color-primary-foreground",fg(primary));
 root.style.setProperty("--color-secondary-foreground",fg(secondary));
 if(typeof theme.borderRadius==="number"&&theme.borderRadius>0){root.style.setProperty("--brand-radius",theme.borderRadius+"px");}
+/* Favicon del tenant persistido: sobrevive recargas duras dentro de su dominio. */
+var fav=(typeof theme.favicon==="string"&&theme.favicon)||(typeof theme.logo==="string"&&theme.logo);
+if(fav){try{document.querySelectorAll("link[rel='icon']").forEach(function(l){l.remove()});var fl=document.createElement("link");fl.rel="icon";fl.href=fav;document.head.appendChild(fl);}catch(e){}}
 if(theme.algorithm==="dark"){root.classList.add("dark");}
 else if(theme.algorithm==="light"){root.classList.remove("dark");}
 }catch(e){}})();`;
