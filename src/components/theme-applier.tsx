@@ -21,22 +21,23 @@ function themeMatchesBranch(theme: BranchThemeConfig | null, branchId: string | 
 }
 
 /**
- * Resuelve el tema efectivo siguiendo la jerarquía:
- * 1. Tema de la organización (si existe)
- * 2. Tema de la sucursal (si existe)
- * 3. Default (null → Frig default)
+ * Resuelve el tema efectivo (lo más específico gana):
+ * 1. Tema de la sucursal activa (lo que se configura en su dialog)
+ * 2. Tema de la organización (fallback)
+ * 3. Default Frig.
+ * Si la org ganara sobre la sucursal, el usuario vería flapping: elige un
+ * theme, se aplica, y este effect lo reemplaza por el de la organización.
  */
 function resolveEffectiveTheme(
   orgTheme: BranchThemeConfig | null,
   branchTheme: BranchThemeConfig | null,
 ): BranchThemeConfig | null {
-  // Prioridad: org theme > branch theme > default
-  return orgTheme ?? branchTheme ?? null;
+  return branchTheme ?? orgTheme ?? null;
 }
 
 /**
  * Aplica el tema multi-tenant persistido al `:root`.
- * Jerarquía: organización → sucursal → default Frig.
+ * Jerarquía: sucursal → organización → default Frig.
  *
  * Debe montarse una única vez, alto en el árbol, para evitar parpadeo de color.
  */
