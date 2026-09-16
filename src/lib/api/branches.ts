@@ -269,7 +269,7 @@ function readableForegroundFor(hex: string): string {
  */
 export function applyThemeConfig(theme: BranchThemeConfig | null): void {
   const root = document.documentElement;
-  const primary = theme?.primary_color ?? "#2f6b3c";
+  const primary = theme?.primary_color ?? "#c67d52";
   const secondary = theme?.secondary_color ?? "#f2e8cf";
 
   // Colores base
@@ -285,44 +285,59 @@ export function applyThemeConfig(theme: BranchThemeConfig | null): void {
   root.style.setProperty("--color-primary-foreground", primaryForeground);
   root.style.setProperty("--color-secondary-foreground", secondaryForeground);
 
-  // Derivar tokens del UI desde secondary (modo light)
-  // --background: secondary muy diluido con blanco (superficie principal clara)
-  root.style.setProperty("--background", mixColor(secondary, "#ffffff", 0.75));
-  // --foreground: texto oscuro legible sobre background
-  root.style.setProperty("--foreground", mixColor(primary, "#1a1a1a", 0.5));
-  // --card: blanco puro para contraste con el background
-  root.style.setProperty("--card", "#ffffff");
-  root.style.setProperty("--card-foreground", mixColor(primary, "#1a1a1a", 0.5));
-  // --muted: variante suave del secondary (para badges, fondos sutiles)
-  root.style.setProperty("--muted", mixColor(secondary, "#ffffff", 0.7));
-  root.style.setProperty("--muted-foreground", mixColor(primary, "#1a1a1a", 0.35));
-  // --accent: mismo que muted
-  root.style.setProperty("--accent", mixColor(secondary, "#ffffff", 0.7));
-  root.style.setProperty("--accent-foreground", mixColor(primary, "#1a1a1a", 0.5));
-  // --border / --input: bordes visibles pero sutiles
-  root.style.setProperty("--border", mixColor(secondary, primary, 0.2));
-  root.style.setProperty("--input", mixColor(secondary, primary, 0.15));
-  // --surface: superficie secundaria
-  root.style.setProperty("--brand-surface", mixColor(secondary, "#ffffff", 0.8));
-  root.style.setProperty("--brand-foreground", mixColor(primary, "#1a1a1a", 0.5));
+  /*
+   * Derivar la paleta del UI desde el TONO del primary (no mezclas fijas
+   * con verdes/heredados): lo que el usuario elige en el swatch es
+   * exactamente el color de botones/focos, y el resto de la paleta
+   * (fondos, bordes, muted) comparte su tono con saturación y luz
+   * controladas. Fidelidad ("lo que ofrezco es lo que se implementa")
+   * + contraste garantizado por lightness fija por token.
+   */
+  const rgb = hexToRgb(primary) ?? { r: 198, g: 125, b: 82 };
+  const [h, sRaw] = rgbToHsl(rgb.r, rgb.g, rgb.b);
+  const hue = `${h} ${Math.min(28, Math.max(6, Math.round(sRaw * 0.4)))}%`;
+  const tint = (l: number) => `hsl(${hue} ${l}%)`;
 
-  // Dark mode toggle
-  if (theme?.algorithm === "dark") {
+  const isDark = theme?.algorithm === "dark";
+
+  if (isDark) {
     root.classList.add("dark");
-    // Tokens dark derivados
-    root.style.setProperty("--background", mixColor(primary, "#000000", 0.92));
-    root.style.setProperty("--foreground", mixColor(secondary, "#ffffff", 0.85));
-    root.style.setProperty("--card", mixColor(primary, "#000000", 0.88));
-    root.style.setProperty("--card-foreground", mixColor(secondary, "#ffffff", 0.85));
-    root.style.setProperty("--muted", mixColor(primary, "#000000", 0.78));
-    root.style.setProperty("--muted-foreground", mixColor(secondary, "#ffffff", 0.55));
-    root.style.setProperty("--accent", mixColor(primary, "#000000", 0.78));
-    root.style.setProperty("--accent-foreground", mixColor(secondary, "#ffffff", 0.85));
-    root.style.setProperty("--border", mixColor(primary, "#ffffff", 0.15));
-    root.style.setProperty("--input", mixColor(primary, "#ffffff", 0.18));
-  } else if (theme?.algorithm === "light") {
+    // primary demasiado oscuro sobre fondo oscuro: aclarar para textos/íconos
+    const [, , pl] = rgbToHsl(rgb.r, rgb.g, rgb.b);
+    const displayPrimary = pl < 48 ? tint(58) : primary;
+    root.style.setProperty("--color-primary", displayPrimary);
+
+    root.style.setProperty("--background", tint(7));
+    root.style.setProperty("--foreground", tint(92));
+    root.style.setProperty("--card", tint(10));
+    root.style.setProperty("--card-foreground", tint(92));
+    root.style.setProperty("--muted", tint(16));
+    root.style.setProperty("--muted-foreground", tint(64));
+    root.style.setProperty("--accent", tint(18));
+    root.style.setProperty("--accent-foreground", tint(90));
+    root.style.setProperty("--border", tint(20));
+    root.style.setProperty("--input", tint(22));
+    root.style.setProperty("--brand-surface", tint(12));
+    root.style.setProperty("--brand-foreground", tint(90));
+  } else {
     root.classList.remove("dark");
+    root.style.setProperty("--color-primary", primary);
+    root.style.setProperty("--background", tint(97));
+    root.style.setProperty("--foreground", tint(13));
+    root.style.setProperty("--card", "#ffffff");
+    root.style.setProperty("--card-foreground", tint(13));
+    root.style.setProperty("--muted", tint(94));
+    root.style.setProperty("--muted-foreground", tint(34));
+    root.style.setProperty("--accent", tint(92));
+    root.style.setProperty("--accent-foreground", tint(16));
+    root.style.setProperty("--border", tint(87));
+    root.style.setProperty("--input", tint(84));
+    root.style.setProperty("--brand-surface", tint(95));
+    root.style.setProperty("--brand-foreground", tint(13));
   }
+
+  // Secondary: tal cual el usuario lo eligió (superficie/borde secundario).
+  root.style.setProperty("--color-secondary", secondary);
 }
 
 /**

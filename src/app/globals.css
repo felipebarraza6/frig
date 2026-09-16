@@ -9,7 +9,7 @@
  * recompilar. Los tokens shadcn mapean a los de marca.
  */
 :root {
-  --brand-primary: #2f6b3c;
+  --brand-primary: #c67d52;
   --brand-secondary: #f2e8cf;
   --brand-surface: #f8f7f3;
   --brand-foreground: #1b1e19;
@@ -51,14 +51,15 @@
 .light {
   --background: #f8f7f3;
   --foreground: var(--brand-foreground);
-  --muted: hsl(95 10% 93%);
-  --muted-foreground: hsl(100 5% 38%);
+  /* Neutros sin tinte: el tono de marca lo aporta --brand-primary. */
+  --muted: hsl(30 6% 93%);
+  --muted-foreground: hsl(30 5% 38%);
   --accent: var(--muted);
   --accent-foreground: var(--brand-foreground);
   --primary-foreground: #ffffff;
   --secondary-foreground: var(--brand-foreground);
-  --border: hsl(95 9% 88%);
-  --input: hsl(95 9% 85%);
+  --border: hsl(30 6% 88%);
+  --input: hsl(30 6% 85%);
   --card: #ffffff;
   --card-foreground: var(--brand-foreground);
   --danger: #dc2626;
@@ -68,18 +69,19 @@
 }
 
 .dark {
-  --background: #12150f;
-  --foreground: #eef1e8;
-  --muted: hsl(100 10% 17%);
-  --muted-foreground: hsl(95 7% 64%);
+  --background: #121212;
+  --foreground: #ededed;
+  /* Neutros sin tinte: evita el verdoso heredado del hue 95-100. */
+  --muted: hsl(0 0% 17%);
+  --muted-foreground: hsl(0 0% 64%);
   --accent: var(--muted);
-  --accent-foreground: #eef1e8;
+  --accent-foreground: #ededed;
   --primary-foreground: #ffffff;
-  --secondary-foreground: #eef1e8;
-  --border: hsl(100 9% 23%);
-  --input: hsl(100 9% 27%);
-  --card: #1a1e15;
-  --card-foreground: #eef1e8;
+  --secondary-foreground: #ededed;
+  --border: hsl(0 0% 23%);
+  --input: hsl(0 0% 27%);
+  --card: hsl(0 0% 10%);
+  --card-foreground: #ededed;
   /* En oscuro los semánticos se aclaran para mantener contraste legible
      sobre fondos profundos (los mismos tokens, mejor luminancia). */
   --danger: #f87171;

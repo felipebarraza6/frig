@@ -81,7 +81,7 @@ var root=document.documentElement;
 function fg(hex){var m=/^#?([0-9a-f]{6})$/i.exec(String(hex||"").trim());if(!m)return "#ffffff";
 var n=parseInt(m[1],16);var l=0.299*((n>>16)&255)+0.587*((n>>8)&255)+0.114*(n&255);
 return l>150?"#1a1d18":"#ffffff";}
-var primary=theme.primary_color||"#2f6b3c";
+var primary=theme.primary_color||"#c67d52";
 var secondary=theme.secondary_color||"#f2e8cf";
 root.style.setProperty("--brand-primary",primary);
 root.style.setProperty("--brand-secondary",secondary);
