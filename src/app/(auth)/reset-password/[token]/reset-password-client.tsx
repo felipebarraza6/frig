@@ -46,6 +46,17 @@ export default function ResetPasswordPage() {
       if (cancelled || !theme || (theme.app_name ?? "").toLowerCase().includes("frig")) return;
       setBrandTheme(theme);
       applyThemeConfig(theme);
+      // Favicon del tenant; sin favicon propio usa su logo del header.
+      const fav = theme.favicon ?? theme.logo;
+      if (fav) {
+        let link = document.querySelector<HTMLLinkElement>("link[rel='icon']");
+        if (!link) {
+          link = document.createElement("link");
+          link.rel = "icon";
+          document.head.appendChild(link);
+        }
+        link.href = fav;
+      }
       if (theme.app_name) document.title = `${theme.app_name} — Nueva contraseña`;
     })();
     return () => {

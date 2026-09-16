@@ -177,14 +177,16 @@ export default function LoginPage() {
       if (theme) {
         setBrandTheme(theme);
         applyThemeConfig(theme);
-        if (theme.favicon) {
+        // Favicon del tenant; sin favicon propio usa su logo del header.
+        const fav = theme.favicon ?? theme.logo;
+        if (fav) {
           let link = document.querySelector<HTMLLinkElement>("link[rel='icon']");
           if (!link) {
             link = document.createElement("link");
             link.rel = "icon";
             document.head.appendChild(link);
           }
-          link.href = theme.favicon;
+          link.href = fav;
         }
       }
       // Título del documento con la marca resuelta (tenant o Frig).
