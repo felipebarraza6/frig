@@ -662,19 +662,27 @@ export default function LoginPage() {
             </form>
           )}
 
-          {/* Atribución: el login del tenant solo menciona sutilmente a Frig. */}
+          {/* Atribución: el login del tenant reconoce la tecnología detrás. */}
           {brandTheme ? (
-            <p className="mt-8 text-center text-xs text-muted-foreground">
-              by{" "}
-              <a
-                href={FRIG_REPO_URL}
-                target="_blank"
-                rel="noreferrer"
-                className="font-medium underline-offset-4 transition-colors hover:text-foreground hover:underline"
-              >
-                FRIG
-              </a>
-            </p>
+            <div className="mt-8 flex flex-col items-center gap-1.5 text-xs text-muted-foreground">
+              <p>
+                powered by{" "}
+                <a
+                  href={FRIG_REPO_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium underline-offset-4 transition-colors hover:text-foreground hover:underline"
+                >
+                  FRIG
+                </a>
+              </p>
+              <img
+                src="/brand/frig-symbol.png"
+                alt=""
+                aria-hidden
+                className="h-4 w-auto opacity-60"
+              />
+            </div>
           ) : (
             <p className={cn("mt-8 text-center text-xs text-muted-foreground")}>
               Gestión comercial y gastronómica por FRIG
