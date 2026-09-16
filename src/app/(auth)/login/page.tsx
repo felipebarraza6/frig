@@ -165,9 +165,14 @@ export default function LoginPage() {
     let cancelled = false;
     (async () => {
       const slug = new URLSearchParams(window.location.search).get("branch");
-      const theme = slug
+      let theme = slug
         ? await fetchPublicLoginTheme(slug)
         : await fetchPublicLoginThemeByHost();
+      // El branding del PROPIO Frig (frig.yggdra.cl, slug "frig") se trata
+      // como identidad Frig: logo de cuadritos + cobre, nunca como tenant.
+      const isFrigBranding =
+        !!theme && (theme.app_name ?? "").toLowerCase().includes("frig");
+      if (isFrigBranding) theme = null;
       if (cancelled) return;
       if (theme) {
         setBrandTheme(theme);
@@ -183,7 +188,7 @@ export default function LoginPage() {
         }
       }
       // Título del documento con la marca resuelta (tenant o Frig).
-      const name = theme?.app_name ?? "FRIG";
+      const name = isFrigBranding ? "FRIG" : theme?.app_name ?? "FRIG";
       document.title = `${name} — Iniciar sesión`;
     })();
     return () => {

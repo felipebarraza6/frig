@@ -24,7 +24,8 @@ export default function ForgotPasswordPage() {
     let cancelled = false;
     (async () => {
       const theme = await fetchPublicLoginThemeByHost();
-      if (cancelled || !theme) return;
+      // Branding del propio Frig = identidad Frig (logo propio, cobre).
+      if (cancelled || !theme || (theme.app_name ?? "").toLowerCase().includes("frig")) return;
       setBrandTheme(theme);
       applyThemeConfig(theme);
     })();
