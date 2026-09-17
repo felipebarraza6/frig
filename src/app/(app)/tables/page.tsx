@@ -397,7 +397,7 @@ export default function TablesPage() {
         ) : isLoading ? (
           <>
             {/* Vista desktop */}
-            <div className="hidden overflow-hidden rounded-xl border border-border md:block">
+            <div className="hidden overflow-hidden rounded-xl border border-border bg-card shadow-sm md:block">
               <div className="border-b border-border px-4 py-3">
                 <Skeleton className="h-3 w-44" />
               </div>
@@ -419,7 +419,7 @@ export default function TablesPage() {
               {Array.from({ length: 4 }).map((_, i) => (
                 <div
                   key={i}
-                  className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm"
+                  className="rounded-2xl border border-border bg-background p-4 shadow-sm"
                 >
                   <div className="mb-2 flex items-center gap-2">
                     <Skeleton className="h-8 w-8 rounded-md" />
@@ -450,7 +450,7 @@ export default function TablesPage() {
         ) : (
           <>
             {/* Vista desktop */}
-            <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
+            <div className="hidden overflow-x-auto rounded-xl border border-border bg-card shadow-sm md:block">
               <table className="w-full min-w-[900px] text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -584,7 +584,7 @@ export default function TablesPage() {
                   <div
                     key={table.id}
                     className={cn(
-                      "flex flex-col gap-3 rounded-2xl border border-border bg-muted/30 p-4 transition-shadow hover:shadow-md",
+                      "flex flex-col gap-3 rounded-2xl border border-border bg-background p-4 transition-shadow hover:shadow-md",
                       !table.is_active && "opacity-60"
                     )}
                   >
@@ -738,7 +738,7 @@ export default function TablesPage() {
         }}
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
-          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-lg md:rounded-xl md:border">
+          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:h-auto md:max-h-[90vh] md:max-w-lg md:rounded-xl md:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-base font-semibold">{editing ? "Editar mesa" : "Nueva mesa"}</h2>
               <button
@@ -850,7 +850,7 @@ export default function TablesPage() {
         onClose={() => setTransferringTable(null)}
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
-          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card p-0 shadow-lg md:h-auto md:max-h-[90vh] md:max-w-sm md:rounded-xl md:border">
+          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background p-0 shadow-lg md:h-auto md:max-h-[90vh] md:max-w-sm md:rounded-xl md:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-base font-semibold">Transferir mesa {transferringTable.number}</h2>
               <button

@@ -169,19 +169,19 @@ export default function TaxDocumentsPage() {
       <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
         {/* KPIs */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div className="rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
+          <div className="rounded-2xl border border-border bg-background p-3 shadow-sm">
             <p className="text-[11px] font-medium text-muted-foreground">Borradores</p>
             <p className="text-lg font-semibold tabular-nums">{draftCount}</p>
           </div>
-          <div className="rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
+          <div className="rounded-2xl border border-border bg-background p-3 shadow-sm">
             <p className="text-[11px] font-medium text-muted-foreground">Emitidos / Enviados</p>
             <p className="text-lg font-semibold tabular-nums">{issuedCount}</p>
           </div>
-          <div className="rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
+          <div className="rounded-2xl border border-border bg-background p-3 shadow-sm">
             <p className="text-[11px] font-medium text-muted-foreground">Aceptados SII</p>
             <p className="text-lg font-semibold tabular-nums text-emerald-600">{acceptedCount}</p>
           </div>
-          <div className="rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
+          <div className="rounded-2xl border border-border bg-background p-3 shadow-sm">
             <p className="text-[11px] font-medium text-muted-foreground">Monto total</p>
             <p className="text-lg font-semibold tabular-nums">{formatCLP(totalAmount)}</p>
           </div>
@@ -210,7 +210,7 @@ export default function TaxDocumentsPage() {
           </div>
         ) : isLoading ? (
           <div className="flex flex-col gap-3">
-            {[1, 2, 3].map((i) => (<div key={i} className="h-16 animate-pulse rounded-xl border border-border bg-muted/30" />))}
+            {[1, 2, 3].map((i) => (<div key={i} className="h-16 animate-pulse rounded-xl border border-border bg-background" />))}
           </div>
         ) : filtered.length === 0 ? (
           <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">
@@ -223,7 +223,7 @@ export default function TaxDocumentsPage() {
         ) : (
           <>
             {/* Desktop */}
-            <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
+            <div className="hidden overflow-x-auto rounded-xl border border-border bg-card shadow-sm md:block">
               <table className="w-full min-w-[900px] text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -242,7 +242,7 @@ export default function TaxDocumentsPage() {
                   {filtered.map((d) => {
                     const StatusIcon = statusIcon(d.status);
                     return (
-                      <tr key={d.id} className="border-b border-border last:border-0 hover:bg-muted/30">
+                      <tr key={d.id} className="border-b border-border last:border-0 hover:bg-background">
                         <td className="px-4 py-3 text-muted-foreground text-xs">{docTypeLabel(d.document_type)}</td>
                         <td className="px-4 py-3 font-mono text-xs">{d.folio ?? d.document_number}</td>
                         <td className="px-4 py-3 text-muted-foreground text-xs">{d.issue_date}</td>
@@ -297,7 +297,7 @@ export default function TaxDocumentsPage() {
               {filtered.map((d) => {
                 const StatusIcon = statusIcon(d.status);
                 return (
-                  <div key={d.id} className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
+                  <div key={d.id} className="rounded-2xl border border-border bg-background p-4 shadow-sm">
                     <div className="flex items-start justify-between">
                       <div className="min-w-0 flex-1">
                         <p className="text-xs text-muted-foreground">{docTypeLabel(d.document_type)} · {d.folio ?? d.document_number}</p>
@@ -339,7 +339,7 @@ export default function TaxDocumentsPage() {
 
       {/* Detail Modal */}
       <AnimatedOverlay open={!!detail} onClose={() => setDetail(null)} panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4">
-        <div className="flex h-[90dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-w-lg md:rounded-xl md:border">
+        <div className="flex h-[90dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:h-auto md:max-w-lg md:rounded-xl md:border">
           <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
             <h2 className="text-base font-semibold">{detail && docTypeLabel(detail.document_type)}</h2>
             <button onClick={() => setDetail(null)} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>
@@ -397,7 +397,7 @@ export default function TaxDocumentsPage() {
 
       {/* Cancel Confirmation */}
       <AnimatedOverlay open={!!confirmCancel} onClose={() => { setConfirmCancel(null); setCancelReason(""); }} panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4">
-        <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
+        <div className="w-full rounded-t-xl border-x border-t border-border bg-background p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-danger/10">
               <AlertCircle className="h-5 w-5 text-danger" />
@@ -461,7 +461,7 @@ function CreateDocModal({ open, onClose, onSubmit, isPending }: {
 
   return (
     <AnimatedOverlay open={open} onClose={handleClose} panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4">
-      <div className="flex h-[90dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-w-lg md:rounded-xl md:border">
+      <div className="flex h-[90dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:h-auto md:max-w-lg md:rounded-xl md:border">
         <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
           <h2 className="text-base font-semibold">Nuevo documento tributario</h2>
           <button onClick={handleClose} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>

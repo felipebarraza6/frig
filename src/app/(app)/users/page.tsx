@@ -169,7 +169,7 @@ export default function UsersPage() {
         ) : (
           <>
             {/* Vista desktop */}
-            <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
+            <div className="hidden overflow-x-auto rounded-xl border border-border bg-card shadow-sm md:block">
               <table className="w-full min-w-[640px] text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -249,7 +249,7 @@ export default function UsersPage() {
                 return (
                   <div
                     key={String(u.id)}
-                    className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm"
+                    className="rounded-2xl border border-border bg-background p-4 shadow-sm"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
@@ -361,7 +361,7 @@ export default function UsersPage() {
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Contraseña
             </p>
-            <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/50 p-2 pl-3">
+            <div className="flex items-center gap-2 rounded-xl border border-border bg-background p-2 pl-3">
               <code className="min-w-0 flex-1 truncate font-mono text-sm">
                 {showPassword ? revealedPassword?.password : "•".repeat(revealedPassword?.password.length ?? 12)}
               </code>

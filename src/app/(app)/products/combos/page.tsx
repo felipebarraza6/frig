@@ -432,23 +432,23 @@ export default function CombosPage() {
           <>
             {/* Resumen */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
-              <div className="rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
+              <div className="rounded-2xl border border-border bg-background p-3 shadow-sm">
                 <p className="text-xs text-muted-foreground">Total combos</p>
                 <p className="mt-1 text-2xl font-semibold leading-none tabular-nums">{totalCombos}</p>
               </div>
-              <div className="rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
+              <div className="rounded-2xl border border-border bg-background p-3 shadow-sm">
                 <p className="text-xs text-muted-foreground">Activos</p>
                 <p className="mt-1 text-2xl font-semibold leading-none tabular-nums text-emerald-700">
                   {stats.active}
                 </p>
               </div>
-              <div className="rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
+              <div className="rounded-2xl border border-border bg-background p-3 shadow-sm">
                 <p className="text-xs text-muted-foreground">Inactivos</p>
                 <p className="mt-1 text-2xl font-semibold leading-none tabular-nums text-muted-foreground">
                   {stats.inactive}
                 </p>
               </div>
-              <div className="rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
+              <div className="rounded-2xl border border-border bg-background p-3 shadow-sm">
                 <p className="text-xs text-muted-foreground">Por vencer / vencidos</p>
                 <p className="mt-1 text-2xl font-semibold leading-none tabular-nums text-amber-700">
                   {stats.soon + stats.expired}
@@ -457,9 +457,9 @@ export default function CombosPage() {
             </div>
 
             {/* Vista tabla para desktop */}
-            <div className="hidden overflow-x-auto rounded-xl border border-border shadow-sm sm:block">
+            <div className="hidden overflow-x-auto rounded-xl border border-border bg-card shadow-sm sm:block">
               <table className="w-full min-w-[640px] text-sm">
-                <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <thead className="bg-background text-left text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
                     <th className="px-4 py-3">Combo</th>
                     <th className="px-4 py-3 text-right">Precio</th>
@@ -475,7 +475,7 @@ export default function CombosPage() {
                     return (
                       <tr
                         key={combo.id}
-                        className="transition-colors hover:bg-muted/30"
+                        className="transition-colors hover:bg-background"
                       >
                         <td className="px-4 py-3">
                           <div className="min-w-0">
@@ -556,7 +556,7 @@ export default function CombosPage() {
                 return (
                   <div
                     key={combo.id}
-                    className="flex min-w-0 flex-col rounded-2xl border border-border bg-muted/30 p-4 shadow-sm transition-shadow hover:shadow-md"
+                    className="flex min-w-0 flex-col rounded-2xl border border-border bg-background p-4 shadow-sm transition-shadow hover:shadow-md"
                   >
                     <div className="mb-3 flex items-start justify-between gap-3">
                       <div className="min-w-0">
@@ -673,7 +673,7 @@ export default function CombosPage() {
         onClose={closeModal}
         panelClassName="flex items-end justify-center overflow-hidden p-0 sm:items-center sm:p-4"
       >
-          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-xl sm:border">
+          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-xl sm:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-4 sm:px-6">
               <h2 className="text-base font-semibold">
                 {editing ? "Editar combo" : "Nuevo combo"}
@@ -690,7 +690,7 @@ export default function CombosPage() {
             <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
               <div className="relative flex-1 overflow-y-auto p-4 sm:p-6">
                 {loadingCombo && (
-                  <div className="absolute inset-0 z-10 grid place-items-center bg-card/80">
+                  <div className="absolute inset-0 z-10 grid place-items-center bg-background/80">
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   </div>
                 )}
@@ -871,7 +871,7 @@ export default function CombosPage() {
         onClose={() => setConfirmDelete(null)}
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
-          <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
+          <div className="w-full rounded-t-xl border-x border-t border-border bg-background p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">¿Eliminar combo?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Se desactivará{" "}

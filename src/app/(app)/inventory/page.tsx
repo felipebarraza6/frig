@@ -443,7 +443,7 @@ export default function InventoryPage() {
             ) : (
               <>
                 {/* Desktop table */}
-                <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
+                <div className="hidden overflow-x-auto rounded-xl border border-border bg-card shadow-sm md:block">
                   <table className="w-full min-w-[980px] text-sm">
                     <thead>
                       <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -496,7 +496,7 @@ export default function InventoryPage() {
                   {movements.map((m: InventoryHistory) => (
                     <div
                       key={m.id}
-                      className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm"
+                      className="rounded-2xl border border-border bg-background p-4 shadow-sm"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
@@ -570,21 +570,21 @@ export default function InventoryPage() {
         {tab === "alerts" && (
           <>
             <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
+              <div className="rounded-2xl border border-border bg-background p-4 shadow-sm">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <AlertCircle className="h-4 w-4 text-danger" />
                   Sin stock
                 </div>
                 <p className="mt-1 text-2xl font-semibold">{outOfStock.length}</p>
               </div>
-              <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
+              <div className="rounded-2xl border border-border bg-background p-4 shadow-sm">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <TrendingDown className="h-4 w-4 text-amber-500" />
                   Stock bajo
                 </div>
                 <p className="mt-1 text-2xl font-semibold">{lowStock.length}</p>
               </div>
-              <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
+              <div className="rounded-2xl border border-border bg-background p-4 shadow-sm">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Package className="h-4 w-4 text-primary" />
                   Total alertas
@@ -619,7 +619,7 @@ export default function InventoryPage() {
                   </p>
                 </div>
               ) : (
-                <div className="overflow-x-auto rounded-xl border border-border">
+                <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
                   <table className="w-full min-w-[480px] text-sm">
                     <thead>
                       <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -670,7 +670,7 @@ export default function InventoryPage() {
                   </p>
                 </div>
               ) : (
-                <div className="overflow-x-auto rounded-xl border border-border">
+                <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
                   <table className="w-full min-w-[480px] text-sm">
                     <thead>
                       <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -775,7 +775,7 @@ function MovementModal({
       onClose={onClose}
       panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
     >
-      <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
+      <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
         <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
           <h2 className="text-base font-semibold">Registrar movimiento</h2>
           <button onClick={onClose} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">

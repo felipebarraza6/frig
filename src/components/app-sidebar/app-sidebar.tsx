@@ -159,8 +159,8 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
     clearToken();
     clearSession();
     queryClient.clear();
-    router.replace("/login");
-  }, [queryClient, router, clearSession]);
+    window.location.assign("/login");
+  }, [queryClient, clearSession]);
 
   const allItems = useMemo<CommandPaletteItem[]>(() => {
     const ops = visibleMenuGroups.flatMap((g) =>
@@ -277,7 +277,7 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
       <CommandPalette items={allItems} open={searchOpen} onClose={() => setSearchOpen(false)} />
       <aside
         className={cn(
-          "app-sidebar fixed inset-y-0 left-0 z-50 flex flex-col overflow-hidden text-white transition-[width,box-shadow] duration-300 ease-out",
+          "app-sidebar fixed inset-y-0 left-0 z-30 flex flex-col overflow-hidden text-white transition-[width,box-shadow] duration-300 ease-out",
           widthClass,
           isSuperAdmin && "bg-[color:var(--brand-primary)]",
         )}

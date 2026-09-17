@@ -193,7 +193,7 @@ const create = useMutation({
                 <SlidersHorizontal className="h-4 w-4" /><span className="ml-2">Filtros</span>
               </Button>
             </div>
-            <div className={`rounded-2xl border border-border bg-muted/30 p-4 shadow-sm ${showMobileFilters ? "" : "hidden"}`}>
+            <div className={`rounded-2xl border border-border bg-background p-4 shadow-sm ${showMobileFilters ? "" : "hidden"}`}>
               <div className="mb-3 flex items-center justify-between">
                 <span className="text-sm font-medium">Filtros</span>
                 <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => setShowMobileFilters(false)}>
@@ -240,7 +240,7 @@ const create = useMutation({
         ) : (
           <>
             {/* Desktop table */}
-            <div className="hidden overflow-x-auto rounded-2xl border border-border md:block">
+            <div className="hidden overflow-x-auto rounded-2xl border border-border bg-card shadow-sm md:block">
               <table className="w-full min-w-[800px] text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -299,7 +299,7 @@ const create = useMutation({
               {reconciliations.map((rec) => {
                 const diff = parseAmount(rec.system_balance) - parseAmount(rec.bank_statement_balance);
                 return (
-                  <div key={rec.id} className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
+                  <div key={rec.id} className="rounded-2xl border border-border bg-background p-4 shadow-sm">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-medium">{rec.bank_account_name ?? rec.bank_account}</p>
@@ -384,7 +384,7 @@ function CreateReconciliationModal({ open, onClose, accounts, onSubmit, isPendin
 
   return (
     <AnimatedOverlay open={open} onClose={handleClose} panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4">
-      <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
+      <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
         <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
           <h2 className="text-base font-semibold">Nueva conciliación</h2>
           <button onClick={handleClose} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>
@@ -439,7 +439,7 @@ function CreateReconciliationModal({ open, onClose, accounts, onSubmit, isPendin
 function StatCard({ label, value, icon: Icon, sub, tone = "slate" }: {
   label: string; value: number; icon: React.ComponentType<{ className?: string }>; sub: string; tone?: "emerald" | "rose" | "amber" | "slate";
 }) {
-  const tones = { slate: "bg-muted/30", emerald: "bg-emerald-500/[0.06] border-emerald-500/15", rose: "bg-rose-500/[0.06] border-rose-500/15", amber: "bg-amber-500/[0.06] border-amber-500/15" };
+  const tones = { slate: "bg-background", emerald: "bg-emerald-500/[0.06] border-emerald-500/15", rose: "bg-rose-500/[0.06] border-rose-500/15", amber: "bg-amber-500/[0.06] border-amber-500/15" };
   const icons = { slate: "bg-muted text-muted-foreground", emerald: "bg-emerald-500/15 text-emerald-600", rose: "bg-rose-500/15 text-rose-600", amber: "bg-amber-500/15 text-amber-600" };
   return (
     <div className={`rounded-2xl border border-border p-3 shadow-sm ${tones[tone]}`}>
@@ -454,9 +454,9 @@ function StatCard({ label, value, icon: Icon, sub, tone = "slate" }: {
 }
 
 function StatSkeleton() {
-  return (<div className="rounded-2xl border border-border bg-muted/30 p-3 shadow-sm"><div className="mb-1.5 flex items-center gap-2"><Skeleton className="h-7 w-7 rounded-lg" /><Skeleton className="h-3 w-20" /></div><Skeleton className="h-6 w-16" /><Skeleton className="mt-1 h-3 w-14" /></div>);
+  return (<div className="rounded-2xl border border-border bg-background p-3 shadow-sm"><div className="mb-1.5 flex items-center gap-2"><Skeleton className="h-7 w-7 rounded-lg" /><Skeleton className="h-3 w-20" /></div><Skeleton className="h-6 w-16" /><Skeleton className="mt-1 h-3 w-14" /></div>);
 }
 
 function TableSkeleton() {
-  return (<div className="hidden overflow-x-auto rounded-2xl border border-border md:block"><table className="w-full min-w-[800px] text-sm"><thead><tr className="border-b border-border">{Array.from({ length: 7 }).map((_, i) => (<th key={i} className="px-4 py-3"><Skeleton className="h-3.5 w-20" /></th>))}</tr></thead><tbody>{Array.from({ length: 5 }).map((_, row) => (<tr key={row} className="border-b border-border last:border-0">{Array.from({ length: 7 }).map((__, col) => (<td key={col} className="px-4 py-3"><Skeleton className="h-4 w-full max-w-[80px]" /></td>))}</tr>))}</tbody></table></div>);
+  return (<div className="hidden overflow-x-auto rounded-2xl border border-border bg-card shadow-sm md:block"><table className="w-full min-w-[800px] text-sm"><thead><tr className="border-b border-border">{Array.from({ length: 7 }).map((_, i) => (<th key={i} className="px-4 py-3"><Skeleton className="h-3.5 w-20" /></th>))}</tr></thead><tbody>{Array.from({ length: 5 }).map((_, row) => (<tr key={row} className="border-b border-border last:border-0">{Array.from({ length: 7 }).map((__, col) => (<td key={col} className="px-4 py-3"><Skeleton className="h-4 w-full max-w-[80px]" /></td>))}</tr>))}</tbody></table></div>);
 }

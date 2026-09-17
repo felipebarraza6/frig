@@ -41,7 +41,7 @@ export function PosProfileButton() {
     clearToken();
     clearSession();
     queryClient.clear();
-    router.replace("/login");
+    window.location.assign("/login");
   }
 
   return (
@@ -70,7 +70,7 @@ export function PosProfileButton() {
               if (e.target === e.currentTarget) setOpen(false);
             }}
           >
-            <div className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
+            <div className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-xl">
               <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2">
                 <p className="text-sm font-semibold">Mi perfil</p>
                 <div className="flex items-center gap-1">

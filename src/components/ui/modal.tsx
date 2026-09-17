@@ -16,6 +16,19 @@ import { AnimatePresence, m, LazyMotion, domAnimation } from "framer-motion";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+/** Devuelve (o crea) un div persistente en el body para montar portales.
+ *  Usar un contenedor estable evita que React llame removeChild sobre un
+ *  nodo que Turbopack ya reemplazó durante HMR. */
+function getPortalRoot(id: string): HTMLElement {
+  let el = document.getElementById(id);
+  if (!el) {
+    el = document.createElement("div");
+    el.id = id;
+    document.body.appendChild(el);
+  }
+  return el;
+}
+
 type ModalSize = "sm" | "md" | "lg" | "xl" | "full";
 
 interface ModalContextValue {
@@ -144,7 +157,14 @@ export function Modal({
     [onClose],
   );
 
-  if (typeof window === "undefined") return null;
+  // Contenedor estable: evita que React llame removeChild sobre un nodo
+  // que Turbopack ya reemplazó durante HMR.
+  const portalRootRef = useRef<HTMLElement | null>(null);
+  if (typeof window !== "undefined" && !portalRootRef.current) {
+    portalRootRef.current = getPortalRoot("modal-root");
+  }
+
+  if (!portalRootRef.current) return null;
 
   const ctxValue: ModalContextValue = { titleId, descriptionId, onClose };
 
@@ -184,7 +204,7 @@ export function Modal({
               transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
               onClick={(event) => event.stopPropagation()}
               className={cn(
-                "relative z-10 flex w-full flex-col overflow-hidden rounded-none border border-border bg-card shadow-2xl outline-none sm:rounded-2xl",
+                "relative z-10 flex w-full flex-col overflow-hidden rounded-none border border-border bg-background shadow-2xl outline-none sm:rounded-2xl",
                 SIZE_CLASS[size],
                 size === "full" ? "h-full" : "h-dvh sm:h-auto sm:max-h-[calc(100vh-2rem)]",
                 className,
@@ -210,7 +230,7 @@ export function Modal({
         )}
       </AnimatePresence>
     </LazyMotion>,
-    document.body,
+    portalRootRef.current,
   );
 }
 
@@ -292,7 +312,7 @@ function ModalFooter({ children, className }: ModalFooterProps) {
       className={cn(
         // pb con safe-area: el modal es full-screen en móvil (h-dvh) y su
         // footer quedaría bajo el home indicator sin este padding.
-        "flex shrink-0 flex-col-reverse gap-2 border-t border-border bg-muted/30 px-6 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:flex-row sm:items-center sm:justify-end sm:pb-4",
+        "flex shrink-0 flex-col-reverse gap-2 border-t border-border bg-background px-6 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:flex-row sm:items-center sm:justify-end sm:pb-4",
         className,
       )}
     >

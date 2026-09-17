@@ -302,9 +302,9 @@ function OptionsEditor({ groupId }: { groupId: number }) {
           Este grupo aún no tiene opciones.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border">
+        <div className="overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
           <table className="w-full min-w-[600px] text-sm">
-            <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+            <thead className="bg-background text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th className="px-3 py-2">Nombre</th>
                 <th className="px-3 py-2 text-right">Cargo adicional</th>
@@ -336,7 +336,7 @@ function OptionsEditor({ groupId }: { groupId: number }) {
                     isSaving={updateOptionMutation.isPending}
                   />
                 ) : (
-                  <tr key={option.id} className="hover:bg-muted/30">
+                  <tr key={option.id} className="hover:bg-background">
                     <td className="px-3 py-2 font-medium">{option.name}</td>
                     <td className="px-3 py-2 text-right tabular-nums">
                       {formatCLP(option.surcharge ?? 0)}
@@ -1013,17 +1013,17 @@ export default function ModifiersPage() {
         ) : (
           <>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
+              <div className="rounded-2xl border border-border bg-background p-3 shadow-sm">
                 <p className="text-xs text-muted-foreground">Total grupos</p>
                 <p className="mt-1 text-2xl font-semibold leading-none tabular-nums">{stats.total}</p>
               </div>
-              <div className="rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
+              <div className="rounded-2xl border border-border bg-background p-3 shadow-sm">
                 <p className="text-xs text-muted-foreground">Activos</p>
                 <p className="mt-1 text-2xl font-semibold leading-none tabular-nums text-emerald-700">
                   {stats.active}
                 </p>
               </div>
-              <div className="rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
+              <div className="rounded-2xl border border-border bg-background p-3 shadow-sm">
                 <p className="text-xs text-muted-foreground">Requeridos</p>
                 <p className="mt-1 text-2xl font-semibold leading-none tabular-nums text-amber-700">
                   {stats.required}
@@ -1032,9 +1032,9 @@ export default function ModifiersPage() {
             </div>
 
             {/* Vista tabla desktop */}
-            <div className="hidden overflow-x-auto rounded-xl border border-border shadow-sm sm:block">
+            <div className="hidden overflow-x-auto rounded-xl border border-border bg-card shadow-sm sm:block">
               <table className="w-full min-w-[720px] text-sm">
-                <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <thead className="bg-background text-left text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
                     <th className="px-4 py-3">Grupo</th>
                     <th className="px-4 py-3 text-center">Selecciones</th>
@@ -1051,7 +1051,7 @@ export default function ModifiersPage() {
                     const isExpanded = expandedGroupId === group.id;
                     return (
                       <Fragment key={group.id}>
-                        <tr className="transition-colors hover:bg-muted/30">
+                        <tr className="transition-colors hover:bg-background">
                           <td className="px-4 py-3">
                             <div className="min-w-0">
                               <p className="truncate font-medium">{group.name}</p>
@@ -1159,7 +1159,7 @@ export default function ModifiersPage() {
                 return (
                   <div
                     key={group.id}
-                    className="flex min-w-0 flex-col rounded-2xl border border-border bg-muted/30 p-4 shadow-sm transition-shadow hover:shadow-md"
+                    className="flex min-w-0 flex-col rounded-2xl border border-border bg-background p-4 shadow-sm transition-shadow hover:shadow-md"
                   >
                     <div className="mb-3 flex items-start justify-between gap-3">
                       <div className="min-w-0">
@@ -1229,7 +1229,7 @@ export default function ModifiersPage() {
 
                     <button
                       onClick={() => toggleExpand(group.id)}
-                      className="mb-3 flex items-center justify-center gap-1 rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50"
+                      className="mb-3 flex items-center justify-center gap-1 rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-background"
                     >
                       {isExpanded ? (
                         <>
@@ -1268,7 +1268,7 @@ export default function ModifiersPage() {
       <Modal open={modalOpen} onClose={closeModal} title={editingGroup ? "Editar grupo" : "Nuevo grupo"} size="lg">
         <form onSubmit={handleSubmit} className="flex h-full flex-col">
           {editingGroup && (
-            <div className="shrink-0 border-b border-border bg-muted/30 px-6 pt-4">
+            <div className="shrink-0 border-b border-border bg-background px-6 pt-4">
               <div className="flex gap-1">
                 {[
                   { id: "general" as const, label: "General" },

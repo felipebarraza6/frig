@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, m, LazyMotion, domAnimation } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -17,6 +17,19 @@ interface AnimatedOverlayProps {
   zIndex?: string;
 }
 
+/** Devuelve (o crea) un div persistente en el body para montar portales.
+ *  Usar un contenedor estable evita que React llame removeChild sobre un
+ *  nodo que Turbopack ya reemplazó durante HMR. */
+function getPortalRoot(id: string): HTMLElement {
+  let el = document.getElementById(id);
+  if (!el) {
+    el = document.createElement("div");
+    el.id = id;
+    document.body.appendChild(el);
+  }
+  return el;
+}
+
 /**
  * Lightweight animated modal overlay.
  * Drop-in replacement for ad-hoc `fixed inset-0` modals.
@@ -30,6 +43,13 @@ export function AnimatedOverlay({
   panelClassName,
   zIndex = "z-50",
 }: AnimatedOverlayProps) {
+  // Contenedor estable creado una vez y reutilizado para evitar removeChild
+  // cuando Turbopack reemplaza nodos del DOM durante HMR.
+  const rootRef = useRef<HTMLElement | null>(null);
+  if (typeof window !== "undefined" && !rootRef.current) {
+    rootRef.current = getPortalRoot("animated-overlay-root");
+  }
+
   // Escape key
   useEffect(() => {
     if (!open || !onClose) return;
@@ -50,7 +70,7 @@ export function AnimatedOverlay({
     };
   }, [open]);
 
-  if (typeof window === "undefined") return null;
+  if (!rootRef.current) return null;
 
   return createPortal(
     <LazyMotion features={domAnimation} strict>
@@ -91,6 +111,6 @@ export function AnimatedOverlay({
         )}
       </AnimatePresence>
     </LazyMotion>,
-    document.body,
+    rootRef.current,
   );
 }

@@ -354,7 +354,7 @@ export default function DashFastPage() {
               {active.stats.map((st, i) => (
                 <motion.span
                   key={`${active.id}-${st.label}`}
-                  className="absolute rounded-full border bg-card/90 px-2.5 py-1 text-[10px] font-semibold tabular-nums shadow-sm backdrop-blur"
+                  className="absolute rounded-full border bg-background/90 px-2.5 py-1 text-[10px] font-semibold tabular-nums shadow-sm backdrop-blur"
                   style={{
                     borderColor: `${active.tint}66`,
                     left: i === 0 ? "2%" : i === 1 ? undefined : "12%",
@@ -501,7 +501,7 @@ export default function DashFastPage() {
         <div className="mx-auto flex w-full max-w-md flex-col items-center gap-4 lg:mx-0 lg:max-w-none">
           <button
             onClick={() => router.push(active.href)}
-            className="w-full overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-colors hover:border-primary/50"
+            className="w-full overflow-hidden rounded-2xl border border-border bg-background shadow-sm transition-colors hover:border-primary/50"
           >
             <div className="flex items-center gap-3 px-4 py-3" style={{ background: `linear-gradient(120deg, color-mix(in oklab, ${active.tint} 22%, transparent), transparent 60%)` }}>
               <active.icon className="h-6 w-6 shrink-0" style={{ color: active.tint }} aria-hidden />
@@ -523,7 +523,7 @@ export default function DashFastPage() {
           {offline && (
             <p className="text-xs text-amber-600">Sin conexión, mostrando últimos datos</p>
           )}
-          <div className="flex items-center gap-2 rounded-2xl border border-border bg-card/80 px-3 py-2 shadow-sm backdrop-blur" style={{ overscrollBehavior: "contain" }}>
+          <div className="flex items-center gap-2 rounded-2xl border border-border bg-background/80 px-3 py-2 shadow-sm backdrop-blur" style={{ overscrollBehavior: "contain" }}>
           <StepButton label="Anterior" onClick={() => go(-1)} />
           <div className="flex gap-1.5" role="tablist" aria-label="Caras del cubo">
             {faces.map((face, i) => (

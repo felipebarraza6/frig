@@ -839,7 +839,7 @@ export default function PaymentsPage() {
           ) : (
             <>
               {/* Desktop table */}
-              <div className="hidden overflow-x-auto rounded-2xl border border-border md:block">
+              <div className="hidden overflow-x-auto rounded-2xl border border-border bg-card shadow-sm md:block">
                 <table className="w-full min-w-[900px] text-sm">
                   <thead>
                     <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -926,7 +926,7 @@ export default function PaymentsPage() {
                   const MetaIcon = Meta.icon;
                   const overdueDays = ent.paymentStatus === "OVERDUE" && ent.dueDate ? daysOverdue(ent.dueDate) : 0;
                   return (
-                    <div key={ent.key} className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
+                    <div key={ent.key} className="rounded-2xl border border-border bg-background p-4 shadow-sm">
                       <div className="flex items-start gap-3">
                         <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${Meta.chip}`}>
                           <MetaIcon className="h-5 w-5" />
@@ -1030,7 +1030,7 @@ export default function PaymentsPage() {
                 <SlidersHorizontal className="h-4 w-4" /><span className="ml-2">Filtros</span>
               </Button>
             </div>
-            <div id="mobile-filters-panel" className={`rounded-2xl border border-border bg-muted/30 p-4 shadow-sm ${showMobileFilters ? "" : "hidden"}`}>
+            <div id="mobile-filters-panel" className={`rounded-2xl border border-border bg-background p-4 shadow-sm ${showMobileFilters ? "" : "hidden"}`}>
               <div className="mb-3 flex items-center justify-between">
                 <span className="text-sm font-medium">Filtros</span>
                 <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => setShowMobileFilters(false)}>
@@ -1089,7 +1089,7 @@ export default function PaymentsPage() {
         ) : (
           <>
             {/* Desktop table */}
-            <div className="hidden overflow-x-auto rounded-2xl border border-border md:block">
+            <div className="hidden overflow-x-auto rounded-2xl border border-border bg-card shadow-sm md:block">
               <table className="w-full min-w-[900px] text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -1214,7 +1214,7 @@ export default function PaymentsPage() {
                 return (
                   <div
                     key={p.id}
-                    className="cursor-pointer rounded-2xl border border-border bg-muted/30 p-4 shadow-sm transition-colors hover:bg-muted/40"
+                    className="cursor-pointer rounded-2xl border border-border bg-background p-4 shadow-sm transition-colors hover:bg-muted/40"
                     onClick={() => setDetailPayment(p)}
                   >
                     <div className="flex items-start gap-3">
@@ -1531,7 +1531,7 @@ function CreatePaymentModal({ open, onClose, paymentMethods, orders, revenues, p
 
   return (
     <AnimatedOverlay open={open} onClose={handleClose} panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4">
-      <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
+      <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
         <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-3">
           <div className="flex items-center gap-1">
             {pickerOpen && (
@@ -1653,7 +1653,7 @@ function CreatePaymentModal({ open, onClose, paymentMethods, orders, revenues, p
               </div>
               {/* Condiciones de pago de la orden seleccionada (solo órdenes de venta) */}
               {selectedEntity?.kind === "order" && (
-                <div className="flex flex-col gap-2 rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
+                <div className="flex flex-col gap-2 rounded-2xl border border-border bg-background p-3 shadow-sm">
                   <div className="flex items-center justify-between gap-2 text-sm">
                     <span className="font-medium">Condición de pago</span>
                     {loadingOrderInstallments ? (
@@ -1873,7 +1873,7 @@ function EditPaymentForm({ payment, paymentMethods, onClose, onSubmit, isPending
   };
 
   return (
-    <div className="flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
+    <div className="flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
       <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
         <h2 className="text-base font-semibold">Editar pago</h2>
         <button onClick={onClose} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>
@@ -1945,7 +1945,7 @@ function PaymentDetailModal({ payment, onClose, onDownloadVoucher, downloading }
   return (
     <AnimatedOverlay open={Boolean(payment)} onClose={onClose} panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4">
       {payment && (
-        <div className="flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:max-h-[90vh] md:max-w-lg md:rounded-xl md:border">
+        <div className="flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:max-h-[90vh] md:max-w-lg md:rounded-xl md:border">
           <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
             <div>
               <h2 className="text-base font-semibold">Detalle del pago</h2>
@@ -2075,7 +2075,7 @@ function PaymentOrderSection({ orderId, paymentId }: { orderId: string; paymentI
   };
 
   return (
-    <section className="rounded-2xl border border-border bg-muted/30 shadow-sm">
+    <section className="rounded-2xl border border-border bg-background shadow-sm">
       <div className="flex items-center gap-2 border-b border-border/60 px-4 py-2.5">
         <ShoppingBag className="h-4 w-4 text-muted-foreground" />
         <h3 className="text-sm font-semibold">Orden de venta</h3>
@@ -2126,7 +2126,7 @@ function PaymentOrderSection({ orderId, paymentId }: { orderId: string; paymentI
                       </p>
                     )}
                     {isPaying && (
-                      <div className="mt-2 grid gap-2 rounded-lg bg-muted/30 p-3">
+                      <div className="mt-2 grid gap-2 rounded-lg bg-background p-3">
                         <Select value={cuotaMethodId} onChange={(e) => setCuotaMethodId(e.target.value)} aria-label="Método de pago de la cuota">
                           <option value="">Método de pago…</option>
                           {activeMethods.map((m) => (<option key={m.id} value={m.id}>{m.name}</option>))}
@@ -2192,7 +2192,7 @@ function OrderDetailInfo({ order }: { order: OrderDetail }) {
       </div>
 
       {order.client && (
-        <div className="flex items-center gap-2 rounded-lg bg-muted/30 px-3 py-2">
+        <div className="flex items-center gap-2 rounded-lg bg-background px-3 py-2">
           <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
           <span className="truncate text-sm">{order.client.name}</span>
         </div>
@@ -2241,13 +2241,13 @@ function StatCard({ label, value, icon: Icon, sub, tone = "slate" }: {
 }
 
 function StatSkeleton() {
-  return (<div className="rounded-2xl border border-border/60 bg-muted/30 p-4 shadow-sm"><div className="mb-2 flex items-start justify-between gap-2"><div className="min-w-0 space-y-2"><Skeleton className="h-3 w-24" /><Skeleton className="h-7 w-32" /></div><Skeleton className="h-8 w-8 rounded-full" /></div><Skeleton className="h-3 w-20" /></div>);
+  return (<div className="rounded-2xl border border-border/60 bg-background p-4 shadow-sm"><div className="mb-2 flex items-start justify-between gap-2"><div className="min-w-0 space-y-2"><Skeleton className="h-3 w-24" /><Skeleton className="h-7 w-32" /></div><Skeleton className="h-8 w-8 rounded-full" /></div><Skeleton className="h-3 w-20" /></div>);
 }
 
 function TableSkeleton() {
-  return (<div className="hidden overflow-x-auto rounded-2xl border border-border md:block"><table className="w-full min-w-[900px] text-sm"><thead><tr className="border-b border-border">{Array.from({ length: 7 }).map((_, i) => (<th key={i} className="px-4 py-3"><Skeleton className="h-3.5 w-20" /></th>))}</tr></thead><tbody>{Array.from({ length: 5 }).map((_, row) => (<tr key={row} className="border-b border-border last:border-0">{Array.from({ length: 7 }).map((__, col) => (<td key={col} className="px-4 py-3"><Skeleton className="h-4 w-full max-w-[80px]" /></td>))}</tr>))}</tbody></table></div>);
+  return (<div className="hidden overflow-x-auto rounded-2xl border border-border bg-card shadow-sm md:block"><table className="w-full min-w-[900px] text-sm"><thead><tr className="border-b border-border">{Array.from({ length: 7 }).map((_, i) => (<th key={i} className="px-4 py-3"><Skeleton className="h-3.5 w-20" /></th>))}</tr></thead><tbody>{Array.from({ length: 5 }).map((_, row) => (<tr key={row} className="border-b border-border last:border-0">{Array.from({ length: 7 }).map((__, col) => (<td key={col} className="px-4 py-3"><Skeleton className="h-4 w-full max-w-[80px]" /></td>))}</tr>))}</tbody></table></div>);
 }
 
 function MobileCardsSkeleton() {
-  return (<div className="grid gap-3 md:hidden">{Array.from({ length: 4 }).map((_, idx) => (<div key={idx} className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm"><div className="flex items-start gap-3"><Skeleton className="h-10 w-10 shrink-0 rounded-full" /><div className="min-w-0 flex-1"><div className="flex flex-wrap items-start justify-between gap-2"><div className="min-w-0 flex-1 space-y-2"><Skeleton className="h-4 w-3/4" /><Skeleton className="h-3 w-1/2" /></div><Skeleton className="h-5 w-20 shrink-0" /></div><div className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-3">{Array.from({ length: 4 }).map((__, i) => (<div key={i} className="min-w-0 space-y-1"><Skeleton className="h-3 w-16" /><Skeleton className="h-4 w-full" /></div>))}</div></div></div></div>))}</div>);
+  return (<div className="grid gap-3 md:hidden">{Array.from({ length: 4 }).map((_, idx) => (<div key={idx} className="rounded-2xl border border-border bg-background p-4 shadow-sm"><div className="flex items-start gap-3"><Skeleton className="h-10 w-10 shrink-0 rounded-full" /><div className="min-w-0 flex-1"><div className="flex flex-wrap items-start justify-between gap-2"><div className="min-w-0 flex-1 space-y-2"><Skeleton className="h-4 w-3/4" /><Skeleton className="h-3 w-1/2" /></div><Skeleton className="h-5 w-20 shrink-0" /></div><div className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-3">{Array.from({ length: 4 }).map((__, i) => (<div key={i} className="min-w-0 space-y-1"><Skeleton className="h-3 w-16" /><Skeleton className="h-4 w-full" /></div>))}</div></div></div></div>))}</div>);
 }

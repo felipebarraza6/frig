@@ -101,7 +101,7 @@ export function ApplyPlanDialog({ branch, onClose, onApplied }: ApplyPlanDialogP
       className="bg-black/50"
       panelClassName="flex items-center justify-center p-4"
     >
-      <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl">
+      <div className="w-full max-w-md rounded-xl border border-border bg-background p-6 shadow-xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <CreditCard className="h-5 w-5 text-primary" />

@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import {
   Plus,
   Minus,
@@ -28,11 +29,17 @@ import {
   Smartphone,
   Bitcoin,
   Landmark,
+  Check,
+  CheckCircle2,
+  Settings,
+  SlidersHorizontal,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
+import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import {
   getCurrentCashRegister,
   getLastClosedCashRegister,
@@ -116,6 +123,8 @@ export default function CashRegisterPage() {
     assignedStationId ? Number(assignedStationId) : null,
   );
   const canChangeStation = !assignedStationId;
+  const [showStationModal, setShowStationModal] = useState(false);
+  const [stationSearch, setStationSearch] = useState("");
 
   const canViewHistory = useCanViewCashRegisterHistory();
   const canManageMovements = useCanManageCashMovements();
@@ -138,6 +147,36 @@ export default function CashRegisterPage() {
     enabled: !!branch,
     staleTime: 60_000,
   });
+
+  const { data: openRegistersPage } = useQuery({
+    queryKey: ["cash-registers", "open-list", branch?.branch_id],
+    queryFn: () => getCashRegisters({ status: "OPEN" }),
+    enabled: !!branch,
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+  });
+
+  const openRegisterByStationId = useMemo(() => {
+    const map = new Map<number, CashRegisterType>();
+    if (openRegistersPage?.results) {
+      for (const reg of openRegistersPage.results) {
+        if (reg.station) {
+          map.set(Number(reg.station), reg);
+        }
+      }
+    }
+    return map;
+  }, [openRegistersPage]);
+
+  const filteredStations = useMemo(() => {
+    if (!stationSearch.trim()) return stations;
+    const q = stationSearch.toLowerCase().trim();
+    return stations.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        (s.code && s.code.toLowerCase().includes(q)),
+    );
+  }, [stations, stationSearch]);
 
   const activeStationId = useMemo(() => {
     const id = assignedStationId ?? selectedStationId ?? stations[0]?.id ?? null;
@@ -545,48 +584,61 @@ export default function CashRegisterPage() {
   return (
     <div className="flex min-h-full flex-col items-start justify-start py-6 px-4 md:px-6">
       <div className="mx-auto w-full max-w-6xl space-y-6">
-        {/* Header / station selector */}
-        <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-              <Banknote className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-muted-foreground">Estación activa</p>
-              {canChangeStation ? (
-                <div className="flex items-center gap-2">
-                  {loadingStations ? (
-                    <SkeletonText width="120px" height="sm" />
-                  ) : stations.length === 0 ? (
-                    <span className="text-xs text-amber-600">No hay estaciones creadas.</span>
-                  ) : (
-                    <Select
-                      value={activeStationId ?? ""}
-                      onChange={(e) => setSelectedStationId(e.target.value ? Number(e.target.value) : null)}
-                      className="h-8 min-w-[180px] text-xs"
-                      options={[
-                        { value: "", label: "Seleccionar estación" },
-                        ...stations.map((s) => ({ value: String(s.id), label: `${s.name} (${s.code})` })),
-                      ]}
-                    />
+        {/* Minimal Station Tab Pills (tags solitos) */}
+        {canChangeStation && stations.length > 0 && (
+          <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+            {stations.map((s) => {
+              const isSelected = Number(s.id) === activeStationId;
+              const openReg = openRegisterByStationId.get(Number(s.id));
+              const isStOpen = Boolean(openReg);
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => setSelectedStationId(Number(s.id))}
+                  className={cn(
+                    "flex shrink-0 items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-semibold transition-all select-none cursor-pointer active:scale-95",
+                    isSelected
+                      ? "border-primary bg-primary text-primary-foreground shadow-xs"
+                      : "border-border/70 bg-card text-foreground hover:border-primary/50 hover:bg-muted/50",
                   )}
-                </div>
-              ) : activeStation ? (
-                <p className="text-sm font-semibold">
-                  {activeStation.name}{" "}
-                  <span className="text-xs font-normal text-muted-foreground">({activeStation.code})</span>
-                </p>
-              ) : (
-                <p className="text-xs text-amber-600">No tienes una estación asignada.</p>
-              )}
-            </div>
+                >
+                  <div
+                    className={cn(
+                      "h-2 w-2 rounded-full shrink-0",
+                      isStOpen
+                        ? isSelected
+                          ? "bg-emerald-300 animate-pulse"
+                          : "bg-emerald-500 animate-pulse"
+                        : isSelected
+                        ? "bg-amber-300"
+                        : "bg-amber-500",
+                    )}
+                  />
+                  <span>{s.name}</span>
+                  {s.code && (
+                    <span
+                      className={cn(
+                        "text-[10px] font-mono opacity-80",
+                        isSelected ? "text-primary-foreground/90" : "text-muted-foreground",
+                      )}
+                    >
+                      ({s.code})
+                    </span>
+                  )}
+                  {isSelected && (
+                    <Check className="ml-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={3} />
+                  )}
+                </button>
+              );
+            })}
           </div>
-        </header>
+        )}
 
         {/* Top POS panel: Cash + Movements */}
         {loadingRegister ? (
           <section className="grid gap-4 lg:grid-cols-3">
-            <div className="flex flex-col gap-4 rounded-2xl border border-border bg-muted/30 p-5 shadow-sm lg:col-span-2">
+            <div className="flex flex-col gap-4 rounded-2xl border border-border bg-background p-5 shadow-sm lg:col-span-2">
               <div className="flex items-center gap-3">
                 <Skeleton className="h-10 w-10 rounded-xl" />
                 <div className="space-y-2">
@@ -603,7 +655,7 @@ export default function CashRegisterPage() {
                 ))}
               </div>
             </div>
-            <div className="flex flex-col gap-3 rounded-2xl border border-border bg-muted/30 p-5 shadow-sm">
+            <div className="flex flex-col gap-3 rounded-2xl border border-border bg-background p-5 shadow-sm">
               <Skeleton className="h-4 w-32" />
               <Skeleton className="h-9 w-full" />
               <Skeleton className="h-9 w-full" />
@@ -614,7 +666,7 @@ export default function CashRegisterPage() {
             {/* Cash register panel */}
             <div
               className={cn(
-                "flex flex-col gap-4 rounded-2xl border border-border bg-muted/30 p-5 shadow-sm",
+                "flex flex-col gap-4 rounded-2xl border border-border bg-background p-5 shadow-sm",
                 canManageMovements && "lg:col-span-2",
               )}
             >
@@ -622,9 +674,11 @@ export default function CashRegisterPage() {
                 <div className="flex items-center gap-3">
                   <div
                     className={cn(
-                      "flex h-10 w-10 items-center justify-center rounded-xl",
+                      "flex h-10 w-10 items-center justify-center rounded-xl transition-transform active:scale-95",
+                      canChangeStation && "cursor-pointer hover:opacity-80",
                       isOpen ? "bg-emerald-500/10" : "bg-amber-500/10",
                     )}
+                    onClick={() => canChangeStation && setShowStationModal(true)}
                   >
                     {isOpen ? (
                       <Unlock className="h-5 w-5 text-emerald-600" />
@@ -633,9 +687,22 @@ export default function CashRegisterPage() {
                     )}
                   </div>
                   <div>
-                    <p className="text-sm font-semibold">
-                      {cashRegister?.station_name || cashRegister?.station_code || activeStation?.name || "—"}
-                    </p>
+                    <button
+                      type="button"
+                      onClick={() => canChangeStation && setShowStationModal(true)}
+                      disabled={!canChangeStation}
+                      className={cn(
+                        "group inline-flex items-center gap-1.5 text-left text-sm font-bold text-foreground transition-colors",
+                        canChangeStation && "hover:text-primary cursor-pointer"
+                      )}
+                    >
+                      <span>{cashRegister?.station_name || cashRegister?.station_code || activeStation?.name || "—"}</span>
+                      {canChangeStation && (
+                        <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors group-hover:bg-primary/10 group-hover:text-primary">
+                          Cambiar caja
+                        </span>
+                      )}
+                    </button>
                     {isOpen && cashRegister?.opened_by_name && (
                       <p className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
                         <UserIcon className="h-3 w-3" />
@@ -695,7 +762,7 @@ export default function CashRegisterPage() {
               {/* Inline open/close action */}
               {isOpen ? (
                 canManageMovements && (
-                  <div className="flex flex-col gap-2 rounded-2xl border border-border bg-muted/30 p-3 sm:flex-row sm:items-center">
+                  <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card shadow-xs p-3 sm:flex-row sm:items-center">
                     <>
                       <Input
                         value={
@@ -748,7 +815,7 @@ export default function CashRegisterPage() {
               ) : (
                 <div className="flex flex-col gap-3">
                   {lastClosedRegister && (
-                    <div className="flex items-center gap-2 rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2 rounded-lg bg-background px-3 py-2 text-xs text-muted-foreground">
                       <History className="h-3.5 w-3.5" />
                       <span>
                         Último cierre:{" "}
@@ -799,7 +866,7 @@ export default function CashRegisterPage() {
 
             {/* Movements panel */}
             {canManageMovements && (
-              <div className="flex flex-col gap-3 rounded-2xl border border-border bg-muted/30 p-5 shadow-sm">
+              <div className="flex flex-col gap-3 rounded-2xl border border-border bg-background p-5 shadow-sm">
                 <h2 className="flex items-center gap-2 text-sm font-semibold">
                   <Coins className="h-4 w-4 text-primary" />
                   Movimientos de caja
@@ -1005,7 +1072,7 @@ export default function CashRegisterPage() {
               </div>
             ) : audit ? (
               <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-3 rounded-2xl border border-border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-3 rounded-2xl border border-border bg-background p-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
                       <CalendarDays className="h-5 w-5 text-primary" />
@@ -1111,7 +1178,7 @@ export default function CashRegisterPage() {
                 </div>
 
                 {auditPaymentTotals.length > 0 && (
-                  <div className="rounded-2xl border border-border bg-muted/30 p-4">
+                  <div className="rounded-2xl border border-border bg-card shadow-xs p-4">
                     <div className="mb-3 flex items-center justify-between">
                       <h3 className="flex items-center gap-2 text-sm font-semibold">
                         <Wallet className="h-4 w-4 text-primary" />
@@ -1128,7 +1195,7 @@ export default function CashRegisterPage() {
                         return (
                           <div
                             key={name}
-                            className="flex flex-col gap-2 rounded-2xl border border-border bg-muted/30 p-3 transition-colors hover:border-border"
+                            className="flex flex-col gap-2 rounded-2xl border border-border bg-card shadow-xs p-3 transition-colors hover:border-border"
                           >
                             <div className="flex items-start justify-between gap-2">
                               <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-full", bg)}>
@@ -1191,9 +1258,9 @@ export default function CashRegisterPage() {
                       ) : (
                         <>
                           {/* Vista desktop */}
-                          <div className="hidden rounded-lg border border-border sm:block">
+                          <div className="hidden rounded-lg border border-border bg-card shadow-sm sm:block">
                             <table className="w-full text-sm">
-                              <thead className="bg-muted/50 text-left text-xs uppercase text-muted-foreground">
+                              <thead className="bg-background text-left text-xs uppercase text-muted-foreground">
                                 <tr>
                                   <th className="px-4 py-2">Orden</th>
                                   <th className="px-4 py-2">Cliente</th>
@@ -1292,9 +1359,9 @@ export default function CashRegisterPage() {
                 {audit.detalle_por_dia && audit.detalle_por_dia.length > 0 && (
                   <>
                     {/* Vista desktop */}
-                    <div className="hidden rounded-lg border border-border sm:block">
+                    <div className="hidden rounded-lg border border-border bg-card shadow-sm sm:block">
                       <table className="w-full text-sm">
-                        <thead className="bg-muted/50 text-left text-xs uppercase text-muted-foreground">
+                        <thead className="bg-background text-left text-xs uppercase text-muted-foreground">
                           <tr>
                             <th className="px-4 py-2">Fecha</th>
                             <th className="px-4 py-2 text-right">Órdenes</th>
@@ -1322,7 +1389,7 @@ export default function CashRegisterPage() {
                       {audit.detalle_por_dia.map((day, idx) => (
                         <div
                           key={idx}
-                          className="flex items-center justify-between rounded-2xl border border-border bg-muted/30 p-3 text-sm"
+                          className="flex items-center justify-between rounded-2xl border border-border bg-background p-3 text-sm"
                         >
                           <div>
                             <p className="font-medium">{day.fecha}</p>
@@ -1432,7 +1499,7 @@ export default function CashRegisterPage() {
               ) : (
                 <>
                   {/* Vista desktop */}
-                  <div className="hidden rounded-lg border border-border sm:block">
+                  <div className="hidden rounded-lg border border-border bg-card shadow-sm sm:block">
                     <table className="w-full text-sm">
                       <thead className="bg-muted/40 text-left text-[11px] uppercase tracking-wide text-muted-foreground">
                         <tr>
@@ -1448,7 +1515,7 @@ export default function CashRegisterPage() {
                         {history.results.map((cr: CashRegisterType) => {
                           const diff = toNum(cr.difference);
                           return (
-                            <tr key={cr.id} className="transition-colors hover:bg-muted/30">
+                            <tr key={cr.id} className="transition-colors hover:bg-background">
                               <td className="px-4 py-2.5 whitespace-nowrap text-xs text-muted-foreground">
                                 {cr.date}
                               </td>
@@ -1638,7 +1705,7 @@ export default function CashRegisterPage() {
                   {movements.map((m: CashRegisterMovement) => (
                     <li
                       key={m.id}
-                      className="flex items-center justify-between rounded-2xl border border-border bg-muted/30 px-4 py-3 text-sm"
+                      className="flex items-center justify-between rounded-2xl border border-border bg-background px-4 py-3 text-sm"
                     >
                       <div className="flex items-center gap-3">
                         <div
@@ -1686,6 +1753,174 @@ export default function CashRegisterPage() {
             </div>
           )}
         </section>
+
+        {/* Modal interactivo para selección de caja registradora */}
+        <AnimatedOverlay
+          open={showStationModal}
+          onClose={() => setShowStationModal(false)}
+          panelClassName="flex items-center justify-center p-4"
+        >
+          <div className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-2xl">
+            {/* Header del Modal */}
+            <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Wallet className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold">Seleccionar Caja Registradora</h2>
+                  <p className="text-xs text-muted-foreground">
+                    Elige la estación de trabajo activa para operar en la sucursal
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowStationModal(false)}
+                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Buscador de estaciones si hay varias */}
+            {stations.length > 4 && (
+              <div className="border-b border-border p-4 pb-2">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={stationSearch}
+                    onChange={(e) => setStationSearch(e.target.value)}
+                    placeholder="Buscar caja por nombre o código…"
+                    className="pl-9 h-9 text-xs rounded-xl"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Lista de Cajas / Estaciones */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {filteredStations.length === 0 ? (
+                <div className="flex flex-col items-center justify-center p-8 text-center border border-dashed border-border rounded-xl">
+                  <Wallet className="h-10 w-10 text-muted-foreground mb-2" />
+                  <p className="text-sm font-medium">No se encontraron cajas disponibles</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {stationSearch ? "Intenta con otro término de búsqueda." : "No hay estaciones registradas en esta sucursal."}
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
+                  {filteredStations.map((st) => {
+                    const isSelected = Number(st.id) === activeStationId;
+                    const openReg = openRegisterByStationId.get(Number(st.id));
+                    const isStOpen = Boolean(openReg);
+
+                    return (
+                      <div
+                        key={st.id}
+                        onClick={() => {
+                          setSelectedStationId(Number(st.id));
+                          setShowStationModal(false);
+                        }}
+                        className={cn(
+                          "group relative flex flex-col justify-between rounded-xl border p-4 transition-all cursor-pointer select-none",
+                          isSelected
+                            ? "border-2 border-primary bg-primary/5 shadow-md"
+                            : "border-border bg-card hover:border-primary/50 hover:bg-muted/40 hover:shadow-xs"
+                        )}
+                      >
+                        {isSelected && (
+                          <div className="absolute top-3 right-3 flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground shadow-xs">
+                            <Check className="h-3 w-3" strokeWidth={3} />
+                            Activa
+                          </div>
+                        )}
+
+                        <div>
+                          <div className="flex items-center gap-2 mb-2 pr-14">
+                            <div
+                              className={cn(
+                                "flex h-8 w-8 items-center justify-center rounded-lg text-xs font-bold shrink-0",
+                                isSelected
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-muted text-foreground group-hover:bg-primary/10 group-hover:text-primary"
+                              )}
+                            >
+                              {st.code || "CJ"}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-bold text-sm text-foreground truncate">{st.name}</p>
+                              {st.code && (
+                                <p className="text-[11px] font-mono text-muted-foreground">Código: {st.code}</p>
+                              )}
+                            </div>
+                          </div>
+
+                          {(st as { description?: string }).description && (
+                            <p className="text-xs text-muted-foreground line-clamp-2 mb-3">
+                              {(st as { description?: string }).description}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="mt-3 flex items-center justify-between border-t border-border/60 pt-3 text-xs">
+                          <div className="flex items-center gap-1.5">
+                            {isStOpen ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                ABIERTA
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                                <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                                CERRADA
+                              </span>
+                            )}
+                          </div>
+
+                          <span
+                            className={cn(
+                              "text-xs font-semibold transition-colors",
+                              isSelected
+                                ? "text-primary"
+                                : "text-muted-foreground group-hover:text-foreground"
+                            )}
+                          >
+                            {isSelected ? "Seleccionada" : "Elegir esta caja →"}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Footer del Modal */}
+            <div className="flex items-center justify-between border-t border-border bg-muted/20 px-5 py-3">
+              {(isOwner || isSuperAdmin || canViewHistory) ? (
+                <Link
+                  href="/cash-register/stations"
+                  onClick={() => setShowStationModal(false)}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+                >
+                  <Settings className="h-3.5 w-3.5" />
+                  Administrar estaciones de caja
+                </Link>
+              ) : (
+                <span />
+              )}
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowStationModal(false)}
+              >
+                Cerrar
+              </Button>
+            </div>
+          </div>
+        </AnimatedOverlay>
       </div>
     </div>
   );
@@ -1705,7 +1940,7 @@ function MetricItem({
   loading?: boolean;
 }) {
   return (
-    <div className="flex min-h-[92px] min-w-0 flex-col justify-between rounded-2xl border border-border bg-muted/30 p-3.5 transition-colors hover:border-border">
+    <div className="flex min-h-[92px] min-w-0 flex-col justify-between rounded-2xl border border-border bg-card shadow-xs p-3.5 transition-colors hover:border-border">
       <div className="flex items-start gap-1.5 text-[11px] font-medium text-muted-foreground">
         <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
         <span className="leading-tight">{label}</span>
@@ -1782,10 +2017,10 @@ function SummaryCard({
   tone?: "default" | "emerald" | "amber" | "primary";
 }) {
   const toneClasses = {
-    default: "bg-background",
-    emerald: "bg-emerald-500/5 border-emerald-500/20",
-    amber: "bg-amber-500/5 border-amber-500/20",
-    primary: "bg-primary/5 border-primary/20",
+    default: "bg-card shadow-xs",
+    emerald: "bg-card border-emerald-500/30 shadow-xs",
+    amber: "bg-card border-amber-500/30 shadow-xs",
+    primary: "bg-card border-primary/30 shadow-xs",
   };
   const iconClasses = {
     default: "text-muted-foreground",
@@ -1794,7 +2029,7 @@ function SummaryCard({
     primary: "text-primary",
   };
   return (
-    <div className={cn("rounded-xl border border-border/60 p-4", toneClasses[tone])}>
+    <div className={cn("rounded-xl border border-border/60 p-4 bg-card shadow-xs", toneClasses[tone])}>
       <div className="mb-1 flex items-center gap-1.5 text-xs text-muted-foreground">
         {Icon && <Icon className={cn("h-3.5 w-3.5", iconClasses[tone])} />}
         {label}

@@ -122,7 +122,7 @@ export default function BanksPage() {
           </div>
         ) : isLoading ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {[1, 2, 3].map((i) => (<div key={i} className="h-24 animate-pulse rounded-xl border border-border bg-muted/30" />))}
+            {[1, 2, 3].map((i) => (<div key={i} className="h-24 animate-pulse rounded-xl border border-border bg-background" />))}
           </div>
         ) : filtered.length === 0 ? (
           <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">
@@ -135,7 +135,7 @@ export default function BanksPage() {
         ) : (
           <>
             {/* Desktop */}
-            <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
+            <div className="hidden overflow-x-auto rounded-xl border border-border bg-card shadow-sm md:block">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -182,7 +182,7 @@ export default function BanksPage() {
             {/* Mobile */}
             <div className="grid gap-3 md:hidden">
               {filtered.map((b) => (
-                <div key={b.id} className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
+                <div key={b.id} className="rounded-2xl border border-border bg-background p-4 shadow-sm">
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="font-medium">{nameLabel(b.name)}</p>
@@ -223,7 +223,7 @@ export default function BanksPage() {
 
       {/* Delete Confirmation */}
       <AnimatedOverlay open={!!confirmDelete} onClose={() => setConfirmDelete(null)} panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4">
-        <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
+        <div className="w-full rounded-t-xl border-x border-t border-border bg-background p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-danger/10">
               <AlertCircle className="h-5 w-5 text-danger" />
@@ -268,7 +268,7 @@ function BankModal({ open, editing, onClose, onSubmit, isPending }: {
 
   return (
     <AnimatedOverlay open={open} onClose={handleClose} panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4">
-      <div className="flex h-[80dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-w-md md:rounded-xl md:border">
+      <div className="flex h-[80dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:h-auto md:max-w-md md:rounded-xl md:border">
         <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
           <h2 className="text-base font-semibold">{editing ? "Editar billetera" : "Nueva billetera"}</h2>
           <button onClick={handleClose} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>

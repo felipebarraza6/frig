@@ -61,7 +61,7 @@ export function ComboPickerModal({ combos, onSelect, onClose }: ComboPickerModal
                 type="button"
                 onClick={() => onSelect(combo)}
                 className={cn(
-                  "flex flex-col gap-2 rounded-xl border border-border/60 bg-background p-3 text-left transition-colors hover:border-primary/40 hover:bg-muted/30",
+                  "flex flex-col gap-2 rounded-xl border border-border/60 bg-background p-3 text-left transition-colors hover:border-primary/40 hover:bg-background",
                 )}
               >
                 <div className="flex items-start justify-between gap-2">

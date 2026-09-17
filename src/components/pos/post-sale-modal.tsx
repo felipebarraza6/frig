@@ -202,7 +202,7 @@ export function PostSaleModal({ order, items, branchName, onClose }: PostSaleMod
           <button
             type="button"
             onClick={() => setShowPreview((v) => !v)}
-            className="flex w-full items-center justify-between bg-muted/50 px-3 py-2 text-xs font-medium transition-colors hover:bg-primary/10 hover:text-primary"
+            className="flex w-full items-center justify-between bg-background px-3 py-2 text-xs font-medium transition-colors hover:bg-primary/10 hover:text-primary"
           >
             <span className="flex items-center gap-1.5">
               <Receipt className="h-3.5 w-3.5" /> Vista previa del ticket

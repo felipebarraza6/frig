@@ -53,7 +53,7 @@ export function ActionsMenu({
         open={open}
         onClose={() => setOpen(false)}
         align="right"
-        className="w-44 overflow-hidden rounded-lg border border-border bg-card shadow-lg"
+        className="w-44 overflow-hidden rounded-lg border border-border bg-background shadow-lg"
       >
         {items.map((item) => (
           <button

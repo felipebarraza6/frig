@@ -138,7 +138,7 @@ export function PosInventoryModal({ open, onClose }: { open: boolean; onClose: (
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
+      <div className="flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-xl">
         <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
           <div>
             <h3 className="text-base font-semibold">Inventario</h3>
@@ -238,7 +238,7 @@ export function PosInventoryModal({ open, onClose }: { open: boolean; onClose: (
           </div>
 
           {/* Movimiento manual sobre el producto seleccionado */}
-          <form onSubmit={handleSubmit} className="shrink-0 rounded-xl border border-border/60 bg-muted/30 p-3">
+          <form onSubmit={handleSubmit} className="shrink-0 rounded-xl border border-border/60 bg-background p-3">
             {selected ? (
               <>
                 <div className="mb-2 flex items-center justify-between gap-2">

@@ -132,7 +132,7 @@ export function StationFormModal({ open, onClose, station }: StationFormModalPro
           </p>
         </div>
 
-        <div className="flex items-center justify-between rounded-xl border border-border bg-muted/30 px-3 py-2.5">
+        <div className="flex items-center justify-between rounded-xl border border-border bg-background px-3 py-2.5">
           <div>
             <p className="text-sm font-medium">Estación activa</p>
             <p className="text-xs text-muted-foreground">

@@ -155,7 +155,7 @@ function WarehouseProductCard({
   const isOut = status === "OUT_OF_STOCK";
 
   return (
-    <div className="flex flex-col rounded-2xl border border-border bg-muted/30 p-4 shadow-sm transition-colors hover:bg-muted/30">
+    <div className="flex flex-col rounded-2xl border border-border bg-background p-4 shadow-sm transition-colors hover:bg-background">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary">
@@ -266,7 +266,7 @@ function MetricCard({
     amber: "bg-amber-500/10 text-amber-700",
   };
   return (
-    <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
+    <div className="rounded-2xl border border-border bg-background p-4 shadow-sm">
       <div className="flex items-center gap-3">
         <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", tones[tone])}>
           <Icon className="h-5 w-5" />
@@ -804,7 +804,7 @@ export default function WarehouseDetailPage() {
           view === "grid" ? (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
+                <div key={i} className="rounded-2xl border border-border bg-background p-4 shadow-sm">
                   <div className="flex items-start gap-3">
                     <SkeletonBlock className="h-10 w-10 shrink-0 rounded-xl" />
                     <div className="min-w-0 flex-1">
@@ -826,7 +826,7 @@ export default function WarehouseDetailPage() {
             </div>
           ) : (
             <div className="overflow-hidden rounded-2xl border border-border">
-              <div className="border-b border-border bg-muted/50 p-4">
+              <div className="border-b border-border bg-background p-4">
                 <SkeletonBlock className="h-4 w-48" />
               </div>
               {Array.from({ length: 6 }).map((_, i) => (
@@ -901,7 +901,7 @@ export default function WarehouseDetailPage() {
               ))}
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-2xl border border-border">
+            <div className="overflow-x-auto rounded-2xl border border-border bg-card shadow-sm">
               <table className="w-full table-auto min-w-[950px] text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -927,7 +927,7 @@ export default function WarehouseDetailPage() {
                     const supplierName = supplierNameByProduct.get(wp.product ?? 0);
 
                     return (
-                      <tr key={wp.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                      <tr key={wp.id} className="border-b border-border last:border-0 hover:bg-background transition-colors">
                         <td className="px-3 py-2">
                           <div className="min-w-0 max-w-[280px]">
                             <p className="truncate font-medium leading-tight">{wp.product_name}</p>
@@ -1345,7 +1345,7 @@ function Modal({
       onClose={onClose}
       panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
     >
-      <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
+      <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
         <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
           <h2 className="text-base font-semibold">{title}</h2>
           <button onClick={onClose} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">

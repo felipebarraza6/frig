@@ -151,7 +151,7 @@ export function BranchThemeDialog({ branch, onClose }: BranchThemeDialogProps) {
       onClose={onClose}
       panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
     >
-      <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-2xl md:rounded-xl md:border">
+      <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:h-auto md:max-h-[90vh] md:max-w-2xl md:rounded-xl md:border">
         <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 md:px-6">
           <div className="flex items-center gap-2">
             <Palette className="h-5 w-5 text-primary" />
@@ -186,7 +186,7 @@ export function BranchThemeDialog({ branch, onClose }: BranchThemeDialogProps) {
                   <div className="mb-5 flex items-center gap-3 rounded-xl border border-border bg-muted/20 p-4">
                     {logoPreview ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={logoPreview} alt="" className="h-14 w-14 rounded-xl object-contain bg-card shadow-sm" />
+                      <img src={logoPreview} alt="" className="h-14 w-14 rounded-xl object-contain bg-background shadow-sm" />
                     ) : (
                       <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary text-xl font-bold text-white shadow-sm">
                         {(appName[0] || "A").toUpperCase()}
@@ -341,7 +341,7 @@ export function BranchThemeDialog({ branch, onClose }: BranchThemeDialogProps) {
                       "flex items-center gap-3 rounded-xl border p-3 text-left transition-all",
                       motion
                         ? "border-primary/40 bg-primary/10"
-                        : "border-border bg-muted/30",
+                        : "border-border bg-background",
                     )}
                   >
                     <div
@@ -373,7 +373,7 @@ export function BranchThemeDialog({ branch, onClose }: BranchThemeDialogProps) {
                       "flex items-center gap-3 rounded-xl border p-3 text-left transition-all",
                       compact
                         ? "border-primary/40 bg-primary/10"
-                        : "border-border bg-muted/30",
+                        : "border-border bg-background",
                     )}
                   >
                     <div
@@ -411,7 +411,7 @@ export function BranchThemeDialog({ branch, onClose }: BranchThemeDialogProps) {
                       className="text-xs"
                     />
                     {logoPreview && (
-                      <div className="mt-2 flex items-center gap-3 rounded-lg border border-border bg-card p-2">
+                      <div className="mt-2 flex items-center gap-3 rounded-lg border border-border bg-background p-2">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={logoPreview}

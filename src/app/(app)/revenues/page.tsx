@@ -894,7 +894,7 @@ export default function RevenuesPage() {
 
             <div
               id="mobile-filters-panel"
-              className={`rounded-2xl border border-border bg-muted/30 p-4 shadow-sm ${showMobileFilters ? "" : "hidden"}`}
+              className={`rounded-2xl border border-border bg-background p-4 shadow-sm ${showMobileFilters ? "" : "hidden"}`}
             >
               <div className="mb-3 flex items-center justify-between">
                 <span className="text-sm font-medium">Filtros avanzados</span>
@@ -1083,7 +1083,7 @@ export default function RevenuesPage() {
               </div>
             )}
             {/* Desktop table */}
-            <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
+            <div className="hidden overflow-x-auto rounded-xl border border-border bg-card shadow-sm md:block">
               <table className="w-full min-w-[900px] text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -1225,7 +1225,7 @@ export default function RevenuesPage() {
               {pageItems.map((r) => (
                 <div
                   key={r.id}
-                  className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm"
+                  className="rounded-2xl border border-border bg-background p-4 shadow-sm"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="flex min-w-0 flex-1 items-start gap-3">
@@ -1404,7 +1404,7 @@ export default function RevenuesPage() {
         onClose={() => setViewingOrderId(null)}
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
-        <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-lg md:rounded-xl md:border">
+        <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:h-auto md:max-h-[90vh] md:max-w-lg md:rounded-xl md:border">
           <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
             <div>
               <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -1641,7 +1641,7 @@ export default function RevenuesPage() {
         onClose={closeModal}
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
-          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-lg md:rounded-xl md:border">
+          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:h-auto md:max-h-[90vh] md:max-w-lg md:rounded-xl md:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-base font-semibold">{editing ? "Editar ingreso" : "Nuevo ingreso"}</h2>
               <button onClick={closeModal} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
@@ -1785,7 +1785,7 @@ export default function RevenuesPage() {
         onClose={() => setConfirmDelete(null)}
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
-          <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
+          <div className="w-full rounded-t-xl border-x border-t border-border bg-background p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">¿Eliminar ingreso?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Se eliminará <span className="font-medium text-foreground">{confirmDelete.title}</span>.
@@ -1807,7 +1807,7 @@ export default function RevenuesPage() {
         onClose={closeCategoriesModal}
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
-          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-3xl md:rounded-xl md:border">
+          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:h-auto md:max-h-[90vh] md:max-w-3xl md:rounded-xl md:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-base font-semibold">Categorías de ingreso</h2>
               <button onClick={closeCategoriesModal} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
@@ -1816,7 +1816,7 @@ export default function RevenuesPage() {
             </div>
             <div className="flex flex-1 flex-col overflow-hidden md:flex-row">
               {/* Panel informativo: qué es cada tipo y qué impacto tiene en el sistema */}
-              <aside className="max-h-44 shrink-0 overflow-y-auto border-b border-border bg-muted/30 p-4 md:max-h-none md:w-72 md:border-b-0 md:border-r">
+              <aside className="max-h-44 shrink-0 overflow-y-auto border-b border-border bg-background p-4 md:max-h-none md:w-72 md:border-b-0 md:border-r">
                 <h3 className="text-sm font-semibold">¿Para qué sirve cada tipo?</h3>
                 <ul className="mt-3 flex flex-col gap-3">
                   {REVENUE_CATEGORY_TYPES.map((t) => (
@@ -1981,7 +1981,7 @@ export default function RevenuesPage() {
         onClose={() => setConfirmDeleteCategory(null)}
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
-          <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
+          <div className="w-full rounded-t-xl border-x border-t border-border bg-background p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">¿Eliminar categoría?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Se eliminará <span className="font-medium text-foreground">{confirmDeleteCategory.name}</span>.
@@ -2065,7 +2065,7 @@ function StatCard({
 
 function StatSkeleton() {
   return (
-    <div className="rounded-2xl border border-border/60 bg-muted/30 p-4 shadow-sm">
+    <div className="rounded-2xl border border-border/60 bg-background p-4 shadow-sm">
       <div className="mb-2 flex items-start justify-between gap-2">
         <div className="min-w-0 space-y-2">
           <Skeleton className="h-3 w-24" />
@@ -2080,7 +2080,7 @@ function StatSkeleton() {
 
 function TableSkeleton() {
   return (
-    <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
+    <div className="hidden overflow-x-auto rounded-xl border border-border bg-card shadow-sm md:block">
       <table className="w-full min-w-[900px] text-sm">
         <thead>
           <tr className="border-b border-border">
@@ -2113,7 +2113,7 @@ function MobileCardsSkeleton() {
       {Array.from({ length: 4 }).map((_, idx) => (
         <div
           key={idx}
-          className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm"
+          className="rounded-2xl border border-border bg-background p-4 shadow-sm"
         >
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex min-w-0 flex-1 items-start gap-3">

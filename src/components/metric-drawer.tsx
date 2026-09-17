@@ -77,7 +77,7 @@ export function MetricDrawer({
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", stiffness: 320, damping: 32 }}
-            className="absolute bottom-0 left-0 right-0 flex h-[80dvh] flex-col rounded-t-3xl bg-card shadow-[0_-8px_40px_rgba(0,0,0,0.2)] pb-[env(safe-area-inset-bottom)] md:left-auto md:right-4 md:top-4 md:h-auto md:max-h-[calc(100vh-2rem)] md:w-[480px] md:rounded-3xl md:shadow-2xl md:pb-0"
+            className="absolute bottom-0 left-0 right-0 flex h-[80dvh] flex-col rounded-t-3xl bg-background shadow-[0_-8px_40px_rgba(0,0,0,0.2)] pb-[env(safe-area-inset-bottom)] md:left-auto md:right-4 md:top-4 md:h-auto md:max-h-[calc(100vh-2rem)] md:w-[480px] md:rounded-3xl md:shadow-2xl md:pb-0"
             role="dialog"
             aria-modal="true"
             aria-label={title}
@@ -111,12 +111,12 @@ export function MetricDrawer({
 
             {/* Body */}
             <div className="scrollbar-hide flex-1 overflow-y-auto px-4 py-3 md:px-5 md:py-4">
-              <div className="rounded-2xl border border-border bg-muted/30 p-3 md:p-3">
+              <div className="rounded-2xl border border-border bg-background p-3 md:p-3">
                 <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
               </div>
 
               {sections && sections.length > 0 && (
-                <div className="mt-3 rounded-2xl border border-border bg-muted/30 p-3 md:mt-4">
+                <div className="mt-3 rounded-2xl border border-border bg-background p-3 md:mt-4">
                   <div className="grid gap-2">
                     {sections.map((section, i) => (
                       <div
@@ -132,7 +132,7 @@ export function MetricDrawer({
               )}
 
               {chart && (
-                <div className="mt-3 rounded-2xl border border-border bg-muted/30 p-3 md:mt-4">
+                <div className="mt-3 rounded-2xl border border-border bg-background p-3 md:mt-4">
                   <p className="mb-2 text-xs font-medium text-muted-foreground">Evolución en el período</p>
                   <div className="rounded-xl border border-border bg-background p-2">
                     {chart}

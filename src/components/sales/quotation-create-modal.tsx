@@ -262,7 +262,7 @@ function QuotationForm({
   }
 
   return (
-    <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-2xl md:rounded-xl md:border">
+    <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:h-auto md:max-h-[90vh] md:max-w-2xl md:rounded-xl md:border">
       <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
         <h2 className="text-base font-semibold">
           {editingId ? "Editar cotización" : "Nueva cotización"}
@@ -323,7 +323,7 @@ function QuotationForm({
                       key={p.productId}
                       type="button"
                       onClick={() => addProduct({ id: p.productId, name: p.name }, p.unitPrice)}
-                      className="flex items-center gap-1.5 rounded-lg border border-border bg-muted/30 px-2.5 py-1.5 text-left text-xs shadow-sm transition-colors hover:border-primary/40"
+                      className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-left text-xs shadow-sm transition-colors hover:border-primary/40"
                       title={`Agregar con último precio: ${formatCLP(p.unitPrice)}`}
                     >
                       <Package className="h-3.5 w-3.5 shrink-0 text-primary" />
@@ -391,7 +391,7 @@ function QuotationForm({
                   return (
                     <div
                       key={i.productId}
-                      className="rounded-xl border border-border/60 bg-muted/30 p-3"
+                      className="rounded-xl border border-border/60 bg-background p-3"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <p className="min-w-0 flex-1 truncate text-sm font-medium">{i.name}</p>
@@ -447,7 +447,7 @@ function QuotationForm({
               onChange={(e) => setObservation(e.target.value)}
               placeholder="Opcional"
               rows={3}
-              className="flex w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground shadow-sm transition-[border-color,box-shadow] duration-150 placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm transition-[border-color,box-shadow] duration-150 placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-50"
             />
           </div>
 

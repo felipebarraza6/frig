@@ -420,7 +420,7 @@ export default function QuotationsPage() {
         ) : isLoading ? (
           view === "list" ? (
             <div className="overflow-hidden rounded-xl border border-border shadow-sm">
-              <div className="border-b border-border bg-muted/50 px-4 py-3">
+              <div className="border-b border-border bg-background px-4 py-3">
                 <Skeleton className="h-3 w-56" />
               </div>
               {Array.from({ length: 6 }).map((_, i) => (
@@ -441,7 +441,7 @@ export default function QuotationsPage() {
             {Array.from({ length: 6 }).map((_, i) => (
               <div
                 key={i}
-                className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm"
+                className="rounded-2xl border border-border bg-background p-4 shadow-sm"
               >
                 <div className="flex items-start gap-3">
                   <Skeleton className="h-9 w-9 rounded-lg" />
@@ -472,10 +472,10 @@ export default function QuotationsPage() {
           <>
             {view === "list" ? (
               /* Tabla para la vista de lista (scroll horizontal en pantallas chicas) */
-              <div className="overflow-x-auto rounded-xl border border-border shadow-sm">
+              <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
                 <table className="w-full min-w-[820px] text-sm">
                   <thead>
-                    <tr className="border-b border-border bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                    <tr className="border-b border-border bg-background text-left text-xs uppercase tracking-wide text-muted-foreground">
                       <th className="px-4 py-3">N°</th>
                       <th className="px-4 py-3">Cliente</th>
                       <th className="px-4 py-3">Tipo</th>
@@ -537,7 +537,7 @@ export default function QuotationsPage() {
                 <div
                   key={quotation.id}
                   onClick={() => setDetail(quotation)}
-                  className={`cursor-pointer rounded-2xl border border-border bg-muted/30 p-4 shadow-sm transition-colors hover:border-primary/40 ${
+                  className={`cursor-pointer rounded-2xl border border-border bg-background p-4 shadow-sm transition-colors hover:border-primary/40 ${
                     quotation.status === "CANCELLED" ? "opacity-70" : ""
                   }`}
                 >
@@ -702,7 +702,7 @@ function StatCard({
 
 function StatSkeleton() {
   return (
-    <div className="rounded-2xl border border-border/60 bg-muted/30 p-4 shadow-sm">
+    <div className="rounded-2xl border border-border/60 bg-background p-4 shadow-sm">
       <div className="mb-2 flex items-start justify-between gap-2">
         <div className="min-w-0 space-y-2">
           <Skeleton className="h-3 w-24" />

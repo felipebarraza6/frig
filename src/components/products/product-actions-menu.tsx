@@ -82,7 +82,7 @@ export function ProductActionsMenu({
         <MoreVertical className="h-4 w-4" />
       </Button>
       {open && (
-        <div className="absolute right-0 z-10 mt-1 w-44 rounded-lg border border-border bg-card shadow-lg">
+        <div className="absolute right-0 z-10 mt-1 w-44 rounded-lg border border-border bg-background shadow-lg">
           {items.map((item) => {
             const Icon = item.icon;
             return (

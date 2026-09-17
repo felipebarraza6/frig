@@ -45,6 +45,7 @@ import { getCurrentCashRegister } from "@/lib/api/cash-register";
 import { fetchBranchFinanceConfigByBranch } from "@/lib/api/branch-finance-config";
 import { occupyTable, freeTable } from "@/lib/api/tables";
 import { useCurrentBranch, useIsWaiter } from "@/lib/store/session";
+import { usePosConfig } from "@/lib/store/pos-config";
 import {
   validateDiscountCode,
   applyDiscountToOrder,
@@ -123,6 +124,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
   // ID de la orden cuyos datos ya fueron volcados al estado local. Permite
   // cargar una sola vez cada orden, pero refrescar al cambiar de cuenta.
   const loadedOrderIdRef = useRef<string | null>(null);
+  const { config: posConfig } = usePosConfig(stationId);
 
   // showEmpty se activa con 220ms de retraso para suavizar la transición
   // de vacío↔con-ítems. Se deriva: false cuando hay ítems, delayed-true cuando no.
@@ -756,7 +758,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
           </div>
         )}
         {selectedClient ? (
-          <div className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-2">
+          <div className="flex items-center justify-between rounded-lg bg-background px-3 py-2">
             <div className="min-w-0">
               <p className="truncate text-sm font-medium leading-tight">{selectedClient.name}</p>
               <p className="truncate text-[11px] text-muted-foreground">
@@ -810,7 +812,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                   initial={{ opacity: 0, y: -4 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -4 }}
-                  className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-border bg-card shadow-lg"
+                  className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-border bg-background shadow-lg"
                 >
                   {clientQuery.trim().length === 0 ? (
                     <p className="px-3 py-2 text-xs text-muted-foreground">
@@ -1118,7 +1120,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
 
             <div className="flex shrink-0 flex-col gap-3 overflow-y-auto border-t border-border/60 p-4 max-h-[42vh]">
               {selectedTable && (
-                <div className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-2">
+                <div className="flex items-center justify-between rounded-lg bg-background px-3 py-2">
                   <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                     <Table className="h-3 w-3" />
                     Mesa {selectedTable.number}
@@ -1130,7 +1132,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
               {willBeOrder || existingOrderId ? (
                 renderClientField()
               ) : selectedClient ? (
-                <div className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-2">
+                <div className="flex items-center justify-between rounded-lg bg-background px-3 py-2">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium leading-tight">{selectedClient.name}</p>
                     <p className="truncate text-[11px] text-muted-foreground">
@@ -1158,34 +1160,39 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                 </button>
               )}
 
-              {/* Tipo de entrega */}
-              {(willBeOrder || (existingOrderId && existingOrder?.order_type !== "SALE")) && (
+              {/* Tipo de entrega — oculto si el módulo deliveries está desactivado */}
+              {(posConfig.delivery || posConfig.pickup) && (willBeOrder || (existingOrderId && existingOrder?.order_type !== "SALE")) && (
                 <div className="flex flex-col gap-2 rounded-lg border border-border/60 bg-muted/20 p-3">
                   <div className="flex items-center gap-2">
+                    {posConfig.pickup && (
                     <button
                       type="button"
                       onClick={() => setDeliveryMode("pickup")}
                       className={cn(
                         "flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 text-[11px] font-medium transition-colors",
                         deliveryMode === "pickup"
-                          ? "bg-card text-foreground shadow-sm"
-                          : "text-muted-foreground hover:bg-muted/50",
+                          ? "bg-background text-foreground shadow-sm"
+                          : "text-muted-foreground hover:bg-background",
                       )}
                     >
-                      <Store className="h-3.5 w-3.5" /> Retiro
+                      {posConfig.delivery ? <Store className="h-3.5 w-3.5" /> : <MapPin className="h-3.5 w-3.5" />}
+                      {posConfig.delivery ? "Retiro" : "Retiro en tienda"}
                     </button>
+                    )}
+                    {posConfig.delivery && (
                     <button
                       type="button"
                       onClick={() => setDeliveryMode("delivery")}
                       className={cn(
                         "flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 text-[11px] font-medium transition-colors",
                         deliveryMode === "delivery"
-                          ? "bg-card text-foreground shadow-sm"
-                          : "text-muted-foreground hover:bg-muted/50",
+                          ? "bg-background text-foreground shadow-sm"
+                          : "text-muted-foreground hover:bg-background",
                       )}
                     >
                       <Truck className="h-3.5 w-3.5" /> Delivery
                     </button>
+                    )}
                   </div>
                   {deliveryMode === "delivery" && (
                     <div className="flex flex-col gap-2">
@@ -1289,7 +1296,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                         return (
                           <div
                             key={payment.id}
-                            className="flex flex-col gap-2 rounded-lg bg-muted/30 p-2.5"
+                            className="flex flex-col gap-2 rounded-lg bg-background p-2.5"
                           >
                             <div className="flex items-end gap-2">
                               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -1524,7 +1531,7 @@ function CustomerCreateModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
-      <div className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-xl border border-border bg-card p-6 shadow-lg">
+      <div className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-xl border border-border bg-background p-6 shadow-lg">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-base font-semibold">Nuevo cliente rápido</h2>
           <button onClick={onClose} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">

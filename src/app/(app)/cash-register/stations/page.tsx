@@ -224,7 +224,7 @@ export default function CashRegisterStationsPage() {
         ) : (
           <>
             {/* Desktop table */}
-            <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
+            <div className="hidden overflow-x-auto rounded-xl border border-border bg-card shadow-sm md:block">
               <table className="w-full min-w-[640px] text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -291,7 +291,7 @@ export default function CashRegisterStationsPage() {
               {filtered.map((station) => (
                 <div
                   key={station.id}
-                  className="rounded-2xl border border-border bg-card p-4 shadow-sm"
+                  className="rounded-2xl border border-border bg-background p-4 shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -350,7 +350,7 @@ export default function CashRegisterStationsPage() {
         onClose={closeModal}
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
-          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
+          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-base font-semibold">
                 {editing ? "Editar estación" : "Nueva estación"}
@@ -427,7 +427,7 @@ export default function CashRegisterStationsPage() {
         onClose={() => setConfirmDelete(null)}
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
-          <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
+          <div className="w-full rounded-t-xl border-x border-t border-border bg-background p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">¿Eliminar estación?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Se eliminará{" "}

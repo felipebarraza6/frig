@@ -606,7 +606,7 @@ export default function SuppliersPage() {
           <>
             {/* Desktop table: el scroll horizontal queda solo como red de seguridad;
                 las celdas truncan para que no sea necesario en pantallas normales. */}
-            <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
+            <div className="hidden overflow-x-auto rounded-xl border border-border bg-card shadow-sm md:block">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -622,7 +622,7 @@ export default function SuppliersPage() {
                   {suppliers.map((s) => (
                     <tr
                       key={s.id}
-                      className="border-b border-border transition-colors last:border-0 hover:bg-muted/30"
+                      className="border-b border-border transition-colors last:border-0 hover:bg-background"
                     >
                       <td className="max-w-0 px-4 py-3">
                         <div className="flex items-center gap-3">
@@ -711,7 +711,7 @@ export default function SuppliersPage() {
               {suppliers.map((s) => (
                 <div
                   key={s.id}
-                  className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm"
+                  className="rounded-2xl border border-border bg-background p-4 shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -829,7 +829,7 @@ export default function SuppliersPage() {
         zIndex="z-[60]"
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
-        <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-xl md:rounded-xl md:border">
+        <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:h-auto md:max-h-[90vh] md:max-w-xl md:rounded-xl md:border">
           <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
             <h2 className="text-base font-semibold">{editing ? "Editar proveedor" : "Nuevo proveedor"}</h2>
             <button onClick={closeModal} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
@@ -857,7 +857,7 @@ export default function SuppliersPage() {
               ) : (
                 <div className="flex flex-col gap-4">
                   {/* Vista previa en vivo: la tarjeta del proveedor */}
-                  <div className="flex items-center gap-3 rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
+                  <div className="flex items-center gap-3 rounded-2xl border border-border bg-background p-3 shadow-sm">
                     <SupplierAvatar name={form.name} />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">
@@ -1066,7 +1066,7 @@ export default function SuppliersPage() {
           onClose={() => setConfirmDelete(null)}
           panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
         >
-          <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
+          <div className="w-full rounded-t-xl border-x border-t border-border bg-background p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">¿Eliminar proveedor?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Se eliminará <span className="font-medium text-foreground">{confirmDelete.name}</span>.

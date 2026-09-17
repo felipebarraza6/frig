@@ -78,7 +78,7 @@ function TableSkeleton({
         <div className="flex gap-4 pb-3 border-b border-border">
           {Array.from({ length: columns }).map((_, ci) => (
             <div key={ci} className="flex-1">
-              <Skeleton className="h-4 w-3/4 bg-muted/50" />
+              <Skeleton className="h-4 w-3/4 bg-background" />
             </div>
           ))}
         </div>

@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { User as UserIcon, KeyRound, Store, LogOut, Check, AlertCircle, Building2, CalendarDays, Clock, RefreshCw, Smartphone, type LucideIcon } from "lucide-react";
+import { User as UserIcon, KeyRound, Store, LogOut, Check, AlertCircle, Building2, CalendarDays, Clock, RefreshCw, Smartphone, CreditCard, type LucideIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import { fetchMyProfile, updateMyProfile, changePassword } from "@/lib/api/profi
 import { fetchBranches } from "@/lib/api/branches";
 import type { BranchAssignment } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { ProfileSubscriptionTab } from "./profile-subscription-tab";
 
 function assignmentStatus(a: BranchAssignment): string {
   if (a.is_default) return "Por defecto";
@@ -40,11 +41,12 @@ function formatDateTime(iso?: string): string {
   return `${date} · ${time}`;
 }
 
-type SectionId = "personal" | "sucursales" | "seguridad" | "app";
+type SectionId = "personal" | "sucursales" | "suscripcion" | "seguridad" | "app";
 
 const SECTIONS: { id: SectionId; label: string; icon: LucideIcon; title: string; description: string }[] = [
   { id: "personal", label: "Datos", icon: UserIcon, title: "Información personal", description: "Cómo te ven en el negocio" },
   { id: "sucursales", label: "Sucursales", icon: Store, title: "Mis sucursales", description: "Dónde operas y con qué rol" },
+  { id: "suscripcion", label: "Suscripción", icon: CreditCard, title: "Suscripción y Pagos", description: "Estado de tu plan, renovaciones y facturación" },
   { id: "seguridad", label: "Seguridad", icon: KeyRound, title: "Seguridad", description: "Mantén tu acceso protegido" },
   { id: "app", label: "App", icon: Smartphone, title: "Aplicación", description: "Versión instalada y actualizaciones" },
 ];
@@ -270,7 +272,7 @@ export function ProfilePanel() {
             try { await logout(); } catch { /* ignora errores de red */ }
             clearSession();
             queryClient.clear();
-            router.push("/login");
+            window.location.assign("/login");
           }}
           className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600"
           title="Cerrar sesión"
@@ -293,7 +295,7 @@ export function ProfilePanel() {
               className={cn(
                 "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition-colors",
                 activeSection === s.id
-                  ? "bg-card text-foreground shadow-sm"
+                  ? "bg-background text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
@@ -393,6 +395,8 @@ export function ProfilePanel() {
                 </div>
               </form>
             ))}
+
+          {activeSection === "suscripcion" && <ProfileSubscriptionTab />}
 
           {activeSection === "sucursales" && (
             <>
@@ -559,7 +563,7 @@ export function ProfilePanel() {
 
           {activeSection === "app" && (
             <div className="flex flex-col gap-4">
-              <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm">
+              <div className="rounded-lg border border-border bg-background px-4 py-3 text-sm">
                 <dl className="flex flex-col gap-2.5">
                   <div className="flex items-center justify-between gap-3">
                     <dt className="text-muted-foreground">Versión</dt>
@@ -596,3 +600,7 @@ export function ProfilePanel() {
     </div>
   );
 }
+
+
+
+

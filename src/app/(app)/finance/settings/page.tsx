@@ -87,7 +87,7 @@ function SectionCard({ id, icon: Icon, title, description, action, children }: {
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="flex scroll-mt-20 flex-col gap-4 rounded-2xl border border-border bg-muted/30 p-5 shadow-sm">
+    <section id={id} className="flex scroll-mt-20 flex-col gap-4 rounded-2xl border border-border bg-background p-5 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="flex items-center gap-2 text-sm font-semibold">
@@ -137,7 +137,7 @@ export default function FinanceSettingsPage() {
       <div className="flex min-h-full flex-col p-4 sm:p-6">
         <div className="h-8 w-48 animate-pulse rounded bg-muted mb-4" />
         <div className="space-y-3">
-          {[1, 2, 3, 4].map((i) => (<div key={i} className="h-16 animate-pulse rounded-xl border border-border bg-muted/30" />))}
+          {[1, 2, 3, 4].map((i) => (<div key={i} className="h-16 animate-pulse rounded-xl border border-border bg-background" />))}
         </div>
       </div>
     );
@@ -255,7 +255,7 @@ function ConfigForm({ config, onUpdate, isPending }: {
               </Select>
             </div>
           </div>
-          <div className="rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+          <div className="rounded-lg bg-background px-3 py-2 text-xs text-muted-foreground">
             Vista previa: <span className="font-semibold text-foreground">{preview()}</span>
           </div>
         </div>
@@ -359,7 +359,7 @@ function TaxTypesSection({ branchId }: { branchId: number }) {
     >
       {isLoading ? (
         <div className="space-y-2">
-          {[1, 2].map((i) => <div key={i} className="h-12 animate-pulse rounded-lg bg-muted/30" />)}
+          {[1, 2].map((i) => <div key={i} className="h-12 animate-pulse rounded-lg bg-background" />)}
         </div>
       ) : taxTypes.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-6 text-center">
@@ -539,12 +539,12 @@ function SiiSection({
     >
       {isLoading ? (
         <div className="space-y-2">
-          <div className="h-12 animate-pulse rounded-lg bg-muted/30" />
+          <div className="h-12 animate-pulse rounded-lg bg-background" />
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {!providerInstallation && (
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-border bg-muted/30 px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-border bg-background px-4 py-3">
               <p className="text-xs text-muted-foreground">No hay un proveedor SII configurado para esta sucursal.</p>
               <Button
                 type="button"
@@ -757,7 +757,7 @@ function TaxTypeModal({ taxType, onSubmit, onClose, isPending, branchId }: {
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 md:items-center md:p-4" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="w-full rounded-t-xl border-x border-t border-border bg-card shadow-lg md:max-w-lg md:rounded-xl md:border max-h-[90vh] flex flex-col">
+      <div className="w-full rounded-t-xl border-x border-t border-border bg-background shadow-lg md:max-w-lg md:rounded-xl md:border max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <h3 className="text-sm font-semibold">{taxType ? "Editar impuesto" : "Nuevo impuesto"}</h3>
           <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">

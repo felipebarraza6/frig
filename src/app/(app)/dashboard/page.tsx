@@ -178,7 +178,7 @@ export default function DashboardPage() {
     return (
       <div className="flex min-h-full flex-col items-center justify-center gap-3 p-6 text-center">
         <AlertTriangle className="h-10 w-10 text-amber-500" />
-        <h1 className="text-lg font-semibold">No se pudo cargar el dashboard</h1>
+        <h1 className="font-display text-lg font-semibold">No se pudo cargar el dashboard</h1>
         <p className="max-w-md text-sm text-muted-foreground">
           {error instanceof Error ? error.message : "Ocurrió un error inesperado al consultar los datos."}
         </p>
@@ -211,7 +211,7 @@ export default function DashboardPage() {
     <div className="flex min-h-full flex-col">
       <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
         <div>
-          <h1 className="text-lg font-semibold">Dashboard</h1>
+          <h1 className="font-display text-lg font-semibold">Dashboard</h1>
           <p className="text-xs text-muted-foreground">Resumen general del negocio</p>
         </div>
         <div className="flex items-center justify-center sm:justify-end">
@@ -292,7 +292,7 @@ export default function DashboardPage() {
                 ),
                 children: (
                   <>
-                    <div className="rounded-2xl border border-border bg-muted/30 p-3">
+                    <div className="energy-card rounded-2xl border border-border bg-background p-3">
                       <OrdersMetricDetail
                         filter={{
                           start_date: dates.start,
@@ -356,7 +356,7 @@ export default function DashboardPage() {
                 ),
                 children: (
                   <>
-                    <div className="rounded-2xl border border-border bg-muted/30 p-3">
+                    <div className="energy-card rounded-2xl border border-border bg-background p-3">
                       <OrdersMetricDetail
                         filter={{
                           start_date: dates.start,
@@ -412,7 +412,7 @@ export default function DashboardPage() {
                   </Link>
                 ),
                 children: (
-                  <div className="rounded-2xl border border-border bg-muted/30 p-3">
+                  <div className="energy-card rounded-2xl border border-border bg-background p-3">
                     <OrdersMetricDetail
                       filter={{
                         start_date: dates.start,
@@ -446,7 +446,7 @@ export default function DashboardPage() {
                 description: "Base de clientes registrados en la sucursal. Click para ver el listado.",
                 sections: [{ label: "Total registrados", value: String(customers) }],
                 children: (
-                  <div className="rounded-2xl border border-border bg-muted/30 p-3">
+                  <div className="energy-card rounded-2xl border border-border bg-background p-3">
                     <CustomersMetricDetail
                       filter={{}}
                       emptyMessage="No hay clientes registrados en la sucursal."
@@ -535,7 +535,7 @@ export default function DashboardPage() {
                   </Link>
                 ),
                 children: (
-                  <div className="rounded-2xl border border-border bg-muted/30 p-3">
+                  <div className="energy-card rounded-2xl border border-border bg-background p-3">
                     <IncomeMetricDetail startDate={dates.start} endDate={dates.end} />
                   </div>
                 ),
@@ -612,7 +612,7 @@ export default function DashboardPage() {
                     </Link>
                   ),
                   children: (
-                    <div className="rounded-2xl border border-border bg-muted/30 p-3">
+                    <div className="energy-card rounded-2xl border border-border bg-background p-3">
                       {ingredientConsumption?.items && ingredientConsumption.items.length > 0 ? (
                         <div className="flex flex-col">
                           {(() => {
@@ -696,7 +696,7 @@ export default function DashboardPage() {
                   },
                 ],
                 children: (
-                  <div className="rounded-2xl border border-border bg-muted/30 p-3">
+                  <div className="energy-card rounded-2xl border border-border bg-background p-3">
                     {counts?.expenses_by_supplier && counts.expenses_by_supplier.length > 0 ? (
                       <div className="flex flex-col">
                         {(() => {
@@ -761,7 +761,7 @@ export default function DashboardPage() {
 
       {/* Últimos pendientes: entrega y pago */}
       <motion.section variants={container} initial="hidden" animate="show" className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <motion.div variants={item} className="rounded-2xl border border-border bg-muted/30 p-5 shadow-sm">
+        <motion.div variants={item} className="rounded-2xl border border-border bg-background p-5 shadow-sm">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-sm font-semibold">
               <Truck className="h-4 w-4 text-primary" />
@@ -802,7 +802,7 @@ export default function DashboardPage() {
           )}
         </motion.div>
 
-        <motion.div variants={item} className="rounded-2xl border border-border bg-muted/30 p-5 shadow-sm">
+        <motion.div variants={item} className="rounded-2xl border border-border bg-background p-5 shadow-sm">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-sm font-semibold">
               <Wallet className="h-4 w-4 text-primary" />
@@ -850,7 +850,7 @@ export default function DashboardPage() {
 
       {/* Gráficos principales */}
       <motion.section variants={container} initial="hidden" animate="show" className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-        <div className="rounded-2xl border border-border bg-muted/30 p-5 shadow-sm lg:col-span-2">
+        <div className="rounded-2xl border border-border bg-background p-5 shadow-sm lg:col-span-2">
           <div className="mb-4">
             <h2 className="flex items-center gap-2 text-sm font-semibold">
               <TrendingUp className="h-4 w-4 text-primary" />
@@ -870,7 +870,7 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <div className="rounded-2xl border border-border bg-muted/30 p-5 shadow-sm">
+        <div className="rounded-2xl border border-border bg-background p-5 shadow-sm">
           <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold">
             <Target className="h-4 w-4 text-primary" />
             Resumen del negocio
@@ -906,7 +906,7 @@ export default function DashboardPage() {
       {/* Insumos consumidos */}
       {nutritionEnabled && (
         <motion.section variants={container} initial="hidden" animate="show" className="grid gap-3">
-          <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
+          <div className="rounded-2xl border border-border bg-background p-4 shadow-sm">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="flex items-center gap-2 text-sm font-semibold">
                 <FlaskConical className="h-4 w-4 text-primary" />
@@ -1205,10 +1205,24 @@ function SalesChart({
 
   const handleMove = (e: React.MouseEvent<SVGSVGElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const raw = ((mx - padding.left) / chartW) * xDivisor;
-    const idx = Math.max(0, Math.min(filled.length - 1, Math.round(raw)));
-    setHover(idx);
+    const scaleX = width / rect.width;
+    const scaleY = height / rect.height;
+    const mx = (e.clientX - rect.left) * scaleX;
+    const my = (e.clientY - rect.top) * scaleY;
+    
+    let closestIdx = null;
+    let minDistance = 50; // Umbral de 50px de distancia para marcarlo
+
+    for (let i = 0; i < filled.length; i++) {
+      const px = getX(i);
+      const py = getY(filled[i].sales);
+      const dist = Math.sqrt((px - mx) ** 2 + (py - my) ** 2);
+      if (dist < minDistance) {
+        closestIdx = i;
+        minDistance = dist;
+      }
+    }
+    setHover(closestIdx);
   };
 
   const labelCount = Math.min(filled.length, 5);
@@ -1309,7 +1323,7 @@ function SalesChart({
       {/* Tooltip anclado al punto exacto */}
       {hover !== null && hoverPoint && (
         <div
-          className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-xl border border-border bg-card px-3 py-2 shadow-lg"
+          className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-xl border border-border bg-background px-3 py-2 shadow-lg"
           style={{
             left: `${(hoverX / width) * 100}%`,
             top: `${(hoverY / height) * 100}%`,
@@ -1430,7 +1444,7 @@ function BestSellingProducts({
 }) {
   if (!items || items.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-border bg-muted/30 p-6 text-center">
+      <div className="rounded-xl border border-dashed border-border bg-background p-6 text-center">
         <Package className="mx-auto h-8 w-8 text-muted-foreground" />
         <h3 className="mt-2 text-xs font-semibold text-muted-foreground">{title}</h3>
         <p className="mt-1 text-xs text-muted-foreground">{emptyMessage}</p>
@@ -1589,7 +1603,7 @@ function EmptyState({
   subtitle: string;
 }) {
   return (
-    <div className="grid h-full place-items-center rounded-xl border border-dashed border-border bg-muted/30 p-6 text-center">
+    <div className="grid h-full place-items-center rounded-xl border border-dashed border-border bg-background p-6 text-center">
       <div>
         <Icon className="mx-auto h-10 w-10 text-muted-foreground" />
         <p className="mt-3 text-sm font-medium">{title}</p>
@@ -1614,7 +1628,7 @@ function DashboardSkeleton() {
       {/* Stats principales */}
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+          <div key={i} className="rounded-2xl border border-border bg-background p-4 shadow-sm">
             <div className="mb-2 flex items-center gap-1.5">
               <Skeleton className="h-3.5 w-3.5 rounded-sm" />
               <Skeleton className="h-3 w-20" />
@@ -1628,7 +1642,7 @@ function DashboardSkeleton() {
       {/* Stats secundarias */}
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+          <div key={i} className="rounded-2xl border border-border bg-background p-4 shadow-sm">
             <div className="mb-2 flex items-center gap-1.5">
               <Skeleton className="h-3.5 w-3.5 rounded-sm" />
               <Skeleton className="h-3 w-20" />
@@ -1641,11 +1655,11 @@ function DashboardSkeleton() {
 
       {/* Gráficos */}
       <section className="grid gap-3 lg:grid-cols-3">
-        <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm lg:col-span-2">
+        <div className="rounded-2xl border border-border bg-background p-4 shadow-sm lg:col-span-2">
           <Skeleton className="mb-2 h-4 w-40" />
           <Skeleton className="h-36 w-full" />
         </div>
-        <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
+        <div className="rounded-2xl border border-border bg-background p-4 shadow-sm">
           <Skeleton className="mb-2 h-4 w-36" />
           <div className="flex flex-col items-center">
             <Skeleton className="h-20 w-20 rounded-full" />

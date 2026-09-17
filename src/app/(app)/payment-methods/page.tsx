@@ -232,7 +232,7 @@ export default function PaymentMethodsPage() {
         {isLoading ? (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="flex flex-col gap-3 rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
+              <div key={i} className="flex flex-col gap-3 rounded-2xl border border-border bg-background p-4 shadow-sm">
                 <Skeleton className="h-11 w-11 rounded-xl" />
                 <div className="space-y-1.5">
                   <Skeleton className="h-4 w-28" />
@@ -273,7 +273,7 @@ export default function PaymentMethodsPage() {
                   <button
                     type="button"
                     onClick={() => setDetail(m)}
-                    className={`flex h-full w-full flex-col gap-3 rounded-2xl border border-border bg-muted/30 p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md ${m.is_active ? "" : "opacity-60"}`}
+                    className={`flex h-full w-full flex-col gap-3 rounded-2xl border border-border bg-background p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md ${m.is_active ? "" : "opacity-60"}`}
                   >
                     <span className="flex items-start justify-between gap-2">
                       <span className={`flex h-11 w-11 items-center justify-center rounded-xl ${meta.solid}`} title={paymentTypeLabel(m.payment_type)}>
@@ -359,7 +359,7 @@ export default function PaymentMethodsPage() {
         onClose={closeModal}
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
-          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
+          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-base font-semibold">{editing ? "Editar método" : "Nuevo método de pago"}</h2>
               <button onClick={closeModal} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
@@ -478,7 +478,7 @@ export default function PaymentMethodsPage() {
         onClose={() => setConfirmDelete(null)}
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
-          <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
+          <div className="w-full rounded-t-xl border-x border-t border-border bg-background p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">¿Eliminar método de pago?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Se eliminará <span className="font-medium text-foreground">{confirmDelete.name}</span>.
@@ -517,7 +517,7 @@ function MethodDetailModal({ method, onClose, onEdit, onToggle, onDelete }: {
       onClose={onClose}
       panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
     >
-      <div className="w-full rounded-t-xl border-x border-t border-border bg-card shadow-lg md:max-w-sm md:rounded-xl md:border">
+      <div className="w-full rounded-t-xl border-x border-t border-border bg-background shadow-lg md:max-w-sm md:rounded-xl md:border">
         <div className="flex items-start justify-between gap-3 border-b border-border p-4">
           <div className="flex min-w-0 items-center gap-3">
             <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${meta.solid}`}>
