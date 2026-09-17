@@ -114,8 +114,8 @@ export async function fetchBranchSubscriptionHistory(branchId: number | string):
   return Array.isArray(data) ? data : (data.results ?? []);
 }
 
-export async function fetchBranchCapabilities(branchId: number | string): Promise<any> {
-  return apiFetch<any>(`/branches/${branchId}/capabilities/`);
+export async function fetchBranchCapabilities(branchId: number | string): Promise<Record<string, unknown>> {
+  return apiFetch<Record<string, unknown>>(`/branches/${branchId}/capabilities/`);
 }
 
 

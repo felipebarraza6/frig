@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -81,13 +81,10 @@ export function UserForm({ user, onClose, onSuccess }: UserFormProps) {
   const [role, setRole] = useState<string>(initialRole);
   const [isMultiBranch, setIsMultiBranch] = useState(user?.is_multi_branch ?? false);
 
-  // Asegura que si los roles disponibles cambian (o el rol inicial ya no está disponible
-  // porque el módulo mesas está desactivado), el rol seleccionado caiga en uno válido.
-  useEffect(() => {
-    if (availableRoles.length > 0 && !availableRoles.some((r) => r.code === role)) {
-      setRole(availableRoles[0].code);
-    }
-  }, [availableRoles, role]);
+  const effectiveRole = (availableRoles.length > 0 && !availableRoles.some((r) => r.code === role))
+    ? availableRoles[0].code
+    : role;
+
   const [error, setError] = useState<string | null>(null);
 
   const create = useMutation({
@@ -114,8 +111,8 @@ export function UserForm({ user, onClose, onSuccess }: UserFormProps) {
       if (password) payload.password = password;
       await updateUser(Number(user.id), payload);
 
-      if (currentAssignment?.id && role !== currentAssignment.role_code) {
-        await changeAssignmentRole(Number(currentAssignment.id), role);
+      if (currentAssignment?.id && effectiveRole !== currentAssignment.role_code) {
+        await changeAssignmentRole(Number(currentAssignment.id), effectiveRole);
       }
     },
     onSuccess: () => onSuccess(),
@@ -146,7 +143,7 @@ export function UserForm({ user, onClose, onSuccess }: UserFormProps) {
       },
       branch_assignment: {
         branch_id: branchId,
-        role,
+        role: effectiveRole,
         is_active: true,
       },
     });
@@ -281,7 +278,7 @@ export function UserForm({ user, onClose, onSuccess }: UserFormProps) {
                 </label>
                 <Select
                   id="role"
-                  value={role}
+                  value={effectiveRole}
                   onChange={(e) => setRole(e.target.value)}
                   required
                 >
