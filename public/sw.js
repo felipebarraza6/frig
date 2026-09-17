@@ -46,8 +46,9 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
 
-  // Assets inmutables de Next: cache-first.
-  if (STATIC_RE.test(url.pathname) || url.pathname.startsWith("/icons/")) {
+  // Assets inmutables de Next + marca (/brand: wordmark, symbol usados por
+  // login/landing): cache-first.
+  if (STATIC_RE.test(url.pathname) || url.pathname.startsWith("/icons/") || url.pathname.startsWith("/brand/")) {
     event.respondWith(
       caches.match(request).then(
         (cached) =>

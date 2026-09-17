@@ -165,7 +165,26 @@ export function HeroPlexus({ className }: { className?: string }) {
       sweepGlowUntil = -1;
     }
 
+    // Pausa fuera de vista: sin rAF cuando la pestaña está oculta o el
+    // canvas sale del viewport (0 trabajo de fondo en la PWA).
+    let paused = document.hidden;
+    let observer: IntersectionObserver | null = null;
+
+    function setPaused(next: boolean) {
+      if (next === paused) return;
+      paused = next;
+      if (!paused) {
+        // retomar el tiempo sin salto: los saltos cuantizados usan `t`
+        raf = requestAnimationFrame(tick);
+      }
+    }
+
+    function onVisibility() {
+      setPaused(document.hidden);
+    }
+
     function tick() {
+      if (paused) return; // fuera de vista: sin rAF ni trabajo
       ctx!.clearRect(0, 0, w, h);
       t += 0.016;
 
@@ -305,8 +324,15 @@ export function HeroPlexus({ className }: { className?: string }) {
     }
 
     resize();
-    tick();
     retint();
+    // arranca solo si está a la vista; si no, el observer lo despierta
+    observer = new IntersectionObserver(
+      (entries) => setPaused(!(entries[0]?.isIntersecting ?? true)),
+      { threshold: 0.01 },
+    );
+    observer.observe(canvas);
+    document.addEventListener("visibilitychange", onVisibility);
+    if (!paused) raf = requestAnimationFrame(tick);
     window.addEventListener("resize", resize);
     window.addEventListener("pointermove", onMove);
     window.addEventListener("frig:matrix-sweep", onSweep);
@@ -314,6 +340,8 @@ export function HeroPlexus({ className }: { className?: string }) {
     document.documentElement.addEventListener("pointerleave", onLeave);
     return () => {
       cancelAnimationFrame(raf);
+      observer?.disconnect();
+      document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("resize", resize);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("frig:matrix-sweep", onSweep);

@@ -23,6 +23,7 @@ import { MobileMenuSheet } from "@/components/mobile-menu-sheet";
 import { RealtimeProvider } from "@/components/realtime/realtime-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { ForbiddenListener } from "@/components/forbidden-listener";
+import { HeroPlexus } from "@/components/landing/hero-plexus";
 import { enabledModuleSet, firstEnabledAllowedPath } from "@/lib/modules";
 import { SUPERADMIN_ALLOWED_PATHS as SUPERADMIN_MENU_PATHS } from "@/lib/hooks/useFrigMenu";
 
@@ -207,6 +208,16 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     <RealtimeProvider>
       <ForbiddenListener />
       <div className="flex min-h-full">
+        {/* Capa cósmica de fondo: la muralla de datos de la landing, tenue
+            y solo en desktop (la PWA móvil prioriza rendimiento/táctil). */}
+        {!shouldHideSidebar && (
+          <div
+            aria-hidden
+            className="pointer-events-none fixed inset-0 -z-10 hidden opacity-35 md:block"
+          >
+            <HeroPlexus className="h-full w-full" />
+          </div>
+        )}
         {!shouldHideSidebar && (
           <>
             <div className="hidden md:block">

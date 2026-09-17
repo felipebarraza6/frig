@@ -178,7 +178,7 @@ export default function DashboardPage() {
     return (
       <div className="flex min-h-full flex-col items-center justify-center gap-3 p-6 text-center">
         <AlertTriangle className="h-10 w-10 text-amber-500" />
-        <h1 className="text-lg font-semibold">No se pudo cargar el dashboard</h1>
+        <h1 className="font-display text-lg font-semibold">No se pudo cargar el dashboard</h1>
         <p className="max-w-md text-sm text-muted-foreground">
           {error instanceof Error ? error.message : "Ocurrió un error inesperado al consultar los datos."}
         </p>
@@ -211,7 +211,7 @@ export default function DashboardPage() {
     <div className="flex min-h-full flex-col">
       <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
         <div>
-          <h1 className="text-lg font-semibold">Dashboard</h1>
+          <h1 className="font-display text-lg font-semibold">Dashboard</h1>
           <p className="text-xs text-muted-foreground">Resumen general del negocio</p>
         </div>
         <div className="flex items-center justify-center sm:justify-end">
@@ -292,7 +292,7 @@ export default function DashboardPage() {
                 ),
                 children: (
                   <>
-                    <div className="rounded-2xl border border-border bg-muted/30 p-3">
+                    <div className="energy-card rounded-2xl border border-border bg-muted/30 p-3">
                       <OrdersMetricDetail
                         filter={{
                           start_date: dates.start,
@@ -356,7 +356,7 @@ export default function DashboardPage() {
                 ),
                 children: (
                   <>
-                    <div className="rounded-2xl border border-border bg-muted/30 p-3">
+                    <div className="energy-card rounded-2xl border border-border bg-muted/30 p-3">
                       <OrdersMetricDetail
                         filter={{
                           start_date: dates.start,
@@ -412,7 +412,7 @@ export default function DashboardPage() {
                   </Link>
                 ),
                 children: (
-                  <div className="rounded-2xl border border-border bg-muted/30 p-3">
+                  <div className="energy-card rounded-2xl border border-border bg-muted/30 p-3">
                     <OrdersMetricDetail
                       filter={{
                         start_date: dates.start,
@@ -446,7 +446,7 @@ export default function DashboardPage() {
                 description: "Base de clientes registrados en la sucursal. Click para ver el listado.",
                 sections: [{ label: "Total registrados", value: String(customers) }],
                 children: (
-                  <div className="rounded-2xl border border-border bg-muted/30 p-3">
+                  <div className="energy-card rounded-2xl border border-border bg-muted/30 p-3">
                     <CustomersMetricDetail
                       filter={{}}
                       emptyMessage="No hay clientes registrados en la sucursal."
@@ -535,7 +535,7 @@ export default function DashboardPage() {
                   </Link>
                 ),
                 children: (
-                  <div className="rounded-2xl border border-border bg-muted/30 p-3">
+                  <div className="energy-card rounded-2xl border border-border bg-muted/30 p-3">
                     <IncomeMetricDetail startDate={dates.start} endDate={dates.end} />
                   </div>
                 ),
@@ -612,7 +612,7 @@ export default function DashboardPage() {
                     </Link>
                   ),
                   children: (
-                    <div className="rounded-2xl border border-border bg-muted/30 p-3">
+                    <div className="energy-card rounded-2xl border border-border bg-muted/30 p-3">
                       {ingredientConsumption?.items && ingredientConsumption.items.length > 0 ? (
                         <div className="flex flex-col">
                           {(() => {
@@ -696,7 +696,7 @@ export default function DashboardPage() {
                   },
                 ],
                 children: (
-                  <div className="rounded-2xl border border-border bg-muted/30 p-3">
+                  <div className="energy-card rounded-2xl border border-border bg-muted/30 p-3">
                     {counts?.expenses_by_supplier && counts.expenses_by_supplier.length > 0 ? (
                       <div className="flex flex-col">
                         {(() => {

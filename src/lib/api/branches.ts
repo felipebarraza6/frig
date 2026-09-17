@@ -203,17 +203,31 @@ export async function fetchPublicLoginTheme(
  * según el Host de la petición (el dominio de la sucursal gana sobre el de
  * la organización). Público: no requiere auth ni sucursal. Devuelve null si
  * el host no tiene branding (p. ej. localhost en desarrollo).
+ *
+ * Cache de módulo (promise compartida + TTL 5 min): login, forgot y reset
+ * resuelven el mismo by-host en segundos; sin cache serían 3+ requests
+ * idénticos por navegación.
  */
-export async function fetchPublicLoginThemeByHost(): Promise<BranchThemeConfig | null> {
-  try {
-    const data = await apiFetch<Record<string, unknown>>(
-      "/branches/public-login-theme/by-host/",
-      { auth: "none", branch: "none" },
-    );
-    return normalizePublicLoginTheme(data);
-  } catch {
-    return null;
+let byHostCache: { promise: Promise<BranchThemeConfig | null>; at: number } | null = null;
+const BY_HOST_TTL = 5 * 60 * 1000;
+
+export function fetchPublicLoginThemeByHost(): Promise<BranchThemeConfig | null> {
+  if (byHostCache && Date.now() - byHostCache.at < BY_HOST_TTL) {
+    return byHostCache.promise;
   }
+  const promise = (async () => {
+    try {
+      const data = await apiFetch<Record<string, unknown>>(
+        "/branches/public-login-theme/by-host/",
+        { auth: "none", branch: "none" },
+      );
+      return normalizePublicLoginTheme(data);
+    } catch {
+      return null;
+    }
+  })();
+  byHostCache = { promise, at: Date.now() };
+  return promise;
 }
 
 /** Mapea la respuesta pública (PublicLoginTheme) a BranchThemeConfig.

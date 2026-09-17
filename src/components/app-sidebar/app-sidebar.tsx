@@ -28,6 +28,7 @@ import {
 } from "@/lib/store/session";
 import { useIsSuperAdmin } from "@/lib/store/session";
 import { useFrigMenu } from "@/lib/hooks/useFrigMenu";
+import { HeroPlexus } from "@/components/landing/hero-plexus";
 import { useNavFavorites } from "@/lib/store/nav-favorites";
 import { useSidebarStore } from "@/lib/store/sidebar";
 import { logout } from "@/lib/api/auth";
@@ -284,7 +285,12 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
         onMouseEnter={() => setHovering(true)}
         onMouseLeave={() => setHovering(false)}
       >
-        <div className="flex shrink-0 items-center gap-2 px-3 py-2">
+        {/* Muralla de datos: textura viva sobre el fondo de marca.
+            El contenido del nav pinta encima (relative z-10). */}
+        <div aria-hidden className="pointer-events-none absolute inset-0 opacity-25">
+          <HeroPlexus className="h-full w-full" />
+        </div>
+        <div className="relative z-10 flex shrink-0 items-center gap-2 px-3 py-2">
           <BrandLogo src={theme?.logo} alt={appName} containerClassName="h-9 w-9 shrink-0" />
           <AnimatePresence>
             {effectivelyExpanded && (
@@ -319,7 +325,7 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
           </button>
         </div>
 
-        <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-2.5 py-3 scrollbar-hide">
+        <div className="relative z-10 flex flex-1 flex-col gap-3 overflow-y-auto px-2.5 py-3 scrollbar-hide">
           {!isSuperAdmin && (
           <button
             type="button"
@@ -461,7 +467,8 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
             })}
         </div>
 
-        <div className="flex shrink-0 flex-col border-t border-white/15 p-1.5">
+        <div className="relative z-10 flex shrink-0 flex-col border-t border-white/15 p-1.5 pt-0">
+          <div className="flow-line mx-2 mt-1" aria-hidden />
           <div
             className={cn(
               "flex flex-col rounded-lg",
@@ -592,10 +599,10 @@ function NavItem({
           "relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
           active
-            ? // Glass translúcido en vez de pill blanco sólido: deja ver la
-              // textura del fondo y se siente más ligero.
-              "bg-white/[0.16] text-white shadow-sm shadow-black/25 ring-1 ring-inset ring-white/25 backdrop-blur-sm"
-            : "text-white/80 hover:bg-white/10 hover:text-white",
+            ? // Glass translúcido + glow de marca: activo con energía, deja
+              // ver la textura del fondo y se siente ligero.
+              "energy-nav bg-white/[0.16] text-white shadow-sm shadow-black/25 ring-1 ring-inset ring-white/25 backdrop-blur-sm"
+            : "text-white/80 hover:bg-white/10 hover:text-white hover:shadow-[0_0_18px_-6px_var(--color-primary)]",
           !expanded && "h-9 w-9 justify-center p-0"
         )}
         title={!expanded ? label : undefined}

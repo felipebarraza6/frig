@@ -348,269 +348,73 @@ a {
   pointer-events: none;
 }
 
-.frig-fireglow-2 {
-  inset: -20% -4% -46% -4%;
-  background: radial-gradient(
-    46% 54% at 50% 74%,
-    rgba(255, 170, 90, 0.4) 0%,
-    rgba(240, 120, 50, 0.14) 55%,
-    transparent 76%
-  );
-  filter: blur(38px);
-  animation: frig-fireglow 5.4s ease-in-out infinite reverse;
-}
-
-/* Respiración del fuego: lenta y contenida, casi imperceptible. */
-@keyframes frig-fireglow {
-  0% {
-    transform: scale(1) translateY(0);
-    opacity: 0.82;
-  }
-  40% {
-    transform: scale(1.03) translateY(-1.5%);
-    opacity: 0.9;
-  }
-  70% {
-    transform: scale(0.985) translateY(0.5%);
-    opacity: 0.82;
-  }
-  100% {
-    transform: scale(1) translateY(0);
-    opacity: 0.82;
-  }
-}
-
-/* Las letras reciben la luz del fuego: brillo estable con vaivén mínimo. */
-@keyframes frig-flicker {
-  0%,
-  100% {
-    filter: drop-shadow(0 0 24px rgba(240, 162, 106, 0.44))
-      drop-shadow(0 0 68px rgba(232, 146, 94, 0.22)) brightness(1);
-  }
-  50% {
-    filter: drop-shadow(0 0 27px rgba(240, 162, 106, 0.5))
-      drop-shadow(0 0 76px rgba(232, 146, 94, 0.25)) brightness(1.02);
-  }
-}
-
-.frig-flame {
-  /* Sin drop-shadow animado: el filtro gigante fuerza una capa GPU que
-     oscurecía el fondo detrás (la "marca" entre hero y el resto). El
-     resplandor lo dan los .frig-fireglow detrás; aquí solo respira. */
-  animation: frig-flame-breathe 5s ease-in-out infinite;
-}
-
-@keyframes frig-flame-breathe {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.9;
-  }
-}
-
-/* Botón cobre reutilizable (anclas y botones). */
-.btn-copper {
-  background: #c67d52;
-  transition: background 0.15s ease, transform 0.15s ease;
-}
-.btn-copper:hover {
-  background: #d68c5f;
-}
-.btn-copper:active {
-  transform: scale(0.98);
-}
-
-/* ── Tarjeta de demo: energía del color de marca ──────────────────────────
-   El color llega como --brand (inline). Brillo ambiental tenue siempre
-   presente; al hover, un arco de energía recorre el borde. */
 @property --energy-angle {
   syntax: "<angle>";
   initial-value: 0deg;
   inherits: false;
 }
 
-.demo-card {
-  --brand: #c67d52;
-  transition: box-shadow 0.6s ease;
-}
-.demo-card::before {
-  content: "";
-  position: absolute;
-  inset: -22%;
-  border-radius: inherit;
-  pointer-events: none;
-  opacity: 0.55;
-  transition: opacity 0.6s ease;
-  /* Duración y fase propias de cada tarjeta (vías --energy-dur/--energy-delay). */
-  animation: energy-breathe var(--energy-dur, 8s) ease-in-out infinite;
-  animation-delay: var(--energy-delay, 0s);
-  background:
-    radial-gradient(
-      42% 40% at 24% 12%,
-      color-mix(in srgb, var(--brand) 15%, transparent),
-      transparent 72%
-    ),
-    radial-gradient(
-      34% 34% at 82% 92%,
-      color-mix(in srgb, var(--brand) 11%, transparent),
-      transparent 70%
-    );
-}
-.demo-card:hover::before {
-  opacity: 1;
-  animation-duration: 4.5s;
-}
-.demo-card:hover {
-  box-shadow: 0 18px 45px -18px color-mix(in srgb, var(--brand) 55%, transparent);
-}
-.demo-card::after {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  padding: 1px;
-  pointer-events: none;
-  background: conic-gradient(
-    from var(--energy-angle),
-    transparent 0deg,
-    var(--brand) 55deg,
-    transparent 125deg
-  );
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  mask-composite: exclude;
-  opacity: 0;
-  transition: opacity 0.5s ease;
-}
-.demo-card:hover::after {
-  opacity: 1;
-  animation: energy-spin var(--energy-spin-dur, 2.8s) linear infinite;
-}
-@keyframes energy-spin {
-  to {
-    --energy-angle: 360deg;
-  }
-}
-/* El glow respira: deriva orgánica (asimétrica, con leve giro) dentro de la
-   tarjeta; más vivo al hover. Cada tarjeta va en fase propia. */
-@keyframes energy-breathe {
-  0%,
-  100% {
-    transform: translate(0, 0) scale(1) rotate(0deg);
-  }
-  27% {
-    transform: translate(2.5%, -2.5%) scale(1.05) rotate(1.2deg);
-  }
-  53% {
-    transform: translate(-2%, -3.5%) scale(1.09) rotate(-0.8deg);
-  }
-  78% {
-    transform: translate(3.5%, -1%) scale(1.03) rotate(0.6deg);
-  }
-}
-
-/* ── Capa cósmica global: nebulosas + barrido de luz ──────────────────────
-   Masas de color difusas que derivan muy lento detrás de todo el contenido. */
-.cosmic-nebula {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(80px);
-  pointer-events: none;
-  will-change: transform;
-}
-.cosmic-nebula-1 {
-  width: 58vw;
-  height: 58vw;
-  left: -14vw;
-  top: -16vh;
-  background: radial-gradient(circle, rgba(240, 162, 106, 0.14) 0%, transparent 65%);
-  animation: nebula-drift-a 34s ease-in-out infinite alternate;
-}
-.cosmic-nebula-2 {
-  width: 52vw;
-  height: 52vw;
-  left: 30vw;
-  top: 22vh;
-  background: radial-gradient(circle, rgba(157, 182, 143, 0.11) 0%, transparent 65%);
-  animation: nebula-drift-b 46s ease-in-out infinite alternate;
-}
-.cosmic-nebula-3 {
-  width: 56vw;
-  height: 56vw;
-  left: 12vw;
-  bottom: -22vh;
-  background: radial-gradient(circle, rgba(198, 125, 82, 0.15) 0%, transparent 65%);
-  animation: nebula-drift-c 29s ease-in-out infinite alternate;
-}
-@keyframes nebula-drift-a {
-  0% {
-    transform: translate(0, 0) scale(1) rotate(0deg);
-  }
-  50% {
-    transform: translate(9vw, 6vh) scale(1.15) rotate(8deg);
-  }
-  100% {
-    transform: translate(-4vw, 12vh) scale(0.92) rotate(-5deg);
-  }
-}
-@keyframes nebula-drift-b {
-  0% {
-    transform: translate(0, 0) scale(1);
-  }
-  50% {
-    transform: translate(-7vw, -9vh) scale(1.12);
-  }
-  100% {
-    transform: translate(5vw, -3vh) scale(0.95);
-  }
-}
-@keyframes nebula-drift-c {
-  0% {
-    transform: translate(0, 0) scale(1) rotate(0deg);
-  }
-  45% {
-    transform: translate(6vw, -7vh) scale(1.18) rotate(10deg);
-  }
-  100% {
-    transform: translate(-6vw, -2vh) scale(0.9) rotate(-8deg);
-  }
-}
-
-/* Barrido de luz: una banda diagonal muy tenue que cruza la pantalla. */
-.cosmic-sheen {
-  position: absolute;
-  inset: -30%;
-  background: linear-gradient(
-    115deg,
-    transparent 42%,
-    rgba(240, 162, 106, 0.05) 50%,
-    rgba(157, 182, 143, 0.03) 54%,
-    transparent 62%
-  );
-  background-size: 260% 260%;
-  /* alternate: la banda va y vuelve; nunca se "reinicia" con un salto. */
-  animation: sheen-sweep 34s ease-in-out infinite alternate;
-  pointer-events: none;
-}
-@keyframes sheen-sweep {
-  0% {
-    background-position: 120% 0%;
-  }
-  100% {
-    background-position: -120% 100%;
-  }
-}
-
-/* Mientras el cursor revela nodos, nebulosas y brasas se apartan (fade);
+/* Mientras el cursor revela nodos, brasas y otros fondos se apartan (fade);
    al quedar inactivo regresan. Nunca se reinician, solo se desvanecen. */
 .cosmic-backdrop .fade-on-idle {
   transition: opacity 1s ease;
 }
 .cosmic-backdrop.is-revealing .fade-on-idle {
   opacity: 0;
+}
+
+/* ── App: item activo del sidebar con arco de energía ─────────────────────
+   Mismo lenguaje que .demo-card: arco que gira alrededor del item activo.
+   Deriva el color de --color-primary (marca del tenant) sin fondo propio. */
+.energy-nav {
+  overflow: hidden;
+}
+.energy-nav::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  background: conic-gradient(
+    from var(--energy-angle),
+    transparent 0deg,
+    color-mix(in srgb, var(--color-primary, #c67d52) 75%, #ffffff) 60deg,
+    transparent 140deg
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: energy-spin 3.2s linear infinite;
+}
+
+/* ── App: tarjeta con energía al hover (glow + arco), sin fondo propio ──── */
+.energy-card {
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow 0.4s ease;
+}
+.energy-card::before {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  animation: energy-breathe 9s ease-in-out infinite;
+  background: radial-gradient(
+    46% 42% at 22% 8%,
+    color-mix(in srgb, var(--color-primary, #c67d52) 12%, transparent),
+    transparent 72%
+  );
+}
+.energy-card:hover::before {
+  opacity: 0.8;
+}
+.energy-card:hover {
+  box-shadow: 0 14px 34px -16px color-mix(in srgb, var(--color-primary, #c67d52) 45%, transparent);
 }
 
 /* Variante atenuada (planes no destacados): energía más contenida. */
@@ -727,124 +531,6 @@ a {
 @keyframes neon-spin {
   to {
     --neon-angle: 360deg;
-  }
-}
-
-.neon-border,
-.neon-border-glow {
-  background: conic-gradient(
-    from var(--neon-angle),
-    var(--color-primary) 0deg,
-    color-mix(in srgb, var(--color-primary) 60%, transparent) 50deg,
-    transparent 100deg,
-    color-mix(in srgb, var(--color-primary) 55%, #ffffff) 190deg,
-    transparent 250deg,
-    var(--color-primary) 360deg
-  );
-  animation: neon-spin 5s linear infinite;
-}
-
-/* Halo difuso detrás del panel, mismo gradiente desenfocado. */
-.neon-border-glow {
-  filter: blur(14px);
-  opacity: 0.5;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .neon-border,
-  .neon-border-glow {
-    animation: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .landing-pixel-drift,
-  .landing-pixel-steam,
-  .landing-pixel-glow,
-  .frig-eye,
-  .frig-smoke,
-  .house-torch,
-  .house-window,
-  .house-flag,
-  .landing-cloud,
-  .plan-glow,
-  .moon-halo {
-    animation: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .login-twinkle,
-  .login-float,
-  .login-steam-anim,
-  .login-shake {
-    animation: none;
-  }
-}
-
-/* ── Flujo abstracto de energía en la base del hero ─────────────────────── */
-.frig-flow {
-  position: absolute;
-  bottom: -18%;
-  width: 46vw;
-  height: 30vh;
-  border-radius: 50%;
-  filter: blur(60px);
-  pointer-events: none;
-  will-change: transform;
-}
-.frig-flow-1 {
-  left: -12%;
-  background: radial-gradient(
-    50% 55% at 50% 60%,
-    rgba(240, 150, 80, 0.2) 0%,
-    rgba(240, 130, 60, 0.06) 55%,
-    transparent 75%
-  );
-  animation: frig-flow-a 26s ease-in-out infinite alternate;
-}
-.frig-flow-2 {
-  right: -14%;
-  background: radial-gradient(
-    50% 55% at 50% 60%,
-    rgba(157, 182, 143, 0.14) 0%,
-    rgba(120, 150, 115, 0.05) 55%,
-    transparent 75%
-  );
-  animation: frig-flow-b 32s ease-in-out infinite alternate;
-}
-.frig-flow-3 {
-  left: 34%;
-  bottom: -26%;
-  width: 34vw;
-  height: 22vh;
-  background: radial-gradient(
-    50% 55% at 50% 60%,
-    rgba(255, 170, 90, 0.12) 0%,
-    transparent 70%
-  );
-  animation: frig-flow-a 21s ease-in-out infinite alternate-reverse;
-}
-@keyframes frig-flow-a {
-  0% {
-    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
-  }
-  50% {
-    transform: translate3d(14vw, -4vh, 0) scale(1.18) rotate(8deg);
-  }
-  100% {
-    transform: translate3d(28vw, 2vh, 0) scale(0.94) rotate(-5deg);
-  }
-}
-@keyframes frig-flow-b {
-  0% {
-    transform: translate3d(0, 2vh, 0) scale(1.05);
-  }
-  50% {
-    transform: translate3d(-16vw, -3vh, 0) scale(0.9);
-  }
-  100% {
-    transform: translate3d(-30vw, 0, 0) scale(1.15);
   }
 }
 

@@ -34,7 +34,7 @@ export function PageHeader({
         ) : null}
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
+            <h1 className="font-display text-lg font-semibold tracking-tight">{title}</h1>
             {badge}
           </div>
           {subtitle ? (
