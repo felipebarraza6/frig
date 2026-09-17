@@ -19,18 +19,14 @@ import type { BranchThemeConfig } from "@/lib/types";
 import { setToken } from "@/lib/api/session-storage";
 import { pickDefaultBranchId } from "@/lib/branch-session";
 import { cn } from "@/lib/utils";
+import { FRIG_IDENTITY_STYLE, FRIG_REPO_URL, setTenantFavicon } from "@/lib/frig-identity";
+import { FrigWordmarkMatrix } from "@/components/landing/frig-wordmark-matrix";
 import { HeroPlexus } from "@/components/landing/hero-plexus";
-import { LandingPanel } from "@/components/landing/landing-panel";
 import { BrandLogo } from "@/components/brand-logo";
-import { LANDING_USE_CASES, LANDING_VALUE_PROP } from "@/content/landing";
+import { LANDING_USE_CASES } from "@/content/landing";
 import type { LandingUseCase } from "@/content/landing";
 import type { LoginCompleteResponse } from "@/lib/types";
 import { Clock, Copy, KeyRound } from "lucide-react";
-
-/** Easing de "frames" (efecto retro): arranca en 6 pasos discretos. */
-function stepEase(steps = 6) {
-  return (value: number) => Math.round(value * steps) / steps;
-}
 
 
 function getHomeRouteForUser(
@@ -54,8 +50,15 @@ function getHomeRouteForUser(
   return "/dashboard";
 }
 
-/* Transición de entrada: el wordmark atraviesa un portal antes de navegar. */
-function DimensionExit({ brandName }: { brandName: string | null }) {
+/* Transición de entrada: el logo de la sucursal (o Frig) antes de navegar.
+   Sin texto "Entrando…": una línea de energía da el feedback de carga. */
+function DimensionExit({
+  brandName,
+  brandLogo,
+}: {
+  brandName: string | null;
+  brandLogo: string | null;
+}) {
   return (
     <motion.div
       className="fixed inset-0 z-[60] flex items-center justify-center bg-[#0a0a0a]"
@@ -72,20 +75,39 @@ function DimensionExit({ brandName }: { brandName: string | null }) {
         }}
       />
       <div className="relative flex flex-col items-center gap-8">
-        {!brandName && (
-          <img
-            src="/brand/frig-symbol.png"
-            alt=""
-            className="h-16 w-auto"
-            style={{ filter: "drop-shadow(0 0 16px rgba(238,158,112,0.5))" }}
+        {brandLogo ? (
+          <BrandLogo
+            src={brandLogo}
+            alt={brandName ?? "Logo"}
+            name={brandName}
+            containerClassName="h-24 w-24 rounded-2xl"
+            className="h-24 w-24 rounded-2xl object-contain"
           />
+        ) : (
+          <>
+            {!brandName && (
+              <img
+                src="/brand/frig-symbol.png"
+                alt=""
+                className="h-16 w-auto"
+                style={{ filter: "drop-shadow(0 0 16px rgba(238,158,112,0.5))" }}
+              />
+            )}
+            <img
+              src="/brand/frig-wordmark.png"
+              alt="Frig"
+              className="frig-dimension-loop relative h-16 w-auto sm:h-24"
+            />
+          </>
         )}
-        <img
-          src="/brand/frig-wordmark.png"
-          alt="Frig"
-          className="frig-dimension-loop relative h-16 w-auto sm:h-24"
-        />
-        <p className="text-sm text-zinc-400">Entrando…</p>
+        {/* Línea de energía: feedback de carga sin texto */}
+        <div className="h-0.5 w-40 overflow-hidden rounded-full bg-white/10">
+          <motion.div
+            className="h-full w-1/3 rounded-full bg-[#c67d52]"
+            animate={{ x: ["-100%", "300%"] }}
+            transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
+          />
+        </div>
       </div>
     </motion.div>
   );
@@ -116,13 +138,27 @@ export default function LoginPage() {
 
   function celebrateThen(callback: () => void) {
     setSuccess(true);
-    window.setTimeout(callback, 1150);
+    // Navegar pronto (el overlay sigue hasta el desmonte). La red de
+    // seguridad es tardía a propósito: un 4s en conexiones lentas forzaba
+    // una recarga dura a mitad de carga (doble render y parpadeo).
+    window.setTimeout(callback, 700);
+    window.setTimeout(() => {
+      if (window.location.pathname === "/login") {
+        window.location.href = "/dashboard";
+      }
+    }, 8000);
   }
 
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotError, setForgotError] = useState<string | null>(null);
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
+
+  // El fondo participa en cada cambio de modo: los nodos hacen una ola
+  // que cubre la pantalla y decae revelando el nuevo formulario.
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("frig:matrix-sweep"));
+  }, [mode, forgotSent]);
 
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -163,21 +199,24 @@ export default function LoginPage() {
     let cancelled = false;
     (async () => {
       const slug = new URLSearchParams(window.location.search).get("branch");
-      const theme = slug
+      let theme = slug
         ? await fetchPublicLoginTheme(slug)
         : await fetchPublicLoginThemeByHost();
-      if (cancelled || !theme) return;
-      setBrandTheme(theme);
-      applyThemeConfig(theme);
-      if (theme.favicon) {
-        let link = document.querySelector<HTMLLinkElement>("link[rel='icon']");
-        if (!link) {
-          link = document.createElement("link");
-          link.rel = "icon";
-          document.head.appendChild(link);
-        }
-        link.href = theme.favicon;
+      // El branding del PROPIO Frig (frig.yggdra.cl, slug "frig") se trata
+      // como identidad Frig: logo de cuadritos + cobre, nunca como tenant.
+      const isFrigBranding =
+        !!theme && (theme.app_name ?? "").toLowerCase().includes("frig");
+      if (isFrigBranding) theme = null;
+      if (cancelled) return;
+      if (theme) {
+        setBrandTheme(theme);
+        applyThemeConfig(theme);
+        // Favicon del tenant; sin favicon propio usa su logo del header.
+        setTenantFavicon(theme.favicon, theme.logo);
       }
+      // Título del documento con la marca resuelta (tenant o Frig).
+      const name = isFrigBranding ? "FRIG" : theme?.app_name ?? "FRIG";
+      document.title = `${name} — Iniciar sesión`;
     })();
     return () => {
       cancelled = true;
@@ -346,8 +385,16 @@ export default function LoginPage() {
     }
   }
 
+  // Identidad Frig SOLO sin tenant: con branding de sucursal la paleta la
+  // deriva applyThemeConfig desde su primary (lo que eligió es lo que ve).
+  const isFrigIdentity = !brandTheme;
+  const darkSection = isFrigIdentity || brandTheme?.algorithm === "dark";
+
   return (
-    <div className="relative flex min-h-dvh flex-1 flex-col bg-[#0a0a0a] lg:h-dvh lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)] lg:overflow-hidden">
+    <div
+      className={cn("relative flex min-h-dvh flex-1 flex-col", isFrigIdentity ? "bg-[#0a0a0a]" : "bg-background text-foreground")}
+      style={isFrigIdentity ? FRIG_IDENTITY_STYLE : undefined}
+    >
       {/* Fondo único de identidad: horizonte cálido + red que reacciona al mouse */}
       <div aria-hidden className="pointer-events-none absolute inset-0">
         <div
@@ -369,21 +416,56 @@ export default function LoginPage() {
           <HeroPlexus className="h-full w-full" />
         </div>
       </div>
-      <section className="dark relative flex flex-1 flex-col items-center justify-center px-4 py-10 text-white lg:col-start-2 lg:row-start-1 lg:h-dvh lg:overflow-hidden">
+      <section
+        style={isFrigIdentity ? { "--input": "#27272a", "--border": "#27272a", "--muted": "#1c1c1f", "--muted-foreground": "#a1a1aa", "--accent": "#1c1c1f", "--background": "#0a0a0a", "--card": "#141414" } as React.CSSProperties : undefined}
+        className={cn(
+          "relative flex min-h-dvh flex-1 flex-col items-center justify-center px-4 py-10",
+          darkSection ? "dark text-white" : "text-foreground",
+        )}
+      >
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25, ease: "easeOut" }}
           className="relative flex w-full max-w-sm flex-col overflow-hidden px-1 font-sans lg:min-h-[600px] lg:justify-center"
         >
-          {/* El iconito de la marca presidiendo el formulario */}
-          {!brandTheme && (
-            <img
-              src="/brand/frig-symbol.png"
-              alt=""
-              className="mb-8 h-14 w-auto self-center"
-              style={{ filter: "drop-shadow(0 0 14px rgba(238,158,112,0.45))" }}
-            />
+          {/* Fade marcado entre modos: el contenido se desvanece con blur
+              mientras la ola de nodos cubre el fondo y trae el siguiente. */}
+          <AnimatePresence mode="wait">
+          <motion.div
+            key={`${mode}-${forgotSent}`}
+            initial={{ opacity: 0, y: 14, filter: "blur(8px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            exit={{ opacity: 0, y: -10, filter: "blur(8px)", transition: { duration: 0.25, ease: "easeIn" } }}
+            // El contenido ESPERA a que la ola de nodos cubra todo (0.45s)
+            // y recién emerge: primero el fondo, después el formulario.
+            transition={{ duration: 0.65, delay: 0.45, ease: [0.22, 0.61, 0.36, 1] }}
+            className="flex w-full flex-col"
+            style={{ textShadow: "0 2px 18px rgba(0,0,0,0.75)" }}
+          >
+          {/* El wordmark de la marca presidiendo el formulario */}
+          {/* Marca que preside el formulario: la del tenant si hay branding
+              por host/slug; si no, el wordmark animado de Frig. */}
+          {brandTheme ? (
+            <div className="mb-8 flex flex-col items-center gap-3 text-center">
+              <BrandLogo
+                src={brandTheme.logo}
+                alt={brandTheme.app_name ?? "Logo"}
+                name={brandTheme.app_name}
+                containerClassName="h-14 w-14 rounded-xl"
+                className="h-14 w-14 rounded-xl object-contain"
+              />
+              <div>
+                <h1 className="font-display text-2xl font-semibold tracking-tight">
+                  {brandTheme.login_welcome_message ?? brandTheme.app_name ?? "Bienvenido"}
+                </h1>
+                {brandTheme.tagline && (
+                  <p className="mt-1 text-sm text-muted-foreground">{brandTheme.tagline}</p>
+                )}
+              </div>
+            </div>
+          ) : (
+            <FrigWordmarkMatrix className="mb-8 h-12 w-auto self-center" />
           )}
           {demoCase && mode === "login" && (
             <div
@@ -481,7 +563,7 @@ export default function LoginPage() {
                   {setPasswordError}
                 </p>
               )}
-              <Button type="submit" size="lg" disabled={setPasswordLoading} className="btn-copper mt-2 rounded-lg text-white">
+              <Button type="submit" size="lg" disabled={setPasswordLoading} className="bg-primary text-primary-foreground hover:bg-primary/90 mt-2 rounded-lg text-white">
                 {setPasswordLoading ? "Guardando…" : "Definir contraseña"}
               </Button>
             </form>
@@ -495,7 +577,7 @@ export default function LoginPage() {
                     para recuperar tu contraseña (válido por 24 horas).
                   </p>
                 </div>
-                <Button type="button" size="lg" className="btn-copper mt-2 rounded-lg text-white" onClick={backToLogin}>
+                <Button type="button" size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 mt-2 rounded-lg text-white" onClick={backToLogin}>
                   Volver al inicio de sesión
                 </Button>
               </div>
@@ -525,7 +607,7 @@ export default function LoginPage() {
                   </p>
                 )}
 
-                <Button type="submit" size="lg" disabled={forgotLoading} className="btn-copper mt-2 rounded-lg text-white">
+                <Button type="submit" size="lg" disabled={forgotLoading} className="bg-primary text-primary-foreground hover:bg-primary/90 mt-2 rounded-lg text-white">
                   {forgotLoading ? "Enviando…" : "Enviar correo de recuperación"}
                 </Button>
 
@@ -585,7 +667,7 @@ export default function LoginPage() {
                 size="lg"
                 disabled={loading}
                 onClick={firePulse}
-                className="btn-copper mt-2 rounded-lg text-white active:scale-[0.97] transition-transform"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 mt-2 rounded-lg text-white active:scale-[0.97] transition-transform"
               >
                 {loading ? "Ingresando…" : "Ingresar"}
               </Button>
@@ -605,75 +687,44 @@ export default function LoginPage() {
             </form>
           )}
 
-          <p className={cn("mt-8 text-center text-xs text-muted-foreground")}>
-            Gestión comercial y gastronómica por FRIG
-          </p>
-
-          {/* Cortina retro pixel: base oscura + cuadrícula de bloques (checkerboard) + degradado derecho.
-              La cuadrícula con separación visible evita el rectángulo liso: siempre se leen cuadros. */}
-          <div aria-hidden className="pointer-events-none absolute inset-0 z-20 overflow-hidden">
-            {/* Base oscura: oculta el contenido y da las "líneas" entre cuadros. */}
-            <motion.div
-              key={`curtain-cover-${mode}-${forgotSent}`}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: [0, 1, 1, 0] }}
-              transition={{ duration: 0.9, times: [0, 0.15, 0.85, 1], ease: "easeOut" }}
-              className="absolute inset-0"
-              style={{ backgroundColor: "color-mix(in srgb, var(--color-primary) 30%, #0b3b22)" }}
-            />
-
-            {/* Cuadrícula de bloques pixel con separación, aparece en cascada. */}
-            <div className="absolute inset-0 grid grid-cols-6 grid-rows-5 gap-1 p-1">
-              {Array.from({ length: 30 }).map((_, i) => (
-                <motion.span
-                  key={`curtain-${mode}-${forgotSent}-${i}`}
-                  initial={{ scaleY: 0, opacity: 0 }}
-                  animate={{ scaleY: [0, 1, 1, 0], opacity: [0, 1, 1, 0] }}
-                  transition={{
-                    duration: 0.9,
-                    times: [0, 0.25, 0.85, 1],
-                    delay: (i % 6) * 0.03 + Math.floor(i / 6) * 0.04,
-                    ease: stepEase(6),
-                  }}
-                  className="h-full w-full"
-                  style={{
-                    backgroundColor:
-                      i % 2 === 0 ? "var(--color-primary)" : "color-mix(in srgb, var(--color-primary) 70%, #0b3b22)",
-                  }}
-                />
-              ))}
+          {/* Atribución: el login del tenant reconoce la tecnología detrás. */}
+          {brandTheme ? (
+            <div className="mt-8 flex flex-col items-center gap-1.5 text-xs text-muted-foreground">
+              <p>
+                powered by{" "}
+                <a
+                  href={FRIG_REPO_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium underline-offset-4 transition-colors hover:text-foreground hover:underline"
+                >
+                  FRIG
+                </a>
+              </p>
+              <img
+                src="/brand/frig-symbol.png"
+                alt=""
+                aria-hidden
+                className="h-4 w-auto opacity-60"
+              />
             </div>
-
-            {/* Degradado en el borde derecho (efecto scan, bien visible). */}
-            <motion.div
-              key={`curtain-degrade-${mode}-${forgotSent}`}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: [0, 1, 1, 0] }}
-              transition={{ duration: 0.9, times: [0, 0.25, 0.85, 1], ease: "easeOut" }}
-              className="absolute inset-y-0 right-0 w-1/3"
-              style={{
-                background:
-                  "linear-gradient(to left, #06230f 0%, color-mix(in srgb, var(--color-primary) 45%, #0b3b22) 45%, transparent 100%)",
-                boxShadow: "inset -6px 0 0 rgba(0,0,0,0.25)",
-              }}
-            />
-          </div>
+          ) : (
+            <p className={cn("mt-8 text-center text-xs text-muted-foreground")}>
+              Gestión comercial y gastronómica por FRIG
+            </p>
+          )}
+          </motion.div>
+          </AnimatePresence>
         </motion.div>
 
         {success && (
-          <DimensionExit brandName={brandTheme?.app_name ?? null} />
+          <DimensionExit
+            brandName={brandTheme?.app_name ?? null}
+            brandLogo={brandTheme?.logo ?? null}
+          />
         )}
       </section>
 
-      <aside className="hidden lg:col-start-1 lg:row-start-1 lg:block lg:h-dvh lg:overflow-hidden">
-        <LandingPanel
-          brand={
-            brandTheme
-              ? { name: brandTheme.app_name ?? "FRIG", logo: brandTheme.logo }
-              : null
-          }
-        />
-      </aside>
       {/* Pulso de energía al ingresar */}
       <AnimatePresence>
         {pulse && (
