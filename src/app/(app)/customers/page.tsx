@@ -387,7 +387,7 @@ export default function CustomersPage() {
         ) : isLoading ? (
           <>
             {/* Vista desktop */}
-            <div className="hidden overflow-hidden rounded-xl border border-border sm:block">
+            <div className="hidden overflow-hidden rounded-xl border border-border bg-card shadow-sm sm:block">
               <div className="border-b border-border px-3 py-3">
                 <Skeleton className="h-3 w-44" />
               </div>
@@ -409,7 +409,7 @@ export default function CustomersPage() {
               {Array.from({ length: 4 }).map((_, i) => (
                 <div
                   key={i}
-                  className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm"
+                  className="rounded-2xl border border-border bg-background p-4 shadow-sm"
                 >
                   <div className="mb-2 flex items-center gap-2">
                     <Skeleton className="h-8 w-8 rounded-md" />
@@ -438,7 +438,7 @@ export default function CustomersPage() {
         ) : (
           <>
             {/* Vista desktop */}
-            <div className="hidden overflow-x-auto rounded-xl border border-border sm:block">
+            <div className="hidden overflow-x-auto rounded-xl border border-border bg-card shadow-sm sm:block">
               <table className="w-full min-w-[720px] text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -548,7 +548,7 @@ export default function CustomersPage() {
               {filteredCustomers.map((c) => (
                 <div
                   key={c.id}
-                  className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm"
+                  className="rounded-2xl border border-border bg-background p-4 shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -676,7 +676,7 @@ export default function CustomersPage() {
         zIndex="z-[70]"
         panelClassName="flex items-end justify-center p-0 sm:items-center sm:p-4"
       >
-          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg sm:h-auto sm:max-h-[90vh] sm:max-w-lg sm:rounded-xl sm:border">
+          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg sm:h-auto sm:max-h-[90vh] sm:max-w-lg sm:rounded-xl sm:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-base font-semibold">
                 {editing ? "Editar cliente" : "Nuevo cliente"}
@@ -851,7 +851,7 @@ export default function CustomersPage() {
         zIndex="z-[70]"
         panelClassName="flex items-end justify-center p-0 sm:items-center sm:p-4"
       >
-          <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg sm:max-w-md sm:rounded-xl sm:border sm:p-6">
+          <div className="w-full rounded-t-xl border-x border-t border-border bg-background p-4 shadow-lg sm:max-w-md sm:rounded-xl sm:border sm:p-6">
             <h2 className="text-base font-semibold">¿Eliminar cliente?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Se eliminará <span className="font-medium text-foreground">{confirmDelete.name}</span>.

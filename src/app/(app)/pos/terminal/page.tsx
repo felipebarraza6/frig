@@ -833,7 +833,7 @@ export default function PosPage() {
   const displayItemCount = itemCount + existingItemCount;
 
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden bg-muted/30">
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-background">
       {/* Header */}
       <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border/60 bg-background/95 px-3 backdrop-blur sm:h-12 sm:px-4">
         <div className="flex flex-1 min-w-0 items-center gap-2">
@@ -1051,7 +1051,7 @@ export default function PosPage() {
             if (e.target === e.currentTarget) setShowModeSelector(false);
           }}
         >
-          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-2xl border-x border-t border-border bg-card p-6 shadow-xl sm:h-auto sm:max-h-[90dvh] sm:max-w-md sm:rounded-2xl sm:border">
+          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-2xl border-x border-t border-border bg-background p-6 shadow-xl sm:h-auto sm:max-h-[90dvh] sm:max-w-md sm:rounded-2xl sm:border">
             <div className="mb-5 text-center">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
                 <Receipt className="h-6 w-6 text-primary" />
@@ -1566,7 +1566,7 @@ export default function PosPage() {
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", stiffness: 350, damping: 32 }}
-            className="flex max-h-[92dvh] h-[90dvh] w-full flex-col rounded-t-3xl bg-card shadow-2xl overflow-hidden pb-[env(safe-area-inset-bottom)]"
+            className="flex max-h-[92dvh] h-[90dvh] w-full flex-col rounded-t-3xl bg-background shadow-2xl overflow-hidden pb-[env(safe-area-inset-bottom)]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex shrink-0 justify-center py-2.5">
@@ -1673,7 +1673,7 @@ export default function PosPage() {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.98 }}
             transition={{ duration: 0.15 }}
-            className="flex max-h-[90vh] w-full max-w-5xl flex-col rounded-2xl border border-border/60 bg-card p-4 shadow-xl"
+            className="flex max-h-[90vh] w-full max-w-5xl flex-col rounded-2xl border border-border/60 bg-background p-4 shadow-xl"
           >
             <div className="mb-3 flex items-center justify-between">
               <div>
@@ -1715,7 +1715,7 @@ export default function PosPage() {
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ duration: 0.2 }}
-            className="flex h-full w-full max-w-md flex-col bg-card shadow-xl"
+            className="flex h-full w-full max-w-md flex-col bg-background shadow-xl"
           >
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
               <div>
@@ -1806,7 +1806,7 @@ export default function PosPage() {
                   {(visibleOpenAccounts as Order[]).map((order) => (
                     <div
                       key={order.id}
-                      className="group flex flex-col gap-2 rounded-xl border border-border bg-background p-3 transition-colors hover:border-primary/30 hover:bg-muted/30"
+                      className="group flex flex-col gap-2 rounded-xl border border-border bg-background p-3 transition-colors hover:border-primary/30 hover:bg-background"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
@@ -1900,7 +1900,7 @@ export default function PosPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: "100%" }}
             transition={{ duration: 0.2 }}
-            className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card p-5 shadow-xl sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-xl sm:border"
+            className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background p-5 shadow-xl sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-xl sm:border"
           >
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
@@ -2060,7 +2060,7 @@ export default function PosPage() {
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ duration: 0.2 }}
-            className="flex h-full w-full max-w-md flex-col bg-card shadow-xl"
+            className="flex h-full w-full max-w-md flex-col bg-background shadow-xl"
           >
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
               <div>
@@ -2254,7 +2254,7 @@ export default function PosPage() {
             if (e.target === e.currentTarget) setCancelingOrder(null);
           }}
         >
-          <div className="w-full max-w-sm rounded-xl border border-border bg-card p-5 shadow-lg">
+          <div className="w-full max-w-sm rounded-xl border border-border bg-background p-5 shadow-lg">
             <h3 className="text-base font-semibold">¿Anular cuenta?</h3>
             <p className="mt-1 text-sm text-muted-foreground">
               Se anulará la cuenta de{" "}
@@ -2325,7 +2325,7 @@ export default function PosPage() {
             if (e.target === e.currentTarget) setShowCashRegisterModal(false);
           }}
         >
-          <div className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-border bg-card p-5 shadow-xl sm:p-6">
+          <div className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-border bg-background p-5 shadow-xl sm:p-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h3 className="text-base font-semibold">
@@ -2353,7 +2353,7 @@ export default function PosPage() {
                     className={cn(
                       "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
                       cashRegisterTab === "summary"
-                        ? "bg-card text-foreground shadow-sm"
+                        ? "bg-background text-foreground shadow-sm"
                         : "text-muted-foreground hover:text-foreground",
                     )}
                   >
@@ -2366,7 +2366,7 @@ export default function PosPage() {
                       className={cn(
                         "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
                         cashRegisterTab === "movements"
-                          ? "bg-card text-foreground shadow-sm"
+                          ? "bg-background text-foreground shadow-sm"
                           : "text-muted-foreground hover:text-foreground",
                       )}
                     >
@@ -2493,7 +2493,7 @@ export default function PosPage() {
                   </div>
                 </div>
 
-                <div className="mt-4 rounded-xl border border-border/60 bg-card p-4">
+                <div className="mt-4 rounded-xl border border-border/60 bg-background p-4">
                   <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
                     Monto final en caja
                   </label>
@@ -2546,7 +2546,7 @@ export default function PosPage() {
             {currentCashRegister &&
               cashRegisterTab === "movements" &&
               effectiveConfig.cash_movements && (
-              <div className="mt-4 flex flex-col gap-3 rounded-xl border border-border/60 bg-card p-4">
+              <div className="mt-4 flex flex-col gap-3 rounded-xl border border-border/60 bg-background p-4">
                 {!isRegisterController && (
                   <p className="flex items-center gap-2 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
                     <Lock className="h-3.5 w-3.5" />
@@ -2632,7 +2632,7 @@ export default function PosPage() {
                 </div>
 
                 {cashMovements.length > 0 && (
-                  <div className="flex max-h-40 flex-col gap-1.5 overflow-y-auto rounded-lg border border-border/60 bg-muted/30 p-2">
+                  <div className="flex max-h-40 flex-col gap-1.5 overflow-y-auto rounded-lg border border-border/60 bg-background p-2">
                     {cashMovements.map((m) => (
                       <div key={m.id} className="flex items-center justify-between gap-2 text-xs">
                         <div className="flex items-center gap-1.5 min-w-0">

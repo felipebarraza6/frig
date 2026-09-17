@@ -89,7 +89,7 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
     clearToken();
     clearSession();
     queryClient.clear();
-    router.replace("/login");
+    window.location.assign("/login");
   }
 
   function handleDragEnd(_: unknown, info: PanInfo) {
@@ -166,7 +166,7 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="absolute bottom-0 left-0 right-0 flex max-h-[88dvh] flex-col rounded-t-3xl bg-card shadow-[0_-8px_40px_rgba(0,0,0,0.2)] pb-[env(safe-area-inset-bottom)]"
+            className="absolute bottom-0 left-0 right-0 flex max-h-[88dvh] flex-col rounded-t-3xl bg-background shadow-[0_-8px_40px_rgba(0,0,0,0.2)] pb-[env(safe-area-inset-bottom)]"
             role="dialog"
             aria-modal="true"
             aria-label="Menú de navegación"

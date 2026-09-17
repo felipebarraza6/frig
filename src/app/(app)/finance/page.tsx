@@ -296,7 +296,7 @@ export default function FinanceDashboardPage() {
             </section>
 
             <section className="grid gap-4 lg:grid-cols-3">
-              <div className="rounded-2xl border border-border bg-muted/30 p-5 shadow-sm lg:col-span-2">
+              <div className="rounded-2xl border border-border bg-background p-5 shadow-sm lg:col-span-2">
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600">
@@ -327,7 +327,7 @@ export default function FinanceDashboardPage() {
                 )}
               </div>
 
-              <div className="rounded-2xl border border-border bg-muted/30 p-5 shadow-sm">
+              <div className="rounded-2xl border border-border bg-background p-5 shadow-sm">
                 <div className="mb-4 flex items-center gap-2">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-500/10 text-rose-600">
                     <PieChart className="h-4 w-4" />
@@ -374,7 +374,7 @@ export default function FinanceDashboardPage() {
               </div>
             </section>
 
-            <section className="rounded-2xl border border-border bg-muted/30 p-5 shadow-sm">
+            <section className="rounded-2xl border border-border bg-background p-5 shadow-sm">
               <div className="mb-4 flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
                   <PiggyBank className="h-4 w-4" />
@@ -413,7 +413,7 @@ export default function FinanceDashboardPage() {
               </div>
             </section>
 
-            <section className="rounded-2xl border border-border bg-muted/30 p-5 shadow-sm">
+            <section className="rounded-2xl border border-border bg-background p-5 shadow-sm">
               <div className="mb-4 flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
                   <Settings className="h-4 w-4" />
@@ -510,7 +510,7 @@ function StatCard({
 
 function StatSkeleton() {
   return (
-    <div className="rounded-2xl border border-border/60 bg-muted/30 p-4 shadow-sm">
+    <div className="rounded-2xl border border-border/60 bg-background p-4 shadow-sm">
       <div className="mb-2 flex items-start justify-between gap-2">
         <div className="min-w-0 space-y-2">
           <Skeleton className="h-3 w-24" />

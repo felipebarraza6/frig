@@ -57,7 +57,7 @@ export function TableOrderDrawer({ table, isWaiter, onClose }: TableOrderDrawerP
         initial={{ y: "100%" }}
         animate={{ y: 0 }}
         transition={{ duration: 0.2 }}
-        className="flex h-[80vh] w-full flex-col rounded-t-2xl bg-card shadow-xl sm:h-full sm:max-w-md sm:rounded-none"
+        className="flex h-[80vh] w-full flex-col rounded-t-2xl bg-background shadow-xl sm:h-full sm:max-w-md sm:rounded-none"
       >
         <div className="flex shrink-0 items-center justify-between border-b border-border/60 px-4 py-3">
           <div>
@@ -171,7 +171,7 @@ function OrderDetail({ order }: { order: Order }) {
       </div>
 
       {order.client && (
-        <div className="flex items-center gap-2 rounded-lg bg-muted/30 px-3 py-2">
+        <div className="flex items-center gap-2 rounded-lg bg-background px-3 py-2">
           <User className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="truncate text-sm">{order.client.name}</span>
         </div>

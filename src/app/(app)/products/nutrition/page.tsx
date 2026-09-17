@@ -174,7 +174,7 @@ export default function ProductNutritionPage() {
               <article
                 key={product.id}
                 onClick={() => setSelected(product)}
-                className="cursor-pointer rounded-2xl border border-border bg-muted/30 p-4 shadow-sm transition-shadow hover:shadow-md"
+                className="cursor-pointer rounded-2xl border border-border bg-background p-4 shadow-sm transition-shadow hover:shadow-md"
               >
                 <div className="mb-3 flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2">
@@ -282,7 +282,7 @@ function NutritionDetailModal({
       onClose={onClose}
       panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
     >
-      <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
+      <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
         <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 md:px-6">
           <h2 className="text-base font-semibold">{product.name}</h2>
           <div className="flex items-center gap-1">

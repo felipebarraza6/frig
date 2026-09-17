@@ -30,6 +30,14 @@ export async function fetchQuotation(id: string): Promise<Quotation> {
   return apiFetch<Quotation>(`/sales/quotations/${id}/`);
 }
 
+/** Activar una cotización borrador: pasa de DRAFT a PENDING. */
+export async function activateQuotation(id: string): Promise<Quotation> {
+  return apiFetch<Quotation>(`/sales/quotations/${id}/`, {
+    method: "PATCH",
+    body: { status: "PENDING" },
+  });
+}
+
 /** Rechazar/cancelar una cotización. */
 export async function cancelQuotation(id: string): Promise<Quotation> {
   return apiFetch<Quotation>(`/sales/quotations/${id}/`, {
@@ -110,6 +118,7 @@ export async function createQuotation(input: CreateQuotationInput): Promise<Yggd
     method: "POST",
     body: {
       order_type: "ORDER",
+      status: "PENDING",
       date: new Date().toISOString(),
       observation: input.observation ?? null,
       client_id: input.client_id ?? null,

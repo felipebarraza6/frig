@@ -145,21 +145,21 @@ export default function FixedExpensesPage() {
       <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
         {/* KPIs */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <div className="rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
+          <div className="rounded-2xl border border-border bg-background p-3 shadow-sm">
             <div className="flex items-center gap-2 mb-1">
               <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10"><TrendingDown className="h-3.5 w-3.5 text-primary" /></div>
               <span className="text-[11px] font-medium text-muted-foreground">Activos</span>
             </div>
             <p className="text-lg font-semibold tabular-nums">{expenses.filter((e) => e.status === "ACTIVE").length}</p>
           </div>
-          <div className="rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
+          <div className="rounded-2xl border border-border bg-background p-3 shadow-sm">
             <div className="flex items-center gap-2 mb-1">
               <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-danger/10"><DollarSign className="h-3.5 w-3.5 text-danger" /></div>
               <span className="text-[11px] font-medium text-muted-foreground">Total mensual</span>
             </div>
             <p className="text-lg font-semibold tabular-nums">{formatCLP(totalMonthly)}</p>
           </div>
-          <div className="col-span-2 rounded-2xl border border-border bg-muted/30 p-3 shadow-sm sm:col-span-1">
+          <div className="col-span-2 rounded-2xl border border-border bg-background p-3 shadow-sm sm:col-span-1">
             <div className="flex items-center gap-2 mb-1">
               <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-warning/10"><Calendar className="h-3.5 w-3.5 text-warning" /></div>
               <span className="text-[11px] font-medium text-muted-foreground">Total anual</span>
@@ -188,7 +188,7 @@ export default function FixedExpensesPage() {
           </div>
         ) : isLoading ? (
           <div className="flex flex-col gap-3">
-            {[1, 2, 3].map((i) => (<div key={i} className="h-20 animate-pulse rounded-xl border border-border bg-muted/30" />))}
+            {[1, 2, 3].map((i) => (<div key={i} className="h-20 animate-pulse rounded-xl border border-border bg-background" />))}
           </div>
         ) : filtered.length === 0 ? (
           <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">
@@ -201,7 +201,7 @@ export default function FixedExpensesPage() {
         ) : (
           <>
             {/* Desktop */}
-            <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
+            <div className="hidden overflow-x-auto rounded-xl border border-border bg-card shadow-sm md:block">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -246,7 +246,7 @@ export default function FixedExpensesPage() {
             {/* Mobile */}
             <div className="grid gap-3 md:hidden">
               {filtered.map((e) => (
-                <div key={e.id} className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
+                <div key={e.id} className="rounded-2xl border border-border bg-background p-4 shadow-sm">
                   <div className="flex items-start justify-between">
                     <div className="min-w-0 flex-1">
                       <p className="font-medium truncate">{e.name}</p>
@@ -292,7 +292,7 @@ export default function FixedExpensesPage() {
 
       {/* Confirm delete */}
       <AnimatedOverlay open={!!confirmDelete} onClose={() => setConfirmDelete(null)} panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4">
-        <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
+        <div className="w-full rounded-t-xl border-x border-t border-border bg-background p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-danger/10">
               <AlertCircle className="h-5 w-5 text-danger" />
@@ -352,7 +352,7 @@ function FixedExpenseModal({ open, editing, categories, onClose, onSubmit, isPen
 
   return (
     <AnimatedOverlay open={open} onClose={handleClose} panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4">
-      <div className="flex h-[90dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-w-lg md:rounded-xl md:border">
+      <div className="flex h-[90dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:h-auto md:max-w-lg md:rounded-xl md:border">
         <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
           <h2 className="text-base font-semibold">{editing ? "Editar gasto" : "Nuevo gasto"}</h2>
           <button onClick={handleClose} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>

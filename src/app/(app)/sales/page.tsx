@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, ShoppingBag, X, Eye, Ban, Plus, FileDown, ClipboardList, Receipt, FileText, SlidersHorizontal, Zap, Wallet, Clock, Store, Package, MoreHorizontal, LayoutGrid, List, HandHelping, MapPin } from "lucide-react";
+import { Search, ShoppingBag, X, Eye, Ban, Plus, FileDown, ClipboardList, Receipt, FileText, SlidersHorizontal, Zap, Wallet, Clock, Store, Package, MoreHorizontal, LayoutGrid, List, HandHelping, MapPin, Truck } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { TableSkeleton } from "@/components/ui/skeleton";
@@ -22,7 +22,7 @@ import {
 } from "@/lib/api/orders";
 import { fetchTables } from "@/lib/api/tables";
 import { searchCustomers, createCustomer } from "@/lib/api/customers";
-import { formatCLP, cn } from "@/lib/utils";
+import { formatCLP, cn, paymentStatusLabel } from "@/lib/utils";
 import {
   useIsCashier,
   useSessionStore,
@@ -122,14 +122,14 @@ function orderTypeLabel(value?: string | null): string {
 
 type QuickFilter = "ALL" | "PENDING" | "OPEN_ACCOUNTS" | "POR_DELIVER" | "DELIVERED" | "PAID" | "CANCELLED";
 
-const QUICK_FILTERS: { value: QuickFilter; label: string }[] = [
-  { value: "ALL", label: "Todos" },
-  { value: "PENDING", label: "Por pagar" },
-  { value: "OPEN_ACCOUNTS", label: "Cuentas abiertas" },
-  { value: "POR_DELIVER", label: "Por entregar" },
-  { value: "DELIVERED", label: "Entregados" },
-  { value: "PAID", label: "Cobradas" },
-  { value: "CANCELLED", label: "Anuladas" },
+const QUICK_FILTERS: { value: QuickFilter; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { value: "ALL", label: "Todos", icon: ShoppingBag },
+  { value: "PENDING", label: "Por pagar", icon: Wallet },
+  { value: "OPEN_ACCOUNTS", label: "Cuentas abiertas", icon: ClipboardList },
+  { value: "POR_DELIVER", label: "Por entregar", icon: Truck },
+  { value: "DELIVERED", label: "Entregados", icon: Package },
+  { value: "PAID", label: "Cobradas", icon: Receipt },
+  { value: "CANCELLED", label: "Anuladas", icon: Ban },
 ];
 
 const STAT_TONES = {
@@ -157,8 +157,8 @@ function StatCard({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex w-full items-center gap-3 rounded-2xl border border-border bg-muted/30 p-4 text-left shadow-sm transition-colors",
-        onClick && "hover:border-primary/50 hover:bg-muted/30",
+        "flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left shadow-sm transition-colors",
+        onClick && "hover:border-primary/50 hover:bg-card",
       )}
     >
       <div
@@ -329,7 +329,7 @@ function OrderListRow({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.97 }}
       transition={{ duration: 0.2 }}
-      className="flex flex-col gap-2 rounded-2xl border border-border bg-muted/30 p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+      className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", typeMeta.bg)}>
           <TypeIcon className="h-5 w-5" />
@@ -497,7 +497,7 @@ function OrderCard({
       exit={{ opacity: 0, scale: 0.96 }}
       whileTap={{ scale: 0.98 }}
       transition={{ delay: Math.min(index, 10) * 0.03, duration: 0.25 }}
-      className="group flex flex-col rounded-2xl border border-border bg-muted/30 p-4 shadow-sm transition-[box-shadow,border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-primary hover:shadow-lg hover:shadow-primary/10"
+      className="group flex flex-col rounded-2xl border border-border bg-card p-4 shadow-sm transition-[box-shadow,border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-primary hover:shadow-lg hover:shadow-primary/10"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
@@ -538,7 +538,7 @@ function OrderCard({
       </div>
 
       <div className="mt-3 flex flex-1 items-end justify-between gap-2 border-t border-border pt-3">
-        <div className="flex flex-1 items-center gap-2">
+        <div className="flex flex-1 items-center gap-1.5">
           <button
             type="button"
             onClick={() => onView(order)}
@@ -547,6 +547,25 @@ function OrderCard({
             <Eye className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
             Ver
           </button>
+          <button
+            type="button"
+            onClick={() => onTicket(order)}
+            className="inline-flex h-11 min-h-[44px] items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground sm:h-9"
+            title="Orden de elaboración"
+          >
+            <ClipboardList className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+          </button>
+          {order.delivery_status !== "DELIVERED" && order.status !== "CANCELLED" && (
+            <button
+              type="button"
+              onClick={() => onDeliver(order)}
+              disabled={deliverPending}
+              className="inline-flex h-11 min-h-[44px] items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-2.5 text-xs font-medium text-primary shadow-sm transition-colors hover:bg-primary/10 disabled:opacity-40 sm:h-9"
+              title="Marcar entregada"
+            >
+              <Zap className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+            </button>
+          )}
         </div>
 
         <div className="relative" ref={menuRef}>
@@ -571,26 +590,6 @@ function OrderCard({
                 className="absolute bottom-full right-0 z-20 mb-2 hidden w-48 overflow-hidden rounded-xl border border-border bg-card shadow-lg sm:block"
               >
                 <div className="flex flex-col py-1">
-                  <ActionMenuItem
-                    icon={ClipboardList}
-                    label="Orden de elaboración"
-                    onClick={() => {
-                      onTicket(order);
-                      setMenuOpen(false);
-                    }}
-                  />
-                  {order.delivery_status !== "DELIVERED" && order.status !== "CANCELLED" && (
-                    <ActionMenuItem
-                      icon={Zap}
-                      label="Marcar entregada"
-                      tone="blue"
-                      onClick={() => {
-                        onDeliver(order);
-                        setMenuOpen(false);
-                      }}
-                      disabled={deliverPending}
-                    />
-                  )}
                   {order.payment_status === "PAID" && (
                     <>
                       <ActionMenuItem
@@ -756,6 +755,7 @@ export default function SalesPage() {
   const canViewTables = useCanViewTables();
   const tablesEnabled = useIsModuleEnabledFromConfig("tables");
   const showTables = canViewTables && tablesEnabled;
+  const invoicesEnabled = useIsModuleEnabledFromConfig("invoices");
   const { download: downloadFile, isLoading: isDownloading } = useDownloadFile();
   const openView = useClientSearchParam("view") === "open";
 
@@ -894,7 +894,25 @@ export default function SalesPage() {
   const [showClientResults, setShowClientResults] = useState(false);
   const [selectedTableId, setSelectedTableId] = useState<string>("");
   const [creatingAccount, setCreatingAccount] = useState(false);
-  const [createClientName, setCreateClientName] = useState("");
+  const [createClientData, setCreateClientData] = useState<{
+    name: string;
+    dni: string;
+    phone_number: string;
+    email: string;
+    address: string;
+    commercial_business: string;
+    receiver_type: "PERSONA_NATURAL" | "EMPRESA";
+    default_document_type: "BOLETA" | "FACTURA";
+  }>({
+    name: "",
+    dni: "",
+    phone_number: "",
+    email: "",
+    address: "",
+    commercial_business: "",
+    receiver_type: "PERSONA_NATURAL",
+    default_document_type: "BOLETA",
+  });
   const [showCreateClient, setShowCreateClient] = useState(false);
 
   useEffect(() => {
@@ -1146,9 +1164,19 @@ export default function SalesPage() {
     if (creatingAccount) return;
     setAccountError(null);
     let clientId = selectedClient?.id ?? null;
-    if (!clientId && createClientName.trim()) {
+    if (!clientId && createClientData.name.trim()) {
       try {
-        const newClient = await createCustomer({ name: createClientName.trim() });
+        const newClient = await createCustomer({
+          name: createClientData.name.trim(),
+          dni: createClientData.dni.trim() || undefined,
+          phone_number: createClientData.phone_number.trim() || undefined,
+          email: createClientData.email.trim() || undefined,
+          address: createClientData.address.trim() || undefined,
+          commercial_business: createClientData.commercial_business.trim() || undefined,
+          receiver_type: createClientData.receiver_type,
+          default_document_type: createClientData.default_document_type,
+          is_active: true,
+        });
         clientId = newClient.id;
       } catch (err) {
         setAccountError(err instanceof Error ? err.message : "No se pudo crear el cliente.");
@@ -1186,7 +1214,16 @@ export default function SalesPage() {
     setSelectedClient(null);
     setShowClientResults(false);
     setSelectedTableId("");
-    setCreateClientName("");
+    setCreateClientData({
+      name: "",
+      dni: "",
+      phone_number: "",
+      email: "",
+      address: "",
+      commercial_business: "",
+      receiver_type: "PERSONA_NATURAL",
+      default_document_type: "BOLETA",
+    });
     setShowCreateClient(false);
     setAccountError(null);
   }
@@ -1195,22 +1232,7 @@ export default function SalesPage() {
     e.preventDefault();
     if (!delivering) return;
     try {
-      const activeProducts = (delivering.products ?? []).filter((p) => (p.quantity ?? 0) > 0);
-      const hasCustomQuantities = activeProducts.some((p) => {
-        const current = p.actual_quantity ?? 0;
-        const target = deliverQuantities[p.id] ?? p.quantity ?? 0;
-        return target !== current && target < (p.quantity ?? 0);
-      });
-      const items = hasCustomQuantities
-        ? activeProducts.map((p) => ({
-            order_product_id: String(p.id),
-            actual_quantity: Math.min(
-              deliverQuantities[p.id] ?? p.quantity ?? 0,
-              p.quantity ?? 0,
-            ),
-          }))
-        : undefined;
-      await deliver.mutateAsync({ id: delivering.id, items });
+      await deliver.mutateAsync({ id: delivering.id });
     } catch {
       // error handled by api client
     }
@@ -1324,26 +1346,30 @@ export default function SalesPage() {
 
         {/* Filtros rápidos */}
         <div className="flex flex-wrap items-center gap-2">
-          {QUICK_FILTERS.map((qf) => (
+          {QUICK_FILTERS.map((qf) => {
+            const QfIcon = qf.icon;
+            return (
             <button
               key={qf.value}
               type="button"
               onClick={() => setQuickFilter(qf.value)}
               className={cn(
-                "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
                 quickFilter === qf.value
-                  ? "bg-primary text-white"
+                  ? "bg-primary text-white shadow-sm"
                   : "border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
+              <QfIcon className="h-3.5 w-3.5" />
               {qf.label}
             </button>
-          ))}
+            );
+          })}
         </div>
 
         {/* Filtros específicos para entregas pendientes */}
         {quickFilter === "POR_DELIVER" && (
-          <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-muted/30 p-2 shadow-sm">
+          <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-card p-2 shadow-sm">
             <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-0.5">
               {([
                 { key: "ALL", label: "Todos" },
@@ -1392,7 +1418,7 @@ export default function SalesPage() {
 
         {/* Filtros avanzados (desktop, colapsables) */}
         {advancedOpen && (
-            <div className="hidden grid-cols-2 gap-3 rounded-2xl border border-border bg-muted/30 p-3 shadow-sm sm:grid md:grid-cols-3 lg:grid-cols-6">
+            <div className="hidden grid-cols-2 gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm sm:grid md:grid-cols-3 lg:grid-cols-6">
               <div className="flex flex-col gap-1">
                 <label htmlFor="filter-status" className="text-xs text-muted-foreground">Estado</label>
                 <Select id="filter-status" value={status} onChange={(e) => updateFilter(setStatus, e.target.value)} className="h-10 text-sm sm:h-9">
@@ -1520,7 +1546,7 @@ export default function SalesPage() {
         ) : isLoading ? (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-44 animate-pulse rounded-2xl border border-border bg-muted/30 shadow-sm" />
+              <div key={i} className="h-44 animate-pulse rounded-2xl border border-border bg-card shadow-sm" />
             ))}
           </div>
         ) : (
@@ -1718,13 +1744,21 @@ export default function SalesPage() {
                         <div className="min-w-0 flex-1">
                           <p className="truncate font-medium">{payment.payment_method_name ?? "Pago"}</p>
                           <p className="mt-0.5 text-xs text-muted-foreground">
-                            {payment.status_display ?? payment.status}
+                            {paymentStatusLabel(payment.status)}
                             {payment.reference ? ` · ${payment.reference}` : ""}
                           </p>
                         </div>
-                        <p className="shrink-0 font-semibold tabular-nums">
-                          {formatCLP(parseFloat(payment.amount ?? "0"))}
-                        </p>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <input
+                            type="date"
+                            defaultValue={payment.payment_date ? payment.payment_date.slice(0, 10) : ""}
+                            className="h-7 rounded-md border border-border/60 bg-background px-1.5 text-[11px] tabular-nums text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                            title="Fecha del pago"
+                          />
+                          <p className="font-semibold tabular-nums">
+                            {formatCLP(parseFloat(payment.amount ?? "0"))}
+                          </p>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1875,95 +1909,32 @@ export default function SalesPage() {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            {(delivering.products ?? []).filter((p) => (p.quantity ?? 0) > 0).length > 0 ? (
-              <form onSubmit={handleDeliverSubmit} className="flex flex-col gap-4">
-                <p className="text-sm text-muted-foreground">
-                  Ajusta la cantidad entregada de cada producto. Lo que aún no se entrega quedará pendiente en la cuenta.
-                </p>
-                <div className="flex max-h-[50vh] flex-col gap-3 overflow-y-auto rounded-xl border border-border bg-muted/30 p-3">
+            <form onSubmit={handleDeliverSubmit} className="flex flex-col gap-4">
+              {(delivering.products ?? []).filter((p) => (p.quantity ?? 0) > 0).length > 0 && (
+                <div className="flex flex-col gap-3 rounded-xl border border-border bg-background p-3">
+                  <p className="text-xs font-medium text-muted-foreground">Productos a entregar:</p>
                   {(delivering.products ?? [])
                     .filter((p) => (p.quantity ?? 0) > 0)
-                    .map((p) => {
-                      const current = p.actual_quantity ?? 0;
-                      const target = deliverQuantities[p.id] ?? p.quantity ?? 0;
-                      return (
-                        <div key={p.id} className="flex items-center justify-between gap-3">
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium">{p.product_name ?? "Producto"}</p>
-                            <p className="text-xs text-muted-foreground">
-                              Solicitado: {p.quantity} {current > 0 ? `· Entregado: ${current}` : ""}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setDeliverQuantities((prev) => ({
-                                  ...prev,
-                                  [p.id]: Math.max(current, (prev[p.id] ?? p.quantity ?? 0) - 1),
-                                }))
-                              }
-                              disabled={(deliverQuantities[p.id] ?? p.quantity ?? 0) <= current}
-                              className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background text-foreground hover:bg-muted disabled:opacity-40"
-                            >
-                              −
-                            </button>
-                            <input
-                              type="number"
-                              min={current}
-                              max={p.quantity}
-                              value={target}
-                              onChange={(e) => {
-                                const val = Math.min(
-                                  p.quantity ?? 0,
-                                  Math.max(current, Number(e.target.value) || 0),
-                                );
-                                setDeliverQuantities((prev) => ({ ...prev, [p.id]: val }));
-                              }}
-                              className="h-8 w-14 rounded-lg border border-border bg-background px-2 text-center text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/20"
-                            />
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setDeliverQuantities((prev) => ({
-                                  ...prev,
-                                  [p.id]: Math.min(p.quantity ?? 0, (prev[p.id] ?? p.quantity ?? 0) + 1),
-                                }))
-                              }
-                              disabled={(deliverQuantities[p.id] ?? p.quantity ?? 0) >= (p.quantity ?? 0)}
-                              className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background text-foreground hover:bg-muted disabled:opacity-40"
-                            >
-                              +
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
+                    .map((p) => (
+                      <div key={p.id} className="flex items-center justify-between gap-3 text-sm">
+                        <span className="truncate font-medium">{p.product_name ?? "Producto"}</span>
+                        <span className="shrink-0 tabular-nums text-muted-foreground">x{p.quantity ?? 0}</span>
+                      </div>
+                    ))}
                 </div>
-                <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={() => closeDelivering()} disabled={deliver.isPending}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit" isLoading={deliver.isPending}>
-                    Confirmar entrega
-                  </Button>
-                </div>
-              </form>
-            ) : (
-              <form onSubmit={handleDeliverSubmit} className="flex flex-col gap-4">
-                <p className="text-sm text-muted-foreground">
-                  ¿Marcar {orderTypeLabel(delivering.order_type).toLowerCase()} <strong>{delivering.order_number ?? delivering.id.slice(0, 8)}</strong> como entregada?
-                </p>
-                <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={() => closeDelivering()} disabled={deliver.isPending}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit" isLoading={deliver.isPending}>
-                    Confirmar entrega
-                  </Button>
-                </div>
-              </form>
-            )}
+              )}
+              <p className="text-sm text-muted-foreground">
+                ¿Confirmar entrega de {orderTypeLabel(delivering.order_type).toLowerCase()} <strong>{delivering.order_number ?? delivering.id.slice(0, 8)}</strong>?
+              </p>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => closeDelivering()} disabled={deliver.isPending}>
+                  Cancelar
+                </Button>
+                <Button type="submit" isLoading={deliver.isPending}>
+                  Confirmar
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -2067,28 +2038,150 @@ export default function SalesPage() {
                     <button
                       type="button"
                       onClick={() => setShowCreateClient(true)}
-                      className="self-start text-xs text-primary hover:underline"
+                      className="self-start text-xs font-medium text-primary hover:underline"
                     >
-                      + Crear cliente rápido
+                      + Crear cliente nuevo
                     </button>
                   ) : (
-                    <div className="flex items-center gap-2">
-                      <Input
-                        value={createClientName}
-                        onChange={(e) => setCreateClientName(e.target.value)}
-                        placeholder="Nombre del nuevo cliente"
-                        className="h-8 flex-1 text-sm"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowCreateClient(false);
-                          setCreateClientName("");
-                        }}
-                        className="text-xs text-muted-foreground hover:text-foreground"
-                      >
-                        Cancelar
-                      </button>
+                    <div className="flex flex-col gap-2.5 rounded-xl border border-primary/20 bg-primary/[0.02] p-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-foreground">
+                          Nuevo cliente
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowCreateClient(false);
+                            setCreateClientData({
+                              name: "",
+                              dni: "",
+                              phone_number: "",
+                              email: "",
+                              address: "",
+                              commercial_business: "",
+                              receiver_type: "PERSONA_NATURAL",
+                              default_document_type: "BOLETA",
+                            });
+                          }}
+                          className="text-xs text-muted-foreground hover:text-foreground"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <div className="flex flex-col gap-1 sm:col-span-2">
+                          <label className="text-[11px] font-medium text-muted-foreground">
+                            Nombre completo <span className="text-danger">*</span>
+                          </label>
+                          <Input
+                            value={createClientData.name}
+                            onChange={(e) =>
+                              setCreateClientData((prev) => ({ ...prev, name: e.target.value }))
+                            }
+                            placeholder="Ej: Juan Pérez"
+                            className="h-8 text-xs"
+                            required
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[11px] font-medium text-muted-foreground">
+                            RUT / DNI
+                          </label>
+                          <Input
+                            value={createClientData.dni}
+                            onChange={(e) =>
+                              setCreateClientData((prev) => ({ ...prev, dni: e.target.value }))
+                            }
+                            placeholder="12.345.678-9"
+                            className="h-8 text-xs"
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[11px] font-medium text-muted-foreground">
+                            Teléfono
+                          </label>
+                          <Input
+                            value={createClientData.phone_number}
+                            onChange={(e) =>
+                              setCreateClientData((prev) => ({ ...prev, phone_number: e.target.value }))
+                            }
+                            placeholder="+56 9 1234 5678"
+                            className="h-8 text-xs"
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-1 sm:col-span-2">
+                          <label className="text-[11px] font-medium text-muted-foreground">
+                            Correo electrónico
+                          </label>
+                          <Input
+                            type="email"
+                            value={createClientData.email}
+                            onChange={(e) =>
+                              setCreateClientData((prev) => ({ ...prev, email: e.target.value }))
+                            }
+                            placeholder="correo@ejemplo.com"
+                            className="h-8 text-xs"
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-1 sm:col-span-2">
+                          <label className="text-[11px] font-medium text-muted-foreground">
+                            Dirección
+                          </label>
+                          <Input
+                            value={createClientData.address}
+                            onChange={(e) =>
+                              setCreateClientData((prev) => ({ ...prev, address: e.target.value }))
+                            }
+                            placeholder="Calle, número, comuna"
+                            className="h-8 text-xs"
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[11px] font-medium text-muted-foreground">
+                            Tipo de receptor
+                          </label>
+                          <Select
+                            value={createClientData.receiver_type}
+                            onChange={(e) =>
+                              setCreateClientData((prev) => ({
+                                ...prev,
+                                receiver_type: e.target.value as "PERSONA_NATURAL" | "EMPRESA",
+                              }))
+                            }
+                            className="h-8 text-xs"
+                          >
+                            <option value="PERSONA_NATURAL">Persona natural</option>
+                            <option value="EMPRESA">Empresa</option>
+                          </Select>
+                        </div>
+
+                        {invoicesEnabled && (
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[11px] font-medium text-muted-foreground">
+                            Documento por defecto
+                          </label>
+                          <Select
+                            value={createClientData.default_document_type}
+                            onChange={(e) =>
+                              setCreateClientData((prev) => ({
+                                ...prev,
+                                default_document_type: e.target.value as "BOLETA" | "FACTURA",
+                              }))
+                            }
+                            className="h-8 text-xs"
+                          >
+                            <option value="BOLETA">Boleta</option>
+                            <option value="FACTURA">Factura</option>
+                          </Select>
+                        </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -2135,7 +2228,7 @@ export default function SalesPage() {
                     size="sm"
                     onClick={handleCreateAccount}
                     isLoading={creatingAccount}
-                    disabled={!selectedClient && !createClientName.trim()}
+                    disabled={!selectedClient && !createClientData.name.trim()}
                   >
                     Crear cuenta
                   </Button>

@@ -107,9 +107,9 @@ function ProductCardRaw({ product, recipe, ingredients, onClick, onKeyDown }: Pr
       whileTap={disabled ? undefined : { scale: 0.97 }}
       transition={{ type: "spring", stiffness: 500, damping: 20 }}
       className={cn(
-        "group flex cursor-pointer flex-col overflow-hidden rounded-2xl border bg-card p-3 transition-all",
+        "group flex cursor-pointer flex-col overflow-hidden rounded-2xl border bg-background p-3 transition-all",
         "shadow-none hover:-translate-y-0.5 hover:border-primary/25 hover:bg-primary/[0.02] hover:shadow-sm",
-        "aria-disabled:cursor-not-allowed aria-disabled:opacity-55 aria-disabled:hover:translate-y-0 aria-disabled:hover:border-border/60 aria-disabled:hover:shadow-none aria-disabled:hover:bg-card",
+        "aria-disabled:cursor-not-allowed aria-disabled:opacity-55 aria-disabled:hover:translate-y-0 aria-disabled:hover:border-border/60 aria-disabled:hover:shadow-none aria-disabled:hover:bg-background",
         disabled ? "border-border/40" : "border-border/50",
       )}
     >

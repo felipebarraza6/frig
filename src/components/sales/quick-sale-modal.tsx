@@ -14,7 +14,6 @@ import {
   Store,
   User,
   Package,
-  MonitorSmartphone,
   ChevronDown,
   Check,
   Truck,
@@ -39,6 +38,7 @@ import { fetchTaxTypes, type TaxType } from "@/lib/api/tax-types";
 import { searchCustomers, createCustomer } from "@/lib/api/customers";
 import { occupyTable, fetchTables } from "@/lib/api/tables";
 import { useCurrentBranch, useCanViewTables, useIsModuleEnabledFromConfig } from "@/lib/store/session";
+import { usePosConfig } from "@/lib/store/pos-config";
 import { useToast } from "@/lib/store/toast";
 import { formatCLP, cn } from "@/lib/utils";
 import type { YggdraSchemas } from "@/lib/api/types";
@@ -118,6 +118,8 @@ export default function QuickSaleModal({
   const canViewTables = useCanViewTables();
   const tablesEnabled = useIsModuleEnabledFromConfig("tables");
   const showTables = canViewTables && tablesEnabled;
+  const invoicesEnabled = useIsModuleEnabledFromConfig("invoices");
+  const { config: posConfig } = usePosConfig(null);
 
   const [items, setItems] = useState<QuickItem[]>([]);
   const [removedOrderProductIds, setRemovedOrderProductIds] = useState<number[]>([]);
@@ -130,7 +132,16 @@ export default function QuickSaleModal({
   const [debouncedClientQuery, setDebouncedClientQuery] = useState("");
   const [selectedClient, setSelectedClient] = useState<ClientOption | null>(null);
   const [showClientResults, setShowClientResults] = useState(false);
-  const [createClientName, setCreateClientName] = useState("");
+  const [createClientData, setCreateClientData] = useState({
+    name: "",
+    dni: "",
+    phone_number: "",
+    email: "",
+    address: "",
+    commercial_business: "",
+    receiver_type: "PERSONA_NATURAL" as "PERSONA_NATURAL" | "EMPRESA",
+    default_document_type: "BOLETA" as "BOLETA" | "FACTURA",
+  });
   const [showCreateClient, setShowCreateClient] = useState(false);
 
   const [tableId, setTableId] = useState("");
@@ -138,7 +149,9 @@ export default function QuickSaleModal({
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryDate, setDeliveryDate] = useState("");
   const [observation, setObservation] = useState("");
-  const [chargeNow, setChargeNow] = useState(true);
+  // En Nueva Venta (SALE) es venta directa y se cobra de inmediato.
+  // En Nueva Orden (ORDER) solo se crea la orden y su pago se procesa posteriormente en Pagos.
+  const chargeNow = orderType === "SALE";
   const [payments, setPayments] = useState<PaymentLine[]>([]);
   // null = aún no se elige (se preselecciona la primera abierta), "" = sin caja.
   const [cashRegisterChoice, setCashRegisterChoice] = useState<string | null>(null);
@@ -169,15 +182,22 @@ export default function QuickSaleModal({
       setClientQuery("");
       setDebouncedClientQuery("");
       setSelectedClient(null);
-      setShowClientResults(false);
-      setCreateClientName("");
+      setCreateClientData({
+        name: "",
+        dni: "",
+        phone_number: "",
+        email: "",
+        address: "",
+        commercial_business: "",
+        receiver_type: "PERSONA_NATURAL",
+        default_document_type: "BOLETA",
+      });
       setShowCreateClient(false);
       setTableId("");
       setDeliveryMode("pickup");
       setDeliveryAddress("");
       setDeliveryDate("");
       setObservation("");
-      setChargeNow(true);
       setPayments([]);
       setCashRegisterChoice(null);
       setSelectedTaxIds([]);
@@ -445,9 +465,19 @@ export default function QuickSaleModal({
 
   async function resolveClientId(): Promise<number | null> {
     if (selectedClient) return selectedClient.id;
-    const name = createClientName.trim();
+    const name = createClientData.name.trim();
     if (!name) return null;
-    const created = await createCustomer({ name });
+    const created = await createCustomer({
+      name,
+      dni: createClientData.dni.trim() || undefined,
+      phone_number: createClientData.phone_number.trim() || undefined,
+      email: createClientData.email.trim() || undefined,
+      address: createClientData.address.trim() || undefined,
+      commercial_business: createClientData.commercial_business.trim() || undefined,
+      receiver_type: createClientData.receiver_type,
+      default_document_type: createClientData.default_document_type,
+      is_active: true,
+    });
     return created.id;
   }
 
@@ -458,11 +488,12 @@ export default function QuickSaleModal({
       setError("Agrega al menos un producto.");
       return;
     }
-    if (orderType === "ORDER" && !tableId && !selectedClient && !createClientName.trim()) {
+    const hasClient = Boolean(selectedClient || createClientData.name.trim());
+    if (orderType === "ORDER" && !tableId && !hasClient) {
       setError("Debes seleccionar o crear un cliente (o una mesa) para guardar la orden.");
       return;
     }
-    if (!chargeNow && !selectedClient && !createClientName.trim()) {
+    if (!chargeNow && !hasClient) {
       setError("Debes seleccionar o crear un cliente para dejar la venta pendiente.");
       return;
     }
@@ -573,8 +604,8 @@ export default function QuickSaleModal({
 
       toast.success(
         chargeNow
-          ? `${orderType === "ORDER" ? "Orden" : "Venta"} registrada y cobrada`
-          : `${orderType === "ORDER" ? "Orden" : "Cuenta"} guardada como pendiente`,
+          ? "Venta registrada y cobrada"
+          : "Orden creada exitosamente (pendiente de pago)",
       );
       onClose();
     } catch (err) {
@@ -608,21 +639,6 @@ export default function QuickSaleModal({
           </div>
         </div>
         <div className="flex items-center gap-1">
-          {onOpenFullPos && !existingOrderId && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                onClose();
-                onOpenFullPos();
-              }}
-              className="h-8 gap-1.5 text-xs text-muted-foreground"
-            >
-              <MonitorSmartphone className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Terminal POS</span>
-            </Button>
-          )}
           <button
             type="button"
             onClick={onClose}
@@ -658,7 +674,7 @@ export default function QuickSaleModal({
                 </button>
               )}
               {productQuery.trim().length > 0 && (
-                <div className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-xl border border-border bg-card shadow-lg">
+                <div className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-xl border border-border bg-background shadow-lg">
                   {searchingProducts && (
                     <p className="flex items-center gap-2 px-3 py-2.5 text-xs text-muted-foreground">
                       <Loader2 className="h-3.5 w-3.5 animate-spin" /> Buscando…
@@ -709,7 +725,7 @@ export default function QuickSaleModal({
                 items.map((item) => (
                   <div
                     key={item.key}
-                    className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 p-2.5"
+                    className="flex items-center gap-2 rounded-xl border border-border bg-background p-2.5"
                   >
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{item.name}</p>
@@ -781,7 +797,7 @@ export default function QuickSaleModal({
                 Cliente {orderType === "ORDER" ? "" : "(opcional)"}
               </label>
               {selectedClient ? (
-                <div className="flex items-center justify-between rounded-xl border border-border bg-muted/30 px-3 py-2">
+                <div className="flex items-center justify-between rounded-xl border border-border bg-background px-3 py-2">
                   <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
                     <User className="h-4 w-4 shrink-0 text-primary" />
                     <span className="truncate">{selectedClient.name}</span>
@@ -812,7 +828,7 @@ export default function QuickSaleModal({
                     className="h-9 pl-8 text-sm"
                   />
                   {showClientResults && debouncedClientQuery.trim().length > 0 && (
-                    <div className="absolute z-20 mt-1 max-h-40 w-full overflow-auto rounded-xl border border-border bg-card shadow-lg">
+                    <div className="absolute z-20 mt-1 max-h-40 w-full overflow-auto rounded-xl border border-border bg-background shadow-lg">
                       {searchingCustomers && (
                         <p className="px-3 py-2 text-xs text-muted-foreground">Buscando…</p>
                       )}
@@ -847,28 +863,154 @@ export default function QuickSaleModal({
                   <button
                     type="button"
                     onClick={() => setShowCreateClient(true)}
-                    className="self-start text-xs text-primary hover:underline"
+                    className="self-start text-xs font-medium text-primary hover:underline"
                   >
-                    + Crear cliente rápido
+                    + Crear cliente nuevo
                   </button>
                 ) : (
-                  <div className="flex items-center gap-2">
-                    <Input
-                      value={createClientName}
-                      onChange={(e) => setCreateClientName(e.target.value)}
-                      placeholder="Nombre del nuevo cliente"
-                      className="h-8 flex-1 text-sm"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowCreateClient(false);
-                        setCreateClientName("");
-                      }}
-                      className="text-xs text-muted-foreground hover:text-foreground"
-                    >
-                      Cancelar
-                    </button>
+                  <div className="flex flex-col gap-2.5 rounded-xl border border-primary/20 bg-primary/[0.02] p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-foreground">
+                        Nuevo cliente
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowCreateClient(false);
+                          setCreateClientData({
+                            name: "",
+                            dni: "",
+                            phone_number: "",
+                            email: "",
+                            address: "",
+                            commercial_business: "",
+                            receiver_type: "PERSONA_NATURAL",
+                            default_document_type: "BOLETA",
+                          });
+                        }}
+                        className="text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <div className="flex flex-col gap-1 sm:col-span-2">
+                        <label className="text-[11px] font-medium text-muted-foreground">
+                          Nombre completo <span className="text-danger">*</span>
+                        </label>
+                        <Input
+                          value={createClientData.name}
+                          onChange={(e) =>
+                            setCreateClientData((prev) => ({ ...prev, name: e.target.value }))
+                          }
+                          placeholder="Ej: Juan Pérez"
+                          className="h-8 text-xs"
+                          required
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[11px] font-medium text-muted-foreground">
+                          RUT / DNI
+                        </label>
+                        <Input
+                          value={createClientData.dni}
+                          onChange={(e) =>
+                            setCreateClientData((prev) => ({ ...prev, dni: e.target.value }))
+                          }
+                          placeholder="12.345.678-9"
+                          className="h-8 text-xs"
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[11px] font-medium text-muted-foreground">
+                          Teléfono
+                        </label>
+                        <Input
+                          value={createClientData.phone_number}
+                          onChange={(e) =>
+                            setCreateClientData((prev) => ({ ...prev, phone_number: e.target.value }))
+                          }
+                          placeholder="+56 9 1234 5678"
+                          className="h-8 text-xs"
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1 sm:col-span-2">
+                        <label className="text-[11px] font-medium text-muted-foreground">
+                          Correo electrónico
+                        </label>
+                        <Input
+                          type="email"
+                          value={createClientData.email}
+                          onChange={(e) =>
+                            setCreateClientData((prev) => ({ ...prev, email: e.target.value }))
+                          }
+                          placeholder="correo@ejemplo.com"
+                          className="h-8 text-xs"
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1 sm:col-span-2">
+                        <label className="text-[11px] font-medium text-muted-foreground">
+                          Dirección
+                        </label>
+                        <Input
+                          value={createClientData.address}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setCreateClientData((prev) => ({ ...prev, address: val }));
+                            if (deliveryMode === "delivery" && !deliveryAddress) {
+                              setDeliveryAddress(val);
+                            }
+                          }}
+                          placeholder="Calle, número, comuna"
+                          className="h-8 text-xs"
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[11px] font-medium text-muted-foreground">
+                          Tipo de receptor
+                        </label>
+                        <Select
+                          value={createClientData.receiver_type}
+                          onChange={(e) =>
+                            setCreateClientData((prev) => ({
+                              ...prev,
+                              receiver_type: e.target.value as "PERSONA_NATURAL" | "EMPRESA",
+                            }))
+                          }
+                          className="h-8 text-xs"
+                        >
+                          <option value="PERSONA_NATURAL">Persona natural</option>
+                          <option value="EMPRESA">Empresa</option>
+                        </Select>
+                      </div>
+
+                      {invoicesEnabled && (
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[11px] font-medium text-muted-foreground">
+                          Documento por defecto
+                        </label>
+                        <Select
+                          value={createClientData.default_document_type}
+                          onChange={(e) =>
+                            setCreateClientData((prev) => ({
+                              ...prev,
+                              default_document_type: e.target.value as "BOLETA" | "FACTURA",
+                            }))
+                          }
+                          className="h-8 text-xs"
+                        >
+                          <option value="BOLETA">Boleta</option>
+                          <option value="FACTURA">Factura</option>
+                        </Select>
+                      </div>
+                      )}
+                    </div>
                   </div>
                 ))}
             </div>
@@ -894,36 +1036,41 @@ export default function QuickSaleModal({
               </div>
             )}
 
-            {/* Entrega: retiro en tienda o reparto */}
+            {/* Entrega: retiro en tienda o reparto — oculto si deliveries está desactivado */}
+            {(posConfig.delivery || posConfig.pickup) && (
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground">Entrega</label>
-              <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/50 p-0.5">
+              <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-0.5">
+                {posConfig.pickup && (
                 <button
                   type="button"
                   onClick={() => setDeliveryMode("pickup")}
                   className={cn(
                     "flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-medium transition-colors",
                     deliveryMode === "pickup"
-                      ? "bg-card text-foreground shadow-sm"
-                      : "text-muted-foreground hover:bg-muted/50",
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:bg-background",
                   )}
                 >
-                  <Store className="h-3.5 w-3.5" />
-                  Retiro en tienda
+                  {posConfig.delivery ? <Store className="h-3.5 w-3.5" /> : <MapPin className="h-3.5 w-3.5" />}
+                  {posConfig.delivery ? "Retiro en tienda" : "Retiro en tienda"}
                 </button>
+                )}
+                {posConfig.delivery && (
                 <button
                   type="button"
                   onClick={() => setDeliveryMode("delivery")}
                   className={cn(
                     "flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-medium transition-colors",
                     deliveryMode === "delivery"
-                      ? "bg-card text-foreground shadow-sm"
-                      : "text-muted-foreground hover:bg-muted/50",
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:bg-background",
                   )}
                 >
                   <Truck className="h-3.5 w-3.5" />
                   Reparto
                 </button>
+                )}
               </div>
               {deliveryMode === "delivery" && (
                 <div className="flex flex-col gap-1.5">
@@ -948,6 +1095,7 @@ export default function QuickSaleModal({
                 </div>
               )}
             </div>
+            )}
 
             <div className="flex flex-col gap-1.5">
               <label htmlFor="quick-sale-obs" className="text-xs font-medium text-muted-foreground">
@@ -964,7 +1112,7 @@ export default function QuickSaleModal({
 
             {/* Impuestos configurados (Finanzas → Configuración) */}
             {(taxTypes ?? []).length > 0 && (
-              <div className="rounded-2xl border border-border bg-muted/30 p-3">
+              <div className="rounded-2xl border border-border bg-background p-3">
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Impuestos
                 </p>
@@ -988,34 +1136,20 @@ export default function QuickSaleModal({
               </div>
             )}
 
-            {/* Cobro */}
-            <div className="rounded-2xl border border-border bg-muted/30 p-3">
+            {/* Cobro / Estado de pago */}
+            <div className="rounded-2xl border border-border bg-background p-3">
               <div className="mb-2 flex items-center justify-between">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Cobro
+                  {chargeNow ? "Cobro inmediato" : "Pago de la orden"}
                 </p>
-                <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-0.5">
-                  <button
-                    type="button"
-                    onClick={() => setChargeNow(true)}
-                    className={cn(
-                      "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-                      chargeNow ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    Cobrar ahora
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setChargeNow(false)}
-                    className={cn(
-                      "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-                      !chargeNow ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    Pendiente
-                  </button>
-                </div>
+                <span
+                  className={cn(
+                    "rounded-md px-2.5 py-1 text-xs font-medium",
+                    chargeNow ? "bg-primary text-white" : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  {chargeNow ? "Venta directa" : "Se paga en Pagos"}
+                </span>
               </div>
 
               {chargeNow ? (
@@ -1093,7 +1227,7 @@ export default function QuickSaleModal({
                     <button
                       type="button"
                       onClick={() => setRegisterOpen((v) => !v)}
-                      className="flex h-8 w-full items-center justify-between gap-2 rounded-lg border border-border bg-card px-2.5 text-left text-xs shadow-sm transition-colors hover:bg-muted"
+                      className="flex h-8 w-full items-center justify-between gap-2 rounded-lg border border-border bg-background px-2.5 text-left text-xs shadow-sm transition-colors hover:bg-muted"
                     >
                       <span className="truncate">
                         {selectedRegister
@@ -1103,7 +1237,7 @@ export default function QuickSaleModal({
                       <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform", registerOpen && "rotate-180")} />
                     </button>
                     {registerOpen && (
-                      <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-40 overflow-auto rounded-xl border border-border bg-card shadow-lg">
+                      <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-40 overflow-auto rounded-xl border border-border bg-background shadow-lg">
                         <button
                           type="button"
                           onClick={() => {
@@ -1150,9 +1284,12 @@ export default function QuickSaleModal({
                   </div>
                 </div>
               ) : (
-                <p className="text-xs text-muted-foreground">
-                  Se guarda como {orderType === "ORDER" ? "orden" : "cuenta"} pendiente de cobro. Requiere cliente.
-                </p>
+                <div className="rounded-xl border border-border/60 bg-muted/40 p-3 text-xs text-muted-foreground">
+                  <p className="font-medium text-foreground">Creación de orden sin cobro directo</p>
+                  <p className="mt-0.5">
+                    Esta orden se creará con estado de pago pendiente. El cobro o abono se realiza posteriormente en la sección <strong className="text-foreground">Pagos</strong>.
+                  </p>
+                </div>
               )}
 
               <div className="mt-2 border-t border-border pt-2 text-sm">
@@ -1217,7 +1354,7 @@ export default function QuickSaleModal({
             ? `Registrar y cobrar · ${formatCLP(paidTotal || grandTotal)}`
             : existingOrderId
               ? "Guardar cambios"
-              : `Guardar ${orderType === "ORDER" ? "orden" : "cuenta"} pendiente`}
+              : "Crear orden"}
         </Button>
       </ModalFooter>
     </Modal>

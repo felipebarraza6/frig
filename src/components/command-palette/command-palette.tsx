@@ -218,7 +218,7 @@ export function CommandPalette({ items, open, onClose }: CommandPaletteProps) {
             >
               {/* Halo neón difuso detrás del panel */}
               <div aria-hidden className="neon-border-glow absolute -inset-1.5 -z-10 rounded-3xl" />
-              <div className="overflow-hidden rounded-[calc(1rem-1px)] bg-card/95 backdrop-blur-2xl">
+              <div className="overflow-hidden rounded-[calc(1rem-1px)] bg-background/95 backdrop-blur-2xl">
               <div className="flex items-center gap-2.5 px-4 py-3.5">
                 <Search className="h-4 w-4 shrink-0 text-primary" />
                 <input
@@ -231,7 +231,7 @@ export function CommandPalette({ items, open, onClose }: CommandPaletteProps) {
                   className="h-8 flex-1 bg-transparent text-sm text-foreground caret-primary outline-none placeholder:text-muted-foreground/60"
                   autoFocus
                 />
-                <kbd className="rounded-md border border-border bg-muted/50 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                <kbd className="rounded-md border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
                   esc
                 </kbd>
                 <button
@@ -317,15 +317,15 @@ export function CommandPalette({ items, open, onClose }: CommandPaletteProps) {
 
               <div className="flex items-center gap-3 border-t border-border/70 px-4 py-2 text-[11px] text-muted-foreground">
                 <span className="flex items-center gap-1">
-                  <kbd className="rounded border border-border bg-muted/50 px-1 py-px font-mono">↑↓</kbd>
+                  <kbd className="rounded border border-border bg-background px-1 py-px font-mono">↑↓</kbd>
                   navegar
                 </span>
                 <span className="flex items-center gap-1">
-                  <kbd className="rounded border border-border bg-muted/50 px-1 py-px font-mono">↵</kbd>
+                  <kbd className="rounded border border-border bg-background px-1 py-px font-mono">↵</kbd>
                   abrir
                 </span>
                 <span className="flex items-center gap-1">
-                  <kbd className="rounded border border-border bg-muted/50 px-1 py-px font-mono">esc</kbd>
+                  <kbd className="rounded border border-border bg-background px-1 py-px font-mono">esc</kbd>
                   cerrar
                 </span>
               </div>

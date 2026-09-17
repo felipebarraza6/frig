@@ -94,7 +94,7 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden pb-[max(0.75rem,env(safe-area-inset-bottom))] pointer-events-none">
       <div
-        className="mx-3 flex items-center justify-around rounded-2xl border-2 border-primary/30 bg-card px-1.5 py-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.15)] pointer-events-auto min-h-[58px]"
+        className="mx-3 flex items-center justify-around rounded-2xl border-2 border-primary/30 bg-background px-1.5 py-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.15)] pointer-events-auto min-h-[58px]"
       >
         {items.map((item) => {
           const isActive =

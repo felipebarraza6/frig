@@ -161,7 +161,7 @@ export function KdsBoard({
           {Array.from({ length: 3 }).map((_, col) => (
             <div
               key={col}
-              className="flex min-h-0 flex-col rounded-2xl border border-border bg-muted/30"
+              className="flex min-h-0 flex-col rounded-2xl border border-border bg-background"
             >
               <div className="flex items-center gap-2 px-4 py-3">
                 <Skeleton className="h-4 w-4 rounded" />
@@ -172,7 +172,7 @@ export function KdsBoard({
                 {Array.from({ length: col === 0 ? 3 : 2 }).map((_, i) => (
                   <div
                     key={i}
-                    className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm"
+                    className="rounded-2xl border border-border bg-background p-4 shadow-sm"
                   >
                     <div className="mb-2 flex items-center justify-between">
                       <Skeleton className="h-3 w-24" />
@@ -272,7 +272,7 @@ export function KdsBoard({
           return (
             <div
               key={col.key}
-              className="flex min-h-0 flex-col rounded-2xl border border-border bg-muted/30"
+              className="flex min-h-0 flex-col rounded-2xl border border-border bg-background"
             >
               <div
                 className={cn(
@@ -351,7 +351,7 @@ function TicketCard({
     cancelMutation.isPending;
 
   return (
-    <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm transition-shadow hover:shadow-md">
+    <div className="rounded-2xl border border-border bg-background p-4 shadow-sm transition-shadow hover:shadow-md">
       <div className="mb-2 flex items-center justify-between">
         <span className="text-xs font-medium text-muted-foreground">
           Orden #{ticket.order.slice(0, 8)}
@@ -528,7 +528,7 @@ export function StationsModal({
       className="bg-black/50"
       panelClassName="flex items-end justify-center sm:items-center sm:p-4"
     >
-      <div className="flex h-[85vh] w-full flex-col rounded-t-2xl border border-border bg-card shadow-xl sm:h-auto sm:max-h-[90vh] sm:max-w-lg sm:rounded-xl">
+      <div className="flex h-[85vh] w-full flex-col rounded-t-2xl border border-border bg-background shadow-xl sm:h-auto sm:max-h-[90vh] sm:max-w-lg sm:rounded-xl">
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <h2 className="text-base font-semibold">Estaciones de cocina</h2>
           <Button variant="ghost" size="icon" onClick={onClose}>

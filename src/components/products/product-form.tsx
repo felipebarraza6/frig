@@ -243,7 +243,7 @@ function buildInitialForm(product?: YggdraProductDetail, defaultProductType?: st
 
 function ProductFormSkeleton() {
   return (
-    <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg sm:h-[85vh] sm:max-w-3xl sm:rounded-xl sm:border">
+    <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg sm:h-[85vh] sm:max-w-3xl sm:rounded-xl sm:border">
       <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 sm:px-6">
         <Skeleton className="h-5 w-40" />
         <Skeleton className="h-8 w-8 rounded-lg" />
@@ -1007,7 +1007,7 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
       {isInitializing ? (
         <ProductFormSkeleton />
       ) : (
-      <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg sm:h-[85vh] sm:max-w-3xl sm:rounded-xl sm:border">
+      <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg sm:h-[85vh] sm:max-w-3xl sm:rounded-xl sm:border">
         <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 sm:px-6">
           <h2 className="text-base font-semibold">
             {effectiveProduct ? "Editar producto" : "Nuevo producto"}
@@ -1231,7 +1231,7 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
             {isSellable && (
               <label className={cn(
                 "flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2.5 text-sm transition-colors",
-                form.isForSale ? "border-primary/40 bg-primary/8" : "border-border bg-muted/30",
+                form.isForSale ? "border-primary/40 bg-primary/8" : "border-border bg-background",
               )}>
                 <input
                   type="checkbox"
@@ -1247,7 +1247,7 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
             )}
             <label className={cn(
               "flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2.5 text-sm transition-colors",
-              form.isActive ? "border-primary/40 bg-primary/8" : "border-border bg-muted/30",
+              form.isActive ? "border-primary/40 bg-primary/8" : "border-border bg-background",
             )}>
               <input
                 type="checkbox"
@@ -1262,7 +1262,7 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
             </label>
             <label className={cn(
               "flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2.5 text-sm transition-colors",
-              form.isForInternalUse ? "border-primary/40 bg-primary/8" : "border-border bg-muted/30",
+              form.isForInternalUse ? "border-primary/40 bg-primary/8" : "border-border bg-background",
             )}>
               <input
                 type="checkbox"
@@ -1278,7 +1278,7 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
             {isSellable && publicCatalogEnabled && (
               <label className={cn(
                 "flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2.5 text-sm transition-colors",
-                form.isPublic ? "border-primary/40 bg-primary/8" : "border-border bg-muted/30",
+                form.isPublic ? "border-primary/40 bg-primary/8" : "border-border bg-background",
               )}>
                 <input
                   type="checkbox"
@@ -1638,7 +1638,7 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
                     className="pl-9"
                   />
                   {ingredientSearchInput.trim().length >= 2 && (
-                    <div className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-lg border border-border bg-card shadow-lg">
+                    <div className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-lg border border-border bg-background shadow-lg">
                       {ingredientProducts.length === 0 ? (
                         <p className="px-3 py-2 text-xs text-muted-foreground">No se encontraron materias primas.</p>
                       ) : (

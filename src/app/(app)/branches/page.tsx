@@ -164,7 +164,7 @@ export default function BranchesPage() {
         ) : isLoading ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-52 animate-pulse rounded-2xl border border-border bg-muted/30" />
+              <div key={i} className="h-52 animate-pulse rounded-2xl border border-border bg-background" />
             ))}
           </div>
         ) : branches.length === 0 ? (
@@ -197,12 +197,12 @@ export default function BranchesPage() {
                   <article
                     key={b.branch_id}
                     className={cn(
-                      "group relative flex w-full max-w-sm flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all hover:border-primary/40 hover:shadow-md",
+                      "group relative flex w-full max-w-sm flex-col overflow-hidden rounded-2xl border border-border bg-background transition-all hover:border-primary/40 hover:shadow-md",
                       !b.is_active && "opacity-60",
                     )}
                   >
                     {/* Header con avatar centrado */}
-                    <div className="relative flex flex-col items-center gap-3 border-b border-border bg-muted/30 px-4 pb-4 pt-5">
+                    <div className="relative flex flex-col items-center gap-3 border-b border-border bg-background px-4 pb-4 pt-5">
                       <BrandLogo
                         src={branchLogo}
                         alt={branchName(b)}

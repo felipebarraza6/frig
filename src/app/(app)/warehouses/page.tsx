@@ -352,7 +352,7 @@ export default function WarehousesPage() {
               {Array.from({ length: 4 }).map((_, i) => (
                 <div
                   key={i}
-                  className="rounded-2xl border border-border bg-card p-4 shadow-sm"
+                  className="rounded-2xl border border-border bg-background p-4 shadow-sm"
                 >
                   <div className="flex items-center gap-3">
                     <Skeleton className="h-10 w-10 rounded-xl" />
@@ -367,7 +367,7 @@ export default function WarehousesPage() {
             {/* Tarjetas */}
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                <div key={i} className="rounded-2xl border border-border bg-background p-4 shadow-sm">
                   <div className="flex items-center gap-3">
                     <Skeleton className="h-11 w-11 rounded-xl" />
                     <div className="space-y-2">
@@ -403,7 +403,7 @@ export default function WarehousesPage() {
           <>
             {/* Resumen global */}
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
+              <div className="rounded-2xl border border-border bg-background p-4 shadow-sm">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
                     <Warehouse className="h-5 w-5 text-primary" />
@@ -414,7 +414,7 @@ export default function WarehousesPage() {
                   </div>
                 </div>
               </div>
-              <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
+              <div className="rounded-2xl border border-border bg-background p-4 shadow-sm">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
                     <Package className="h-5 w-5 text-primary" />
@@ -425,7 +425,7 @@ export default function WarehousesPage() {
                   </div>
                 </div>
               </div>
-              <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
+              <div className="rounded-2xl border border-border bg-background p-4 shadow-sm">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20">
                     <Coins className="h-5 w-5 text-primary" />
@@ -436,7 +436,7 @@ export default function WarehousesPage() {
                   </div>
                 </div>
               </div>
-              <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
+              <div className="rounded-2xl border border-border bg-background p-4 shadow-sm">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15">
                     <TrendingUp className="h-5 w-5 text-primary" />
@@ -488,7 +488,7 @@ export default function WarehousesPage() {
                     key={w.id}
                     onClick={() => router.push(`/warehouses/view?id=${w.id}`)}
                     className={cn(
-                      "group cursor-pointer rounded-2xl border border-border bg-card p-4 shadow-sm transition",
+                      "group cursor-pointer rounded-2xl border border-border bg-background p-4 shadow-sm transition",
                       "hover:border-primary hover:shadow-md",
                     )}
                   >
@@ -515,21 +515,21 @@ export default function WarehousesPage() {
                     </div>
 
                     <div className="mt-4 grid grid-cols-2 gap-3">
-                      <div className="rounded-xl bg-muted/50 p-3">
+                      <div className="rounded-xl bg-background p-3">
                         <p className="text-xs text-muted-foreground">Productos</p>
                         <p className="text-base font-semibold tabular-nums">{totalProducts}</p>
                       </div>
-                      <div className="rounded-xl bg-muted/50 p-3">
+                      <div className="rounded-xl bg-background p-3">
                         <p className="text-xs text-muted-foreground">Unidades</p>
                         <p className="text-base font-semibold tabular-nums">{totalQuantity}</p>
                       </div>
-                      <div className="rounded-xl bg-muted/50 p-3">
+                      <div className="rounded-xl bg-background p-3">
                         <p className="text-xs text-muted-foreground">Costo</p>
                         <p className="text-base font-semibold tabular-nums text-emerald-700">
                           {formatCLP(totalCost)}
                         </p>
                       </div>
-                      <div className="rounded-xl bg-muted/50 p-3">
+                      <div className="rounded-xl bg-background p-3">
                         <p className="text-xs text-muted-foreground">Venta</p>
                         <p className="text-base font-semibold tabular-nums text-primary">
                           {formatCLP(totalSale)}
@@ -627,7 +627,7 @@ export default function WarehousesPage() {
         onClose={closeModal}
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
-          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
+          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-base font-semibold">
                 {editing ? "Editar bodega" : "Nueva bodega"}
@@ -730,7 +730,7 @@ export default function WarehousesPage() {
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
           {confirmDelete && (
-            <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
+            <div className="w-full rounded-t-xl border-x border-t border-border bg-background p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
               <h2 className="text-base font-semibold">¿Eliminar bodega?</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Se desactivará <span className="font-medium text-foreground">{confirmDelete.name}</span>.

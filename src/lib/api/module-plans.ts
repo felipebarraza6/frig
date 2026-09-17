@@ -95,3 +95,28 @@ export async function cancelBranchSubscription(branchId: number): Promise<unknow
     method: "POST",
   });
 }
+export interface BranchSubscriptionHistoryItem {
+  id: number;
+  branch: number;
+  branch_name?: string;
+  plan: number;
+  plan_name: string;
+  status: "ACTIVE" | "EXPIRED" | "CANCELLED" | "PENDING";
+  start_date?: string;
+  end_date?: string | null;
+  created: string;
+}
+
+export async function fetchBranchSubscriptionHistory(branchId: number | string): Promise<BranchSubscriptionHistoryItem[]> {
+  const data = await apiFetch<{ results?: BranchSubscriptionHistoryItem[] } | BranchSubscriptionHistoryItem[]>(
+    `/branches/${branchId}/subscriptions/`
+  );
+  return Array.isArray(data) ? data : (data.results ?? []);
+}
+
+export async function fetchBranchCapabilities(branchId: number | string): Promise<any> {
+  return apiFetch<any>(`/branches/${branchId}/capabilities/`);
+}
+
+
+

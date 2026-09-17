@@ -96,7 +96,7 @@ export default function OrganizationPage() {
         {totalOrgs > 0 && (
           <button
             onClick={() => setPickerOpen(true)}
-            className="flex items-center gap-3 self-start rounded-lg border border-border px-3 py-2 transition-colors hover:border-primary/40 hover:bg-muted/50"
+            className="flex items-center gap-3 self-start rounded-lg border border-border px-3 py-2 transition-colors hover:border-primary/40 hover:bg-background"
           >
             <Building2 className="h-4 w-4 text-primary" />
             <span className="text-sm font-medium">{org?.name ?? "Seleccionar organización"}</span>
@@ -110,7 +110,7 @@ export default function OrganizationPage() {
         )}
 
         {/* Datos de la organización */}
-        <section className="rounded-xl border border-border bg-card p-4 sm:p-5">
+        <section className="rounded-xl border border-border bg-background p-4 sm:p-5">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <Building2 className="h-4 w-4 text-primary" />
@@ -143,7 +143,7 @@ export default function OrganizationPage() {
         </section>
 
         {/* Planes de módulos de la organización */}
-        <section className="rounded-xl border border-border bg-card p-4 sm:p-5">
+        <section className="rounded-xl border border-border bg-background p-4 sm:p-5">
           <h2 className="text-sm font-semibold">Planes de módulos</h2>
           <p className="mt-1 text-xs text-muted-foreground">
             Configura los planes de módulos que {org?.name ?? "esta organización"} ofrece a sus sucursales.

@@ -568,7 +568,7 @@ export default function BankAccountsPage() {
           role="dialog"
           aria-modal="true"
         >
-          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
+          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-base font-semibold">{editingId ? "Editar cuenta" : "Nueva cuenta bancaria"}</h2>
               <button onClick={closeModal} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
@@ -734,7 +734,7 @@ export default function BankAccountsPage() {
                           Solo al crear la cuenta. Usa el saldo real con el que comienza.
                         </p>
                       </div>
-                      <div className="flex flex-wrap items-center gap-6 rounded-xl border border-border bg-muted/50 p-3">
+                      <div className="flex flex-wrap items-center gap-6 rounded-xl border border-border bg-background p-3">
                         <label className="flex items-center gap-2 text-sm">
                           <input
                             type="checkbox"
@@ -785,7 +785,7 @@ export default function BankAccountsPage() {
           role="dialog"
           aria-modal="true"
         >
-          <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
+          <div className="w-full rounded-t-xl border-x border-t border-border bg-background p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">¿Eliminar cuenta?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Se eliminará <span className="font-medium text-foreground">{confirmDelete.account_name}</span>.
@@ -808,7 +808,7 @@ export default function BankAccountsPage() {
           role="dialog"
           aria-modal="true"
         >
-          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-2xl md:rounded-xl md:border">
+          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:h-auto md:max-h-[90vh] md:max-w-2xl md:rounded-xl md:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
               <div className="min-w-0">
                 <h2 className="truncate text-base font-semibold">Conciliaciones: {selectedAccount.account_name}</h2>
@@ -824,7 +824,7 @@ export default function BankAccountsPage() {
             <div className="flex flex-1 flex-col overflow-hidden">
               {/* Summary */}
               {summary && (
-                <div className="grid grid-cols-3 gap-2 border-b border-border bg-muted/30 p-3 text-center">
+                <div className="grid grid-cols-3 gap-2 border-b border-border bg-background p-3 text-center">
                   <div>
                     <p className="text-xs text-muted-foreground">Sistema</p>
                     <p className="text-sm font-semibold tabular-nums">{formatCLP(summary.system)}</p>
@@ -875,7 +875,7 @@ export default function BankAccountsPage() {
                     {Array.from({ length: 3 }).map((_, i) => (
                       <div
                         key={i}
-                        className="rounded-xl border border-border bg-card p-4 shadow-sm"
+                        className="rounded-xl border border-border bg-background p-4 shadow-sm"
                       >
                         <div className="mb-2 flex items-center justify-between">
                           <Skeleton className="h-4 w-32" />
@@ -938,7 +938,7 @@ export default function BankAccountsPage() {
           description={`Saldo actual: ${formatCLP(txAccount.current_balance)} · Mostrando: ${txPeriodLabel}`}
           size="lg"
         >
-          <div className="border-b border-border bg-muted/30 px-6 py-4">
+          <div className="border-b border-border bg-background px-6 py-4">
             <div className="grid grid-cols-3 gap-2 text-center">
               <div>
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Saldo actual</p>
@@ -1056,7 +1056,7 @@ export default function BankAccountsPage() {
                 {Array.from({ length: 6 }).map((_, i) => (
                   <div
                     key={i}
-                    className="rounded-xl border border-border bg-card p-3"
+                    className="rounded-xl border border-border bg-background p-3"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex min-w-0 items-start gap-3">
@@ -1156,7 +1156,7 @@ function StatCard({
   sub: string;
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
+    <div className="rounded-2xl border border-border bg-background p-4 shadow-sm">
       <div className="mb-2 flex items-center gap-2 text-muted-foreground">
         <Icon className="h-4 w-4" />
         <span className="text-xs font-medium">{label}</span>
@@ -1169,7 +1169,7 @@ function StatCard({
 
 function StatSkeleton() {
   return (
-    <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
+    <div className="rounded-2xl border border-border bg-background p-4 shadow-sm">
       <div className="mb-2 flex items-center gap-2">
         <Skeleton className="h-4 w-4 rounded-full" />
         <Skeleton className="h-3.5 w-24" />
@@ -1203,7 +1203,7 @@ function BankAccountCard({
   const pillClass = isInactive ? "bg-muted text-muted-foreground" : "bg-white/10 text-primary-foreground/90";
   const primaryPillClass = isInactive ? "bg-primary/10 text-primary" : "bg-white/15 text-white";
   const cardClass = isInactive
-    ? "border-border bg-muted/30"
+    ? "border-border bg-background"
     : "border-transparent bg-gradient-to-br from-primary/90 to-primary text-primary-foreground";
 
   return (
@@ -1367,7 +1367,7 @@ function BankAccountCard({
 
 function BankAccountCardSkeleton() {
   return (
-    <div className="flex flex-col rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
+    <div className="flex flex-col rounded-2xl border border-border bg-background p-4 shadow-sm">
       <div className="mb-3 flex items-start gap-3">
         <Skeleton className="h-12 w-12 shrink-0 rounded-xl" />
         <div className="min-w-0 flex-1 space-y-2">
@@ -1490,7 +1490,7 @@ function TransactionCard({ tx }: { tx: BankAccountTransaction }) {
     <button
       type="button"
       onClick={() => setExpanded((v) => !v)}
-      className="w-full rounded-xl border border-border bg-card p-3 text-left transition-colors hover:border-primary/20"
+      className="w-full rounded-xl border border-border bg-background p-3 text-left transition-colors hover:border-primary/20"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
@@ -1591,7 +1591,7 @@ function ReconciliationCard({
   const diff = rec.difference;
 
   return (
-    <div className="relative rounded-xl border border-border bg-card p-3 transition-colors hover:border-primary/20">
+    <div className="relative rounded-xl border border-border bg-background p-3 transition-colors hover:border-primary/20">
       {isLast && (
         <div className="absolute -left-px top-3 h-5 w-1 rounded-r bg-primary" aria-hidden="true" />
       )}

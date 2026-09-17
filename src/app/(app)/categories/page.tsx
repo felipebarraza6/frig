@@ -198,20 +198,20 @@ export default function CategoriesPage() {
           <>
             {/* Resumen */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-              <div className="rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
+              <div className="rounded-2xl border border-border bg-background p-3 shadow-sm">
                 <p className="text-xs text-muted-foreground">Categorías</p>
                 <p className="mt-1 text-2xl font-semibold leading-none tabular-nums">{totalCategories}</p>
               </div>
-              <div className="rounded-2xl border border-border bg-muted/30 p-3 shadow-sm">
+              <div className="rounded-2xl border border-border bg-background p-3 shadow-sm">
                 <p className="text-xs text-muted-foreground">Productos asignados</p>
                 <p className="mt-1 text-2xl font-semibold leading-none tabular-nums">{totalProducts}</p>
               </div>
             </div>
 
             {/* Vista tabla para desktop */}
-            <div className="hidden overflow-x-auto rounded-xl border border-border shadow-sm sm:block">
+            <div className="hidden overflow-x-auto rounded-xl border border-border bg-card shadow-sm sm:block">
               <table className="w-full min-w-[520px] text-sm">
-                <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <thead className="bg-background text-left text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
                     <th className="px-4 py-3">Categoría</th>
                     <th className="px-4 py-3 text-center">Tipo</th>
@@ -225,7 +225,7 @@ export default function CategoriesPage() {
                     return (
                       <tr
                         key={c.id}
-                        className="transition-colors hover:bg-muted/30"
+                        className="transition-colors hover:bg-background"
                       >
                         <td className="px-4 py-3">
                           <span className="font-medium">{c.name}</span>
@@ -285,7 +285,7 @@ export default function CategoriesPage() {
                 return (
                   <div
                     key={c.id}
-                    className="flex min-w-0 flex-col rounded-2xl border border-border bg-muted/30 p-4 shadow-sm transition-shadow hover:shadow-md"
+                    className="flex min-w-0 flex-col rounded-2xl border border-border bg-background p-4 shadow-sm transition-shadow hover:shadow-md"
                   >
                     <div className="mb-3 flex items-start justify-between gap-3">
                       <div className="min-w-0">
@@ -380,7 +380,7 @@ export default function CategoriesPage() {
         zIndex="z-[60]"
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
-          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
+          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-base font-semibold">
                 {editing ? "Editar categoría" : "Nueva categoría"}
@@ -435,7 +435,7 @@ export default function CategoriesPage() {
         zIndex="z-[60]"
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
-          <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
+          <div className="w-full rounded-t-xl border-x border-t border-border bg-background p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">¿Eliminar categoría?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Se desactivará <span className="font-medium text-foreground">{confirmDelete.name}</span>. Los productos asociados no se eliminan.

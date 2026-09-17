@@ -123,7 +123,7 @@ function ProductCard({
   const categoryName = product.category && typeof product.category === "object" ? product.category.name : null;
 
   return (
-    <div className="group flex flex-col rounded-2xl border border-border bg-muted/30 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+    <div className="group flex flex-col rounded-2xl border border-border bg-background p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
       <div className="mb-4 flex items-start gap-3">
         <div
           className={cn(
@@ -810,7 +810,7 @@ export function ProductsClient() {
             {Array.from({ length: 8 }).map((_, i) => (
               <div
                 key={i}
-                className="flex h-full w-full flex-col rounded-2xl border border-border bg-muted/30 p-4 shadow-sm"
+                className="flex h-full w-full flex-col rounded-2xl border border-border bg-background p-4 shadow-sm"
               >
                 <div className="mb-4 flex items-start gap-3">
                   <Skeleton className="h-14 w-14 shrink-0 rounded-xl" />
@@ -914,7 +914,7 @@ export function ProductsClient() {
                 {/* Vista lista (tabla) */}
                 <div
                   className={cn(
-                    "hidden overflow-x-auto rounded-xl border border-border",
+                    "hidden overflow-x-auto rounded-xl border border-border bg-card shadow-sm",
                     view === "list" ? "sm:block" : "hidden",
                   )}
                 >
@@ -1099,7 +1099,7 @@ export function ProductsClient() {
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
           {confirmDelete && (
-          <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
+          <div className="w-full rounded-t-xl border-x border-t border-border bg-background p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">Eliminar producto</h2>
             <p className="mt-2 text-sm text-muted-foreground">
               ¿Seguro que quieres eliminar <strong>{confirmDelete.name}</strong>? El producto

@@ -130,7 +130,7 @@ function PlanPreview({ draft }: { draft: PlanDraft }) {
         "relative flex flex-col rounded-xl border p-4 transition-all",
         draft.highlighted
           ? "border-primary bg-primary/5 shadow-sm"
-          : "border-border bg-muted/30",
+          : "border-border bg-background",
         !draft.is_active && "opacity-50",
       )}
     >
@@ -335,7 +335,7 @@ export function PlanCatalogEditor() {
                 <button
                   type="button"
                   onClick={() => setExpandedPlan(isExpanded ? null : plan.id)}
-                  className="flex items-center justify-between border-t border-border px-4 py-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+                  className="flex items-center justify-between border-t border-border px-4 py-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
                 >
                   <span className="flex items-center gap-2">
                     <GripVertical className="h-3.5 w-3.5" />

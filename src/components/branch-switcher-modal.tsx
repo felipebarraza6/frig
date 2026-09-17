@@ -105,7 +105,7 @@ export function BranchSwitcherModal({ open, onClose }: BranchSwitcherModalProps)
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.97 }}
               transition={{ type: "spring", stiffness: 420, damping: 32 }}
-              className="relative z-10 w-full max-w-xl overflow-hidden rounded-2xl border border-white/30 bg-card/90 shadow-2xl shadow-primary/25 backdrop-blur-2xl dark:border-white/10"
+              className="relative z-10 w-full max-w-xl overflow-hidden rounded-2xl border border-white/30 bg-background/90 shadow-2xl shadow-primary/25 backdrop-blur-2xl dark:border-white/10"
             >
               <div className="flex items-center gap-2.5 px-4 py-3.5">
                 <ArrowRightLeft className="h-4 w-4 shrink-0 text-primary" />
@@ -222,7 +222,7 @@ export function BranchSwitcherModal({ open, onClose }: BranchSwitcherModalProps)
               <div className="border-t border-border/60 px-4 py-2">
                 <p className="text-[11px] text-muted-foreground">
                   Todo lo que hagas en la app queda en la sucursal elegida: ventas, caja,
-                  inventario y reportes. <kbd className="rounded border border-border bg-muted/50 px-1 font-mono text-[10px]">esc</kbd> para cerrar.
+                  inventario y reportes. <kbd className="rounded border border-border bg-background px-1 font-mono text-[10px]">esc</kbd> para cerrar.
                 </p>
               </div>
             </m.div>

@@ -363,7 +363,7 @@ export default function MenusPage() {
         ) : (
           <>
             {/* Desktop table */}
-            <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
+            <div className="hidden overflow-x-auto rounded-xl border border-border bg-card shadow-sm md:block">
               <table className="w-full min-w-[720px] text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -466,7 +466,7 @@ export default function MenusPage() {
               {filtered.map((catalog) => (
                 <div
                   key={catalog.id}
-                  className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm"
+                  className="rounded-2xl border border-border bg-background p-4 shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -572,7 +572,7 @@ export default function MenusPage() {
         onClose={closeModal}
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
-          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-3xl md:rounded-xl md:border">
+          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:h-auto md:max-h-[90vh] md:max-w-3xl md:rounded-xl md:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 md:px-6 md:py-4">
               <h2 className="text-base font-semibold">
                 {editing ? "Editar menú" : "Nuevo menú"}
@@ -589,7 +589,7 @@ export default function MenusPage() {
             <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
               <div className="relative flex-1 overflow-y-auto p-4 md:p-6">
                 {loadingCatalog && (
-                  <div className="absolute inset-0 z-10 grid place-items-center bg-card/80">
+                  <div className="absolute inset-0 z-10 grid place-items-center bg-background/80">
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   </div>
                 )}
@@ -946,7 +946,7 @@ export default function MenusPage() {
         onClose={() => setQrCatalog(null)}
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
-          <div className="flex h-auto w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:max-w-md md:rounded-xl md:border">
+          <div className="flex h-auto w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:max-w-md md:rounded-xl md:border">
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 md:px-6">
               <div>
                 <h2 className="text-base font-semibold">Código QR</h2>
@@ -964,7 +964,7 @@ export default function MenusPage() {
             </div>
 
             <div className="flex flex-col items-center gap-3 overflow-y-auto p-4 md:p-6">
-              <div className="rounded-2xl border border-border bg-card p-3">
+              <div className="rounded-2xl border border-border bg-background p-3">
                 <QRCodeSVG
                   value={`${window.location.origin}${publicMenuUrl(qrCatalog.slug)}`}
                   size={256}
@@ -1005,7 +1005,7 @@ export default function MenusPage() {
         onClose={() => setConfirmDelete(null)}
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
-          <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
+          <div className="w-full rounded-t-xl border-x border-t border-border bg-background p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">¿Eliminar menú?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Se eliminará <span className="font-medium text-foreground">{confirmDelete.title}</span>. Esta

@@ -88,7 +88,7 @@ export function DemoCta() {
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="Qué te gustaría ver en la demo"
                 rows={3}
-                className="flex w-full resize-none rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
           </ModalBody>

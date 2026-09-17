@@ -58,7 +58,7 @@ export function BranchSiiDialog({ branch, onClose }: BranchSiiDialogProps) {
       onClose={onClose}
       panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
     >
-      <div className="flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:max-h-[90vh] md:max-w-lg md:rounded-xl md:border">
+      <div className="flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:max-h-[90vh] md:max-w-lg md:rounded-xl md:border">
         <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
           <div className="flex items-center gap-2">
             <FileText className="h-4 w-4 text-primary" />

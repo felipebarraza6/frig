@@ -309,7 +309,7 @@ export function TablesCanvas({
               <span
                 className={cn(
                   "h-3.5 w-3.5 rounded-full border",
-                  STATUS_STYLES[status]?.split(" ")[0] ?? "border-border bg-card",
+                  STATUS_STYLES[status]?.split(" ")[0] ?? "border-border bg-background",
                 )}
               />
               <span className="text-xs text-muted-foreground">{label}</span>
@@ -357,7 +357,7 @@ export function TablesCanvas({
               className={cn(
                 "flex flex-col items-center justify-center border text-center shadow-none transition-colors",
                 tableRadius,
-                STATUS_STYLES[table.status ?? "FREE"] ?? "border-border bg-card",
+                STATUS_STYLES[table.status ?? "FREE"] ?? "border-border bg-background",
                 isSelected && "ring-2 ring-primary ring-offset-2",
                 !table.is_active && "opacity-50",
               )}

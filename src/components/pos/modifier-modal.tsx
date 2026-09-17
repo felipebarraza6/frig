@@ -125,7 +125,7 @@ export default function ModifierModal({ productName, groups, onConfirm, onCancel
                         "flex items-center justify-between rounded-xl border px-4 py-3 text-left text-sm transition-colors",
                         isSelected
                           ? "border-primary bg-primary/10 text-primary"
-                          : "border-border bg-card hover:bg-muted",
+                          : "border-border bg-background hover:bg-muted",
                       )}
                     >
                       <span className="font-medium">{option.name}</span>

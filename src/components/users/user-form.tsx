@@ -1,13 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
-import { useSessionStore, useCurrentBranch } from "@/lib/store/session";
+import { useSessionStore, useCurrentBranch, useIsModuleEnabledFromConfig } from "@/lib/store/session";
 import { branchName } from "@/lib/types";
 import { ROLE_LABELS } from "@/lib/roles";
 import { createAndAssignUser, updateUser, changeAssignmentRole } from "@/lib/api/users";
@@ -34,6 +34,7 @@ export function UserForm({ user, onClose, onSuccess }: UserFormProps) {
   const currentBranch = useCurrentBranch();
   const isSuperAdmin = Boolean(currentUser?.is_superuser || currentUser?.type_user === "ADM");
   const isEditing = Boolean(user);
+  const isTablesModuleEnabled = useIsModuleEnabledFromConfig("tables");
 
   const manageableBranches = useMemo<Branch[]>(() => {
     if (isSuperAdmin) return branches;
@@ -47,9 +48,15 @@ export function UserForm({ user, onClose, onSuccess }: UserFormProps) {
   }, [branches, currentUser, isSuperAdmin]);
 
   const availableRoles = useMemo(() => {
-    if (isSuperAdmin) return ALL_ROLES;
-    return ALL_ROLES.filter((r) => r.code !== "OWNER");
-  }, [isSuperAdmin]);
+    let roles = ALL_ROLES;
+    if (!isSuperAdmin) {
+      roles = roles.filter((r) => r.code !== "OWNER");
+    }
+    if (!isTablesModuleEnabled) {
+      roles = roles.filter((r) => r.code !== "WAITER");
+    }
+    return roles;
+  }, [isSuperAdmin, isTablesModuleEnabled]);
 
   // Solo un owner multi-sucursal (o superadmin) puede crear/editar usuarios
   // multi-sucursal; el check no se muestra a otros roles.
@@ -73,6 +80,14 @@ export function UserForm({ user, onClose, onSuccess }: UserFormProps) {
   );
   const [role, setRole] = useState<string>(initialRole);
   const [isMultiBranch, setIsMultiBranch] = useState(user?.is_multi_branch ?? false);
+
+  // Asegura que si los roles disponibles cambian (o el rol inicial ya no está disponible
+  // porque el módulo mesas está desactivado), el rol seleccionado caiga en uno válido.
+  useEffect(() => {
+    if (availableRoles.length > 0 && !availableRoles.some((r) => r.code === role)) {
+      setRole(availableRoles[0].code);
+    }
+  }, [availableRoles, role]);
   const [error, setError] = useState<string | null>(null);
 
   const create = useMutation({
@@ -145,7 +160,7 @@ export function UserForm({ user, onClose, onSuccess }: UserFormProps) {
       onClose={onClose}
       panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
     >
-      <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
+      <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
         <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
           <h2 className="text-base font-semibold">
             {isEditing ? "Editar usuario" : "Nuevo usuario"}

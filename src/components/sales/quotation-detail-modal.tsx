@@ -11,6 +11,7 @@ import {
   Package,
   CheckCircle2,
   Pencil,
+  Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,6 +21,7 @@ import {
   downloadQuotationPdf,
   convertQuotationToOrder,
   cancelQuotation,
+  activateQuotation,
   type Quotation,
 } from "@/lib/api/quotations";
 import { useToast } from "@/lib/store/toast";
@@ -90,7 +92,7 @@ export function QuotationDetailModal({
   const toast = useToast();
   const { download: downloadFile, isLoading: isDownloading } = useDownloadFile();
   const [confirmAction, setConfirmAction] = useState<"approve" | "reject" | null>(null);
-  const [targetOrderType, setTargetOrderType] = useState<"ORDER" | "SALE">("ORDER");
+  
 
   // Detalle completo con ítems inline (el listado no los trae).
   const { data: detail, isLoading } = useQuery({
@@ -105,15 +107,11 @@ export function QuotationDetailModal({
   };
 
   const approve = useMutation({
-    mutationFn: () => convertQuotationToOrder(quotation.id, targetOrderType),
+    mutationFn: () => convertQuotationToOrder(quotation.id, "ORDER"),
     onSuccess: () => {
       invalidate();
       setConfirmAction(null);
-      toast.success(
-        targetOrderType === "SALE"
-          ? "Cotización aprobada y convertida en venta directa"
-          : "Cotización aprobada y convertida en orden de venta",
-      );
+      toast.success("Cotización aprobada y convertida en orden de venta");
       onClose();
     },
     onError: (error) => {
@@ -130,6 +128,17 @@ export function QuotationDetailModal({
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "No se pudo rechazar la cotización");
+    },
+  });
+
+  const activate = useMutation({
+    mutationFn: () => activateQuotation(quotation.id),
+    onSuccess: () => {
+      invalidate();
+      toast.success("Cotización activada");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "No se pudo activar la cotización");
     },
   });
 
@@ -158,7 +167,7 @@ export function QuotationDetailModal({
         zIndex="z-[70]"
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
-        <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-card shadow-lg md:h-auto md:max-h-[90vh] md:max-w-lg md:rounded-xl md:border">
+        <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:h-auto md:max-h-[90vh] md:max-w-lg md:rounded-xl md:border">
           <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
             <h2 className="text-base font-semibold">
               Cotización {quotation.order_number ?? quotation.id.slice(0, 8)}
@@ -219,7 +228,7 @@ export function QuotationDetailModal({
               </div>
             </div>
 
-            <div className="mt-4 rounded-xl border border-border/60 bg-muted/30 p-3">
+            <div className="mt-4 rounded-xl border border-border/60 bg-background p-3">
               <div className={`grid gap-2 text-center ${hasTax ? "grid-cols-3" : "grid-cols-1"}`}>
                 {hasTax && (
                   <>
@@ -261,7 +270,7 @@ export function QuotationDetailModal({
                   {items.map((it) => (
                     <li
                       key={it.id}
-                      className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2"
+                      className="rounded-lg border border-border/60 bg-background px-3 py-2"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <p className="min-w-0 flex-1 truncate text-xs font-semibold">
@@ -287,7 +296,7 @@ export function QuotationDetailModal({
             {(detail?.observation ?? quotation.observation) && (
               <div className="mt-4">
                 <h3 className="text-sm font-medium">Observación</h3>
-                <p className="mt-1 whitespace-pre-wrap rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                <p className="mt-1 whitespace-pre-wrap rounded-lg border border-border/60 bg-background px-3 py-2 text-xs text-muted-foreground">
                   {detail?.observation ?? quotation.observation}
                 </p>
               </div>
@@ -307,6 +316,19 @@ export function QuotationDetailModal({
               <FileDown className="mr-2 h-4 w-4" />
               Descargar PDF
             </Button>
+            {currentStatus === "DRAFT" && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full sm:w-auto"
+                onClick={() => activate.mutate()}
+                disabled={activate.isPending}
+                isLoading={activate.isPending}
+              >
+                <Send className="mr-2 h-4 w-4" />
+                Activar
+              </Button>
+            )}
             {isPendingApproval(currentStatus) && (
               <>
                 <Button
@@ -357,7 +379,7 @@ export function QuotationDetailModal({
           zIndex="z-[80]"
           panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
         >
-          <div className="w-full rounded-t-xl border-x border-t border-border bg-card p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
+          <div className="w-full rounded-t-xl border-x border-t border-border bg-background p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">
               {confirmAction === "approve" ? "¿Aprobar cotización?" : "¿Rechazar cotización?"}
             </h2>
@@ -366,36 +388,7 @@ export function QuotationDetailModal({
                 ? `La cotización ${quotation.order_number ?? quotation.id.slice(0, 8)} dejará de ser cotización y pasará a ser una orden de venta del cliente.`
                 : `La cotización ${quotation.order_number ?? quotation.id.slice(0, 8)} quedará rechazada/cancelada. Esta acción no se puede deshacer.`}
             </p>
-            {confirmAction === "approve" && (
-              <div className="mt-3 flex flex-col gap-2">
-                <label className="text-xs font-medium text-muted-foreground">Convertir en</label>
-                {([
-                  { value: "ORDER", label: "Orden de venta", hint: "Queda pendiente de entrega y pago" },
-                  { value: "SALE", label: "Venta directa", hint: "Venta inmediata (POS)" },
-                ] as const).map((opt) => (
-                  <label
-                    key={opt.value}
-                    className={`flex cursor-pointer items-start gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
-                      targetOrderType === opt.value
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:bg-muted"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="quotation-target-type"
-                      checked={targetOrderType === opt.value}
-                      onChange={() => setTargetOrderType(opt.value)}
-                      className="mt-1"
-                    />
-                    <span>
-                      <span className="block font-medium">{opt.label}</span>
-                      <span className="block text-xs text-muted-foreground">{opt.hint}</span>
-                    </span>
-                  </label>
-                ))}
-              </div>
-            )}
+            
             {(approve.isError || reject.isError) && (
               <p className="mt-2 text-sm text-danger">
                 {(approve.error ?? reject.error) instanceof Error

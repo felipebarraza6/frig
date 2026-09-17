@@ -120,7 +120,7 @@ export default function BranchModulesPage() {
 
   return (
     <div className="mx-auto flex min-h-full w-full flex-col">
-      <header className="border-b border-border bg-card px-4 py-3 sm:px-6">
+      <header className="border-b border-border bg-background px-4 py-3 sm:px-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
@@ -152,10 +152,10 @@ export default function BranchModulesPage() {
             {/* Grid 3 cols sin selección / Carrusel con selección */}
             {selectedKey ? (
               <div className="relative">
-                <button onClick={() => scrollCarousel("left")} className="absolute -left-1 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-card shadow-md ring-1 ring-border text-muted-foreground hover:text-foreground">
+                <button onClick={() => scrollCarousel("left")} className="absolute -left-1 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-background shadow-md ring-1 ring-border text-muted-foreground hover:text-foreground">
                   <ChevronLeft className="h-4 w-4" />
                 </button>
-                <button onClick={() => scrollCarousel("right")} className="absolute -right-1 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-card shadow-md ring-1 ring-border text-muted-foreground hover:text-foreground">
+                <button onClick={() => scrollCarousel("right")} className="absolute -right-1 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-background shadow-md ring-1 ring-border text-muted-foreground hover:text-foreground">
                   <ChevronRight className="h-4 w-4" />
                 </button>
                 <div ref={scrollRef} className="flex gap-3 overflow-x-auto px-6 pb-2 scrollbar-hide">
@@ -198,7 +198,7 @@ export default function BranchModulesPage() {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="overflow-hidden rounded-xl border border-border bg-card"
+                  className="overflow-hidden rounded-xl border border-border bg-background"
                 >
                   <div className="p-4">
                     <div className="flex items-start justify-between">

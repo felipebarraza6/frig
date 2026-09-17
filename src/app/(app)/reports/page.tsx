@@ -195,7 +195,7 @@ export default function ReportsPage() {
       <header className="print-hidden flex flex-col gap-3">
         <PageHeader title="Informe nutricional" className="mb-0" />
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-          <div className="inline-flex rounded-xl border border-border bg-muted/30 p-1 shadow-sm">
+          <div className="inline-flex rounded-xl border border-border bg-background p-1 shadow-sm">
             {(["today", "yesterday", "week", "month"] as DateRange[]).map((r) => (
               <button
                 key={r}
@@ -219,7 +219,7 @@ export default function ReportsPage() {
             ))}
           </div>
 
-          <div className="inline-flex items-center gap-1 rounded-xl border border-border bg-muted/30 p-1 shadow-sm">
+          <div className="inline-flex items-center gap-1 rounded-xl border border-border bg-background p-1 shadow-sm">
             <input
               type="date"
               value={customRange.start}
@@ -250,7 +250,7 @@ export default function ReportsPage() {
               type="button"
               onClick={exportToPDF}
               disabled={exportDisabled}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-muted/30 px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
             >
               <FileText className="h-3.5 w-3.5" />
               Exportar PDF
@@ -259,7 +259,7 @@ export default function ReportsPage() {
               type="button"
               onClick={() => summary && exportToExcel(summary, ingredientConsumption)}
               disabled={exportDisabled}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-muted/30 px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
             >
               <FileSpreadsheet className="h-3.5 w-3.5" />
               Exportar Excel
@@ -316,7 +316,7 @@ export default function ReportsPage() {
             animate="show"
             className="grid gap-4"
           >
-            <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
+            <div className="rounded-2xl border border-border bg-background p-4 shadow-sm">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-sm font-semibold">
                   <ShoppingBag className="h-4 w-4 text-primary" />
@@ -354,7 +354,7 @@ export default function ReportsPage() {
                   })}
                 </div>
               ) : (
-                <div className="grid place-items-center rounded-xl border border-dashed border-border bg-muted/30 py-10 text-center">
+                <div className="grid place-items-center rounded-xl border border-dashed border-border bg-background py-10 text-center">
                   <div>
                     <ShoppingBag className="mx-auto h-8 w-8 text-muted-foreground" />
                     <p className="mt-2 text-sm font-medium">Sin ventas</p>
@@ -372,7 +372,7 @@ export default function ReportsPage() {
             animate="show"
             className="grid gap-4"
           >
-            <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
+            <div className="rounded-2xl border border-border bg-background p-4 shadow-sm">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-sm font-semibold">
                   <FlaskConical className="h-4 w-4 text-primary" />
@@ -432,7 +432,7 @@ export default function ReportsPage() {
                   </div>
                 </>
               ) : (
-                <div className="grid place-items-center rounded-xl border border-dashed border-border bg-muted/30 py-10 text-center">
+                <div className="grid place-items-center rounded-xl border border-dashed border-border bg-background py-10 text-center">
                   <div>
                     <FlaskConical className="mx-auto h-8 w-8 text-muted-foreground" />
                     <p className="mt-2 text-sm font-medium">Sin consumo de insumos</p>
@@ -462,7 +462,7 @@ function StatCard({
   tone?: "default" | "primary" | "emerald" | "amber" | "rose";
 }) {
   const tones = {
-    default: "bg-muted/30",
+    default: "bg-background",
     primary: "bg-primary/[0.06] border-primary/15",
     emerald: "bg-emerald-500/[0.06] border-emerald-500/15",
     amber: "bg-amber-500/[0.06] border-amber-500/15",
@@ -502,7 +502,7 @@ function ReportsSkeleton() {
     <>
       <section className="grid grid-cols-2 gap-2 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="rounded-2xl border border-border bg-muted/30 p-2.5 shadow-sm">
+          <div key={i} className="rounded-2xl border border-border bg-background p-2.5 shadow-sm">
             <div className="mb-1.5 flex items-center gap-2">
               <Skeleton className="h-7 w-7 rounded-lg" />
               <Skeleton className="h-3 w-20" />
@@ -514,7 +514,7 @@ function ReportsSkeleton() {
       </section>
 
       <section className="grid gap-4">
-        <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
+        <div className="rounded-2xl border border-border bg-background p-4 shadow-sm">
           <Skeleton className="mb-4 h-4 w-40" />
           <div className="flex flex-col gap-3">
             {Array.from({ length: 5 }).map((_, i) => (
@@ -531,7 +531,7 @@ function ReportsSkeleton() {
       </section>
 
       <section className="grid gap-4">
-        <div className="rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
+        <div className="rounded-2xl border border-border bg-background p-4 shadow-sm">
           <Skeleton className="mb-4 h-4 w-36" />
           <div className="flex flex-col gap-2">
             {Array.from({ length: 5 }).map((_, i) => (

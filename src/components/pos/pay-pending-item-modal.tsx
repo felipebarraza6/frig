@@ -660,7 +660,7 @@ export default function PayPendingItemModal({
           return (
             <div
               key={po.id}
-              className="rounded-xl border border-border/60 bg-card p-3 shadow-sm"
+              className="rounded-xl border border-border/60 bg-background p-3 shadow-sm"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-start gap-2.5">
@@ -719,7 +719,7 @@ export default function PayPendingItemModal({
                 )}
               </div>
               {showSupplierPayments && payingOrderId === po.id && (
-                <div className="mt-2 flex flex-col gap-2 rounded-lg border border-border bg-muted/30 p-2">
+                <div className="mt-2 flex flex-col gap-2 rounded-lg border border-border bg-background p-2">
                   <div className="flex gap-2">
                     <Input
                       value={payAmount}
@@ -783,7 +783,7 @@ export default function PayPendingItemModal({
         {quotationList.map((q) => (
           <div
             key={q.id}
-            className="rounded-xl border border-dashed border-primary/30 bg-card p-3 shadow-sm"
+            className="rounded-xl border border-dashed border-primary/30 bg-background p-3 shadow-sm"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 items-start gap-2.5">
@@ -863,7 +863,7 @@ export default function PayPendingItemModal({
                   setSelectedItemId(null);
                   setViewDetailId(null);
                 }}
-                className="flex items-center justify-between rounded-xl border bg-card p-3 text-left transition-colors hover:bg-muted"
+                className="flex items-center justify-between rounded-xl border bg-background p-3 text-left transition-colors hover:bg-muted"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-semibold">
@@ -917,7 +917,7 @@ export default function PayPendingItemModal({
                 <div
                   key={o.id}
                   className={cn(
-                    "rounded-xl border border-border/60 bg-card p-3 shadow-sm hover:shadow-md transition-shadow",
+                    "rounded-xl border border-border/60 bg-background p-3 shadow-sm hover:shadow-md transition-shadow",
                     selectedItemId === o.id && "border-primary bg-primary/5",
                   )}
                 >
@@ -1029,7 +1029,7 @@ export default function PayPendingItemModal({
                     ) : (
                       <div className="space-y-2">
                         <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-                          <div className="rounded-lg bg-muted/50 p-2">
+                          <div className="rounded-lg bg-background p-2">
                             <span className="flex items-center gap-1 text-muted-foreground">
                               <DollarSign className="h-3 w-3" /> Total
                             </span>
@@ -1037,7 +1037,7 @@ export default function PayPendingItemModal({
                               {formatCLP(Number(detailOrder.total_amount ?? 0))}
                             </span>
                           </div>
-                          <div className="rounded-lg bg-muted/50 p-2">
+                          <div className="rounded-lg bg-background p-2">
                             <span className="flex items-center gap-1 text-muted-foreground">
                               <Check className="h-3 w-3" /> Pagado
                             </span>
@@ -1045,7 +1045,7 @@ export default function PayPendingItemModal({
                               {formatCLP(Number(detailOrder.paid_amount ?? 0))}
                             </span>
                           </div>
-                          <div className="rounded-lg bg-muted/50 p-2">
+                          <div className="rounded-lg bg-background p-2">
                             <span className="flex items-center gap-1 text-muted-foreground">
                               <Banknote className="h-3 w-3" /> Pago
                             </span>
@@ -1058,7 +1058,7 @@ export default function PayPendingItemModal({
                               {paymentStatusLabel(effectivePaymentStatus(detailOrder.payment_status, detailOrder.paid_amount, detailOrder.total_amount))}
                             </span>
                           </div>
-                          <div className="rounded-lg bg-muted/50 p-2">
+                          <div className="rounded-lg bg-background p-2">
                             <span className="flex items-center gap-1 text-muted-foreground">
                               <Truck className="h-3 w-3" /> Entrega
                             </span>
@@ -1138,7 +1138,7 @@ export default function PayPendingItemModal({
             <div
               key={o.id}
               className={cn(
-                "rounded-xl border border-border/60 bg-card p-3 shadow-sm hover:shadow-md transition-shadow",
+                "rounded-xl border border-border/60 bg-background p-3 shadow-sm hover:shadow-md transition-shadow",
                 selectedItemId === o.id && "border-primary bg-primary/5",
               )}
             >
@@ -1277,7 +1277,7 @@ export default function PayPendingItemModal({
                   ) : (
                     <div className="space-y-2">
                       <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-                        <div className="rounded-lg bg-muted/50 p-2">
+                        <div className="rounded-lg bg-background p-2">
                           <span className="flex items-center gap-1 text-muted-foreground">
                             <DollarSign className="h-3 w-3" /> Total
                           </span>
@@ -1285,7 +1285,7 @@ export default function PayPendingItemModal({
                             {formatCLP(Number(detailOrder.total_amount ?? 0))}
                           </span>
                         </div>
-                        <div className="rounded-lg bg-muted/50 p-2">
+                        <div className="rounded-lg bg-background p-2">
                           <span className="flex items-center gap-1 text-muted-foreground">
                             <Check className="h-3 w-3" /> Pagado
                           </span>
@@ -1293,7 +1293,7 @@ export default function PayPendingItemModal({
                             {formatCLP(Number(detailOrder.paid_amount ?? 0))}
                           </span>
                         </div>
-                        <div className="rounded-lg bg-muted/50 p-2">
+                        <div className="rounded-lg bg-background p-2">
                           <span className="flex items-center gap-1 text-muted-foreground">
                             <Banknote className="h-3 w-3" /> Pago
                           </span>
@@ -1306,7 +1306,7 @@ export default function PayPendingItemModal({
                             {paymentStatusLabel(effectivePaymentStatus(detailOrder.payment_status, detailOrder.paid_amount, detailOrder.total_amount))}
                           </span>
                         </div>
-                        <div className="rounded-lg bg-muted/50 p-2">
+                        <div className="rounded-lg bg-background p-2">
                           <span className="flex items-center gap-1 text-muted-foreground">
                             <Check className="h-3 w-3" /> Entrega
                           </span>
@@ -1603,7 +1603,7 @@ export default function PayPendingItemModal({
               </div>
             )}
             {counterparty === "client" && (
-            <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 p-2">
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-background p-2">
               <Calendar className="h-4 w-4 text-muted-foreground" />
               <div className="flex flex-1 gap-2">
                 <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="h-8 text-xs flex-1" placeholder="Desde" />
@@ -1621,7 +1621,7 @@ export default function PayPendingItemModal({
           </div>
 
           {selectedItem && counterparty === "client" && (
-            <div className="flex flex-col gap-3 rounded-lg border border-border/60 bg-muted/30 p-3">
+            <div className="flex flex-col gap-3 rounded-lg border border-border/60 bg-background p-3">
               {type === "pay_order" ? (
                 <>
                   <div className="flex items-center justify-between text-sm">
