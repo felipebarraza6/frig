@@ -8,6 +8,7 @@ import {
   useEffect,
   useId,
   useRef,
+  useState,
   type KeyboardEvent,
   type ReactNode,
 } from "react";
@@ -157,14 +158,11 @@ export function Modal({
     [onClose],
   );
 
-  // Contenedor estable: evita que React llame removeChild sobre un nodo
-  // que Turbopack ya reemplazó durante HMR.
-  const portalRootRef = useRef<HTMLElement | null>(null);
-  if (typeof window !== "undefined" && !portalRootRef.current) {
-    portalRootRef.current = getPortalRoot("modal-root");
-  }
+  const [portalRoot] = useState<HTMLElement | null>(() =>
+    typeof window !== "undefined" ? getPortalRoot("modal-root") : null
+  );
 
-  if (!portalRootRef.current) return null;
+  if (!portalRoot) return null;
 
   const ctxValue: ModalContextValue = { titleId, descriptionId, onClose };
 
@@ -230,7 +228,7 @@ export function Modal({
         )}
       </AnimatePresence>
     </LazyMotion>,
-    portalRootRef.current,
+    portalRoot,
   );
 }
 

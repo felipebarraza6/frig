@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, m, LazyMotion, domAnimation } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -43,12 +43,9 @@ export function AnimatedOverlay({
   panelClassName,
   zIndex = "z-50",
 }: AnimatedOverlayProps) {
-  // Contenedor estable creado una vez y reutilizado para evitar removeChild
-  // cuando Turbopack reemplaza nodos del DOM durante HMR.
-  const rootRef = useRef<HTMLElement | null>(null);
-  if (typeof window !== "undefined" && !rootRef.current) {
-    rootRef.current = getPortalRoot("animated-overlay-root");
-  }
+  const [portalRoot] = useState<HTMLElement | null>(() =>
+    typeof window !== "undefined" ? getPortalRoot("animated-overlay-root") : null
+  );
 
   // Escape key
   useEffect(() => {
@@ -70,7 +67,7 @@ export function AnimatedOverlay({
     };
   }, [open]);
 
-  if (!rootRef.current) return null;
+  if (!portalRoot) return null;
 
   return createPortal(
     <LazyMotion features={domAnimation} strict>
@@ -111,6 +108,6 @@ export function AnimatedOverlay({
         )}
       </AnimatePresence>
     </LazyMotion>,
-    rootRef.current,
+    portalRoot,
   );
 }
