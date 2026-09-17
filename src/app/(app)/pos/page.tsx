@@ -332,7 +332,6 @@ export default function PosZenPage() {
         ) : stations.length > 0 ? (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {stations.map((station, idx) => {
-              const selected = activeStationId === station.id;
               const isOpening = openingStationId === station.id;
               const stationActive = station.is_active !== false;
               const state = stationState.get(station.id);
@@ -351,10 +350,9 @@ export default function PosZenPage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.05 }}
                   className={cn(
-                    "flex flex-col justify-between rounded-2xl border border-border bg-muted/30 p-5 transition-all shadow-sm hover:shadow-md",
-                    selected
-                      ? "border-primary/50 bg-gradient-to-b from-primary/5 to-card ring-2 ring-primary/20 shadow-md"
-                      : "border-border hover:border-primary/40",
+                    // Tarjeta sólida y sin marca de selección: la animación
+                    // del fondo nunca se filtra y todas se ven iguales.
+                    "flex flex-col justify-between rounded-2xl border border-border bg-card p-5 shadow-sm hover:shadow-md",
                     !stationActive && "opacity-60",
                   )}
                 >
@@ -365,7 +363,7 @@ export default function PosZenPage() {
                       <div
                         className={cn(
                           "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-colors shadow-xs",
-                          isOpen || selected
+                          isOpen
                             ? "bg-primary/10 text-primary ring-1 ring-primary/20"
                             : "bg-muted text-muted-foreground",
                         )}
