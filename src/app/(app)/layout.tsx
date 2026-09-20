@@ -30,6 +30,12 @@ import { SUPERADMIN_ALLOWED_PATHS as SUPERADMIN_MENU_PATHS } from "@/lib/hooks/u
 const HIDDEN_SIDEBAR_PATHS = ["/pos/terminal", "/kds/terminal", "/kds/monitor"];
 
 /**
+ * Rutas operativas donde la capa cósmica NO se renderiza: en caja la
+ * experiencia es densa y la animación en los huecos del layout estorba.
+ */
+const NO_COSMOS_PATHS = ["/cash-register", "/pos/terminal", "/kds/terminal", "/kds/monitor"];
+
+/**
  * Rutas permitidas para el super admin (menú + rutas neutrales como profile/dashboard).
  * El superadmin administra organizaciones y sucursales, no opera.
  */
@@ -209,8 +215,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       <ForbiddenListener />
       <div className="flex min-h-full">
         {/* Capa cósmica de fondo: la muralla de datos de la landing, tenue
-            y solo en desktop (la PWA móvil prioriza rendimiento/táctil). */}
-        {!shouldHideSidebar && (
+            y solo en desktop (la PWA móvil prioriza rendimiento/táctil).
+            En rutas operativas (caja, KDS) no se renderiza: estorba. */}
+        {!shouldHideSidebar && !NO_COSMOS_PATHS.some((p) => pathname.startsWith(p)) && (
           <div
             aria-hidden
             className="pointer-events-none fixed inset-0 -z-10 hidden opacity-35 md:block"
