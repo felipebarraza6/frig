@@ -1,5 +1,6 @@
 import { apiFetch, apiFile, type ApiFileResult } from "./client";
 import type { YggdraSchemas } from "@/lib/api/types";
+import { appendMulti } from "@/lib/api/query-params";
 
 export type YggdraPaymentMethod = YggdraSchemas["PaymentMethodList"];
 export type YggdraPayment = YggdraSchemas["Payment"];
@@ -13,10 +14,11 @@ export type YggdraPaymentCreate = YggdraSchemas["PaymentCreateRequest"] & {
 };
 
 export interface PaymentsFilter {
-  payment_direction?: "INCOME" | "EXPENSE";
-  payment_source?: YggdraPayment["payment_source"];
+  payment_direction?: "INCOME" | "EXPENSE" | Array<"INCOME" | "EXPENSE" | string>;
+  payment_source?: YggdraPayment["payment_source"] | string | string[];
   /** Filtro por estado (el FilterSet del backend soporta exact/in). */
-  status?: YggdraPaymentList["status"];
+  status?: YggdraPaymentList["status"] | string | string[];
+  payment_method?: string | string[];
   payment_date__gte?: string;
   payment_date__lte?: string;
   search?: string;
@@ -129,9 +131,10 @@ export async function processPayment(
 
 function paymentsQueryString(filter: PaymentsFilter): string {
   const qs = new URLSearchParams();
-  if (filter.payment_direction) qs.set("payment_direction", filter.payment_direction);
-  if (filter.payment_source) qs.set("payment_source", filter.payment_source);
-  if (filter.status) qs.set("status", filter.status);
+  appendMulti(qs, "payment_direction", filter.payment_direction);
+  appendMulti(qs, "payment_source", filter.payment_source);
+  appendMulti(qs, "status", filter.status);
+  appendMulti(qs, "payment_method", filter.payment_method);
   if (filter.payment_date__gte) qs.set("payment_date__gte", filter.payment_date__gte);
   if (filter.payment_date__lte) qs.set("payment_date__lte", filter.payment_date__lte);
   if (filter.search) qs.set("search", filter.search);

@@ -1,20 +1,22 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { X, Trash2, History, Package, Search, PackageSearch } from "lucide-react";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { X, Trash2, History, Package, PackageSearch, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
+import { ProductPickerDrawer } from "@/components/sales/product-picker-drawer";
 import { formatCLP } from "@/lib/utils";
 import { useToast } from "@/lib/store/toast";
 import { createQuotation, updateQuotation, type Quotation } from "@/lib/api/quotations";
-import { searchCustomers } from "@/lib/api/customers";
+import { searchCustomers, createCustomer } from "@/lib/api/customers";
 import { fetchOrders } from "@/lib/api/orders";
-import { fetchProducts } from "@/lib/api/products";
+import { searchProductsForSale } from "@/lib/api/products";
 import { useCurrentBranch } from "@/lib/store/session";
+import { useRecentPickerSuggestions } from "@/lib/hooks/useRecentPickerSuggestions";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 type Client = YggdraSchemas["Client"];
@@ -81,6 +83,8 @@ function QuotationForm({
   );
   const [clientSearch, setClientSearch] = useState("");
   const [productSearch, setProductSearch] = useState("");
+  // Drawer de catálogo: selección visual por categoría sin escribir.
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [items, setItems] = useState<DraftItem[]>(() =>
     (quotation?.products ?? []).map((p) => ({
       productId: p.product,
@@ -93,6 +97,10 @@ function QuotationForm({
   /** Fecha de vencimiento en formato yyyy-mm-dd (input type="date"). */
   const [expiration, setExpiration] = useState(quotation?.expiration_date?.slice(0, 10) ?? "");
   const [formError, setFormError] = useState<string | null>(null);
+  const [showCreateClient, setShowCreateClient] = useState(false);
+  const [newClientName, setNewClientName] = useState("");
+  const [newClientDni, setNewClientDni] = useState("");
+  const [newClientPhone, setNewClientPhone] = useState("");
 
   const branch = useCurrentBranch();
   const branchId = branch?.branch_id !== undefined && branch?.branch_id !== null ? Number(branch.branch_id) : undefined;
@@ -101,32 +109,62 @@ function QuotationForm({
   const [debouncedProduct, setDebouncedProduct] = useState(productSearch);
 
   useEffect(() => {
-    const t = window.setTimeout(() => setDebouncedClient(clientSearch), 300);
+    const t = window.setTimeout(() => setDebouncedClient(clientSearch), 150);
     return () => window.clearTimeout(t);
   }, [clientSearch]);
 
   useEffect(() => {
-    const t = window.setTimeout(() => setDebouncedProduct(productSearch), 300);
+    const t = window.setTimeout(() => setDebouncedProduct(productSearch), 150);
     return () => window.clearTimeout(t);
   }, [productSearch]);
 
-  // Clientes: búsqueda server-side con debounce; el seleccionado se inyecta
-  // al inicio de las opciones para que el select nunca quede sin etiqueta.
+  // Al abrir: primeros 20. Al escribir: search del API (nombre, RUT, teléfono).
+  const { recentClients, recentProducts } = useRecentPickerSuggestions(true);
+
   const customersQuery = useQuery({
     queryKey: ["customers", "search", debouncedClient, branchId],
     queryFn: () => searchCustomers(debouncedClient, branchId),
-    enabled: debouncedClient.trim().length >= 2,
+    enabled: debouncedClient.trim().length > 0,
     staleTime: 30_000,
+    placeholderData: keepPreviousData,
   });
 
   const clientOptions = useMemo(() => {
-    const found = customersQuery.data ?? [];
-    const options = found.map((c) => ({ value: String(c.id), label: c.name ?? "Sin nombre" }));
-    if (client && !options.some((o) => o.value === String(client.id))) {
-      return [{ value: String(client.id), label: client.name ?? "Sin nombre" }, ...options];
+    const recents = recentClients.map((c) => ({
+      value: String(c.id),
+      label: c.name,
+      description:
+        [c.dni, c.phone_number].filter(Boolean).join(" · ") || "Reciente",
+    }));
+    const q = debouncedClient.trim();
+    if (!q) {
+      const options = recents;
+      if (client && !options.some((o) => o.value === String(client.id))) {
+        return [
+          { value: String(client.id), label: client.name ?? "Sin nombre" },
+          ...options,
+        ];
+      }
+      return options;
     }
-    return options;
-  }, [customersQuery.data, client]);
+    const found = (customersQuery.data ?? []).map((c) => ({
+      value: String(c.id),
+      label: c.name ?? "Sin nombre",
+      description: [c.dni, c.phone_number].filter(Boolean).join(" · ") || undefined,
+    }));
+    const merged = [...found];
+    for (const r of recents) {
+      if (!merged.some((o) => o.value === r.value)) merged.push(r);
+    }
+    if (client && !merged.some((o) => o.value === String(client.id))) {
+      merged.unshift({
+        value: String(client.id),
+        label: client.name ?? "Sin nombre",
+        description: undefined,
+      });
+    }
+    return merged;
+  }, [customersQuery.data, recentClients, client, debouncedClient]);
 
   // Historial del cliente: últimas órdenes completadas, para sugerir productos
   // con su último precio unitario vendido.
@@ -162,17 +200,52 @@ function QuotationForm({
   }, [historyQuery.data]);
 
   const productsQuery = useQuery({
-    queryKey: ["quotation-create", "products", debouncedProduct, branchId],
-    queryFn: () => fetchProducts({ search: debouncedProduct, is_for_sale: true, is_active: true, page_size: 10 }),
-    enabled: debouncedProduct.trim().length >= 2,
+    queryKey: ["quotation-create", "products-for-sale", debouncedProduct],
+    queryFn: () => searchProductsForSale({ search: debouncedProduct.trim() }),
+    enabled: debouncedProduct.trim().length > 0,
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
   });
 
-  const productResults = (() => {
-    const d = productsQuery.data;
-    if (!d) return [];
-    if (Array.isArray(d.results)) return d.results;
-    return [];
-  })();
+  const productResults = productsQuery.data ?? [];
+  const productOptions = useMemo(() => {
+    const recents = recentProducts.map((p) => ({
+      value: String(p.id),
+      label: p.name,
+      description: [p.code, formatCLP(p.price)].filter(Boolean).join(" · ") || "Más usado",
+    }));
+    const q = debouncedProduct.trim();
+    if (!q) return recents;
+    const found = productResults.map((p) => ({
+      value: String(p.id),
+      label: p.name,
+      description: [p.code, formatCLP(Number(p.price ?? 0) || 0)].filter(Boolean).join(" · "),
+    }));
+    const merged = [...found];
+    for (const r of recents) {
+      if (!merged.some((o) => o.value === r.value)) merged.push(r);
+    }
+    return merged;
+  }, [productResults, recentProducts, debouncedProduct]);
+
+  const createClientMutation = useMutation({
+    mutationFn: () =>
+      createCustomer({
+        name: newClientName.trim(),
+        dni: newClientDni.trim() || undefined,
+        phone_number: newClientPhone.trim() || undefined,
+        is_active: true,
+      }),
+    onSuccess: (created) => {
+      setClient(created);
+      setShowCreateClient(false);
+      setNewClientName("");
+      setNewClientDni("");
+      setNewClientPhone("");
+      toast.success("Cliente creado");
+    },
+    onError: (err: Error) => toast.error(err.message || "No se pudo crear el cliente"),
+  });
 
   const save = useMutation({
     mutationFn: () => {
@@ -220,6 +293,28 @@ function QuotationForm({
 
   function removeItem(productId: number) {
     setItems((prev) => prev.filter((i) => i.productId !== productId));
+  }
+
+  // Cantidad total por producto para el drawer de catálogo.
+  const quantitiesByProduct = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const i of items) {
+      const qty = Number.parseInt(i.quantity, 10) || 0;
+      map.set(i.productId, (map.get(i.productId) ?? 0) + qty);
+    }
+    return map;
+  }, [items]);
+
+  function decrementProduct(p: { id: number }) {
+    setItems((prev) => {
+      const line = prev.find((i) => i.productId === p.id);
+      if (!line) return prev;
+      const qty = (Number.parseInt(line.quantity, 10) || 0) - 1;
+      if (qty <= 0) return prev.filter((i) => i.productId !== p.id);
+      return prev.map((i) =>
+        i.productId === p.id ? { ...i, quantity: String(qty) } : i,
+      );
+    });
   }
 
   const total = items.reduce(
@@ -277,30 +372,88 @@ function QuotationForm({
             <label className="text-sm font-medium">
               Cliente <span className="text-danger">*</span>
             </label>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={clientSearch}
-                onChange={(e) => setClientSearch(e.target.value)}
-                placeholder="Buscar cliente por nombre…"
-                className="pl-9"
-                aria-label="Buscar cliente"
-              />
-            </div>
             <SearchableSelect
               options={clientOptions}
               value={client ? String(client.id) : ""}
               onChange={(value) => {
-                const found = clientOptions.find((o) => o.value === value);
-                setClient(found ? ({ id: Number(found.value), name: found.label } as Client) : null);
+                if (!value) {
+                  setClient(null);
+                  return;
+                }
+                const found = (customersQuery.data ?? []).find((c) => String(c.id) === value);
+                if (found) {
+                  setClient(found);
+                  return;
+                }
+                const opt = clientOptions.find((o) => o.value === value);
+                setClient(opt ? ({ id: Number(opt.value), name: opt.label } as Client) : null);
               }}
-              placeholder={clientOptions.length === 0 ? "Busca con el campo de arriba…" : "Seleccionar cliente…"}
-              searchPlaceholder="Filtrar resultados…"
-              emptyMessage={customersQuery.isLoading ? "Buscando…" : "Sin coincidencias"}
+              onQueryChange={setClientSearch}
+              minChars={0}
+              loading={customersQuery.isFetching}
+              clearable
+              selectedOption={
+                client ? { value: String(client.id), label: client.name ?? "Sin nombre" } : null
+              }
+              placeholder="Buscar cliente por nombre, RUT o teléfono…"
+              searchPlaceholder="Nombre, RUT o teléfono…"
+              emptyMessage="Sin coincidencias"
             />
-            <p className="text-xs text-muted-foreground">
-              Escribe al menos 2 caracteres para buscar por nombre.
-            </p>
+            {!showCreateClient ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCreateClient(true);
+                  setNewClientName(clientSearch.trim());
+                }}
+                className="self-start text-xs font-medium text-primary hover:underline"
+              >
+                + Crear cliente nuevo
+              </button>
+            ) : (
+              <div className="flex flex-col gap-2 rounded-xl border border-primary/20 bg-primary/[0.02] p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold">Nuevo cliente</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateClient(false)}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+                <Input
+                  value={newClientName}
+                  onChange={(e) => setNewClientName(e.target.value)}
+                  placeholder="Nombre *"
+                  className="h-9"
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    value={newClientDni}
+                    onChange={(e) => setNewClientDni(e.target.value)}
+                    placeholder="RUT / DNI"
+                    className="h-9"
+                  />
+                  <Input
+                    value={newClientPhone}
+                    onChange={(e) => setNewClientPhone(e.target.value)}
+                    placeholder="Teléfono"
+                    className="h-9"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="self-end"
+                  disabled={!newClientName.trim()}
+                  isLoading={createClientMutation.isPending}
+                  onClick={() => createClientMutation.mutate()}
+                >
+                  Guardar cliente
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Historial del cliente: sugiere productos ya comprados con su último precio. */}
@@ -345,39 +498,38 @@ function QuotationForm({
 
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium">Productos</label>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={productSearch}
-                onChange={(e) => setProductSearch(e.target.value)}
-                placeholder="Buscar producto…"
-                className="pl-9"
+            <div className="flex items-center gap-2">
+              <SearchableSelect
+                options={productOptions}
+                value=""
+                onChange={(value) => {
+                  const fromSearch = productResults.find((x) => String(x.id) === value);
+                  const fromRecent = recentProducts.find((x) => String(x.id) === value);
+                  const p = fromSearch ?? fromRecent;
+                  if (!p) return;
+                  addProduct({ id: p.id, name: p.name, price: p.price, sale_price: p.price });
+                  setProductSearch("");
+                  setDebouncedProduct("");
+                }}
+                onQueryChange={setProductSearch}
+                minChars={0}
+                loading={productsQuery.isFetching}
+                placeholder="Buscar producto por nombre o código…"
+                searchPlaceholder="Nombre o SKU…"
+                emptyMessage={
+                  productsQuery.isError ? "No se pudo buscar productos" : "Sin coincidencias"
+                }
               />
-            </div>
-            {productsQuery.isLoading && debouncedProduct.trim().length >= 2 && (
-              <p className="text-xs text-muted-foreground">Buscando productos…</p>
-            )}
-            {productsQuery.isError && (
-              <p className="text-xs text-danger">No se pudo buscar productos.</p>
-            )}
-            {!productsQuery.isLoading && !productsQuery.isError && debouncedProduct.trim().length >= 2 && (
-              <p className="text-xs text-muted-foreground">
-                {productResults.length === 0
-                  ? "Sin productos en tu sucursal para esa búsqueda."
-                  : `${productResults.length} resultado${productResults.length === 1 ? "" : "s"}`}
-              </p>
-            )}
-            {productResults.map((p) => (
               <button
-                key={p.id}
                 type="button"
-                onClick={() => addProduct(p)}
-                className="flex w-full items-center justify-between rounded-lg border border-border px-3 py-2 text-left text-sm transition-colors hover:bg-muted"
+                onClick={() => setPickerOpen(true)}
+                title="Ver catálogo por categoría"
+                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-sm font-medium transition-colors hover:bg-muted"
               >
-                <span className="min-w-0 flex-1 truncate font-medium">{p.name}</span>
-                <span className="ml-2 shrink-0 tabular-nums text-muted-foreground">{formatCLP(priceOf(p))}</span>
+                <Package className="h-4 w-4 text-primary" />
+                Catálogo
               </button>
-            ))}
+            </div>
 
             {items.length > 0 && (
               <div className="mt-1 flex flex-col gap-2">
@@ -489,6 +641,15 @@ function QuotationForm({
           {editingId ? "Guardar cambios" : "Crear cotización"}
         </Button>
       </div>
+
+      <ProductPickerDrawer
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        quantitiesByProduct={quantitiesByProduct}
+        onAdd={addProduct}
+        onDecrement={decrementProduct}
+        zIndex="z-[80]"
+      />
     </div>
   );
 }

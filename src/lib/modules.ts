@@ -215,11 +215,18 @@ export interface FrigMenuGroup {
  */
 export const FRIG_MENU_DEF: FrigMenuGroup[] = [
   {
-    title: "Vender",
-    icon: "Receipt",
+    title: "Resumen",
+    icon: "LayoutDashboard",
     items: [
       { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard", module: "dashboard", description: "Resumen general del negocio en tiempo real" },
-      { href: "/pos", label: "Punto de Venta (POS)", icon: "Receipt", module: "pos", description: "Terminal de venta, cuentas abiertas y cobros" },
+      { href: "/reports", label: "Informe nutricional", icon: "FileText", module: "nutrition", description: "Productos más vendidos e insumos consumidos" },
+    ],
+  },
+  {
+    title: "Vender",
+    icon: "HandCoins",
+    items: [
+      { href: "/pos", label: "Punto de Venta (POS)", icon: "HandCoins", module: "pos", description: "Terminal de venta, cuentas abiertas y cobros" },
       { href: "/cash-register", label: "Caja", icon: "Banknote", module: "cash_register", description: "Apertura, cierre y movimientos de caja" },
       { href: "/sales", label: "Ventas", icon: "ShoppingBag", module: "sales", description: "Historial de ventas y cuentas abiertas" },
       { href: "/quotations", label: "Cotizaciones", icon: "FileText", module: "sales", description: "Presupuestos y cotizaciones convertibles a orden" },
@@ -245,7 +252,6 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
       { href: "/products/modifiers", label: "Modificadores", icon: "ListChecks", module: "product_catalog", description: "Opciones y agregados por producto" },
       { href: "/categories", label: "Categorías", icon: "Tags", module: "product_catalog", description: "Organiza el catálogo por categorías" },
       { href: "/products/nutrition", label: "Etiquetado nutricional", icon: "Apple", module: "nutrition", description: "Tablas nutricionales por producto" },
-      { href: "/reports", label: "Informe nutricional", icon: "FileText", module: "nutrition", description: "Productos más vendidos e insumos consumidos" },
       { href: "/products/menus", label: "Menús digitales", icon: "QrCode", module: "public_catalog", description: "Cartas QR públicas por estación" },
       { href: "/warehouses", label: "Bodegas", icon: "Warehouse", module: "inventory", description: "Bodegas y sus responsables" },
       { href: "/inventory", label: "Inventario", icon: "ClipboardList", module: "inventory", description: "Stock por bodega y movimientos" },

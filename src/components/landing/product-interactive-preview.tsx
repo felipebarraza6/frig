@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Zap,
+  HandCoins,
   ChefHat,
   LayoutGrid,
   Warehouse,
@@ -33,7 +34,7 @@ import {
   Percent,
   QrCode,
   Layers,
-  Bike,
+  LocateFixed,
   Truck,
   Package,
   Printer,
@@ -74,9 +75,9 @@ const SIDEBAR_GROUPS: {
     id: "vender",
     label: "Vender",
     tabs: [
-      { key: "pos", label: "Punto de Venta (POS)", icon: Zap },
+      { key: "pos", label: "Punto de Venta (POS)", icon: HandCoins },
       { key: "kds", label: "Cocina (KDS)", icon: ChefHat },
-      { key: "delivery", label: "Delivery & Retiro", icon: Bike },
+      { key: "delivery", label: "Delivery y entrega", icon: LocateFixed },
       { key: "ventas", label: "Ventas & Cotizaciones", icon: ShoppingBag },
     ],
   },
@@ -405,7 +406,7 @@ export function ProductInteractivePreview() {
   const tabLabels: Record<TabKey, { title: string; breadcrumb: string }> = {
     pos: { title: "Punto de Venta Táctil", breadcrumb: "Vender / POS Terminal" },
     kds: { title: "Monitor de Cocina KDS", breadcrumb: "Vender / Cocina y Estaciones" },
-    delivery: { title: "Delivery & Retiro", breadcrumb: "Vender / Despacho y Retiro" },
+    delivery: { title: "Delivery y entrega", breadcrumb: "Vender / Delivery y entrega" },
     tables: { title: "Mapa de Mesas & Salón", breadcrumb: "Local / Salón y Garzones" },
     qr: { title: "Menú QR & Pedidos en Mesa", breadcrumb: "Local / Carta Digital" },
     finance: { title: "Caja & Finanzas en Vivo", breadcrumb: "Dinero / Turnos y Arqueos" },

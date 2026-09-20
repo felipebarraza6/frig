@@ -26,6 +26,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import {
   fetchWarehouses,
@@ -300,6 +301,9 @@ export default function WarehouseDetailPage() {
 
   const [addOpen, setAddOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState("");
+  const [selectedProductName, setSelectedProductName] = useState("");
+  const [addProductQuery, setAddProductQuery] = useState("");
+  const [debouncedAddProductQuery, setDebouncedAddProductQuery] = useState("");
   const [initialQuantity, setInitialQuantity] = useState("");
   const [configOpen, setConfigOpen] = useState(false);
   const [configProduct, setConfigProduct] = useState<WarehouseProduct | null>(null);
@@ -356,11 +360,44 @@ export default function WarehouseDetailPage() {
   const products = useMemo(() => productsPage?.results ?? [], [productsPage]);
   const totalProductsCount = productsPage?.count ?? 0;
 
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedAddProductQuery(addProductQuery), 300);
+    return () => clearTimeout(t);
+  }, [addProductQuery]);
+
+  const addProductSearch = useQuery({
+    queryKey: ["products", "warehouse-add", debouncedAddProductQuery],
+    queryFn: () =>
+      fetchProducts({
+        search: debouncedAddProductQuery,
+        page_size: 20,
+      }),
+    enabled: addOpen && debouncedAddProductQuery.trim().length >= 2,
+    staleTime: 30_000,
+  });
+
+  const addProductOptions = useMemo(() => {
+    const found = (addProductSearch.data?.results ?? [])
+      .filter((p) => p.product_type !== "RECIPE_BASED")
+      .map((p) => ({
+        value: String(p.id),
+        label: p.name,
+        description: p.code ?? undefined,
+      }));
+    if (
+      selectedProduct &&
+      selectedProductName &&
+      !found.some((o) => o.value === selectedProduct)
+    ) {
+      return [{ value: selectedProduct, label: selectedProductName }, ...found];
+    }
+    return found;
+  }, [addProductSearch.data, selectedProduct, selectedProductName]);
+
   const { data: catalog = [] } = useQuery({
     queryKey: ["products", "catalog"],
     queryFn: async () => {
-      // El catálogo completo alimenta productSalePriceMap y el modal de
-      // agregar: sin paginar queda truncado a la primera página.
+      // Solo para productSalePriceMap hasta que exista /products/price_map/.
       const all: YggdraSchemas["ProductList"][] = [];
       let next: string | null | undefined;
       let first = true;
@@ -391,10 +428,6 @@ export default function WarehouseDetailPage() {
   // no se agregan ni se muestran en la bodega.
   const compoundProductIds = useMemo(
     () => new Set(catalog.filter((p) => p.product_type === "RECIPE_BASED").map((p) => p.id)),
-    [catalog],
-  );
-  const storableCatalog = useMemo(
-    () => catalog.filter((p) => p.product_type !== "RECIPE_BASED"),
     [catalog],
   );
   const visibleProducts = useMemo(
@@ -1072,19 +1105,41 @@ export default function WarehouseDetailPage() {
       </div>
 
       {addOpen && (
-        <Modal title="Agregar producto a bodega" onClose={() => setAddOpen(false)}>
+        <Modal
+          title="Agregar producto a bodega"
+          onClose={() => {
+            setAddOpen(false);
+            setSelectedProduct("");
+            setSelectedProductName("");
+            setAddProductQuery("");
+            setDebouncedAddProductQuery("");
+            setInitialQuantity("");
+          }}
+        >
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium">Producto</label>
-              <Select
+              <SearchableSelect
+                options={addProductOptions}
                 value={selectedProduct}
-                onChange={(e) => setSelectedProduct(e.target.value)}
-              >
-                <option value="">Selecciona un producto</option>
-                {storableCatalog.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </Select>
+                onChange={(value) => {
+                  setSelectedProduct(value);
+                  const opt = addProductOptions.find((o) => o.value === value);
+                  setSelectedProductName(opt?.label ?? "");
+                }}
+                onQueryChange={setAddProductQuery}
+                minChars={2}
+                loading={addProductSearch.isFetching}
+                clearable
+                selectedOption={
+                  selectedProduct && selectedProductName
+                    ? { value: selectedProduct, label: selectedProductName }
+                    : null
+                }
+                placeholder="Buscar producto…"
+                searchPlaceholder="Nombre de producto…"
+                emptyMessage="Sin coincidencias"
+              />
             </div>
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium">Cantidad inicial</label>

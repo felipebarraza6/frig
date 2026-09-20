@@ -45,18 +45,27 @@ function buildCustomersUrl(filter: CustomersFilter): string {
 
 export async function fetchCustomers(filter: CustomersFilter = {}): Promise<PaginatedClientList> {
   // El backend filtra por activos por defecto. Para mostrar todos, combinamos
-  // dos listados: activos e inactivos.
+  // dos listados: activos e inactivos. Si el backend ignora el filtro de
+  // estado (como ya pasó con branches), los activos vendrían en ambas listas:
+  // se deduplica por id conservando la primera aparición.
   if (filter.status === "" && !filter.next && !filter.previous) {
     const base: CustomersFilter = { ...filter, status: undefined, page_size: 1000 };
     const [activeData, inactiveData] = await Promise.all([
       apiFetch<PaginatedClientList>(buildCustomersUrl({ ...base, status: "active" })),
       apiFetch<PaginatedClientList>(buildCustomersUrl({ ...base, status: "inactive" })),
     ]);
+    const all = [...(activeData.results ?? []), ...(inactiveData.results ?? [])];
+    const byId = new Map<string, (typeof all)[number]>();
+    for (const c of all) {
+      const key = String(c.id);
+      if (!byId.has(key)) byId.set(key, c);
+    }
+    const results = Array.from(byId.values());
     return {
-      count: (activeData.count ?? 0) + (inactiveData.count ?? 0),
+      count: results.length,
       next: null,
       previous: null,
-      results: [...(activeData.results ?? []), ...(inactiveData.results ?? [])],
+      results,
     };
   }
   return apiFetch<PaginatedClientList>(buildCustomersUrl(filter));
@@ -64,13 +73,17 @@ export async function fetchCustomers(filter: CustomersFilter = {}): Promise<Pagi
 
 export async function searchCustomers(query: string, branchId?: number): Promise<Client[]> {
   const qs = new URLSearchParams();
-  qs.set("search", query);
+  const q = query.trim();
+  if (q) qs.set("search", q);
   qs.set("page_size", "20");
   if (branchId) qs.set("branch", String(branchId));
-  const data = await apiFetch<PaginatedClientList>(
-    `/customers/clients/search/?${qs.toString()}`,
-  );
-  return data.results;
+  const data = await apiFetch<unknown>(`/customers/clients/search/?${qs.toString()}`);
+  if (Array.isArray(data)) return data as Client[];
+  if (data && typeof data === "object") {
+    const record = data as Record<string, unknown>;
+    if (Array.isArray(record.results)) return record.results as Client[];
+  }
+  return [];
 }
 
 export interface CustomerPayload {

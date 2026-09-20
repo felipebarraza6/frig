@@ -47,7 +47,7 @@ const FRIG_MODULES = [
   { key: "recipes", label: "Recetas" },
   { key: "ingredients", label: "Ingredientes" },
   { key: "nutrition", label: "Nutrición" },
-  { key: "deliveries", label: "Despachos / Delivery" },
+  { key: "deliveries", label: "Retiro / Delivery" },
   { key: "invoices", label: "Facturación" },
   { key: "promotions", label: "Promociones" },
   { key: "public_catalog", label: "Catálogo público / Menú digital" },

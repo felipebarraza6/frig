@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-query";
 import {
   Plus,
+  Minus,
   Search,
   Pencil,
   Trash2,
@@ -18,14 +19,15 @@ import {
   Power,
   AlertTriangle,
   FolderOpen,
+  PackagePlus,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { Select } from "@/components/ui/select";
 import { ActionsMenu } from "@/components/ui/actions-menu";
-import { SearchableSelect } from "@/components/ui/searchable-select";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
+import { ProductPickerDrawer } from "@/components/sales/product-picker-drawer";
 import { formatCLP, cn } from "@/lib/utils";
 import { useToast } from "@/lib/store/toast";
 import {
@@ -35,9 +37,9 @@ import {
   type ComboList,
   type ComboWriteRequest,
 } from "@/lib/hooks/useCatalog";
-import { useProducts } from "@/lib/hooks/useCatalog";
 import { fetchCombo, fetchCombosPage } from "@/lib/api/combos";
 import type { Combo } from "@/lib/api/combos";
+import type { ProductForSale } from "@/lib/api/products";
 
 interface ComboFormItem {
   product: number;
@@ -188,19 +190,49 @@ export default function CombosPage() {
     return { active, inactive, expired, soon };
   }, [combos]);
 
-  const { data: products = [] } = useProducts();
-  const productOptions = useMemo(() => {
-    const map = new Map(products.map((p) => [p.id, p]));
-    form.items.forEach((it) => {
-      if (!map.has(it.product) && it.product_name) {
-        map.set(it.product, {
-          id: it.product,
-          name: `${it.product_name} (no disponible)`,
-        } as (typeof products)[number]);
+  // Drawer de catálogo: agregar productos por categoría, tocando la tarjeta.
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  const quantitiesByProduct = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const it of form.items) {
+      if (it.product) map.set(it.product, (map.get(it.product) ?? 0) + (it.quantity || 0));
+    }
+    return map;
+  }, [form.items]);
+
+  function addComboProduct(p: ProductForSale) {
+    setForm((prev) => {
+      const existing = prev.items.find((it) => it.product === p.id);
+      if (existing) {
+        return {
+          ...prev,
+          items: prev.items.map((it) =>
+            it.product === p.id ? { ...it, quantity: (it.quantity || 0) + 1 } : it,
+          ),
+        };
       }
+      return {
+        ...prev,
+        items: [...prev.items, { product: p.id, product_name: p.name, quantity: 1 }],
+      };
     });
-    return Array.from(map.values());
-  }, [products, form.items]);
+  }
+
+  function decrementComboProduct(p: ProductForSale) {
+    setForm((prev) => {
+      const existing = prev.items.find((it) => it.product === p.id);
+      if (!existing) return prev;
+      const qty = (existing.quantity || 0) - 1;
+      if (qty <= 0) {
+        return { ...prev, items: prev.items.filter((it) => it.product !== p.id) };
+      }
+      return {
+        ...prev,
+        items: prev.items.map((it) => (it.product === p.id ? { ...it, quantity: qty } : it)),
+      };
+    });
+  }
 
   const createMutation = useCreateComboMutation();
   const updateMutation = useUpdateComboMutation();
@@ -231,14 +263,7 @@ export default function CombosPage() {
     setEditing(null);
     setForm(emptyForm());
     setFormError(null);
-  }
-
-  function addItem() {
-    const firstProduct = products[0];
-    setForm((prev) => ({
-      ...prev,
-      items: [...prev.items, { product: firstProduct?.id ?? 0, quantity: 1 }],
-    }));
+    setPickerOpen(false);
   }
 
   function updateItem(index: number, patch: Partial<ComboFormItem>) {
@@ -792,55 +817,70 @@ export default function CombosPage() {
                   <div className="flex flex-col gap-3 sm:col-span-2">
                     <div className="flex items-center justify-between">
                       <label className="text-sm font-medium">Productos incluidos</label>
-                      <Button type="button" variant="outline" size="sm" onClick={addItem}>
+                      <Button type="button" variant="outline" size="sm" onClick={() => setPickerOpen(true)}>
                         <Plus className="mr-1 h-3.5 w-3.5" />
-                        Agregar producto
+                        Agregar productos
                       </Button>
                     </div>
 
                     {form.items.length === 0 ? (
-                      <p className="rounded-lg border border-dashed border-border px-3 py-4 text-center text-sm text-muted-foreground">
-                        Agrega al menos un producto al combo.
-                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setPickerOpen(true)}
+                        className="flex flex-col items-center gap-1 rounded-xl border border-dashed border-border px-3 py-6 text-center transition-colors hover:border-primary/40 hover:bg-muted/30"
+                      >
+                        <PackagePlus className="h-5 w-5 text-muted-foreground" />
+                        <span className="text-sm font-medium text-muted-foreground">
+                          Agrega al menos un producto al combo
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          Elige del catálogo por categoría o busca por nombre
+                        </span>
+                      </button>
                     ) : (
                       <div className="flex flex-col gap-2">
                         {form.items.map((item, index) => (
                           <div
-                            key={index}
-                            className="flex items-end gap-2 rounded-lg border border-border p-3"
+                            key={item.product || index}
+                            className="flex items-center gap-3 rounded-xl border border-border px-3 py-2"
                           >
-                            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                              <label className="text-xs text-muted-foreground">Producto</label>
-                              <SearchableSelect
-                                value={String(item.product)}
-                                onChange={(value) => updateItem(index, { product: Number(value) })}
-                                options={productOptions.map((p) => ({ value: String(p.id), label: p.name }))}
-                                placeholder="Selecciona un producto…"
-                                searchPlaceholder="Buscar producto…"
-                                emptyMessage="No se encontraron productos"
-                              />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium">
+                                {item.product_name || `Producto #${item.product}`}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground">x{item.quantity}</p>
                             </div>
-                            <div className="flex w-28 flex-col gap-1.5">
-                              <label className="text-xs text-muted-foreground">Cantidad</label>
-                              <Input
-                                type="number"
-                                min={1}
-                                value={item.quantity}
-                                onChange={(e) =>
-                                  updateItem(index, { quantity: Number(e.target.value) })
+                            <div className="flex shrink-0 items-center rounded-lg border border-border bg-background">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateItem(index, { quantity: Math.max(1, (item.quantity || 1) - 1) })
                                 }
-                                className="tabular-nums"
-                              />
+                                className="flex h-7 w-7 items-center justify-center text-muted-foreground hover:text-foreground"
+                                aria-label="Disminuir cantidad"
+                              >
+                                <Minus className="h-3.5 w-3.5" />
+                              </button>
+                              <span className="w-8 text-center text-sm font-medium tabular-nums">
+                                {item.quantity}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => updateItem(index, { quantity: (item.quantity || 0) + 1 })}
+                                className="flex h-7 w-7 items-center justify-center text-muted-foreground hover:text-foreground"
+                                aria-label="Aumentar cantidad"
+                              >
+                                <Plus className="h-3.5 w-3.5" />
+                              </button>
                             </div>
-                            <Button
+                            <button
                               type="button"
-                              variant="ghost"
-                              size="icon"
                               onClick={() => removeItem(index)}
-                              aria-label="Quitar producto"
+                              className="shrink-0 text-muted-foreground transition-colors hover:text-danger"
+                              aria-label={`Quitar ${item.product_name || "producto"}`}
                             >
-                              <Trash2 className="h-4 w-4 text-muted-foreground" />
-                            </Button>
+                              <Trash2 className="h-4 w-4" />
+                            </button>
                           </div>
                         ))}
                       </div>
@@ -897,6 +937,14 @@ export default function CombosPage() {
           </div>
       </AnimatedOverlay>
 )}
+
+      <ProductPickerDrawer
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        quantitiesByProduct={quantitiesByProduct}
+        onAdd={addComboProduct}
+        onDecrement={decrementComboProduct}
+      />
     </div>
   );
 }

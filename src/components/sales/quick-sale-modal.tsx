@@ -24,7 +24,9 @@ import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { fetchProducts } from "@/lib/api/products";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import { ProductPickerDrawer } from "@/components/sales/product-picker-drawer";
+import { searchProductsForSale, type ProductForSale } from "@/lib/api/products";
 import {
   createOrder,
   editOrder,
@@ -43,7 +45,7 @@ import { useToast } from "@/lib/store/toast";
 import { formatCLP, cn } from "@/lib/utils";
 import type { YggdraSchemas } from "@/lib/api/types";
 
-type Product = YggdraSchemas["ProductList"];
+type Product = ProductForSale;
 type TableItem = YggdraSchemas["Table"];
 type ClientOption = { id: number; name: string; email?: string | null; address?: string | null };
 
@@ -127,6 +129,8 @@ export default function QuickSaleModal({
 
   const [productQuery, setProductQuery] = useState("");
   const [debouncedProductQuery, setDebouncedProductQuery] = useState("");
+  // Drawer de catálogo: selección visual por categoría sin escribir.
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const [clientQuery, setClientQuery] = useState("");
   const [debouncedClientQuery, setDebouncedClientQuery] = useState("");
@@ -179,6 +183,7 @@ export default function QuickSaleModal({
       setInitializedFor(null);
       setProductQuery("");
       setDebouncedProductQuery("");
+      setPickerOpen(false);
       setClientQuery("");
       setDebouncedClientQuery("");
       setSelectedClient(null);
@@ -297,16 +302,10 @@ export default function QuickSaleModal({
     staleTime: 60_000,
   });
 
-  const { data: productResults, isLoading: searchingProducts } = useQuery({
-    queryKey: ["products", "quick-sale", debouncedProductQuery, branch?.branch_id],
-    queryFn: () =>
-      fetchProducts({
-        search: debouncedProductQuery.trim() || undefined,
-        is_for_sale: true,
-        is_active: true,
-        page_size: 20,
-      }),
-    enabled: open && debouncedProductQuery.trim().length >= 1,
+  const { data: productResults = [], isLoading: searchingProducts } = useQuery({
+    queryKey: ["products", "for-sale", "quick-sale", debouncedProductQuery, branch?.branch_id],
+    queryFn: () => searchProductsForSale({ search: debouncedProductQuery.trim() }),
+    enabled: open && debouncedProductQuery.trim().length >= 2,
     staleTime: 30_000,
   });
 
@@ -314,7 +313,7 @@ export default function QuickSaleModal({
     queryKey: ["customers", "search", debouncedClientQuery, branch?.branch_id],
     queryFn: () =>
       searchCustomers(debouncedClientQuery, branch?.branch_id ? Number(branch.branch_id) : undefined),
-    enabled: open && debouncedClientQuery.trim().length >= 1,
+    enabled: open && debouncedClientQuery.trim().length >= 2,
     staleTime: 30_000,
   });
 
@@ -440,6 +439,31 @@ export default function QuickSaleModal({
         setRemovedOrderProductIds((ids) => [...ids, target.orderProductId as number]);
       }
       return prev.filter((i) => i.key !== key);
+    });
+  }
+
+  // Cantidad total por producto para el drawer de catálogo (todas las líneas).
+  const quantitiesByProduct = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const i of items) {
+      map.set(i.productId, (map.get(i.productId) ?? 0) + i.quantity);
+    }
+    return map;
+  }, [items]);
+
+  function decrementProduct(product: ProductForSale) {
+    setItems((prev) => {
+      const line = prev.find((i) => i.productId === product.id);
+      if (!line) return prev;
+      if (line.quantity <= 1) {
+        if (line.orderProductId) {
+          setRemovedOrderProductIds((ids) => [...ids, line.orderProductId as number]);
+        }
+        return prev.filter((i) => i.key !== line.key);
+      }
+      return prev.map((i) =>
+        i.key === line.key ? { ...i, quantity: i.quantity - 1 } : i,
+      );
     });
   }
 
@@ -654,59 +678,38 @@ export default function QuickSaleModal({
         <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
           {/* Productos */}
           <div className="flex min-w-0 flex-col gap-3">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={productQuery}
-                onChange={(e) => setProductQuery(e.target.value)}
+            <div className="flex items-center gap-2">
+              <SearchableSelect
+                options={(productResults ?? []).map((p) => ({
+                  value: String(p.id),
+                  label: p.name,
+                  description: [p.code, formatCLP(toNum(p.price))].filter(Boolean).join(" · "),
+                }))}
+                value=""
+                onChange={(value) => {
+                  const product = (productResults ?? []).find((p) => String(p.id) === value);
+                  if (product) {
+                    addItem(product);
+                    setProductQuery("");
+                    setDebouncedProductQuery("");
+                  }
+                }}
+                onQueryChange={setProductQuery}
+                minChars={2}
+                loading={searchingProducts}
                 placeholder="Buscar producto por nombre o código…"
-                className="h-10 pl-9 text-sm"
-                autoFocus
+                searchPlaceholder="Nombre o SKU…"
+                emptyMessage="Sin resultados"
               />
-              {productQuery.trim().length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setProductQuery("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  aria-label="Limpiar búsqueda"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-              {productQuery.trim().length > 0 && (
-                <div className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-xl border border-border bg-background shadow-lg">
-                  {searchingProducts && (
-                    <p className="flex items-center gap-2 px-3 py-2.5 text-xs text-muted-foreground">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Buscando…
-                    </p>
-                  )}
-                  {!searchingProducts && (productResults?.results ?? []).length === 0 && (
-                    <p className="px-3 py-2.5 text-xs text-muted-foreground">Sin resultados</p>
-                  )}
-                  {!searchingProducts &&
-                    (productResults?.results ?? []).map((product) => (
-                      <button
-                        key={product.id}
-                        type="button"
-                        onClick={() => addItem(product)}
-                        className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors hover:bg-muted"
-                      >
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-medium">{product.name}</span>
-                          {product.code && (
-                            <span className="block text-[11px] text-muted-foreground">{product.code}</span>
-                          )}
-                        </span>
-                        <span className="flex shrink-0 items-center gap-2">
-                          <span className="text-sm font-semibold tabular-nums">
-                            {formatCLP(toNum(product.price))}
-                          </span>
-                          <Plus className="h-4 w-4 text-primary" />
-                        </span>
-                      </button>
-                    ))}
-                </div>
-              )}
+              <button
+                type="button"
+                onClick={() => setPickerOpen(true)}
+                title="Ver catálogo por categoría"
+                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-sm font-medium transition-colors hover:bg-muted"
+              >
+                <Package className="h-4 w-4 text-primary" />
+                Catálogo
+              </button>
             </div>
 
             <div className="flex flex-col gap-2">
@@ -1357,6 +1360,14 @@ export default function QuickSaleModal({
               : "Crear orden"}
         </Button>
       </ModalFooter>
+
+      <ProductPickerDrawer
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        quantitiesByProduct={quantitiesByProduct}
+        onAdd={addItem}
+        onDecrement={decrementProduct}
+      />
     </Modal>
   );
 }

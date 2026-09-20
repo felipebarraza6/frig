@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { X, Check, Gift, Building2 } from "lucide-react";
+import { X, Check, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
@@ -59,6 +59,14 @@ export function BranchForm({ branch, onClose, onSuccess }: BranchFormProps) {
   const [province, setProvince] = useState(branch?.province ?? "");
   const [commune, setCommune] = useState(branch?.commune ?? "");
   const [dni, setDni] = useState(branch?.dni ?? "");
+  const [allowMultiBranch, setAllowMultiBranch] = useState(
+    branch?.allow_multi_branch_access ?? true,
+  );
+  const [allowPublicSignup, setAllowPublicSignup] = useState(
+    branch?.allow_public_customer_signup ?? false,
+  );
+  const [customDomain, setCustomDomain] = useState(branch?.custom_domain ?? "");
+  const [fromEmail, setFromEmail] = useState(branch?.from_email ?? "");
   const [organizationId, setOrganizationId] = useState<string>(
     branch?.organization ? String(branch.organization) : "",
   );
@@ -107,6 +115,10 @@ export function BranchForm({ branch, onClose, onSuccess }: BranchFormProps) {
         province: province || undefined,
         commune: commune || undefined,
         dni: dni || undefined,
+        allow_multi_branch_access: allowMultiBranch,
+        allow_public_customer_signup: allowPublicSignup,
+        custom_domain: customDomain.trim() || undefined,
+        from_email: fromEmail.trim() || undefined,
         is_active: branch?.is_active ?? true,
       };
       if (isSuperAdmin && organizationId) {
@@ -281,6 +293,64 @@ export function BranchForm({ branch, onClose, onSuccess }: BranchFormProps) {
                     value={commune}
                     onChange={(e) => setCommune(e.target.value)}
                     required
+                  />
+                </Field>
+              </div>
+            </div>
+
+            {/* Acceso y dominio */}
+            <div className="space-y-3">
+              <SectionLabel>Acceso y dominio</SectionLabel>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2.5">
+                  <div>
+                    <p className="text-sm font-medium">Acceso multi-sucursal</p>
+                    <p className="text-xs text-muted-foreground">
+                      Los usuarios de esta sucursal pueden operar en varias sucursales a la vez.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={allowMultiBranch}
+                    onCheckedChange={setAllowMultiBranch}
+                    label="Acceso multi-sucursal"
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2.5">
+                  <div>
+                    <p className="text-sm font-medium">Registro público de clientes</p>
+                    <p className="text-xs text-muted-foreground">
+                      Los clientes finales pueden crear su cuenta solos en esta sucursal.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={allowPublicSignup}
+                    onCheckedChange={setAllowPublicSignup}
+                    label="Registro público de clientes"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field
+                  label="Dominio personalizado"
+                  hint="Sin http/https; debe apuntar a este servidor."
+                >
+                  <Input
+                    id="custom_domain"
+                    value={customDomain}
+                    onChange={(e) => setCustomDomain(e.target.value)}
+                    placeholder="agents.smarthydro.cl"
+                  />
+                </Field>
+                <Field
+                  label="Email remitente"
+                  hint="Para correos de la sucursal; debe estar autorizado en el SMTP (SPF/DKIM)."
+                >
+                  <Input
+                    id="from_email"
+                    type="email"
+                    value={fromEmail}
+                    onChange={(e) => setFromEmail(e.target.value)}
+                    placeholder="no-reply@misucursal.cl"
                   />
                 </Field>
               </div>

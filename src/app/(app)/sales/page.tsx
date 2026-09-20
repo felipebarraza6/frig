@@ -2,11 +2,15 @@
 
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, ShoppingBag, X, Eye, Ban, Plus, FileDown, ClipboardList, Receipt, FileText, SlidersHorizontal, Zap, Wallet, Clock, Store, Package, MoreHorizontal, LayoutGrid, List, HandHelping, MapPin, Truck } from "lucide-react";
+import { Search, ShoppingBag, X, Eye, Ban, Plus, FileDown, ClipboardList, Receipt, FileText, SlidersHorizontal, Zap, Wallet, Clock, Store, Package, MoreHorizontal, LayoutGrid, List, HandHelping, MapPin, Truck, ChevronDown, Banknote } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { Select } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import { MultiSelect } from "@/components/ui/multi-select";
+import { ActionsMenu } from "@/components/ui/actions-menu";
+import { DropdownPortal } from "@/components/ui/dropdown-portal";
 import {
   fetchOrders,
   cancelOrder,
@@ -34,8 +38,8 @@ import {
 } from "@/lib/store/session";
 
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
-import { OrderSplitsPanel } from "@/components/sales/order-splits-panel";
-import { OrderReturnPanel } from "@/components/sales/order-return-panel";
+import { OrderProductLines } from "@/components/sales/order-return-panel";
+import { OrderPayModal } from "@/components/sales/order-pay-modal";
 import QuickSaleModal from "@/components/sales/quick-sale-modal";
 import { useToast } from "@/lib/store/toast";
 import type { YggdraSchemas } from "@/lib/api/types";
@@ -77,7 +81,6 @@ function useClientSearchParam(key: string): string | null {
 }
 
 const STATUS_OPTIONS = [
-  { value: "", label: "Todos" },
   { value: "DRAFT", label: "Borrador" },
   { value: "PENDING", label: "Pendiente" },
   { value: "IN_PROGRESS", label: "En progreso" },
@@ -86,7 +89,6 @@ const STATUS_OPTIONS = [
 ];
 
 const PAYMENT_STATUS_OPTIONS = [
-  { value: "", label: "Todos" },
   { value: "PENDING", label: "Pendiente" },
   { value: "PARTIAL", label: "Parcial" },
   { value: "PAID", label: "Pagada" },
@@ -94,10 +96,23 @@ const PAYMENT_STATUS_OPTIONS = [
 ];
 
 const ORDER_TYPE_OPTIONS = [
-  { value: "", label: "Todos" },
   { value: "SALE", label: "Venta" },
   { value: "ORDER", label: "Orden" },
 ];
+
+function loadStringArray(key: string, fallback: string[] = []): string[] {
+  if (typeof window === "undefined") return fallback;
+  const raw = window.localStorage.getItem(key);
+  if (!raw) return fallback;
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
+  } catch {
+    // legacy: valor único en string
+    if (raw && raw !== "[]") return [raw];
+  }
+  return fallback;
+}
 
 function monthStartStr(): string {
   const d = new Date();
@@ -240,10 +255,89 @@ type OrderCardProps = {
   onView: (order: Order) => void;
   onTicket: (order: Order) => void;
   onDeliver: (order: Order) => void;
+  onPay: (order: Order) => void;
   onThermal: (order: Order) => void;
   onA4: (order: Order) => void;
   onCancel: (order: Order) => void;
 };
+
+function canRegisterPayment(order: Order) {
+  return order.status !== "CANCELLED" && order.payment_status !== "PAID";
+}
+
+function orderPaidAmount(order: Order) {
+  return Number((order as { paid_amount?: unknown }).paid_amount ?? 0) || 0;
+}
+
+function PdfFormatFlyout({
+  disabled,
+  onThermal,
+  onA4,
+  triggerClassName,
+  align = "left",
+  children,
+}: {
+  disabled?: boolean;
+  onThermal: () => void;
+  onA4: () => void;
+  triggerClassName?: string;
+  align?: "left" | "right";
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        disabled={disabled}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        className={triggerClassName}
+      >
+        {children}
+      </button>
+      {/* Portal al body: un menú absoluto dentro del modal queda debajo de
+          las tarjetas de la página (stacking context del overlay). */}
+      <DropdownPortal
+        triggerRef={ref}
+        open={open}
+        onClose={() => setOpen(false)}
+        align={align}
+        className="w-44 overflow-hidden rounded-xl border border-border bg-card py-1 shadow-lg"
+      >
+        <button
+          type="button"
+          role="menuitem"
+          disabled={disabled}
+          onClick={() => {
+            onThermal();
+            setOpen(false);
+          }}
+          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted disabled:opacity-50"
+        >
+          <Receipt className="h-3.5 w-3.5 text-muted-foreground" />
+          Térmico (80 mm)
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          disabled={disabled}
+          onClick={() => {
+            onA4();
+            setOpen(false);
+          }}
+          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted disabled:opacity-50"
+        >
+          <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+          A4
+        </button>
+      </DropdownPortal>
+    </div>
+  );
+}
 
 function ActionMenuItem({
   icon: Icon,
@@ -293,6 +387,7 @@ function OrderListRow({
   onView,
   onTicket,
   onDeliver,
+  onPay,
   onThermal,
   onA4,
   onCancel,
@@ -382,26 +477,27 @@ function OrderListRow({
                   className="absolute right-0 top-full z-20 mt-2 w-44 overflow-hidden rounded-xl border border-border bg-card shadow-lg"
                 >
                   <div className="flex flex-col py-1">
+                    <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Orden de elaboración
+                    </div>
                     <ActionMenuItem
-                      icon={ClipboardList}
-                      label="Orden de elaboración"
+                      icon={Receipt}
+                      label="Térmico (80 mm)"
                       onClick={() => {
                         onTicket(order);
                         setMenuOpen(false);
                       }}
+                      disabled={isDownloading}
                     />
-                    {order.delivery_status !== "DELIVERED" && order.status !== "CANCELLED" && (
-                      <ActionMenuItem
-                        icon={Zap}
-                        label="Marcar entregada"
-                        tone="blue"
-                        onClick={() => {
-                          onDeliver(order);
-                          setMenuOpen(false);
-                        }}
-                        disabled={deliverPending}
-                      />
-                    )}
+                    <ActionMenuItem
+                      icon={FileText}
+                      label="A4"
+                      onClick={() => {
+                        onA4(order);
+                        setMenuOpen(false);
+                      }}
+                      disabled={isDownloading}
+                    />
                     {order.payment_status === "PAID" && (
                       <>
                         <ActionMenuItem
@@ -424,20 +520,44 @@ function OrderListRow({
                         />
                       </>
                     )}
+                    {canRegisterPayment(order) ||
+                    (order.delivery_status !== "DELIVERED" && order.status !== "CANCELLED") ||
+                    (order.status !== "CANCELLED" && canCancel) ? (
+                      <div className="my-1 h-px bg-border" />
+                    ) : null}
+                    {canRegisterPayment(order) && (
+                      <ActionMenuItem
+                        icon={Banknote}
+                        label="Registrar pago"
+                        onClick={() => {
+                          onPay(order);
+                          setMenuOpen(false);
+                        }}
+                      />
+                    )}
+                    {order.delivery_status !== "DELIVERED" && order.status !== "CANCELLED" && (
+                      <ActionMenuItem
+                        icon={Zap}
+                        label="Entregar"
+                        tone="blue"
+                        onClick={() => {
+                          onDeliver(order);
+                          setMenuOpen(false);
+                        }}
+                        disabled={deliverPending}
+                      />
+                    )}
                     {order.status !== "CANCELLED" && canCancel && (
-                      <>
-                        <div className="my-1 h-px bg-border" />
-                        <ActionMenuItem
-                          icon={Ban}
-                          label="Anular"
-                          tone="danger"
-                          onClick={() => {
-                            onCancel(order);
-                            setMenuOpen(false);
-                          }}
-                          disabled={cancelPending}
-                        />
-                      </>
+                      <ActionMenuItem
+                        icon={Ban}
+                        label="Anular"
+                        tone="danger"
+                        onClick={() => {
+                          onCancel(order);
+                          setMenuOpen(false);
+                        }}
+                        disabled={cancelPending}
+                      />
                     )}
                   </div>
                 </motion.div>
@@ -462,6 +582,7 @@ function OrderCard({
   onView,
   onTicket,
   onDeliver,
+  onPay,
   onThermal,
   onA4,
   onCancel,
@@ -547,25 +668,16 @@ function OrderCard({
             <Eye className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
             Ver
           </button>
-          <button
-            type="button"
-            onClick={() => onTicket(order)}
-            className="inline-flex h-11 min-h-[44px] items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground sm:h-9"
-            title="Orden de elaboración"
+          <PdfFormatFlyout
+            disabled={isDownloading}
+            onThermal={() => onTicket(order)}
+            onA4={() => onA4(order)}
+            triggerClassName="inline-flex h-11 min-h-[44px] items-center gap-1 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50 sm:h-9"
           >
             <ClipboardList className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
-          </button>
-          {order.delivery_status !== "DELIVERED" && order.status !== "CANCELLED" && (
-            <button
-              type="button"
-              onClick={() => onDeliver(order)}
-              disabled={deliverPending}
-              className="inline-flex h-11 min-h-[44px] items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-2.5 text-xs font-medium text-primary shadow-sm transition-colors hover:bg-primary/10 disabled:opacity-40 sm:h-9"
-              title="Marcar entregada"
-            >
-              <Zap className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
-            </button>
-          )}
+            <ChevronDown className="h-3 w-3" />
+            <span className="sr-only">Orden de elaboración</span>
+          </PdfFormatFlyout>
         </div>
 
         <div className="relative" ref={menuRef}>
@@ -612,20 +724,44 @@ function OrderCard({
                       />
                     </>
                   )}
+                  {canRegisterPayment(order) ||
+                  (order.delivery_status !== "DELIVERED" && order.status !== "CANCELLED") ||
+                  (order.status !== "CANCELLED" && canCancel) ? (
+                    <div className="my-1 h-px bg-border" />
+                  ) : null}
+                  {canRegisterPayment(order) && (
+                    <ActionMenuItem
+                      icon={Banknote}
+                      label="Registrar pago"
+                      onClick={() => {
+                        onPay(order);
+                        setMenuOpen(false);
+                      }}
+                    />
+                  )}
+                  {order.delivery_status !== "DELIVERED" && order.status !== "CANCELLED" && (
+                    <ActionMenuItem
+                      icon={Zap}
+                      label="Entregar"
+                      tone="blue"
+                      onClick={() => {
+                        onDeliver(order);
+                        setMenuOpen(false);
+                      }}
+                      disabled={deliverPending}
+                    />
+                  )}
                   {order.status !== "CANCELLED" && canCancel && (
-                    <>
-                      <div className="my-1 h-px bg-border" />
-                      <ActionMenuItem
-                        icon={Ban}
-                        label="Anular"
-                        tone="danger"
-                        onClick={() => {
-                          onCancel(order);
-                          setMenuOpen(false);
-                        }}
-                        disabled={cancelPending}
-                      />
-                    </>
+                    <ActionMenuItem
+                      icon={Ban}
+                      label="Anular"
+                      tone="danger"
+                      onClick={() => {
+                        onCancel(order);
+                        setMenuOpen(false);
+                      }}
+                      disabled={cancelPending}
+                    />
                   )}
                 </div>
               </motion.div>
@@ -672,26 +808,27 @@ function OrderCard({
                 </button>
               </div>
               <div className="flex max-h-[70vh] flex-col overflow-y-auto py-2">
+                <div className="px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground sm:px-3">
+                  Orden de elaboración
+                </div>
                 <ActionMenuItem
-                  icon={ClipboardList}
-                  label="Orden de elaboración"
+                  icon={Receipt}
+                  label="Térmico (80 mm)"
                   onClick={() => {
                     onTicket(order);
                     setMenuOpen(false);
                   }}
+                  disabled={isDownloading}
                 />
-                {order.delivery_status !== "DELIVERED" && order.status !== "CANCELLED" && (
-                  <ActionMenuItem
-                    icon={Zap}
-                    label="Marcar entregada"
-                    tone="blue"
-                    onClick={() => {
-                      onDeliver(order);
-                      setMenuOpen(false);
-                    }}
-                    disabled={deliverPending}
-                  />
-                )}
+                <ActionMenuItem
+                  icon={FileText}
+                  label="A4"
+                  onClick={() => {
+                    onA4(order);
+                    setMenuOpen(false);
+                  }}
+                  disabled={isDownloading}
+                />
                 {order.payment_status === "PAID" && (
                   <>
                     <ActionMenuItem
@@ -714,20 +851,33 @@ function OrderCard({
                     />
                   </>
                 )}
+                {(order.delivery_status !== "DELIVERED" && order.status !== "CANCELLED") ||
+                (order.status !== "CANCELLED" && canCancel) ? (
+                  <div className="my-1 h-px bg-border" />
+                ) : null}
+                {order.delivery_status !== "DELIVERED" && order.status !== "CANCELLED" && (
+                  <ActionMenuItem
+                    icon={Zap}
+                    label="Entregar"
+                    tone="blue"
+                    onClick={() => {
+                      onDeliver(order);
+                      setMenuOpen(false);
+                    }}
+                    disabled={deliverPending}
+                  />
+                )}
                 {order.status !== "CANCELLED" && canCancel && (
-                  <>
-                    <div className="my-1 h-px bg-border" />
-                    <ActionMenuItem
-                      icon={Ban}
-                      label="Anular"
-                      tone="danger"
-                      onClick={() => {
-                        onCancel(order);
-                        setMenuOpen(false);
-                      }}
-                      disabled={cancelPending}
-                    />
-                  </>
+                  <ActionMenuItem
+                    icon={Ban}
+                    label="Anular"
+                    tone="danger"
+                    onClick={() => {
+                      onCancel(order);
+                      setMenuOpen(false);
+                    }}
+                    disabled={cancelPending}
+                  />
                 )}
               </div>
               <div className="border-t border-border p-4">
@@ -769,18 +919,11 @@ export default function SalesPage() {
     return window.localStorage.getItem("frig.sales.search") || "";
   });
   const [debouncedSearch, setDebouncedSearch] = useState(search);
-  const [status, setStatus] = useState(() => {
-    if (typeof window === "undefined") return "";
-    return window.localStorage.getItem("frig.sales.status") || "";
-  });
-  const [paymentStatus, setPaymentStatus] = useState(() => {
-    if (typeof window === "undefined") return openView ? "PENDING" : "";
-    return window.localStorage.getItem("frig.sales.paymentStatus") || (openView ? "PENDING" : "");
-  });
-  const [orderType, setOrderType] = useState(() => {
-    if (typeof window === "undefined") return "";
-    return window.localStorage.getItem("frig.sales.orderType") || "";
-  });
+  const [status, setStatus] = useState<string[]>(() => loadStringArray("frig.sales.status"));
+  const [paymentStatus, setPaymentStatus] = useState<string[]>(() =>
+    loadStringArray("frig.sales.paymentStatus", openView ? ["PENDING"] : []),
+  );
+  const [orderType, setOrderType] = useState<string[]>(() => loadStringArray("frig.sales.orderType"));
   const [quickFilter, setQuickFilter] = useState<QuickFilter>(() => {
     if (typeof window === "undefined") return "ALL";
     return (window.localStorage.getItem("frig.sales.quickFilter") as QuickFilter) || "ALL";
@@ -818,13 +961,13 @@ export default function SalesPage() {
     window.localStorage.setItem("frig.sales.search", search);
   }, [search]);
   useEffect(() => {
-    window.localStorage.setItem("frig.sales.status", status);
+    window.localStorage.setItem("frig.sales.status", JSON.stringify(status));
   }, [status]);
   useEffect(() => {
-    window.localStorage.setItem("frig.sales.paymentStatus", paymentStatus);
+    window.localStorage.setItem("frig.sales.paymentStatus", JSON.stringify(paymentStatus));
   }, [paymentStatus]);
   useEffect(() => {
-    window.localStorage.setItem("frig.sales.orderType", orderType);
+    window.localStorage.setItem("frig.sales.orderType", JSON.stringify(orderType));
   }, [orderType]);
   useEffect(() => {
     window.localStorage.setItem("frig.sales.quickFilter", quickFilter);
@@ -855,7 +998,7 @@ export default function SalesPage() {
     queryKey: ["customers", "search", clientFilterDebounced, branch?.branch_id],
     queryFn: () =>
       searchCustomers(clientFilterDebounced, branch?.branch_id ? Number(branch.branch_id) : undefined),
-    enabled: clientFilterDebounced.trim().length >= 1,
+    enabled: clientFilterDebounced.trim().length >= 2,
     staleTime: 30_000,
   });
 
@@ -867,7 +1010,18 @@ export default function SalesPage() {
     return items;
   }, [clientFilterResultsQuery, clientFilterId, clientFilterName]);
 
+  const clientFilterSelectOptions = useMemo(
+    () =>
+      clientFilterResults.map((c) => ({
+        value: String(c.id),
+        label: c.name ?? "Sin nombre",
+        description: c.email ?? undefined,
+      })),
+    [clientFilterResults],
+  );
+
   const [detail, setDetail] = useState<Order | null>(null);
+  const [payingOrder, setPayingOrder] = useState<Order | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [posModal, setPosModal] = useState<{
     open: boolean;
@@ -969,9 +1123,9 @@ export default function SalesPage() {
   const filter = useMemo<OrdersFilter>(
     () => ({
       search: debouncedSearch || undefined,
-      status: status || undefined,
-      payment_status: paymentStatus || undefined,
-      order_type: orderType || undefined,
+      status: status.length ? status : undefined,
+      payment_status: paymentStatus.length ? paymentStatus : undefined,
+      order_type: orderType.length ? orderType : undefined,
       start_date: startDate || undefined,
       end_date: endDate || undefined,
       client__in: clientFilterId || undefined,
@@ -1009,7 +1163,10 @@ export default function SalesPage() {
     });
   }, [page?.results, debouncedSearch]) as Order[];
   const totalOrders = page?.count ?? 0;
-  const activeFilterCount = [status, paymentStatus, orderType, startDate, endDate, clientFilterId].filter(Boolean).length;
+  const activeFilterCount =
+    [status.length, paymentStatus.length, orderType.length, startDate, endDate, clientFilterId].filter(
+      Boolean,
+    ).length;
 
   // Filtro rápido por chips (aplicado en cliente sobre la página cargada).
   const visibleOrders = useMemo(() => {
@@ -1101,7 +1258,7 @@ export default function SalesPage() {
     },
   });
 
-  function updateFilter<T extends string>(setter: (v: T) => void, value: T) {
+  function updateFilter<T>(setter: (v: T) => void, value: T) {
     setter(value);
     setPageUrl({});
   }
@@ -1420,101 +1577,61 @@ export default function SalesPage() {
         {advancedOpen && (
             <div className="hidden grid-cols-2 gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm sm:grid md:grid-cols-3 lg:grid-cols-6">
               <div className="flex flex-col gap-1">
-                <label htmlFor="filter-status" className="text-xs text-muted-foreground">Estado</label>
-                <Select id="filter-status" value={status} onChange={(e) => updateFilter(setStatus, e.target.value)} className="h-10 text-sm sm:h-9">
-                  {STATUS_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </Select>
+                <label className="text-xs text-muted-foreground">Estado</label>
+                <MultiSelect
+                  options={STATUS_OPTIONS}
+                  value={status}
+                  onChange={(v) => updateFilter(setStatus, v)}
+                  placeholder="Todos"
+                  className="h-10 sm:h-9"
+                />
               </div>
               <div className="flex flex-col gap-1">
-                <label htmlFor="filter-payment" className="text-xs text-muted-foreground">Pago</label>
-                <Select id="filter-payment" value={paymentStatus} onChange={(e) => updateFilter(setPaymentStatus, e.target.value)} className="h-10 text-sm sm:h-9">
-                  {PAYMENT_STATUS_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </Select>
+                <label className="text-xs text-muted-foreground">Pago</label>
+                <MultiSelect
+                  options={PAYMENT_STATUS_OPTIONS}
+                  value={paymentStatus}
+                  onChange={(v) => updateFilter(setPaymentStatus, v)}
+                  placeholder="Todos"
+                  className="h-10 sm:h-9"
+                />
               </div>
               <div className="flex flex-col gap-1">
-                <label htmlFor="filter-type" className="text-xs text-muted-foreground">Tipo</label>
-                <Select id="filter-type" value={orderType} onChange={(e) => updateFilter(setOrderType, e.target.value)} className="h-10 text-sm sm:h-9">
-                  {ORDER_TYPE_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </Select>
+                <label className="text-xs text-muted-foreground">Tipo</label>
+                <MultiSelect
+                  options={ORDER_TYPE_OPTIONS}
+                  value={orderType}
+                  onChange={(v) => updateFilter(setOrderType, v)}
+                  placeholder="Todos"
+                  className="h-10 sm:h-9"
+                />
               </div>
-              <div className="flex flex-col gap-1">
-                <label htmlFor="filter-client" className="text-xs text-muted-foreground">Cliente</label>
-                <div className="relative">
-                  <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    id="filter-client"
-                    value={clientFilterQuery}
-                    onChange={(e) => {
-                      setClientFilterQuery(e.target.value);
-                      if (clientFilterId) {
-                        setClientFilterId("");
-                        setClientFilterName("");
-                      }
-                      setClientFilterOpen(true);
-                    }}
-                    onFocus={() => setClientFilterOpen(true)}
-                    placeholder="Buscar cliente…"
-                    className="h-10 pl-8 text-sm sm:h-9"
-                  />
-                  {clientFilterId && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setClientFilterId("");
-                        setClientFilterName("");
-                        setClientFilterQuery("");
-                        setClientFilterOpen(false);
-                        setPageUrl({});
-                      }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground"
-                      aria-label="Limpiar cliente"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                  {clientFilterOpen && clientFilterQuery.trim().length === 0 && !clientFilterId && (
-                    <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs text-muted-foreground shadow-md">
-                      Escribe para buscar clientes…
-                    </div>
-                  )}
-                  {clientFilterOpen && clientFilterDebounced.trim().length > 0 && searchingClientFilter && (
-                    <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs text-muted-foreground shadow-md">
-                      Buscando…
-                    </div>
-                  )}
-                  {clientFilterOpen && clientFilterDebounced.trim().length > 0 && !searchingClientFilter && clientFilterResults.length > 0 && (
-                    <div className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-lg border border-border bg-background shadow-md">
-                      {clientFilterResults.map((client) => (
-                        <button
-                          key={client.id}
-                          type="button"
-                          onClick={() => {
-                            setClientFilterId(String(client.id));
-                            setClientFilterName(client.name ?? "");
-                            setClientFilterQuery(client.name ?? "");
-                            setClientFilterOpen(false);
-                            setPageUrl({});
-                          }}
-                          className="w-full px-3 py-2 text-left text-sm hover:bg-muted"
-                        >
-                          {client.name}
-                          {client.email && <span className="ml-2 text-xs text-muted-foreground">{client.email}</span>}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {clientFilterOpen && clientFilterDebounced.trim().length > 0 && !searchingClientFilter && clientFilterResults.length === 0 && !clientFilterId && (
-                    <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs text-muted-foreground shadow-md">
-                      Sin resultados
-                    </div>
-                  )}
-                </div>
+              <div className="flex min-w-[180px] flex-col gap-1">
+                <label className="text-xs text-muted-foreground">Cliente</label>
+                <SearchableSelect
+                  options={clientFilterSelectOptions}
+                  value={clientFilterId}
+                  onChange={(value) => {
+                    setClientFilterId(value);
+                    const opt = clientFilterSelectOptions.find((o) => o.value === value);
+                    setClientFilterName(opt?.label ?? "");
+                    setClientFilterQuery("");
+                    setClientFilterOpen(false);
+                    setPageUrl({});
+                  }}
+                  onQueryChange={setClientFilterQuery}
+                  minChars={2}
+                  loading={searchingClientFilter}
+                  clearable
+                  selectedOption={
+                    clientFilterId && clientFilterName
+                      ? { value: clientFilterId, label: clientFilterName }
+                      : null
+                  }
+                  placeholder="Filtrar por cliente…"
+                  searchPlaceholder="Nombre, RUT o teléfono…"
+                  emptyMessage="Sin coincidencias"
+                />
               </div>
               <div className="flex flex-col gap-1">
                 <label htmlFor="filter-start" className="text-xs text-muted-foreground">Desde</label>
@@ -1581,6 +1698,7 @@ export default function SalesPage() {
                     onView={setDetail}
                     onTicket={handleDownloadTicketPdf}
                     onDeliver={openDelivering}
+                    onPay={setPayingOrder}
                     onThermal={handleDownloadThermalPdf}
                     onA4={handleDownloadA4Pdf}
                     onCancel={(o) => cancel.mutate(o.id)}
@@ -1602,6 +1720,7 @@ export default function SalesPage() {
                     onView={setDetail}
                     onTicket={handleDownloadTicketPdf}
                     onDeliver={openDelivering}
+                    onPay={setPayingOrder}
                     onThermal={handleDownloadThermalPdf}
                     onA4={handleDownloadA4Pdf}
                     onCancel={(o) => cancel.mutate(o.id)}
@@ -1712,26 +1831,25 @@ export default function SalesPage() {
                 </div>
               </div>
 
-              {/* Productos */}
+              {/* Productos: devolución por línea, no de la orden entera */}
               {detail.products && detail.products.length > 0 && (
-                <div className="mt-5">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Productos</p>
-                  <div className="mt-2 flex flex-col divide-y divide-border rounded-xl border border-border bg-background">
-                    {detail.products.map((p) => (
-                      <div key={p.id} className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm">
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate font-medium">{p.product_name}</p>
-                          <p className="mt-0.5 text-xs text-muted-foreground">
-                            x{p.quantity ?? 0} · {formatCLP(p.unit_price ?? 0)} c/u
-                          </p>
-                        </div>
-                        <p className="shrink-0 font-semibold tabular-nums">
-                          {formatCLP(p.total_price ?? 0)}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <OrderProductLines
+                  orderId={detail.id}
+                  canReturn={
+                    detail.status !== "CANCELLED" &&
+                    (detail.status === "COMPLETED" ||
+                      detail.status === "RETURNED" ||
+                      detail.status === "REFUNDED" ||
+                      detail.payment_status === "PAID")
+                  }
+                  products={detail.products.map((p) => ({
+                    id: p.id,
+                    name: p.product_name ?? "Producto",
+                    max: p.quantity ?? 0,
+                    unitPrice: p.unit_price ?? 0,
+                    lineTotal: p.total_price ?? 0,
+                  }))}
+                />
               )}
 
               {/* Pagos */}
@@ -1766,20 +1884,16 @@ export default function SalesPage() {
               )}
 
               {/* Divisiones de cuenta */}
-              {detail.status !== "CANCELLED" && detail.payment_status !== "PAID" && (
-                <OrderSplitsPanel orderId={detail.id} orderTotal={detail.total_amount ?? "0"} />
+              {canRegisterPayment(detail) && (
+                <Button
+                  className="mt-5 w-full"
+                  onClick={() => setPayingOrder(detail)}
+                >
+                  <Banknote className="mr-2 h-4 w-4" />
+                  Registrar pago
+                </Button>
               )}
-              {detail.status !== "CANCELLED" && detail.products && detail.products.length > 0 && (
-                <OrderReturnPanel
-                  orderId={detail.id}
-                  products={detail.products.map((p) => ({
-                    id: p.id,
-                    name: p.product_name ?? "Producto",
-                    max: p.quantity ?? 0,
-                    unitPrice: p.unit_price ?? 0,
-                  }))}
-                />
-              )}
+
 
               {/* Datos de entrega (solo pedidos) */}
               {detail.order_type === "ORDER" && (detail.delivery_address || detail.delivery_date) && (
@@ -1817,32 +1931,17 @@ export default function SalesPage() {
             {/* Footer con acciones */}
             <div className="flex shrink-0 flex-col gap-3 border-t border-border bg-background p-4">
               <div className="grid grid-cols-2 gap-2">
-                {detail.status !== "CANCELLED" && (
-                  <>
-                    {detail.delivery_status !== "DELIVERED" && (
-                      <Button
-                        variant="outline"
-                        className="h-10 border-primary/30 text-primary hover:bg-primary/5"
-                        onClick={() => {
-                          openDelivering(detail);
-                          setDetail(null);
-                        }}
-                      >
-                        <Zap className="mr-1.5 h-4 w-4" />
-                        Entregar
-                      </Button>
-                    )}
-                  </>
-                )}
-                <Button
-                  variant="outline"
-                  className="h-10"
-                  onClick={() => handleDownloadTicketPdf(detail)}
+                <PdfFormatFlyout
                   disabled={isDownloading}
+                  onThermal={() => handleDownloadTicketPdf(detail)}
+                  onA4={() => handleDownloadA4Pdf(detail)}
+                  align="right"
+                  triggerClassName="inline-flex h-10 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-sm font-medium shadow-sm transition-colors hover:bg-muted disabled:opacity-50"
                 >
-                  <ClipboardList className="mr-1.5 h-4 w-4" />
+                  <ClipboardList className="h-4 w-4" />
                   Orden elaboración
-                </Button>
+                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                </PdfFormatFlyout>
                 {detail.payment_status === "PAID" && (
                   <>
                     <Button
@@ -1865,19 +1964,50 @@ export default function SalesPage() {
                     </Button>
                   </>
                 )}
-                {detail.status !== "CANCELLED" && canCancel(detail.owner) && (
-                  <Button
+                {detail.status !== "CANCELLED" &&
+                  (detail.delivery_status !== "DELIVERED" || canCancel(detail.owner)) && (
+                  <ActionsMenu
+                    ariaLabel="Más acciones"
+                    size="sm"
                     variant="outline"
-                    className="h-10 border-danger/30 text-danger hover:bg-danger/5"
-                    onClick={() => {
-                      cancel.mutate(detail.id);
-                      setDetail(null);
-                    }}
-                    disabled={cancel.isPending}
-                  >
-                    <Ban className="mr-1.5 h-4 w-4" />
-                    Anular
-                  </Button>
+                    className="h-10 w-10"
+                    items={[
+                      ...(canRegisterPayment(detail)
+                        ? [
+                            {
+                              label: "Registrar pago",
+                              icon: Banknote,
+                              onClick: () => setPayingOrder(detail),
+                            },
+                          ]
+                        : []),
+                      ...(detail.delivery_status !== "DELIVERED"
+                        ? [
+                            {
+                              label: "Entregar",
+                              icon: Zap,
+                              onClick: () => {
+                                openDelivering(detail);
+                                setDetail(null);
+                              },
+                            },
+                          ]
+                        : []),
+                      ...(canCancel(detail.owner)
+                        ? [
+                            {
+                              label: "Anular",
+                              icon: Ban,
+                              danger: true,
+                              onClick: () => {
+                                cancel.mutate(detail.id);
+                                setDetail(null);
+                              },
+                            },
+                          ]
+                        : []),
+                    ]}
+                  />
                 )}
               </div>
               <Button variant="ghost" className="w-full" onClick={() => setDetail(null)}>
@@ -1886,6 +2016,21 @@ export default function SalesPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {payingOrder && (
+        <OrderPayModal
+          open
+          onClose={() => setPayingOrder(null)}
+          orderId={payingOrder.id}
+          orderLabel={
+            payingOrder.order_number
+              ? `Orden ${payingOrder.order_number}`
+              : payingOrder.id.slice(0, 8)
+          }
+          total={Number(payingOrder.total_amount ?? 0) || 0}
+          paid={orderPaidAmount(payingOrder)}
+        />
       )}
 
       {delivering && (
@@ -2330,101 +2475,58 @@ export default function SalesPage() {
             </div>
             <div className="flex flex-col gap-4 overflow-y-auto p-4">
               <div className="flex flex-col gap-1">
-                <label htmlFor="mobile-filter-status" className="text-xs text-muted-foreground">Estado</label>
-                <Select id="mobile-filter-status" value={status} onChange={(e) => updateFilter(setStatus, e.target.value)} className="h-10 text-sm">
-                  {STATUS_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </Select>
+                <label className="text-xs text-muted-foreground">Estado</label>
+                <MultiSelect
+                  options={STATUS_OPTIONS}
+                  value={status}
+                  onChange={(v) => updateFilter(setStatus, v)}
+                  placeholder="Todos"
+                />
               </div>
               <div className="flex flex-col gap-1">
-                <label htmlFor="mobile-filter-payment" className="text-xs text-muted-foreground">Pago</label>
-                <Select id="mobile-filter-payment" value={paymentStatus} onChange={(e) => updateFilter(setPaymentStatus, e.target.value)} className="h-10 text-sm">
-                  {PAYMENT_STATUS_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </Select>
+                <label className="text-xs text-muted-foreground">Pago</label>
+                <MultiSelect
+                  options={PAYMENT_STATUS_OPTIONS}
+                  value={paymentStatus}
+                  onChange={(v) => updateFilter(setPaymentStatus, v)}
+                  placeholder="Todos"
+                />
               </div>
               <div className="flex flex-col gap-1">
-                <label htmlFor="mobile-filter-type" className="text-xs text-muted-foreground">Tipo</label>
-                <Select id="mobile-filter-type" value={orderType} onChange={(e) => updateFilter(setOrderType, e.target.value)} className="h-10 text-sm">
-                  {ORDER_TYPE_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </Select>
+                <label className="text-xs text-muted-foreground">Tipo</label>
+                <MultiSelect
+                  options={ORDER_TYPE_OPTIONS}
+                  value={orderType}
+                  onChange={(v) => updateFilter(setOrderType, v)}
+                  placeholder="Todos"
+                />
               </div>
               <div className="flex flex-col gap-1">
-                <label htmlFor="mobile-filter-client" className="text-xs text-muted-foreground">Cliente</label>
-                <div className="relative">
-                  <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    id="mobile-filter-client"
-                    value={clientFilterQuery}
-                    onChange={(e) => {
-                      setClientFilterQuery(e.target.value);
-                      if (clientFilterId) {
-                        setClientFilterId("");
-                        setClientFilterName("");
-                      }
-                      setClientFilterOpen(true);
-                    }}
-                    onFocus={() => setClientFilterOpen(true)}
-                    placeholder="Buscar cliente…"
-                    className="h-10 pl-8 text-sm"
-                  />
-                  {clientFilterId && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setClientFilterId("");
-                        setClientFilterName("");
-                        setClientFilterQuery("");
-                        setClientFilterOpen(false);
-                        setPageUrl({});
-                      }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground"
-                      aria-label="Limpiar cliente"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                  {clientFilterOpen && clientFilterQuery.trim().length === 0 && !clientFilterId && (
-                    <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs text-muted-foreground shadow-md">
-                      Escribe para buscar clientes…
-                    </div>
-                  )}
-                  {clientFilterOpen && clientFilterDebounced.trim().length > 0 && searchingClientFilter && (
-                    <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs text-muted-foreground shadow-md">
-                      Buscando…
-                    </div>
-                  )}
-                  {clientFilterOpen && clientFilterDebounced.trim().length > 0 && !searchingClientFilter && clientFilterResults.length > 0 && (
-                    <div className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-lg border border-border bg-background shadow-md">
-                      {clientFilterResults.map((client) => (
-                        <button
-                          key={client.id}
-                          type="button"
-                          onClick={() => {
-                            setClientFilterId(String(client.id));
-                            setClientFilterName(client.name ?? "");
-                            setClientFilterQuery(client.name ?? "");
-                            setClientFilterOpen(false);
-                            setPageUrl({});
-                          }}
-                          className="w-full px-3 py-2 text-left text-sm hover:bg-muted"
-                        >
-                          {client.name}
-                          {client.email && <span className="ml-2 text-xs text-muted-foreground">{client.email}</span>}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {clientFilterOpen && clientFilterDebounced.trim().length > 0 && !searchingClientFilter && clientFilterResults.length === 0 && !clientFilterId && (
-                    <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs text-muted-foreground shadow-md">
-                      Sin resultados
-                    </div>
-                  )}
-                </div>
+                <label className="text-xs text-muted-foreground">Cliente</label>
+                <SearchableSelect
+                  options={clientFilterSelectOptions}
+                  value={clientFilterId}
+                  onChange={(value) => {
+                    setClientFilterId(value);
+                    const opt = clientFilterSelectOptions.find((o) => o.value === value);
+                    setClientFilterName(opt?.label ?? "");
+                    setClientFilterQuery("");
+                    setClientFilterOpen(false);
+                    setPageUrl({});
+                  }}
+                  onQueryChange={setClientFilterQuery}
+                  minChars={2}
+                  loading={searchingClientFilter}
+                  clearable
+                  selectedOption={
+                    clientFilterId && clientFilterName
+                      ? { value: clientFilterId, label: clientFilterName }
+                      : null
+                  }
+                  placeholder="Filtrar por cliente…"
+                  searchPlaceholder="Nombre, RUT o teléfono…"
+                  emptyMessage="Sin coincidencias"
+                />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1">
@@ -2455,9 +2557,9 @@ export default function SalesPage() {
                   variant="outline"
                   className="flex-1"
                   onClick={() => {
-                    setStatus("");
-                    setPaymentStatus("");
-                    setOrderType("");
+                    setStatus([]);
+                    setPaymentStatus([]);
+                    setOrderType([]);
                     setClientFilterId("");
                     setClientFilterName("");
                     setClientFilterQuery("");
@@ -2540,7 +2642,8 @@ export default function SalesPage() {
                       onView={setDetail}
                       onTicket={handleDownloadTicketPdf}
                       onDeliver={openDelivering}
-                        onThermal={handleDownloadThermalPdf}
+                      onPay={setPayingOrder}
+                      onThermal={handleDownloadThermalPdf}
                       onA4={handleDownloadA4Pdf}
                       onCancel={(o) => cancel.mutate(o.id)}
                     />

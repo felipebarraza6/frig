@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Search, Plus, X, AlertTriangle, Package, AlertCircle, PackageX, TrendingDown, FileSpreadsheet, FileText, SlidersHorizontal, ArrowRightLeft, Calendar } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import {
@@ -96,17 +97,38 @@ export default function InventoryPage() {
   const [search, setSearch] = useState("");
   const [movementType, setMovementType] = useState("");
   const [productFilter, setProductFilter] = useState("");
+  const [productFilterName, setProductFilterName] = useState("");
+  const [productFilterQuery, setProductFilterQuery] = useState("");
+  const [debouncedProductFilterQuery, setDebouncedProductFilterQuery] = useState("");
   const [warehouseFilter, setWarehouseFilter] = useState("");
   const [pageUrl, setPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
   const [modalOpen, setModalOpen] = useState(false);
   const [alertSearch, setAlertSearch] = useState("");
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
-  const { data: productsPage } = useQuery({
-    queryKey: ["products", "catalog"],
-    queryFn: () => fetchProducts({ page_size: 100 }),
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedProductFilterQuery(productFilterQuery), 300);
+    return () => clearTimeout(t);
+  }, [productFilterQuery]);
+
+  const productFilterSearch = useQuery({
+    queryKey: ["products", "inventory-filter", debouncedProductFilterQuery],
+    queryFn: () => fetchProducts({ search: debouncedProductFilterQuery, page_size: 20 }),
+    enabled: debouncedProductFilterQuery.trim().length >= 2,
+    staleTime: 30_000,
   });
-  const products = productsPage?.results ?? [];
+
+  const productFilterOptions = useMemo(() => {
+    const found = (productFilterSearch.data?.results ?? []).map((p) => ({
+      value: String(p.id),
+      label: p.name,
+      description: p.code ?? undefined,
+    }));
+    if (productFilter && productFilterName && !found.some((o) => o.value === productFilter)) {
+      return [{ value: productFilter, label: productFilterName }, ...found];
+    }
+    return found;
+  }, [productFilterSearch.data, productFilter, productFilterName]);
 
   const { data: warehousesPage } = useQuery({
     queryKey: ["warehouses", "all"],
@@ -313,18 +335,30 @@ export default function InventoryPage() {
                     ))}
                   </Select>
                 </div>
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="filter-product" className="text-xs text-muted-foreground">Producto</label>
-                  <Select
-                    id="filter-product"
+                <div className="flex min-w-[180px] flex-col gap-1">
+                  <label className="text-xs text-muted-foreground">Producto</label>
+                  <SearchableSelect
+                    options={productFilterOptions}
                     value={productFilter}
-                    onChange={(e) => updateFilter(setProductFilter, e.target.value)}
-                  >
-                    <option value="">Todos</option>
-                    {products.map((p) => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </Select>
+                    onChange={(value) => {
+                      setProductFilter(value);
+                      const opt = productFilterOptions.find((o) => o.value === value);
+                      setProductFilterName(opt?.label ?? "");
+                      setPageUrl({});
+                    }}
+                    onQueryChange={setProductFilterQuery}
+                    minChars={2}
+                    loading={productFilterSearch.isFetching}
+                    clearable
+                    selectedOption={
+                      productFilter && productFilterName
+                        ? { value: productFilter, label: productFilterName }
+                        : null
+                    }
+                    placeholder="Todos"
+                    searchPlaceholder="Nombre de producto…"
+                    emptyMessage="Sin coincidencias"
+                  />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label htmlFor="filter-warehouse" className="text-xs text-muted-foreground">Bodega</label>
@@ -380,17 +414,29 @@ export default function InventoryPage() {
                     </Select>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label htmlFor="filter-product-mobile" className="text-xs text-muted-foreground">Producto</label>
-                    <Select
-                      id="filter-product-mobile"
+                    <label className="text-xs text-muted-foreground">Producto</label>
+                    <SearchableSelect
+                      options={productFilterOptions}
                       value={productFilter}
-                      onChange={(e) => updateFilter(setProductFilter, e.target.value)}
-                    >
-                      <option value="">Todos</option>
-                      {products.map((p) => (
-                        <option key={p.id} value={p.id}>{p.name}</option>
-                      ))}
-                    </Select>
+                      onChange={(value) => {
+                        setProductFilter(value);
+                        const opt = productFilterOptions.find((o) => o.value === value);
+                        setProductFilterName(opt?.label ?? "");
+                        setPageUrl({});
+                      }}
+                      onQueryChange={setProductFilterQuery}
+                      minChars={2}
+                      loading={productFilterSearch.isFetching}
+                      clearable
+                      selectedOption={
+                        productFilter && productFilterName
+                          ? { value: productFilter, label: productFilterName }
+                          : null
+                      }
+                      placeholder="Todos"
+                      searchPlaceholder="Nombre de producto…"
+                      emptyMessage="Sin coincidencias"
+                    />
                   </div>
                   <div className="flex flex-col gap-1">
                     <label htmlFor="filter-warehouse-mobile" className="text-xs text-muted-foreground">Bodega</label>
@@ -710,7 +756,6 @@ export default function InventoryPage() {
 
       {modalOpen && (
         <MovementModal
-          products={products}
           warehouses={warehouses}
           onClose={() => setModalOpen(false)}
           onSubmit={(payload) => create.mutate(payload as Parameters<typeof createInventoryMovement>[0])}
@@ -723,14 +768,12 @@ export default function InventoryPage() {
 }
 
 function MovementModal({
-  products,
   warehouses,
   onClose,
   onSubmit,
   isPending,
   error,
 }: {
-  products: { id: number; name: string }[];
   warehouses: { id: number; name: string }[];
   onClose: () => void;
   onSubmit: (payload: {
@@ -746,12 +789,39 @@ function MovementModal({
 }) {
   const [form, setForm] = useState({
     product: "",
+    productName: "",
     warehouse: "",
     movement_type: "IN",
     source_type: "MANUAL",
     quantity: "",
     notes: "",
   });
+  const [productQuery, setProductQuery] = useState("");
+  const [debouncedProductQuery, setDebouncedProductQuery] = useState("");
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedProductQuery(productQuery), 300);
+    return () => clearTimeout(t);
+  }, [productQuery]);
+
+  const productSearch = useQuery({
+    queryKey: ["products", "inventory-movement", debouncedProductQuery],
+    queryFn: () => fetchProducts({ search: debouncedProductQuery, page_size: 20 }),
+    enabled: debouncedProductQuery.trim().length >= 2,
+    staleTime: 30_000,
+  });
+
+  const productOptions = useMemo(() => {
+    const found = (productSearch.data?.results ?? []).map((p) => ({
+      value: String(p.id),
+      label: p.name,
+      description: p.code ?? undefined,
+    }));
+    if (form.product && form.productName && !found.some((o) => o.value === form.product)) {
+      return [{ value: form.product, label: form.productName }, ...found];
+    }
+    return found;
+  }, [productSearch.data, form.product, form.productName]);
 
   function updateField<K extends keyof typeof form>(field: K, value: (typeof form)[K]) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -785,32 +855,41 @@ function MovementModal({
         <form onSubmit={handleSubmit} className="relative flex min-h-0 flex-1 flex-col">
           <div className="relative flex-1 overflow-y-auto p-4">
             <div className="flex flex-col gap-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium">Producto</label>
-                  <Select
-                    value={form.product}
-                    onChange={(e) => updateField("product", e.target.value)}
-                    required
-                  >
-                    <option value="">Selecciona</option>
-                    {products.map((p) => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </Select>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium">Bodega</label>
-                  <Select
-                    value={form.warehouse}
-                    onChange={(e) => updateField("warehouse", e.target.value)}
-                  >
-                    <option value="">Ninguna</option>
-                    {warehouses.map((w) => (
-                      <option key={w.id} value={w.id}>{w.name}</option>
-                    ))}
-                  </Select>
-                </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Producto</label>
+                <SearchableSelect
+                  options={productOptions}
+                  value={form.product}
+                  onChange={(value) => {
+                    const opt = productOptions.find((o) => o.value === value);
+                    updateField("product", value);
+                    updateField("productName", opt?.label ?? "");
+                  }}
+                  onQueryChange={setProductQuery}
+                  minChars={2}
+                  loading={productSearch.isFetching}
+                  clearable
+                  selectedOption={
+                    form.product && form.productName
+                      ? { value: form.product, label: form.productName }
+                      : null
+                  }
+                  placeholder="Buscar producto…"
+                  searchPlaceholder="Nombre de producto…"
+                  emptyMessage="Sin coincidencias"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Bodega</label>
+                <Select
+                  value={form.warehouse}
+                  onChange={(e) => updateField("warehouse", e.target.value)}
+                >
+                  <option value="">Ninguna</option>
+                  {warehouses.map((w) => (
+                    <option key={w.id} value={w.id}>{w.name}</option>
+                  ))}
+                </Select>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-2">

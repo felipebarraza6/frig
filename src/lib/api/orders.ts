@@ -21,6 +21,7 @@ export interface OrdersFilter {
   has_revenues?: boolean;
   start_date?: string;
   end_date?: string;
+  ordering?: string;
   page_size?: number;
   next?: string | null;
   previous?: string | null;
@@ -132,6 +133,7 @@ function buildOrdersQueryString(filter: OrdersFilter): string {
 
   if (filter.start_date) qs.set("start_date", filter.start_date);
   if (filter.end_date) qs.set("end_date", filter.end_date);
+  if (filter.ordering) qs.set("ordering", filter.ordering);
   if (filter.page_size) qs.set("page_size", String(filter.page_size));
   return qs.toString();
 }
@@ -165,6 +167,8 @@ export interface PayOrderPayload {
   cash_register_id?: number | string | null;
   notes?: string | null;
   reference?: string | null;
+  /** Registro de pago desde Ventas, sin exigir caja POS abierta. */
+  skip_cash_register_validation?: boolean;
 }
 
 export async function payOrder(id: string, payload: PayOrderPayload): Promise<YggdraOrder> {

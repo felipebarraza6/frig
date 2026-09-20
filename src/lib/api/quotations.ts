@@ -1,18 +1,28 @@
 import { apiFetch, apiFile, type ApiFileResult } from "@/lib/api/client";
 import type { YggdraSchemas } from "@/lib/api/types";
+import { appendMulti } from "@/lib/api/query-params";
 
 type YggdraOrder = YggdraSchemas["Order"];
 type PaginatedOrder = YggdraSchemas["PaginatedOrderList"];
 
 export interface QuotationsFilter {
   search?: string;
-  status?: string;
-  order_type?: string;
+  status?: string | string[];
+  order_type?: string | string[];
+  client__in?: string | number | Array<string | number>;
   start_date?: string;
   end_date?: string;
+  ordering?: string;
   page_size?: number;
   next?: string | null;
   previous?: string | null;
+}
+
+export interface QuotationStats {
+  total: number;
+  pending: number;
+  approved: number;
+  pending_amount: number;
 }
 
 export type Quotation = YggdraOrder & {
@@ -50,6 +60,17 @@ export async function downloadQuotationPdf(id: string): Promise<ApiFileResult> {
   return apiFile(`/sales/quotations/${id}/generate-pdf/`);
 }
 
+function appendQuotationsFilter(qs: URLSearchParams, filter: QuotationsFilter) {
+  if (filter.search) qs.set("search", filter.search);
+  appendMulti(qs, "status", filter.status);
+  appendMulti(qs, "order_type", filter.order_type);
+  appendMulti(qs, "client__in", filter.client__in);
+  if (filter.start_date) qs.set("start_date", filter.start_date);
+  if (filter.end_date) qs.set("end_date", filter.end_date);
+  if (filter.ordering) qs.set("ordering", filter.ordering);
+  if (filter.page_size) qs.set("page_size", String(filter.page_size));
+}
+
 export async function fetchQuotations(filter: QuotationsFilter = {}): Promise<PaginatedOrder> {
   if (filter.next) {
     return apiFetch<PaginatedOrder>(filter.next);
@@ -58,25 +79,32 @@ export async function fetchQuotations(filter: QuotationsFilter = {}): Promise<Pa
     return apiFetch<PaginatedOrder>(filter.previous);
   }
   const qs = new URLSearchParams();
-  if (filter.search) qs.set("search", filter.search);
-  if (filter.status) qs.set("status", filter.status);
-  if (filter.order_type) qs.set("order_type", filter.order_type);
-  if (filter.start_date) qs.set("start_date", filter.start_date);
-  if (filter.end_date) qs.set("end_date", filter.end_date);
-  if (filter.page_size) qs.set("page_size", String(filter.page_size));
+  appendQuotationsFilter(qs, filter);
   const q = qs.toString();
   return apiFetch<PaginatedOrder>(`/sales/quotations/${q ? `?${q}` : ""}`);
 }
 
 export async function exportQuotationsExcel(filter: QuotationsFilter = {}): Promise<ApiFileResult> {
   const qs = new URLSearchParams();
-  if (filter.search) qs.set("search", filter.search);
-  if (filter.status) qs.set("status", filter.status);
-  if (filter.order_type) qs.set("order_type", filter.order_type);
-  if (filter.start_date) qs.set("start_date", filter.start_date);
-  if (filter.end_date) qs.set("end_date", filter.end_date);
+  appendQuotationsFilter(qs, filter);
   const q = qs.toString();
   return apiFile(`/sales/quotations/export/${q ? `?${q}` : ""}`);
+}
+
+export async function fetchQuotationStats(): Promise<QuotationStats> {
+  const data = await apiFetch<Record<string, unknown>>("/sales/quotations/stats/");
+  const num = (v: unknown) => {
+    const n = typeof v === "number" ? v : Number.parseFloat(String(v ?? ""));
+    return Number.isFinite(n) ? n : 0;
+  };
+  return {
+    total: num(data.total ?? data.total_quotations ?? data.count),
+    pending: num(data.pending ?? data.pending_count ?? data.open),
+    approved: num(data.approved ?? data.approved_count ?? data.completed ?? data.converted),
+    pending_amount: num(
+      data.pending_amount ?? data.pending_total ?? data.open_amount ?? data.total_pending,
+    ),
+  };
 }
 
 /**

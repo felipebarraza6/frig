@@ -59,6 +59,14 @@ export interface Branch {
   owner_id?: ID | null;
   organization?: ID | null;
   organization_name?: string | null;
+  /** Usuarios de esta sucursal pueden operar en varias sucursales a la vez. */
+  allow_multi_branch_access?: boolean;
+  /** Clientes finales pueden auto-registrarse en esta sucursal. */
+  allow_public_customer_signup?: boolean;
+  /** Dominio propio para webhooks/widget (sin http/https). */
+  custom_domain?: string | null;
+  /** Remitente de correos de la sucursal (SPF/DKIM). */
+  from_email?: string | null;
   plan?: ID | null;
   plan_name?: string | null;
   plan_expiration_date?: string | null;
@@ -90,6 +98,14 @@ export interface BranchPayload {
   logo?: string | null;
   is_active?: boolean;
   owner_id?: ID | null;
+  /** Usuarios de esta sucursal pueden operar en varias sucursales a la vez. */
+  allow_multi_branch_access?: boolean;
+  /** Clientes finales pueden auto-registrarse en esta sucursal. */
+  allow_public_customer_signup?: boolean;
+  /** Dominio propio para webhooks/widget (sin http/https). */
+  custom_domain?: string | null;
+  /** Remitente de correos de la sucursal (SPF/DKIM). */
+  from_email?: string | null;
   plan?: ID | null;
   /** Organización a la que pertenece la sucursal (solo super admin). */
   organization?: ID | null;
