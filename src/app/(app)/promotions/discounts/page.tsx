@@ -176,7 +176,7 @@ export default function DiscountsPage() {
   const [productPickerQuery, setProductPickerQuery] = useState("");
   const [debouncedProductPickerQuery, setDebouncedProductPickerQuery] = useState("");
   const [categoryPickerQuery, setCategoryPickerQuery] = useState("");
-  const [productNameMap, setProductNameMap] = useState<Record<number, string>>({});
+  const [manualProductNames, setManualProductNames] = useState<Record<number, string>>({});
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedProductPickerQuery(productPickerQuery), 300);
@@ -197,15 +197,13 @@ export default function DiscountsPage() {
     staleTime: 60_000,
   });
 
-  useEffect(() => {
-    const results = selectedProductsQuery.data?.results ?? [];
-    if (results.length === 0) return;
-    setProductNameMap((prev) => {
-      const next = { ...prev };
-      for (const p of results) next[p.id] = p.name;
-      return next;
-    });
-  }, [selectedProductsQuery.data]);
+  const productNameMap = useMemo(() => {
+    const next = { ...manualProductNames };
+    for (const p of selectedProductsQuery.data?.results ?? []) {
+      next[p.id] = p.name;
+    }
+    return next;
+  }, [manualProductNames, selectedProductsQuery.data]);
 
   const productPickerOptions = useMemo(() => {
     return (productPickerSearch.data ?? [])
@@ -282,7 +280,7 @@ export default function DiscountsPage() {
     setProductPickerQuery("");
     setDebouncedProductPickerQuery("");
     setCategoryPickerQuery("");
-    setProductNameMap({});
+    setManualProductNames({});
   }
 
   function addProductToDiscount(productId: number, name: string) {
@@ -291,7 +289,7 @@ export default function DiscountsPage() {
         ? prev
         : { ...prev, products: [...prev.products, productId] },
     );
-    setProductNameMap((prev) => ({ ...prev, [productId]: name }));
+    setManualProductNames((prev) => ({ ...prev, [productId]: name }));
     setProductPickerQuery("");
     setDebouncedProductPickerQuery("");
   }
