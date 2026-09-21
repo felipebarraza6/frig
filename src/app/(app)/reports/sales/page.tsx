@@ -432,62 +432,64 @@ export default function SalesReportPage() {
       />
 
       <div className="flex flex-1 flex-col gap-4">
-        {/* Barra de control única: navegación + tabs + fechas + filtros en una sola fila */}
-        <div className="rounded-2xl border border-border bg-background p-3 shadow-sm sm:p-4">
-          <div className="flex flex-wrap items-end gap-3">
-            <div role="tablist" aria-label="Secciones del informe" className="flex flex-wrap gap-1 rounded-xl bg-muted/40 p-1">
-              {TABS.map((t) => (
-                <button
-                  key={t.key}
-                  role="tab"
-                  aria-selected={tab === t.key}
-                  onClick={() => setTab(t.key)}
-                  className={cn(
-                    "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
-                    tab === t.key
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-            <div className="ml-auto flex flex-wrap items-end gap-2 sm:gap-3">
-              <div className="flex flex-col gap-1">
-                <label htmlFor="sv-start" className="text-xs text-muted-foreground">Desde</label>
-                <Input id="sv-start" type="date" value={start} onChange={(e) => setStart(e.target.value)} className="h-9 w-[130px] sm:w-[140px]" />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label htmlFor="sv-end" className="text-xs text-muted-foreground">Hasta</label>
-                <Input id="sv-end" type="date" value={end} onChange={(e) => setEnd(e.target.value)} className="h-9 w-[130px] sm:w-[140px]" />
-              </div>
-              <div className="w-full sm:w-[220px]">
-                <SearchableSelect
-                  options={clientOptions}
-                  value={clientId}
-                  onChange={(value) => {
-                    setClientId(value);
-                    setClientName(value);
-                  }}
-                  selectedOption={clientId ? { value: clientId, label: clientName } : null}
-                  placeholder="Filtrar cliente…"
-                  searchPlaceholder="Buscar cliente…"
-                  emptyMessage="Sin clientes en el período"
-                />
-              </div>
-              <Select
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-                className="h-9 w-full sm:w-[160px]"
-                aria-label="Filtrar por tipo"
-              >
-                <option value="">Todos los tipos</option>
-                <option value="SALE">Ventas directas</option>
-                <option value="ORDER">Pedidos</option>
-                <option value="AGREEMENT">Convenios</option>
-              </Select>
-            </div>
+        {/* Fila 1: Pestañas de sección */}
+        <div role="tablist" aria-label="Secciones del informe" className="flex w-fit flex-wrap gap-1 rounded-xl bg-muted/40 p-1">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              role="tab"
+              aria-selected={tab === t.key}
+              onClick={() => setTab(t.key)}
+              className={cn(
+                "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                tab === t.key
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Fila 2: Filtros de período, cliente y tipo */}
+        <div className="flex flex-wrap items-end gap-4 rounded-2xl border border-border bg-background p-4 shadow-sm">
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="sv-start" className="text-xs text-muted-foreground">Desde</label>
+            <Input id="sv-start" type="date" value={start} onChange={(e) => setStart(e.target.value)} className="h-9 w-[140px] pe-7" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="sv-end" className="text-xs text-muted-foreground">Hasta</label>
+            <Input id="sv-end" type="date" value={end} onChange={(e) => setEnd(e.target.value)} className="h-9 w-[140px] pe-7" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-muted-foreground">Cliente</label>
+            <SearchableSelect
+              options={clientOptions}
+              value={clientId}
+              onChange={(value) => {
+                setClientId(value);
+                setClientName(value);
+              }}
+              selectedOption={clientId ? { value: clientId, label: clientName } : null}
+              placeholder="Filtrar cliente…"
+              searchPlaceholder="Buscar cliente…"
+              emptyMessage="Sin clientes en el período"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-muted-foreground">Tipo</label>
+            <Select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="h-9 w-full sm:w-[160px]"
+              aria-label="Filtrar por tipo"
+            >
+              <option value="">Todos los tipos</option>
+              <option value="SALE">Ventas directas</option>
+              <option value="ORDER">Pedidos</option>
+              <option value="AGREEMENT">Convenios</option>
+            </Select>
           </div>
         </div>
 
