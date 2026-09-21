@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,14 +48,21 @@ export function OrderPayModal({
   const [methodId, setMethodId] = useState("");
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
+  const [formSession, setFormSession] = useState<{ open: boolean; remaining: number }>({
+    open: false,
+    remaining: 0,
+  });
 
-  useEffect(() => {
-    if (!open) return;
-    setAmount(remaining > 0 ? remaining.toFixed(0) : "");
-    setMethodId((prev) => prev || activeMethods[0]?.id || "");
-    setReference("");
-    setNotes("");
-  }, [open, remaining, activeMethods]);
+  // Reset form when the modal opens (or remaining changes while open), without an effect.
+  if (open !== formSession.open || (open && remaining !== formSession.remaining)) {
+    setFormSession({ open, remaining });
+    if (open) {
+      setAmount(remaining > 0 ? remaining.toFixed(0) : "");
+      setMethodId((prev) => prev || activeMethods[0]?.id || "");
+      setReference("");
+      setNotes("");
+    }
+  }
 
   const selected = activeMethods.find((m) => m.id === methodId);
   const amountNum = toNum(amount);
