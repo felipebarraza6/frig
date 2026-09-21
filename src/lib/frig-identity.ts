@@ -28,13 +28,26 @@ export const FRIG_REPO_URL = "https://github.com/FelipeBarraza6/frig";
  * Reemplaza TODOS los link[rel=icon] del head por uno nuevo. Necesario
  * porque el layout define varios (icon.png, icon-192, apple-touch...) y
  * cambiar solo el primero no garantiza que el navegador lo use.
+ *
+ * IMPORTANTE: los link de iconos los renderiza React (metadata del App
+ * Router). Hay que actualizar su href EN SITIO, nunca removerlos: si se
+ * eliminan por fuera, el commit de la siguiente navegación intenta borrar
+ * nodos ya desmontados y React crashea con
+ * "Cannot read properties of null (reading 'removeChild')", dejando la
+ * página congelada justo después del login.
  */
 export function setFaviconHref(href: string): void {
-  document
-    .querySelectorAll<HTMLLinkElement>(
-      "link[rel='icon'], link[rel='apple-touch-icon'], link[rel='shortcut icon']",
-    )
-    .forEach((link) => link.remove());
+  const links = document.querySelectorAll<HTMLLinkElement>(
+    "head link[rel='icon'], head link[rel='apple-touch-icon'], head link[rel='shortcut icon']",
+  );
+  if (links.length > 0) {
+    links.forEach((link) => {
+      link.href = href;
+    });
+    return;
+  }
+  // Sin links previos (caso extremo), crear uno es seguro: React no lo
+  // conoce y nunca intentará removerlo.
   const link = document.createElement("link");
   link.rel = "icon";
   link.href = href;

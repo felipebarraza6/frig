@@ -28,10 +28,11 @@ import { Button } from "@/components/ui/button";
 import { TableSkeleton, Skeleton } from "@/components/ui/skeleton";
 import { Select } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { MultiSelect } from "@/components/ui/multi-select";
 import {
   fetchPurchaseOrders,
   fetchPurchaseOrder,
-  fetchSuppliers,
+  lookupSuppliers,
   fetchSupplierProducts,
   createPurchaseOrder,
   cancelPurchaseOrder,
@@ -46,7 +47,6 @@ import {
   type PurchaseOrderList,
   type PurchaseOrderCreatePayload,
   type PurchaseOrderItem,
-  type SupplierList,
 } from "@/lib/api/suppliers";
 import { useCurrentBranch } from "@/lib/store/session";
 import { useToast } from "@/lib/store/toast";
@@ -56,7 +56,6 @@ import { generateExcelBlob } from "@/lib/export-excel";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 
 const STATUS_OPTIONS = [
-  { value: "", label: "Todos" },
   { value: "DRAFT", label: "Borrador" },
   { value: "SENT", label: "Enviada" },
   { value: "CONFIRMED", label: "Confirmada" },
@@ -95,7 +94,6 @@ function statusBadgeClass(status?: string | null) {
 }
 
 const PAYMENT_STATUS_OPTIONS = [
-  { value: "", label: "Todos" },
   { value: "PENDING", label: "Pendiente" },
   { value: "PARTIAL", label: "Parcial" },
   { value: "PAID", label: "Pagada" },
@@ -146,8 +144,9 @@ const PO_FILTERS_KEY = "po-filters";
 interface PersistedPOFilters {
   search?: string;
   supplier?: string;
-  status?: string;
-  paymentStatus?: string;
+  supplierName?: string;
+  status?: string | string[];
+  paymentStatus?: string | string[];
   startDate?: string;
   endDate?: string;
 }
@@ -237,8 +236,16 @@ export default function PurchaseOrdersPage() {
   const [search, setSearch] = useState(persistedFilters.search ?? "");
   const [debouncedSearch, setDebouncedSearch] = useState(persistedFilters.search ?? "");
   const [supplier, setSupplier] = useState(persistedFilters.supplier ?? "");
-  const [status, setStatus] = useState(persistedFilters.status ?? "");
-  const [paymentStatus, setPaymentStatus] = useState(persistedFilters.paymentStatus ?? "");
+  const [status, setStatus] = useState<string[]>(() => {
+    const v = persistedFilters.status;
+    if (!v) return [];
+    return Array.isArray(v) ? v : [v];
+  });
+  const [paymentStatus, setPaymentStatus] = useState<string[]>(() => {
+    const v = persistedFilters.paymentStatus;
+    if (!v) return [];
+    return Array.isArray(v) ? v : [v];
+  });
   const [startDate, setStartDate] = useState(persistedFilters.startDate ?? "");
   const [endDate, setEndDate] = useState(persistedFilters.endDate ?? "");
   const [pageUrl, setPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
@@ -247,6 +254,15 @@ export default function PurchaseOrdersPage() {
   const [confirmAction, setConfirmAction] = useState<{ type: "cancel" | "complete"; order: PurchaseOrderList } | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [form, setForm] = useState(initialFormState);
+  const [formSupplierLabel, setFormSupplierLabel] = useState("");
+  const [editSupplierLabel, setEditSupplierLabel] = useState("");
+  const [supplierName, setSupplierName] = useState(persistedFilters.supplierName ?? "");
+  const [filterSupplierQuery, setFilterSupplierQuery] = useState("");
+  const [debouncedFilterSupplierQuery, setDebouncedFilterSupplierQuery] = useState("");
+  const [formSupplierQuery, setFormSupplierQuery] = useState("");
+  const [debouncedFormSupplierQuery, setDebouncedFormSupplierQuery] = useState("");
+  const [editSupplierQuery, setEditSupplierQuery] = useState("");
+  const [debouncedEditSupplierQuery, setDebouncedEditSupplierQuery] = useState("");
 
   // Edición (solo órdenes en borrador).
   const [editing, setEditing] = useState<PurchaseOrderList | null>(null);
@@ -260,17 +276,39 @@ export default function PurchaseOrdersPage() {
     return () => clearTimeout(t);
   }, [search]);
 
-  // Persistir filtros para que el usuario retome su búsqueda al volver al módulo.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedFilterSupplierQuery(filterSupplierQuery), 300);
+    return () => clearTimeout(t);
+  }, [filterSupplierQuery]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedFormSupplierQuery(formSupplierQuery), 300);
+    return () => clearTimeout(t);
+  }, [formSupplierQuery]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedEditSupplierQuery(editSupplierQuery), 300);
+    return () => clearTimeout(t);
+  }, [editSupplierQuery]);
+
   useEffect(() => {
     try {
       window.localStorage.setItem(
         PO_FILTERS_KEY,
-        JSON.stringify({ search, supplier, status, paymentStatus, startDate, endDate }),
+        JSON.stringify({
+          search,
+          supplier,
+          supplierName,
+          status,
+          paymentStatus,
+          startDate,
+          endDate,
+        }),
       );
     } catch {
-      // sin almacenamiento disponible: los filtros solo viven en la sesión
+      // sin almacenamiento disponible
     }
-  }, [search, supplier, status, paymentStatus, startDate, endDate]);
+  }, [search, supplier, supplierName, status, paymentStatus, startDate, endDate]);
 
   const { data: page, isLoading } = useQuery({
     queryKey: ["purchase-orders", { search: debouncedSearch, supplier, status, paymentStatus, startDate, endDate, pageUrl }],
@@ -278,29 +316,35 @@ export default function PurchaseOrdersPage() {
       fetchPurchaseOrders({
         search: debouncedSearch,
         supplier,
-        status,
-        payment_status: paymentStatus,
+        status: status.length === 1 ? status[0] : undefined,
+        status__in: status.length > 1 ? status : undefined,
+        payment_status: paymentStatus.length === 1 ? paymentStatus[0] : undefined,
+        payment_status__in: paymentStatus.length > 1 ? paymentStatus : undefined,
         start_date: startDate,
         end_date: endDate,
         ...pageUrl,
       }),
   });
 
-  const { data: suppliers = [] } = useQuery({
-    queryKey: ["suppliers", "select"],
-    queryFn: async () => {
-      // El listado está paginado: recorre todas las páginas para no cortar el selector.
-      const all: SupplierList[] = [];
-      let next: string | null | undefined;
-      let first = true;
-      while (first || next) {
-        const data = await fetchSuppliers(first ? {} : { next });
-        all.push(...(data.results ?? []));
-        next = data.next;
-        first = false;
-      }
-      return all;
-    },
+  const filterSupplierLookup = useQuery({
+    queryKey: ["suppliers", "lookup", "po-filter", debouncedFilterSupplierQuery],
+    queryFn: () => lookupSuppliers({ q: debouncedFilterSupplierQuery, limit: 20 }),
+    enabled: debouncedFilterSupplierQuery.trim().length >= 2,
+    staleTime: 30_000,
+  });
+
+  const formSupplierLookup = useQuery({
+    queryKey: ["suppliers", "lookup", "po-form", debouncedFormSupplierQuery],
+    queryFn: () => lookupSuppliers({ q: debouncedFormSupplierQuery, limit: 20 }),
+    enabled: debouncedFormSupplierQuery.trim().length >= 2,
+    staleTime: 30_000,
+  });
+
+  const editSupplierLookup = useQuery({
+    queryKey: ["suppliers", "lookup", "po-edit", debouncedEditSupplierQuery],
+    queryFn: () => lookupSuppliers({ q: debouncedEditSupplierQuery, limit: 20 }),
+    enabled: debouncedEditSupplierQuery.trim().length >= 2,
+    staleTime: 30_000,
   });
 
   const orders = useMemo<PurchaseOrderList[]>(() => page?.results ?? [], [page]);
@@ -396,9 +440,50 @@ export default function PurchaseOrdersPage() {
     [editSupplierProducts],
   );
 
-  const supplierOptions = useMemo(
-    () => suppliers.map((s) => ({ value: s.id, label: s.name })),
-    [suppliers],
+  function mapSupplierLookupOptions(
+    rows: { id: string; name: string; tax_id?: string; business_name?: string }[] | undefined,
+    selected?: { value: string; label: string } | null,
+  ) {
+    const options = (rows ?? []).map((s) => ({
+      value: s.id,
+      label: s.name,
+      description: [s.tax_id, s.business_name].filter(Boolean).join(" · ") || undefined,
+    }));
+    if (selected && selected.value && !options.some((o) => o.value === selected.value)) {
+      return [selected, ...options];
+    }
+    return options;
+  }
+
+  const filterSupplierOptions = useMemo(
+    () =>
+      mapSupplierLookupOptions(
+        filterSupplierLookup.data,
+        supplier && supplierName ? { value: supplier, label: supplierName } : null,
+      ),
+    [filterSupplierLookup.data, supplier, supplierName],
+  );
+
+  const formSupplierOptions = useMemo(
+    () =>
+      mapSupplierLookupOptions(
+        formSupplierLookup.data,
+        form.supplier && formSupplierLabel
+          ? { value: form.supplier, label: formSupplierLabel }
+          : null,
+      ),
+    [formSupplierLookup.data, form.supplier, formSupplierLabel],
+  );
+
+  const editSupplierOptions = useMemo(
+    () =>
+      mapSupplierLookupOptions(
+        editSupplierLookup.data,
+        editForm.supplier && editSupplierLabel
+          ? { value: editForm.supplier, label: editSupplierLabel }
+          : null,
+      ),
+    [editSupplierLookup.data, editForm.supplier, editSupplierLabel],
   );
 
   const create = useMutation({
@@ -530,7 +615,7 @@ export default function PurchaseOrdersPage() {
     },
   });
 
-  function updateFilter<T extends string>(setter: (v: T) => void, value: T) {
+  function updateFilter<T>(setter: (v: T) => void, value: T) {
     setter(value);
     setPageUrl({});
   }
@@ -539,8 +624,11 @@ export default function PurchaseOrdersPage() {
     setSearch("");
     setDebouncedSearch("");
     setSupplier("");
-    setStatus("");
-    setPaymentStatus("");
+    setSupplierName("");
+    setFilterSupplierQuery("");
+    setDebouncedFilterSupplierQuery("");
+    setStatus([]);
+    setPaymentStatus([]);
     setStartDate("");
     setEndDate("");
     setPageUrl({});
@@ -550,6 +638,9 @@ export default function PurchaseOrdersPage() {
     create.reset();
     setFormError(null);
     setForm(initialFormState());
+    setFormSupplierLabel("");
+    setFormSupplierQuery("");
+    setDebouncedFormSupplierQuery("");
     setModalOpen(true);
   }
 
@@ -687,6 +778,9 @@ export default function PurchaseOrdersPage() {
           create_product_if_not_exists: false,
         })),
       });
+      setEditSupplierLabel(full.supplier_name ?? order.supplier_name ?? "");
+      setEditSupplierQuery("");
+      setDebouncedEditSupplierQuery("");
       setEditing(order);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Error al cargar la orden");
@@ -698,6 +792,9 @@ export default function PurchaseOrdersPage() {
   function closeEdit() {
     setEditing(null);
     setEditForm(emptyEditForm());
+    setEditSupplierLabel("");
+    setEditSupplierQuery("");
+    setDebouncedEditSupplierQuery("");
     setOriginalItems([]);
     setEditFormError(null);
     editSave.reset();
@@ -902,42 +999,46 @@ export default function PurchaseOrdersPage() {
               aria-label="Buscar orden"
             />
           </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor="filter-supplier" className="text-xs text-muted-foreground">Proveedor</label>
-            <Select
-              id="filter-supplier"
+          <div className="flex min-w-[200px] flex-1 flex-col gap-1">
+            <label className="text-xs text-muted-foreground">Proveedor</label>
+            <SearchableSelect
+              options={filterSupplierOptions}
               value={supplier}
-              onChange={(e) => updateFilter(setSupplier, e.target.value)}
-            >
-              <option value="">Todos</option>
-              {suppliers.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </Select>
+              onChange={(value) => {
+                setSupplier(value);
+                const opt = filterSupplierOptions.find((o) => o.value === value);
+                setSupplierName(opt?.label ?? "");
+                setPageUrl({});
+              }}
+              onQueryChange={setFilterSupplierQuery}
+              minChars={2}
+              loading={filterSupplierLookup.isFetching}
+              clearable
+              selectedOption={
+                supplier && supplierName ? { value: supplier, label: supplierName } : null
+              }
+              placeholder="Filtrar por proveedor…"
+              searchPlaceholder="Nombre, RUT o razón social…"
+              emptyMessage="Sin coincidencias"
+            />
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor="filter-status" className="text-xs text-muted-foreground">Estado</label>
-            <Select
-              id="filter-status"
+            <label className="text-xs text-muted-foreground">Estado</label>
+            <MultiSelect
+              options={STATUS_OPTIONS}
               value={status}
-              onChange={(e) => updateFilter(setStatus, e.target.value)}
-            >
-              {STATUS_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </Select>
+              onChange={(v) => updateFilter(setStatus, v)}
+              placeholder="Todos"
+            />
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor="filter-payment-status" className="text-xs text-muted-foreground">Estado pago</label>
-            <Select
-              id="filter-payment-status"
+            <label className="text-xs text-muted-foreground">Estado pago</label>
+            <MultiSelect
+              options={PAYMENT_STATUS_OPTIONS}
               value={paymentStatus}
-              onChange={(e) => updateFilter(setPaymentStatus, e.target.value)}
-            >
-              {PAYMENT_STATUS_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </Select>
+              onChange={(v) => updateFilter(setPaymentStatus, v)}
+              placeholder="Todos"
+            />
           </div>
           <div className="flex flex-col gap-1">
             <label htmlFor="filter-start-date" className="text-xs text-muted-foreground">Desde</label>
@@ -1121,11 +1222,24 @@ export default function PurchaseOrdersPage() {
                       Proveedor <span className="text-danger">*</span>
                     </label>
                     <SearchableSelect
-                      options={supplierOptions}
+                      options={formSupplierOptions}
                       value={form.supplier}
-                      onChange={(value) => setForm({ ...form, supplier: value })}
+                      onChange={(value) => {
+                        setForm({ ...form, supplier: value });
+                        const opt = formSupplierOptions.find((o) => o.value === value);
+                        setFormSupplierLabel(opt?.label ?? "");
+                      }}
+                      onQueryChange={setFormSupplierQuery}
+                      minChars={2}
+                      loading={formSupplierLookup.isFetching}
+                      clearable
+                      selectedOption={
+                        form.supplier && formSupplierLabel
+                          ? { value: form.supplier, label: formSupplierLabel }
+                          : null
+                      }
                       placeholder="Buscar proveedor…"
-                      searchPlaceholder="Escribe para buscar…"
+                      searchPlaceholder="Nombre, RUT o razón social…"
                       emptyMessage="Sin coincidencias"
                     />
                     <p className="text-xs text-muted-foreground">
@@ -1506,11 +1620,24 @@ export default function PurchaseOrdersPage() {
                       Proveedor <span className="text-danger">*</span>
                     </label>
                     <SearchableSelect
-                      options={supplierOptions}
+                      options={editSupplierOptions}
                       value={editForm.supplier}
-                      onChange={(value) => setEditForm({ ...editForm, supplier: value })}
+                      onChange={(value) => {
+                        setEditForm({ ...editForm, supplier: value });
+                        const opt = editSupplierOptions.find((o) => o.value === value);
+                        setEditSupplierLabel(opt?.label ?? "");
+                      }}
+                      onQueryChange={setEditSupplierQuery}
+                      minChars={2}
+                      loading={editSupplierLookup.isFetching}
+                      clearable
+                      selectedOption={
+                        editForm.supplier && editSupplierLabel
+                          ? { value: editForm.supplier, label: editSupplierLabel }
+                          : null
+                      }
                       placeholder="Buscar proveedor…"
-                      searchPlaceholder="Escribe para buscar…"
+                      searchPlaceholder="Nombre, RUT o razón social…"
                       emptyMessage="Sin coincidencias"
                     />
                   </div>

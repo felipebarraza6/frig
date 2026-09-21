@@ -58,6 +58,8 @@ interface ModalProps {
   closeOnOverlay?: boolean;
   className?: string;
   overlayClassName?: string;
+  /** Clase del contenedor fixed (p. ej. z-[80] para apilar sobre otros overlays). */
+  containerClassName?: string;
   initialFocusRef?: React.RefObject<HTMLElement>;
   children: ReactNode;
 }
@@ -87,6 +89,7 @@ export function Modal({
   closeOnOverlay = true,
   className,
   overlayClassName,
+  containerClassName,
   initialFocusRef,
   children,
 }: ModalProps) {
@@ -171,7 +174,10 @@ export function Modal({
       <AnimatePresence>
         {open && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center sm:p-6"
+            className={cn(
+              "fixed inset-0 flex items-center justify-center sm:p-6",
+              containerClassName ?? "z-50",
+            )}
             onKeyDown={handleKeyDown}
           >
             <m.div

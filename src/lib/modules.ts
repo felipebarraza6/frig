@@ -11,7 +11,12 @@ export const ROUTE_MODULE_MAP: Record<string, ModuleName | null> = {
   "/pos": "pos",
   "/pos/terminal": "pos",
   "/sales": "sales",
-  "/reports": "nutrition",
+    "/reports": null,
+    "/reports/sales": null,
+    "/reports/dinero": null,
+    "/reports/ingresos": null,
+    "/reports/gastos": null,
+    "/reports/finanzas": null,
   "/cash-register": "cash_register",
   "/cash-register/stations": "cash_register",
   "/kds": "production",
@@ -193,9 +198,9 @@ export interface FrigMenuItem {
   label: string;
   /** Nombre del icono Lucide (para getMenuIcon). */
   icon: string;
-  /** Módulo que controla este ítem. Si está en FRIG_ALWAYS_ON_MODULES se muestra
+  /** Módulo que controla este ítem. Si es `null` o está en FRIG_ALWAYS_ON_MODULES se muestra
    *  siempre; de lo contrario requiere `is_enabled === true` en el backend. */
-  module: ModuleName;
+  module: ModuleName | null;
   /** Badge opcional (pedidos pendientes, caja abierta, etc.). */
   badge?: "ordersPending" | "cashOpen" | "kitchenReady";
   /** Descripción corta para tooltip o subtítulo en el menú. */
@@ -215,11 +220,28 @@ export interface FrigMenuGroup {
  */
 export const FRIG_MENU_DEF: FrigMenuGroup[] = [
   {
-    title: "Vender",
-    icon: "Receipt",
+    title: "Resumen",
+    icon: "LayoutDashboard",
     items: [
       { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard", module: "dashboard", description: "Resumen general del negocio en tiempo real" },
-      { href: "/pos", label: "Punto de Venta (POS)", icon: "Receipt", module: "pos", description: "Terminal de venta, cuentas abiertas y cobros" },
+      { href: "/reports", label: "Informe nutricional", icon: "FileText", module: "nutrition", description: "Productos más vendidos e insumos consumidos" },
+    ],
+  },
+  {
+    title: "Informes",
+    icon: "BarChart3",
+    items: [
+      { href: "/reports/sales", label: "Ventas", icon: "TrendingUp", module: null, description: "Informe de ventas por cliente, tipo y día" },
+      { href: "/reports/dinero", label: "Dinero", icon: "Wallet", module: null, description: "Ingresos, egresos y neto del período" },
+      { href: "/reports/ingresos", label: "Ingresos", icon: "ArrowDownLeft", module: null, description: "Detalle de ingresos por categoría" },
+      { href: "/reports/gastos", label: "Gastos", icon: "ArrowUpRight", module: null, description: "Detalle de gastos por categoría" },
+    ],
+  },
+  {
+    title: "Vender",
+    icon: "HandCoins",
+    items: [
+      { href: "/pos", label: "Punto de Venta (POS)", icon: "HandCoins", module: "pos", description: "Terminal de venta, cuentas abiertas y cobros" },
       { href: "/cash-register", label: "Caja", icon: "Banknote", module: "cash_register", description: "Apertura, cierre y movimientos de caja" },
       { href: "/sales", label: "Ventas", icon: "ShoppingBag", module: "sales", description: "Historial de ventas y cuentas abiertas" },
       { href: "/quotations", label: "Cotizaciones", icon: "FileText", module: "sales", description: "Presupuestos y cotizaciones convertibles a orden" },
@@ -245,7 +267,6 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
       { href: "/products/modifiers", label: "Modificadores", icon: "ListChecks", module: "product_catalog", description: "Opciones y agregados por producto" },
       { href: "/categories", label: "Categorías", icon: "Tags", module: "product_catalog", description: "Organiza el catálogo por categorías" },
       { href: "/products/nutrition", label: "Etiquetado nutricional", icon: "Apple", module: "nutrition", description: "Tablas nutricionales por producto" },
-      { href: "/reports", label: "Informe nutricional", icon: "FileText", module: "nutrition", description: "Productos más vendidos e insumos consumidos" },
       { href: "/products/menus", label: "Menús digitales", icon: "QrCode", module: "public_catalog", description: "Cartas QR públicas por estación" },
       { href: "/warehouses", label: "Bodegas", icon: "Warehouse", module: "inventory", description: "Bodegas y sus responsables" },
       { href: "/inventory", label: "Inventario", icon: "ClipboardList", module: "inventory", description: "Stock por bodega y movimientos" },

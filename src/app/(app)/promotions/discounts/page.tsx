@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Plus,
   Search,
@@ -18,9 +18,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { formatCLP, cn } from "@/lib/utils";
 import { useToast } from "@/lib/store/toast";
+import { useQuery } from "@tanstack/react-query";
 import {
   useAllDiscounts,
   useCreateDiscountMutation,
@@ -31,9 +33,9 @@ import {
   type PromotionDiscountList,
   type DiscountFormPayload,
 } from "@/lib/hooks/useDiscounts";
-import { useProducts } from "@/lib/hooks/useCatalog";
-import { useCategories } from "@/lib/hooks/useCatalog";
+import { useCategoryOptions } from "@/lib/hooks/useCategoryOptions";
 import { fetchDiscount, exportDiscountsExcel } from "@/lib/api/discounts";
+import { fetchProducts, searchProductsForSale } from "@/lib/api/products";
 import { useCurrentBranch } from "@/lib/store/session";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
@@ -170,8 +172,57 @@ export default function DiscountsPage() {
 
   const { data: discounts = [], isLoading, error } = useAllDiscounts();
   const { data: dashboard } = useDiscountDashboard(branch?.branch_id);
-  const { data: products = [] } = useProducts();
-  const { data: categories = [] } = useCategories();
+  const { options: categoryOptions } = useCategoryOptions();
+  const [productPickerQuery, setProductPickerQuery] = useState("");
+  const [debouncedProductPickerQuery, setDebouncedProductPickerQuery] = useState("");
+  const [categoryPickerQuery, setCategoryPickerQuery] = useState("");
+  const [manualProductNames, setManualProductNames] = useState<Record<number, string>>({});
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedProductPickerQuery(productPickerQuery), 300);
+    return () => clearTimeout(t);
+  }, [productPickerQuery]);
+
+  const productPickerSearch = useQuery({
+    queryKey: ["products", "for-sale", "discounts", debouncedProductPickerQuery],
+    queryFn: () => searchProductsForSale({ search: debouncedProductPickerQuery }),
+    enabled: modalOpen && form.apply_to === "SPECIFIC_PRODUCTS" && debouncedProductPickerQuery.trim().length >= 2,
+    staleTime: 30_000,
+  });
+
+  const selectedProductsQuery = useQuery({
+    queryKey: ["products", "ids", form.products],
+    queryFn: () => fetchProducts({ ids: form.products, page_size: Math.max(form.products.length, 1) }),
+    enabled: modalOpen && form.apply_to === "SPECIFIC_PRODUCTS" && form.products.length > 0,
+    staleTime: 60_000,
+  });
+
+  const productNameMap = useMemo(() => {
+    const next = { ...manualProductNames };
+    for (const p of selectedProductsQuery.data?.results ?? []) {
+      next[p.id] = p.name;
+    }
+    return next;
+  }, [manualProductNames, selectedProductsQuery.data]);
+
+  const productPickerOptions = useMemo(() => {
+    return (productPickerSearch.data ?? [])
+      .filter((p) => !form.products.includes(p.id))
+      .map((p) => ({
+        value: String(p.id),
+        label: p.name,
+        description: p.code ?? undefined,
+      }));
+  }, [productPickerSearch.data, form.products]);
+
+  const categoryPickerOptions = useMemo(() => {
+    const q = categoryPickerQuery.trim().toLowerCase();
+    return categoryOptions
+      .filter((c) => !form.categories.includes(c.id))
+      .filter((c) => !q || c.name.toLowerCase().includes(q))
+      .map((c) => ({ value: String(c.id), label: c.name }));
+  }, [categoryOptions, form.categories, categoryPickerQuery]);
+
   const createMutation = useCreateDiscountMutation();
   const updateMutation = useUpdateDiscountMutation();
   const deleteMutation = useDeleteDiscountMutation();
@@ -226,23 +277,43 @@ export default function DiscountsPage() {
     setEditing(null);
     setForm(emptyForm());
     setFormError(null);
+    setProductPickerQuery("");
+    setDebouncedProductPickerQuery("");
+    setCategoryPickerQuery("");
+    setManualProductNames({});
   }
 
-  function toggleProduct(productId: number) {
+  function addProductToDiscount(productId: number, name: string) {
+    setForm((prev) =>
+      prev.products.includes(productId)
+        ? prev
+        : { ...prev, products: [...prev.products, productId] },
+    );
+    setManualProductNames((prev) => ({ ...prev, [productId]: name }));
+    setProductPickerQuery("");
+    setDebouncedProductPickerQuery("");
+  }
+
+  function removeProductFromDiscount(productId: number) {
     setForm((prev) => ({
       ...prev,
-      products: prev.products.includes(productId)
-        ? prev.products.filter((id) => id !== productId)
-        : [...prev.products, productId],
+      products: prev.products.filter((id) => id !== productId),
     }));
   }
 
-  function toggleCategory(categoryId: number) {
+  function addCategoryToDiscount(categoryId: number) {
+    setForm((prev) =>
+      prev.categories.includes(categoryId)
+        ? prev
+        : { ...prev, categories: [...prev.categories, categoryId] },
+    );
+    setCategoryPickerQuery("");
+  }
+
+  function removeCategoryFromDiscount(categoryId: number) {
     setForm((prev) => ({
       ...prev,
-      categories: prev.categories.includes(categoryId)
-        ? prev.categories.filter((id) => id !== categoryId)
-        : [...prev.categories, categoryId],
+      categories: prev.categories.filter((id) => id !== categoryId),
     }));
   }
 
@@ -971,56 +1042,89 @@ export default function DiscountsPage() {
                   {form.apply_to === "SPECIFIC_PRODUCTS" && (
                     <div className="flex flex-col gap-2 sm:col-span-2">
                       <label className="text-sm font-medium">Productos aplicables</label>
-                      <div className="max-h-48 overflow-y-auto rounded-lg border border-border p-2">
-                        {products.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">No hay productos disponibles.</p>
-                        ) : (
-                          <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
-                            {products.map((p) => (
-                              <label
-                                key={p.id}
-                                className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-muted"
+                      <SearchableSelect
+                        options={productPickerOptions}
+                        value=""
+                        onChange={(value) => {
+                          const id = Number(value);
+                          const opt = productPickerOptions.find((o) => o.value === value);
+                          if (!id || !opt) return;
+                          addProductToDiscount(id, opt.label);
+                        }}
+                        onQueryChange={setProductPickerQuery}
+                        minChars={2}
+                        loading={productPickerSearch.isFetching}
+                        placeholder="Buscar y agregar producto…"
+                        searchPlaceholder="Nombre o código…"
+                        emptyMessage="Sin coincidencias"
+                      />
+                      {form.products.length === 0 ? (
+                        <p className="rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
+                          Agrega al menos un producto.
+                        </p>
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5">
+                          {form.products.map((id) => (
+                            <span
+                              key={id}
+                              className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-xs"
+                            >
+                              {productNameMap[id] ?? `Producto #${id}`}
+                              <button
+                                type="button"
+                                onClick={() => removeProductFromDiscount(id)}
+                                className="text-muted-foreground hover:text-foreground"
+                                aria-label="Quitar producto"
                               >
-                                <input
-                                  type="checkbox"
-                                  checked={form.products.includes(p.id)}
-                                  onChange={() => toggleProduct(p.id)}
-                                  className="h-4 w-4 rounded border-border"
-                                />
-                                <span className="text-sm">{p.name}</span>
-                              </label>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                                <X className="h-3 w-3" />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
 
                   {form.apply_to === "CATEGORY" && (
                     <div className="flex flex-col gap-2 sm:col-span-2">
                       <label className="text-sm font-medium">Categorías aplicables</label>
-                      <div className="max-h-48 overflow-y-auto rounded-lg border border-border p-2">
-                        {categories.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">No hay categorías disponibles.</p>
-                        ) : (
-                          <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
-                            {categories.map((c) => (
-                              <label
-                                key={c.id}
-                                className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-muted"
+                      <SearchableSelect
+                        options={categoryPickerOptions}
+                        value=""
+                        onChange={(value) => {
+                          const id = Number(value);
+                          if (!id) return;
+                          addCategoryToDiscount(id);
+                        }}
+                        onQueryChange={setCategoryPickerQuery}
+                        placeholder="Buscar y agregar categoría…"
+                        searchPlaceholder="Nombre de categoría…"
+                        emptyMessage="Sin coincidencias"
+                      />
+                      {form.categories.length === 0 ? (
+                        <p className="rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
+                          Agrega al menos una categoría.
+                        </p>
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5">
+                          {form.categories.map((id) => (
+                            <span
+                              key={id}
+                              className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-xs"
+                            >
+                              {categoryOptions.find((c) => c.id === id)?.name ?? `Categoría #${id}`}
+                              <button
+                                type="button"
+                                onClick={() => removeCategoryFromDiscount(id)}
+                                className="text-muted-foreground hover:text-foreground"
+                                aria-label="Quitar categoría"
                               >
-                                <input
-                                  type="checkbox"
-                                  checked={form.categories.includes(c.id)}
-                                  onChange={() => toggleCategory(c.id)}
-                                  className="h-4 w-4 rounded border-border"
-                                />
-                                <span className="text-sm">{c.name}</span>
-                              </label>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                                <X className="h-3 w-3" />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
 

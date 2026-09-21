@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, Fragment } from "react";
+import { useEffect, useMemo, useState, Fragment } from "react";
 import {
   useQuery,
   useMutation,
@@ -31,7 +31,7 @@ import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { formatCLP, cn } from "@/lib/utils";
 import { useToast } from "@/lib/store/toast";
-import { fetchProducts } from "@/lib/api/products";
+import { fetchProducts, searchProductsForSale } from "@/lib/api/products";
 import {
   fetchModifierGroups,
   fetchModifierGroup,
@@ -553,14 +553,19 @@ function GroupProducts({ groupId }: { groupId: number }) {
     return map;
   }, [assignedProductsData]);
 
-  const { data: availableProductsData, isLoading: availableProductsLoading } = useQuery({
-    queryKey: ["products", "for-sale", "all"],
-    queryFn: () =>
-      fetchProducts({
-        is_for_sale: true,
-        is_active: true,
-        page_size: 1000,
-      }),
+  const [productAssignQuery, setProductAssignQuery] = useState("");
+  const [debouncedProductAssignQuery, setDebouncedProductAssignQuery] = useState("");
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedProductAssignQuery(productAssignQuery), 300);
+    return () => clearTimeout(t);
+  }, [productAssignQuery]);
+
+  const { data: availableProductsData, isFetching: availableProductsLoading } = useQuery({
+    queryKey: ["products", "for-sale", "modifiers", debouncedProductAssignQuery],
+    queryFn: () => searchProductsForSale({ search: debouncedProductAssignQuery }),
+    enabled: debouncedProductAssignQuery.trim().length >= 2,
+    staleTime: 30_000,
   });
 
   const assignMutation = useMutation({
@@ -571,6 +576,8 @@ function GroupProducts({ groupId }: { groupId: number }) {
       queryClient.invalidateQueries({ queryKey: ["product-modifier-groups"] });
       queryClient.invalidateQueries({ queryKey: ["product-modifier-groups", selectedProductId] });
       setSelectedProductId("");
+      setProductAssignQuery("");
+      setDebouncedProductAssignQuery("");
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : "No se pudo asignar el producto");
@@ -589,12 +596,13 @@ function GroupProducts({ groupId }: { groupId: number }) {
   });
 
   const availableOptions = useMemo(() => {
-    const products = availableProductsData?.results ?? [];
+    const products = availableProductsData ?? [];
     return products
       .filter((p) => !assignedProductIds.has(p.id))
       .map((p) => ({
         value: String(p.id),
-        label: `${p.name}${p.code ? ` (${p.code})` : ""}`,
+        label: p.name,
+        description: p.code ?? undefined,
       }));
   }, [availableProductsData, assignedProductIds]);
 
@@ -655,9 +663,12 @@ function GroupProducts({ groupId }: { groupId: number }) {
               options={availableOptions}
               value={selectedProductId}
               onChange={setSelectedProductId}
+              onQueryChange={setProductAssignQuery}
+              minChars={2}
+              loading={availableProductsLoading}
               placeholder="Buscar producto…"
-              searchPlaceholder="Escribe al menos 2 caracteres…"
-              emptyMessage={availableProductsLoading ? "Cargando…" : "Sin coincidencias"}
+              searchPlaceholder="Nombre o código…"
+              emptyMessage="Sin coincidencias"
               disabled={assignMutation.isPending}
             />
           </div>

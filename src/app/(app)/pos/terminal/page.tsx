@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import CartPanel from "@/components/pos/cart-panel";
 import { ProductCard } from "@/components/pos/product-card";
@@ -1153,32 +1154,29 @@ export default function PosPage() {
 
             {showTables && !isWaiter && (
               <div className="mb-3 flex flex-col gap-2">
-                <div className="relative">
-                  <Table className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                  <select
-                    value={selectedTable?.id ?? ""}
-                    onChange={(e) => {
-                      const id = Number(e.target.value);
-                      setSelectedTable(myTables.find((t) => t.id === id) || null);
-                    }}
-                    className="h-8 w-full appearance-none rounded-lg border border-border/60 bg-background pl-8 pr-7 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                    aria-label="Seleccionar mesa"
-                  >
-                    <option value="">Sin mesa</option>
-                    {myTables
-                      .filter(
-                        (t) =>
-                          t.status === "FREE" ||
-                          t.status === "RESERVED" ||
-                          t.id === selectedTable?.id,
-                      )
-                      .map((t) => (
-                        <option key={t.id} value={t.id}>
-                          Mesa {t.number} {t.area ? `· ${t.area}` : ""}
-                        </option>
-                      ))}
-                  </select>
-                </div>
+                <Select
+                  value={selectedTable ? String(selectedTable.id) : ""}
+                  onChange={(e) => {
+                    const id = Number(e.target.value);
+                    setSelectedTable(myTables.find((t) => t.id === id) || null);
+                  }}
+                  className="h-8 text-xs"
+                  aria-label="Seleccionar mesa"
+                >
+                  <option value="">Sin mesa</option>
+                  {myTables
+                    .filter(
+                      (t) =>
+                        t.status === "FREE" ||
+                        t.status === "RESERVED" ||
+                        t.id === selectedTable?.id,
+                    )
+                    .map((t) => (
+                      <option key={t.id} value={t.id}>
+                        Mesa {t.number} {t.area ? `· ${t.area}` : ""}
+                      </option>
+                    ))}
+                </Select>
               </div>
             )}
 

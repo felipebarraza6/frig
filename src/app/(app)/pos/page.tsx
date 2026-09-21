@@ -13,7 +13,7 @@ import {
   Pencil,
   Plus,
   Power,
-  Receipt,
+  HandCoins,
   ShoppingBag,
   Trash2,
   Unlock,
@@ -290,11 +290,11 @@ export default function PosZenPage() {
         </div>
 
         {stationsLoading ? (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="flex flex-wrap justify-center gap-6">
             {[0, 1, 2].map((i) => (
               <div
                 key={i}
-                className="flex flex-col justify-between rounded-2xl border border-border bg-background p-5 shadow-sm"
+                className="flex w-full max-w-sm flex-col justify-between rounded-2xl border border-border bg-background p-5 shadow-sm"
               >
                 <div>
                   <div className="flex items-start justify-between gap-3">
@@ -330,7 +330,7 @@ export default function PosZenPage() {
             </div>
           </div>
         ) : stations.length > 0 ? (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="flex flex-wrap justify-center gap-6">
             {stations.map((station, idx) => {
               const isOpening = openingStationId === station.id;
               const stationActive = station.is_active !== false;
@@ -352,7 +352,7 @@ export default function PosZenPage() {
                   className={cn(
                     // Tarjeta sólida y sin marca de selección: la animación
                     // del fondo nunca se filtra y todas se ven iguales.
-                    "flex flex-col justify-between rounded-2xl border border-border bg-background p-5 shadow-sm hover:shadow-md",
+                    "flex w-full max-w-sm flex-col justify-between rounded-2xl border border-border bg-background p-5 shadow-sm hover:shadow-md",
                     !stationActive && "opacity-60",
                   )}
                 >
@@ -368,7 +368,7 @@ export default function PosZenPage() {
                             : "bg-muted text-muted-foreground",
                         )}
                       >
-                        <Monitor className="h-6 w-6" />
+                        <HandCoins className="h-6 w-6" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <h2 className="text-base font-bold text-foreground leading-snug break-words">
@@ -577,7 +577,7 @@ export default function PosZenPage() {
                           "Estación desactivada"
                         ) : isOpen ? (
                           <>
-                            <Receipt className="mr-2 h-4 w-4" />
+                            <HandCoins className="mr-2 h-4 w-4" />
                             Abrir terminal de venta
                           </>
                         ) : (

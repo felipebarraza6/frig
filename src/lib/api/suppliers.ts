@@ -1,6 +1,7 @@
 import { apiFetch, apiFile } from "./client";
 import type { ApiFileResult } from "./client";
 import type { YggdraSchemas } from "@/lib/api/types";
+import { appendMulti } from "@/lib/api/query-params";
 
 export type Supplier = YggdraSchemas["Supplier"];
 export type SupplierList = YggdraSchemas["SupplierList"];
@@ -137,6 +138,29 @@ export async function fetchSuppliers(filter: SuppliersFilter = {}): Promise<Pagi
   return apiFetch<PaginatedSupplier>(`/suppliers/suppliers/${q ? `?${q}` : ""}`);
 }
 
+export type SupplierLookup = YggdraSchemas["SupplierLookup"];
+
+export interface SupplierLookupFilter {
+  q: string;
+  branch?: number;
+  limit?: number;
+}
+
+export async function lookupSuppliers(filter: SupplierLookupFilter): Promise<SupplierLookup[]> {
+  const qs = new URLSearchParams();
+  qs.set("q", filter.q);
+  if (filter.branch) qs.set("branch", String(filter.branch));
+  qs.set("limit", String(Math.min(filter.limit ?? 20, 100)));
+  const data = await apiFetch<unknown>(`/suppliers/suppliers/lookup/?${qs.toString()}`);
+  if (Array.isArray(data)) return data as SupplierLookup[];
+  if (data && typeof data === "object") {
+    const record = data as Record<string, unknown>;
+    if (Array.isArray(record.results)) return record.results as SupplierLookup[];
+    if ("id" in record) return [data as SupplierLookup];
+  }
+  return [];
+}
+
 export async function fetchSupplier(id: string): Promise<Supplier> {
   return apiFetch<Supplier>(`/suppliers/suppliers/${id}/`);
 }
@@ -239,14 +263,12 @@ export async function fetchPurchaseOrders(
   const qs = new URLSearchParams();
   if (filter.search) qs.set("search", filter.search);
   if (filter.supplier) qs.set("supplier", filter.supplier);
-  if (filter.status) qs.set("status", filter.status);
-  if (filter.status__in && filter.status__in.length > 0) {
-    qs.set("status__in", filter.status__in.join(","));
-  }
-  if (filter.payment_status) qs.set("payment_status", filter.payment_status);
-  if (filter.payment_status__in && filter.payment_status__in.length > 0) {
-    qs.set("payment_status__in", filter.payment_status__in.join(","));
-  }
+  appendMulti(qs, "status", filter.status__in?.length ? filter.status__in : filter.status);
+  appendMulti(
+    qs,
+    "payment_status",
+    filter.payment_status__in?.length ? filter.payment_status__in : filter.payment_status,
+  );
   if (filter.has_expense !== undefined) {
     qs.set("has_expense", filter.has_expense ? "true" : "false");
   }

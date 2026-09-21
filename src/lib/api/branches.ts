@@ -14,6 +14,11 @@ import type {
 export interface BranchesFilter {
   search?: string;
   is_active?: boolean;
+  /**
+   * El listado del backend oculta las inactivas por defecto
+   * (UniversalFilterMixin); con show_inactive=true las incluye.
+   */
+  show_inactive?: boolean;
   next?: string | null;
   previous?: string | null;
 }
@@ -49,6 +54,7 @@ export async function fetchBranches(filter: BranchesFilter = {}): Promise<{
   const qs = new URLSearchParams();
   if (filter.search) qs.set("search", filter.search);
   if (filter.is_active !== undefined) qs.set("is_active", String(filter.is_active));
+  if (filter.show_inactive) qs.set("show_inactive", "true");
   const query = qs.toString();
   const data = await apiFetch<{ results?: Branch[]; count?: number; next?: string | null; previous?: string | null } | Branch[]>(
     `/branches/${query ? `?${query}` : ""}`,
@@ -105,6 +111,86 @@ export async function inviteBranchUser(
 export async function fetchBranchRoles(branchId: ID): Promise<RoleDefinition[]> {
   const data = await apiFetch<{ results?: RoleDefinition[] } | RoleDefinition[]>(
     `/branches/${branchId}/roles/`,
+  );
+  return Array.isArray(data) ? data : (data.results ?? []);
+}
+
+/* ─── Gestión de usuarios de la sucursal ────────────────────────────────── */
+
+/** GET /api/branches/{id}/available-users/ — usuarios que pueden asignarse. */
+export async function fetchBranchAvailableUsers(branchId: ID): Promise<BranchUser[]> {
+  const data = await apiFetch<{ results?: BranchUser[] } | BranchUser[]>(
+    `/branches/${branchId}/available-users/`,
+  );
+  return Array.isArray(data) ? data : (data.results ?? []);
+}
+
+/** POST /api/branches/{id}/users/assign/ — asigna un usuario existente (super admin). */
+export async function assignBranchUser(
+  branchId: ID,
+  userId: ID,
+  roleDefinition: ID,
+): Promise<BranchUser> {
+  return apiFetch<BranchUser>(`/branches/${branchId}/users/assign/`, {
+    method: "POST",
+    body: { user_id: userId, role_definition: roleDefinition },
+  });
+}
+
+/** POST/DELETE /api/branches/{id}/remove-user/ — remueve un usuario (user_id). */
+export async function removeBranchUser(branchId: ID, userId: ID): Promise<unknown> {
+  return apiFetch<unknown>(`/branches/${branchId}/remove-user/`, {
+    method: "POST",
+    body: { user_id: userId },
+  });
+}
+
+/** PUT /api/branches/{id}/toggle_user_status/ — activa/desactiva el acceso. */
+export async function toggleBranchUserStatus(
+  branchId: ID,
+  userId: ID,
+  isActive: boolean,
+): Promise<unknown> {
+  return apiFetch<unknown>(`/branches/${branchId}/toggle_user_status/`, {
+    method: "PUT",
+    body: { user_id: userId, is_active: isActive },
+  });
+}
+
+/** PUT /api/branches/{id}/update-user-role/ — cambia el rol de un usuario. */
+export async function updateBranchUserRole(
+  branchId: ID,
+  userId: ID,
+  roleDefinition: ID,
+): Promise<unknown> {
+  return apiFetch<unknown>(`/branches/${branchId}/update-user-role/`, {
+    method: "PUT",
+    body: { user_id: userId, role_definition: roleDefinition },
+  });
+}
+
+/** POST /api/branches/{id}/transfer-ownership/ — transfiere la propiedad. */
+export async function transferBranchOwnership(
+  branchId: ID,
+  userId: ID,
+): Promise<unknown> {
+  return apiFetch<unknown>(`/branches/${branchId}/transfer-ownership/`, {
+    method: "POST",
+    body: { user_id: userId },
+  });
+}
+
+/** POST /api/branches/{id}/leave-branch/ — el usuario autenticado deja la sucursal. */
+export async function leaveBranch(branchId: ID): Promise<unknown> {
+  return apiFetch<unknown>(`/branches/${branchId}/leave-branch/`, {
+    method: "POST",
+  });
+}
+
+/** GET /api/branches/{id}/enabled-roles/ — roles habilitados con módulos por rol. */
+export async function fetchBranchEnabledRoles(branchId: ID): Promise<RoleDefinition[]> {
+  const data = await apiFetch<{ results?: RoleDefinition[] } | RoleDefinition[]>(
+    `/branches/${branchId}/enabled-roles/`,
   );
   return Array.isArray(data) ? data : (data.results ?? []);
 }
@@ -373,21 +459,6 @@ export function applyThemeConfig(theme: BranchThemeConfig | null): void {
   // Avisar a los canvas decorativos (matriz de datos del login/landing)
   // para re-teñir su paleta con la marca recién aplicada.
   window.dispatchEvent(new CustomEvent("frig:theme-changed"));
-}
-
-/**
- * Mezcla dos colores CSS con un ratio (0-1).
- * ratio=0 → color1 puro, ratio=1 → color2 puro.
- */
-function mixColor(color1: string, color2: string, ratio: number): string {
-  // Soporta hex (#rrggbb) y nombres básicos
-  const c1 = hexToRgb(color1);
-  const c2 = hexToRgb(color2);
-  if (!c1 || !c2) return color1; // fallback
-  const r = Math.round(c1.r + (c2.r - c1.r) * ratio);
-  const g = Math.round(c1.g + (c2.g - c1.g) * ratio);
-  const b = Math.round(c1.b + (c2.b - c1.b) * ratio);
-  return `hsl(${rgbToHsl(r, g, b).join(" ")})`;
 }
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } | null {

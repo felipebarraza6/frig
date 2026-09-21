@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
   Plus,
   Search,
@@ -19,16 +19,24 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Select } from "@/components/ui/select";
-import { fetchQuotations, exportQuotationsExcel, type Quotation } from "@/lib/api/quotations";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import { MultiSelect } from "@/components/ui/multi-select";
+import {
+  fetchQuotations,
+  fetchQuotationStats,
+  exportQuotationsExcel,
+  type Quotation,
+} from "@/lib/api/quotations";
+import { searchCustomers } from "@/lib/api/customers";
 import { QuotationCreateModal } from "@/components/sales/quotation-create-modal";
 import { QuotationDetailModal } from "@/components/sales/quotation-detail-modal";
 import { formatCLP, orderTypeLabel } from "@/lib/utils";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
 import { useToast } from "@/lib/store/toast";
+import { useCurrentBranch } from "@/lib/store/session";
+import { useRecentPickerSuggestions } from "@/lib/hooks/useRecentPickerSuggestions";
 
 const STATUS_OPTIONS = [
-  { value: "", label: "Todos" },
   { value: "DRAFT", label: "Borrador" },
   { value: "PENDING", label: "Pendiente" },
   { value: "IN_PROGRESS", label: "En progreso" },
@@ -37,7 +45,6 @@ const STATUS_OPTIONS = [
 ];
 
 const ORDER_TYPE_OPTIONS = [
-  { value: "", label: "Todos" },
   { value: "SALE", label: "Venta" },
   { value: "ORDER", label: "Pedido" },
   { value: "AGREEMENT", label: "Convenio" },
@@ -85,11 +92,18 @@ type QuotationView = "cards" | "list";
 
 interface PersistedQuotationFilters {
   search?: string;
-  status?: string;
-  orderType?: string;
+  status?: string | string[];
+  orderType?: string | string[];
+  clientId?: string;
+  clientName?: string;
   startDate?: string;
   endDate?: string;
   view?: QuotationView;
+}
+
+function asArray(value: string | string[] | undefined): string[] {
+  if (!value) return [];
+  return Array.isArray(value) ? value.filter(Boolean) : value ? [value] : [];
 }
 
 function loadPersistedFilters(): PersistedQuotationFilters {
@@ -106,17 +120,23 @@ function loadPersistedFilters(): PersistedQuotationFilters {
   }
 }
 
-/** Tamaño de página para el fetch de métricas (snapshot global, sin filtros). */
-const STATS_PAGE_SIZE = 500;
-
 export default function QuotationsPage() {
   const toast = useToast();
+  const branch = useCurrentBranch();
+  const branchId =
+    branch?.branch_id !== undefined && branch?.branch_id !== null
+      ? Number(branch.branch_id)
+      : undefined;
   const { download: downloadFile, isLoading: isDownloading } = useDownloadFile();
   const [persistedFilters] = useState(loadPersistedFilters);
   const [search, setSearch] = useState(persistedFilters.search ?? "");
   const [debouncedSearch, setDebouncedSearch] = useState(persistedFilters.search ?? "");
-  const [status, setStatus] = useState(persistedFilters.status ?? "");
-  const [orderType, setOrderType] = useState(persistedFilters.orderType ?? "");
+  const [status, setStatus] = useState<string[]>(() => asArray(persistedFilters.status));
+  const [orderType, setOrderType] = useState<string[]>(() => asArray(persistedFilters.orderType));
+  const [clientId, setClientId] = useState(persistedFilters.clientId ?? "");
+  const [clientName, setClientName] = useState(persistedFilters.clientName ?? "");
+  const [clientQuery, setClientQuery] = useState("");
+  const [debouncedClientQuery, setDebouncedClientQuery] = useState("");
   const [startDate, setStartDate] = useState(persistedFilters.startDate ?? "");
   const [endDate, setEndDate] = useState(persistedFilters.endDate ?? "");
   const [view, setView] = useState<QuotationView>(persistedFilters.view ?? "cards");
@@ -130,28 +150,42 @@ export default function QuotationsPage() {
     return () => clearTimeout(t);
   }, [search]);
 
-  // Persistir filtros para que el usuario retome su búsqueda al volver al módulo.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedClientQuery(clientQuery), 150);
+    return () => clearTimeout(t);
+  }, [clientQuery]);
+
   useEffect(() => {
     try {
       window.localStorage.setItem(
         QUOTATIONS_FILTERS_KEY,
-        JSON.stringify({ search, status, orderType, startDate, endDate, view }),
+        JSON.stringify({
+          search,
+          status,
+          orderType,
+          clientId,
+          clientName,
+          startDate,
+          endDate,
+          view,
+        }),
       );
     } catch {
-      // sin almacenamiento disponible: los filtros solo viven en la sesión
+      // sin almacenamiento disponible
     }
-  }, [search, status, orderType, startDate, endDate, view]);
+  }, [search, status, orderType, clientId, clientName, startDate, endDate, view]);
 
   const filter = useMemo(
     () => ({
       search: debouncedSearch || undefined,
-      status: status || undefined,
-      order_type: orderType || undefined,
+      status: status.length ? status : undefined,
+      order_type: orderType.length ? orderType : undefined,
+      client__in: clientId || undefined,
       start_date: startDate || undefined,
       end_date: endDate || undefined,
       ...pageUrl,
     }),
-    [debouncedSearch, status, orderType, startDate, endDate, pageUrl],
+    [debouncedSearch, status, orderType, clientId, startDate, endDate, pageUrl],
   );
 
   const { data: page, isLoading, error } = useQuery({
@@ -161,37 +195,55 @@ export default function QuotationsPage() {
 
   const quotations = (page?.results ?? []) as Quotation[];
   const totalQuotations = page?.count ?? 0;
+  const hasActiveFilters = Boolean(
+    debouncedSearch || status.length || orderType.length || clientId || startDate || endDate,
+  );
 
-  // Métricas calculadas client-side desde un snapshot sin filtros (page_size
-  // grande). No se usa /stats/: su forma de respuesta no está garantizada.
-  const { data: statsPage } = useQuery({
+  const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ["quotations", "stats"],
-    queryFn: () => fetchQuotations({ page_size: STATS_PAGE_SIZE }),
+    queryFn: fetchQuotationStats,
     staleTime: 60_000,
   });
 
-  const stats = useMemo(() => {
-    const all = statsPage?.results ?? [];
-    let pending = 0;
-    let approved = 0;
-    let pendingAmount = 0;
-    for (const q of all) {
-      if (q.status === "DRAFT" || q.status === "PENDING") {
-        pending += 1;
-        pendingAmount += Number(q.total_amount ?? 0) || 0;
-      } else if (q.status === "COMPLETED" || q.status === "IN_PROGRESS") {
-        approved += 1;
-      }
-    }
-    return {
-      total: statsPage?.count ?? all.length,
-      pending,
-      approved,
-      pendingAmount,
-    };
-  }, [statsPage]);
+  const { recentClients } = useRecentPickerSuggestions(true);
 
-  function updateFilter<T extends string>(setter: (v: T) => void, value: T) {
+  const clientSearchQuery = useQuery({
+    queryKey: ["customers", "search", "quotations-filter", debouncedClientQuery, branchId],
+    queryFn: () => searchCustomers(debouncedClientQuery, branchId),
+    enabled: debouncedClientQuery.trim().length > 0,
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
+  });
+
+  const clientFilterOptions = useMemo(() => {
+    const recents = recentClients.map((c) => ({
+      value: String(c.id),
+      label: c.name,
+      description: [c.dni, c.phone_number].filter(Boolean).join(" · ") || "Reciente",
+    }));
+    const q = debouncedClientQuery.trim();
+    if (!q) {
+      if (clientId && clientName && !recents.some((o) => o.value === clientId)) {
+        return [{ value: clientId, label: clientName }, ...recents];
+      }
+      return recents;
+    }
+    const found = (clientSearchQuery.data ?? []).map((c) => ({
+      value: String(c.id),
+      label: c.name ?? "Sin nombre",
+      description: [c.dni, c.phone_number].filter(Boolean).join(" · ") || undefined,
+    }));
+    const merged = [...found];
+    for (const r of recents) {
+      if (!merged.some((o) => o.value === r.value)) merged.push(r);
+    }
+    if (clientId && clientName && !merged.some((o) => o.value === clientId)) {
+      merged.unshift({ value: clientId, label: clientName, description: undefined });
+    }
+    return merged;
+  }, [clientSearchQuery.data, recentClients, clientId, clientName, debouncedClientQuery]);
+
+  function updateFilter<T>(setter: (v: T) => void, value: T) {
     setter(value);
     setPageUrl({});
   }
@@ -199,8 +251,12 @@ export default function QuotationsPage() {
   function resetFilters() {
     setSearch("");
     setDebouncedSearch("");
-    setStatus("");
-    setOrderType("");
+    setStatus([]);
+    setOrderType([]);
+    setClientId("");
+    setClientName("");
+    setClientQuery("");
+    setDebouncedClientQuery("");
     setStartDate("");
     setEndDate("");
     setPageUrl({});
@@ -266,9 +322,8 @@ export default function QuotationsPage() {
       </header>
 
       <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
-        {/* Estadísticas calculadas client-side (snapshot sin filtros). */}
         <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {isLoading ? (
+          {statsLoading && !stats ? (
             <>
               <StatSkeleton />
               <StatSkeleton />
@@ -279,28 +334,28 @@ export default function QuotationsPage() {
             <>
               <StatCard
                 label="Cotizaciones"
-                value={String(stats.total)}
+                value={String(stats?.total ?? 0)}
                 icon={FileText}
                 sub="registros en total"
                 tone="slate"
               />
               <StatCard
                 label="Pendientes"
-                value={String(stats.pending)}
+                value={String(stats?.pending ?? 0)}
                 icon={Clock}
                 sub="borrador o por aprobar"
                 tone="warning"
               />
               <StatCard
                 label="Aprobadas"
-                value={String(stats.approved)}
+                value={String(stats?.approved ?? 0)}
                 icon={CheckCircle2}
                 sub="convertidas en venta"
                 tone="success"
               />
               <StatCard
                 label="Monto pendiente"
-                value={formatCLP(stats.pendingAmount)}
+                value={formatCLP(stats?.pending_amount ?? 0)}
                 icon={DollarSign}
                 sub="suma de cotizaciones abiertas"
                 tone="info"
@@ -321,29 +376,46 @@ export default function QuotationsPage() {
               aria-label="Buscar cotización"
             />
           </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor="filter-status" className="text-xs text-muted-foreground">Estado</label>
-            <Select
-              id="filter-status"
-              value={status}
-              onChange={(e) => updateFilter(setStatus, e.target.value)}
-            >
-              {STATUS_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </Select>
+          <div className="flex min-w-[200px] flex-1 flex-col gap-1">
+            <label className="text-xs text-muted-foreground">Cliente</label>
+            <SearchableSelect
+              options={clientFilterOptions}
+              value={clientId}
+              onChange={(value) => {
+                setClientId(value);
+                const opt = clientFilterOptions.find((o) => o.value === value);
+                setClientName(opt?.label ?? "");
+                setPageUrl({});
+              }}
+              onQueryChange={setClientQuery}
+              minChars={0}
+              loading={clientSearchQuery.isFetching}
+              clearable
+              selectedOption={
+                clientId && clientName ? { value: clientId, label: clientName } : null
+              }
+              placeholder="Filtrar por cliente…"
+              searchPlaceholder="Nombre, RUT o teléfono…"
+              emptyMessage="Sin coincidencias"
+            />
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor="filter-type" className="text-xs text-muted-foreground">Tipo</label>
-            <Select
-              id="filter-type"
+            <label className="text-xs text-muted-foreground">Estado</label>
+            <MultiSelect
+              options={STATUS_OPTIONS}
+              value={status}
+              onChange={(v) => updateFilter(setStatus, v)}
+              placeholder="Todos"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-muted-foreground">Tipo</label>
+            <MultiSelect
+              options={ORDER_TYPE_OPTIONS}
               value={orderType}
-              onChange={(e) => updateFilter(setOrderType, e.target.value)}
-            >
-              {ORDER_TYPE_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </Select>
+              onChange={(v) => updateFilter(setOrderType, v)}
+              placeholder="Todos"
+            />
           </div>
           <div className="flex flex-col gap-1">
             <label htmlFor="filter-start-date" className="text-xs text-muted-foreground">Desde</label>
@@ -462,10 +534,26 @@ export default function QuotationsPage() {
           <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">
             <div>
               <FileText className="mx-auto h-10 w-10 text-muted-foreground" />
-              <p className="mt-3 text-sm font-medium">No se encontraron cotizaciones</p>
-              <p className="text-xs text-muted-foreground">
-                Prueba con otros filtros o crea una nueva cotización.
+              <p className="mt-3 text-sm font-medium">
+                {hasActiveFilters ? "Sin resultados con estos filtros" : "Aún no hay cotizaciones"}
               </p>
+              <p className="text-xs text-muted-foreground">
+                {hasActiveFilters
+                  ? "Prueba limpiar filtros o cambia el criterio de búsqueda."
+                  : "Crea la primera cotización para un cliente."}
+              </p>
+              <div className="mt-4 flex justify-center gap-2">
+                {hasActiveFilters ? (
+                  <Button variant="outline" size="sm" onClick={resetFilters}>
+                    <RotateCcw className="mr-2 h-4 w-4" />
+                    Limpiar filtros
+                  </Button>
+                ) : null}
+                <Button size="sm" onClick={() => setCreating(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Nueva cotización
+                </Button>
+              </div>
             </div>
           </div>
         ) : (

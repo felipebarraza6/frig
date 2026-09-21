@@ -36,7 +36,7 @@ import {
   type CustomerPayload,
   type CustomerStatusFilter,
 } from "@/lib/api/customers";
-import { useCanManageCustomers } from "@/lib/store/session";
+import { useCanManageCustomers, useIsModuleEnabledFromConfig } from "@/lib/store/session";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
 import type { YggdraSchemas } from "@/lib/api/types";
 
@@ -45,6 +45,9 @@ type Customer = YggdraSchemas["Client"];
 export default function CustomersPage() {
   const queryClient = useQueryClient();
   const canManage = useCanManageCustomers();
+  // Lo fiscal (RUT/DNI, documento por defecto Boleta/Factura) solo aparece
+  // con el módulo de facturación SII activo en la sucursal.
+  const invoicesEnabled = useIsModuleEnabledFromConfig("invoices");
 
   const [search, setSearch] = useState("");
   const [dni, setDni] = useState("");
@@ -262,16 +265,18 @@ export default function CustomersPage() {
                 aria-label="Buscar cliente"
               />
             </div>
-            <div className="relative w-[140px]">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={dni}
-                onChange={(e) => updateFilter(setDni, e.target.value)}
-                placeholder="RUT/DNI…"
-                className="pl-9"
-                aria-label="Buscar por DNI"
-              />
-            </div>
+            {invoicesEnabled && (
+              <div className="relative w-[140px]">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={dni}
+                  onChange={(e) => updateFilter(setDni, e.target.value)}
+                  placeholder="RUT/DNI…"
+                  className="pl-9"
+                  aria-label="Buscar por DNI"
+                />
+              </div>
+            )}
             <div className="relative w-[150px]">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -336,16 +341,18 @@ export default function CustomersPage() {
 
           {/* Mobile/tablet: filtros avanzados colapsables */}
           <div className={`flex flex-col gap-3 md:hidden ${showMobileFilters ? "" : "hidden"} sm:flex-row sm:flex-wrap sm:items-end`}>
-            <div className="relative w-full sm:max-w-[160px]">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={dni}
-                onChange={(e) => updateFilter(setDni, e.target.value)}
-                placeholder="RUT/DNI…"
-                className="pl-9"
-                aria-label="Buscar por DNI"
-              />
-            </div>
+            {invoicesEnabled && (
+              <div className="relative w-full sm:max-w-[160px]">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={dni}
+                  onChange={(e) => updateFilter(setDni, e.target.value)}
+                  placeholder="RUT/DNI…"
+                  className="pl-9"
+                  aria-label="Buscar por DNI"
+                />
+              </div>
+            )}
             <div className="relative w-full sm:max-w-[160px]">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -443,7 +450,7 @@ export default function CustomersPage() {
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
                     <th className="px-3 py-3">Cliente</th>
-                    <th className="px-3 py-3">RUT/DNI</th>
+                    {invoicesEnabled && <th className="px-3 py-3">RUT/DNI</th>}
                     <th className="px-3 py-3">Contacto</th>
                     <th className="px-3 py-3">Giro</th>
                     <th className="px-3 py-3">Tags</th>
@@ -462,7 +469,9 @@ export default function CustomersPage() {
                           )}
                         </div>
                       </td>
-                      <td className="px-3 py-3 text-muted-foreground">{c.dni ?? "—"}</td>
+                      {invoicesEnabled && (
+                        <td className="px-3 py-3 text-muted-foreground">{c.dni ?? "—"}</td>
+                      )}
                       <td className="px-3 py-3">
                         <div className="flex flex-col gap-0.5 text-muted-foreground">
                           {c.phone_number ? (
@@ -592,7 +601,7 @@ export default function CustomersPage() {
                   </div>
 
                   <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                    {c.dni && (
+                    {invoicesEnabled && c.dni && (
                       <div className="flex items-center gap-1.5 text-muted-foreground">
                         <Search className="h-3 w-3" />
                         <span className="truncate">{c.dni}</span>
@@ -704,15 +713,17 @@ export default function CustomersPage() {
                     placeholder="Ej: Juan Pérez"
                   />
                 </div>
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="customer-dni" className="text-sm font-medium">RUT/DNI</label>
-                  <Input
-                    id="customer-dni"
-                    value={form.dni ?? ""}
-                    onChange={(e) => setForm({ ...form, dni: e.target.value })}
-                    placeholder="Opcional"
-                  />
-                </div>
+                {invoicesEnabled && (
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="customer-dni" className="text-sm font-medium">RUT/DNI</label>
+                    <Input
+                      id="customer-dni"
+                      value={form.dni ?? ""}
+                      onChange={(e) => setForm({ ...form, dni: e.target.value })}
+                      placeholder="Opcional"
+                    />
+                  </div>
+                )}
                 <div className="flex flex-col gap-2">
                   <label htmlFor="customer-phone" className="text-sm font-medium">Teléfono</label>
                   <Input
@@ -761,17 +772,19 @@ export default function CustomersPage() {
                     <option value="EMPRESA">Empresa</option>
                   </Select>
                 </div>
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="customer-doc-type" className="text-sm font-medium">Documento por defecto</label>
-                  <Select
-                    id="customer-doc-type"
-                    value={form.default_document_type ?? "BOLETA"}
-                    onChange={(e) => setForm({ ...form, default_document_type: e.target.value as "BOLETA" | "FACTURA" })}
-                  >
-                    <option value="BOLETA">Boleta</option>
-                    <option value="FACTURA">Factura</option>
-                  </Select>
-                </div>
+                {invoicesEnabled && (
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="customer-doc-type" className="text-sm font-medium">Documento por defecto</label>
+                    <Select
+                      id="customer-doc-type"
+                      value={form.default_document_type ?? "BOLETA"}
+                      onChange={(e) => setForm({ ...form, default_document_type: e.target.value as "BOLETA" | "FACTURA" })}
+                    >
+                      <option value="BOLETA">Boleta</option>
+                      <option value="FACTURA">Factura</option>
+                    </Select>
+                  </div>
+                )}
                 <div className="flex flex-col gap-2 sm:col-span-2">
                   <label className="text-sm font-medium">Tags</label>
                   <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-background px-3 py-2">

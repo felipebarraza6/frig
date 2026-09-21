@@ -51,7 +51,7 @@ const MODULE_LABELS: Record<string, string> = {
   services: "Servicios",
   equipment: "Equipamiento",
   logistics: "Logística",
-  deliveries: "Despachos",
+  deliveries: "Retiro / Delivery",
   production: "Producción Cocina",
   measurements: "Mediciones",
   measurement_points: "Puntos de Medición",

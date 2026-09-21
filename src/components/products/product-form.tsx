@@ -4,21 +4,39 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { m, AnimatePresence } from "framer-motion";
-import { X, Plus, Trash2, Search, FileDown, Warehouse, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  X,
+  Plus,
+  Trash2,
+  Search,
+  FileDown,
+  Warehouse,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  Power,
+  FileText,
+  CircleDollarSign,
+  ChefHat,
+  Layers,
+  Apple,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import { useCategoryOptions } from "@/lib/hooks/useCategoryOptions";
-import { fetchProducts, fetchProduct } from "@/lib/api/products";
+import { fetchProduct, searchProductsByType } from "@/lib/api/products";
 import type { ProductPayload } from "@/lib/api/products";
 import type { YggdraProduct } from "@/lib/api/types";
 import {
-  fetchSuppliers,
+  lookupSuppliers,
   fetchSupplierProductsByProduct,
   createSupplierProduct,
   updateSupplierProduct,
@@ -138,6 +156,12 @@ interface ProductFormProps {
   initialTab?: FormTab;
   onClose: () => void;
   onSubmit: (payload: ProductPayload, id?: number) => Promise<YggdraProduct>;
+  extraActions?: {
+    onCopy: () => void;
+    onDelete: () => void;
+    onToggleActive: () => void;
+    isTogglingActive?: boolean;
+  };
 }
 
 function generateId() {
@@ -303,7 +327,7 @@ function ProductFormSkeleton() {
   );
 }
 
-export function ProductForm({ product, productId, initialTab, onClose, onSubmit }: ProductFormProps) {
+export function ProductForm({ product, productId, initialTab, onClose, onSubmit, extraActions }: ProductFormProps) {
   const queryClient = useQueryClient();
   const { data: loadedProduct, isLoading: loadingProduct } = useQuery<YggdraProductDetail>({
     queryKey: ["products", "detail", productId],
@@ -405,22 +429,33 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
   const branch = useCurrentBranch();
   const toast = useToast();
 
-  const { data: suppliers = [], isLoading: loadingSuppliers } = useQuery({
-    queryKey: ["suppliers", "all"],
-    queryFn: async () => {
-      const all: { id: string; name: string }[] = [];
-      let url: string | null = "/suppliers/suppliers/";
-      while (url) {
-        const data = await fetchSuppliers({ next: url });
-        for (const s of data.results ?? []) {
-          all.push({ id: s.id, name: s.name ?? "Sin nombre" });
-        }
-        url = data.next ?? null;
-      }
-      return all;
-    },
-    staleTime: 60_000,
+  const [supplierQuery, setSupplierQuery] = useState("");
+  const [debouncedSupplierQuery, setDebouncedSupplierQuery] = useState("");
+  const [supplierLabel, setSupplierLabel] = useState("");
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedSupplierQuery(supplierQuery), 300);
+    return () => window.clearTimeout(t);
+  }, [supplierQuery]);
+
+  const supplierLookup = useQuery({
+    queryKey: ["suppliers", "lookup", "product-form", debouncedSupplierQuery],
+    queryFn: () => lookupSuppliers({ q: debouncedSupplierQuery, limit: 20 }),
+    enabled: debouncedSupplierQuery.trim().length >= 2,
+    staleTime: 30_000,
   });
+
+  const supplierOptions = useMemo(() => {
+    const found = (supplierLookup.data ?? []).map((s) => ({
+      value: s.id,
+      label: s.name,
+      description: [s.tax_id, s.business_name].filter(Boolean).join(" · ") || undefined,
+    }));
+    if (form.supplier && supplierLabel && !found.some((o) => o.value === form.supplier)) {
+      return [{ value: form.supplier, label: supplierLabel }, ...found];
+    }
+    return found;
+  }, [supplierLookup.data, form.supplier, supplierLabel]);
 
   const { data: supplierProductsForProduct = [], isLoading: loadingSupplierProduct } = useQuery({
     queryKey: ["supplier-products", "by-product", effectiveProduct?.id],
@@ -434,6 +469,8 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
       const first = supplierProductsForProduct[0];
       setExistingSupplierProduct(first);
       setForm((prev) => ({ ...prev, supplier: first.supplier }));
+      const name = (first as { supplier_name?: string }).supplier_name;
+      if (name) setSupplierLabel(name);
     }
   }, [supplierProductsForProduct]);
 
@@ -526,18 +563,18 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
 
   const [activeTab, setActiveTab] = useState<FormTab>(initialTab ?? "basic");
 
-  const tabs = useMemo<{ id: FormTab; label: string; enabled: boolean }[]>(() => {
-    const list: { id: FormTab; label: string; enabled: boolean }[] = [
-      { id: "basic", label: "Datos básicos", enabled: true },
-      { id: "pricing", label: "Precios y venta", enabled: true },
-      { id: "recipe", label: "Receta", enabled: isCompound },
+  const tabs = useMemo<{ id: FormTab; label: string; icon: LucideIcon; enabled: boolean }[]>(() => {
+    const list: { id: FormTab; label: string; icon: LucideIcon; enabled: boolean }[] = [
+      { id: "basic", label: "Datos básicos", icon: FileText, enabled: true },
+      { id: "pricing", label: "Precios y venta", icon: CircleDollarSign, enabled: true },
+      { id: "recipe", label: "Receta", icon: ChefHat, enabled: isCompound },
       // En compuestos el tab muestra la disponibilidad calculada desde los
       // ingredientes (no gestionan stock propio por bodega).
-      { id: "warehouses", label: "Bodegas", enabled: inventoryEnabled },
-      { id: "modifiers", label: "Modificadores", enabled: true },
+      { id: "warehouses", label: "Bodegas", icon: Warehouse, enabled: inventoryEnabled },
+      { id: "modifiers", label: "Modificadores", icon: Layers, enabled: true },
     ];
     if (nutritionEnabled) {
-      list.push({ id: "nutrition", label: "Nutrición", enabled: true });
+      list.push({ id: "nutrition", label: "Nutrición", icon: Apple, enabled: true });
     }
     return list;
   }, [isCompound, nutritionEnabled, inventoryEnabled]);
@@ -616,13 +653,11 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
 
   const { data: ingredientProducts = [] } = useQuery({
     queryKey: ["products", "raw-materials", ingredientSearch],
-    queryFn: async () => {
-      const data = await fetchProducts({
+    queryFn: () =>
+      searchProductsByType({
         product_type: "RAW_MATERIAL",
-        search: ingredientSearch || undefined,
-      });
-      return data.results;
-    },
+        search: ingredientSearch,
+      }),
     enabled: isCompound && ingredientSearch.trim().length >= 2,
   });
 
@@ -1021,21 +1056,25 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
           <div className="flex-1 overflow-y-auto p-4 sm:p-6">
           <div className="overflow-x-auto rounded-lg bg-muted p-1">
             <div className="flex min-w-max gap-1 sm:min-w-0 sm:flex-wrap">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  disabled={!tab.enabled}
-                  className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap ${
-                    activeTab === tab.id
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  } ${!tab.enabled ? "opacity-40 cursor-not-allowed" : ""}`}
-                >
-                  {tab.label}
-                </button>
-              ))}
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id)}
+                    disabled={!tab.enabled}
+                    className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap ${
+                      activeTab === tab.id
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    } ${!tab.enabled ? "opacity-40 cursor-not-allowed" : ""}`}
+                  >
+                    <Icon className="h-3.5 w-3.5 shrink-0" />
+                    {tab.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -1152,17 +1191,29 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
                   </div>
                   <div className="flex flex-col gap-2">
                     <label htmlFor="product-supplier" className="text-sm font-medium">Proveedor principal</label>
-                    <Select
+                    <SearchableSelect
                       id="product-supplier"
+                      options={supplierOptions}
                       value={form.supplier}
-                      disabled={loadingSuppliers || loadingSupplierProduct}
-                      onChange={(e) => updateField("supplier", e.target.value)}
-                    >
-                      <option value="">Sin proveedor</option>
-                      {suppliers.map((s) => (
-                        <option key={s.id} value={s.id}>{s.name}</option>
-                      ))}
-                    </Select>
+                      disabled={loadingSupplierProduct}
+                      onChange={(value) => {
+                        updateField("supplier", value);
+                        const opt = supplierOptions.find((o) => o.value === value);
+                        setSupplierLabel(opt?.label ?? "");
+                      }}
+                      onQueryChange={setSupplierQuery}
+                      minChars={2}
+                      loading={supplierLookup.isFetching}
+                      clearable
+                      selectedOption={
+                        form.supplier && supplierLabel
+                          ? { value: form.supplier, label: supplierLabel }
+                          : null
+                      }
+                      placeholder="Buscar proveedor…"
+                      searchPlaceholder="Nombre, RUT o razón social…"
+                      emptyMessage="Sin coincidencias"
+                    />
                   </div>
                 </div>
               </div>
@@ -1901,6 +1952,49 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit 
           </div>
           </div>
 
+          {extraActions && effectiveProduct && (
+            <div className="flex shrink-0 items-center gap-1.5 overflow-x-auto border-t border-border bg-muted/30 px-3 py-2 sm:px-4">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className={cn(
+                  "h-8 shrink-0 rounded-lg text-xs",
+                  form.isActive
+                    ? "border-success/30 text-success hover:bg-success/10"
+                    : "text-muted-foreground",
+                )}
+                disabled={extraActions.isTogglingActive}
+                onClick={() => {
+                  extraActions.onToggleActive();
+                  updateField("isActive", !form.isActive);
+                }}
+              >
+                <Power className="mr-1.5 h-3.5 w-3.5" />
+                {form.isActive ? "Desactivar" : "Activar"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 shrink-0 rounded-lg text-xs"
+                onClick={extraActions.onCopy}
+              >
+                <Copy className="mr-1.5 h-3.5 w-3.5" />
+                Copiar
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="ml-auto h-8 shrink-0 rounded-lg text-xs text-danger hover:border-danger/40 hover:bg-danger/5"
+                onClick={extraActions.onDelete}
+              >
+                <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                Eliminar
+              </Button>
+            </div>
+          )}
           <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border px-4 py-3 sm:px-6">
             <Button
               variant="outline"

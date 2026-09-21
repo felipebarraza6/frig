@@ -16,7 +16,7 @@ export interface FrigNavItem {
   href: string;
   label: string;
   icon: LucideIcon;
-  module: string;
+  module: string | null;
   badge?: "ordersPending" | "cashOpen" | "kitchenReady";
   description?: string;
 }
@@ -68,7 +68,8 @@ export function useFrigMenu(): FrigNavGroup[] {
   return useMemo(() => {
     const alwaysOn = new Set<string>(FRIG_ALWAYS_ON_MODULES);
 
-    function isVisible(moduleName: string): boolean {
+    function isVisible(moduleName: string | null): boolean {
+      if (moduleName === null) return true;
       if (alwaysOn.has(moduleName)) return true;
       return modules[moduleName]?.is_enabled === true;
     }
@@ -81,7 +82,7 @@ export function useFrigMenu(): FrigNavGroup[] {
         if (isSuperAdmin && !SUPERADMIN_ALLOWED_PATHS.has(item.href)) continue;
         if (!isVisible(item.module)) continue;
         // En Frig, Caja y estaciones POS se ocultan si POS está desactivado.
-        if (POS_DEPENDENT_MODULES.has(item.module) && !isVisible("pos")) continue;
+        if (item.module && POS_DEPENDENT_MODULES.has(item.module) && !isVisible("pos")) continue;
         // Gestión de sucursales: fuera del alcance de roles operativos.
         if (BRANCH_MANAGEMENT_PATHS.has(item.href) && !canViewBranches) continue;
         // Organización: solo el dueño de la organización (no dueños de local).

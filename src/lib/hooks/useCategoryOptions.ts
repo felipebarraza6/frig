@@ -26,7 +26,7 @@ export function useCategoryOptions() {
     refetch,
   } = useQuery({
     queryKey: ["categories", "options"],
-    queryFn: () => fetchCategories({}),
+    queryFn: () => fetchCategories({ page_size: 100 }),
     staleTime: 60_000,
     retry: 1,
   });

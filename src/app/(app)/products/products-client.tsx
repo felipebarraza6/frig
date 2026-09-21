@@ -6,27 +6,22 @@ import { useSearchParams, useRouter } from "next/navigation";
 import {
   Plus,
   Search,
-  Power,
   Package,
   AlertTriangle,
   FileSpreadsheet,
   FileText,
-  SlidersHorizontal,
   LayoutGrid,
   List,
   FilterX,
-  Pencil,
-  Warehouse,
-  Copy,
-  Trash2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
+import { MultiSelect } from "@/components/ui/multi-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn, formatCLP } from "@/lib/utils";
 import {
-  fetchProducts,
+  fetchProductsForManage,
   fetchProduct,
   createProduct,
   updateProduct,
@@ -45,7 +40,7 @@ import { useCategoryOptions } from "@/lib/hooks/useCategoryOptions";
 import { useToast } from "@/lib/store/toast";
 import { useCurrentBranch, useIsModuleEnabledFromConfig } from "@/lib/store/session";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
-import { useBranchRecipeMaps } from "@/lib/hooks/useBranchRecipeMaps";
+
 import type { YggdraProduct, YggdraSchemas } from "@/lib/api/types";
 
 function productStock(p: YggdraProduct): number {
@@ -81,6 +76,31 @@ const CATEGORY_PALETTE = [
   { bg: "bg-primary/10", text: "text-primary" },
 ];
 
+function FilterChip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "inline-flex h-7 shrink-0 items-center justify-center rounded-full px-2.5 text-xs font-medium whitespace-nowrap transition-colors",
+        active
+          ? "bg-foreground/10 text-foreground"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
 function colorFor(value: string): { bg: string; text: string } {
   let hash = 0;
   for (let i = 0; i < value.length; i++) {
@@ -96,12 +116,7 @@ interface ProductCardProps {
   ingredients?: YggdraSchemas["RecipeIngredient"][];
   colorClass: { bg: string; text: string };
   productTypeLabel: (type?: string) => string;
-  onEdit: () => void;
-  onEditWarehouses: () => void;
-  onDuplicate: () => void;
-  onDelete: () => void;
-  onToggleActive: () => void;
-  isTogglingActive: boolean;
+  onOpen: () => void;
 }
 
 function ProductCard({
@@ -110,205 +125,97 @@ function ProductCard({
   ingredients,
   colorClass,
   productTypeLabel,
-  onEdit,
-  onEditWarehouses,
-  onDuplicate,
-  onDelete,
-  onToggleActive,
-  isTogglingActive,
+  onOpen,
 }: ProductCardProps) {
   const stock = productStock(product);
   const lowStock = isLowStock(product);
   const inventoryEnabled = useIsModuleEnabledFromConfig("inventory");
   const categoryName = product.category && typeof product.category === "object" ? product.category.name : null;
 
+  const typeLabel =
+    product.product_type === "RECIPE_BASED" && recipe
+      ? recipe.name
+      : productTypeLabel(product.product_type);
+  const tracksInventory = (product as { tracks_inventory?: boolean }).tracks_inventory !== false;
+
   return (
-    <div className="group flex flex-col rounded-2xl border border-border bg-background p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-      <div className="mb-4 flex items-start gap-3">
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      className={cn(
+        "group flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-border bg-card text-left shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        !product.is_active && "opacity-50 grayscale",
+      )}
+    >
+      <div className="flex items-start gap-3 p-4 pb-3">
         <div
           className={cn(
-            "flex h-14 w-14 shrink-0 items-center justify-center rounded-xl",
+            "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl",
             colorClass.bg,
             colorClass.text,
           )}
         >
-          <Package className="h-7 w-7" />
+          <Package className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="truncate text-base font-semibold leading-tight" title={product.name}>
+          <h3 className="truncate text-sm font-semibold leading-snug" title={product.name}>
             {product.name}
           </h3>
-          {product.code ? (
-            <p className="mt-0.5 text-xs text-muted-foreground">Código: {product.code}</p>
-          ) : (
-            <p className="mt-0.5 text-xs text-muted-foreground">Sin código</p>
-          )}
-        </div>
-      </div>
-
-      <div className="mb-3 flex flex-wrap gap-2">
-        {categoryName ? (
-          <span
-            className={cn(
-              "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
-              colorClass.bg,
-              colorClass.text,
-            )}
-          >
-            {categoryName}
-          </span>
-        ) : (
-          <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-            Sin categoría
-          </span>
-        )}
-        {product.product_type === "RECIPE_BASED" ? (
-          <span
-            className="inline-flex max-w-full items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary"
-            title={recipe ? recipe.name : "Sin receta"}
-          >
-            <span className="truncate">{recipe ? recipe.name : "Sin receta"}</span>
-          </span>
-        ) : (
-          <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground">
-            {productTypeLabel(product.product_type)}
-          </span>
-        )}
-      </div>
-      {product.product_type === "RECIPE_BASED" && ingredients && ingredients.length > 0 && (
-        <p className="mb-3 text-xs text-muted-foreground">
-          <span className="font-medium">Ingredientes:</span>{" "}
-          {ingredients.map((i) => i.ingredient_name).join(", ")}
-        </p>
-      )}
-      {product.description && (
-        <p className="mb-3 line-clamp-2 text-xs text-muted-foreground">{product.description}</p>
-      )}
-
-      <div className="mb-4 flex items-end justify-between">
-        <div>
-          <p className="text-xs text-muted-foreground">Precio de venta</p>
-          <p className="text-xl font-bold tabular-nums text-foreground">
-            {formatCLP(product.sale_price ?? product.price ?? "0")}
+          <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+            {product.code ? product.code : "Sin código"}
+            {inventoryEnabled && tracksInventory ? ` · Stock ${stock}` : ""}
+            {inventoryEnabled && !tracksInventory ? " · Sin límite" : ""}
           </p>
         </div>
-        {inventoryEnabled && (
-          <div className="text-right">
-            <p className="text-xs text-muted-foreground">Stock</p>
-          {((product as { tracks_inventory?: boolean }).tracks_inventory === false) ? (
-            <p className="text-lg font-semibold text-success">Sin límite</p>
-          ) : (
-          <>
-          <div className="flex items-center justify-end gap-1.5">
-            <span
-              className={cn(
-                "text-lg font-semibold tabular-nums",
-                lowStock ? "text-warning" : "text-foreground",
-              )}
-            >
-              {stock}
-            </span>
-            {lowStock && (
-              <span title="Stock bajo">
-                <AlertTriangle className="h-4 w-4 shrink-0 text-warning" />
-              </span>
-            )}
-          </div>
-          {lowStock && (
-            <p className="text-xs font-medium text-warning">Stock bajo</p>
+        <div className="shrink-0 text-right">
+          <p className="text-base font-bold tabular-nums leading-none">
+            {formatCLP(product.sale_price ?? product.price ?? "0")}
+          </p>
+          {inventoryEnabled && tracksInventory && lowStock && (
+            <p className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-warning">
+              <AlertTriangle className="h-3 w-3" />
+              Bajo
+            </p>
           )}
-          </>
-          )}
-          </div>
-        )}
+        </div>
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-1.5 px-4 pb-3">
         <span
           className={cn(
-            "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
-            product.is_for_sale
-              ? "bg-success/10 text-success"
-              : "bg-muted text-muted-foreground",
+            "inline-flex max-w-[55%] truncate rounded-full px-2 py-0.5 text-[11px] font-medium",
+            categoryName ? cn(colorClass.bg, colorClass.text) : "bg-muted text-muted-foreground",
+          )}
+          title={categoryName ?? "Sin categoría"}
+        >
+          {categoryName ?? "Sin categoría"}
+        </span>
+        <span
+          className="inline-flex max-w-[45%] truncate rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground"
+          title={typeLabel}
+        >
+          {typeLabel}
+        </span>
+        <span
+          className={cn(
+            "inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium",
+            product.is_for_sale ? "bg-success/10 text-success" : "bg-muted text-muted-foreground",
           )}
         >
           {product.is_for_sale ? "En venta" : "No venta"}
         </span>
-        <span
-          className={cn(
-            "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
-            product.is_active
-              ? "bg-success/10 text-success"
-              : "bg-danger/10 text-danger",
-          )}
-        >
-          {product.is_active ? "Activo" : "Inactivo"}
-        </span>
       </div>
 
-      <div className="mt-auto flex items-center justify-between border-t border-border pt-3">
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-            onClick={onEdit}
-            title="Editar"
-            aria-label={`Editar ${product.name}`}
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
-          {inventoryEnabled && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-foreground"
-              onClick={onEditWarehouses}
-              title="Editar bodegas"
-              aria-label={`Editar bodegas de ${product.name}`}
-            >
-              <Warehouse className="h-4 w-4" />
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-            onClick={onDuplicate}
-            title="Duplicar"
-            aria-label={`Duplicar ${product.name}`}
-          >
-            <Copy className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-danger"
-            onClick={onDelete}
-            title="Eliminar"
-            aria-label={`Eliminar ${product.name}`}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn(
-            "h-8 w-8 rounded-full",
-            product.is_active
-              ? "text-success hover:bg-success/10 hover:text-success/80"
-              : "text-muted-foreground hover:bg-muted hover:text-danger",
-          )}
-          onClick={onToggleActive}
-          disabled={isTogglingActive}
-          title={product.is_active ? "Desactivar" : "Activar"}
-          aria-label={`${product.is_active ? "Desactivar" : "Activar"} ${product.name}`}
-        >
-          <Power className="h-4 w-4" />
-        </Button>
-      </div>
+      {product.description && (
+        <p className="mt-auto line-clamp-1 px-4 pb-4 text-xs text-muted-foreground">{product.description}</p>
+      )}
     </div>
   );
 }
@@ -324,7 +231,7 @@ export function ProductsClient() {
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [category, setCategory] = useState("");
-  const [productType, setProductType] = useState("");
+  const [productTypes, setProductTypes] = useState<string[]>([]);
   const [forSale, setForSale] = useState("");
   const [active, setActive] = useState("");
   const [view, setView] = useState<"grid" | "list">("grid");
@@ -351,7 +258,6 @@ export function ProductsClient() {
     }, 300);
     return () => clearTimeout(timer);
   }, [searchInput]);
-  const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [creating, setCreating] = useState(false);
   // Para editar se carga el detalle completo: el listado no trae
   // is_public ni nutrición y re-guardar desde ahí borra esos datos.
@@ -363,6 +269,8 @@ export function ProductsClient() {
   );
   const [editInitialTab, setEditInitialTab] = useState<FormTab>("basic");
   const [confirmDelete, setConfirmDelete] = useState<YggdraProduct | null>(null);
+  const [confirmCopy, setConfirmCopy] = useState<YggdraProduct | null>(null);
+  const [copying, setCopying] = useState(false);
 
   function clearEditParam() {
     const next = new URLSearchParams(searchParams.toString());
@@ -375,17 +283,18 @@ export function ProductsClient() {
     () => ({
       search: search || undefined,
       category: category ? Number(category) : undefined,
-      product_type: productType || undefined,
+      product_type: productTypes.length ? productTypes : undefined,
       is_for_sale: forSale ? forSale === "true" : undefined,
       is_active: active ? active === "true" : undefined,
+      page_size: 100,
       ...pageUrl,
     }),
-    [search, category, productType, forSale, active, pageUrl],
+    [search, category, productTypes, forSale, active, pageUrl],
   );
 
   const { data: page, isLoading, error } = useQuery({
     queryKey: ["products", "manage", filter],
-    queryFn: () => fetchProducts(filter),
+    queryFn: () => fetchProductsForManage(filter),
     placeholderData: (previousData) => previousData,
     staleTime: 30_000,
   });
@@ -393,14 +302,10 @@ export function ProductsClient() {
   const products = useMemo(() => page?.results ?? [], [page]);
   const totalProducts = page?.count ?? 0;
 
-  // Recetas e ingredientes de productos compuestos visibles.
-  const compoundProductIds = useMemo(
-    () => products.filter((p) => p.product_type === "RECIPE_BASED").map((p) => p.id),
-    [products],
-  );
-
-  const { recipesByProductId, ingredientsByRecipeId } = useBranchRecipeMaps(
-    !!branch?.branch_id && compoundProductIds.length > 0,
+  const recipesByProductId = useMemo(() => new Map<number, YggdraSchemas["Recipe"]>(), []);
+  const ingredientsByRecipeId = useMemo(
+    () => new Map<string, YggdraSchemas["RecipeIngredient"][]>(),
+    [],
   );
 
   const toggleActive = useMutation({
@@ -439,6 +344,7 @@ export function ProductsClient() {
   };
 
   async function handleDuplicate(product: YggdraProduct) {
+    setCopying(true);
     try {
       const detail = await fetchProduct(product.id);
       const { id, ...payload } = detail;
@@ -449,12 +355,16 @@ export function ProductsClient() {
         code: detail.code ? `${detail.code}-copia` : null,
       });
       queryClient.invalidateQueries({ queryKey: ["products"] });
+      toast.success("Producto copiado");
+      setConfirmCopy(null);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "No se pudo duplicar el producto.");
+    } finally {
+      setCopying(false);
     }
   }
 
-  function updateFilter<T extends string>(setter: (v: T) => void, value: T) {
+  function updateFilter<T>(setter: (v: T) => void, value: T) {
     setter(value);
     setPageUrl({});
   }
@@ -463,7 +373,7 @@ export function ProductsClient() {
     setSearch("");
     setSearchInput("");
     setCategory("");
-    setProductType("");
+    setProductTypes([]);
     setForSale("");
     setActive("");
     setPageUrl({});
@@ -475,50 +385,8 @@ export function ProductsClient() {
     });
   }
 
-  const activeFilters = useMemo(() => {
-    const filters: { key: string; label: string }[] = [];
-    if (search.trim()) filters.push({ key: "search", label: `Búsqueda: "${search.trim()}"` });
-    if (category) {
-      const name = categoryOptions.find((c) => String(c.id) === category)?.name;
-      filters.push({ key: "category", label: `Categoría: ${name ?? category}` });
-    }
-    if (productType) {
-      const label = productTypeOptions.find((t) => t.value === productType)?.label;
-      filters.push({ key: "productType", label: `Tipo: ${label ?? productType}` });
-    }
-    if (forSale) {
-      filters.push({ key: "forSale", label: forSale === "true" ? "En venta" : "No venta" });
-    }
-    if (active) {
-      filters.push({ key: "active", label: active === "true" ? "Activo" : "Inactivo" });
-    }
-    return filters;
-  }, [search, category, productType, forSale, active, categoryOptions, productTypeOptions]);
-
   const hasActiveFilters =
-    search.trim() || category || productType || forSale || active;
-
-  function removeFilter(key: string) {
-    switch (key) {
-      case "search":
-        setSearch("");
-        setSearchInput("");
-        break;
-      case "category":
-        setCategory("");
-        break;
-      case "productType":
-        setProductType("");
-        break;
-      case "forSale":
-        setForSale("");
-        break;
-      case "active":
-        setActive("");
-        break;
-    }
-    setPageUrl({});
-  }
+    search.trim() || category || productTypes.length || forSale || active;
 
   return (
     <div className="flex min-h-full flex-col">
@@ -611,202 +479,70 @@ export function ProductsClient() {
       </header>
 
       <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
-        <div className="flex flex-col gap-3">
-          {/* Desktop filters */}
-          <div className="hidden flex-wrap items-end gap-3 lg:flex">
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center justify-between gap-2">
-                <label htmlFor="filter-category" className="text-xs text-muted-foreground">Categoría</label>
-                {!loadingCategories && categoryOptions.length === 0 && (
-                  <a href="/products/categories" className="text-[11px] text-primary hover:underline">
-                    + Crear categoría
-                  </a>
-                )}
-              </div>
-              <Select
-                id="filter-category"
-                value={category}
-                disabled={loadingCategories}
-                onChange={(e) => updateFilter(setCategory, e.target.value)}
-                className="w-44"
-              >
-                <option value="">Todas</option>
-                {categoryOptions.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </Select>
-              {categoriesError && (
-                <p className="text-xs text-danger">
-                  Error al cargar categorías.
-                </p>
-              )}
-            </div>
-            <div className="flex flex-col gap-1">
-              <label htmlFor="filter-type" className="text-xs text-muted-foreground">Tipo</label>
-              <Select
-                id="filter-type"
-                value={productType}
-                onChange={(e) => updateFilter(setProductType, e.target.value)}
-                className="w-44"
-              >
-                <option value="">Todos</option>
-                {productTypeOptions.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
-                ))}
-              </Select>
-            </div>
-            <div className="flex flex-col gap-1">
-              <label htmlFor="filter-sale" className="text-xs text-muted-foreground">Venta</label>
-              <Select
-                id="filter-sale"
-                value={forSale}
-                onChange={(e) => updateFilter(setForSale, e.target.value)}
-                className="w-36"
-              >
-                <option value="">Todas</option>
-                <option value="true">En venta</option>
-                <option value="false">No venta</option>
-              </Select>
-            </div>
-            <div className="flex flex-col gap-1">
-              <label htmlFor="filter-active" className="text-xs text-muted-foreground">Estado</label>
-              <Select
-                id="filter-active"
-                value={active}
-                onChange={(e) => updateFilter(setActive, e.target.value)}
-                className="w-36"
-              >
-                <option value="">Todos</option>
-                <option value="true">Activo</option>
-                <option value="false">Inactivo</option>
-              </Select>
-            </div>
-          </div>
-
-          {/* Mobile/tablet filters */}
-          <div className="flex flex-col gap-3 lg:hidden">
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  placeholder="Buscar productos…"
-                  className="h-10 rounded-xl pl-10"
-                  aria-label="Buscar producto"
-                />
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-10 px-3"
-                onClick={() => setShowMobileFilters((v) => !v)}
-              >
-                <SlidersHorizontal className="h-4 w-4" />
-                <span className="ml-2">Filtros</span>
-              </Button>
-            </div>
-
-            <div className={`flex flex-col gap-3 ${showMobileFilters ? "" : "hidden"}`}>
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center justify-between gap-2">
-                  <label htmlFor="filter-category-mobile" className="text-xs text-muted-foreground">Categoría</label>
-                  {!loadingCategories && categoryOptions.length === 0 && (
-                    <a href="/products/categories" className="text-[11px] text-primary hover:underline">
-                      + Crear categoría
-                    </a>
-                  )}
-                </div>
-                <Select
-                  id="filter-category-mobile"
-                  value={category}
-                  disabled={loadingCategories}
-                  onChange={(e) => updateFilter(setCategory, e.target.value)}
-                >
-                  <option value="">Todas</option>
-                  {categoryOptions.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </Select>
-                {categoriesError && (
-                  <p className="text-xs text-danger">
-                    Error al cargar categorías.
-                  </p>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="filter-type-mobile" className="text-xs text-muted-foreground">Tipo</label>
-                  <Select
-                    id="filter-type-mobile"
-                    value={productType}
-                    onChange={(e) => updateFilter(setProductType, e.target.value)}
-                  >
-                    <option value="">Todos</option>
-                    {productTypeOptions.map((t) => (
-                      <option key={t.value} value={t.value}>{t.label}</option>
-                    ))}
-                  </Select>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="filter-sale-mobile" className="text-xs text-muted-foreground">Venta</label>
-                  <Select
-                    id="filter-sale-mobile"
-                    value={forSale}
-                    onChange={(e) => updateFilter(setForSale, e.target.value)}
-                  >
-                    <option value="">Todas</option>
-                    <option value="true">En venta</option>
-                    <option value="false">No venta</option>
-                  </Select>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="filter-active-mobile" className="text-xs text-muted-foreground">Estado</label>
-                  <Select
-                    id="filter-active-mobile"
-                    value={active}
-                    onChange={(e) => updateFilter(setActive, e.target.value)}
-                  >
-                    <option value="">Todos</option>
-                    <option value="true">Activo</option>
-                    <option value="false">Inactivo</option>
-                  </Select>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Active filter chips */}
-          {hasActiveFilters && (
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              {activeFilters.map((f) => (
-                <button
-                  key={f.key}
-                  type="button"
-                  onClick={() => removeFilter(f.key)}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-muted"
-                  title="Quitar filtro"
-                >
-                  {f.label}
-                  <FilterX className="h-3 w-3 text-muted-foreground" />
-                </button>
-              ))}
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium text-primary transition-colors hover:text-primary/80"
-              >
-                <FilterX className="h-3 w-3" />
-                Limpiar filtros
-              </button>
-            </div>
-          )}
+        <div className="-mx-1 flex items-center gap-1.5 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <MultiSelect
+            options={productTypeOptions.map((t) => ({ value: t.value, label: t.label }))}
+            value={productTypes}
+            onChange={(v) => updateFilter(setProductTypes, v)}
+            placeholder="Tipo"
+            className="w-auto min-w-[9rem] shrink-0"
+            maxChips={1}
+          />
+          <span className="mx-0.5 h-4 w-px shrink-0 bg-border" aria-hidden />
+          <FilterChip
+            active={forSale === "true"}
+            onClick={() => updateFilter(setForSale, forSale === "true" ? "" : "true")}
+          >
+            En venta
+          </FilterChip>
+          <FilterChip
+            active={forSale === "false"}
+            onClick={() => updateFilter(setForSale, forSale === "false" ? "" : "false")}
+          >
+            No venta
+          </FilterChip>
+          <span className="mx-0.5 h-4 w-px shrink-0 bg-border" aria-hidden />
+          <FilterChip
+            active={active === "true"}
+            onClick={() => updateFilter(setActive, active === "true" ? "" : "true")}
+          >
+            Activo
+          </FilterChip>
+          <FilterChip
+            active={active === "false"}
+            onClick={() => updateFilter(setActive, active === "false" ? "" : "false")}
+          >
+            Inactivo
+          </FilterChip>
+          <span className="mx-0.5 h-4 w-px shrink-0 bg-border" aria-hidden />
+          <Select
+            id="filter-category"
+            value={category}
+            disabled={loadingCategories}
+            onChange={(e) => updateFilter(setCategory, e.target.value)}
+            className="h-7 w-auto min-w-[8.5rem] shrink-0 rounded-full border-transparent bg-muted/40 px-2.5 text-xs shadow-none"
+          >
+            <option value="">Categoría</option>
+            {categoryOptions.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </Select>
+          {hasActiveFilters ? (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="ml-1 inline-flex h-7 shrink-0 items-center gap-1 rounded-full px-2 text-xs text-muted-foreground hover:text-foreground"
+            >
+              <FilterX className="h-3 w-3" />
+              Limpiar
+            </button>
+          ) : null}
         </div>
 
         {error ? (
           <p className="text-sm text-danger">No se pudo cargar el catálogo.</p>
         ) : isLoading ? (
-          <div className="grid w-full gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid w-full grid-cols-[repeat(auto-fill,minmax(18.5rem,1fr))] gap-4">
             {Array.from({ length: 8 }).map((_, i) => (
               <div
                 key={i}
@@ -875,7 +611,7 @@ export function ProductsClient() {
                 {/* Vista galería */}
                 <div
                   className={cn(
-                    "grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
+                    "grid grid-cols-[repeat(auto-fill,minmax(18.5rem,1fr))] gap-4",
                     view === "grid" ? "" : "sm:hidden",
                   )}
                 >
@@ -892,20 +628,10 @@ export function ProductsClient() {
                         ingredients={ingredientsByRecipeId.get(recipesByProductId.get(p.id)?.id ?? "")}
                         colorClass={colorFor(seed)}
                         productTypeLabel={productTypeLabel}
-                        onEdit={() => {
+                        onOpen={() => {
                           setEditInitialTab("basic");
                           setEditingId(p.id);
                         }}
-                        onEditWarehouses={() => {
-                          setEditInitialTab("warehouses");
-                          setEditingId(p.id);
-                        }}
-                        onDuplicate={() => handleDuplicate(p)}
-                        onDelete={() => setConfirmDelete(p)}
-                        onToggleActive={() =>
-                          toggleActive.mutate({ id: p.id, isActive: !p.is_active })
-                        }
-                        isTogglingActive={toggleActive.isPending}
                       />
                     );
                   })}
@@ -927,13 +653,22 @@ export function ProductsClient() {
                         <th className="px-4 py-3 text-right">Precio</th>
                         {inventoryEnabled && <th className="px-4 py-3 text-center">Stock</th>}
                         <th className="px-4 py-3 text-center">Venta</th>
-                        <th className="px-4 py-3 text-center">Activo</th>
                         <th className="px-4 py-3 text-right">Acciones</th>
                       </tr>
                     </thead>
                     <tbody>
                       {products.map((p) => (
-                        <tr key={p.id} className="border-b border-border last:border-0">
+                        <tr
+                          key={p.id}
+                          className={cn(
+                            "cursor-pointer border-b border-border last:border-0 hover:bg-muted/40",
+                            !p.is_active && "opacity-50 grayscale",
+                          )}
+                          onClick={() => {
+                            setEditInitialTab("basic");
+                            setEditingId(p.id);
+                          }}
+                        >
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-3">
                               <div className={cn(
@@ -1003,22 +738,7 @@ export function ProductsClient() {
                               {p.is_for_sale ? "Sí" : "No"}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-center">
-                            <button
-                              onClick={() =>
-                                toggleActive.mutate({ id: p.id, isActive: !p.is_active })
-                              }
-                              aria-label={`${p.is_active ? "Desactivar" : "Activar"} ${p.name}`}
-                              className={
-                                p.is_active
-                                  ? "text-success hover:text-success/80"
-                                  : "text-muted-foreground hover:text-danger"
-                              }
-                            >
-                              <Power className="h-4 w-4" />
-                            </button>
-                          </td>
-                          <td className="px-4 py-3 text-right">
+                          <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                             <ProductActionsMenu
                               product={p}
                               onEdit={() => {
@@ -1029,7 +749,7 @@ export function ProductsClient() {
                                 setEditInitialTab("warehouses");
                                 setEditingId(p.id);
                               }}
-                              onDuplicate={() => handleDuplicate(p)}
+                              onDuplicate={() => setConfirmCopy(p)}
                               onDelete={() => setConfirmDelete(p)}
                             />
                           </td>
@@ -1090,12 +810,58 @@ export function ProductsClient() {
             clearEditParam();
           }}
           onSubmit={onSubmit}
+          extraActions={{
+            onCopy: () => {
+              const p = products.find((x) => x.id === editingId);
+              if (p) setConfirmCopy(p);
+            },
+            onDelete: () => {
+              const p = products.find((x) => x.id === editingId);
+              if (p) setConfirmDelete(p);
+            },
+            onToggleActive: () => {
+              const p = products.find((x) => x.id === editingId);
+              if (p) toggleActive.mutate({ id: p.id, isActive: !p.is_active });
+            },
+            isTogglingActive: toggleActive.isPending,
+          }}
         />
       )}
 
       <AnimatedOverlay
+        open={!!confirmCopy}
+        onClose={() => !copying && setConfirmCopy(null)}
+        zIndex="z-[70]"
+        panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
+      >
+        {confirmCopy && (
+          <div className="w-full rounded-t-xl border-x border-t border-border bg-background p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
+            <h2 className="text-base font-semibold">Copiar producto</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              ¿Seguro que quieres copiar <strong>{confirmCopy.name}</strong>? Se creará un
+              duplicado con el sufijo “(copia)”.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setConfirmCopy(null)}
+                disabled={copying}
+              >
+                Cancelar
+              </Button>
+              <Button size="sm" onClick={() => handleDuplicate(confirmCopy)} isLoading={copying}>
+                Copiar
+              </Button>
+            </div>
+          </div>
+        )}
+      </AnimatedOverlay>
+
+      <AnimatedOverlay
         open={!!confirmDelete}
         onClose={() => setConfirmDelete(null)}
+        zIndex="z-[70]"
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
           {confirmDelete && (
