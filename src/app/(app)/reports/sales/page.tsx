@@ -462,27 +462,6 @@ export default function SalesReportPage() {
                 <label htmlFor="sv-end" className="text-xs text-muted-foreground">Hasta</label>
                 <Input id="sv-end" type="date" value={end} onChange={(e) => setEnd(e.target.value)} className="h-9 w-[130px] sm:w-[140px]" />
               </div>
-              <div className="flex gap-1 pb-0.5">
-                {[
-                  { label: "30 días", s: daysAgoInput(29) },
-                  { label: "90 días", s: daysAgoInput(89) },
-                  { label: "Este año", s: `${new Date().getFullYear()}-01-01` },
-                ].map((p) => (
-                  <button
-                    key={p.label}
-                    type="button"
-                    onClick={() => { setStart(p.s); setEnd(fmtDateInput(new Date())); }}
-                    className={cn(
-                      "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
-                      start === p.s && end === fmtDateInput(new Date())
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border text-muted-foreground hover:border-primary/50",
-                    )}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
               <div className="w-full sm:w-[220px]">
                 <SearchableSelect
                   options={clientOptions}
