@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { motion, type Variants } from "framer-motion";
 import { PageHeader } from "@/components/page-header";
-import { ReportNav, ReportKpi, previousWindow } from "@/components/reports/report-kit";
+import { ReportKpi, previousWindow } from "@/components/reports/report-kit";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -435,7 +435,6 @@ export default function SalesReportPage() {
         {/* Barra de control única: navegación + tabs + fechas + filtros en una sola fila */}
         <div className="rounded-2xl border border-border bg-background p-3 shadow-sm sm:p-4">
           <div className="flex flex-wrap items-end gap-3">
-            <ReportNav active="/reports/sales" />
             <div role="tablist" aria-label="Secciones del informe" className="flex flex-wrap gap-1 rounded-xl bg-muted/40 p-1">
               {TABS.map((t) => (
                 <button
