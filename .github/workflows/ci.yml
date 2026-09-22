@@ -9,7 +9,7 @@
 name: CI
 
 on:
-  push:
+  push:    branches-ignore: [production]push:
     branches-ignore: [master]
   pull_request:
     branches: [master]
