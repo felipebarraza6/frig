@@ -1,6 +1,6 @@
-# CI de FRIG web: corre en cada push a un branch distinto de master y en los
-# PRs hacia master. NO despliega nada — el deploy a producción es exclusivo
-# de master (ver deploy.yml).
+# CI de FRIG web: corre en cada push a un branch distinto de production y en
+# los PRs hacia master o production. NO despliega nada — el deploy a
+# producción es exclusivo de production (ver deploy.yml).
 #
 # Gates: lint + type-check + build estático (con la API de producción
 # inyectada en build time, igual que el deploy, para que el build de CI
@@ -9,10 +9,10 @@
 name: CI
 
 on:
-  push:    branches-ignore: [production]push:
-    branches-ignore: [master]
+  push:
+    branches-ignore: [production]
   pull_request:
-    branches: [master]
+    branches: [master, production]
 
 concurrency:
   group: ci-${{ github.ref }}
