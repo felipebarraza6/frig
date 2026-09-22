@@ -19,10 +19,10 @@ name: Deploy FRIG web a FTP
 
 on:
   push:
-    branches: [master]
+    branches: [production]
   workflow_dispatch:
 
-# Un deploy a la vez: dos pushes seguidos a master no deben pisarse por FTP.
+# Un deploy a la vez: dos pushes seguidos a production no deben pisarse por FTP.
 concurrency:
   group: deploy-production
   cancel-in-progress: false
