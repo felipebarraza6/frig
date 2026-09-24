@@ -36,6 +36,40 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
+      # Gate de contrato: compara el sha256 del schema vivo del backend con
+      # el sha commiteado en src/lib/api/contract-sha.ts. Si difieren, el
+      # frontend quedó atrás: correr `npm run sync-contract` y commitear.
+      # La URL se puede sobreescribir con la variable de repo
+      # CONTRACT_CHECK_API_BASE (Settings → Secrets and variables → Actions);
+      # por defecto usa la API pública de producción (misma del deploy).
+      - name: Verificar contrato backend↔frontend
+        env:
+          CONTRACT_CHECK_API_BASE: ${{ vars.CONTRACT_CHECK_API_BASE || 'https://api.yggdra.cl/api' }}
+        run: |
+          set -e
+          BASE="${CONTRACT_CHECK_API_BASE%/}"
+          if [ -z "$BASE" ]; then
+            echo "::warning::CONTRACT_CHECK_API_BASE no configurado; se omite el gate de contrato"
+            exit 0
+          fi
+          RESP=$(curl -sf --max-time 20 "$BASE/schema/contract/") || {
+            echo "::warning::No se pudo consultar $BASE/schema/contract/; se omite el gate de contrato"
+            exit 0
+          }
+          LIVE=$(printf '%s' "$RESP" | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>console.log(JSON.parse(d).schema_sha256??''))")
+          LOCAL=$(sed -n 's/.*YGGDRA_SCHEMA_SHA = "\([0-9a-f]*\)".*/\1/p' src/lib/api/contract-sha.ts | head -1)
+          echo "backend: $LIVE"
+          echo "frontend: $LOCAL"
+          if [ -z "$LIVE" ] || [ -z "$LOCAL" ]; then
+            echo "::warning::No se pudo extraer alguno de los sha; se omite el gate de contrato"
+            exit 0
+          fi
+          if [ "$LIVE" != "$LOCAL" ]; then
+            echo "::error::El contrato del backend difiere del commiteado. Corre 'npm run sync-contract' y commitea src/lib/api/types/yggdra.d.ts + src/lib/api/contract-sha.ts"
+            exit 1
+          fi
+          echo "Contrato en sync."
+
       - name: Lint
         run: npm run lint
 
