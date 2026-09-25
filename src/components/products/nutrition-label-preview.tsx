@@ -18,6 +18,19 @@ export const NUTRITION_LABEL_SIZES: NutritionLabelSize[] = [
   { id: "80x120", label: "80 × 120 mm", widthMm: 80, heightMm: 120 },
 ];
 
+/** Orientación de la etiqueta impresa. */
+export type NutritionLabelOrientation = "portrait" | "landscape";
+
+/** Dimensiones de la etiqueta según orientación (landscape intercambia ancho/alto). */
+export function orientedLabelSize(
+  size: NutritionLabelSize,
+  orientation: NutritionLabelOrientation = "portrait",
+): { widthMm: number; heightMm: number } {
+  return orientation === "landscape"
+    ? { widthMm: size.heightMm, heightMm: size.widthMm }
+    : { widthMm: size.widthMm, heightMm: size.heightMm };
+}
+
 export interface NutritionValues {
   energyKcal: string;
   proteinsG: string;
@@ -37,6 +50,14 @@ export interface NutritionLabelExtras {
   ingredientsText?: string | null;
   allergenWarning?: string | null;
   branchText?: string | null;
+  /** Unidad de medida del valor nutricional (g, mg, ...). */
+  nutritionUnit?: string | null;
+  /** Porciones por envase (rotulado). */
+  servings?: number | null;
+  /** Lista corta "Contiene: ...". */
+  contains?: string[] | null;
+  /** Vida útil / consumo preferente. */
+  shelfLife?: string | null;
 }
 
 interface NutritionLabelPreviewProps {

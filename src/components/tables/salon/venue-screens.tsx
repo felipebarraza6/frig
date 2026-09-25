@@ -8,6 +8,12 @@ import { kitchenTicketCode, type KitchenTicket } from "@/lib/api/kitchen";
 import type { KitchenStation } from "@/lib/api/kitchen-stations";
 import { BlobShadow } from "./salon-environment";
 
+/** Punto de interés de la cámara: posición de cámara + target de mira. */
+export interface SalonFocus {
+  camPos: [number, number, number];
+  target: [number, number, number];
+}
+
 /* ------------------------------------------------------------------ */
 /* Pantallas vivas del salón en estilo pixel art: KDS de cocina,      */
 /* alacena de inventario y barra de órdenes. Cámara fija: el click    */

@@ -2142,7 +2142,7 @@ function PaymentOrderSection({ orderId, paymentId }: { orderId: string; paymentI
                             installmentId: inst.id,
                             input: {
                               payment_method_id: cuotaMethodId,
-                              amount: Number(Number(cuotaAmount).toFixed(2)),
+                              amount: Number(cuotaAmount).toFixed(2),
                               reference: cuotaReference || null,
                               notes: cuotaNotes || null,
                             },
