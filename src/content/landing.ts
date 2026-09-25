@@ -98,7 +98,7 @@ export const LANDING_FEATURES: LandingFeature[] = [
   },
   {
     icon: QrCode,
-    title: "Menú QR, pedidos y tótem",
+    title: "Menú QR y pedidos",
     description:
       "Carta digital con carrito, pedidos desde la mesa y modo tótem para autoservicio.",
   },

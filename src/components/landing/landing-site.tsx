@@ -859,7 +859,7 @@ const MODULE_SCOPES: Record<string, string> = {
   "Bodegas visuales": "Bodega",
   "Informes y finanzas": "Dinero",
   "Facturación electrónica": "SII",
-  "Menú QR, pedidos y tótem": "Canales",
+  "Menú QR y pedidos": "Canales",
   "Etiquetas nutricionales": "Producto",
   "Medios de pago": "Dinero",
   "Multi-sucursal": "Gestión",
@@ -890,14 +890,22 @@ const ICON_MAP: Record<string, LucideIcon> = {
 
 function Features({ items }: { items?: LandingFeatureItem[] }) {
   // Endpoint manda (token de ícono → Lucide, fallback si es desconocido);
-  // sin contenido del endpoint, se usa el copy local.
-  const feats = items?.length
-    ? items.map((f) => ({
-        icon: ICON_MAP[f.icon] ?? LayoutGrid,
-        title: f.title,
-        description: f.description,
-      }))
-    : LANDING_FEATURES;
+  // sin contenido del endpoint, se usa el copy local. Los módulos nuevos que
+  // el backend aún no conoce se agregan al final (mismo criterio que los
+  // planes en resolvePlans: lo local solo rellena huecos).
+  const feats = useMemo(() => {
+    if (!items?.length) return LANDING_FEATURES;
+    const merged = items.map((f) => ({
+      icon: ICON_MAP[f.icon] ?? LayoutGrid,
+      title: f.title,
+      description: f.description,
+    }));
+    const known = new Set(merged.map((f) => f.title.trim()));
+    for (const local of LANDING_FEATURES) {
+      if (!known.has(local.title)) merged.push(local);
+    }
+    return merged;
+  }, [items]);
   return (
     <section id="producto" className="relative z-10 pt-10 pb-28 sm:pt-14 sm:pb-44">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
@@ -918,7 +926,7 @@ function Features({ items }: { items?: LandingFeatureItem[] }) {
                 key={feature.title}
                 className={cn(
                   "grid grid-cols-1 gap-2 px-5 py-5 transition-colors hover:bg-[#161616] md:grid-cols-[1.1fr_1.6fr_auto] md:items-center md:gap-6 md:px-6",
-                  i !== LANDING_FEATURES.length - 1 &&
+                  i !== feats.length - 1 &&
                     "border-b border-white/[0.05]",
                 )}
               >
