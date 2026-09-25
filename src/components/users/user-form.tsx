@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { isValidRUT } from "@/lib/validation";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
@@ -19,13 +20,18 @@ interface UserFormProps {
   onSuccess: () => void;
 }
 
-const ALL_ROLES = [
-  { code: "OWNER", label: ROLE_LABELS.OWNER },
-  { code: "ADMIN_LOCAL", label: ROLE_LABELS.ADMIN_LOCAL },
-  { code: "MANAGER", label: ROLE_LABELS.MANAGER },
-  { code: "EMPLOYEE", label: ROLE_LABELS.EMPLOYEE },
-  { code: "CAJERO", label: ROLE_LABELS.CAJERO },
-  { code: "WAITER", label: ROLE_LABELS.WAITER },
+// Catálogo FRIG con el módulo que habilita cada rol operativo (null = siempre
+// disponible). MANAGER se mantiene por compatibilidad con asignaciones ya
+// existentes, aunque no forme parte del catálogo público FRIG.
+const ALL_ROLES: { code: string; label: string; module: string | null }[] = [
+  { code: "OWNER", label: ROLE_LABELS.OWNER, module: null },
+  { code: "ADMIN_LOCAL", label: ROLE_LABELS.ADMIN_LOCAL, module: null },
+  { code: "MANAGER", label: ROLE_LABELS.MANAGER, module: null },
+  { code: "EMPLOYEE", label: ROLE_LABELS.EMPLOYEE, module: null },
+  { code: "CAJERO", label: ROLE_LABELS.CAJERO, module: "pos" },
+  { code: "WAITER", label: ROLE_LABELS.WAITER, module: "tables" },
+  { code: "COCINERO", label: ROLE_LABELS.COCINERO, module: "production" },
+  { code: "REPARTIDOR", label: ROLE_LABELS.REPARTIDOR, module: "deliveries" },
 ];
 
 export function UserForm({ user, onClose, onSuccess }: UserFormProps) {
@@ -34,7 +40,10 @@ export function UserForm({ user, onClose, onSuccess }: UserFormProps) {
   const currentBranch = useCurrentBranch();
   const isSuperAdmin = Boolean(currentUser?.is_superuser || currentUser?.type_user === "ADM");
   const isEditing = Boolean(user);
+  const isPosModuleEnabled = useIsModuleEnabledFromConfig("pos");
   const isTablesModuleEnabled = useIsModuleEnabledFromConfig("tables");
+  const isProductionModuleEnabled = useIsModuleEnabledFromConfig("production");
+  const isDeliveriesModuleEnabled = useIsModuleEnabledFromConfig("deliveries");
 
   const manageableBranches = useMemo<Branch[]>(() => {
     if (isSuperAdmin) return branches;
@@ -47,16 +56,40 @@ export function UserForm({ user, onClose, onSuccess }: UserFormProps) {
     });
   }, [branches, currentUser, isSuperAdmin]);
 
+  const currentAssignment = user?.branch_access;
+
+  const moduleEnabledMap: Record<string, boolean> = {
+    pos: isPosModuleEnabled,
+    tables: isTablesModuleEnabled,
+    production: isProductionModuleEnabled,
+    deliveries: isDeliveriesModuleEnabled,
+  };
+
   const availableRoles = useMemo(() => {
-    let roles = ALL_ROLES;
+    let roles = ALL_ROLES.filter((r) => !r.module || moduleEnabledMap[r.module]);
     if (!isSuperAdmin) {
       roles = roles.filter((r) => r.code !== "OWNER");
     }
-    if (!isTablesModuleEnabled) {
-      roles = roles.filter((r) => r.code !== "WAITER");
+    // Al editar, el rol actual se mantiene aunque su módulo esté apagado: si
+    // no, el select caería a otro rol y se cambiaría silenciosamente al guardar.
+    if (
+      isEditing &&
+      currentAssignment?.role_code &&
+      !roles.some((r) => r.code === currentAssignment.role_code)
+    ) {
+      const code = currentAssignment.role_code;
+      roles = [...roles, { code, label: ROLE_LABELS[code] ?? code, module: null }];
     }
     return roles;
-  }, [isSuperAdmin, isTablesModuleEnabled]);
+  }, [
+    isSuperAdmin,
+    isPosModuleEnabled,
+    isTablesModuleEnabled,
+    isProductionModuleEnabled,
+    isDeliveriesModuleEnabled,
+    isEditing,
+    currentAssignment?.role_code,
+  ]);
 
   // Solo un owner multi-sucursal (o superadmin) puede crear/editar usuarios
   // multi-sucursal; el check no se muestra a otros roles.
@@ -67,7 +100,6 @@ export function UserForm({ user, onClose, onSuccess }: UserFormProps) {
         currentUser?.branch_assignments?.some((a) => a.role_code === "OWNER"),
       ));
 
-  const currentAssignment = user?.branch_access;
   const initialRole = currentAssignment?.role_code ?? availableRoles[0]?.code ?? "EMPLOYEE";
 
   const [firstName, setFirstName] = useState(user?.first_name ?? "");
@@ -122,6 +154,11 @@ export function UserForm({ user, onClose, onSuccess }: UserFormProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (dni && !isValidRUT(dni)) {
+      setError("El RUT ingresado no es válido.");
+      return;
+    }
 
     if (isEditing) {
       update.mutate();

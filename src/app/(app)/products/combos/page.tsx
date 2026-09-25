@@ -20,9 +20,11 @@ import {
   AlertTriangle,
   FolderOpen,
   PackagePlus,
+  Boxes,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/page-header";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { Select } from "@/components/ui/select";
 import { ActionsMenu } from "@/components/ui/actions-menu";
@@ -30,6 +32,7 @@ import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import { ProductPickerDrawer } from "@/components/sales/product-picker-drawer";
 import { formatCLP, cn } from "@/lib/utils";
 import { useToast } from "@/lib/store/toast";
+import { isNonNegativeNumber, isDateRangeValid } from "@/lib/validation";
 import {
   useCreateComboMutation,
   useUpdateComboMutation,
@@ -37,8 +40,12 @@ import {
   type ComboList,
   type ComboWriteRequest,
 } from "@/lib/hooks/useCatalog";
-import { fetchCombo, fetchCombosPage } from "@/lib/api/combos";
-import type { Combo } from "@/lib/api/combos";
+import {
+  comboItemsCount,
+  fetchCombo,
+  fetchCombosPage,
+  type Combo,
+} from "@/lib/api/combos";
 import type { ProductForSale } from "@/lib/api/products";
 
 interface ComboFormItem {
@@ -134,12 +141,28 @@ type ComboStatus = {
   badgeText: string;
 };
 
+function isNotStartedYet(startDate?: string | null): boolean {
+  if (!startDate) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const start = new Date(startDate);
+  start.setHours(0, 0, 0, 0);
+  return start > today;
+}
+
 function comboStatus(combo: ComboList): ComboStatus {
   if (!combo.is_active) {
     return {
       label: "Inactivo",
       badgeBg: "bg-danger/10",
       badgeText: "text-danger",
+    };
+  }
+  if (comboItemsCount(combo) <= 0) {
+    return {
+      label: "Sin productos",
+      badgeBg: "bg-warning/10",
+      badgeText: "text-warning",
     };
   }
   if (isExpired(combo.end_date)) {
@@ -149,17 +172,24 @@ function comboStatus(combo: ComboList): ComboStatus {
       badgeText: "text-danger",
     };
   }
+  if (isNotStartedYet(combo.start_date)) {
+    return {
+      label: "Programado",
+      badgeBg: "bg-muted",
+      badgeText: "text-muted-foreground",
+    };
+  }
   if (isExpiringSoon(combo.end_date)) {
     return {
       label: "Por vencer",
-      badgeBg: "bg-amber-500/10",
-      badgeText: "text-amber-700",
+      badgeBg: "bg-warning/10",
+      badgeText: "text-warning",
     };
   }
   return {
     label: "Activo",
-    badgeBg: "bg-emerald-500/10",
-    badgeText: "text-emerald-700",
+    badgeBg: "bg-success/10",
+    badgeText: "text-success",
   };
 }
 
@@ -176,8 +206,9 @@ export default function CombosPage() {
   const [pageUrl, setPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
 
   const { data: page, isLoading, error } = useQuery({
-    queryKey: ["combos", "page", search, pageUrl],
-    queryFn: () => fetchCombosPage(search || undefined, pageUrl.next || pageUrl.previous || undefined),
+    queryKey: ["combos", "page", search, pageUrl.next ?? null, pageUrl.previous ?? null],
+    queryFn: () =>
+      fetchCombosPage(search || undefined, pageUrl.next || pageUrl.previous || undefined),
   });
   const combos = useMemo(() => (page?.results ?? []) as ComboList[], [page]);
   const totalCombos = page?.count ?? 0;
@@ -288,11 +319,11 @@ export default function CombosPage() {
       return;
     }
     const price = parseFloat(form.combo_price || "0");
-    if (price < 0 || Number.isNaN(price)) {
+    if (!isNonNegativeNumber(price)) {
       setFormError("El precio del combo debe ser un número positivo.");
       return;
     }
-    if (form.start_date && form.end_date && form.end_date < form.start_date) {
+    if (form.start_date && form.end_date && !isDateRangeValid(form.start_date, form.end_date)) {
       setFormError("La fecha de fin no puede ser anterior a la fecha de inicio.");
       return;
     }
@@ -301,6 +332,10 @@ export default function CombosPage() {
       .map((it) => ({ product: it.product, quantity: it.quantity }));
     if (items.length === 0) {
       setFormError("Agrega al menos un producto al combo.");
+      return;
+    }
+    if (form.start_date && form.end_date && form.end_date < form.start_date) {
+      setFormError("La fecha de fin no puede ser anterior a la fecha de inicio.");
       return;
     }
 
@@ -385,15 +420,14 @@ export default function CombosPage() {
   const hasData = combos.length > 0;
 
   return (
-    <div className="flex min-h-full flex-col">
-      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
-        <div>
-          <h1 className="text-lg font-semibold">Combos</h1>
-          <p className="text-xs text-muted-foreground">
-            Promociones y packs de productos
-          </p>
-        </div>
-        <Button
+    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+      <PageHeader
+        title="Combos"
+        icon={<Boxes className="h-5 w-5" />}
+        subtitle="Promociones y packs de productos"
+        actions={
+          <>
+          <Button
           size="icon"
           onClick={() => openModal()}
           className="sm:hidden"
@@ -410,9 +444,11 @@ export default function CombosPage() {
           <Plus className="mr-2 h-4 w-4" />
           Nuevo combo
         </Button>
-      </header>
+          </>
+        }
+      />
 
-      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
+      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
         <div className="relative max-w-sm">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -463,7 +499,7 @@ export default function CombosPage() {
               </div>
               <div className="rounded-2xl border border-border bg-background p-3 shadow-sm">
                 <p className="text-xs text-muted-foreground">Activos</p>
-                <p className="mt-1 text-2xl font-semibold leading-none tabular-nums text-emerald-700">
+                <p className="mt-1 text-2xl font-semibold leading-none tabular-nums text-success">
                   {stats.active}
                 </p>
               </div>
@@ -475,7 +511,7 @@ export default function CombosPage() {
               </div>
               <div className="rounded-2xl border border-border bg-background p-3 shadow-sm">
                 <p className="text-xs text-muted-foreground">Por vencer / vencidos</p>
-                <p className="mt-1 text-2xl font-semibold leading-none tabular-nums text-amber-700">
+                <p className="mt-1 text-2xl font-semibold leading-none tabular-nums text-warning">
                   {stats.soon + stats.expired}
                 </p>
               </div>
@@ -518,8 +554,16 @@ export default function CombosPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-                            {combo.items_count ?? 0} producto{(combo.items_count ?? 0) === 1 ? "" : "s"}
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium",
+                              comboItemsCount(combo) <= 0
+                                ? "bg-warning/10 text-warning"
+                                : "bg-muted text-muted-foreground",
+                            )}
+                          >
+                            {comboItemsCount(combo)} producto
+                            {comboItemsCount(combo) === 1 ? "" : "s"}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-xs text-muted-foreground">
@@ -553,7 +597,7 @@ export default function CombosPage() {
                               className={cn(
                                 "rounded-full p-2 transition-colors",
                                 combo.is_active
-                                  ? "text-emerald-600 hover:bg-emerald-500/10"
+                                  ? "text-success hover:bg-success/10"
                                   : "text-muted-foreground hover:bg-muted hover:text-danger",
                               )}
                             >
@@ -596,7 +640,7 @@ export default function CombosPage() {
                         className={cn(
                           "shrink-0 rounded-full p-2 transition-colors",
                           combo.is_active
-                            ? "text-emerald-600 hover:bg-emerald-500/10"
+                            ? "text-success hover:bg-success/10"
                             : "text-muted-foreground hover:bg-muted hover:text-danger",
                         )}
                       >
@@ -633,7 +677,7 @@ export default function CombosPage() {
                             </span>
                           )}
                           {soon && (
-                            <span className="inline-flex items-center gap-0.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+                            <span className="inline-flex items-center gap-0.5 rounded bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium text-warning">
                               <AlertTriangle className="h-3 w-3" />
                               Pronto
                             </span>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { PageHeader } from "@/components/page-header";
 import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -134,7 +135,7 @@ export default function FinanceSettingsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-full flex-col p-4 sm:p-6">
+      <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
         <div className="h-8 w-48 animate-pulse rounded bg-muted mb-4" />
         <div className="space-y-3">
           {[1, 2, 3, 4].map((i) => (<div key={i} className="h-16 animate-pulse rounded-xl border border-border bg-background" />))}
@@ -164,20 +165,18 @@ export default function FinanceSettingsPage() {
   }
 
   return (
-    <div className="flex min-h-full flex-col">
-      <header className="border-b border-border px-4 py-4 sm:px-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-lg font-semibold">Configuración financiera</h1>
-            <p className="text-xs text-muted-foreground">{currentConfig.branch_name ?? "Sucursal"}</p>
-          </div>
-          {configs.length > 1 && (
-            <Select value={String(selectedIdx)} onChange={(e) => setSelectedIdx(Number(e.target.value))} className="h-9 w-48 text-xs">
-              {configs.map((c, idx) => (<option key={c.id} value={idx}>{c.branch_name ?? `Sucursal ${c.branch}`}</option>))}
-            </Select>
-          )}
-        </div>
-      </header>
+    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+      <PageHeader
+        title="Configuración financiera"
+        icon={<Settings className="h-5 w-5" />}
+        subtitle={currentConfig.branch_name ?? "Sucursal"}
+        actions={configs.length > 1 && (
+          <Select value={String(selectedIdx)} onChange={(e) => setSelectedIdx(Number(e.target.value))} className="h-9 w-48 text-xs">
+            {configs.map((c, idx) => (<option key={c.id} value={idx}>{c.branch_name ?? `Sucursal ${c.branch}`}</option>))}
+          </Select>
+        )}
+        className="border-b border-border px-4 py-4 sm:px-6"
+      />
 
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-4 sm:p-6">
         <ConfigForm config={currentConfig} onUpdate={(payload) => updateMut.mutate({ id: currentConfig.id, ...payload })} isPending={updateMut.isPending} />

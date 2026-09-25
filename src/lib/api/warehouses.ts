@@ -2,7 +2,7 @@ import { apiFetch, apiFile } from "./client";
 import type { ApiFileResult } from "./client";
 import type { YggdraSchemas } from "@/lib/api/types";
 
-type Warehouse = YggdraSchemas["Warehouse"];
+export type Warehouse = YggdraSchemas["Warehouse"];
 export type WarehouseProduct = YggdraSchemas["WarehouseProduct"];
 type WarehouseRequest = YggdraSchemas["WarehouseRequest"];
 type WarehouseProductRequest = YggdraSchemas["WarehouseProductRequest"];
@@ -13,6 +13,8 @@ type PaginatedWarehouseProduct = YggdraSchemas["PaginatedWarehouseProductList"];
 export interface WarehousesFilter {
   search?: string;
   warehouse_type?: string;
+  is_default?: boolean;
+  page_size?: number;
   next?: string | null;
   previous?: string | null;
 }
@@ -27,8 +29,62 @@ export async function fetchWarehouses(filter: WarehousesFilter = {}): Promise<Pa
   const qs = new URLSearchParams();
   if (filter.search) qs.set("search", filter.search);
   if (filter.warehouse_type) qs.set("warehouse_type", filter.warehouse_type);
+  if (filter.is_default !== undefined) qs.set("is_default", String(filter.is_default));
+  if (filter.page_size) qs.set("page_size", String(filter.page_size));
   const q = qs.toString();
   return apiFetch<PaginatedWarehouse>(`/inventory/warehouses/${q ? `?${q}` : ""}`);
+}
+
+export interface WarehouseTypeOption {
+  value: string;
+  label: string;
+}
+
+export async function fetchWarehouseTypes(): Promise<WarehouseTypeOption[]> {
+  const data = await apiFetch<unknown>("/inventory/warehouses/types/");
+  if (Array.isArray(data)) {
+    return data.filter(
+      (item): item is WarehouseTypeOption =>
+        Boolean(item) &&
+        typeof item === "object" &&
+        "value" in item &&
+        "label" in item &&
+        typeof (item as WarehouseTypeOption).value === "string",
+    );
+  }
+  return [];
+}
+
+export interface WarehouseMetrics {
+  warehouse: Warehouse;
+  total_products: number;
+  total_quantity: number;
+  total_value: number | string;
+  total_sale_value: number | string;
+  low_stock_products: number;
+  out_of_stock_products: number;
+  utilization_percentage: number;
+}
+
+export async function fetchWarehouseMetrics(id: number): Promise<WarehouseMetrics> {
+  return apiFetch<WarehouseMetrics>(`/inventory/warehouses/${id}/metrics/`);
+}
+
+export interface BranchWarehouseSummary {
+  total_warehouses: number;
+  total_products: number;
+  total_quantity: number;
+  total_value: number | string;
+  total_sale_value?: number | string;
+  warehouses: WarehouseMetrics[];
+}
+
+export async function fetchWarehouseBranchSummary(
+  branchId: number,
+): Promise<BranchWarehouseSummary> {
+  return apiFetch<BranchWarehouseSummary>(
+    `/inventory/warehouses/branch_summary/?branch_id=${branchId}`,
+  );
 }
 
 export async function fetchWarehouse(id: number): Promise<Warehouse> {
@@ -57,6 +113,8 @@ export interface WarehouseProductsFilter {
   search?: string;
   ordering?: string;
   page_size?: number;
+  low_stock?: boolean;
+  out_of_stock?: boolean;
   next?: string | null;
   previous?: string | null;
 }
@@ -75,13 +133,38 @@ export async function fetchWarehouseProducts(
   if (filter.search) qs.set("search", filter.search);
   if (filter.ordering) qs.set("ordering", filter.ordering);
   if (filter.page_size) qs.set("page_size", String(filter.page_size));
+  if (filter.low_stock) qs.set("low_stock", "true");
+  if (filter.out_of_stock) qs.set("out_of_stock", "true");
   const q = qs.toString();
   return apiFetch<PaginatedWarehouseProduct>(`/inventory/warehouses/${warehouseId}/products/${q ? `?${q}` : ""}`);
 }
 
-export async function fetchProductWarehouses(productId: number): Promise<WarehouseProduct[]> {
-  const data = await apiFetch<PaginatedWarehouseProduct>(`/inventory/warehouse-products/?product=${productId}`);
-  return data.results ?? [];
+/**
+ * Vínculos producto↔bodega para un producto.
+ *
+ * El listado `GET /inventory/warehouse-products/` no expone filtro `product` en
+ * schema (`?product=` se ignora). Pagina y filtra en cliente por FK `product`.
+ */
+export async function fetchProductWarehouses(
+  productId: number,
+  opts?: { productName?: string },
+): Promise<WarehouseProduct[]> {
+  const qs = new URLSearchParams({ page_size: "100" });
+  const name = opts?.productName?.trim();
+  if (name) qs.set("search", name);
+
+  const page = await fetchAllWarehouseProducts(`/inventory/warehouse-products/?${qs.toString()}`);
+  const matched = page.filter((wp) => Number(wp.product) === Number(productId));
+  if (matched.length > 0 || !name) return matched;
+
+  const all = await fetchAllWarehouseProducts("/inventory/warehouse-products/?page_size=100");
+  return all.filter((wp) => Number(wp.product) === Number(productId));
+}
+
+async function fetchAllWarehouseProducts(url: string): Promise<WarehouseProduct[]> {
+  const data = await apiFetch<PaginatedWarehouseProduct>(url);
+  const next = data.next ? await fetchAllWarehouseProducts(data.next) : [];
+  return [...(data.results ?? []), ...next];
 }
 
 export interface BranchWarehouseProductsFilter {
@@ -120,9 +203,10 @@ export async function addProductToWarehouse(
   });
 }
 
+/** El action de Yggdra lee `quantity` (stock absoluto) y `notes`. */
 export async function updateWarehouseProductQuantity(
   id: number,
-  payload: Partial<WarehouseProductRequest>,
+  payload: { quantity: number; notes?: string },
 ): Promise<WarehouseProduct> {
   return apiFetch<WarehouseProduct>(`/inventory/warehouse-products/${id}/update_quantity/`, {
     method: "POST",
@@ -156,8 +240,13 @@ export interface TransferStockPayload {
   notes?: string;
 }
 
-export async function transferStock(payload: TransferStockPayload): Promise<Warehouse> {
-  return apiFetch<Warehouse>("/inventory/warehouses/transfer/", {
+export interface TransferStockResult {
+  message: string;
+  transferred_products: { product_name: string; quantity: number }[];
+}
+
+export async function transferStock(payload: TransferStockPayload): Promise<TransferStockResult> {
+  return apiFetch<TransferStockResult>("/inventory/warehouses/transfer/", {
     method: "POST",
     body: payload,
   });

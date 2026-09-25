@@ -78,6 +78,11 @@ type ApiOptions = {
   /** auto = salta si no hay token (para endpoints públicos), required = lanza. */
   auth?: "auto" | "required" | "none";
   branch?: "auto" | "none";
+  /**
+   * Credenciales del fetch. Por defecto `include` (cookie de sesión).
+   * Usar `omit` en endpoints 100% públicos para no mezclar sesión admin.
+   */
+  credentials?: RequestCredentials;
   /** Señal de cancelación opcional. */
   signal?: AbortSignal;
   /** Tiempo máximo de espera en milisegundos (por defecto 30.000 ms). */
@@ -124,6 +129,7 @@ export async function apiFetch<T>(path: string, opts: ApiOptions = {}): Promise<
     headers = {},
     auth = "required",
     branch = "auto",
+    credentials = "include",
     signal,
     timeoutMs,
   } = opts;
@@ -157,13 +163,13 @@ export async function apiFetch<T>(path: string, opts: ApiOptions = {}): Promise<
   );
 
   try {
-    // credentials: "include" para la cookie HttpOnly de auth_token
+    // credentials include: cookie HttpOnly de auth_token (omit en públicos).
     const url = /^https?:\/\//i.test(path) ? path : `${API_BASE}${path}`;
     const res = await fetch(url, {
       method,
       headers: finalHeaders,
       body: body !== undefined ? JSON.stringify(body) : undefined,
-      credentials: "include",
+      credentials,
       signal: requestSignal,
     });
 
@@ -239,6 +245,21 @@ function formatErrorDetail(detail: unknown): string {
     if (first !== undefined) return formatErrorDetail(first);
   }
   return "";
+}
+
+/**
+ * Extrae errores por campo de una respuesta DRF (`{ field: [msg] }`) como
+ * mapa campo → primer mensaje. Acepta un `ApiError` o el `detail` crudo.
+ */
+export function formatFieldErrors(err: unknown): Record<string, string> {
+  const detail = err instanceof ApiError ? err.detail : err;
+  if (!detail || typeof detail !== "object" || Array.isArray(detail)) return {};
+  const out: Record<string, string> = {};
+  for (const [field, value] of Object.entries(detail as Record<string, unknown>)) {
+    const message = formatErrorDetail(value);
+    if (message) out[field] = message;
+  }
+  return out;
 }
 
 export interface ApiFileResult {

@@ -101,6 +101,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="es"
+      data-scroll-behavior="smooth"
       className={`${geistSans.variable} ${geistMono.variable} ${pixelify.variable} ${spaceGrotesk.variable} h-full antialiased`}
       suppressHydrationWarning
     >

@@ -12,6 +12,8 @@ export interface MovementsFilter {
   movement_type?: string;
   product?: number;
   warehouse?: number;
+  ordering?: string;
+  page_size?: number;
   next?: string | null;
   previous?: string | null;
 }
@@ -28,6 +30,8 @@ export async function fetchInventoryMovements(filter: MovementsFilter = {}): Pro
   if (filter.movement_type) qs.set("movement_type", filter.movement_type);
   if (filter.product) qs.set("product", String(filter.product));
   if (filter.warehouse) qs.set("warehouse", String(filter.warehouse));
+  if (filter.ordering) qs.set("ordering", filter.ordering);
+  if (filter.page_size) qs.set("page_size", String(filter.page_size));
   const q = qs.toString();
   return apiFetch<PaginatedInventoryHistory>(`/inventory/inventory-history/${q ? `?${q}` : ""}`);
 }

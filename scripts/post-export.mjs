@@ -5,9 +5,9 @@
 //   1. Las URLs legacy de bodega (/warehouses/<id>) se reescriben a la vista
 //      estática /warehouses/view.html (resuelve el id desde la querystring).
 //      Otras rutas dinámicas (/menu/<slug>, /menu/<slug>/totem,
-//      /kds/station/<id>, /reset-password/<token>) se reescriben a la instancia
-//      estática del placeholder "__". Las páginas son "use client" y resuelven
-//      el parámetro real desde la URL, así la hidratación no depende del placeholder.
+//      /kds/station/<id> → /kds/station.html?id=, /reset-password/<token>)
+//      se reescriben a la instancia estática. Las páginas "use client"
+//      resuelven el parámetro real desde la URL/query.
 //   2. Cualquier otra URL sin extensión se resuelve a su "<ruta>.html" si existe
 //      (sirve tanto /pos como /pos/).
 
@@ -22,12 +22,15 @@ const dynamicRewrites = [
   ["^menu/[^/]+/?$", "/menu/__.html"],
   ["^login/[^/]+/?$", "/login/__.html"],
   ["^warehouses/\\d+/?$", "/warehouses/view.html"],
-  ["^kds/station/[^/]+/?$", "/kds/station/__.html"],
+  ["^kds/station/(\\d+)/?$", "/kds/station.html?id=$1"],
   ["^reset-password/[^/]+/?$", "/reset-password/__.html"],
 ];
 
 const dynamicRules = dynamicRewrites
-  .map(([pattern, target]) => `RewriteRule ${pattern} ${target} [L]`)
+  .map(([pattern, target]) => {
+    const flags = target.includes("?") ? "[L,QSA]" : "[L]";
+    return `RewriteRule ${pattern} ${target} ${flags}`;
+  })
   .join("\n");
 
 const htaccess = `# Generado por scripts/post-export.mjs — no editar a mano.

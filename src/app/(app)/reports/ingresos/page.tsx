@@ -1,7 +1,6 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { FinanceReportView } from "@/components/reports/finance-report";
-
-export default function IngresosReportPage() {
-  return <FinanceReportView variant="ingresos" />;
+/** Ruta legacy en español → canónica en inglés. */
+export default function IngresosReportRedirect() {
+  redirect("/reports/revenues");
 }

@@ -9,8 +9,17 @@ import { useEffect, useRef } from "react";
  * cercanos se encienden, vibran más, quedan "tibios" y a veces se rompen
  * en fragmentos. Los calientes se conectan con trazos de circuito.
  */
-export function HeroPlexus({ className }: { className?: string }) {
+export function HeroPlexus({
+  className,
+  idleBoost = 1,
+}: {
+  className?: string;
+  /** Multiplica el brillo en reposo (1 = landing). */
+  idleBoost?: number;
+}) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const idleBoostRef = useRef(idleBoost);
+  idleBoostRef.current = idleBoost;
 
   useEffect(() => {
     const canvas = ref.current;
@@ -246,7 +255,7 @@ export function HeroPlexus({ className }: { className?: string }) {
         // reposo: latido tenue siempre visible; calor: encendido pleno
         // (parpadeo también cuantizado: cambia con cada salto, no fluye)
         const twinkle = 0.55 + 0.45 * Math.sin(p.next * 41.7 + p.ox * 13.1);
-        const idle = p.base * twinkle * Math.max(wake, 0.25);
+        const idle = p.base * twinkle * Math.max(wake, 0.25) * idleBoostRef.current;
         const lit = p.heat > 0 ? Math.min(1, p.heat * twinkle + p.heat * 0.3) : 0;
         const alpha = Math.max(idle, lit);
         if (alpha < 0.02) continue;

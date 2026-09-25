@@ -5,12 +5,33 @@ export type KitchenTicketItem = YggdraSchemas["KitchenTicketItem"] & {
   station?: number | null;
   station_name?: string | null;
 };
+/** Extras opcionales si el backend enriquece el serializer (order_number, mesa, cliente). */
 export type KitchenTicket = Omit<YggdraSchemas["KitchenTicket"], "items"> & {
   items: KitchenTicketItem[];
+  order_number?: string | null;
+  table_name?: string | null;
+  table_number?: string | number | null;
+  client_name?: string | null;
 };
 type PaginatedKitchenTicket = YggdraSchemas["PaginatedKitchenTicketList"] & {
   results: KitchenTicket[];
 };
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Código visible: correlativo / número de orden, nunca el UUID. */
+export function kitchenTicketCode(ticket: {
+  id: number;
+  order?: string;
+  order_number?: string | null;
+}) {
+  const n = ticket.order_number?.trim();
+  if (n && !UUID_RE.test(n.replace(/^#/, ""))) {
+    return n.startsWith("#") ? n : `#${n}`;
+  }
+  return `#${ticket.id}`;
+}
 
 export async function fetchKitchenTickets(
   status?: KitchenTicket["status"],

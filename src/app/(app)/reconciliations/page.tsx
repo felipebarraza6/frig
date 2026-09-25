@@ -19,7 +19,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton, StatCardSkeleton, TableSkeleton as SharedTableSkeleton } from "@/components/ui/skeleton";
+import { StatCard as SharedStatCard } from "@/components/ui/stat-card";
+import { PageHeader } from "@/components/page-header";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import {
   fetchBankReconciliations,
@@ -32,6 +34,7 @@ import {
 } from "@/lib/api/bank-reconciliations";
 import { fetchBankAccounts } from "@/lib/api/bank-accounts";
 import { formatCLP } from "@/lib/utils";
+import { useToast } from "@/lib/store/toast";
 
 const STATUS_OPTIONS = [
   { value: "", label: "Todos" },
@@ -44,9 +47,9 @@ const STATUS_OPTIONS = [
 function statusBadgeClass(status?: string | null) {
   switch (status) {
     case "COMPLETED":
-      return "bg-emerald-500/10 text-emerald-700";
+      return "bg-success/10 text-success";
     case "PENDING":
-      return "bg-amber-500/10 text-amber-700";
+      return "bg-warning/10 text-warning";
     case "IN_PROGRESS":
       return "bg-primary/10 text-primary";
     case "DISCREPANCY":
@@ -81,6 +84,7 @@ export default function ReconciliationsPage() {
   const [createOpen, setCreateOpen] = useState(false);
 
   const queryClient = useQueryClient();
+  const toast = useToast();
 
   const filter = useMemo(() => ({
     status: (statusFilter || undefined) as BankReconciliation["status"],
@@ -111,16 +115,19 @@ export default function ReconciliationsPage() {
   const markBalanced = useMutation({
     mutationFn: markBankReconciliationBalanced,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["bank-reconciliations"] }),
+    onError: (err: Error) => toast.error(err.message || "No se pudo marcar como balanceada"),
   });
 
   const markPending = useMutation({
     mutationFn: markBankReconciliationPending,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["bank-reconciliations"] }),
+    onError: (err: Error) => toast.error(err.message || "No se pudo marcar como pendiente"),
   });
 
   const validate = useMutation({
     mutationFn: validateBankReconciliation,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["bank-reconciliations"] }),
+    onError: (err: Error) => toast.error(err.message || "No se pudo validar la conciliación"),
   });
 
 const create = useMutation({
@@ -132,31 +139,30 @@ const create = useMutation({
   });
 
   return (
-    <div className="flex min-h-full flex-col">
-      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
-        <div>
-          <h1 className="text-lg font-semibold">Conciliaciones bancarias</h1>
-          <p className="text-xs text-muted-foreground">
-            Compara saldos del extracto bancario con el sistema
-          </p>
-        </div>
-        <Button size="sm" onClick={() => setCreateOpen(true)}>
-          <Plus className="mr-1.5 h-4 w-4" />
-          Nueva conciliación
-        </Button>
-      </header>
+    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+      <PageHeader
+        title="Conciliaciones bancarias"
+        icon={<ArrowLeftRight className="h-5 w-5" />}
+        subtitle="Compara saldos del extracto bancario con el sistema"
+        actions={
+          <Button size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            Nueva conciliación
+          </Button>
+        }
+      />
 
-      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
+      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
         {/* Stats */}
         <section className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(150px,1fr))]">
           {loadingSummary ? (
-            <><StatSkeleton /><StatSkeleton /><StatSkeleton /><StatSkeleton /></>
+            <><StatCardSkeleton /><StatCardSkeleton /><StatCardSkeleton /><StatCardSkeleton /></>
           ) : (
             <>
-              <StatCard label="Total" value={summary?.total ?? 0} icon={ArrowLeftRight} sub="conciliaciones" tone="slate" />
-              <StatCard label="Pendientes" value={summary?.pending ?? 0} icon={Clock} sub="por revisar" tone="amber" />
-              <StatCard label="Completadas" value={summary?.completed ?? 0} icon={CheckCircle2} sub="balanceadas" tone="emerald" />
-              <StatCard label="Discrepancias" value={summary?.discrepancy ?? 0} icon={AlertCircle} sub="requieren atención" tone="rose" />
+              <SharedStatCard label="Total" value={summary?.total ?? 0} icon={ArrowLeftRight} sub="conciliaciones" tone="muted" />
+              <SharedStatCard label="Pendientes" value={summary?.pending ?? 0} icon={Clock} sub="por revisar" tone="warning" />
+              <SharedStatCard label="Completadas" value={summary?.completed ?? 0} icon={CheckCircle2} sub="balanceadas" tone="success" />
+              <SharedStatCard label="Discrepancias" value={summary?.discrepancy ?? 0} icon={AlertCircle} sub="requieren atención" tone="danger" />
             </>
           )}
         </section>
@@ -227,7 +233,7 @@ const create = useMutation({
             <Button variant="outline" size="sm" onClick={() => refetch()}><RotateCcw className="mr-1.5 h-3.5 w-3.5" />Reintentar</Button>
           </div>
         ) : isLoading ? (
-          <div className="flex flex-col gap-3"><TableSkeleton /><div className="flex justify-end"><Skeleton className="h-9 w-40" /></div></div>
+          <div className="flex flex-col gap-3"><SharedTableSkeleton columns={7} rows={5} className="hidden md:block" /><div className="flex justify-end"><Skeleton className="h-9 w-40" /></div></div>
         ) : reconciliations.length === 0 ? (
           <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-border p-8 text-center">
             <div>
@@ -262,7 +268,7 @@ const create = useMutation({
                         <td className="px-4 py-3 font-medium">{rec.bank_account_name ?? rec.bank_account}</td>
                         <td className="px-4 py-3 text-right tabular-nums">{formatCLP(parseAmount(rec.system_balance))}</td>
                         <td className="px-4 py-3 text-right tabular-nums">{formatCLP(parseAmount(rec.bank_statement_balance))}</td>
-                        <td className={`px-4 py-3 text-right tabular-nums font-semibold ${Math.abs(diff) < 0.01 ? "text-emerald-600" : "text-danger"}`}>
+                        <td className={`px-4 py-3 text-right tabular-nums font-semibold ${Math.abs(diff) < 0.01 ? "text-success" : "text-danger"}`}>
                           {diff >= 0 ? "+" : ""}{formatCLP(Math.abs(diff))}
                         </td>
                         <td className="px-4 py-3">
@@ -310,7 +316,7 @@ const create = useMutation({
                     <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
                       <div><span className="block text-[10px] uppercase text-muted-foreground">Sistema</span><span className="tabular-nums">{formatCLP(parseAmount(rec.system_balance))}</span></div>
                       <div><span className="block text-[10px] uppercase text-muted-foreground">Banco</span><span className="tabular-nums">{formatCLP(parseAmount(rec.bank_statement_balance))}</span></div>
-                      <div><span className="block text-[10px] uppercase text-muted-foreground">Diferencia</span><span className={`tabular-nums font-semibold ${Math.abs(diff) < 0.01 ? "text-emerald-600" : "text-danger"}`}>{diff >= 0 ? "+" : ""}{formatCLP(Math.abs(diff))}</span></div>
+                      <div><span className="block text-[10px] uppercase text-muted-foreground">Diferencia</span><span className={`tabular-nums font-semibold ${Math.abs(diff) < 0.01 ? "text-success" : "text-danger"}`}>{diff >= 0 ? "+" : ""}{formatCLP(Math.abs(diff))}</span></div>
                     </div>
                     <div className="mt-3 flex justify-end gap-1 border-t border-border pt-3">
                       {rec.status !== "COMPLETED" && (
@@ -414,7 +420,7 @@ function CreateReconciliationModal({ open, onClose, accounts, onSubmit, isPendin
               </div>
               {systemBalance && bankStatementBalance && (
                 <div className="rounded-xl border border-border bg-muted/20 p-3">
-                  <p className="text-xs text-muted-foreground">Diferencia: <span className={`font-semibold ${Math.abs(parseAmount(systemBalance) - parseAmount(bankStatementBalance)) < 0.01 ? "text-emerald-600" : "text-danger"}`}>{formatCLP(Math.abs(parseAmount(systemBalance) - parseAmount(bankStatementBalance)))}</span></p>
+                  <p className="text-xs text-muted-foreground">Diferencia: <span className={`font-semibold ${Math.abs(parseAmount(systemBalance) - parseAmount(bankStatementBalance)) < 0.01 ? "text-success" : "text-danger"}`}>{formatCLP(Math.abs(parseAmount(systemBalance) - parseAmount(bankStatementBalance)))}</span></p>
                 </div>
               )}
               <div className="flex flex-col gap-1">
@@ -439,8 +445,8 @@ function CreateReconciliationModal({ open, onClose, accounts, onSubmit, isPendin
 function StatCard({ label, value, icon: Icon, sub, tone = "slate" }: {
   label: string; value: number; icon: React.ComponentType<{ className?: string }>; sub: string; tone?: "emerald" | "rose" | "amber" | "slate";
 }) {
-  const tones = { slate: "bg-background", emerald: "bg-emerald-500/[0.06] border-emerald-500/15", rose: "bg-rose-500/[0.06] border-rose-500/15", amber: "bg-amber-500/[0.06] border-amber-500/15" };
-  const icons = { slate: "bg-muted text-muted-foreground", emerald: "bg-emerald-500/15 text-emerald-600", rose: "bg-rose-500/15 text-rose-600", amber: "bg-amber-500/15 text-amber-600" };
+  const tones = { slate: "bg-background", emerald: "bg-success/[0.06] border-success/15", rose: "bg-danger/[0.06] border-danger/15", amber: "bg-amber-500/[0.06] border-amber-500/15" };
+  const icons = { slate: "bg-muted text-muted-foreground", emerald: "bg-success/15 text-success", rose: "bg-danger/15 text-danger", amber: "bg-amber-500/15 text-warning" };
   return (
     <div className={`rounded-2xl border border-border p-3 shadow-sm ${tones[tone]}`}>
       <div className="mb-1.5 flex items-center gap-2">
@@ -453,10 +459,3 @@ function StatCard({ label, value, icon: Icon, sub, tone = "slate" }: {
   );
 }
 
-function StatSkeleton() {
-  return (<div className="rounded-2xl border border-border bg-background p-3 shadow-sm"><div className="mb-1.5 flex items-center gap-2"><Skeleton className="h-7 w-7 rounded-lg" /><Skeleton className="h-3 w-20" /></div><Skeleton className="h-6 w-16" /><Skeleton className="mt-1 h-3 w-14" /></div>);
-}
-
-function TableSkeleton() {
-  return (<div className="hidden overflow-x-auto rounded-2xl border border-border bg-card shadow-sm md:block"><table className="w-full min-w-[800px] text-sm"><thead><tr className="border-b border-border">{Array.from({ length: 7 }).map((_, i) => (<th key={i} className="px-4 py-3"><Skeleton className="h-3.5 w-20" /></th>))}</tr></thead><tbody>{Array.from({ length: 5 }).map((_, row) => (<tr key={row} className="border-b border-border last:border-0">{Array.from({ length: 7 }).map((__, col) => (<td key={col} className="px-4 py-3"><Skeleton className="h-4 w-full max-w-[80px]" /></td>))}</tr>))}</tbody></table></div>);
-}

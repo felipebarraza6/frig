@@ -1,19 +1,33 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Map as MapIcon, LayoutGrid } from "lucide-react";
+import { Map as MapIcon, LayoutGrid, Users, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { YggdraSchemas } from "@/lib/api/types";
 import { TablesCanvas } from "@/components/tables/tables-canvas";
+import {
+  TableShapeIcon,
+  tableShapeLabel,
+  tableShapeRadiusClass,
+  isWideTableShape,
+} from "@/components/tables/table-shape-icon";
 
 type TableItem = YggdraSchemas["Table"];
 
 const STATUS_STYLES: Record<string, string> = {
-  FREE: "border-success/40 bg-success/10 text-success",
-  OCCUPIED: "border-primary/40 bg-primary/10 text-primary",
-  RESERVED: "border-warning/40 bg-warning/10 text-warning",
-  CLEANING: "border-primary/40 bg-primary/10 text-primary",
-  OUT_OF_SERVICE: "border-muted/40 bg-muted/10 text-muted-foreground",
+  FREE: "border-success/50 text-success",
+  OCCUPIED: "border-primary/50 text-primary",
+  RESERVED: "border-warning/50 text-warning",
+  CLEANING: "border-primary/40 text-primary",
+  OUT_OF_SERVICE: "border-muted text-muted-foreground",
+};
+
+const STATUS_BADGE: Record<string, string> = {
+  FREE: "bg-success/10 text-success",
+  OCCUPIED: "bg-primary/10 text-primary",
+  RESERVED: "bg-warning/10 text-warning",
+  CLEANING: "bg-primary/10 text-primary",
+  OUT_OF_SERVICE: "bg-muted text-muted-foreground",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -29,6 +43,11 @@ interface WaiterTablesViewProps {
   onSelect: (table: TableItem) => void;
 }
 
+/**
+ * Selector de mesas del POS (mesero / mapa).
+ * Vista grid: cada tile refleja la forma real (como el mapa).
+ * Vista mapa: reutiliza TablesCanvas.
+ */
 export function WaiterTablesView({ tables, onSelect }: WaiterTablesViewProps) {
   const [view, setView] = useState<"grid" | "map">("grid");
   const [areaFilter, setAreaFilter] = useState<string>("all");
@@ -99,30 +118,65 @@ export function WaiterTablesView({ tables, onSelect }: WaiterTablesViewProps) {
 
       <div className="min-h-0 flex-1 overflow-hidden p-4">
         {view === "grid" ? (
-          <div className="grid h-full grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+          <div className="grid h-full grid-cols-2 content-start gap-3 overflow-y-auto sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
             {filteredTables.map((table) => {
               const status = table.status || "FREE";
               const isOccupied = status === "OCCUPIED";
               const disabled = status === "OUT_OF_SERVICE";
               const occupationMinutes = parseInt(table.occupation_time ?? "0", 10) || 0;
+              const wide = isWideTableShape(table.shape);
               return (
                 <button
                   key={table.id}
                   type="button"
                   disabled={disabled}
                   onClick={() => onSelect(table)}
+                  title={`Mesa ${table.number} · ${tableShapeLabel(table.shape)} · ${STATUS_LABELS[status]}`}
                   className={cn(
-                    "flex flex-col items-center justify-center gap-1 rounded-xl border p-4 text-center transition-colors",
+                    "group relative flex flex-col items-center justify-center gap-2 border-2 bg-transparent p-3 text-center transition-all",
+                    tableShapeRadiusClass(table.shape),
                     STATUS_STYLES[status] || STATUS_STYLES.FREE,
-                    disabled && "opacity-50 cursor-not-allowed",
-                    !disabled && "hover:brightness-95",
+                    wide ? "min-h-[7.5rem]" : "min-h-[8rem] aspect-square",
+                    disabled && "cursor-not-allowed opacity-50",
+                    !disabled && "hover:bg-primary/5 hover:shadow-sm active:scale-[0.98]",
                   )}
                 >
-                  <span className="text-lg font-semibold">Mesa {table.number}</span>
-                  {table.area && <span className="text-xs opacity-80">{table.area}</span>}
-                  <span className="text-[11px] font-medium">{STATUS_LABELS[status]}</span>
+                  <TableShapeIcon
+                    shape={table.shape}
+                    capacity={table.capacity}
+                    size="pos"
+                    tone="primary"
+                  />
+                  <div className="min-w-0">
+                    <span className="block text-base font-bold leading-none text-foreground">
+                      Mesa {table.number}
+                    </span>
+                    <span
+                      className={cn(
+                        "mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                        STATUS_BADGE[status] || STATUS_BADGE.FREE,
+                      )}
+                    >
+                      {STATUS_LABELS[status]}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-center gap-1.5 text-[10px] text-muted-foreground">
+                    <span className="inline-flex items-center gap-0.5">
+                      <Users className="h-2.5 w-2.5" />
+                      {table.capacity ?? "—"}
+                    </span>
+                    <span>·</span>
+                    <span className="font-medium text-primary">{tableShapeLabel(table.shape)}</span>
+                    {table.area ? (
+                      <>
+                        <span>·</span>
+                        <span className="truncate">{table.area}</span>
+                      </>
+                    ) : null}
+                  </div>
                   {isOccupied && occupationMinutes > 0 && (
-                    <span className="text-[11px] font-medium opacity-90">
+                    <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-primary">
+                      <Clock className="h-2.5 w-2.5" />
                       {occupationMinutes} min
                     </span>
                   )}

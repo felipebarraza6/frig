@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
+import { PageHeader } from "@/components/page-header";
 import {
   fetchTaxDocuments,
   createTaxDocument,
@@ -32,6 +33,7 @@ import {
   type TaxDocument,
 } from "@/lib/api/tax-documents";
 import { useToast } from "@/lib/store/toast";
+import { isValidRUT, isPositiveAmount } from "@/lib/validation";
 
 const DOC_TYPE_OPTIONS = [
   { value: "", label: "Todos" },
@@ -51,6 +53,8 @@ const STATUS_OPTIONS = [
   { value: "CANCELLED", label: "Anulado" },
 ];
 
+import { statusBadge as statusBadgeTokens } from "@/lib/status-styles";
+
 function formatCLP(value: string | number): string {
   const num = typeof value === "string" ? parseFloat(value) : value;
   if (isNaN(num)) return "$0";
@@ -59,13 +63,20 @@ function formatCLP(value: string | number): string {
 
 function statusBadge(status?: string | null) {
   switch (status) {
-    case "DRAFT": return "bg-muted text-muted-foreground";
-    case "ISSUED": return "bg-primary/10 text-primary";
-    case "SENT": return "bg-amber-500/10 text-amber-700";
-    case "ACCEPTED": return "bg-emerald-500/10 text-emerald-700";
-    case "REJECTED": return "bg-danger/10 text-danger";
-    case "CANCELLED": return "bg-rose-500/10 text-rose-700";
-    default: return "bg-muted text-muted-foreground";
+    case "DRAFT":
+      return "bg-muted text-muted-foreground";
+    case "ISSUED":
+      return "bg-primary/10 text-primary";
+    case "SENT":
+      return "bg-warning/10 text-warning";
+    case "ACCEPTED":
+      return "bg-success/10 text-success";
+    case "REJECTED":
+      return "bg-danger/10 text-danger";
+    case "CANCELLED":
+      return "bg-danger/10 text-danger";
+    default:
+      return statusBadgeTokens(status);
   }
 }
 
@@ -155,18 +166,19 @@ export default function TaxDocumentsPage() {
   const totalAmount = documents.reduce((s, d) => s + (d.total_amount || 0), 0);
 
   return (
-    <div className="flex min-h-full flex-col">
-      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <div>
-          <h1 className="text-lg font-semibold">Documentos tributarios</h1>
-          <p className="text-xs text-muted-foreground">Boletas, facturas, notas de crédito y débito</p>
-        </div>
-        <Button size="sm" onClick={() => setCreateOpen(true)}>
-          <Plus className="mr-1.5 h-4 w-4" />Nuevo documento
-        </Button>
-      </header>
+    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+      <PageHeader
+        title="Documentos tributarios"
+        icon={<FileText className="h-5 w-5" />}
+        subtitle="Boletas, facturas, notas de crédito y débito"
+        actions={
+          <Button size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus className="mr-1.5 h-4 w-4" />Nuevo documento
+          </Button>
+        }
+      />
 
-      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
+      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
         {/* KPIs */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div className="rounded-2xl border border-border bg-background p-3 shadow-sm">
@@ -179,7 +191,7 @@ export default function TaxDocumentsPage() {
           </div>
           <div className="rounded-2xl border border-border bg-background p-3 shadow-sm">
             <p className="text-[11px] font-medium text-muted-foreground">Aceptados SII</p>
-            <p className="text-lg font-semibold tabular-nums text-emerald-600">{acceptedCount}</p>
+            <p className="text-lg font-semibold tabular-nums text-success">{acceptedCount}</p>
           </div>
           <div className="rounded-2xl border border-border bg-background p-3 shadow-sm">
             <p className="text-[11px] font-medium text-muted-foreground">Monto total</p>
@@ -269,7 +281,7 @@ export default function TaxDocumentsPage() {
                               </Button>
                             )}
                             {d.status === "ISSUED" && (
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-amber-600" onClick={() => sendMut.mutate(d.id)} disabled={sendMut.isPending} title="Enviar al SII">
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-warning" onClick={() => sendMut.mutate(d.id)} disabled={sendMut.isPending} title="Enviar al SII">
                                 <Send className="h-3.5 w-3.5" />
                               </Button>
                             )}
@@ -435,6 +447,7 @@ function CreateDocModal({ open, onClose, onSubmit, isPending }: {
   isPending: boolean;
 }) {
   const [docType, setDocType] = useState<"39" | "33">("39");
+  const toast = useToast();
   const [rut, setRut] = useState("");
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
@@ -444,6 +457,14 @@ function CreateDocModal({ open, onClose, onSubmit, isPending }: {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (rut && !isValidRUT(rut)) {
+      toast.error("El RUT del cliente no es válido.");
+      return;
+    }
+    if (netAmount && !isPositiveAmount(Number(netAmount))) {
+      toast.error("El monto neto debe ser mayor que 0.");
+      return;
+    }
     onSubmit({
       branch: 1,
       document_type: docType,

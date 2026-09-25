@@ -36,7 +36,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton, StatCardSkeleton } from "@/components/ui/skeleton";
+import { StatCard as SharedStatCard } from "@/components/ui/stat-card";
+import { PageHeader } from "@/components/page-header";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import {
   fetchBankAccounts,
@@ -431,35 +433,34 @@ export default function BankAccountsPage() {
 
   return (
     <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
-      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 md:flex-row md:items-start md:justify-between md:px-6">
-        <div>
-          <h1 className="text-lg font-semibold">Billeteras digitales</h1>
-          <p className="text-xs text-muted-foreground">
-            Gestiona las cuentas y sus conciliaciones
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            size="icon"
-            onClick={() => openModal()}
-            className="md:hidden"
-            title="Nueva cuenta"
-            aria-label="Nueva cuenta"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => openModal()}
-            className="hidden md:flex"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Nueva cuenta
-          </Button>
-        </div>
-      </header>
+      <PageHeader
+        title="Billeteras digitales"
+        icon={<Wallet className="h-5 w-5" />}
+        subtitle="Gestiona las cuentas y sus conciliaciones"
+        actions={
+          <>
+            <Button
+              size="icon"
+              onClick={() => openModal()}
+              className="md:hidden"
+              title="Nueva cuenta"
+              aria-label="Nueva cuenta"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => openModal()}
+              className="hidden md:flex"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Nueva cuenta
+            </Button>
+          </>
+        }
+      />
 
-      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
+      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -475,32 +476,32 @@ export default function BankAccountsPage() {
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {loadingReconciliationSummary ? (
             <>
-              <StatSkeleton />
-              <StatSkeleton />
-              <StatSkeleton />
-              <StatSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
             </>
           ) : (
             <>
-              <StatCard
+              <SharedStatCard
                 label="Total"
                 value={reconciliationSummary?.total ?? 0}
                 icon={Scale}
                 sub="conciliaciones"
               />
-              <StatCard
+              <SharedStatCard
                 label="Pendientes"
                 value={reconciliationSummary?.pending ?? 0}
                 icon={Clock}
                 sub="por revisar"
               />
-              <StatCard
+              <SharedStatCard
                 label="Completadas"
                 value={reconciliationSummary?.completed ?? 0}
                 icon={CheckCircle2}
                 sub="balanceadas"
               />
-              <StatCard
+              <SharedStatCard
                 label="Discrepancias"
                 value={reconciliationSummary?.discrepancy ?? 0}
                 icon={AlertCircle}
@@ -1163,19 +1164,6 @@ function StatCard({
       </div>
       <p className="text-xl font-semibold tabular-nums">{value}</p>
       <p className="text-xs text-muted-foreground">{sub}</p>
-    </div>
-  );
-}
-
-function StatSkeleton() {
-  return (
-    <div className="rounded-2xl border border-border bg-background p-4 shadow-sm">
-      <div className="mb-2 flex items-center gap-2">
-        <Skeleton className="h-4 w-4 rounded-full" />
-        <Skeleton className="h-3.5 w-24" />
-      </div>
-      <Skeleton className="mb-1 h-7 w-16" />
-      <Skeleton className="h-3 w-20" />
     </div>
   );
 }

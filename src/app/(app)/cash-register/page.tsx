@@ -40,6 +40,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
+import { PageHeader } from "@/components/page-header";
 import {
   getCurrentCashRegister,
   getLastClosedCashRegister,
@@ -61,6 +62,7 @@ import {
 import { fetchCashRegisterStations } from "@/lib/api/cash-register-stations";
 import { formatCLP, cn, paymentTypeLabel } from "@/lib/utils";
 import { useToast } from "@/lib/store/toast";
+import { isPositiveAmount } from "@/lib/validation";
 import {
   useCurrentBranch,
   useCurrentBranchStation,
@@ -350,6 +352,9 @@ export default function CashRegisterPage() {
       if (!cashRegister || cashRegister.status !== "OPEN") {
         throw new Error("La caja está cerrada, abre un turno para mover dinero");
       }
+      if (!isPositiveAmount(Number(payload.amount))) {
+        throw new Error("El monto debe ser mayor a 0");
+      }
 
       const base = {
         amount: payload.amount,
@@ -582,8 +587,13 @@ export default function CashRegisterPage() {
   const movementsLocked = !isOpen || !isRegisterController;
 
   return (
-    <div className="flex min-h-full flex-col items-start justify-start py-6 px-4 md:px-6">
-      <div className="mx-auto w-full max-w-6xl space-y-6">
+    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+      <PageHeader
+        title="Caja"
+        subtitle="Apertura, cierre y movimientos de caja"
+        icon={<Banknote className="h-5 w-5" />}
+      />
+      <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-6 sm:px-6">
         {/* Minimal Station Tab Pills (tags solitos) */}
         {canChangeStation && stations.length > 0 && (
           <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-1 scrollbar-none">

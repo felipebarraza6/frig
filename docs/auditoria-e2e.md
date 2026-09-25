@@ -23,6 +23,38 @@ python3 scripts/api-audit/report.py        # cobertura por dominio + drift
 
 Salidas en `/tmp/opencode/`: `backend-paths.json`, `frontend-calls.json`, `crossref.json` (usadas/no usadas/sin-match), `report.json` (cobertura por tag + drift).
 
+## 2.1 Sincronización de contrato (sync-contract)
+
+El flujo backend→frontend quedó automatizado en tres capas:
+
+1. **`npm run sync-contract`** (`scripts/sync-contract.mjs`): regenera
+   `src/lib/api/types/yggdra.d.ts` con openapi-typescript y escribe
+   `src/lib/api/contract-sha.ts` con el sha256 del contrato. Fuente del
+   schema: primero el freeze `../yggdra_infra/api/schema/openapi.yaml`
+   (sha desde `meta.json`); si no existe, descarga el schema vivo desde
+   `NEXT_PUBLIC_YGGDRA_API_BASE` (default `http://localhost:8000/api`) y
+   toma el sha de `GET /api/schema/contract/`.
+2. **Gate de CI** (`.github/workflows/ci.yml`, step "Verificar contrato
+   backend↔frontend"): consulta `/api/schema/contract/` de la API pública
+   (`https://api.yggdra.cl/api`; sobreescribible con la variable de repo
+   `CONTRACT_CHECK_API_BASE`) y falla el build si el sha difiere del
+   commiteado. Si la variable queda vacía o el endpoint no responde, el
+   step se omite con warning (no bloquea).
+3. **Banner runtime**: `apiFetch`/`apiFile` leen el header
+   `X-Yggdra-Schema-Sha` de cada respuesta y, si difiere del sha compilado,
+   disparan el evento `api:schema-drift` (una vez por sesión).
+   `SchemaDriftListener` (montado en `src/app/(app)/layout.tsx`) lo convierte
+   en un toast persistente "El backend fue actualizado. Recarga la página."
+   con botón Recargar.
+
+Si el gate de CI falla: correr `npm run sync-contract` y commitear
+`src/lib/api/types/yggdra.d.ts` + `src/lib/api/contract-sha.ts`.
+
+El script `npm run audit:api` (`scripts/api-audit/crossref.mjs`) cruza las
+llamadas del frontend contra el freeze del backend (o el path indicado por
+`YGGDRA_SCHEMA_YML`) y falla exit 1 si hay llamadas sin match o drift de
+método. Usar como gate manual pre-push o en CI adicional.
+
 ## 3. Matriz de cobertura por dominio
 
 ```

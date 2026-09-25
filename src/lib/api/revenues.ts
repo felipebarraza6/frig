@@ -38,6 +38,10 @@ export async function fetchRevenues(filter: RevenuesFilter = {}): Promise<Pagina
   return apiFetch<PaginatedRevenue>(`/finance/revenues/${q ? `?${q}` : ""}`);
 }
 
+export async function fetchRevenue(id: string): Promise<Revenue> {
+  return apiFetch<Revenue>(`/finance/revenues/${id}/`);
+}
+
 export async function fetchRevenueCategories(): Promise<RevenueCategory[]> {
   // page_size=100: el endpoint pagina por defecto a 10 y cortaría la lista.
   const data = await apiFetch<PaginatedRevenueCategory>(

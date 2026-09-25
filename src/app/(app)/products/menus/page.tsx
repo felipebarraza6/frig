@@ -13,15 +13,27 @@ import {
   Copy,
   X,
   LayoutTemplate,
+  Store,
+  ShoppingCart,
+  ClipboardList,
+  Monitor,
+  Eye,
+  Star,
+  Package,
+  SlidersHorizontal,
+  type LucideIcon,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/page-header";
+import { StatCard } from "@/components/ui/stat-card";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { Select } from "@/components/ui/select";
 import { QRCodeSVG } from "qrcode.react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/lib/store/toast";
 import { useCategoryOptions } from "@/lib/hooks/useCategoryOptions";
+import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { fetchProducts } from "@/lib/api/products";
 import type { YggdraProduct } from "@/lib/api/types";
 
@@ -33,7 +45,14 @@ import {
   updatePublicCatalog,
   deletePublicCatalog,
   fetchCashRegisterStations,
-  publicMenuUrl,
+  publicMenuAbsoluteUrl,
+  publicTotemAbsoluteUrl,
+  modeLabel,
+  stationTypeLabel,
+  extractWhatsappFromDescription,
+  stripWhatsappMarker,
+  embedWhatsappInDescription,
+  syncCatalogLogoFromUrl,
   type PublicCatalog,
   type PublicCatalogPayload,
   type PublicCatalogSummary,
@@ -43,13 +62,29 @@ import {
   type OrderType,
   type FontFamily,
 } from "@/lib/api/public-catalog";
+import { fetchBranchTheme } from "@/lib/api/branches";
 import { useCurrentBranch } from "@/lib/store/session";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 
-const MENU_MODES: { value: MenuMode; label: string }[] = [
-  { value: "VITRINA", label: "Solo vitrina" },
-  { value: "ORDENAR", label: "Ordenar" },
-  { value: "PAGAR", label: "Ordenar y pagar" },
+const MENU_MODES: { value: MenuMode; label: string; hint: string; impact: string }[] = [
+  {
+    value: "VITRINA",
+    label: "Vitrina",
+    hint: "Solo exhibe la carta",
+    impact: "Sin carrito ni pedidos. Ideal para menú del día o pantalla.",
+  },
+  {
+    value: "ORDENAR",
+    label: "Ordenar",
+    hint: "Cliente arma pedido",
+    impact: "Botón Agregar + envío por WhatsApp al local.",
+  },
+  {
+    value: "PAGAR",
+    label: "Ordenar y pagar",
+    hint: "Pedido + cobro",
+    impact: "Carrito + pagar online (Flow) o WhatsApp si Flow no está activo.",
+  },
 ];
 
 const STATION_TYPES: { value: StationType; label: string }[] = [
@@ -58,6 +93,45 @@ const STATION_TYPES: { value: StationType; label: string }[] = [
   { value: "PANTALLA", label: "Pantalla física" },
   { value: "GENERAL", label: "General" },
 ];
+
+function modeIcon(mode: MenuMode | string | undefined): LucideIcon {
+  switch (mode) {
+    case "VITRINA":
+      return Store;
+    case "ORDENAR":
+      return ClipboardList;
+    case "PAGAR":
+      return ShoppingCart;
+    default:
+      return LayoutTemplate;
+  }
+}
+
+function stationIcon(type: StationType | string | undefined): LucideIcon {
+  switch (type) {
+    case "QR":
+      return QrCode;
+    case "POS":
+      return Monitor;
+    case "PANTALLA":
+      return Monitor;
+    default:
+      return LayoutTemplate;
+  }
+}
+
+function modeBadgeClass(mode: MenuMode | string | undefined): string {
+  switch (mode) {
+    case "VITRINA":
+      return "bg-sky-500/10 text-sky-800 ring-sky-500/20";
+    case "ORDENAR":
+      return "bg-amber-500/10 text-amber-800 ring-amber-500/20";
+    case "PAGAR":
+      return "bg-emerald-500/10 text-emerald-800 ring-emerald-500/20";
+    default:
+      return "bg-muted text-muted-foreground ring-border";
+  }
+}
 
 const TARGET_AUDIENCES: { value: TargetAudience; label: string }[] = [
   { value: "PUBLIC", label: "Público general" },
@@ -87,7 +161,9 @@ function slugify(value: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-function emptyForm(): PublicCatalogPayload {
+type MenuFormState = PublicCatalogPayload & { whatsapp?: string };
+
+function emptyForm(): MenuFormState {
   return {
     title: "",
     description: "",
@@ -108,10 +184,11 @@ function emptyForm(): PublicCatalogPayload {
     categories: [],
     font_family: "system",
     expires_at: null,
+    whatsapp: "",
   };
 }
 
-function catalogToForm(catalog: PublicCatalog): PublicCatalogPayload {
+function catalogToForm(catalog: PublicCatalog): MenuFormState {
   const products =
     catalog.products && catalog.products.length > 0
       ? catalog.products
@@ -122,7 +199,7 @@ function catalogToForm(catalog: PublicCatalog): PublicCatalogPayload {
       : (catalog.category_details?.map((c) => c.id) ?? []);
   return {
     title: catalog.title,
-    description: catalog.description,
+    description: stripWhatsappMarker(catalog.description),
     slug: catalog.slug,
     mode: catalog.mode ?? "VITRINA",
     station_type: catalog.station_type ?? "QR",
@@ -140,6 +217,7 @@ function catalogToForm(catalog: PublicCatalog): PublicCatalogPayload {
     categories,
     font_family: catalog.font_family ?? "system",
     expires_at: catalog.expires_at ?? null,
+    whatsapp: extractWhatsappFromDescription(catalog.description) ?? "",
   };
 }
 
@@ -147,9 +225,14 @@ export default function MenusPage() {
   const queryClient = useQueryClient();
   const branch = useCurrentBranch();
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search, 300);
+  const [modeFilter, setModeFilter] = useState<string>("");
+  const [stationFilter, setStationFilter] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<PublicCatalogSummary | null>(null);
-  const [form, setForm] = useState<PublicCatalogPayload>(emptyForm());
+  const [form, setForm] = useState<MenuFormState>(emptyForm());
   const [formError, setFormError] = useState<string | null>(null);
   const toast = useToast();
   const [confirmDelete, setConfirmDelete] = useState<PublicCatalogSummary | null>(null);
@@ -157,8 +240,8 @@ export default function MenusPage() {
   const [loadingCatalog, setLoadingCatalog] = useState(false);
 
   const { data: catalogs = { count: 0, results: [] }, isLoading, error } = useQuery({
-    queryKey: ["public-catalogs", search],
-    queryFn: () => fetchPublicCatalogs(search || undefined),
+    queryKey: ["public-catalogs", debouncedSearch],
+    queryFn: () => fetchPublicCatalogs(debouncedSearch || undefined),
   });
 
   const { data: productsPage } = useQuery({
@@ -179,9 +262,24 @@ export default function MenusPage() {
     queryFn: fetchCashRegisterStations,
   });
 
+  async function afterSaveSyncLogo(catalogId: number) {
+    try {
+      const theme = await fetchBranchTheme(String(branch?.branch_id ?? ""));
+      if (theme?.logo) {
+        const synced = await syncCatalogLogoFromUrl(catalogId, theme.logo);
+        if (synced?.logo) {
+          toast.success("Logo de sucursal aplicado al menú público");
+        }
+      }
+    } catch {
+      // Silencioso: el menú ya se guardó; el logo puede faltar en QR anónimo.
+    }
+  }
+
   const createMutation = useMutation({
     mutationFn: createPublicCatalog,
-    onSuccess: () => {
+    onSuccess: async (created) => {
+      await afterSaveSyncLogo(created.id);
       queryClient.invalidateQueries({ queryKey: ["public-catalogs"] });
       closeModal();
     },
@@ -193,7 +291,8 @@ export default function MenusPage() {
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: Partial<PublicCatalogPayload> }) =>
       updatePublicCatalog(id, payload),
-    onSuccess: () => {
+    onSuccess: async (_data, vars) => {
+      await afterSaveSyncLogo(vars.id);
       queryClient.invalidateQueries({ queryKey: ["public-catalogs"] });
       closeModal();
     },
@@ -258,15 +357,25 @@ export default function MenusPage() {
       return;
     }
 
+    if (
+      (form.mode === "ORDENAR" || form.mode === "PAGAR") &&
+      !(form.whatsapp ?? "").trim()
+    ) {
+      setFormError("Para Ordenar / Pagar indica el WhatsApp del local (con código de país).");
+      return;
+    }
+
+    const { whatsapp, ...rest } = form;
     const payload: PublicCatalogPayload = {
-      ...form,
+      ...rest,
       title: form.title.trim(),
       slug: form.slug.trim().toLowerCase(),
-      description: form.description?.trim() || null,
+      description: embedWhatsappInDescription(form.description, whatsapp),
       products: form.products ?? [],
       categories: form.categories ?? [],
       station: form.station ?? null,
       expires_at: form.expires_at || null,
+      target_audience: "PUBLIC",
     };
 
     if (editing) {
@@ -281,78 +390,223 @@ export default function MenusPage() {
   }
 
   function copyLink(slug: string) {
-    const url = `${window.location.origin}${publicMenuUrl(slug)}`;
-    navigator.clipboard.writeText(url);
+    const url = publicMenuAbsoluteUrl(slug);
+    void navigator.clipboard.writeText(url).then(
+      () => toast.success("Link copiado. Ábrelo en el navegador para ver el menú."),
+      () => toast.error("No se pudo copiar el link."),
+    );
   }
 
-  const filtered = catalogs.results;
+  function openInBrowser(slug: string) {
+    window.open(publicMenuAbsoluteUrl(slug), "_blank", "noopener,noreferrer");
+  }
+
+  function openTotemInBrowser(slug: string) {
+    window.open(publicTotemAbsoluteUrl(slug), "_blank", "noopener,noreferrer");
+  }
+
+  const filtered = useMemo(() => {
+    return catalogs.results.filter((c) => {
+      if (modeFilter && c.mode !== modeFilter) return false;
+      if (stationFilter && c.station_type !== stationFilter) return false;
+      if (statusFilter === "active" && !c.is_active) return false;
+      if (statusFilter === "inactive" && c.is_active) return false;
+      return true;
+    });
+  }, [catalogs.results, modeFilter, stationFilter, statusFilter]);
+
+  const stats = useMemo(() => {
+    const all = catalogs.results;
+    return {
+      total: catalogs.count,
+      active: all.filter((c) => c.is_active).length,
+      vitrinas: all.filter((c) => c.mode === "VITRINA").length,
+      orderables: all.filter((c) => c.mode === "ORDENAR" || c.mode === "PAGAR").length,
+    };
+  }, [catalogs]);
+
   const isSaving = createMutation.isPending || updateMutation.isPending;
+  const hasClientFilters = Boolean(modeFilter || stationFilter || statusFilter);
 
   return (
-    <div className="flex min-h-full flex-col">
-      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
-        <div>
-          <h1 className="text-lg font-semibold">Menús y vitrinas</h1>
-          <p className="text-xs text-muted-foreground">
-            Gestiona catálogos QR, pantallas y menús de sucursal
-          </p>
-        </div>
-        <Button
-          size="icon"
-          onClick={() => openModal()}
-          className="sm:hidden"
-          title="Nuevo menú"
-          aria-label="Nuevo menú"
-        >
-          <Plus className="h-4 w-4" />
-        </Button>
-        <Button
-          size="sm"
-          onClick={() => openModal()}
-          className="hidden sm:flex"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Nuevo menú
-        </Button>
-      </header>
+    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+      <PageHeader
+        title="Menús y vitrinas"
+        icon={<Store className="h-5 w-5" />}
+        subtitle="Cartas digitales, QR y pantallas. Ábrelas siempre en el navegador para gestionarlas y verlas como el cliente."
+        actions={
+          <>
+            <Button
+              size="icon"
+              onClick={() => openModal()}
+              className="sm:hidden"
+              title="Nuevo menú"
+              aria-label="Nuevo menú"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button size="sm" onClick={() => openModal()} className="hidden sm:flex">
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo menú
+            </Button>
+          </>
+        }
+      />
 
-      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
-        <div className="relative max-w-sm">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar menú…"
-            className="pl-9"
-            aria-label="Buscar menú"
+      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
+        <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatCard label="Total" value={stats.total} icon={LayoutTemplate} sub="menús / vitrinas" />
+          <StatCard label="Activos" value={stats.active} icon={Eye} sub="visibles al público" />
+          <StatCard label="Vitrinas" value={stats.vitrinas} icon={Store} sub="solo exhibición" />
+          <StatCard
+            label="Con pedido"
+            value={stats.orderables}
+            icon={ShoppingCart}
+            sub="ordenar / pagar"
           />
+        </section>
+
+        {/* Desktop filters */}
+        <div className="hidden flex-wrap items-end gap-3 md:flex">
+          <div className="relative w-full max-w-xs">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por título o slug…"
+              className="pl-9"
+              aria-label="Buscar menú"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="filter-mode" className="text-xs text-muted-foreground">
+              Modo
+            </label>
+            <Select
+              id="filter-mode"
+              value={modeFilter}
+              onChange={(e) => setModeFilter(e.target.value)}
+            >
+              <option value="">Todos</option>
+              {MENU_MODES.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="filter-station" className="text-xs text-muted-foreground">
+              Estación
+            </label>
+            <Select
+              id="filter-station"
+              value={stationFilter}
+              onChange={(e) => setStationFilter(e.target.value)}
+            >
+              <option value="">Todas</option>
+              {STATION_TYPES.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="filter-status" className="text-xs text-muted-foreground">
+              Estado
+            </label>
+            <Select
+              id="filter-status"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="">Todos</option>
+              <option value="active">Activos</option>
+              <option value="inactive">Inactivos</option>
+            </Select>
+          </div>
+        </div>
+
+        {/* Mobile filters */}
+        <div className="flex flex-col gap-3 md:hidden">
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar menú…"
+                className="pl-9"
+                aria-label="Buscar menú"
+              />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-10 px-3"
+              onClick={() => setShowMobileFilters((v) => !v)}
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              <span className="ml-2">Filtros</span>
+            </Button>
+          </div>
+          {showMobileFilters && (
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted-foreground">Modo</label>
+                <Select value={modeFilter} onChange={(e) => setModeFilter(e.target.value)}>
+                  <option value="">Todos</option>
+                  {MENU_MODES.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted-foreground">Estación</label>
+                <Select value={stationFilter} onChange={(e) => setStationFilter(e.target.value)}>
+                  <option value="">Todas</option>
+                  {STATION_TYPES.map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {s.label}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted-foreground">Estado</label>
+                <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                  <option value="">Todos</option>
+                  <option value="active">Activos</option>
+                  <option value="inactive">Inactivos</option>
+                </Select>
+              </div>
+            </div>
+          )}
         </div>
 
         {error ? (
           <div className="rounded-lg border border-danger/20 bg-danger/10 p-4 text-sm text-danger">
             <p className="font-medium">No se pudieron cargar los menús.</p>
-            {error instanceof Error && (
-              <p className="mt-1 opacity-90">{error.message}</p>
-            )}
-            {(error as { status?: number }).status !== undefined && (
-              <p className="mt-1 text-xs opacity-80">
-                Código HTTP: {(error as { status?: number }).status}
-              </p>
-            )}
+            {error instanceof Error && <p className="mt-1 opacity-90">{error.message}</p>}
           </div>
         ) : isLoading ? (
           <TableSkeleton rows={5} columns={4} />
         ) : filtered.length === 0 ? (
           <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">
             <div>
-              <LayoutTemplate className="mx-auto h-10 w-10 text-muted-foreground" />
+              <Store className="mx-auto h-10 w-10 text-muted-foreground" />
               <p className="mt-3 text-sm font-medium">
-                {search ? "No se encontraron menús" : "Aún no hay menús"}
+                {search || hasClientFilters ? "No se encontraron menús" : "Aún no hay menús"}
               </p>
               <p className="text-xs text-muted-foreground">
-                {search ? "Prueba con otro término de búsqueda." : "Crea tu primer menú QR o vitrina."}
+                {search || hasClientFilters
+                  ? "Prueba con otros filtros o busca por título."
+                  : "Crea un menú o vitrina (por ejemplo “Menú del día”) y ábrelo en el navegador."}
               </p>
-              {!search && (
+              {!search && !hasClientFilters && (
                 <Button className="mt-4" size="sm" onClick={() => openModal()}>
                   <Plus className="mr-1 h-3.5 w-3.5" />
                   Nuevo menú
@@ -362,206 +616,275 @@ export default function MenusPage() {
           </div>
         ) : (
           <>
-            {/* Desktop table */}
-            <div className="hidden overflow-x-auto rounded-xl border border-border bg-card shadow-sm md:block">
-              <table className="w-full min-w-[720px] text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                    <th className="px-4 py-3">Menú</th>
-                    <th className="px-4 py-3">Modo</th>
-                    <th className="px-4 py-3">Estación</th>
-                    <th className="px-4 py-3 text-center">Productos</th>
-                    <th className="px-4 py-3 text-center">Estado</th>
-                    <th className="px-4 py-3 text-right">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((catalog) => (
-                    <tr key={catalog.id} className="border-b border-border last:border-0">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-secondary">
-                            <LayoutTemplate className="h-3.5 w-3.5 text-muted-foreground" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="truncate font-medium">{catalog.title}</p>
-                            <p className="text-xs text-muted-foreground">/{catalog.slug}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {catalog.mode_display}
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {catalog.station_type_display}
-                      </td>
-                      <td className="px-4 py-3 text-center tabular-nums">
-                        {catalog.product_count}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <span
-                          className={cn(
-                            "inline-flex rounded px-2 py-0.5 text-xs font-medium",
-                            catalog.is_active
-                              ? "bg-emerald-500/10 text-emerald-700"
-                              : "bg-danger/10 text-danger",
+            {/* Desktop cards grid — más claro que tabla densa para modos/iconos */}
+            <div className="hidden gap-4 md:grid md:grid-cols-2 xl:grid-cols-3">
+              {filtered.map((catalog) => {
+                const ModeIcon = modeIcon(catalog.mode);
+                const StationIcon = stationIcon(catalog.station_type);
+                return (
+                  <article
+                    key={catalog.id}
+                    className="flex flex-col rounded-2xl border border-border bg-card p-4 shadow-sm"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div
+                        className={cn(
+                          "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset",
+                          modeBadgeClass(catalog.mode),
+                        )}
+                      >
+                        <ModeIcon className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <h3 className="truncate text-sm font-semibold">{catalog.title}</h3>
+                          {catalog.is_default && (
+                            <span className="inline-flex items-center gap-0.5 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                              <Star className="h-2.5 w-2.5" />
+                              Default
+                            </span>
                           )}
-                        >
-                          {catalog.is_active ? "Activo" : "Inactivo"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0"
-                            onClick={() => copyLink(catalog.slug)}
-                            title="Copiar link"
-                          >
-                            <Copy className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0"
-                            onClick={() => setQrCatalog(catalog)}
-                            title="Generar QR"
-                          >
-                            <QrCode className="h-3.5 w-3.5" />
-                          </Button>
-                          <a
-                            href={publicMenuUrl(catalog.slug)}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
-                            title="Ver público"
-                          >
-                            <ExternalLink className="h-3.5 w-3.5" />
-                          </a>
-                          <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => openModal(catalog)} title="Editar">
-                            <Pencil className="mr-1.5 h-3.5 w-3.5" />
-                            Editar
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 px-2 text-danger hover:text-danger"
-                            onClick={() => setConfirmDelete(catalog)}
-                            title="Eliminar"
-                          >
-                            <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-                            Eliminar
-                          </Button>
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        <p className="truncate text-xs text-muted-foreground">/{catalog.slug}</p>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset",
+                              modeBadgeClass(catalog.mode),
+                            )}
+                          >
+                            <ModeIcon className="h-3 w-3" />
+                            {catalog.mode_display || modeLabel(catalog.mode)}
+                          </span>
+                          <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground ring-1 ring-inset ring-border">
+                            <StationIcon className="h-3 w-3" />
+                            {catalog.station_type_display || stationTypeLabel(catalog.station_type)}
+                          </span>
+                          <span
+                            className={cn(
+                              "inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                              catalog.is_active
+                                ? "bg-success/10 text-success"
+                                : "bg-danger/10 text-danger",
+                            )}
+                          >
+                            {catalog.is_active ? "Activo" : "Inactivo"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                      <div className="rounded-lg border border-border/60 bg-background px-2.5 py-2">
+                        <span className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                          <Package className="h-3 w-3" /> Productos
+                        </span>
+                        <p className="mt-0.5 font-semibold tabular-nums">{catalog.product_count}</p>
+                      </div>
+                      <div className="rounded-lg border border-border/60 bg-background px-2.5 py-2">
+                        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                          Categorías
+                        </span>
+                        <p className="mt-0.5 font-semibold tabular-nums">
+                          {catalog.category_count ?? 0}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex flex-col gap-2">
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => openInBrowser(catalog.slug)}
+                        >
+                          <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
+                          Abrir en navegador
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="shrink-0"
+                          onClick={() => openTotemInBrowser(catalog.slug)}
+                          title="Abrir vista tótem / pantalla"
+                        >
+                          <Monitor className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2"
+                          onClick={() => copyLink(catalog.slug)}
+                        >
+                          <Copy className="mr-1 h-3.5 w-3.5" />
+                          Copiar
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2"
+                          onClick={() => setQrCatalog(catalog)}
+                        >
+                          <QrCode className="mr-1 h-3.5 w-3.5" />
+                          QR
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2"
+                          onClick={() => openModal(catalog)}
+                        >
+                          <Pencil className="mr-1 h-3.5 w-3.5" />
+                          Editar
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2 text-danger hover:text-danger"
+                          onClick={() => setConfirmDelete(catalog)}
+                        >
+                          <Trash2 className="mr-1 h-3.5 w-3.5" />
+                          Eliminar
+                        </Button>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
 
             {/* Mobile cards */}
             <div className="grid gap-3 md:hidden">
-              {filtered.map((catalog) => (
-                <div
-                  key={catalog.id}
-                  className="rounded-2xl border border-border bg-background p-4 shadow-sm"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{catalog.title}</p>
-                      <p className="text-xs text-muted-foreground">/{catalog.slug}</p>
-                      <span
+              {filtered.map((catalog) => {
+                const ModeIcon = modeIcon(catalog.mode);
+                const StationIcon = stationIcon(catalog.station_type);
+                return (
+                  <div
+                    key={catalog.id}
+                    className="rounded-2xl border border-border bg-background p-4 shadow-sm"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div
                         className={cn(
-                          "mt-1 inline-flex rounded px-2 py-0.5 text-[10px] font-medium",
-                          catalog.is_active
-                            ? "bg-emerald-500/10 text-emerald-700"
-                            : "bg-danger/10 text-danger",
+                          "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset",
+                          modeBadgeClass(catalog.mode),
                         )}
                       >
-                        {catalog.is_active ? "Activo" : "Inactivo"}
-                      </span>
+                        <ModeIcon className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <p className="truncate font-medium">{catalog.title}</p>
+                          {catalog.is_default && (
+                            <Star className="h-3 w-3 shrink-0 text-primary" />
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">/{catalog.slug}</p>
+                        <div className="mt-1.5 flex flex-wrap gap-1">
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset",
+                              modeBadgeClass(catalog.mode),
+                            )}
+                          >
+                            {catalog.mode_display || modeLabel(catalog.mode)}
+                          </span>
+                          <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
+                            <StationIcon className="h-3 w-3" />
+                            {catalog.station_type_display || stationTypeLabel(catalog.station_type)}
+                          </span>
+                          <span
+                            className={cn(
+                              "inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium",
+                              catalog.is_active
+                                ? "bg-success/10 text-success"
+                                : "bg-danger/10 text-danger",
+                            )}
+                          >
+                            {catalog.is_active ? "Activo" : "Inactivo"}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        onClick={() => copyLink(catalog.slug)}
-                        title="Copiar link"
-                        aria-label="Copiar link"
-                      >
-                        <Copy className="h-3.5 w-3.5" />
-                        <span className="sr-only">Copiar link</span>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        onClick={() => setQrCatalog(catalog)}
-                        title="Generar QR"
-                        aria-label="Generar QR"
-                      >
-                        <QrCode className="h-3.5 w-3.5" />
-                        <span className="sr-only">Generar QR</span>
-                      </Button>
-                      <a
-                        href={publicMenuUrl(catalog.slug)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
-                        title="Ver público"
-                        aria-label="Ver público"
-                      >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                        <span className="sr-only">Ver público</span>
-                      </a>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        onClick={() => openModal(catalog)}
-                        title="Editar"
-                        aria-label="Editar"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                        <span className="sr-only">Editar</span>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0 text-danger hover:text-danger"
-                        onClick={() => setConfirmDelete(catalog)}
-                        title="Eliminar"
-                        aria-label="Eliminar"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        <span className="sr-only">Eliminar</span>
-                      </Button>
-                    </div>
-                  </div>
 
-                  <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                    <div className="text-muted-foreground">
-                      <span className="block text-[10px] uppercase tracking-wide">Modo</span>
-                      <span className="font-medium text-foreground">{catalog.mode_display}</span>
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                      <div>
+                        <span className="block text-[10px] uppercase tracking-wide">Productos</span>
+                        <span className="font-medium tabular-nums text-foreground">
+                          {catalog.product_count}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] uppercase tracking-wide">Categorías</span>
+                        <span className="font-medium tabular-nums text-foreground">
+                          {catalog.category_count ?? 0}
+                        </span>
+                      </div>
                     </div>
-                    <div className="text-muted-foreground">
-                      <span className="block text-[10px] uppercase tracking-wide">Estación</span>
-                      <span className="font-medium text-foreground">{catalog.station_type_display}</span>
-                    </div>
-                    <div className="text-muted-foreground">
-                      <span className="block text-[10px] uppercase tracking-wide">Productos</span>
-                      <span className="font-medium tabular-nums text-foreground">{catalog.product_count}</span>
+
+                    <div className="mt-3 flex flex-col gap-2">
+                      <Button size="sm" className="w-full" onClick={() => openInBrowser(catalog.slug)}>
+                        <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
+                        Abrir en navegador
+                      </Button>
+                      <div className="flex items-center justify-between gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-9 flex-1"
+                          onClick={() => openTotemInBrowser(catalog.slug)}
+                        >
+                          <Monitor className="mr-1 h-3.5 w-3.5" />
+                          Tótem
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-9 w-9 p-0"
+                          onClick={() => copyLink(catalog.slug)}
+                          aria-label="Copiar link"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-9 w-9 p-0"
+                          onClick={() => setQrCatalog(catalog)}
+                          aria-label="QR"
+                        >
+                          <QrCode className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-9 w-9 p-0"
+                          onClick={() => openModal(catalog)}
+                          aria-label="Editar"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-9 w-9 p-0 text-danger hover:text-danger"
+                          onClick={() => setConfirmDelete(catalog)}
+                          aria-label="Eliminar"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <p className="text-sm text-muted-foreground">
-              {catalogs.count} menú{catalogs.count === 1 ? "" : "s"} en total
+              {filtered.length} menú{filtered.length === 1 ? "" : "s"}
+              {hasClientFilters || search ? " filtrados" : ""} · {catalogs.count} en total
             </p>
           </>
         )}
@@ -609,9 +932,12 @@ export default function MenusPage() {
                           slug: editing ? prev.slug : slugify(title),
                         }));
                       }}
-                      placeholder="Ej: Menú Principal"
+                      placeholder="Ej: Menú del día, Carta principal, Vitrina postres…"
                       required
                     />
+                    <p className="text-[11px] text-muted-foreground">
+                      El nombre es libre: puedes crear varios menús (del día, fin de semana, etc.).
+                    </p>
                   </div>
 
                   <div className="flex flex-col gap-2">
@@ -627,22 +953,54 @@ export default function MenusPage() {
                     />
                   </div>
 
-                  <div className="flex flex-col gap-2">
-                    <label htmlFor="menu-mode" className="text-sm font-medium">
-                      Modo
-                    </label>
-                    <Select
-                      id="menu-mode"
-                      value={form.mode}
-                      onChange={(e) => setForm({ ...form, mode: e.target.value as MenuMode })}
-                    >
-                      {MENU_MODES.map((m) => (
-                        <option key={m.value} value={m.value}>
-                          {m.label}
-                        </option>
-                      ))}
-                    </Select>
+                  <div className="flex flex-col gap-2 sm:col-span-2">
+                    <label className="text-sm font-medium">Modo del menú público</label>
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      {MENU_MODES.map((m) => {
+                        const selected = form.mode === m.value;
+                        const Icon = modeIcon(m.value);
+                        return (
+                          <button
+                            key={m.value}
+                            type="button"
+                            onClick={() => setForm({ ...form, mode: m.value })}
+                            className={cn(
+                              "rounded-xl border p-3 text-left transition-colors",
+                              selected
+                                ? "border-primary bg-primary/5 ring-1 ring-primary/30"
+                                : "border-border hover:bg-muted/40",
+                            )}
+                          >
+                            <span className="flex items-center gap-2 text-sm font-semibold">
+                              <Icon className="h-4 w-4" />
+                              {m.label}
+                            </span>
+                            <p className="mt-1 text-[11px] text-muted-foreground">{m.hint}</p>
+                            <p className="mt-1 text-[10px] leading-snug text-muted-foreground/90">
+                              {m.impact}
+                            </p>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
+
+                  {(form.mode === "ORDENAR" || form.mode === "PAGAR") && (
+                    <div className="flex flex-col gap-2 sm:col-span-2">
+                      <label htmlFor="menu-whatsapp" className="text-sm font-medium">
+                        WhatsApp del local (pedidos)
+                      </label>
+                      <Input
+                        id="menu-whatsapp"
+                        value={form.whatsapp ?? ""}
+                        onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
+                        placeholder="Ej: +56912345678"
+                      />
+                      <p className="text-[11px] text-muted-foreground">
+                        Se usa en el menú público para enviar el pedido. Incluye código de país.
+                      </p>
+                    </div>
+                  )}
 
                   <div className="flex flex-col gap-2">
                     <label htmlFor="menu-station-type" className="text-sm font-medium">
@@ -881,17 +1239,36 @@ export default function MenusPage() {
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Si seleccionas categorías, solo se mostrarán productos de esas categorías.
+                      Con categoría (p. ej. Bowls) el menú público incluye los productos de esa
+                      categoría. También puedes marcar productos sueltos abajo.
                     </p>
                   </div>
 
                   <div className="flex flex-col gap-2 sm:col-span-2">
-                    <label className="text-sm font-medium">Productos destacados</label>
+                    <label className="text-sm font-medium">
+                      Productos
+                      {(form.categories?.length ?? 0) > 0 && (
+                        <span className="ml-2 font-normal text-muted-foreground">
+                          (filtrados por categoría seleccionada)
+                        </span>
+                      )}
+                    </label>
                     <div className="max-h-48 overflow-y-auto rounded-lg border border-border p-2">
                       {products.length === 0 ? (
                         <p className="text-sm text-muted-foreground">No hay productos para la venta.</p>
                       ) : (
                         [...products]
+                          .filter((p) => {
+                            const cats = form.categories ?? [];
+                            if (cats.length === 0) return true;
+                            const catId =
+                              p.category && typeof p.category === "object"
+                                ? (p.category as { id?: number }).id
+                                : typeof p.category === "number"
+                                  ? p.category
+                                  : null;
+                            return catId != null && cats.includes(catId);
+                          })
                           .sort((a, b) => Number(b.is_public) - Number(a.is_public))
                           .map((p) => (
                             <label
@@ -907,7 +1284,7 @@ export default function MenusPage() {
                               <span className="text-sm">{p.name}</span>
                               <span className="ml-auto flex items-center gap-2">
                                 {!p.is_public && (
-                                  <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+                                  <span className="rounded bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium text-warning">
                                     No público
                                   </span>
                                 )}
@@ -920,7 +1297,8 @@ export default function MenusPage() {
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Si seleccionas productos, el menú se limitará a ellos. Si no seleccionas ninguno, se mostrarán solo los productos marcados como públicos.
+                      Si marcas productos aquí, el menú usa esa lista. Si dejas vacío y solo eliges
+                      categorías, salen los de esas categorías. Sin ambos, salen los marcados como públicos.
                     </p>
                   </div>
                 </div>
@@ -966,34 +1344,51 @@ export default function MenusPage() {
             <div className="flex flex-col items-center gap-3 overflow-y-auto p-4 md:p-6">
               <div className="rounded-2xl border border-border bg-background p-3">
                 <QRCodeSVG
-                  value={`${window.location.origin}${publicMenuUrl(qrCatalog.slug)}`}
+                  value={publicMenuAbsoluteUrl(qrCatalog.slug)}
                   size={256}
                   level="M"
                   includeMargin
                 />
               </div>
-              <a
-                href={publicMenuUrl(qrCatalog.slug)}
-                target="_blank"
-                rel="noreferrer"
+              <button
+                type="button"
+                onClick={() => openInBrowser(qrCatalog.slug)}
                 className="max-w-full truncate text-xs text-primary hover:underline"
               >
-                {window.location.origin}{publicMenuUrl(qrCatalog.slug)}
-              </a>
+                {publicMenuAbsoluteUrl(qrCatalog.slug)}
+              </button>
+              <p className="text-center text-[11px] text-muted-foreground">
+                Escanea el QR o ábrelo en el navegador para verlo como el cliente.
+              </p>
             </div>
 
-            <div className="flex shrink-0 justify-end gap-2 border-t border-border px-4 py-4 md:px-6">
-              <Button variant="outline" onClick={() => setQrCatalog(null)}>
+            <div className="flex shrink-0 flex-col gap-2 border-t border-border px-4 py-4 sm:flex-row sm:justify-end md:px-6">
+              <Button variant="outline" onClick={() => setQrCatalog(null)} className="w-full sm:w-auto">
                 Cerrar
               </Button>
-              <a
-                href={`/menu/${qrCatalog.slug}/totem`}
-                target="_blank"
-                rel="noreferrer"
-                className={cn(buttonVariants({ variant: "default" }))}
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={() => copyLink(qrCatalog.slug)}
               >
-                Abrir tótem / imprimir
-              </a>
+                <Copy className="mr-1.5 h-3.5 w-3.5" />
+                Copiar link
+              </Button>
+              <Button
+                className="w-full sm:w-auto"
+                onClick={() => openInBrowser(qrCatalog.slug)}
+              >
+                <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
+                Abrir en navegador
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={() => openTotemInBrowser(qrCatalog.slug)}
+              >
+                <Monitor className="mr-1.5 h-3.5 w-3.5" />
+                Vista tótem
+              </Button>
             </div>
           </div>
       </AnimatedOverlay>

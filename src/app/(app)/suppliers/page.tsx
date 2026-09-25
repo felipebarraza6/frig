@@ -22,7 +22,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton, StatCardSkeleton } from "@/components/ui/skeleton";
+import { StatCard as SharedStatCard } from "@/components/ui/stat-card";
+import { PageHeader } from "@/components/page-header";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
 import { generateExcelBlob } from "@/lib/export-excel";
@@ -412,95 +414,94 @@ export default function SuppliersPage() {
   const inactiveCount = Math.max(0, (stats?.total_suppliers ?? 0) - (stats?.active_suppliers ?? 0));
 
   return (
-    <div className="flex min-h-full flex-col overflow-x-clip">
-      <header className="flex flex-row items-center justify-between gap-3 border-b border-border px-4 py-3 md:items-start md:px-6">
-        <div>
-          <h1 className="text-lg font-semibold">Proveedores</h1>
-          <p className="text-xs text-muted-foreground">
-            Gestiona proveedores y sus datos de contacto
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            size="icon"
-            variant="outline"
-            onClick={handleExportExcel}
-            disabled={isDownloading || suppliers.length === 0}
-            className="md:hidden"
-            title="Exportar Excel"
-            aria-label="Exportar Excel"
-          >
-            <FileSpreadsheet className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleExportExcel}
-            disabled={isDownloading || suppliers.length === 0}
-            className="hidden md:flex"
-          >
-            <FileSpreadsheet className="mr-2 h-4 w-4" />
-            Exportar Excel
-          </Button>
-          <Button
-            size="icon"
-            onClick={() => openModal()}
-            className="md:hidden"
-            title="Nuevo proveedor"
-            aria-label="Nuevo proveedor"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => openModal()}
-            className="hidden md:flex"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo proveedor
-          </Button>
-        </div>
-      </header>
+    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col overflow-x-clip">
+      <PageHeader
+        title="Proveedores"
+        icon={<Truck className="h-5 w-5" />}
+        subtitle="Gestiona proveedores y sus datos de contacto"
+        actions={
+          <>
+            <Button
+              size="icon"
+              variant="outline"
+              onClick={handleExportExcel}
+              disabled={isDownloading || suppliers.length === 0}
+              className="md:hidden"
+              title="Exportar Excel"
+              aria-label="Exportar Excel"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleExportExcel}
+              disabled={isDownloading || suppliers.length === 0}
+              className="hidden md:flex"
+            >
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              Exportar Excel
+            </Button>
+            <Button
+              size="icon"
+              onClick={() => openModal()}
+              className="md:hidden"
+              title="Nuevo proveedor"
+              aria-label="Nuevo proveedor"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => openModal()}
+              className="hidden md:flex"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo proveedor
+            </Button>
+          </>
+        }
+      />
 
-      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
+      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
         {/* KPIs */}
         <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {!stats ? (
             <>
-              <StatSkeleton />
-              <StatSkeleton />
-              <StatSkeleton />
-              <StatSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
             </>
           ) : (
             <>
-              <StatCard
+              <SharedStatCard
                 label="Total"
                 value={stats.total_suppliers}
                 icon={Truck}
                 sub="proveedores registrados"
-                tone="slate"
+                tone="muted"
               />
-              <StatCard
+              <SharedStatCard
                 label="Activos"
                 value={stats.active_suppliers}
                 icon={CheckCircle2}
                 sub="disponibles para comprar"
                 tone="success"
               />
-              <StatCard
+              <SharedStatCard
                 label="Inactivos"
                 value={inactiveCount}
                 icon={PauseCircle}
                 sub="inactivos / suspendidos / lista negra"
                 tone="warning"
               />
-              <StatCard
+              <SharedStatCard
                 label="Contactos"
                 value={stats.total_contacts}
                 icon={IdCard}
                 sub="personas de contacto"
-                tone="info"
+                tone="primary"
               />
             </>
           )}
@@ -1145,17 +1146,3 @@ function StatCard({
   );
 }
 
-function StatSkeleton() {
-  return (
-    <div className="rounded-2xl border border-border/60 bg-gradient-to-br from-muted/50 via-background to-background p-4 shadow-sm">
-      <div className="mb-2 flex items-start justify-between gap-2">
-        <div className="min-w-0 space-y-2">
-          <Skeleton className="h-3 w-24" />
-          <Skeleton className="h-7 w-32" />
-        </div>
-        <Skeleton className="h-8 w-8 rounded-full" />
-      </div>
-      <Skeleton className="h-3 w-20" />
-    </div>
-  );
-}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { PageHeader } from "@/components/page-header";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Landmark,
@@ -19,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
+import { useToast } from "@/lib/store/toast";
 import {
   fetchBanks,
   createBank,
@@ -53,6 +55,7 @@ export default function BanksPage() {
   const [confirmDelete, setConfirmDelete] = useState<Bank | null>(null);
 
   const queryClient = useQueryClient();
+  const toast = useToast();
 
   const { data: banks = [], isLoading, isError, refetch } = useQuery({
     queryKey: ["banks"],
@@ -71,6 +74,7 @@ export default function BanksPage() {
       queryClient.invalidateQueries({ queryKey: ["banks"] });
       setModalOpen(false);
     },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "No se pudo guardar el banco"),
   });
 
   const updateMut = useMutation({
@@ -80,6 +84,7 @@ export default function BanksPage() {
       queryClient.invalidateQueries({ queryKey: ["banks"] });
       setEditing(null);
     },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "No se pudo guardar el banco"),
   });
 
   const deleteMut = useMutation({
@@ -88,6 +93,7 @@ export default function BanksPage() {
       queryClient.invalidateQueries({ queryKey: ["banks"] });
       setConfirmDelete(null);
     },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "No se pudo eliminar el banco"),
   });
 
   const openCreate = () => { setEditing(null); setModalOpen(true); };
@@ -98,17 +104,18 @@ export default function BanksPage() {
 
   return (
     <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
-      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <div>
-          <h1 className="text-lg font-semibold">Billeteras digitales</h1>
-          <p className="text-xs text-muted-foreground">Catálogo de bancos y billeteras del sistema</p>
-        </div>
-        <Button size="sm" onClick={openCreate}>
-          <Plus className="mr-1.5 h-4 w-4" />Nueva billetera
-        </Button>
-      </header>
+      <PageHeader
+        title="Billeteras digitales"
+        icon={<Landmark className="h-5 w-5" />}
+        subtitle="Catálogo de bancos y billeteras del sistema"
+        actions={
+          <Button size="sm" onClick={openCreate}>
+            <Plus className="mr-1.5 h-4 w-4" />Nueva billetera
+          </Button>
+        }
+      />
 
-      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
+      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
         <div className="relative max-w-xs">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por nombre o código..." className="pl-9" aria-label="Buscar" />
@@ -154,7 +161,7 @@ export default function BanksPage() {
                       <td className="px-4 py-3 text-muted-foreground">{b.country ?? "CL"}</td>
                       <td className="px-4 py-3">
                         {b.is_active !== false ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
                             <CheckCircle2 className="h-3 w-3" />Activa
                           </span>
                         ) : (
@@ -189,7 +196,7 @@ export default function BanksPage() {
                       <p className="text-xs text-muted-foreground font-mono">{b.code}</p>
                     </div>
                     {b.is_active !== false ? (
-                      <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-700">Activa</span>
+                      <span className="rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">Activa</span>
                     ) : (
                       <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">Inactiva</span>
                     )}

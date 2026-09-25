@@ -10,8 +10,11 @@ import type { FrontendConfigResponse } from "@/lib/api/types/modules";
  */
 export async function fetchFrontendConfig(branchId?: number): Promise<FrontendConfigResponse> {
   const qs = new URLSearchParams();
-  if (branchId) qs.set("branch_id", String(branchId));
+  if (branchId != null && Number.isFinite(branchId) && branchId > 0) {
+    qs.set("branch_id", String(branchId));
+  }
   const query = qs.toString();
+  // Trailing slash obligatorio (DRF APPEND_SLASH); query después del slash.
   return apiFetch<FrontendConfigResponse>(
     `/shared/frontend-config/${query ? `?${query}` : ""}`,
   );

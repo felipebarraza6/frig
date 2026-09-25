@@ -10,6 +10,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import { ProductPickerDrawer } from "@/components/sales/product-picker-drawer";
 import { formatCLP } from "@/lib/utils";
+import { isValidRUT, isPositiveAmount, isNonNegativeNumber } from "@/lib/validation";
 import { useToast } from "@/lib/store/toast";
 import { createQuotation, updateQuotation, type Quotation } from "@/lib/api/quotations";
 import { searchCustomers, createCustomer } from "@/lib/api/customers";
@@ -101,6 +102,7 @@ function QuotationForm({
   const [newClientName, setNewClientName] = useState("");
   const [newClientDni, setNewClientDni] = useState("");
   const [newClientPhone, setNewClientPhone] = useState("");
+  const [newClientError, setNewClientError] = useState<string | null>(null);
 
   const branch = useCurrentBranch();
   const branchId = branch?.branch_id !== undefined && branch?.branch_id !== null ? Number(branch.branch_id) : undefined;
@@ -247,6 +249,16 @@ function QuotationForm({
     onError: (err: Error) => toast.error(err.message || "No se pudo crear el cliente"),
   });
 
+  function handleCreateClient() {
+    setNewClientError(null);
+    const dni = newClientDni.trim();
+    if (dni && !isValidRUT(dni)) {
+      setNewClientError("El RUT ingresado no es válido.");
+      return;
+    }
+    createClientMutation.mutate();
+  }
+
   const save = useMutation({
     mutationFn: () => {
       const payload = {
@@ -328,7 +340,7 @@ function QuotationForm({
     items.every((i) => {
       const qty = Number.parseInt(i.quantity, 10);
       const price = Number.parseFloat(i.unitPrice);
-      return Number.isFinite(qty) && qty >= 1 && Number.isFinite(price) && price >= 0;
+      return isPositiveAmount(qty) && isNonNegativeNumber(price);
     });
 
   function handleSubmit() {
@@ -343,12 +355,12 @@ function QuotationForm({
     }
     for (const item of items) {
       const qty = Number.parseInt(item.quantity, 10);
-      if (!Number.isFinite(qty) || qty < 1) {
-        setFormError(`La cantidad de "${item.name}" debe ser mayor o igual a 1.`);
+      if (!isPositiveAmount(qty)) {
+        setFormError(`La cantidad de "${item.name}" debe ser mayor a 0.`);
         return;
       }
       const price = Number.parseFloat(item.unitPrice);
-      if (!Number.isFinite(price) || price < 0) {
+      if (!isNonNegativeNumber(price)) {
         setFormError(`El precio unitario de "${item.name}" debe ser mayor o igual a 0.`);
         return;
       }
@@ -448,10 +460,11 @@ function QuotationForm({
                   className="self-end"
                   disabled={!newClientName.trim()}
                   isLoading={createClientMutation.isPending}
-                  onClick={() => createClientMutation.mutate()}
+                  onClick={handleCreateClient}
                 >
                   Guardar cliente
                 </Button>
+                {newClientError && <p className="text-xs text-danger">{newClientError}</p>}
               </div>
             )}
           </div>

@@ -12,14 +12,18 @@ export const ROUTE_MODULE_MAP: Record<string, ModuleName | null> = {
   "/pos/terminal": "pos",
   "/sales": "sales",
     "/reports": null,
+    "/reports/nutrition": "nutrition",
     "/reports/sales": null,
+    "/reports/money": null,
+    "/reports/revenues": null,
+    "/reports/expenses": null,
     "/reports/dinero": null,
     "/reports/ingresos": null,
     "/reports/gastos": null,
-    "/reports/finanzas": null,
   "/cash-register": "cash_register",
   "/cash-register/stations": "cash_register",
   "/kds": "production",
+  "/kds/station": "production",
   "/kds/monitor": "production",
   "/kds/terminal": "production",
   "/products": "product_catalog",
@@ -32,6 +36,7 @@ export const ROUTE_MODULE_MAP: Record<string, ModuleName | null> = {
   "/inventory": "inventory",
   "/tables": "tables",
   "/tables/map": "tables",
+  "/tables/map/full": "tables",
   "/customers": "customers",
   "/promotions/discounts": "promotions",
   "/payments": "payment_methods",
@@ -113,7 +118,7 @@ const ROUTE_KEYS = Object.keys(ROUTE_MODULE_MAP);
  * Resuelve el módulo asociado a una ruta.
  *
  * - Match exacto primero.
- * - Luego prefix de mayor longitud (ej. /kds/station/123 → /kds/station no existe → /kds).
+ * - Luego prefix de mayor longitud (ej. /kds/station → /kds).
  * - Si no hay mapeo, devuelve `undefined` (se permite por defecto).
  */
 export function getModuleForPath(pathname: string): ModuleName | null | undefined {
@@ -224,17 +229,17 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
     icon: "LayoutDashboard",
     items: [
       { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard", module: "dashboard", description: "Resumen general del negocio en tiempo real" },
-      { href: "/reports", label: "Informe nutricional", icon: "FileText", module: "nutrition", description: "Productos más vendidos e insumos consumidos" },
     ],
   },
   {
     title: "Informes",
     icon: "BarChart3",
     items: [
+      { href: "/reports/nutrition", label: "Nutricional", icon: "Apple", module: "nutrition", description: "Productos compuestos, insumos y cálculo nutricional" },
       { href: "/reports/sales", label: "Ventas", icon: "TrendingUp", module: null, description: "Informe de ventas por cliente, tipo y día" },
-      { href: "/reports/dinero", label: "Dinero", icon: "Wallet", module: null, description: "Ingresos, egresos y neto del período" },
-      { href: "/reports/ingresos", label: "Ingresos", icon: "ArrowDownLeft", module: null, description: "Detalle de ingresos por categoría" },
-      { href: "/reports/gastos", label: "Gastos", icon: "ArrowUpRight", module: null, description: "Detalle de gastos por categoría" },
+      { href: "/reports/revenues", label: "Ingresos", icon: "ArrowDownLeft", module: null, description: "Detalle de ingresos por categoría" },
+      { href: "/reports/expenses", label: "Gastos", icon: "ArrowUpRight", module: null, description: "Detalle de gastos por categoría" },
+      { href: "/reports/money", label: "Dinero", icon: "Wallet", module: null, description: "Flujo de caja completo: pagos, orígenes, ingresos y egresos" },
     ],
   },
   {
@@ -245,7 +250,6 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
       { href: "/cash-register", label: "Caja", icon: "Banknote", module: "cash_register", description: "Apertura, cierre y movimientos de caja" },
       { href: "/sales", label: "Ventas", icon: "ShoppingBag", module: "sales", description: "Historial de ventas y cuentas abiertas" },
       { href: "/quotations", label: "Cotizaciones", icon: "FileText", module: "sales", description: "Presupuestos y cotizaciones convertibles a orden" },
-      { href: "/kds", label: "Cocina", icon: "ChefHat", module: "production", badge: "kitchenReady", description: "Pantalla de cocina (KDS) y estaciones" },
     ],
   },
   {
@@ -253,7 +257,14 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
     icon: "Table",
     items: [
       { href: "/tables", label: "Mesas", icon: "Table", module: "tables", description: "Estado y cuentas de las mesas" },
-      { href: "/tables/map", label: "Mapa de mesas", icon: "Table", module: "tables", description: "Vista en plano para asignar mesas" },
+      { href: "/tables/map", label: "Virtual", icon: "Cuboid", module: "tables", description: "Vista virtual del salón para asignar mesas" },
+      { href: "/kds", label: "KDS", icon: "Monitor", module: "production", badge: "kitchenReady", description: "Navegación de pantallas KDS y estaciones de cocina" },
+    ],
+  },
+  {
+    title: "CRM",
+    icon: "Users",
+    items: [
       { href: "/customers", label: "Clientes", icon: "UserCircle", module: "customers", description: "Base de clientes y su historial" },
       { href: "/promotions/discounts", label: "Promociones", icon: "Percent", module: "promotions", description: "Descuentos y códigos promocionales" },
     ],
@@ -267,7 +278,7 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
       { href: "/products/modifiers", label: "Modificadores", icon: "ListChecks", module: "product_catalog", description: "Opciones y agregados por producto" },
       { href: "/categories", label: "Categorías", icon: "Tags", module: "product_catalog", description: "Organiza el catálogo por categorías" },
       { href: "/products/nutrition", label: "Etiquetado nutricional", icon: "Apple", module: "nutrition", description: "Tablas nutricionales por producto" },
-      { href: "/products/menus", label: "Menús digitales", icon: "QrCode", module: "public_catalog", description: "Cartas QR públicas por estación" },
+      { href: "/products/menus", label: "Menús y vitrinas", icon: "Store", module: "public_catalog", description: "Cartas digitales, QR y pantallas públicas" },
       { href: "/warehouses", label: "Bodegas", icon: "Warehouse", module: "inventory", description: "Bodegas y sus responsables" },
       { href: "/inventory", label: "Inventario", icon: "ClipboardList", module: "inventory", description: "Stock por bodega y movimientos" },
     ],

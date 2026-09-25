@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { PageHeader } from "@/components/page-header";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -14,6 +15,7 @@ import {
   Wallet,
   Store,
   type LucideIcon,
+  LayoutDashboard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fetchModuleCounts, fetchDashboardSummary, type DateRange } from "@/lib/api/analytics";
@@ -241,21 +243,22 @@ export default function DashFastPage() {
   const offline = countsQuery.isError && kitchenQuery.isError;
 
   return (
-    <div className="flex min-h-full flex-col">
-      <header className="flex flex-col gap-2 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <div>
-          <h1 className="text-lg font-semibold">Dash rápido</h1>
-          <p className="text-xs text-muted-foreground">El negocio en un cubo, arrastra o usa las flechas</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link
-            href="/dashboard"
-            className="inline-flex h-9 items-center rounded-lg border border-border px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            Ver dashboard clásico
-          </Link>
-        </div>
-      </header>
+    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+      <PageHeader
+        title="Dash Fast"
+        subtitle="Tablero rápido del negocio"
+        icon={<LayoutDashboard className="h-5 w-5" />}
+        actions={
+          <div className="flex items-center gap-2">
+            <Link
+              href="/dashboard"
+              className="inline-flex h-9 items-center rounded-lg border border-border px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              Ver dashboard clásico
+            </Link>
+          </div>
+        }
+      />
 
       <div className="flex items-center gap-2 overflow-x-auto border-b border-border bg-background px-4 py-2.5 sm:px-6" role="group" aria-label="Filtros del tablero">
         {([

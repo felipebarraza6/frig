@@ -170,7 +170,7 @@ export function Modal({
   const ctxValue: ModalContextValue = { titleId, descriptionId, onClose };
 
   return createPortal(
-    <LazyMotion features={domAnimation} strict>
+    <LazyMotion features={domAnimation}>
       <AnimatePresence>
         {open && (
           <div

@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/page-header";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import {
   fetchPaymentMethods,
@@ -33,6 +34,7 @@ import {
   type YggdraPaymentMethod,
 } from "@/lib/api/payments";
 import { paymentTypeLabel } from "@/lib/utils";
+import { useToast } from "@/lib/store/toast";
 
 const PAYMENT_TYPES = [
   { value: "CASH", label: paymentTypeLabel("CASH") },
@@ -65,6 +67,7 @@ const TYPE_META: Record<YggdraPaymentMethod["payment_type"], PaymentTypeMeta> = 
 
 export default function PaymentMethodsPage() {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<YggdraPaymentMethod | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<YggdraPaymentMethod | null>(null);
@@ -116,6 +119,9 @@ export default function PaymentMethodsPage() {
       queryClient.invalidateQueries({ queryKey: ["payment-methods"] });
       closeModal();
     },
+    onError: (err: Error) => {
+      toast.error(err.message || "No se pudo guardar el método de pago");
+    },
   });
 
   const remove = useMutation({
@@ -123,6 +129,9 @@ export default function PaymentMethodsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["payment-methods"] });
       setConfirmDelete(null);
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "No se pudo eliminar el método de pago");
     },
   });
 
@@ -140,6 +149,9 @@ export default function PaymentMethodsPage() {
       queryClient.invalidateQueries({ queryKey: ["payment-methods"] });
       setCreating(false);
       setCreateName("");
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "No se pudo crear el método de pago");
     },
   });
 
@@ -179,34 +191,33 @@ export default function PaymentMethodsPage() {
   }
 
   return (
-    <div className="flex min-h-full flex-col">
-      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
-        <div>
-          <h1 className="text-lg font-semibold">Métodos de pago</h1>
-          <p className="text-xs text-muted-foreground">
-            Configura los métodos de pago aceptados
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            size="icon"
-            onClick={() => openModal()}
-            className="sm:hidden"
-            title="Nuevo método"
-            aria-label="Nuevo método"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => openModal()}
-            className="hidden sm:flex"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo método
-          </Button>
-        </div>
-      </header>
+    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+      <PageHeader
+        title="Métodos de pago"
+        icon={<CreditCard className="h-5 w-5" />}
+        subtitle="Configura los métodos de pago aceptados"
+        actions={
+          <>
+            <Button
+              size="icon"
+              onClick={() => openModal()}
+              className="sm:hidden"
+              title="Nuevo método"
+              aria-label="Nuevo método"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => openModal()}
+              className="hidden sm:flex"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo método
+            </Button>
+          </>
+        }
+      />
 
       <nav aria-label="Secciones de pagos" className="flex gap-1 border-b border-border bg-background px-4 sm:px-6">
         <Link href="/payments" className="px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
@@ -217,7 +228,7 @@ export default function PaymentMethodsPage() {
         </span>
       </nav>
 
-      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
+      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
         <div className="relative max-w-xs">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input

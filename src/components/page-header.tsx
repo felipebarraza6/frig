@@ -11,10 +11,11 @@ interface PageHeaderProps {
 }
 
 /**
- * Encabezado estándar de página. Reemplaza los h1 ad-hoc que tenían cada
- * pantalla (text-2xl/text-xl/text-4xl/font-bold/font-semibold…) y unifica
- * la jerarquía visual: título + subtítulo opcional a la izquierda, acciones
- * a la derecha. El icono se renderiza dentro de un cuadrado primary/10.
+ * Encabezado estándar (referencia: Dashboard).
+ * - Borde inferior + padding `px-4 py-3 sm:px-6`
+ * - Título display + subtítulo muted
+ * - Icono con tokens de marca (`bg-primary/10 text-primary`)
+ * Sin margen inferior: el cuerpo (`PageBody`) aporta el gap.
  */
 export function PageHeader({
   title,
@@ -25,20 +26,27 @@ export function PageHeader({
   className,
 }: PageHeaderProps) {
   return (
-    <header className={cn("mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between", className)}>
-      <div className="flex items-start gap-3">
+    <header
+      className={cn(
+        "mb-0 flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6",
+        className,
+      )}
+    >
+      <div className="flex min-w-0 items-start gap-3">
         {icon ? (
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
             {icon}
           </div>
         ) : null}
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <h1 className="font-display text-lg font-semibold tracking-tight">{title}</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="font-display text-lg font-semibold tracking-tight text-foreground">
+              {title}
+            </h1>
             {badge}
           </div>
           {subtitle ? (
-            <p className="text-sm text-muted-foreground">{subtitle}</p>
+            <p className="mt-0.5 text-sm text-muted-foreground">{subtitle}</p>
           ) : null}
         </div>
       </div>

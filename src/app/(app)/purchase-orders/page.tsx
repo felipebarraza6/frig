@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { StatCard as SharedStatCard } from "@/components/ui/stat-card";
+import { PageHeader } from "@/components/page-header";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
@@ -22,10 +24,11 @@ import {
   Clock,
   RotateCcw,
   Pencil,
+  ShoppingCart,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { TableSkeleton, Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton, StatCardSkeleton } from "@/components/ui/skeleton";
 import { Select } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { MultiSelect } from "@/components/ui/multi-select";
@@ -38,6 +41,7 @@ import {
   cancelPurchaseOrder,
   markPurchaseOrderCompleted,
   updatePurchaseOrderReceivedQuantities,
+  receivePurchaseOrderItem,
   fetchPurchaseOrderPaymentSummary,
   downloadPurchaseOrderVoucher,
   updatePurchaseOrder,
@@ -50,6 +54,8 @@ import {
 } from "@/lib/api/suppliers";
 import { useCurrentBranch } from "@/lib/store/session";
 import { useToast } from "@/lib/store/toast";
+import { createInventoryMovement } from "@/lib/api/inventory";
+import { isPositiveAmount, isDateRangeValid } from "@/lib/validation";
 import { formatCLP } from "@/lib/utils";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
 import { generateExcelBlob } from "@/lib/export-excel";
@@ -185,6 +191,16 @@ interface EditFormState {
   items: EditFormItem[];
 }
 
+/** Fila del formulario de recepción: `delta` es lo que llega en esta recepción. */
+interface ReceiveRow {
+  id: number;
+  supplier_product: number | null;
+  name: string;
+  ordered: number;
+  received: number;
+  delta: string;
+}
+
 function emptyEditForm(): EditFormState {
   return {
     supplier: "",
@@ -214,13 +230,19 @@ function initialFormState() {
   };
 }
 
-// mark_completed es una acción manual ("marcar como completada sin registrar
-// pago"): se muestra solo mientras la orden no está recepcionada por completo
-// ni en un estado terminal; el backend tiene la última palabra — si un estado
-// no aplica, responde 400 con su motivo. Las ya recibidas (entregadas) no la
-// muestran: su inventario ya ingresó a bodega y no queda nada que cerrar.
-function canComplete(order: PurchaseOrderList): boolean {
-  return order.status !== "COMPLETED" && order.status !== "CANCELLED" && order.status !== "RECEIVED";
+// Recibir = recepción de ítems (inventario). Se ofrece solo si la OC no está
+// en un estado terminal de recepción. Con el detalle cargado se exige además
+// que quede algo por recibir: una orden ya recibida completa no vuelve a
+// ofrecer la acción aunque su estado no haya cambiado en el backend.
+function canReceive(order: PurchaseOrderList, items?: readonly PurchaseOrderItem[]): boolean {
+  const s = order.status;
+  if (s !== "DRAFT" && s !== "SENT" && s !== "CONFIRMED" && s !== "PARTIAL_RECEIVED") {
+    return false;
+  }
+  if (!items) return true;
+  return items.some(
+    (it) => Number(it.remaining_quantity) > 0,
+  );
 }
 
 function canCancel(order: PurchaseOrderList): boolean {
@@ -251,7 +273,7 @@ export default function PurchaseOrdersPage() {
   const [pageUrl, setPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
   const [modalOpen, setModalOpen] = useState(false);
   const [detail, setDetail] = useState<PurchaseOrderList | null>(null);
-  const [confirmAction, setConfirmAction] = useState<{ type: "cancel" | "complete"; order: PurchaseOrderList } | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<PurchaseOrderList | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [form, setForm] = useState(initialFormState);
   const [formSupplierLabel, setFormSupplierLabel] = useState("");
@@ -270,6 +292,12 @@ export default function PurchaseOrdersPage() {
   const [originalItems, setOriginalItems] = useState<PurchaseOrderItem[]>([]);
   const [editFormError, setEditFormError] = useState<string | null>(null);
   const [editLoading, setEditLoading] = useState(false);
+
+  // Recepción con cantidades editables (discrepancias con el proveedor).
+  const [receiveTarget, setReceiveTarget] = useState<PurchaseOrderList | null>(null);
+  const [receiveRows, setReceiveRows] = useState<ReceiveRow[]>([]);
+  const [receiveLoading, setReceiveLoading] = useState(false);
+  const [receiveError, setReceiveError] = useState<string | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300);
@@ -408,6 +436,18 @@ export default function PurchaseOrdersPage() {
     enabled: !!editing && !!editForm.supplier,
   });
 
+  // Productos del proveedor de la orden en recepción: relacionan cada ítem de
+  // la OC (supplier_product) con su Producto de inventario para cargar stock.
+  const { data: receiveSupplierProducts = [] } = useQuery({
+    queryKey: ["supplier-products", receiveTarget?.supplier ?? ""],
+    queryFn: () => fetchSupplierProducts(receiveTarget!.supplier!),
+    enabled: !!receiveTarget?.supplier,
+  });
+  const receiveProductBySupplierProduct = useMemo(
+    () => new Map(receiveSupplierProducts.map((sp) => [sp.id, sp.product ?? null])),
+    [receiveSupplierProducts],
+  );
+
   const { data: paymentSummary } = useQuery({
     queryKey: ["purchase-order-payment-summary", detail?.id],
     queryFn: () => fetchPurchaseOrderPaymentSummary(detail!.id),
@@ -421,6 +461,16 @@ export default function PurchaseOrdersPage() {
     enabled: !!detail,
     staleTime: 30_000,
   });
+
+  // Resumen de recepción del detalle: auditoría de lo comprado vs recibido.
+  const receptionSummary = useMemo(() => {
+    const items = orderDetail?.items ?? [];
+    return {
+      ordered: items.reduce((s, it) => s + Number(it.quantity_ordered ?? 0), 0),
+      received: items.reduce((s, it) => s + Number(it.quantity_received ?? 0), 0),
+      pendingItems: items.filter((it) => Number(it.remaining_quantity) > 0).length,
+    };
+  }, [orderDetail]);
 
   const supplierProductOptions = useMemo(
     () =>
@@ -527,34 +577,108 @@ export default function PurchaseOrdersPage() {
     mutationFn: (id: string) => cancelPurchaseOrder(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
-      setConfirmAction(null);
+      setCancelTarget(null);
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Error al anular la orden");
     },
   });
 
-  const complete = useMutation({
-    // Recibir = fin de la orden: primero se marca la recepción total de los
-    // ítems (lo que mueve inventario a bodega) y luego se cierra la orden.
-    // El pago no ocurre aquí: se hace aparte, desde el módulo Pagos.
-    mutationFn: async (order: PurchaseOrderList) => {
-      const full = await fetchPurchaseOrder(order.id);
+  const receive = useMutation({
+    // Recibir = registrar cantidades (totales por ítem) → cargar inventario por
+    // la diferencia recibida ahora → cerrar la orden si quedó todo recibido.
+    //
+    // Sin transiciones de estado por PATCH: el backend solo permite editar
+    // órdenes en DRAFT (incluso solo el status), así que encadenar
+    // DRAFT→SENT→CONFIRMED fallaba con "Solo se pueden editar órdenes en
+    // estado Borrador" para usuarios no administradores. update_received_quantities
+    // no valida estado y sirve desde DRAFT/SENT/CONFIRMED/PARTIAL_RECEIVED.
+    //
+    // El backend NO carga stock al recibir (verificado en código): la entrada
+    // a bodega se registra acá como movimiento IN/PURCHASE por cada ítem, con
+    // referencia a la OC — eso habilita auditar lo comprado vs recibido vs
+    // cargado a inventario. El cierre a RECEIVED usa mark_completed
+    // (CONFIRMED/PARTIAL_RECEIVED) o receive del ítem (DRAFT/SENT).
+    // El pago se hace aparte, desde el módulo Pagos.
+    mutationFn: async ({ order, rows }: { order: PurchaseOrderList; rows: ReceiveRow[] }) => {
+      const warnings: string[] = [];
       const updates: Record<string, number> = {};
-      for (const it of full.items) {
-        if (Number(it.remaining_quantity) > 0) {
-          updates[it.id] = Number(it.quantity_ordered);
+      const deltas: { row: ReceiveRow; delta: number }[] = [];
+
+      for (const row of rows) {
+        const maxDelta = Math.max(0, row.ordered - row.received);
+        const delta = Math.min(Math.max(0, Math.floor(Number(row.delta) || 0)), maxDelta);
+        if (delta <= 0) continue;
+        updates[String(row.id)] = row.received + delta;
+        deltas.push({ row, delta });
+      }
+      if (Object.keys(updates).length === 0) {
+        throw new Error("Ingresa al menos una cantidad mayor que 0.");
+      }
+
+      // 1) Cantidades recibidas en la OC (totales por ítem).
+      let result = await updatePurchaseOrderReceivedQuantities(order.id, updates);
+
+      // 2) Entrada a bodega por la diferencia recibida ahora (best-effort:
+      //    un ítem sin producto de inventario asociado no bloquea la recepción).
+      for (const { row, delta } of deltas) {
+        const productId = row.supplier_product !== null
+          ? receiveProductBySupplierProduct.get(row.supplier_product)
+          : null;
+        if (!productId) {
+          warnings.push(row.name);
+          continue;
+        }
+        try {
+          await createInventoryMovement({
+            product: productId,
+            movement_type: "IN",
+            source_type: "PURCHASE",
+            quantity: delta,
+            reference_id: order.id,
+            reference_type: "PurchaseOrder",
+            notes: `Recepción OC ${order.order_number}`,
+          });
+        } catch {
+          warnings.push(row.name);
         }
       }
-      if (Object.keys(updates).length > 0) {
-        await updatePurchaseOrderReceivedQuantities(order.id, updates);
+
+      // 3) Cierre a RECEIVED si ya no queda nada pendiente.
+      const allReceived = result.items.every(
+        (it) => Number(it.quantity_received ?? 0) >= Number(it.quantity_ordered),
+      );
+      if (allReceived && result.status !== "RECEIVED" && result.status !== "COMPLETED") {
+        if (result.status === "CONFIRMED" || result.status === "PARTIAL_RECEIVED") {
+          result = await markPurchaseOrderCompleted(order.id);
+        } else {
+          const first = result.items.find((it) => Number(it.quantity_ordered) > 0);
+          if (first) {
+            await receivePurchaseOrderItem(first.id, Number(first.quantity_ordered));
+            result = await fetchPurchaseOrder(order.id);
+          }
+        }
       }
-      return markPurchaseOrderCompleted(order.id);
+
+      return { order: result, warnings };
     },
-    onSuccess: () => {
+    onSuccess: ({ order: result, warnings }) => {
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
       queryClient.invalidateQueries({ queryKey: ["purchase-order"] });
-      setConfirmAction(null);
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      if (warnings.length > 0) {
+        toast.warning(
+          `Recepción registrada, pero no se cargó a inventario: ${warnings.join(", ")}. Registra esas entradas manualmente en Inventario.`,
+          8000,
+        );
+      } else {
+        toast.success(
+          result.status === "RECEIVED" || result.status === "COMPLETED"
+            ? "Orden recibida"
+            : "Recepción parcial registrada — podrás recibir el resto más adelante",
+        );
+      }
+      closeReceive();
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Error al recibir la orden");
@@ -663,12 +787,81 @@ export default function PurchaseOrdersPage() {
 
   function openConfirmCancel(order: PurchaseOrderList) {
     cancel.reset();
-    setConfirmAction({ type: "cancel", order });
+    setCancelTarget(order);
   }
 
-  function openConfirmComplete(order: PurchaseOrderList) {
-    complete.reset();
-    setConfirmAction({ type: "complete", order });
+  // Abre la recepción con el detalle fresco de la orden: las cantidades por
+  // ítem (pedidos y ya recibidos) alimentan el formulario de discrepancias.
+  async function openReceive(order: PurchaseOrderList) {
+    receive.reset();
+    setReceiveError(null);
+    setReceiveTarget(order);
+    setReceiveRows([]);
+    setReceiveLoading(true);
+    try {
+      const full = await fetchPurchaseOrder(order.id);
+      setReceiveRows(
+        (full.items ?? []).map((it) => ({
+          id: it.id,
+          supplier_product: it.supplier_product ?? null,
+          name: (it.product_name ?? it.supplier_product_name) || it.description || "Ítem",
+          ordered: Number(it.quantity_ordered),
+          received: Number(it.quantity_received ?? 0),
+          delta: String(
+            Math.max(0, Number(it.quantity_ordered) - Number(it.quantity_received ?? 0)),
+          ),
+        })),
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Error al cargar la orden");
+      setReceiveTarget(null);
+    } finally {
+      setReceiveLoading(false);
+    }
+  }
+
+  function closeReceive() {
+    setReceiveTarget(null);
+    setReceiveRows([]);
+    setReceiveLoading(false);
+    setReceiveError(null);
+    receive.reset();
+  }
+
+  function updateReceiveRow(index: number, delta: string) {
+    setReceiveRows((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], delta };
+      return next;
+    });
+  }
+
+  function handleReceiveSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!receiveTarget || receive.isPending) return;
+    setReceiveError(null);
+    for (const row of receiveRows) {
+      const n = Number(row.delta);
+      if (!Number.isFinite(n) || n < 0) {
+        setReceiveError("Las cantidades a recibir no pueden ser negativas.");
+        return;
+      }
+      if (Math.floor(n) !== n) {
+        setReceiveError("Las cantidades a recibir deben ser números enteros.");
+        return;
+      }
+      if (row.received + n > row.ordered) {
+        setReceiveError(
+          `«${row.name}»: no puedes recibir más de lo pedido (${row.ordered}).`,
+        );
+        return;
+      }
+    }
+    if (!receiveRows.some((row) => Number(row.delta) > 0)) {
+      setReceiveError("Ingresa al menos una cantidad mayor que 0.");
+      return;
+    }
+    receive.mutate({ order: receiveTarget, rows: receiveRows });
   }
 
   function handleCreateSubmit(e: FormEvent) {
@@ -680,6 +873,10 @@ export default function PurchaseOrdersPage() {
     }
     if (!form.supplier) {
       setFormError("Selecciona un proveedor — los gastos comunes van en el módulo Gastos.");
+      return;
+    }
+    if (!isDateRangeValid(form.order_date, form.expected_delivery_date)) {
+      setFormError("La fecha de orden debe ser anterior a la fecha de entrega esperada.");
       return;
     }
     // Las filas totalmente vacías se descartan: una OC puede no tener ítems
@@ -697,13 +894,13 @@ export default function PurchaseOrdersPage() {
         return;
       }
       const qty = Number(item.quantity);
-      if (!Number.isFinite(qty) || qty <= 0) {
+      if (!isPositiveAmount(qty)) {
         setFormError("La cantidad de cada ítem debe ser mayor que 0.");
         return;
       }
       const price = Number(item.unit_price);
       // El servicio rechaza precios en 0 ("El precio unitario debe ser mayor a 0").
-      if (!Number.isFinite(price) || price <= 0) {
+      if (!isPositiveAmount(price)) {
         setFormError("El precio unitario de cada ítem debe ser mayor que 0.");
         return;
       }
@@ -854,6 +1051,10 @@ export default function PurchaseOrdersPage() {
       setEditFormError("Selecciona un proveedor — los gastos comunes van en el módulo Gastos.");
       return;
     }
+    if (!isDateRangeValid(editForm.order_date, editForm.expected_delivery_date)) {
+      setEditFormError("La fecha de orden debe ser anterior a la fecha de entrega esperada.");
+      return;
+    }
     const filledItems = editForm.items.filter(
       (item) =>
         item.supplier_product !== null ||
@@ -866,12 +1067,12 @@ export default function PurchaseOrdersPage() {
         return;
       }
       const qty = Number(item.quantity);
-      if (!Number.isFinite(qty) || qty <= 0) {
+      if (!isPositiveAmount(qty)) {
         setEditFormError("La cantidad de cada ítem debe ser mayor que 0.");
         return;
       }
       const price = Number(item.unit_price);
-      if (!Number.isFinite(price) || price <= 0) {
+      if (!isPositiveAmount(price)) {
         setEditFormError("El precio unitario de cada ítem debe ser mayor que 0.");
         return;
       }
@@ -881,102 +1082,102 @@ export default function PurchaseOrdersPage() {
 
   // Cierra los modales abiertos con la tecla Escape.
   useEffect(() => {
-    if (!modalOpen && !detail && !editing) return;
+    if (!modalOpen && !detail && !editing && !receiveTarget) return;
     function onKeyDown(e: KeyboardEvent) {
       if (e.key !== "Escape") return;
       closeModal();
       closeDetail();
       closeEdit();
+      closeReceive();
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   });
 
   return (
-    <div className="flex min-h-full flex-col">
-      <header className="flex items-start justify-between gap-3 border-b border-border px-4 py-3 sm:px-6">
-        <div className="min-w-0">
-          <h1 className="text-lg font-semibold">Órdenes de compra</h1>
-          <p className="text-xs text-muted-foreground">
-            Compras a proveedores
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Button
-            size="icon"
-            variant="outline"
-            onClick={handleExportExcel}
-            disabled={isDownloading || orders.length === 0}
-            className="h-9 w-9 sm:hidden"
-            title="Exportar Excel"
-            aria-label="Exportar Excel"
-          >
-            <FileSpreadsheet className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleExportExcel}
-            disabled={isDownloading || orders.length === 0}
-            className="hidden sm:flex"
-          >
-            <FileSpreadsheet className="mr-2 h-4 w-4" />
-            Exportar Excel
-          </Button>
-          <Button
-            size="icon"
-            onClick={openModal}
-            className="h-9 w-9 sm:hidden"
-            title="Nueva orden"
-            aria-label="Nueva orden"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            onClick={openModal}
-            className="hidden sm:flex"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Nueva orden
-          </Button>
-        </div>
-      </header>
+    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col overflow-x-clip">
+      <PageHeader
+        title="Órdenes de compra"
+        icon={<ShoppingCart className="h-5 w-5" />}
+        subtitle="Compras a proveedores"
+        actions={
+          <>
+            <Button
+              size="icon"
+              variant="outline"
+              onClick={handleExportExcel}
+              disabled={isDownloading || orders.length === 0}
+              className="h-9 w-9 sm:hidden"
+              title="Exportar Excel"
+              aria-label="Exportar Excel"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleExportExcel}
+              disabled={isDownloading || orders.length === 0}
+              className="hidden sm:flex"
+            >
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              Exportar Excel
+            </Button>
+            <Button
+              size="icon"
+              onClick={openModal}
+              className="h-9 w-9 sm:hidden"
+              title="Nueva orden"
+              aria-label="Nueva orden"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              onClick={openModal}
+              className="hidden sm:flex"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Nueva orden
+            </Button>
+          </>
+        }
+      />
 
-      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
+      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
         {/* Estadísticas de la página cargada */}
         <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {isLoading ? (
             <>
-              <StatSkeleton />
-              <StatSkeleton />
-              <StatSkeleton />
-              <StatSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
             </>
           ) : (
             <>
-              <StatCard
+              <SharedStatCard
                 label="Órdenes"
                 value={String(stats.count)}
                 icon={Package}
                 sub="registros de la página"
-                tone="slate"
+                tone="muted"
               />
-              <StatCard
+              <SharedStatCard
                 label="Total comprado"
                 value={formatCLP(String(stats.total))}
                 icon={DollarSign}
                 sub="suma de la página actual"
-                tone="info"
+                tone="primary"
               />
-              <StatCard
+              <SharedStatCard
                 label="Pagado"
                 value={formatCLP(String(stats.paid))}
                 icon={CheckCircle2}
                 sub="montos ya cancelados"
                 tone="success"
               />
-              <StatCard
+              <SharedStatCard
                 label="Por pagar"
                 value={formatCLP(String(stats.remaining))}
                 icon={Clock}
@@ -1433,6 +1634,15 @@ export default function PurchaseOrdersPage() {
                     {formatDateCL(detail.expected_delivery_date)}
                   </p>
                 </div>
+                {orderDetail?.actual_delivery_date && (
+                  <div>
+                    <span className="block text-[10px] uppercase tracking-wide text-muted-foreground">Entrega real</span>
+                    <p className="mt-0.5 flex items-center gap-1.5 tabular-nums">
+                      <PackageCheck className="h-3.5 w-3.5 shrink-0 text-success" />
+                      {formatDateCL(orderDetail.actual_delivery_date)}
+                    </p>
+                  </div>
+                )}
                 <div>
                   <span className="block text-[10px] uppercase tracking-wide text-muted-foreground">Ítems</span>
                   <p className="mt-0.5 flex items-center gap-1.5">
@@ -1471,33 +1681,56 @@ export default function PurchaseOrdersPage() {
               </div>
 
               <div className="mt-4">
-                <h3 className="text-sm font-medium">Ítems</h3>
+                <div className="flex items-baseline justify-between gap-2">
+                  <h3 className="text-sm font-medium">Ítems</h3>
+                  {(orderDetail?.items?.length ?? 0) > 0 && (
+                    <span className="text-[11px] tabular-nums text-muted-foreground">
+                      {receptionSummary.received}/{receptionSummary.ordered} recibidos
+                      {receptionSummary.pendingItems > 0 && (
+                        <span className="text-warning">
+                          {" · "}{receptionSummary.pendingItems} con falta
+                        </span>
+                      )}
+                    </span>
+                  )}
+                </div>
                 {(orderDetail?.items?.length ?? 0) > 0 ? (
                   <>
                     <p className="mt-0.5 text-[11px] text-muted-foreground">
-                      Al completar la orden, estos ítems ingresan a bodega.
+                      Al recibir, estas cantidades ingresan a bodega y quedan en el historial de inventario para auditar contra lo comprado.
                     </p>
                     <ul className="mt-2 flex flex-col gap-2">
-                      {orderDetail!.items.map((it) => (
-                        <li
-                          key={it.id}
-                          className="rounded-lg border border-border/60 bg-background px-3 py-2"
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="min-w-0 flex-1 truncate text-xs font-semibold">
-                              {(it.product_name ?? it.supplier_product_name) || it.description || "Ítem"}
+                      {orderDetail!.items.map((it) => {
+                        const pending = Math.max(
+                          0,
+                          Number(it.quantity_ordered) - Number(it.quantity_received ?? 0),
+                        );
+                        return (
+                          <li
+                            key={it.id}
+                            className="rounded-lg border border-border/60 bg-background px-3 py-2"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="min-w-0 flex-1 truncate text-xs font-semibold">
+                                {(it.product_name ?? it.supplier_product_name) || it.description || "Ítem"}
+                              </p>
+                              <p className="shrink-0 text-xs font-semibold tabular-nums">
+                                {formatCLP(it.total_price ?? 0)}
+                              </p>
+                            </div>
+                            <p className="mt-0.5 text-[11px] tabular-nums text-muted-foreground">
+                              {it.quantity_received ?? 0}/{it.quantity_ordered} recibidos
+                              {" · "}
+                              {formatCLP(it.unit_price ?? 0)} c/u
                             </p>
-                            <p className="shrink-0 text-xs font-semibold tabular-nums">
-                              {formatCLP(it.total_price ?? 0)}
-                            </p>
-                          </div>
-                          <p className="mt-0.5 text-[11px] tabular-nums text-muted-foreground">
-                            {it.quantity_received ?? 0}/{it.quantity_ordered} recibidos
-                            {" · "}
-                            {formatCLP(it.unit_price ?? 0)} c/u
-                          </p>
-                        </li>
-                      ))}
+                            {pending > 0 && (
+                              <p className="mt-0.5 text-[11px] font-medium tabular-nums text-warning">
+                                Faltan {pending} por recibir
+                              </p>
+                            )}
+                          </li>
+                        );
+                      })}
                     </ul>
                   </>
                 ) : (
@@ -1577,16 +1810,16 @@ export default function PurchaseOrdersPage() {
                   {editLoading ? "Cargando…" : "Editar"}
                 </Button>
               )}
-              {canComplete(detail!) && (
+              {canReceive(detail!, orderDetail?.items) && (
                 <Button
                   variant="outline"
                   size="sm"
                   className="w-full sm:w-auto"
-                  onClick={() => openConfirmComplete(detail!)}
-                  disabled={complete.isPending}
+                  onClick={() => openReceive(detail!)}
+                  disabled={receive.isPending || receiveLoading}
                 >
                   <PackageCheck className="mr-2 h-4 w-4" />
-                  Recibir
+                  {receiveLoading ? "Cargando…" : "Recibir"}
                 </Button>
               )}
             </div>
@@ -1778,49 +2011,139 @@ export default function PurchaseOrdersPage() {
       </AnimatedOverlay>
 )}
 
-{confirmAction && (
+{receiveTarget && (
+      <AnimatedOverlay
+        key={`receive-${receiveTarget.id}`}
+        open={true}
+        onClose={closeReceive}
+        zIndex="z-[70]"
+        panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
+      >
+          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:h-auto md:max-h-[90vh] md:max-w-lg md:rounded-xl md:border">
+            <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
+              <h2 className="text-base font-semibold">Recibir orden {receiveTarget.order_number}</h2>
+              <button onClick={closeReceive} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <form
+              onSubmit={handleReceiveSubmit}
+              className="flex flex-1 flex-col overflow-hidden"
+            >
+              <div className="flex-1 overflow-y-auto p-4">
+                <p className="text-xs text-muted-foreground">
+                  Ingresa lo que llegó realmente. Si falta mercadería, deja las
+                  cantidades justas: la diferencia contra lo pedido queda
+                  registrada para auditar al proveedor y la orden sigue abierta
+                  para recibir el resto después.
+                </p>
+                {receiveLoading ? (
+                  <div className="mt-4">
+                    <TableSkeleton rows={3} columns={2} />
+                  </div>
+                ) : receiveRows.length === 0 ? (
+                  <p className="mt-4 rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
+                    Sin ítems — esta orden no impacta inventario.
+                  </p>
+                ) : (
+                  <ul className="mt-3 flex flex-col gap-2">
+                    {receiveRows.map((row, index) => {
+                      const remaining = Math.max(0, row.ordered - row.received);
+                      const delta = Math.max(0, Math.floor(Number(row.delta) || 0));
+                      const after = Math.min(row.received + delta, row.ordered);
+                      const short = row.ordered - after;
+                      return (
+                        <li
+                          key={row.id}
+                          className="rounded-lg border border-border/60 bg-background px-3 py-2"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="min-w-0 flex-1 truncate text-xs font-semibold">
+                              {row.name}
+                            </p>
+                            <p className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+                              {row.received}/{row.ordered} recibidos
+                            </p>
+                          </div>
+                          <div className="mt-2 flex items-center gap-2">
+                            <Input
+                              type="number"
+                              min="0"
+                              max={remaining}
+                              step="1"
+                              value={row.delta}
+                              onChange={(e) => updateReceiveRow(index, e.target.value)}
+                              disabled={remaining === 0}
+                              aria-label={`Cantidad a recibir de ${row.name}`}
+                              className="h-8 w-24 text-sm"
+                            />
+                            <span className="text-[11px] text-muted-foreground">
+                              a recibir ahora (máx. {remaining})
+                            </span>
+                          </div>
+                          {remaining > 0 && delta !== remaining && (
+                            <p className="mt-1 text-[11px] font-medium tabular-nums text-warning">
+                              Quedarán {short} sin recibir de este ítem
+                            </p>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+                {receiveError && (
+                  <p className="mt-3 text-sm text-danger">{receiveError}</p>
+                )}
+                {receive.isError && (
+                  <p className="mt-3 text-sm text-danger">
+                    {receive.error instanceof Error ? receive.error.message : "Error al recibir la orden"}
+                  </p>
+                )}
+              </div>
+              <div className="flex shrink-0 justify-end gap-2 border-t border-border px-4 py-3">
+                <Button type="button" variant="outline" onClick={closeReceive} disabled={receive.isPending}>
+                  Cancelar
+                </Button>
+                <Button type="submit" isLoading={receive.isPending} disabled={receiveLoading || receiveRows.length === 0}>
+                  Registrar recepción
+                </Button>
+              </div>
+            </form>
+          </div>
+      </AnimatedOverlay>
+)}
+
+{cancelTarget && (
       <AnimatedOverlay
         open={true}
-        onClose={() => setConfirmAction(null)}
+        onClose={() => setCancelTarget(null)}
         zIndex="z-[70]"
         panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
       >
           <div className="w-full rounded-t-xl border-x border-t border-border bg-background p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
-            <h2 className="text-base font-semibold">
-              {confirmAction.type === "cancel" ? "¿Anular orden?" : "¿Recibir orden?"}
-            </h2>
+            <h2 className="text-base font-semibold">¿Anular orden?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              {confirmAction.type === "cancel"
-                ? `Se anulará la orden ${confirmAction.order.order_number}. Esta acción no se puede deshacer.`
-                : `Se registrará la recepción total de sus ítems (ingresan a bodega) y la orden ${confirmAction.order.order_number} quedará recibida y cerrada. El pago se hace aparte, desde el módulo Pagos. Esta acción no se puede deshacer.`}
+              Se anulará la orden {cancelTarget.order_number}. Esta acción no se puede deshacer.
             </p>
-            {(cancel.isError || complete.isError) && (
+            {cancel.isError && (
               <p className="mt-2 text-sm text-danger">
-                {(cancel.error ?? complete.error) instanceof Error
-                  ? ((cancel.error ?? complete.error) as Error).message
-                  : "Error al procesar la orden"}
+                {cancel.error instanceof Error ? cancel.error.message : "Error al procesar la orden"}
               </p>
             )}
             <div className="mt-4 flex justify-end gap-2">
               <Button
                 variant="outline"
-                onClick={() => setConfirmAction(null)}
-                disabled={cancel.isPending || complete.isPending}
+                onClick={() => setCancelTarget(null)}
+                disabled={cancel.isPending}
               >
                 Cancelar
               </Button>
               <Button
-                variant={confirmAction.type === "cancel" ? "danger" : "default"}
-                onClick={() => {
-                  if (confirmAction.type === "cancel") {
-                    cancel.mutate(confirmAction.order.id);
-                  } else {
-                    complete.mutate(confirmAction.order);
-                  }
-                }}
-                isLoading={cancel.isPending || complete.isPending}
+                variant="danger"
+                onClick={() => cancel.mutate(cancelTarget.id)}
+                isLoading={cancel.isPending}
               >
-                {confirmAction.type === "cancel" ? "Anular" : "Recibir"}
+                Anular
               </Button>
             </div>
           </div>
@@ -1883,17 +2206,3 @@ function StatCard({
   );
 }
 
-function StatSkeleton() {
-  return (
-    <div className="rounded-2xl border border-border/60 bg-background p-4 shadow-sm">
-      <div className="mb-2 flex items-start justify-between gap-2">
-        <div className="min-w-0 space-y-2">
-          <Skeleton className="h-3 w-24" />
-          <Skeleton className="h-7 w-32" />
-        </div>
-        <Skeleton className="h-8 w-8 rounded-full" />
-      </div>
-      <Skeleton className="h-3 w-20" />
-    </div>
-  );
-}

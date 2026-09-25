@@ -18,12 +18,14 @@ import {
   Mail,
   MapPin,
   Tag,
+  UserCircle,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
+import { PageHeader } from "@/components/page-header";
 import {
   fetchCustomers,
   createCustomer,
@@ -212,15 +214,13 @@ export default function CustomersPage() {
   }
 
   return (
-    <div className="flex min-h-full flex-col">
-      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <div>
-          <h1 className="text-lg font-semibold">Clientes</h1>
-          <p className="text-xs text-muted-foreground">
-            Gestiona la base de clientes de la sucursal
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
+    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+      <PageHeader
+        title="Clientes"
+        icon={<UserCircle className="h-5 w-5" />}
+        subtitle="Gestiona la base de clientes de la sucursal"
+        actions={
+          <>
           <Button
             variant="outline"
             size="sm"
@@ -248,10 +248,11 @@ export default function CustomersPage() {
             <span className="hidden sm:inline">Nuevo cliente</span>
             <span className="sm:hidden">Nuevo</span>
           </Button>
-        </div>
-      </header>
+          </>
+        }
+      />
 
-      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
+      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
         <div className="flex flex-col gap-3">
           {/* Desktop: todos los filtros en una fila */}
           <div className="hidden flex-wrap items-end gap-2 md:flex">

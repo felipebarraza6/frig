@@ -18,6 +18,7 @@ import { fetchMyProfile, updateMyProfile, changePassword } from "@/lib/api/profi
 import { fetchBranches } from "@/lib/api/branches";
 import type { BranchAssignment } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/page-header";
 import { ProfileSubscriptionTab } from "./profile-subscription-tab";
 
 function assignmentStatus(a: BranchAssignment): string {
@@ -46,7 +47,7 @@ type SectionId = "personal" | "sucursales" | "suscripcion" | "seguridad" | "app"
 const SECTIONS: { id: SectionId; label: string; icon: LucideIcon; title: string; description: string }[] = [
   { id: "personal", label: "Datos", icon: UserIcon, title: "Información personal", description: "Cómo te ven en el negocio" },
   { id: "sucursales", label: "Sucursales", icon: Store, title: "Mis sucursales", description: "Dónde operas y con qué rol" },
-  { id: "suscripcion", label: "Suscripción", icon: CreditCard, title: "Suscripción y Pagos", description: "Estado de tu plan, renovaciones y facturación" },
+  { id: "suscripcion", label: "Suscripción", icon: CreditCard, title: "Suscripción", description: "Estado de tu plan, renovación e historial de suscripciones" },
   { id: "seguridad", label: "Seguridad", icon: KeyRound, title: "Seguridad", description: "Mantén tu acceso protegido" },
   { id: "app", label: "App", icon: Smartphone, title: "Aplicación", description: "Versión instalada y actualizaciones" },
 ];
@@ -159,14 +160,6 @@ export function ProfilePanel() {
     .join("")
     .toUpperCase();
 
-  const pills = (
-    assignments.length === 1
-      ? [getRoleLabel(assignments[0]?.role_code) ?? ""]
-      : assignments.length > 1
-        ? [`${assignments.length} sucursales`]
-        : []
-  ).filter(Boolean);
-
   const updateProfile = useMutation({
     mutationFn: updateMyProfile,
     onSuccess: (data) => {
@@ -241,46 +234,31 @@ export function ProfilePanel() {
   return (
     <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col gap-6 p-4 sm:p-6">
       {/* Encabezado: identidad compacta */}
-      <motion.header
-        initial={{ opacity: 0, y: -8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, ease: "easeOut" }}
-        className="flex items-center gap-4"
-      >
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-primary text-lg font-bold text-primary-foreground shadow-sm">
-          {loadingProfile ? "…" : initials}
-        </div>
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-base font-semibold">{loadingProfile ? "Cargando…" : displayName}</h1>
-          <p className="truncate text-xs text-muted-foreground">{values.email || user?.username || "Tu cuenta"}</p>
-          {pills.length > 0 && (
-            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-              {pills.map((pill) => (
-                <span
-                  key={pill}
-                  className="rounded-full border border-primary/25 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary"
-                >
-                  {pill}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={async () => {
-            try { await logout(); } catch { /* ignora errores de red */ }
-            clearSession();
-            queryClient.clear();
-            window.location.assign("/login");
-          }}
-          className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600"
-          title="Cerrar sesión"
-        >
-          <LogOut className="h-3.5 w-3.5" />
-          Cerrar sesión
-        </button>
-      </motion.header>
+      <PageHeader
+        title={loadingProfile ? "Cargando…" : displayName}
+        subtitle={values.email || user?.username || "Tu cuenta"}
+        icon={
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
+            {loadingProfile ? "…" : initials}
+          </div>
+        }
+        actions={
+          <button
+            type="button"
+            onClick={async () => {
+              try { await logout(); } catch { /* ignora errores de red */ }
+              clearSession();
+              queryClient.clear();
+              window.location.assign("/login");
+            }}
+            className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600"
+            title="Cerrar sesión"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            Cerrar sesión
+          </button>
+        }
+      />
 
       {/* Tabs segmentadas: mismo control en móvil y escritorio */}
       <div role="tablist" aria-label="Secciones del perfil" className="flex gap-1 rounded-lg bg-muted p-1">

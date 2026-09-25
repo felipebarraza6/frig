@@ -73,6 +73,19 @@ export async function fetchProducts(filter: ProductsFilter = {}): Promise<Yggdra
   return apiFetch<YggdraPaginated>(`/inventory/products/${q ? `?${q}` : ""}`);
 }
 
+/** Carga productos por ids en lotes (evita bajar todo el catálogo). */
+export async function fetchProductsByIds(ids: number[], batchSize = 50): Promise<YggdraProduct[]> {
+  const unique = Array.from(new Set(ids.filter((id) => Number.isFinite(id) && id > 0)));
+  if (unique.length === 0) return [];
+  const out: YggdraProduct[] = [];
+  for (let i = 0; i < unique.length; i += batchSize) {
+    const chunk = unique.slice(i, i + batchSize);
+    const page = await fetchProducts({ ids: chunk, page_size: batchSize });
+    out.push(...(page.results ?? []));
+  }
+  return out;
+}
+
 /**
  * Listado de gestión: si no se pide is_active, el backend (soft-delete) solo
  * entrega activos. Para ver todos, pedimos activos + inactivos y unimos.
@@ -114,6 +127,15 @@ export interface ProductsForSaleFilter {
   category_id?: number;
   branch_id?: number;
   in_stock_only?: boolean;
+  page_size?: number;
+  page?: number;
+}
+
+export interface ProductsForSalePage {
+  results: ProductForSale[];
+  count: number;
+  next: string | null;
+  previous: string | null;
 }
 
 function normalizeProductList<T>(data: unknown): T[] {
@@ -126,18 +148,49 @@ function normalizeProductList<T>(data: unknown): T[] {
   return [];
 }
 
-/** Pickers de venta: `search` matchea nombre o código. Solo con query ≥ 2 chars. */
+function normalizeProductPage(data: unknown): ProductsForSalePage {
+  if (Array.isArray(data)) {
+    return { results: data as ProductForSale[], count: data.length, next: null, previous: null };
+  }
+  if (data && typeof data === "object") {
+    const record = data as Record<string, unknown>;
+    const results = Array.isArray(record.results)
+      ? (record.results as ProductForSale[])
+      : "id" in record
+        ? [data as ProductForSale]
+        : [];
+    return {
+      results,
+      count: typeof record.count === "number" ? record.count : results.length,
+      next: typeof record.next === "string" ? record.next : null,
+      previous: typeof record.previous === "string" ? record.previous : null,
+    };
+  }
+  return { results: [], count: 0, next: null, previous: null };
+}
+
+/** Productos de venta: search opcional (nombre/código). Sin search lista el catálogo. */
 export async function searchProductsForSale(
   filter: ProductsForSaleFilter = {},
 ): Promise<ProductForSale[]> {
+  const page = await fetchProductsForSalePage(filter);
+  return page.results;
+}
+
+/** Listado paginado for-sale (consulta cocina / pickers). */
+export async function fetchProductsForSalePage(
+  filter: ProductsForSaleFilter = {},
+): Promise<ProductsForSalePage> {
   const qs = new URLSearchParams();
   if (filter.search) qs.set("search", filter.search);
   if (filter.category_id) qs.set("category_id", String(filter.category_id));
   if (filter.branch_id) qs.set("branch_id", String(filter.branch_id));
   if (filter.in_stock_only !== undefined) qs.set("in_stock_only", String(filter.in_stock_only));
+  if (filter.page_size) qs.set("page_size", String(filter.page_size));
+  if (filter.page) qs.set("page", String(filter.page));
   const q = qs.toString();
   const data = await apiFetch<unknown>(`/inventory/products/for-sale/${q ? `?${q}` : ""}`);
-  return normalizeProductList<ProductForSale>(data);
+  return normalizeProductPage(data);
 }
 
 export interface ProductsByTypeFilter {

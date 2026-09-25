@@ -22,6 +22,7 @@ import {
   Clock,
   ChevronDown,
   Pencil,
+  Percent,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,7 +50,9 @@ import { usePosConfig } from "@/lib/store/pos-config";
 import {
   validateDiscountCode,
   applyDiscountToOrder,
+  fetchAvailableDiscounts,
   type ValidatedDiscount,
+  type PromotionDiscountList,
 } from "@/lib/api/discounts";
 import type { YggdraSchemas, PosProduct } from "@/lib/api/types";
 type Customer = YggdraSchemas["Client"];
@@ -92,8 +95,10 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
   const updateQuantity = useCartStore((s) => s.updateQuantity);
   const removeItem = useCartStore((s) => s.removeItem);
   const setItemNotes = useCartStore((s) => s.setItemNotes);
+  const setItemDiscount = useCartStore((s) => s.setItemDiscount);
   const setItems = useCartStore((s) => s.setItems);
   const clear = useCartStore((s) => s.clear);
+  const [editingDiscountItemId, setEditingDiscountItemId] = useState<string | null>(null);
 
   interface PaymentLine {
     id: string;
@@ -284,54 +289,54 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
   function calculateCodeDiscount(discount: ValidatedDiscount | null, cartItems: typeof items, baseTotal: number): number {
     if (!discount?.discount) return 0;
     const d = discount.discount;
-    const value = parseFloat(d.discount_value || "0");
+    const value = parseFloat(String(d.discount_value ?? "0"));
     if (Number.isNaN(value) || value <= 0) return 0;
 
-    // Validar monto mínimo si está definido
-    if (d.minimum_amount) {
-      const minAmount = parseFloat(d.minimum_amount);
+    // Preview POS solo modela porcentaje y monto fijo; otros tipos se confirman al registrar.
+    if (d.discount_type !== "PERCENTAGE" && d.discount_type !== "FIXED_AMOUNT") {
+      return 0;
+    }
+
+    if (d.minimum_amount != null && d.minimum_amount !== "") {
+      const minAmount = parseFloat(String(d.minimum_amount));
       if (!Number.isNaN(minAmount) && baseTotal < minAmount) {
         return 0;
       }
     }
 
     let calculated = 0;
+    let applicableTotal = baseTotal;
 
-    if (d.apply_to === "ORDER_TOTAL" || d.apply_to === "ALL_PRODUCTS") {
-      if (d.discount_type === "PERCENTAGE") {
-        calculated = Math.round(baseTotal * (value / 100));
-      } else if (d.discount_type === "FIXED_AMOUNT") {
-        calculated = Math.round(value);
-      }
-    } else if (d.apply_to === "SPECIFIC_PRODUCTS" || d.apply_to === "CATEGORY") {
-      let applicableTotal = 0;
+    if (d.apply_to === "SPECIFIC_PRODUCTS") {
       const targetProductIds = new Set(d.products ?? []);
-      const targetCategoryIds = new Set(d.categories ?? []);
-
+      // Sin IDs en validate_code no asumir "todos": el preview queda en 0.
+      if (targetProductIds.size === 0) return 0;
+      applicableTotal = 0;
       for (const item of cartItems) {
-        const itemSub = cartItemSubtotal(item);
-        if (d.apply_to === "SPECIFIC_PRODUCTS") {
-          if (targetProductIds.size === 0 || targetProductIds.has(item.product.id)) {
-            applicableTotal += itemSub;
-          }
-        } else if (d.apply_to === "CATEGORY") {
-          const itemCatId = item.product.categoryId;
-          if (targetCategoryIds.size === 0 || (itemCatId && targetCategoryIds.has(itemCatId))) {
-            applicableTotal += itemSub;
-          }
+        if (targetProductIds.has(item.product.id)) {
+          applicableTotal += cartItemSubtotal(item);
         }
       }
-
-      if (d.discount_type === "PERCENTAGE") {
-        calculated = Math.round(applicableTotal * (value / 100));
-      } else if (d.discount_type === "FIXED_AMOUNT") {
-        calculated = Math.round(value);
+    } else if (d.apply_to === "CATEGORY") {
+      const targetCategoryIds = new Set(d.categories ?? []);
+      if (targetCategoryIds.size === 0) return 0;
+      applicableTotal = 0;
+      for (const item of cartItems) {
+        const itemCatId = item.product.categoryId;
+        if (itemCatId && targetCategoryIds.has(itemCatId)) {
+          applicableTotal += cartItemSubtotal(item);
+        }
       }
     }
 
-    // Aplicar tope de descuento máximo si existe
-    if (d.maximum_discount) {
-      const maxDisc = parseFloat(d.maximum_discount);
+    if (d.discount_type === "PERCENTAGE") {
+      calculated = Math.round(applicableTotal * (value / 100));
+    } else if (d.discount_type === "FIXED_AMOUNT") {
+      calculated = Math.round(value);
+    }
+
+    if (d.maximum_discount != null && d.maximum_discount !== "") {
+      const maxDisc = parseFloat(String(d.maximum_discount));
       if (!Number.isNaN(maxDisc) && maxDisc > 0) {
         calculated = Math.min(calculated, Math.round(maxDisc));
       }
@@ -339,6 +344,13 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
 
     return Math.min(calculated, baseTotal);
   }
+
+  function clearDiscount() {
+    setDiscountCode("");
+    setValidatedDiscount(null);
+  }
+
+  const PREVIEWABLE_DISCOUNT_TYPES = new Set(["PERCENTAGE", "FIXED_AMOUNT"]);
 
   const existingOrderPaid = existingOrder
     ? parseFloat(String(existingOrder.paid_amount ?? "0"))
@@ -355,6 +367,51 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
   const newItemsTotal = Math.max(0, cartSub - lineDiscounts - codeDiscount);
   const subtotal = cartSub;
   const total = Math.max(0, newItemsTotal - existingOrderPaid);
+
+  const orderBaseForAvailable = Math.max(0, cartSub - lineDiscounts);
+  const availableDiscountsQuery = useQuery({
+    queryKey: ["discounts", "available", branchId, orderBaseForAvailable],
+    queryFn: () => fetchAvailableDiscounts(orderBaseForAvailable, branchId),
+    enabled: showDiscountSection && Boolean(branchId) && items.length > 0,
+    staleTime: 30_000,
+  });
+  const availableCoupons: PromotionDiscountList[] = availableDiscountsQuery.data ?? [];
+
+  async function pickAvailableCoupon(coupon: PromotionDiscountList) {
+    setDiscountCode(coupon.code);
+    setShowDiscountSection(true);
+    const baseForValidate = Math.max(0, cartSubtotal(items) - cartDiscountTotal(items));
+    try {
+      const result = await validateDiscountCode(coupon.code, branchId, baseForValidate);
+      if (!result.valid || !result.discount) {
+        setValidatedDiscount(null);
+        toast.error(result.message || "Código de descuento inválido");
+        return;
+      }
+      const type = result.discount.discount_type;
+      if (!PREVIEWABLE_DISCOUNT_TYPES.has(type)) {
+        setValidatedDiscount(result);
+        toast.warning(
+          `Código válido (${result.discount.name}). El monto de este tipo se confirma al registrar la venta.`,
+        );
+        resetPayments();
+        return;
+      }
+      const preview = calculateCodeDiscount(result, items, baseForValidate);
+      if (preview <= 0) {
+        setValidatedDiscount(null);
+        toast.error(
+          "El código es válido pero no aplica al carrito actual (alcance, mínimo de compra o productos).",
+        );
+        return;
+      }
+      setValidatedDiscount(result);
+      resetPayments();
+    } catch (err) {
+      setValidatedDiscount(null);
+      toast.error(err instanceof Error ? err.message : "Código de descuento inválido");
+    }
+  }
 
   const taxRate = useMemo(() => {
     const raw = financeConfig?.default_tax_rate;
@@ -601,7 +658,16 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
       if (discountCode.trim()) {
         try {
           const discountResult = await applyDiscountToOrder(order.id, discountCode.trim(), branchId);
-          finalTotal = Number((discountResult as { final_amount?: string | number }).final_amount) || total;
+          const fromApply = Number(discountResult.final_amount);
+          if (Number.isFinite(fromApply) && fromApply >= 0) {
+            finalTotal = fromApply;
+          } else {
+            const refreshed = await fetchOrder(order.id);
+            const apiTotal = Number(refreshed.total_amount);
+            if (Number.isFinite(apiTotal) && apiTotal >= 0) {
+              finalTotal = apiTotal;
+            }
+          }
         } catch (discountErr) {
           toast.warning(
             discountErr instanceof Error
@@ -704,21 +770,52 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
   async function handleApplyDiscount() {
     const code = discountCode.trim();
     if (!code) return;
+    const baseForValidate = Math.max(0, cartSubtotal(items) - cartDiscountTotal(items));
     try {
-      const result = await validateDiscountCode(code, branchId, total);
+      const result = await validateDiscountCode(code, branchId, baseForValidate);
       if (!result.valid || !result.discount) {
         setValidatedDiscount(null);
         toast.error(result.message || "Código de descuento inválido");
         return;
       }
+      const type = result.discount.discount_type;
+      if (!PREVIEWABLE_DISCOUNT_TYPES.has(type)) {
+        setValidatedDiscount(result);
+        toast.warning(
+          `Código válido (${result.discount.name}). El monto de este tipo se confirma al registrar la venta.`,
+        );
+        resetPayments();
+        return;
+      }
+      const preview = calculateCodeDiscount(result, items, baseForValidate);
+      if (preview <= 0) {
+        setValidatedDiscount(null);
+        toast.error(
+          "El código es válido pero no aplica al carrito actual (alcance, mínimo de compra o productos).",
+        );
+        return;
+      }
       setValidatedDiscount(result);
-      // Al cambiar el total por descuento, resetear pagos para que el cajero los ingrese sobre el nuevo monto.
       resetPayments();
     } catch (err) {
       setValidatedDiscount(null);
       toast.error(err instanceof Error ? err.message : "Código de descuento inválido");
     }
   }
+
+  // Si cambia el carrito con un cupón ya validado, revalidar o limpiar preview obsoleto.
+  useEffect(() => {
+    if (!validatedDiscount?.discount) return;
+    const base = Math.max(0, cartSubtotal(items) - cartDiscountTotal(items));
+    const type = validatedDiscount.discount.discount_type;
+    if (!PREVIEWABLE_DISCOUNT_TYPES.has(type)) return;
+    const preview = calculateCodeDiscount(validatedDiscount, items, base);
+    if (preview <= 0) {
+      setValidatedDiscount(null);
+      toast.warning("El cupón ya no aplica al carrito actual. Vuelve a ingresar el código.");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo reaccionar a cambios de ítems/total base
+  }, [items]);
 
   const willBeOrder = !existingOrderId && defaultOrderType === "ORDER";
 
@@ -1110,6 +1207,62 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                               <Trash2 className="h-3 w-3" />
                             </button>
                           </div>
+                          {!item.notes?.includes("Parte de combo") && (
+                            <div className="flex items-center gap-1">
+                              {editingDiscountItemId === item.id ? (
+                                <>
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    step="1"
+                                    defaultValue={item.discountPercentage || ""}
+                                    autoFocus
+                                    aria-label={`Descuento % de ${item.product.name}`}
+                                    className="h-7 w-14 text-[11px] tabular-nums"
+                                    onBlur={(e) => {
+                                      const raw = parseFloat(e.target.value);
+                                      const pct = Number.isFinite(raw)
+                                        ? Math.max(0, Math.min(100, raw))
+                                        : 0;
+                                      setItemDiscount(item.id, pct);
+                                      setEditingDiscountItemId(null);
+                                      if (validatedDiscount) {
+                                        setValidatedDiscount(null);
+                                      }
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        (e.target as HTMLInputElement).blur();
+                                      }
+                                      if (e.key === "Escape") {
+                                        setEditingDiscountItemId(null);
+                                      }
+                                    }}
+                                  />
+                                  <span className="text-[10px] text-muted-foreground">%</span>
+                                </>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingDiscountItemId(item.id)}
+                                  className={cn(
+                                    "inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-medium transition-colors",
+                                    item.discountPercentage > 0
+                                      ? "bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/15"
+                                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                                  )}
+                                  title="Descuento por línea"
+                                  aria-label={`Editar descuento de ${item.product.name}`}
+                                >
+                                  <Percent className="h-3 w-3" />
+                                  {item.discountPercentage > 0
+                                    ? `${item.discountPercentage}%`
+                                    : "Desc."}
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </motion.li>
@@ -1229,7 +1382,9 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                     className="inline-flex items-center gap-1.5 self-start text-[11px] font-medium text-primary hover:underline"
                   >
                     <Tag className="h-3 w-3" />
-                    Descuento
+                    {validatedDiscount?.discount
+                      ? `Cupón ${validatedDiscount.discount.code}`
+                      : "Descuento"}
                   </button>
                 ) : (
                   <>
@@ -1247,7 +1402,10 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                     <div className="flex items-center gap-2">
                       <Input
                         value={discountCode}
-                        onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
+                        onChange={(e) => {
+                          setDiscountCode(e.target.value.toUpperCase());
+                          if (validatedDiscount) setValidatedDiscount(null);
+                        }}
                         placeholder="Ej: PROMO10"
                         disabled={saving}
                         className="h-9 text-xs"
@@ -1263,10 +1421,54 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                         Aplicar
                       </Button>
                     </div>
+                    {availableDiscountsQuery.isFetching && (
+                      <p className="text-[11px] text-muted-foreground">Cargando cupones…</p>
+                    )}
+                    {!availableDiscountsQuery.isFetching && availableCoupons.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {availableCoupons.slice(0, 8).map((c) => {
+                          const selected = validatedDiscount?.discount?.code === c.code;
+                          return (
+                            <button
+                              key={c.id}
+                              type="button"
+                              disabled={saving}
+                              onClick={() => pickAvailableCoupon(c)}
+                              className={cn(
+                                "inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors",
+                                selected
+                                  ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-800"
+                                  : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                              )}
+                              title={c.name}
+                            >
+                              <Tag className="h-2.5 w-2.5 shrink-0" />
+                              <span className="truncate">{c.code}</span>
+                              <span className="tabular-nums opacity-80">
+                                {c.discount_type === "PERCENTAGE"
+                                  ? `${c.discount_value}%`
+                                  : formatCLP(c.discount_value)}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                     {validatedDiscount?.discount && (
-                      <p className="text-xs text-emerald-700">
-                        Descuento {validatedDiscount.discount.name} aplicado.
-                      </p>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs text-emerald-700">
+                          {codeDiscount > 0
+                            ? `Descuento ${validatedDiscount.discount.name} (−${formatCLP(codeDiscount)}).`
+                            : `Código ${validatedDiscount.discount.name} válido; monto al registrar.`}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={clearDiscount}
+                          className="shrink-0 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:underline"
+                        >
+                          Quitar
+                        </button>
+                      </div>
                     )}
                   </>
                 )}

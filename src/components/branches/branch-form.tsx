@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { X, Check, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { isValidRUT } from "@/lib/validation";
 import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
@@ -76,9 +77,10 @@ export function BranchForm({ branch, onClose, onSuccess }: BranchFormProps) {
   const [endDate, setEndDate] = useState((branch?.plan_expiration_date ?? "").slice(0, 10));
   const [error, setError] = useState<string | null>(null);
 
-  const { data: plans = [] } = useQuery({
+  const { data: plans = [], isLoading: plansLoading, isError: plansError } = useQuery({
     queryKey: ["module-plans"],
     queryFn: () => fetchModulePlans(),
+    retry: false,
   });
 
   const { data: organizations = [] } = useQuery({
@@ -159,9 +161,22 @@ export function BranchForm({ branch, onClose, onSuccess }: BranchFormProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    if (!businessName.trim()) {
+    setError(null);    if (!businessName.trim()) {
       setError("El nombre de la sucursal es obligatorio.");
+      return;
+    }
+    // El backend exige teléfono y email al crear: se validan acá para evitar
+    // un 400 genérico al enviar.
+    if (!isEditing && !phone.trim()) {
+      setError("El teléfono es obligatorio.");
+      return;
+    }
+    if (!isEditing && !email.trim()) {
+      setError("El email es obligatorio.");
+      return;
+    }
+    if (dni.trim() && !isValidRUT(dni)) {
+      setError("El RUT ingresado no es válido.");
       return;
     }
     save.mutate();
@@ -253,7 +268,7 @@ export function BranchForm({ branch, onClose, onSuccess }: BranchFormProps) {
               <SectionLabel>Contacto y ubicación</SectionLabel>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Field label="Teléfono">
-                  <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                  <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} required={!isEditing} />
                 </Field>
                 <Field label="Email">
                   <Input
@@ -261,6 +276,7 @@ export function BranchForm({ branch, onClose, onSuccess }: BranchFormProps) {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    required={!isEditing}
                   />
                 </Field>
                 <Field label="Dirección" className="sm:col-span-2">
@@ -400,9 +416,21 @@ export function BranchForm({ branch, onClose, onSuccess }: BranchFormProps) {
                     </button>
                   );
                 })}
-                {frigPlans.length === 0 && !currentPlanMissing && (
+                {plansLoading && !plansError && frigPlans.length === 0 && !currentPlanMissing && (
                   <p className="rounded-xl border border-dashed border-border p-3 text-sm text-muted-foreground">
                     Cargando planes…
+                  </p>
+                )}
+                {plansError && !currentPlanMissing && (
+                  <p className="rounded-xl border border-warning/40 bg-warning/10 p-3 text-xs text-warning">
+                    No se pudo cargar el catálogo de planes (requiere permisos de
+                    administrador). Puedes guardar igualmente y asignar el plan después
+                    desde la acción &quot;Plan&quot; de la sucursal.
+                  </p>
+                )}
+                {!plansLoading && !plansError && frigPlans.length === 0 && !currentPlanMissing && (
+                  <p className="rounded-xl border border-dashed border-border p-3 text-sm text-muted-foreground">
+                    No hay planes configurados.
                   </p>
                 )}
               </div>

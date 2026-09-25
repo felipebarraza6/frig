@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { PageHeader } from "@/components/page-header";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   TrendingDown,
@@ -27,6 +28,8 @@ import {
   type FixedExpense,
 } from "@/lib/api/fixed-expenses";
 import { fetchExpenseCategories, type ExpenseCategory } from "@/lib/api/expenses";
+import { useToast } from "@/lib/store/toast";
+import { isPositiveAmount, isDateRangeValid } from "@/lib/validation";
 
 const FREQUENCY_OPTIONS = [
   { value: "MONTHLY", label: "Mensual" },
@@ -82,6 +85,7 @@ export default function FixedExpensesPage() {
   const [confirmDelete, setConfirmDelete] = useState<FixedExpense | null>(null);
 
   const queryClient = useQueryClient();
+  const toast = useToast();
 
   const { data: expenses = [], isLoading, isError, refetch } = useQuery({
     queryKey: ["fixed-expenses", statusFilter],
@@ -108,6 +112,9 @@ export default function FixedExpensesPage() {
       queryClient.invalidateQueries({ queryKey: ["fixed-expenses"] });
       setModalOpen(false);
     },
+    onError: (err: Error) => {
+      toast.error(err.message || "No se pudo crear el gasto fijo");
+    },
   });
 
   const updateMut = useMutation({
@@ -117,6 +124,9 @@ export default function FixedExpensesPage() {
       queryClient.invalidateQueries({ queryKey: ["fixed-expenses"] });
       setEditing(null);
     },
+    onError: (err: Error) => {
+      toast.error(err.message || "No se pudo actualizar el gasto fijo");
+    },
   });
 
   const deleteMut = useMutation({
@@ -125,24 +135,28 @@ export default function FixedExpensesPage() {
       queryClient.invalidateQueries({ queryKey: ["fixed-expenses"] });
       setConfirmDelete(null);
     },
+    onError: (err: Error) => {
+      toast.error(err.message || "No se pudo eliminar el gasto fijo");
+    },
   });
 
   const openCreate = () => { setEditing(null); setModalOpen(true); };
   const openEdit = (e: FixedExpense) => { setEditing(e); setModalOpen(true); };
 
   return (
-    <div className="flex min-h-full flex-col">
-      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <div>
-          <h1 className="text-lg font-semibold">Gastos</h1>
-          <p className="text-xs text-muted-foreground">Gastos recurrentes y programados de la sucursal</p>
-        </div>
-        <Button size="sm" onClick={openCreate}>
-          <Plus className="mr-1.5 h-4 w-4" />Nuevo gasto
-        </Button>
-      </header>
+    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+      <PageHeader
+        title="Gastos"
+        icon={<TrendingDown className="h-5 w-5" />}
+        subtitle="Gastos recurrentes y programados de la sucursal"
+        actions={
+          <Button size="sm" onClick={openCreate}>
+            <Plus className="mr-1.5 h-4 w-4" />Nuevo gasto
+          </Button>
+        }
+      />
 
-      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
+      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
         {/* KPIs */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <div className="rounded-2xl border border-border bg-background p-3 shadow-sm">
@@ -331,10 +345,20 @@ function FixedExpenseModal({ open, editing, categories, onClose, onSubmit, isPen
   const [endDate, setEndDate] = useState(editing?.end_date ?? "");
   const [dueDate, setDueDate] = useState(String(editing?.due_date ?? "1"));
   const [status, setStatus] = useState<"ACTIVE" | "INACTIVE" | "PENDING" | "CANCELLED">(editing?.status as "ACTIVE" ?? "ACTIVE");
+  const toast = useToast();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !categoryId || !amount || !startDate) return;
+    const amountNum = parseFloat(amount);
+    if (!isPositiveAmount(amountNum)) {
+      toast.error("El monto debe ser mayor que 0");
+      return;
+    }
+    if (endDate && !isDateRangeValid(startDate, endDate)) {
+      toast.error("La fecha de inicio debe ser anterior a la fecha de fin");
+      return;
+    }
     onSubmit({
       name,
       description: description || undefined,

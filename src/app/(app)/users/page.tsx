@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { PageHeader } from "@/components/page-header";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, KeyRound, Power, Users, Pencil, Copy, Check, Eye, EyeOff, TriangleAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -80,7 +81,11 @@ export default function UsersPage() {
 
   const toggleAssignment = useMutation({
     mutationFn: (assignmentId: number) => toggleBranchAssignmentStatus(assignmentId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      toast.success("Estado del usuario actualizado.");
+    },
+    onError: (err: Error) => toast.error(err.message || "No se pudo cambiar el estado del usuario."),
   });
 
   const generatePass = useMutation({
@@ -107,33 +112,34 @@ export default function UsersPage() {
 
   return (
     <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
-      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
-        <div>
-          <h1 className="text-lg font-semibold">Usuarios</h1>
-          <p className="text-xs text-muted-foreground">
-            {isSuperAdmin
-              ? "Gestiona todos los usuarios del sistema"
-              : `Gestiona usuarios de ${currentBranch ? branchName(currentBranch) : "la sucursal"}`}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            size="icon"
-            onClick={() => setCreating(true)}
-            className="sm:hidden"
-            title="Nuevo usuario"
-            aria-label="Nuevo usuario"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-          <Button onClick={() => setCreating(true)} className="hidden sm:flex">
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo usuario
-          </Button>
-        </div>
-      </header>
+      <PageHeader
+        title="Usuarios"
+        icon={<Users className="h-5 w-5" />}
+        subtitle={
+          isSuperAdmin
+            ? "Gestiona todos los usuarios del sistema"
+            : `Gestiona usuarios de ${currentBranch ? branchName(currentBranch) : "la sucursal"}`
+        }
+        actions={
+          <>
+            <Button
+              size="icon"
+              onClick={() => setCreating(true)}
+              className="sm:hidden"
+              title="Nuevo usuario"
+              aria-label="Nuevo usuario"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button onClick={() => setCreating(true)} className="hidden sm:flex">
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo usuario
+            </Button>
+          </>
+        }
+      />
 
-      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
+      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
         <div className="relative w-full sm:max-w-sm">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -206,7 +212,7 @@ export default function UsersPage() {
                             aria-label={`${access?.is_active ? "Desactivar" : "Activar"} ${userDisplayName(u)}`}
                             className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
                               access?.is_active
-                                ? "bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20"
+                                ? "bg-success/10 text-success hover:bg-success/20"
                                 : "bg-danger/10 text-danger hover:bg-danger/20"
                             }`}
                           >
@@ -258,7 +264,7 @@ export default function UsersPage() {
                         <span
                           className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${
                             access?.is_active
-                              ? "bg-emerald-500/10 text-emerald-700"
+                              ? "bg-success/10 text-success"
                               : "bg-danger/10 text-danger"
                           }`}
                         >
@@ -349,7 +355,7 @@ export default function UsersPage() {
         size="sm"
       >
         <ModalBody className="space-y-4">
-          <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-700">
+          <div className="flex items-start gap-2.5 rounded-xl border border-warning/30 bg-warning/10 px-3 py-2.5 text-xs text-warning">
             <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
             <p>
               Por seguridad, esta contraseña se muestra solo esta vez. Guárdala en un
@@ -383,7 +389,7 @@ export default function UsersPage() {
                 aria-label="Copiar contraseña"
                 title="Copiar"
               >
-                {copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+                {copied ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
               </Button>
             </div>
           </div>

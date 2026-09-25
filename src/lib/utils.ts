@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import type { YggdraSchemas } from "@/lib/api/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -70,6 +71,7 @@ const STOCK_STATUS_LABELS: Record<string, string> = {
   IN_STOCK: "En stock",
   LOW_STOCK: "Stock bajo",
   OUT_OF_STOCK: "Sin stock",
+  NEEDS_REORDER: "Reorden",
 };
 
 export function stockStatusLabel(value?: string | null): string {
@@ -107,18 +109,68 @@ const REVENUE_CATEGORY_TYPE_LABELS: Record<string, string> = {
   OTHER: "Otro",
 };
 
-const EXPENSE_CATEGORY_TYPE_LABELS: Record<string, string> = {
-  RENT: "Arriendo",
-  UTILITIES: "Servicios básicos",
-  SALARIES: "Sueldos",
-  SUPPLIES: "Insumos",
-  MAINTENANCE: "Mantención",
-  MARKETING: "Marketing",
-  TAXES: "Impuestos",
-  TRANSPORT: "Transporte",
-  INSURANCE: "Seguros",
-  OTHER: "Otro",
-};
+/** Tipo de categoría de egreso (fuente única: enum del backend). */
+export type ExpenseCategoryType =
+  YggdraSchemas["ExpenseCategory"]["category_type"];
+
+/** Fuente única de tipos de categoría de egreso: valores, etiquetas y
+ *  descripción de uso. No duplicar en páginas. */
+export const EXPENSE_CATEGORY_TYPES: {
+  value: ExpenseCategoryType;
+  label: string;
+  hint: string;
+}[] = [
+  {
+    value: "RENT",
+    label: "Renta",
+    hint: "Arriendo del local o de equipos. Uso manual; se agrupa en los reportes financieros.",
+  },
+  {
+    value: "UTILITIES",
+    label: "Servicios Públicos",
+    hint: "Luz, agua, gas e internet. Uso manual; se agrupa en los reportes financieros.",
+  },
+  {
+    value: "SALARIES",
+    label: "Salarios",
+    hint: "La usan automáticamente las nóminas de empleados. Se agrupa en los reportes de costos de personal.",
+  },
+  {
+    value: "INSURANCE",
+    label: "Seguros",
+    hint: "Primas de seguros. Uso manual; se agrupa en los reportes financieros.",
+  },
+  {
+    value: "MAINTENANCE",
+    label: "Mantenimiento",
+    hint: "Reparaciones y mantención. Uso manual; se agrupa en los reportes financieros.",
+  },
+  {
+    value: "MARKETING",
+    label: "Marketing",
+    hint: "Publicidad y promoción. Uso manual; se agrupa en los reportes financieros.",
+  },
+  {
+    value: "LICENSES",
+    label: "Licencias",
+    hint: "Permisos y licencias de software. Uso manual; se agrupa en los reportes financieros.",
+  },
+  {
+    value: "EQUIPMENT",
+    label: "Equipos",
+    hint: "Compra o arriendo de equipos. Uso manual; se agrupa en los reportes financieros.",
+  },
+  {
+    value: "SUPPLIES",
+    label: "Suministros",
+    hint: "Insumos y materiales. Las órdenes de compra usan la categoría marcada como predeterminada para proveedores.",
+  },
+  {
+    value: "OTHER",
+    label: "Otros",
+    hint: "La usan automáticamente los retiros de caja y como respaldo para los egresos de órdenes de compra.",
+  },
+];
 
 const EXPENSE_FREQUENCY_LABELS: Record<string, string> = {
   ONE_TIME: "Única",
@@ -168,7 +220,7 @@ export function expenseCategoryTypeLabel(
 ): string {
   if (display && display.trim() && display !== raw) return display;
   if (!raw) return "—";
-  return EXPENSE_CATEGORY_TYPE_LABELS[raw] ?? raw;
+  return EXPENSE_CATEGORY_TYPES.find((t) => t.value === raw)?.label ?? raw;
 }
 
 export function expenseFrequencyLabel(value?: string | null): string {

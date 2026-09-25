@@ -733,31 +733,57 @@ export default function PosPage() {
   async function handleAddCombo(combo: ComboList) {
     try {
       const detail = await fetchCombo(combo.id);
-      const regularTotal = detail.items.reduce(
-        (sum: number, item: { product: number; quantity?: number }) => {
+      const items = detail.items ?? [];
+      if (items.length === 0) {
+        toast.error("Este combo no tiene productos. Revísalo en Combos.");
+        return;
+      }
+
+      const missing: string[] = [];
+      const regularTotal = items.reduce(
+        (sum: number, item: { product: number; quantity?: number; product_name?: string }) => {
           const product = products?.find((p) => p.id === item.product);
-          if (!product) return sum;
+          if (!product) {
+            missing.push(item.product_name || `Producto #${item.product}`);
+            return sum;
+          }
           return sum + product.price * (item.quantity || 1);
         },
         0,
       );
+
+      if (missing.length > 0) {
+        toast.error(
+          `No se pudo agregar el combo: faltan en catálogo de venta (${missing.slice(0, 3).join(", ")}${missing.length > 3 ? "…" : ""}).`,
+        );
+        return;
+      }
+
       const comboPrice = Math.round(detail.combo_price ?? 0);
       const ratio = regularTotal > 0 ? comboPrice / regularTotal : 1;
 
-      for (const item of detail.items) {
+      for (const item of items) {
         const product = products?.find((p) => p.id === item.product);
         if (!product) continue;
         const lineTotal = product.price * (item.quantity || 1);
         const discountedLineTotal = Math.max(0, Math.round(lineTotal * ratio));
-        const discountPercentage = lineTotal > 0
-          ? Math.max(0, Math.min(100, Math.round(((lineTotal - discountedLineTotal) / lineTotal) * 100 * 100) / 100))
-          : 0;
+        const discountPercentage =
+          lineTotal > 0
+            ? Math.max(
+                0,
+                Math.min(
+                  100,
+                  Math.round(((lineTotal - discountedLineTotal) / lineTotal) * 100 * 100) / 100,
+                ),
+              )
+            : 0;
         addItem(product, {
           quantity: item.quantity || 1,
           discountPercentage,
           notes: `Parte de combo: ${combo.name}`,
         });
       }
+      toast.success(`Combo «${combo.name}» agregado`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "No se pudo cargar el combo.");
     }
@@ -1173,7 +1199,15 @@ export default function PosPage() {
                     )
                     .map((t) => (
                       <option key={t.id} value={t.id}>
-                        Mesa {t.number} {t.area ? `· ${t.area}` : ""}
+                        Mesa {t.number}
+                        {t.shape === "SQUARE"
+                          ? " ▢"
+                          : t.shape === "RECTANGLE"
+                            ? " ▭"
+                            : t.shape === "OVAL"
+                              ? " ⬭"
+                              : " ○"}
+                        {t.area ? ` · ${t.area}` : ""}
                       </option>
                     ))}
                 </Select>
@@ -1286,7 +1320,15 @@ export default function PosPage() {
                             )
                             .map((t) => (
                               <option key={t.id} value={t.id}>
-                                Mesa {t.number} {t.area ? `· ${t.area}` : ""}
+                                Mesa {t.number}
+                                {t.shape === "SQUARE"
+                                  ? " ▢"
+                                  : t.shape === "RECTANGLE"
+                                    ? " ▭"
+                                    : t.shape === "OVAL"
+                                      ? " ⬭"
+                                      : " ○"}
+                                {t.area ? ` · ${t.area}` : ""}
                               </option>
                             ))}
                         </select>

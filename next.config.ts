@@ -1,9 +1,12 @@
 import type { NextConfig } from "next";
 
+// `output: "export"` solo en build de producción (FTP/estático).
+// En `next:dev` lo desactivamos: con export activo, rutas como /menu/[slug]
+// exigen generateStaticParams y fallan al abrir /menu/<slug-real> (Turbopack).
+const isProdBuild = process.env.NODE_ENV === "production";
+
 const nextConfig: NextConfig = {
-  // Exportación estática: el deploy a hosting FTP solo sirve archivos estáticos.
-  // Los headers de seguridad deben configurarse en el servidor (Apache/nginx).
-  output: "export",
+  ...(isProdBuild ? { output: "export" as const } : {}),
   images: { unoptimized: true },
 };
 

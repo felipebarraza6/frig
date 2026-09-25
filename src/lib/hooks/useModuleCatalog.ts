@@ -44,7 +44,7 @@ const MODULE_LABELS: Record<string, string> = {
   payroll: "Nómina",
   human_resources: "RRHH",
   scheduling: "Agendamiento",
-  public_catalog: "Menús Digitales",
+  public_catalog: "Menús y vitrinas",
   analytics: "Analítica",
   ai_agents: "IA y Automatización",
   workflows: "Flujos de Trabajo",
@@ -52,7 +52,7 @@ const MODULE_LABELS: Record<string, string> = {
   equipment: "Equipamiento",
   logistics: "Logística",
   deliveries: "Retiro / Delivery",
-  production: "Producción Cocina",
+  production: "KDS / Cocina",
   measurements: "Mediciones",
   measurement_points: "Puntos de Medición",
 };
