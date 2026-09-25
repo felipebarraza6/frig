@@ -7,15 +7,20 @@ import {
   ArrowRight,
   Banknote,
   Bike,
+  Boxes,
+  ChartColumn,
   Check,
   ChefHat,
   CreditCard,
   FileText,
   LayoutDashboard,
   LayoutGrid,
+  Leaf,
   LogIn,
   Menu,
+  Monitor,
   QrCode,
+  Rotate3d,
   ShieldCheck,
   Store,
   Truck,
@@ -45,6 +50,7 @@ import {
   LANDING_PRICING_NOTE,
   LANDING_USE_CASES,
   LANDING_VALUE_PROP,
+  LANDING_SHOWCASE,
   DEMO_CONTACTS,
   type LandingPlan,
 } from "@/content/landing";
@@ -103,6 +109,7 @@ const COPPER = "#c67d52";
 const COPPER_HOVER = "#d68c5f";
 
 const NAV_LINKS = [
+  { href: "#novedades", label: "Novedades" },
   { href: "#demos", label: "Casos de uso" },
   { href: "#producto", label: "Módulos" },
 ];
@@ -557,6 +564,98 @@ function SimuladorSection() {
   );
 }
 
+/* Lo nuevo de FRIG: el salón 3D manda, el resto acompaña. */
+function ShowcaseSection() {
+  const [hero, ...rest] = LANDING_SHOWCASE;
+  return (
+    <section id="novedades" className="relative z-10 pt-10 pb-28 sm:pt-14 sm:pb-44">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <div className="mb-12 max-w-2xl">
+          <p className="flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.22em] text-[#c67d52]">
+            <span
+              className="inline-block h-2 w-2 rotate-45"
+              style={{ backgroundColor: COPPER }}
+              aria-hidden
+            />
+            Novedades
+          </p>
+          <h2 className="font-display mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+            Lo nuevo en Frig
+          </h2>
+          <p className="mt-4 text-sm leading-relaxed text-zinc-400">
+            El sistema creció hacia adentro del local: un salón digital en 3D,
+            informes de principio a fin y bodegas que se recorren con la vista.
+          </p>
+        </div>
+
+        {/* Tarjeta principal: el salón 3D con la demo interactiva. */}
+        {hero && (
+          <ScrollReveal className="mb-5">
+            <div
+              className="demo-card group relative overflow-hidden rounded-2xl border border-[#c67d52]/40 bg-[#131313] p-6 sm:p-8"
+              style={{ "--brand": COPPER } as React.CSSProperties}
+            >
+              <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#c67d52]/25 bg-[#c67d52]/[0.07]">
+                      <hero.icon className="h-5 w-5" style={{ color: COPPER }} />
+                    </span>
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#c67d52]">
+                      Nuevo · interactivo
+                    </span>
+                  </div>
+                  <h3 className="font-display mt-4 text-2xl font-semibold tracking-tight text-white">
+                    {hero.title}
+                  </h3>
+                  <p className="mt-3 max-w-xl text-sm leading-relaxed text-zinc-400">
+                    {hero.description}
+                  </p>
+                </div>
+                <div className="shrink-0">
+                  <Link
+                    href={hero.href ?? "/salon-test"}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn-copper inline-flex items-center gap-2 rounded-lg px-6 py-3 text-sm font-semibold text-white"
+                  >
+                    {hero.hrefLabel ?? "Ver demo"}
+                    <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </ScrollReveal>
+        )}
+
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {rest.map((item, i) => (
+            <ScrollReveal key={item.title} delay={(i % 3) * 0.05} className="h-full">
+              <div className="demo-card group relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#101010] p-5 hover:border-white/20">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#c67d52]/25 bg-[#c67d52]/[0.07]">
+                    <item.icon className="h-4 w-4" style={{ color: COPPER }} />
+                  </span>
+                  <h3 className="text-sm font-semibold text-white">{item.title}</h3>
+                </div>
+                <p className="mt-3.5 text-sm leading-relaxed text-zinc-400">
+                  {item.description}
+                </p>
+                {item.href && (
+                  <div className="relative mt-auto flex items-center gap-1.5 pt-4 text-sm font-medium text-[#c67d52]">
+                    <span>{item.hrefLabel ?? "Ver más"}</span>
+                    <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                  </div>
+                )}
+              </div>
+            </ScrollReveal>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /* Monograma de la demo (máx. 2 iniciales) para la tarjeta. */
 function demoMonogram(name: string): string {
   return name
@@ -752,12 +851,16 @@ function CosmicBackdrop() {
 const MODULE_SCOPES: Record<string, string> = {
   "Punto de venta táctil": "Venta",
   "Caja y arqueo": "Dinero",
+  "Salón digital 3D": "Salón",
   "Mesas y salón": "Salón",
   "Delivery y retiro": "Canales",
   "Cocina y KDS": "Operación",
   "Inventario y recetas": "Bodega",
+  "Bodegas visuales": "Bodega",
+  "Informes y finanzas": "Dinero",
   "Facturación electrónica": "SII",
-  "Menú QR y pedidos": "Canales",
+  "Menú QR, pedidos y tótem": "Canales",
+  "Etiquetas nutricionales": "Producto",
   "Medios de pago": "Dinero",
   "Multi-sucursal": "Gestión",
   "Proveedores y compras": "Bodega",
@@ -778,6 +881,11 @@ const ICON_MAP: Record<string, LucideIcon> = {
   store: Store,
   truck: Truck,
   "shield-check": ShieldCheck,
+  "rotate-3d": Rotate3d,
+  boxes: Boxes,
+  "chart-column": ChartColumn,
+  leaf: Leaf,
+  monitor: Monitor,
 };
 
 function Features({ items }: { items?: LandingFeatureItem[] }) {
@@ -1004,6 +1112,7 @@ export function LandingSite() {
           onReenter={handleReenter}
         />
         <SimuladorSection />
+        <ShowcaseSection />
         <PricingSection
           plans={plans}
           integrationUf={integrationUf}
