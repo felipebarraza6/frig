@@ -5,11 +5,23 @@ import { QRCodeSVG } from "qrcode.react";
 import { Printer, ExternalLink, Store } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { fetchPublicMenuBySlug, publicMenuUrl } from "@/lib/api/public-catalog";
+import {
+  fetchPublicMenuBySlug,
+  publicMenuUrl,
+  publicMenuAbsoluteUrl,
+} from "@/lib/api/public-catalog";
+import { fetchBranchTheme } from "@/lib/api/branches";
+import { getToken } from "@/lib/api/session-storage";
+import { useSessionStore } from "@/lib/store/session";
+import { BrandLogo } from "@/components/brand-logo";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePublicMenuSlug } from "@/lib/hooks/usePublicMenuSlug";
 
-export default function MenuTotemPage({ slug }: { slug: string }) {
+export default function MenuTotemPage({ slug: slugProp }: { slug?: string } = {}) {
+  const slug = usePublicMenuSlug(slugProp);
+  const sessionTheme = useSessionStore((s) => s.theme);
+
   const { data, isLoading, error } = useQuery({
     queryKey: ["public-menu-totem", slug],
     queryFn: () => fetchPublicMenuBySlug(slug),
@@ -17,12 +29,23 @@ export default function MenuTotemPage({ slug }: { slug: string }) {
   });
 
   const catalog = data?.catalog;
+
+  const { data: branchTheme } = useQuery({
+    queryKey: ["branch-theme", catalog?.branch],
+    queryFn: () => fetchBranchTheme(String(catalog!.branch)),
+    enabled: Boolean(catalog?.branch) && Boolean(getToken()) && !catalog?.logo,
+    staleTime: 5 * 60_000,
+  });
+
+  const logoSrc =
+    catalog?.logo || branchTheme?.logo || sessionTheme?.logo || null;
+
   const themeColor = catalog?.theme_color ?? "#1890ff";
   const secondaryColor = catalog?.secondary_color ?? "#f8f9fa";
   const fontFamily = catalog?.font_family ?? "system";
 
   const menuUrl = useMemo(
-    () => `${typeof window !== "undefined" ? window.location.origin : ""}${publicMenuUrl(slug)}`,
+    () => (slug ? publicMenuAbsoluteUrl(slug) : ""),
     [slug],
   );
 
@@ -38,6 +61,15 @@ export default function MenuTotemPage({ slug }: { slug: string }) {
         : fontFamily === "rounded"
           ? "font-sans"
           : "font-sans";
+
+  if (!slug) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-2 px-6 text-center">
+        <p className="text-sm font-medium">Falta el menú a mostrar.</p>
+        <p className="text-xs text-muted-foreground">Abre el tótem con el slug del catálogo.</p>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -68,9 +100,19 @@ export default function MenuTotemPage({ slug }: { slug: string }) {
         className="w-full max-w-lg rounded-3xl border border-border bg-white p-8 shadow-xl print:border-none print:shadow-none print:p-0"
         style={{ borderColor: `${themeColor}30` }}
       >
-        <h1 className="text-2xl font-bold tracking-tight" style={{ color: themeColor }}>
-          {catalog.title}
-        </h1>
+        <div className="flex flex-col items-center gap-3">
+          <BrandLogo
+            src={logoSrc}
+            name={catalog.branch_name || catalog.title}
+            alt={catalog.branch_name || catalog.title}
+            fallbackColor={themeColor}
+            containerClassName="h-20 w-20 rounded-2xl bg-white shadow-sm ring-1 ring-black/5"
+            className="h-full w-full object-contain p-2"
+          />
+          <h1 className="text-2xl font-bold tracking-tight" style={{ color: themeColor }}>
+            {catalog.title}
+          </h1>
+        </div>
         {catalog.description && (
           <p className="mt-2 text-sm text-muted-foreground">{catalog.description}</p>
         )}

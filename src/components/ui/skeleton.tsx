@@ -126,4 +126,62 @@ function GridSkeleton({
   );
 }
 
-export { Skeleton, SkeletonText, SkeletonCircle, SkeletonCard, TableSkeleton, GridSkeleton };
+function MobileCardsSkeleton({ count = 4 }: { count?: number }) {
+  return (
+    <div className="grid gap-3 md:hidden">
+      {Array.from({ length: count }).map((_, idx) => (
+        <div
+          key={idx}
+          className="rounded-2xl border border-border bg-background p-4 shadow-sm"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex min-w-0 flex-1 items-start gap-3">
+              <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-3 w-1/2" />
+                <Skeleton className="h-5 w-16 rounded-full" />
+              </div>
+            </div>
+            <div className="shrink-0 space-y-1 text-right">
+              <Skeleton className="h-5 w-20" />
+              <Skeleton className="ml-auto h-3 w-16" />
+            </div>
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-3">
+            {Array.from({ length: 4 }).map((__, i) => (
+              <div key={i} className="min-w-0 space-y-1">
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-4 w-full" />
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+            {Array.from({ length: 4 }).map((__, i) => (
+              <Skeleton key={i} className="h-10 w-10 rounded-md" />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function StatCardSkeleton() {
+  return (
+    <div className="rounded-2xl border border-border/60 bg-background p-4 shadow-sm">
+      <div className="mb-2 flex items-start justify-between gap-2">
+        <div className="min-w-0 space-y-2">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-7 w-32" />
+        </div>
+        <Skeleton className="h-8 w-8 rounded-full" />
+      </div>
+      <Skeleton className="h-3 w-20" />
+    </div>
+  );
+}
+
+export { Skeleton, SkeletonText, SkeletonCircle, SkeletonCard, TableSkeleton, GridSkeleton, MobileCardsSkeleton, StatCardSkeleton };

@@ -204,9 +204,39 @@ export async function fetchSupplierProducts(supplierId: string): Promise<Supplie
   return fetchAllSupplierProducts(`/suppliers/supplier-products/?supplier=${supplierId}`);
 }
 
-export async function fetchSupplierProductsByProduct(productId: number): Promise<SupplierProduct[]> {
-  const data = await apiFetch<PaginatedSupplierProduct>(`/suppliers/supplier-products/?product=${productId}`);
-  return data.results ?? [];
+/**
+ * Vínculos proveedor↔producto para un producto de inventario.
+ *
+ * Yggdra lista `GET /suppliers/supplier-products/` sin filtro `product` en el
+ * schema (`?product=` se ignora). Filtramos en cliente por FK `product`.
+ * Opcionalmente acota con `search` (nombre) para menos páginas.
+ */
+export async function fetchSupplierProductsByProduct(
+  productId: number,
+  opts?: { productName?: string },
+): Promise<SupplierProduct[]> {
+  const qs = new URLSearchParams({ page_size: "100" });
+  const name = opts?.productName?.trim();
+  if (name) qs.set("search", name);
+
+  const page = await fetchAllSupplierProducts(`/suppliers/supplier-products/?${qs.toString()}`);
+  const matched = page.filter((sp) => Number(sp.product) === Number(productId));
+  if (matched.length > 0 || !name) return matched;
+
+  // Search por nombre puede no coincidir (código distinto); fallback sin search.
+  const all = await fetchAllSupplierProducts("/suppliers/supplier-products/?page_size=100");
+  return all.filter((sp) => Number(sp.product) === Number(productId));
+}
+
+/** Proveedor preferido del producto (`is_preferred`); si hay uno solo, ese; si hay varios sin preferido, null. */
+export function pickPreferredSupplierProduct(
+  items: SupplierProduct[],
+): SupplierProduct | null {
+  if (items.length === 0) return null;
+  const preferred = items.find((item) => item.is_preferred === true);
+  if (preferred) return preferred;
+  if (items.length === 1) return items[0];
+  return null;
 }
 
 async function fetchAllSupplierProducts(url: string): Promise<SupplierProduct[]> {
@@ -343,6 +373,25 @@ export async function updatePurchaseOrderReceivedQuantities(
   return apiFetch<PurchaseOrder>(`/suppliers/purchase-orders/${id}/update_received_quantities/`, {
     method: "POST",
     body: { item_updates: itemUpdates },
+  });
+}
+
+/**
+ * POST /suppliers/purchase-order-items/{id}/receive/ — registra la cantidad
+ * recibida TOTAL de un ítem (no incremental) y, si todos los ítems de la orden
+ * quedan completos, pasa la orden a RECEIVED. Funciona desde DRAFT/SENT, a
+ * diferencia de mark_completed (solo CONFIRMED/PARTIAL_RECEIVED).
+ *
+ * El schema OpenAPI declara como body `PurchaseOrderItemRequest`, pero la vista
+ * solo lee `quantity_received` de request.data; enviar solo ese campo basta.
+ */
+export async function receivePurchaseOrderItem(
+  id: number,
+  quantityReceived: number,
+): Promise<PurchaseOrderItem> {
+  return apiFetch<PurchaseOrderItem>(`/suppliers/purchase-order-items/${id}/receive/`, {
+    method: "POST",
+    body: { quantity_received: quantityReceived },
   });
 }
 

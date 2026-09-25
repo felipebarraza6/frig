@@ -2,9 +2,12 @@
 
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { PageHeader } from "@/components/page-header";
 import { Search, ShoppingBag, X, Eye, Ban, Plus, FileDown, ClipboardList, Receipt, FileText, SlidersHorizontal, Zap, Wallet, Clock, Store, Package, MoreHorizontal, LayoutGrid, List, HandHelping, MapPin, Truck, ChevronDown, Banknote } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { StatCard } from "@/components/ui/stat-card";
+import { Badge } from "@/components/ui/badge";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { Select } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
@@ -37,13 +40,22 @@ import {
   useIsModuleEnabledFromConfig,
 } from "@/lib/store/session";
 
+import dynamic from "next/dynamic";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
 import { OrderProductLines } from "@/components/sales/order-return-panel";
-import { OrderPayModal } from "@/components/sales/order-pay-modal";
-import QuickSaleModal from "@/components/sales/quick-sale-modal";
+import { fetchDiscountUsages } from "@/lib/api/discounts";
 import { useToast } from "@/lib/store/toast";
 import type { YggdraSchemas } from "@/lib/api/types";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
+
+const OrderPayModal = dynamic(
+  () => import("@/components/sales/order-pay-modal").then((mod) => mod.OrderPayModal),
+  { ssr: false },
+);
+const QuickSaleModal = dynamic(
+  () => import("@/components/sales/quick-sale-modal"),
+  { ssr: false },
+);
 
 type PaymentBrief = {
   id: string;
@@ -147,51 +159,6 @@ const QUICK_FILTERS: { value: QuickFilter; label: string; icon: React.ComponentT
   { value: "CANCELLED", label: "Anuladas", icon: Ban },
 ];
 
-const STAT_TONES = {
-  primary: "from-primary/15 to-primary/5 text-primary",
-  amber: "from-amber-500/15 to-amber-500/5 text-amber-600",
-  blue: "from-primary/15 to-primary/5 text-primary",
-  emerald: "from-emerald-500/15 to-emerald-500/5 text-emerald-600",
-} as const;
-
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-  tone,
-  onClick,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: string;
-  tone: keyof typeof STAT_TONES;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left shadow-sm transition-colors",
-        onClick && "hover:border-primary/50 hover:bg-card",
-      )}
-    >
-      <div
-        className={cn(
-          "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br",
-          STAT_TONES[tone],
-        )}
-      >
-        <Icon className="h-5 w-5" />
-      </div>
-      <div className="min-w-0">
-        <p className="text-xs font-medium text-muted-foreground">{label}</p>
-        <p className="truncate text-xl font-bold tabular-nums">{value}</p>
-      </div>
-    </button>
-  );
-}
-
 function getDisplayStatus(order: Order): { label: string; tone: "emerald" | "blue" | "amber" | "danger" | "purple" } {
   const activeInstallments = order.installments?.filter((i) => i.status !== "CANCELLED") ?? [];
   const hasInstallments = activeInstallments.length > 0;
@@ -208,24 +175,14 @@ function getDisplayStatus(order: Order): { label: string; tone: "emerald" | "blu
 
 function StatusBadge({ order }: { order: Order }) {
   const { label, tone } = getDisplayStatus(order);
-  return (
-    <span
-      className={cn(
-        "rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset",
-        tone === "emerald"
-          ? "bg-emerald-500/10 text-emerald-700 ring-emerald-500/20"
-          : tone === "blue"
-            ? "bg-primary/10 text-primary ring-primary/20"
-            : tone === "purple"
-              ? "bg-primary/10 text-primary ring-primary/20"
-              : tone === "danger"
-                ? "bg-danger/10 text-danger ring-danger/20"
-                : "bg-amber-500/10 text-amber-700 ring-amber-500/20",
-      )}
-    >
-      {label}
-    </span>
-  );
+  const badgeTone = {
+    emerald: "success",
+    blue: "primary",
+    purple: "primary",
+    danger: "danger",
+    amber: "warning",
+  } as const;
+  return <Badge tone={badgeTone[tone]}>{label}</Badge>;
 }
 
 function orderTypeMeta(order: Order) {
@@ -418,7 +375,7 @@ function OrderListRow({
   }, [menuOpen]);
 
   return (
-    <motion.div
+    <m.div
       layout
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
@@ -469,7 +426,7 @@ function OrderListRow({
             </button>
             <AnimatePresence>
               {menuOpen && (
-                <motion.div
+                <m.div
                   initial={{ opacity: 0, scale: 0.96, y: 4 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.96, y: 4 }}
@@ -560,13 +517,13 @@ function OrderListRow({
                       />
                     )}
                   </div>
-                </motion.div>
+                </m.div>
               )}
             </AnimatePresence>
           </div>
         </div>
       </div>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -611,7 +568,7 @@ function OrderCard({
     }
   }, [menuOpen]);
   return (
-    <motion.div
+    <m.div
       layout
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
@@ -694,7 +651,7 @@ function OrderCard({
           {/* Dropdown desktop */}
           <AnimatePresence>
             {menuOpen && (
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, scale: 0.96, y: -4 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.96, y: -4 }}
@@ -764,7 +721,7 @@ function OrderCard({
                     />
                   )}
                 </div>
-              </motion.div>
+              </m.div>
             )}
           </AnimatePresence>
         </div>
@@ -781,14 +738,14 @@ function OrderCard({
               if (e.target === e.currentTarget) setMenuOpen(false);
             }}
           >
-            <motion.div
+            <m.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.15 }}
               className="absolute inset-0 bg-black/40"
             />
-            <motion.div
+            <m.div
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
@@ -885,11 +842,11 @@ function OrderCard({
                   Cerrar
                 </Button>
               </div>
-            </motion.div>
+            </m.div>
           </div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -1146,6 +1103,13 @@ export default function SalesPage() {
     staleTime: 60_000,
   });
 
+  const { data: orderDiscountUsages = [] } = useQuery({
+    queryKey: ["discounts", "usage", "order", detail?.id],
+    queryFn: () => fetchDiscountUsages({ order: detail!.id, page_size: 20 }),
+    enabled: Boolean(detail?.id),
+    staleTime: 30_000,
+  });
+
   const tableById = useMemo(() => {
     const tables = tablesPage?.results ?? [];
     const map = new Map<number, TableItem>();
@@ -1396,10 +1360,12 @@ export default function SalesPage() {
   }
 
   return (
-    <div className="flex min-h-full flex-col">
-      <header className="relative overflow-hidden border-b border-border">
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-transparent" />
-        <div className="relative flex flex-col gap-4 px-4 py-5 sm:px-6">
+    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+      <PageHeader
+        title="Ventas"
+        subtitle="Historial de ventas y cuentas abiertas"
+        icon={<ShoppingBag className="h-5 w-5" />}
+        actions={
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
             <Button onClick={() => setQuickModal({ open: true, orderType: "SALE" })} className="h-11 justify-center shadow-sm transition-transform touch-manipulation active:scale-[0.97] sm:h-9">
               <Plus className="mr-1.5 h-4 w-4" />
@@ -1420,22 +1386,22 @@ export default function SalesPage() {
               isLoading={isDownloading}
               title="Descargar Excel con los filtros aplicados"
               aria-label="Exportar Excel"
-              className="h-11 justify-center shadow-sm transition-transform touch-manipulation active:scale-[0.97] sm:ml-auto sm:h-9"
+              className="h-11 justify-center shadow-sm transition-transform touch-manipulation active:scale-[0.97] sm:h-9"
             >
               <FileDown className="mr-1.5 h-4 w-4" />
               Excel
             </Button>
           </div>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <StatCard icon={Wallet} label="Total" value={formatCLP(stats.totalAmount)} tone="primary" onClick={() => setStatDetail("totalAmount")} />
-            <StatCard icon={Clock} label="Pendientes de cobro" value={String(stats.pendingPayment)} tone="amber" onClick={() => setStatDetail("pendingPayment")} />
-            <StatCard icon={Package} label="Por entregar" value={String(stats.pendingDelivery)} tone="blue" onClick={() => setStatDetail("pendingDelivery")} />
-            <StatCard icon={ShoppingBag} label="Entregadas" value={String(stats.deliveredCount)} tone="emerald" onClick={() => setStatDetail("deliveredCount")} />
-          </div>
-        </div>
-      </header>
+        }
+      />
+      <div className="grid grid-cols-2 gap-3 border-b border-border px-4 py-3 sm:px-6 lg:grid-cols-4">
+        <StatCard icon={Wallet} label="Total" value={formatCLP(stats.totalAmount)} tone="primary" onClick={() => setStatDetail("totalAmount")} />
+        <StatCard icon={Clock} label="Pendientes de cobro" value={String(stats.pendingPayment)} tone="warning" onClick={() => setStatDetail("pendingPayment")} />
+        <StatCard icon={Package} label="Por entregar" value={String(stats.pendingDelivery)} tone="primary" onClick={() => setStatDetail("pendingDelivery")} />
+        <StatCard icon={ShoppingBag} label="Entregadas" value={String(stats.deliveredCount)} tone="success" onClick={() => setStatDetail("deliveredCount")} />
+      </div>
 
-      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
+      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
         {/* Filtros en una línea */}
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
@@ -1682,7 +1648,7 @@ export default function SalesPage() {
                 </div>
               </div>
             ) : viewMode === "cards" ? (
-              <motion.div layout className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <m.div layout className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                 <AnimatePresence mode="popLayout">
                 {visibleOrders.map((order, index) => (
                   <OrderCard
@@ -1705,9 +1671,9 @@ export default function SalesPage() {
                   />
                 ))}
                 </AnimatePresence>
-              </motion.div>
+              </m.div>
             ) : (
-              <motion.div layout className="flex flex-col gap-2">
+              <m.div layout className="flex flex-col gap-2">
                 <AnimatePresence mode="popLayout">
                 {visibleOrders.map((order) => (
                   <OrderListRow
@@ -1727,7 +1693,7 @@ export default function SalesPage() {
                   />
                 ))}
                 </AnimatePresence>
-              </motion.div>
+              </m.div>
             )}
 
             <div className="flex items-center justify-between text-sm">
@@ -1831,6 +1797,49 @@ export default function SalesPage() {
                 </div>
               </div>
 
+              {/* Cupones / descuentos de promoción aplicados */}
+              {orderDiscountUsages.length > 0 && (
+                <div className="mt-5">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Cupones aplicados
+                  </p>
+                  <div className="mt-2 flex flex-col divide-y divide-border rounded-xl border border-emerald-500/20 bg-emerald-500/5">
+                    {orderDiscountUsages.map((u) => (
+                      <div
+                        key={u.id}
+                        className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-medium text-emerald-900 dark:text-emerald-200">
+                            {u.discount_name}
+                          </p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            {u.user_email || "—"}
+                            {u.created
+                              ? ` · ${new Date(u.created).toLocaleString("es-CL", {
+                                  day: "2-digit",
+                                  month: "short",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                  hour12: false,
+                                })}`
+                              : ""}
+                          </p>
+                        </div>
+                        <div className="shrink-0 text-right text-xs tabular-nums">
+                          <p className="font-semibold text-emerald-700">
+                            −{formatCLP(u.discount_amount)}
+                          </p>
+                          <p className="text-muted-foreground">
+                            {formatCLP(u.original_amount)} → {formatCLP(u.final_amount)}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Productos: devolución por línea, no de la orden entera */}
               {detail.products && detail.products.length > 0 && (
                 <OrderProductLines
@@ -1847,7 +1856,9 @@ export default function SalesPage() {
                     name: p.product_name ?? "Producto",
                     max: p.quantity ?? 0,
                     unitPrice: p.unit_price ?? 0,
-                    lineTotal: p.total_price ?? 0,
+                    lineTotal: p.final_price ?? p.total_price ?? 0,
+                    discountPercentage: p.discount_percentage ?? 0,
+                    discountAmount: p.discount_amount ?? 0,
                   }))}
                 />
               )}
@@ -2098,7 +2109,7 @@ export default function SalesPage() {
               }
             }}
           >
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: "100%" }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: "100%" }}
@@ -2379,7 +2390,7 @@ export default function SalesPage() {
                   </Button>
                 </div>
               </div>
-            </motion.div>
+            </m.div>
           </div>
         )}
       </AnimatePresence>
@@ -2388,14 +2399,14 @@ export default function SalesPage() {
       <AnimatePresence>
         {posModal.open && posModal.orderType && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-0 sm:p-4">
-            <motion.div
+            <m.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="absolute inset-0 bg-black/50"
               onClick={() => setPosModal({ open: false, orderType: null })}
             />
-            <motion.div
+            <m.div
               initial={{ opacity: 0, scale: 0.96, y: 16 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 16 }}
@@ -2430,7 +2441,7 @@ export default function SalesPage() {
                       : "Nueva venta"
                 }
               />
-            </motion.div>
+            </m.div>
           </div>
         )}
       </AnimatePresence>
@@ -2454,7 +2465,7 @@ export default function SalesPage() {
             if (e.target === e.currentTarget) setFiltersOpen(false);
           }}
         >
-          <motion.div
+          <m.div
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
@@ -2576,7 +2587,7 @@ export default function SalesPage() {
                 </Button>
               </div>
             </div>
-          </motion.div>
+          </m.div>
         </div>
       )}
 
@@ -2590,7 +2601,7 @@ export default function SalesPage() {
             if (e.target === e.currentTarget) setStatDetail(null);
           }}
         >
-          <motion.div
+          <m.div
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
@@ -2651,7 +2662,7 @@ export default function SalesPage() {
                 </div>
               )}
             </div>
-          </motion.div>
+          </m.div>
         </div>
       )}
     </div>

@@ -87,6 +87,84 @@
   --danger: #f87171;
   --success: #4ade80;
   --warning: #fbbf24;
+
+  /* Glassmorphism — dark: tint más opaco + blur un poco mayor. */
+  --glass-bg: color-mix(in srgb, #161616 78%, transparent);
+  --glass-bg-strong: color-mix(in srgb, #161616 92%, transparent);
+  --glass-bg-read: color-mix(in srgb, #161616 88%, transparent);
+  --glass-border: color-mix(in srgb, #ffffff 12%, transparent);
+  --glass-blur: 18px;
+  --glass-blur-read: 24px;
+  --glass-shadow: 0 12px 36px -16px color-mix(in srgb, #000 60%, transparent);
+  --glass-highlight: color-mix(in srgb, #ffffff 14%, transparent);
+}
+
+/*
+ * Glassmorphism — light (default).
+ * Semi-transparente para que se note el fondo animado (HeroPlexus),
+ * con frost suave (no mate plano ni “sopa” lechosa).
+ * Ver DESIGN.md § Glassmorphism.
+ */
+:root,
+.light {
+  --glass-bg: color-mix(in srgb, #ffffff 52%, transparent);
+  --glass-bg-strong: color-mix(in srgb, #ffffff 72%, transparent);
+  --glass-bg-read: color-mix(in srgb, #ffffff 84%, transparent);
+  --glass-border: color-mix(in srgb, #ffffff 55%, var(--brand-primary) 12%);
+  --glass-blur: 14px;
+  --glass-blur-read: 22px;
+  --glass-shadow: 0 1px 0 color-mix(in srgb, #ffffff 45%, transparent),
+    0 10px 28px -16px color-mix(in srgb, var(--brand-primary) 22%, transparent);
+  --glass-highlight: color-mix(in srgb, #ffffff 50%, transparent);
+}
+
+/* Superficie glass estándar (cards, paneles de informe). */
+.glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
+}
+
+/* Glass más opaco: sticky headers, overlays, filtros. */
+.glass-strong {
+  background: var(--glass-bg-strong);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur) + 4px));
+  backdrop-filter: blur(calc(var(--glass-blur) + 4px));
+}
+
+/* Panel de lectura: más frost para que el fondo animado no robe legibilidad. */
+.glass-read {
+  background: var(--glass-bg-read);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: blur(var(--glass-blur-read));
+  backdrop-filter: blur(var(--glass-blur-read));
+}
+
+/* Chip / pill glass (tabs, date range, acciones compactas). */
+.glass-chip {
+  background: var(--glass-bg-strong);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 1px 0 var(--glass-highlight);
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur) - 4px));
+  backdrop-filter: blur(calc(var(--glass-blur) - 4px));
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass,
+  .glass-strong,
+  .glass-read,
+  .glass-chip {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: var(--card);
+    border-color: var(--border);
+    box-shadow: none;
+  }
 }
 
 ::selection {
@@ -136,40 +214,27 @@ a {
   cursor: pointer;
 }
 
-/* Ocultar scrollbars en toda la app */
+/* Ocultar scrollbars en toda la app (el scroll sigue funcionando). */
 * {
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
 *::-webkit-scrollbar {
   display: none;
+  width: 0;
+  height: 0;
 }
 
-.scrollbar-hide {
+.scrollbar-hide,
+.scrollbar-thin {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
-
-.scrollbar-thin {
-  scrollbar-width: thin;
-  scrollbar-color: hsl(var(--border)) transparent;
-}
+.scrollbar-hide::-webkit-scrollbar,
 .scrollbar-thin::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
-}
-.scrollbar-thin::-webkit-scrollbar-track {
-  background: transparent;
-}
-.scrollbar-thin::-webkit-scrollbar-thumb {
-  background: hsl(var(--border));
-  border-radius: 9999px;
-}
-.scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground) / 0.5);
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 /* Sidebar: fondo orgánico derivado del primary de la marca (texto blanco

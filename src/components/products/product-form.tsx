@@ -1,7 +1,7 @@
 "use client";
 
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { m, AnimatePresence } from "framer-motion";
 import {
@@ -9,7 +9,6 @@ import {
   Plus,
   Trash2,
   Search,
-  FileDown,
   Warehouse,
   ChevronLeft,
   ChevronRight,
@@ -20,6 +19,10 @@ import {
   ChefHat,
   Layers,
   Apple,
+  Hash,
+  Tags,
+  Truck,
+  Ruler,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -27,7 +30,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { cn } from "@/lib/utils";
+import { Field } from "@/components/ui/field";
+import { cn, stockStatusLabel } from "@/lib/utils";
+import { statusBadge } from "@/lib/status-styles";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
@@ -38,15 +43,15 @@ import type { YggdraProduct } from "@/lib/api/types";
 import {
   lookupSuppliers,
   fetchSupplierProductsByProduct,
+  pickPreferredSupplierProduct,
   createSupplierProduct,
   updateSupplierProduct,
-  type SupplierProduct,
 } from "@/lib/api/suppliers";
 import { useToast } from "@/lib/store/toast";
 import { useCurrentBranch } from "@/lib/store/session";
-import { NutritionLabelPreview } from "@/components/products/nutrition-label-preview";
-import { ProductTypeHelp } from "@/components/products/product-type-help";
+import { ProductTypePicker } from "@/components/products/product-type-picker";
 import { CompoundAvailability } from "@/components/products/compound-availability";
+import { IngredientNutritionQuickEdit } from "@/components/products/ingredient-nutrition-quick-edit";
 import {
   fetchRecipesByProduct,
   createRecipe,
@@ -55,7 +60,6 @@ import {
   updateRecipeIngredient,
   deleteRecipeIngredient,
   calculateRecipeNutrition,
-  downloadRecipeNutritionLabel,
   type RecipePayload,
   type RecipeIngredientPayload,
 } from "@/lib/api/recipes";
@@ -76,7 +80,7 @@ import {
   type ProductModifierGroupWriteRequest,
 } from "@/lib/api/modifier-groups";
 import { useBranchProductTypes } from "@/lib/hooks/useBranchProductTypes";
-import { useDownloadFile } from "@/lib/hooks/useDownloadFile";
+
 import { useIsNutritionEnabled, useIsModuleEnabledFromConfig } from "@/lib/store/session";
 import type { YggdraSchemas } from "@/lib/api/types";
 
@@ -188,11 +192,14 @@ function groupProductWarehousesByWarehouse(items: WarehouseProduct[]): Warehouse
     let minimumQuantity: number | undefined;
     let maximumQuantity: number | null = null;
     let reorderPoint: number | undefined;
+    let currentQuantity = 0;
     let location = first.location_in_warehouse ?? null;
     let earliestCreated = first.created;
     let recordId = first.id;
+    let stockStatus = first.stock_status;
 
     for (const w of group) {
+      currentQuantity += Number(w.current_quantity ?? 0);
       if (w.minimum_quantity != null) {
         minimumQuantity =
           minimumQuantity === undefined ? w.minimum_quantity : Math.min(minimumQuantity, w.minimum_quantity);
@@ -214,13 +221,25 @@ function groupProductWarehousesByWarehouse(items: WarehouseProduct[]): Warehouse
       }
     }
 
+    if (minimumQuantity != null && currentQuantity <= minimumQuantity) {
+      stockStatus = currentQuantity <= 0 ? "OUT_OF_STOCK" : "LOW_STOCK";
+    } else if (currentQuantity <= 0) {
+      stockStatus = "OUT_OF_STOCK";
+    } else if (group.length === 1) {
+      stockStatus = first.stock_status;
+    } else {
+      stockStatus = "IN_STOCK";
+    }
+
     return {
       ...first,
       id: recordId,
+      current_quantity: currentQuantity,
       minimum_quantity: minimumQuantity,
       maximum_quantity: maximumQuantity,
       reorder_point: reorderPoint,
       location_in_warehouse: location,
+      stock_status: stockStatus,
       created: earliestCreated,
     } as WarehouseProduct;
   });
@@ -265,15 +284,157 @@ function buildInitialForm(product?: YggdraProductDetail, defaultProductType?: st
   };
 }
 
+function StatusSwitchRow({
+  title,
+  description,
+  checked,
+  onCheckedChange,
+  accent,
+  disabled,
+}: {
+  title: string;
+  description: string;
+  checked: boolean;
+  onCheckedChange: (v: boolean) => void;
+  accent?: boolean;
+  disabled?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex items-center justify-between gap-3 rounded-xl px-2.5 py-2 transition-all duration-200",
+        disabled && "opacity-60",
+        checked
+          ? accent
+            ? "bg-primary/12 text-foreground shadow-[inset_0_1px_0_var(--glass-highlight)]"
+            : "bg-secondary/40 shadow-[inset_0_1px_0_var(--glass-highlight)]"
+          : "bg-transparent hover:bg-muted/35",
+      )}
+    >
+      <div className="min-w-0">
+        <p className="text-sm font-medium leading-tight">{title}</p>
+        <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{description}</p>
+      </div>
+      <Switch
+        checked={checked}
+        onCheckedChange={onCheckedChange}
+        label={title}
+        disabled={disabled}
+        className="mt-0.5"
+      />
+    </div>
+  );
+}
+
+/** Toggle compacto para el header del modal (siempre visible). */
+function HeaderStatusToggle({
+  label,
+  checked,
+  onCheckedChange,
+  disabled,
+  activeClassName,
+}: {
+  label: string;
+  checked: boolean;
+  onCheckedChange: (v: boolean) => void;
+  disabled?: boolean;
+  activeClassName?: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={() => onCheckedChange(!checked)}
+      className={cn(
+        "inline-flex h-8 items-center gap-2 rounded-full px-2.5 text-xs font-semibold transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50",
+        "shadow-[inset_0_1px_0_var(--glass-highlight)]",
+        checked
+          ? (activeClassName ?? "bg-primary/20 text-primary ring-1 ring-primary/30")
+          : "bg-muted/40 text-muted-foreground ring-1 ring-border/50 hover:bg-muted/70 hover:text-foreground",
+      )}
+    >
+      <span
+        className={cn(
+          "relative inline-flex h-4 w-7 shrink-0 rounded-full transition-colors duration-200",
+          checked ? "bg-primary" : "bg-muted-foreground/30",
+        )}
+      >
+        <span
+          className={cn(
+            "absolute top-0.5 h-3 w-3 rounded-full bg-background shadow transition-transform duration-200",
+            checked ? "left-3.5" : "left-0.5",
+          )}
+        />
+      </span>
+      {label}
+    </button>
+  );
+}
+
+/** Bloque plano: label + contenido, sin card anidada. */
+function FormSection({
+  title,
+  children,
+  className,
+  tint,
+}: {
+  title: string;
+  children: ReactNode;
+  className?: string;
+  tint?: "primary" | "success" | "warning" | "none";
+}) {
+  return (
+    <section className={cn("relative", className)}>
+      {title ? (
+        <div className="mb-2 flex items-center gap-2">
+          <span
+            className={cn(
+              "h-1.5 w-1.5 rounded-full",
+              tint === "success" && "bg-success",
+              tint === "warning" && "bg-warning",
+              tint === "primary" && "bg-primary",
+              (!tint || tint === "none") && "bg-primary/70",
+            )}
+          />
+          <h3 className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            {title}
+          </h3>
+          <span className="h-px flex-1 bg-gradient-to-r from-border/80 to-transparent" />
+        </div>
+      ) : null}
+      {children}
+    </section>
+  );
+}
+
+function IconFieldShell({
+  icon: Icon,
+  children,
+  className,
+}: {
+  icon: LucideIcon;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("relative", className)}>
+      <Icon className="pointer-events-none absolute left-2.5 top-1/2 z-[1] h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+      <div className="[&_input]:pl-8 [&_button]:pl-8 [&_select]:pl-8">{children}</div>
+    </div>
+  );
+}
+
 function ProductFormSkeleton() {
   return (
-    <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg sm:h-[85vh] sm:max-w-3xl sm:rounded-xl sm:border">
+    <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg sm:h-[85vh] sm:max-w-4xl sm:rounded-xl sm:border">
       <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 sm:px-6">
         <Skeleton className="h-5 w-40" />
         <Skeleton className="h-8 w-8 rounded-lg" />
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col p-4 sm:p-6">
+      <div className="flex min-h-0 flex-1 flex-col p-4 sm:p-5">
         <div className="overflow-x-auto rounded-lg bg-muted p-1">
           <div className="flex min-w-max gap-1 sm:min-w-0 sm:flex-wrap">
             {Array.from({ length: 5 }).map((_, i) => (
@@ -282,9 +443,9 @@ function ProductFormSkeleton() {
           </div>
         </div>
 
-        <div className="mt-6 space-y-4">
+        <div className="mt-4 space-y-3">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Skeleton className="h-4 w-20" />
               <Skeleton className="h-9 w-full" />
             </div>
@@ -338,12 +499,11 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
 
   const { options: productTypeOptions, defaultType, isLoading: loadingProductTypes } = useBranchProductTypes();
   const nutritionEnabled = useIsNutritionEnabled();
-  // El check "Público en menú QR" depende del módulo Menús digitales
+  // El check "Público en menú QR" depende del módulo Menús y vitrinas
   // (public_catalog), igual que el tab Nutrición depende de `nutrition`.
   const publicCatalogEnabled = useIsModuleEnabledFromConfig("public_catalog");
   // El tab Bodegas depende del módulo Inventario.
   const inventoryEnabled = useIsModuleEnabledFromConfig("inventory");
-  const { download: downloadNutritionPdf, isLoading: downloadingNutritionPdf } = useDownloadFile();
   const { options: categories, isLoading: loadingCategories } = useCategoryOptions();
 
   // Mostramos un skeleton dentro del modal mientras llegan los datos mínimos
@@ -388,26 +548,38 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
   // el formulario para evitar valores vacíos o mezclados.
   // Solo nos interesa el id: no queremos re-resetear en cada render si la
   // referencia del objeto cambia.
+  // También invalidamos el sync de proveedor: defaultType puede llegar después
+  // y un reset del form no debe dejar el supplier “trabado” con el valor viejo.
+  const supplierSyncKeyRef = useRef<string | null>(null);
   useEffect(() => {
     setForm(buildInitialForm(effectiveProduct, defaultType));
+    setSupplierLabel("");
+    supplierSyncKeyRef.current = null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveProduct?.id, defaultType]);
 
-  const [existingSupplierProduct, setExistingSupplierProduct] = useState<SupplierProduct | null>(null);
-
-  const { data: warehouses = [] } = useQuery({
+  // Misma key que inventario: a veces el cache trae la página `{ results }` y
+  // a veces un array (queryFn viejo). Normalizamos para evitar
+  // `warehouses.filter is not a function`.
+  const { data: warehousesPage } = useQuery({
     queryKey: ["warehouses", "all"],
-    queryFn: async () => {
-      const data = await fetchWarehouses({});
-      return data.results;
-    },
+    queryFn: () => fetchWarehouses({ page_size: 100 }),
     enabled: inventoryEnabled,
   });
+  const warehouses = useMemo(() => {
+    if (Array.isArray(warehousesPage)) return warehousesPage;
+    if (warehousesPage && Array.isArray(warehousesPage.results)) return warehousesPage.results;
+    return [];
+  }, [warehousesPage]);
 
   const { data: productWarehouses = [], isLoading: loadingProductWarehouses } = useQuery({
-    queryKey: ["warehouse-products", "product", effectiveProduct?.id],
-    queryFn: () => fetchProductWarehouses(effectiveProduct!.id),
+    queryKey: ["warehouse-products", "product", "v2", effectiveProduct?.id],
+    queryFn: () =>
+      fetchProductWarehouses(effectiveProduct!.id, {
+        productName: effectiveProduct?.name,
+      }),
     enabled: !!effectiveProduct?.id && inventoryEnabled,
+    staleTime: 0,
   });
 
   const groupedProductWarehouses = useMemo(
@@ -445,34 +617,69 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
     staleTime: 30_000,
   });
 
+  const supplierLinkQuery = useQuery({
+    queryKey: ["supplier-products", "by-product", "v2", effectiveProduct?.id],
+    queryFn: () =>
+      fetchSupplierProductsByProduct(effectiveProduct!.id, {
+        productName: effectiveProduct?.name,
+      }),
+    enabled: !!effectiveProduct?.id,
+    staleTime: 0,
+  });
+  const supplierProductsForProduct = supplierLinkQuery.data ?? [];
+  const loadingSupplierProduct = supplierLinkQuery.isFetching && !supplierLinkQuery.isFetched;
+
+  const linkedSupplierOptions = useMemo(
+    () =>
+      supplierProductsForProduct.map((sp) => ({
+        value: String(sp.supplier),
+        label: sp.is_preferred ? `${sp.supplier_name} · preferido` : sp.supplier_name,
+        description: sp.supplier_product_code || undefined,
+      })),
+    [supplierProductsForProduct],
+  );
+
   const supplierOptions = useMemo(() => {
     const found = (supplierLookup.data ?? []).map((s) => ({
       value: s.id,
       label: s.name,
       description: [s.tax_id, s.business_name].filter(Boolean).join(" · ") || undefined,
     }));
-    if (form.supplier && supplierLabel && !found.some((o) => o.value === form.supplier)) {
-      return [{ value: form.supplier, label: supplierLabel }, ...found];
+    const byValue = new Map<string, { value: string; label: string; description?: string }>();
+    for (const opt of [...linkedSupplierOptions, ...found]) {
+      if (!byValue.has(opt.value)) byValue.set(opt.value, opt);
     }
-    return found;
-  }, [supplierLookup.data, form.supplier, supplierLabel]);
+    if (form.supplier && supplierLabel && !byValue.has(form.supplier)) {
+      byValue.set(form.supplier, { value: form.supplier, label: supplierLabel });
+    }
+    return Array.from(byValue.values());
+  }, [supplierLookup.data, linkedSupplierOptions, form.supplier, supplierLabel]);
 
-  const { data: supplierProductsForProduct = [], isLoading: loadingSupplierProduct } = useQuery({
-    queryKey: ["supplier-products", "by-product", effectiveProduct?.id],
-    queryFn: () => fetchSupplierProductsByProduct(effectiveProduct!.id),
-    enabled: !!effectiveProduct?.id,
-    staleTime: 30_000,
-  });
-
+  // Sync proveedor principal cuando llegan los vínculos (tras fetch real).
+  // No usar isLoading=false + data=[]: con la query disabled eso “traba” el
+  // supplier vacío o el primero global. Esperamos isFetched.
   useEffect(() => {
-    if (supplierProductsForProduct.length > 0) {
-      const first = supplierProductsForProduct[0];
-      setExistingSupplierProduct(first);
-      setForm((prev) => ({ ...prev, supplier: first.supplier }));
-      const name = (first as { supplier_name?: string }).supplier_name;
-      if (name) setSupplierLabel(name);
+    const productId = effectiveProduct?.id;
+    if (!productId || !supplierLinkQuery.isFetched) return;
+
+    const syncKey = `${productId}:${supplierLinkQuery.dataUpdatedAt}`;
+    if (supplierSyncKeyRef.current === syncKey) return;
+    supplierSyncKeyRef.current = syncKey;
+
+    const principal = pickPreferredSupplierProduct(supplierProductsForProduct);
+    if (principal) {
+      setForm((prev) => ({ ...prev, supplier: String(principal.supplier) }));
+      setSupplierLabel(principal.supplier_name || "");
+    } else {
+      setForm((prev) => ({ ...prev, supplier: "" }));
+      setSupplierLabel("");
     }
-  }, [supplierProductsForProduct]);
+  }, [
+    effectiveProduct?.id,
+    supplierLinkQuery.isFetched,
+    supplierLinkQuery.dataUpdatedAt,
+    supplierProductsForProduct,
+  ]);
 
   const [tracksWarehouseStock, setTracksWarehouseStock] = useState(false);
 
@@ -562,22 +769,81 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
     : false;
 
   const [activeTab, setActiveTab] = useState<FormTab>(initialTab ?? "basic");
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [scrollEdge, setScrollEdge] = useState({ top: false, bottom: false });
 
   const tabs = useMemo<{ id: FormTab; label: string; icon: LucideIcon; enabled: boolean }[]>(() => {
     const list: { id: FormTab; label: string; icon: LucideIcon; enabled: boolean }[] = [
-      { id: "basic", label: "Datos básicos", icon: FileText, enabled: true },
-      { id: "pricing", label: "Precios y venta", icon: CircleDollarSign, enabled: true },
+      { id: "basic", label: "Datos", icon: FileText, enabled: true },
+      { id: "pricing", label: "Precios", icon: CircleDollarSign, enabled: true },
       { id: "recipe", label: "Receta", icon: ChefHat, enabled: isCompound },
       // En compuestos el tab muestra la disponibilidad calculada desde los
       // ingredientes (no gestionan stock propio por bodega).
       { id: "warehouses", label: "Bodegas", icon: Warehouse, enabled: inventoryEnabled },
-      { id: "modifiers", label: "Modificadores", icon: Layers, enabled: true },
-    ];
+      { id: "modifiers", label: "Mods", icon: Layers, enabled: true },
+      ];
     if (nutritionEnabled) {
       list.push({ id: "nutrition", label: "Nutrición", icon: Apple, enabled: true });
     }
     return list;
   }, [isCompound, nutritionEnabled, inventoryEnabled]);
+
+  const enabledTabs = useMemo(() => tabs.filter((t) => t.enabled), [tabs]);
+
+  useEffect(() => {
+    if (isInitializing) return;
+    const t = window.setTimeout(() => nameInputRef.current?.focus(), 80);
+    return () => window.clearTimeout(t);
+  }, [isInitializing, effectiveProduct?.id]);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const meta = e.metaKey || e.ctrlKey;
+      if (meta && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        formRef.current?.requestSubmit();
+        return;
+      }
+      if (meta && e.key === "Enter") {
+        e.preventDefault();
+        formRef.current?.requestSubmit();
+        return;
+      }
+      if (e.altKey && e.key >= "1" && e.key <= "9") {
+        const idx = Number(e.key) - 1;
+        const tab = enabledTabs[idx];
+        if (tab) {
+          e.preventDefault();
+          setActiveTab(tab.id);
+        }
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [enabledTabs]);
+
+  function updateScrollEdges() {
+    const el = scrollRef.current;
+    if (!el) return;
+    const top = el.scrollTop > 4;
+    const bottom = el.scrollTop + el.clientHeight < el.scrollHeight - 4;
+    setScrollEdge((prev) => (prev.top === top && prev.bottom === bottom ? prev : { top, bottom }));
+  }
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    updateScrollEdges();
+    el.addEventListener("scroll", updateScrollEdges, { passive: true });
+    const ro = new ResizeObserver(updateScrollEdges);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", updateScrollEdges);
+      ro.disconnect();
+    };
+  }, [activeTab, isInitializing]);
 
   // Al cargar las opciones de tipo (la query puede llegar después de abrir el
   // form), corrige el valor actual si no está entre las disponibles.
@@ -591,12 +857,18 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
     if (next) setForm((prev) => ({ ...prev, productType: next }));
   }, [productTypeOptions, defaultType, form.productType]);
 
-  // Las materias primas no se venden por defecto (solo se usan en recetas).
+  // Al cambiar a materia prima en un alta nueva, apaga venta/público una vez.
+  // El usuario puede volver a activar En venta (Yggdra lo permite en RAW_MATERIAL).
+  const rawSaleDefaultAppliedRef = useRef(false);
   useEffect(() => {
-    if (isRawMaterial && !effectiveProduct && (form.isForSale || form.isPublic)) {
-      setForm((prev) => ({ ...prev, isForSale: false, isPublic: false }));
+    if (!isRawMaterial || effectiveProduct) {
+      rawSaleDefaultAppliedRef.current = false;
+      return;
     }
-  }, [isRawMaterial, effectiveProduct, form.isForSale, form.isPublic]);
+    if (rawSaleDefaultAppliedRef.current) return;
+    rawSaleDefaultAppliedRef.current = true;
+    setForm((prev) => ({ ...prev, isForSale: false, isPublic: false }));
+  }, [isRawMaterial, effectiveProduct]);
 
   // Si se desmarca la gestión por bodega, limpiar las asignaciones pendientes.
   useEffect(() => {
@@ -819,34 +1091,58 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
   }
 
   async function saveSupplierRelation(productId: number) {
-    const supplierId = form.supplier;
+    const supplierId = form.supplier.trim();
     const branchId = branch?.branch_id;
-    if (!supplierId || !branchId) return;
+    if (!branchId) return;
 
     const costPrice = Number(form.costPrice || "0");
     const supplierName = form.name.trim() || effectiveProduct?.name || "Producto";
+    const linked = supplierProductsForProduct;
 
     try {
-      if (existingSupplierProduct && existingSupplierProduct.supplier !== supplierId) {
-        await updateSupplierProduct(existingSupplierProduct.id, {
-          supplier: supplierId,
+      if (!supplierId) {
+        await Promise.all(
+          linked
+            .filter((sp) => sp.is_preferred)
+            .map((sp) => updateSupplierProduct(sp.id, { is_preferred: false })),
+        );
+        queryClient.invalidateQueries({ queryKey: ["supplier-products"] });
+        return;
+      }
+
+      const matching = linked.find((sp) => String(sp.supplier) === supplierId);
+      let preferredId: number;
+
+      if (matching) {
+        await updateSupplierProduct(matching.id, {
           cost_price: costPrice,
           supplier_product_name: supplierName,
           is_active: true,
+          is_preferred: true,
           branch: Number(branchId),
         });
-      } else if (!existingSupplierProduct) {
-        await createSupplierProduct({
+        preferredId = matching.id;
+      } else {
+        const created = await createSupplierProduct({
           supplier: supplierId,
           product: productId,
           cost_price: costPrice,
           supplier_product_name: supplierName,
           is_active: true,
+          is_preferred: true,
           branch: Number(branchId),
           create_inventory_product: false,
           measurement_unit: form.measurementUnit || "UN",
         });
+        preferredId = created.id;
       }
+
+      await Promise.all(
+        linked
+          .filter((sp) => sp.id !== preferredId && sp.is_preferred)
+          .map((sp) => updateSupplierProduct(sp.id, { is_preferred: false })),
+      );
+
       queryClient.invalidateQueries({ queryKey: ["supplier-products"] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "No se pudo guardar el proveedor del producto.");
@@ -983,7 +1279,7 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
         // fuerza en la creación, así que solo lo enviamos para no compuestos.
         tracks_inventory: !isCompound ? tracksWarehouseStock : undefined,
         product_type: form.productType as unknown as ProductPayload["product_type"],
-        is_for_sale: isRawMaterial ? false : form.isForSale,
+        is_for_sale: form.isForSale,
         is_for_internal_use: form.isForInternalUse,
         is_public: form.isPublic,
         is_active: form.isActive,
@@ -1042,326 +1338,346 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
       {isInitializing ? (
         <ProductFormSkeleton />
       ) : (
-      <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg sm:h-[85vh] sm:max-w-3xl sm:rounded-xl sm:border">
-        <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 sm:px-6">
-          <h2 className="text-base font-semibold">
-            {effectiveProduct ? "Editar producto" : "Nuevo producto"}
-          </h2>
-          <button onClick={onClose} aria-label="Cerrar" className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-          <div className="overflow-x-auto rounded-lg bg-muted p-1">
-            <div className="flex min-w-max gap-1 sm:min-w-0 sm:flex-wrap">
-              {tabs.map((tab) => {
-                const Icon = tab.icon;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setActiveTab(tab.id)}
-                    disabled={!tab.enabled}
-                    className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap ${
-                      activeTab === tab.id
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    } ${!tab.enabled ? "opacity-40 cursor-not-allowed" : ""}`}
-                  >
-                    <Icon className="h-3.5 w-3.5 shrink-0" />
-                    {tab.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="mt-6">
-          <AnimatePresence mode="wait">
-          <m.div
-            key={activeTab}
-            initial={{ opacity: 0, x: 12 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -12 }}
-            transition={{ duration: 0.2 }}
-          >
-          {activeTab === "basic" && (
-          <div className="flex flex-col gap-5">
-            {/* Identificación */}
-            <div>
-              <h3 className="mb-3 text-sm font-semibold text-foreground">Identificación</h3>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="product-name" className="text-sm font-medium">Nombre</label>
-                  <Input
-                    id="product-name"
-                    value={form.name}
-                    onChange={(e) => updateField("name", e.target.value)}
-                    required
-                    placeholder="Ej: Cono artesanal"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="product-code" className="text-sm font-medium">Código</label>
+      <div className="relative flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-2xl border-x border-t border-border/70 bg-background shadow-xl sm:h-[min(88vh,820px)] sm:max-w-4xl sm:rounded-2xl sm:border">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_color-mix(in_srgb,var(--brand-primary)_18%,transparent),_transparent_55%),radial-gradient(ellipse_at_bottom_right,_color-mix(in_srgb,var(--brand-secondary)_12%,transparent),_transparent_45%)]"
+        />
+        <div className="glass-strong relative shrink-0 border-b border-border/50 px-4 py-2.5 sm:px-5">
+          <div className="flex items-start gap-2 sm:gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                <input
+                  ref={nameInputRef}
+                  id="product-name"
+                  value={form.name}
+                  onChange={(e) => updateField("name", e.target.value)}
+                  required
+                  placeholder="Nombre del producto…"
+                  className="min-w-[10rem] flex-1 border-0 bg-transparent p-0 text-base font-semibold tracking-tight text-foreground outline-none placeholder:text-muted-foreground/60 focus-visible:ring-0 sm:text-lg"
+                  aria-label="Nombre del producto"
+                />
+                <div className="relative w-[7.5rem] shrink-0 sm:w-[9rem]">
+                  <Hash className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-primary/70" />
                   <Input
                     id="product-code"
                     value={form.code}
                     onChange={(e) => updateField("code", e.target.value)}
-                    placeholder="Opcional"
+                    placeholder="Código"
+                    className="h-8 rounded-full border-0 bg-primary/8 pl-7 text-xs shadow-[inset_0_1px_0_var(--glass-highlight)] ring-1 ring-primary/15"
+                    aria-label="Código"
                   />
                 </div>
+                <HeaderStatusToggle
+                  label={form.isForSale ? "En venta" : "Fuera de venta"}
+                  checked={form.isForSale}
+                  onCheckedChange={(v) => updateField("isForSale", v)}
+                  activeClassName="bg-success/20 text-success ring-1 ring-success/35"
+                />
+                <HeaderStatusToggle
+                  label={form.isActive ? "Activo" : "Inactivo"}
+                  checked={form.isActive}
+                  onCheckedChange={(v) => updateField("isActive", v)}
+                />
               </div>
             </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Cerrar"
+              className="rounded-xl p-1.5 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-foreground"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
 
-            {/* Clasificación */}
-            <div>
-              <h3 className="mb-3 text-sm font-semibold text-foreground">Clasificación</h3>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="product-type" className="text-sm font-medium">Tipo</label>
-                  <Select
-                    id="product-type"
-                    value={form.productType}
-                    onChange={(e) => updateField("productType", e.target.value)}
-                  >
-                    {productTypeOptions.map((t) => (
-                      <option key={t.value} value={t.value}>{t.label}</option>
-                    ))}
-                  </Select>
-                  <ProductTypeHelp productType={form.productType} />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="product-category" className="text-sm font-medium">Categoría</label>
-                  <Select
-                    id="product-category"
-                    value={form.category}
-                    disabled={loadingCategories}
-                    onChange={(e) => updateField("category", e.target.value)}
-                  >
-                    <option value="">Sin categoría</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </Select>
-                </div>
-              </div>
-            </div>
+          <div className="glass-chip mt-2.5 flex gap-1 overflow-x-auto p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {enabledTabs.map((tab, i) => {
+              const Icon = tab.icon;
+              const active = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  title={`Alt+${i + 1}`}
+                  className={cn(
+                    "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all duration-200",
+                    active
+                      ? "bg-primary/15 text-primary shadow-[inset_0_1px_0_var(--glass-highlight)] ring-1 ring-primary/25"
+                      : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
+                  )}
+                >
+                  <Icon className={cn("h-3.5 w-3.5 shrink-0", active && "text-primary")} />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-            {/* Descripción */}
-            <div>
-              <h3 className="mb-3 text-sm font-semibold text-foreground">Descripción</h3>
-              <textarea
-                id="product-description"
-                value={form.description}
-                onChange={(e) => updateField("description", e.target.value)}
-                placeholder="Describe el producto para el equipo de ventas o cocina..."
-                rows={3}
-                className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+        <form ref={formRef} onSubmit={handleSubmit} className="relative flex min-h-0 flex-1 flex-col">
+          <div
+            ref={scrollRef}
+            className={cn(
+              "relative flex-1 overflow-y-auto scroll-smooth px-4 py-3 sm:px-5",
+              scrollEdge.top && "shadow-[inset_0_8px_8px_-8px_rgba(0,0,0,0.18)]",
+              scrollEdge.bottom && "shadow-[inset_0_-8px_8px_-8px_rgba(0,0,0,0.12)]",
+            )}
+          >
+          <div>
+
+          <AnimatePresence mode="wait">
+          <m.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 8, filter: "blur(2px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            exit={{ opacity: 0, y: -4, filter: "blur(2px)" }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            className="flex flex-col gap-4"
+          >
+          {activeTab === "basic" && (
+          <>
+            <FormSection title="Tipo" tint="primary">
+              <ProductTypePicker
+                id="product-type"
+                value={form.productType}
+                options={productTypeOptions}
+                onChange={(v) => updateField("productType", v)}
               />
-            </div>
+            </FormSection>
 
-            {!isCompound && (
-              <div>
-                <h3 className="mb-3 text-sm font-semibold text-foreground">Unidad y proveedor</h3>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div className="flex flex-col gap-2">
-                    <label htmlFor="product-unit" className="text-sm font-medium">Unidad de medida</label>
+            <FormSection title="Datos" tint="none">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field label="Categoría" htmlFor="product-category">
+                  <IconFieldShell icon={Tags}>
                     <Select
-                      id="product-unit"
-                      value={isCustomUnit ? "otro" : form.measurementUnit}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        updateField("measurementUnit", value === "otro" ? "" : value);
-                      }}
+                      id="product-category"
+                      value={form.category}
+                      disabled={loadingCategories}
+                      onChange={(e) => updateField("category", e.target.value)}
+                      className="h-9 rounded-xl border-0 bg-primary/[0.06] shadow-[inset_0_1px_0_var(--glass-highlight)] ring-1 ring-border/40"
                     >
-                      <option value="">Selecciona</option>
-                      {MEASUREMENT_UNITS.map((u) => (
-                        <option key={u.value} value={u.value}>{u.label}</option>
+                      <option value="">Sin categoría</option>
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
                       ))}
                     </Select>
+                  </IconFieldShell>
+                </Field>
+
+                {!isCompound && (
+                  <Field label="Unidad" htmlFor="product-unit">
+                    <IconFieldShell icon={Ruler}>
+                      <Select
+                        id="product-unit"
+                        value={isCustomUnit ? "otro" : form.measurementUnit}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          updateField("measurementUnit", value === "otro" ? "" : value);
+                        }}
+                        className="h-9 rounded-xl border-0 bg-primary/[0.06] shadow-[inset_0_1px_0_var(--glass-highlight)] ring-1 ring-border/40"
+                      >
+                        <option value="">Selecciona</option>
+                        {MEASUREMENT_UNITS.map((u) => (
+                          <option key={u.value} value={u.value}>{u.label}</option>
+                        ))}
+                      </Select>
+                    </IconFieldShell>
                     {isCustomUnit && (
                       <Input
                         value={form.measurementUnit}
                         onChange={(e) => updateField("measurementUnit", e.target.value.toLowerCase().trim())}
                         placeholder="Escribe la unidad (ej: galón)"
+                        className="mt-1.5 h-9 rounded-xl border-0 bg-primary/[0.06] ring-1 ring-border/40"
                       />
                     )}
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label htmlFor="product-supplier" className="text-sm font-medium">Proveedor principal</label>
-                    <SearchableSelect
-                      id="product-supplier"
-                      options={supplierOptions}
-                      value={form.supplier}
-                      disabled={loadingSupplierProduct}
-                      onChange={(value) => {
-                        updateField("supplier", value);
-                        const opt = supplierOptions.find((o) => o.value === value);
-                        setSupplierLabel(opt?.label ?? "");
-                      }}
-                      onQueryChange={setSupplierQuery}
-                      minChars={2}
-                      loading={supplierLookup.isFetching}
-                      clearable
-                      selectedOption={
-                        form.supplier && supplierLabel
-                          ? { value: form.supplier, label: supplierLabel }
-                          : null
-                      }
-                      placeholder="Buscar proveedor…"
-                      searchPlaceholder="Nombre, RUT o razón social…"
-                      emptyMessage="Sin coincidencias"
-                    />
-                  </div>
-                </div>
+                  </Field>
+                )}
+
+                {!isCompound && (
+                  <Field
+                    label="Proveedor principal"
+                    htmlFor="product-supplier"
+                    className="sm:col-span-2"
+                    hint={
+                      supplierLinkQuery.isFetched && supplierProductsForProduct.length === 0
+                        ? "Sin vínculos · busca uno para marcarlo como preferido"
+                        : undefined
+                    }
+                  >
+                    <IconFieldShell icon={Truck}>
+                      <SearchableSelect
+                        id="product-supplier"
+                        options={supplierOptions}
+                        value={form.supplier}
+                        disabled={loadingSupplierProduct}
+                        onChange={(value) => {
+                          updateField("supplier", value);
+                          const opt = supplierOptions.find((o) => o.value === value);
+                          const linked = supplierProductsForProduct.find((sp) => String(sp.supplier) === value);
+                          setSupplierLabel(
+                            (opt?.label ?? linked?.supplier_name ?? "").replace(/ · preferido$/, ""),
+                          );
+                        }}
+                        onQueryChange={setSupplierQuery}
+                        minChars={linkedSupplierOptions.length > 0 ? 0 : 2}
+                        loading={supplierLookup.isFetching || loadingSupplierProduct}
+                        clearable
+                        selectedOption={
+                          form.supplier && supplierLabel
+                            ? { value: form.supplier, label: supplierLabel }
+                            : null
+                        }
+                        placeholder={loadingSupplierProduct ? "Cargando…" : "Elegir o buscar…"}
+                        searchPlaceholder="Nombre, RUT o razón social…"
+                        emptyMessage="Sin coincidencias"
+                        searchHint={
+                          linkedSupplierOptions.length > 0
+                            ? "Vinculados · escribe para buscar otros"
+                            : undefined
+                        }
+                        className="[&_button]:border-0 [&_button]:bg-primary/[0.06] [&_button]:shadow-[inset_0_1px_0_var(--glass-highlight)] [&_button]:ring-1 [&_button]:ring-border/40"
+                      />
+                    </IconFieldShell>
+                    {linkedSupplierOptions.length > 1 && (
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {supplierProductsForProduct.map((sp) => {
+                          const selected = form.supplier === String(sp.supplier);
+                          return (
+                            <button
+                              key={sp.id}
+                              type="button"
+                              onClick={() => {
+                                updateField("supplier", String(sp.supplier));
+                                setSupplierLabel(sp.supplier_name || "");
+                              }}
+                              className={cn(
+                                "rounded-full px-2.5 py-1 text-[11px] font-medium transition-all duration-200",
+                                selected
+                                  ? "bg-primary/15 text-primary ring-1 ring-primary/30 shadow-[inset_0_1px_0_var(--glass-highlight)]"
+                                  : "bg-muted/40 text-muted-foreground hover:bg-muted/70 hover:text-foreground",
+                              )}
+                            >
+                              {sp.supplier_name}
+                              {sp.is_preferred ? " · preferido" : ""}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </Field>
+                )}
+
+                <Field label="Descripción" htmlFor="product-description" className="sm:col-span-2">
+                  <textarea
+                    id="product-description"
+                    value={form.description}
+                    onChange={(e) => updateField("description", e.target.value)}
+                    placeholder="Notas para ventas o cocina…"
+                    rows={2}
+                    className="w-full resize-none rounded-xl border-0 bg-primary/[0.06] px-3 py-2 text-sm text-foreground shadow-[inset_0_1px_0_var(--glass-highlight)] ring-1 ring-border/40 placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/35"
+                  />
+                </Field>
               </div>
-            )}
-          </div>
+
+              <div className="mt-3 grid grid-cols-1 gap-1 sm:grid-cols-2">
+                <StatusSwitchRow
+                  title="Uso interno"
+                  description="Consumo del equipo"
+                  checked={form.isForInternalUse}
+                  onCheckedChange={(v) => updateField("isForInternalUse", v)}
+                />
+                {publicCatalogEnabled && (
+                  <StatusSwitchRow
+                    title="Público en menú QR"
+                    description="Catálogo digital"
+                    checked={form.isPublic}
+                    onCheckedChange={(v) => updateField("isPublic", v)}
+                    disabled={!isSellable}
+                    accent
+                  />
+                )}
+              </div>
+            </FormSection>
+          </>
           )}
 
           {activeTab === "pricing" && (
-          <>
-          {/* Precios */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {isSellable && (
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="product-price" className="text-sm font-medium">Precio venta</label>
-                <Input
-                  id="product-price"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={form.price}
-                  onChange={(e) => updateField("price", e.target.value)}
-                  placeholder="0"
-                />
-              </div>
-            )}
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="product-cost" className="text-sm font-medium">Costo</label>
-              <Input
-                id="product-cost"
-                type="number"
-                step="0.01"
-                min="0"
-                value={form.costPrice}
-                onChange={(e) => updateField("costPrice", e.target.value)}
-                placeholder="Opcional"
-              />
+          <FormSection title="Precios e inventario" tint="success">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {isSellable && (
+                <Field label="Precio venta" htmlFor="product-price">
+                  <IconFieldShell icon={CircleDollarSign}>
+                    <Input
+                      id="product-price"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={form.price}
+                      onChange={(e) => updateField("price", e.target.value)}
+                      placeholder="0"
+                      className="h-9 rounded-xl border-0 bg-success/[0.07] shadow-[inset_0_1px_0_var(--glass-highlight)] ring-1 ring-success/20"
+                    />
+                  </IconFieldShell>
+                </Field>
+              )}
+              <Field label="Costo" htmlFor="product-cost">
+                <IconFieldShell icon={CircleDollarSign}>
+                  <Input
+                    id="product-cost"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={form.costPrice}
+                    onChange={(e) => updateField("costPrice", e.target.value)}
+                    placeholder="Opcional"
+                    className="h-9 rounded-xl border-0 bg-warning/[0.08] shadow-[inset_0_1px_0_var(--glass-highlight)] ring-1 ring-warning/20"
+                  />
+                </IconFieldShell>
+              </Field>
+              <Field label="Mayorista" htmlFor="product-wholesale">
+                <IconFieldShell icon={CircleDollarSign}>
+                  <Input
+                    id="product-wholesale"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={form.wholesalePrice}
+                    onChange={(e) => updateField("wholesalePrice", e.target.value)}
+                    placeholder="Opcional"
+                    className="h-9 rounded-xl border-0 bg-primary/[0.06] shadow-[inset_0_1px_0_var(--glass-highlight)] ring-1 ring-border/40"
+                  />
+                </IconFieldShell>
+              </Field>
+              <Field label="Interno" htmlFor="product-internal">
+                <IconFieldShell icon={CircleDollarSign}>
+                  <Input
+                    id="product-internal"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={form.priceInternal}
+                    onChange={(e) => updateField("priceInternal", e.target.value)}
+                    placeholder="Opcional"
+                    className="h-9 rounded-xl border-0 bg-primary/[0.06] shadow-[inset_0_1px_0_var(--glass-highlight)] ring-1 ring-border/40"
+                  />
+                </IconFieldShell>
+              </Field>
             </div>
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="product-wholesale" className="text-sm font-medium">Precio mayorista</label>
-              <Input
-                id="product-wholesale"
-                type="number"
-                step="0.01"
-                min="0"
-                value={form.wholesalePrice}
-                onChange={(e) => updateField("wholesalePrice", e.target.value)}
-                placeholder="Opcional"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="product-internal" className="text-sm font-medium">Precio interno</label>
-              <Input
-                id="product-internal"
-                type="number"
-                step="0.01"
-                min="0"
-                value={form.priceInternal}
-                onChange={(e) => updateField("priceInternal", e.target.value)}
-                placeholder="Opcional"
-              />
-            </div>
-          </div>
 
-          {/* Estado del producto */}
-          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {isSellable && (
-              <label className={cn(
-                "flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2.5 text-sm transition-colors",
-                form.isForSale ? "border-primary/40 bg-primary/8" : "border-border bg-background",
-              )}>
-                <input
-                  type="checkbox"
-                  checked={form.isForSale}
-                  onChange={(e) => updateField("isForSale", e.target.checked)}
-                  className="h-4 w-4 accent-primary"
+            {inventoryEnabled && !isCompound && (
+              <div className="mt-3">
+                <StatusSwitchRow
+                  title="Controla inventario"
+                  description="Apagado: venta sin límite de stock ni alertas"
+                  checked={tracksWarehouseStock}
+                  onCheckedChange={setTracksWarehouseStock}
+                  accent
                 />
-                <div>
-                  <p className="font-medium">Disponible para venta</p>
-                  <p className="text-[11px] text-muted-foreground">Aparece en POS y catálogo</p>
-                </div>
-              </label>
+              </div>
             )}
-            <label className={cn(
-              "flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2.5 text-sm transition-colors",
-              form.isActive ? "border-primary/40 bg-primary/8" : "border-border bg-background",
-            )}>
-              <input
-                type="checkbox"
-                checked={form.isActive}
-                onChange={(e) => updateField("isActive", e.target.checked)}
-                className="h-4 w-4 accent-primary"
-              />
-              <div>
-                <p className="font-medium">Activo</p>
-                <p className="text-[11px] text-muted-foreground">Visible en el sistema</p>
-              </div>
-            </label>
-            <label className={cn(
-              "flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2.5 text-sm transition-colors",
-              form.isForInternalUse ? "border-primary/40 bg-primary/8" : "border-border bg-background",
-            )}>
-              <input
-                type="checkbox"
-                checked={form.isForInternalUse}
-                onChange={(e) => updateField("isForInternalUse", e.target.checked)}
-                className="h-4 w-4 accent-primary"
-              />
-              <div>
-                <p className="font-medium">Uso interno</p>
-                <p className="text-[11px] text-muted-foreground">Consumo del equipo</p>
-              </div>
-            </label>
-            {isSellable && publicCatalogEnabled && (
-              <label className={cn(
-                "flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2.5 text-sm transition-colors",
-                form.isPublic ? "border-primary/40 bg-primary/8" : "border-border bg-background",
-              )}>
-                <input
-                  type="checkbox"
-                  checked={form.isPublic}
-                  onChange={(e) => updateField("isPublic", e.target.checked)}
-                  className="h-4 w-4 accent-primary"
-                />
-                <div>
-                  <p className="font-medium">Público en menú QR</p>
-                  <p className="text-[11px] text-muted-foreground">Visible en el catálogo digital</p>
-                </div>
-              </label>
-            )}
-          </div>
-
-          {/* Controla inventario — solo si el módulo está activo */}
-          {inventoryEnabled && !isCompound && (
-            <div className="mt-2 flex items-start justify-between gap-3 rounded-xl border border-border bg-muted/40 px-4 py-3">
-              <div>
-                <p className="text-sm font-medium">Controla inventario</p>
-                <p className="text-xs text-muted-foreground">
-                  Si se apaga, el producto se vende sin límite de stock y no aparece en alertas.
-                </p>
-              </div>
-              <Switch
-                checked={tracksWarehouseStock}
-                onCheckedChange={setTracksWarehouseStock}
-                label="Controla inventario"
-              />
-            </div>
-          )}
-          </>
+          </FormSection>
           )}
 
           {activeTab === "basic" && orphanRecipe && (
@@ -1385,71 +1701,94 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
           )}
 
           {activeTab === "warehouses" && !isCompound && (
-            <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-4">
               {effectiveProduct?.id && (
-                <div className="rounded-xl border border-border bg-muted/40 p-5">
-                  <h3 className="mb-3 text-sm font-semibold">Bodegas configuradas</h3>
+                <FormSection title="Bodegas configuradas" tint="primary">
                   {loadingProductWarehouses ? (
                     <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
                       <svg className="animate-spin h-4 w-4 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                       </svg>
-                      Cargando bodegas…
+                      Cargando estado por bodega…
                     </div>
                   ) : groupedProductWarehouses.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
                       Este producto no está asignado a ninguna bodega.
                     </p>
                   ) : (
-                    <div className="flex flex-col gap-3">
-                      {groupedProductWarehouses.map((wp) => (
-                        <div
-                          key={wp.id}
-                          className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background px-4 py-3"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium">{wp.warehouse.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {wp.minimum_quantity != null ? `Mín: ${wp.minimum_quantity}` : "Sin mínimo"}
-                              {" · "}
-                              {wp.maximum_quantity != null ? `Máx: ${wp.maximum_quantity}` : "Sin máximo"}
-                              {wp.reorder_point != null ? ` · Reorden: ${wp.reorder_point}` : ""}
-                              {wp.location_in_warehouse ? ` · ${wp.location_in_warehouse}` : ""}
-                            </p>
+                    <div className="flex flex-col gap-2">
+                      {groupedProductWarehouses.map((wp) => {
+                        const qty = Number(wp.current_quantity ?? 0);
+                        const unit = wp.product_measurement_unit || "u";
+                        return (
+                          <div
+                            key={wp.id}
+                            className="rounded-2xl bg-primary/[0.05] px-3.5 py-3 shadow-[inset_0_1px_0_var(--glass-highlight)] ring-1 ring-border/40"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="truncate text-sm font-semibold">{wp.warehouse.name}</p>
+                                  <span
+                                    className={cn(
+                                      "inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold",
+                                      statusBadge(wp.stock_status),
+                                    )}
+                                  >
+                                    {stockStatusLabel(wp.stock_status)}
+                                  </span>
+                                </div>
+                                <p className="mt-1.5 text-base font-bold tabular-nums tracking-tight text-foreground">
+                                  {qty.toLocaleString("es-CL", { maximumFractionDigits: 2 })}{" "}
+                                  <span className="text-xs font-medium text-muted-foreground">{unit}</span>
+                                  <span className="ml-1.5 text-[11px] font-medium text-muted-foreground">
+                                    stock actual
+                                  </span>
+                                </p>
+                                <p className="mt-1 text-[11px] text-muted-foreground">
+                                  Mín {wp.minimum_quantity ?? "—"}
+                                  {" · "}
+                                  Máx {wp.maximum_quantity ?? "—"}
+                                  {" · "}
+                                  Reorden {wp.reorder_point ?? "—"}
+                                  {wp.location_in_warehouse ? ` · ${wp.location_in_warehouse}` : ""}
+                                </p>
+                              </div>
+                              <div className="flex shrink-0 items-center gap-1">
+                                <Link
+                                  href={`/warehouses/view?id=${wp.warehouse.id}`}
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                                  title="Ver bodega"
+                                >
+                                  <Warehouse className="h-4 w-4" />
+                                  <span className="sr-only">Ver bodega</span>
+                                </Link>
+                                <button
+                                  type="button"
+                                  onClick={() => removeExistingWarehouseProduct(wp.id)}
+                                  disabled={removingWarehouseId === wp.id}
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-50"
+                                  title="Quitar producto de esta bodega"
+                                >
+                                  {removingWarehouseId === wp.id ? (
+                                    <svg className="h-4 w-4 shrink-0 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                    </svg>
+                                  ) : (
+                                    <Trash2 className="h-4 w-4" />
+                                  )}
+                                  <span className="sr-only">Quitar</span>
+                                </button>
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex shrink-0 items-center gap-1">
-                            <Link
-                              href={`/warehouses/view?id=${wp.warehouse.id}`}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                              title="Ver bodega"
-                            >
-                              <Warehouse className="h-4 w-4" />
-                              <span className="sr-only">Ver bodega</span>
-                            </Link>
-                            <button
-                              type="button"
-                              onClick={() => removeExistingWarehouseProduct(wp.id)}
-                              disabled={removingWarehouseId === wp.id}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-danger/10 hover:text-danger disabled:opacity-50"
-                              title="Quitar producto de esta bodega"
-                            >
-                              {removingWarehouseId === wp.id ? (
-                                <svg className="animate-spin h-4 w-4 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                                </svg>
-                              ) : (
-                                <Trash2 className="h-4 w-4" />
-                              )}
-                              <span className="sr-only">Quitar</span>
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
-                </div>
+                </FormSection>
               )}
 
               <div className="rounded-xl border border-border bg-muted/40 p-5">
@@ -1717,11 +2056,14 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
                   <div className="flex flex-col gap-2">
                     {ingredients.map((ing) => {
                       const product = ingredientProducts.find((p) => p.id === ing.ingredient);
+                      const ingName =
+                        ing.ingredient_name ?? product?.name ?? `Producto #${ing.ingredient}`;
                       return (
-                        <div key={ing.localId} className="grid grid-cols-12 items-end gap-2 rounded-lg border border-border bg-background p-2">
+                        <div key={ing.localId} className="rounded-lg border border-border bg-background p-2">
+                        <div className="grid grid-cols-12 items-end gap-2">
                           <div className="col-span-12 sm:col-span-4">
                             <span className="block truncate text-sm font-medium">
-                              {ing.ingredient_name ?? product?.name ?? `Producto #${ing.ingredient}`}
+                              {ingName}
                             </span>
                           </div>
                           <div className="col-span-4 sm:col-span-2">
@@ -1762,6 +2104,15 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
                             </button>
                           </div>
                         </div>
+                        {nutritionEnabled && (
+                          <div className="mt-1.5">
+                            <IngredientNutritionQuickEdit
+                              productId={ing.ingredient}
+                              productName={ingName}
+                            />
+                          </div>
+                        )}
+                        </div>
                       );
                     })}
                   </div>
@@ -1771,12 +2122,18 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
           )}
 
           {activeTab === "nutrition" && nutritionEnabled && (
-            <div className="rounded-xl border border-border bg-muted/40 p-4">
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold">Etiquetado nutricional (por 100 g)</h3>
-                <div className="flex items-center gap-2">
-                  {isCompound && recipe.id && (
-                    <>
+            <div className="flex flex-col gap-4">
+              <FormSection title="Datos nutricionales" tint="success">
+                <div className="mb-3 flex flex-col gap-2">
+                  <StatusSwitchRow
+                    title="Tiene información nutricional"
+                    description="Activa para editar valores del producto"
+                    checked={form.isNutritionalIngredient}
+                    onCheckedChange={(v) => updateField("isNutritionalIngredient", v)}
+                    accent
+                  />
+                  {isCompound && recipe.id ? (
+                    <div>
                       <Button
                         type="button"
                         variant="outline"
@@ -1787,102 +2144,62 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
                         {!calculatingNutrition && <Plus className="mr-2 h-3.5 w-3.5" />}
                         Calcular desde receta
                       </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          // Descarga con auth (apiFile); window.open con ruta
-                          // relativa pega contra Next.js y sin token → 404.
-                          downloadNutritionPdf(
-                            () => downloadRecipeNutritionLabel(recipe.id!),
-                            {
-                              filename: `etiqueta-nutricional_${(form.name.trim() || "producto").replace(/[^a-z0-9]+/gi, "_").toLowerCase()}`,
-                              extension: "pdf",
-                            },
-                          ).catch(() => {
-                            setError("No se pudo descargar el PDF de la etiqueta nutricional.");
-                          });
-                        }}
-                        isLoading={downloadingNutritionPdf}
-                      >
-                        {!downloadingNutritionPdf && <FileDown className="mr-2 h-3.5 w-3.5" />}
-                        Descargar PDF
-                      </Button>
-                    </>
-                  )}
+                    </div>
+                  ) : null}
                 </div>
-              </div>
-              {isCompound && !recipe.id && (
-                <p className="mb-3 text-xs text-muted-foreground">
-                  Este producto es compuesto pero aún no tiene receta guardada.
-                  Puedes ingresar la información nutricional manualmente o guardar
-                  ingredientes en la pestaña Receta para calcularla automáticamente.
-                </p>
-              )}
-              {recipesError && (
-                <p className="mb-3 text-xs text-danger">
-                  No se pudo cargar la receta: {recipesError instanceof Error ? recipesError.message : "error desconocido"}.
-                </p>
-              )}
-              <label className="mb-4 flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={form.isNutritionalIngredient}
-                  onChange={(e) => updateField("isNutritionalIngredient", e.target.checked)}
-                  className="h-4 w-4 accent-primary"
-                />
-                Este producto tiene información nutricional
-              </label>
+                {isCompound && !recipe.id && (
+                  <p className="mb-3 text-xs text-muted-foreground">
+                    Producto compuesto sin receta guardada. Ingresa valores a mano o guarda
+                    ingredientes en Receta para calcularlos.
+                  </p>
+                )}
+                {recipesError && (
+                  <p className="mb-3 text-xs text-danger">
+                    No se pudo cargar la receta:{" "}
+                    {recipesError instanceof Error ? recipesError.message : "error desconocido"}.
+                  </p>
+                )}
+
+                {form.isNutritionalIngredient && (
+                  <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3">
+                    {[
+                      { key: "energyKcal", label: "Energía (kcal)" },
+                      { key: "proteinsG", label: "Proteínas (g)" },
+                      { key: "totalFatsG", label: "Grasas totales (g)" },
+                      { key: "saturatedFatsG", label: "Grasas saturadas (g)" },
+                      { key: "monounsaturatedFatsG", label: "Grasas monoinsaturadas (g)" },
+                      { key: "polyunsaturatedFatsG", label: "Grasas poliinsaturadas (g)" },
+                      { key: "transFatsG", label: "Grasas trans (g)" },
+                      { key: "cholesterolMg", label: "Colesterol (mg)" },
+                      { key: "carbohydratesG", label: "Carbohidratos (g)" },
+                      { key: "totalSugarsG", label: "Azúcares totales (g)" },
+                      { key: "sodiumMg", label: "Sodio (mg)" },
+                    ].map((field) => (
+                      <Field key={field.key} label={field.label} htmlFor={`nutrition-${field.key}`}>
+                        <Input
+                          id={`nutrition-${field.key}`}
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={form[field.key as keyof typeof form] as string}
+                          onChange={(e) => updateField(field.key as keyof typeof form, e.target.value)}
+                          placeholder="0"
+                          className="h-9 rounded-xl border-0 bg-success/[0.06] shadow-[inset_0_1px_0_var(--glass-highlight)] ring-1 ring-success/15"
+                        />
+                      </Field>
+                    ))}
+                  </div>
+                )}
+              </FormSection>
 
               {form.isNutritionalIngredient && (
-                <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-                  {[
-                    { key: "energyKcal", label: "Energía (kcal)" },
-                    { key: "proteinsG", label: "Proteínas (g)" },
-                    { key: "totalFatsG", label: "Grasas totales (g)" },
-                    { key: "saturatedFatsG", label: "Grasas saturadas (g)" },
-                    { key: "monounsaturatedFatsG", label: "Grasas monoinsaturadas (g)" },
-                    { key: "polyunsaturatedFatsG", label: "Grasas poliinsaturadas (g)" },
-                    { key: "transFatsG", label: "Grasas trans (g)" },
-                    { key: "cholesterolMg", label: "Colesterol (mg)" },
-                    { key: "carbohydratesG", label: "Carbohidratos (g)" },
-                    { key: "totalSugarsG", label: "Azúcares totales (g)" },
-                    { key: "sodiumMg", label: "Sodio (mg)" },
-                  ].map((field) => (
-                    <div key={field.key} className="flex flex-col gap-2">
-                      <label htmlFor={`nutrition-${field.key}`} className="text-xs font-medium text-muted-foreground">
-                        {field.label}
-                      </label>
-                      <Input
-                        id={`nutrition-${field.key}`}
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={form[field.key as keyof typeof form] as string}
-                        onChange={(e) => updateField(field.key as keyof typeof form, e.target.value)}
-                        placeholder="0"
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-              {form.isNutritionalIngredient && (
-                <NutritionLabelPreview
-                  values={{
-                    energyKcal: form.energyKcal,
-                    proteinsG: form.proteinsG,
-                    totalFatsG: form.totalFatsG,
-                    saturatedFatsG: form.saturatedFatsG,
-                    monounsaturatedFatsG: form.monounsaturatedFatsG,
-                    polyunsaturatedFatsG: form.polyunsaturatedFatsG,
-                    transFatsG: form.transFatsG,
-                    cholesterolMg: form.cholesterolMg,
-                    carbohydratesG: form.carbohydratesG,
-                    totalSugarsG: form.totalSugarsG,
-                    sodiumMg: form.sodiumMg,
-                  }}
-                />
+                <p className="text-[11px] text-muted-foreground">
+                  Para imprimir o descargar la etiqueta PDF ve a{" "}
+                  <Link href="/products/nutrition" className="font-medium text-primary underline-offset-2 hover:underline">
+                    Etiquetado nutricional
+                  </Link>
+                  .
+                </p>
               )}
             </div>
           )}
@@ -1995,40 +2312,48 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
               </Button>
             </div>
           )}
-          <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border px-4 py-3 sm:px-6">
-            <Button
-              variant="outline"
-              onClick={() => {
-                const idx = tabs.findIndex((t) => t.id === activeTab);
-                const prev = tabs.slice(0, idx).reverse().find((t) => t.enabled);
-                if (prev) setActiveTab(prev.id);
-              }}
-              disabled={tabs.findIndex((t) => t.id === activeTab) === 0}
-            >
-              <ChevronLeft className="mr-1 h-4 w-4" />
-              Anterior
-            </Button>
+          <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border px-4 py-2.5 sm:px-5">
             <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={onClose} disabled={loading}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const idx = enabledTabs.findIndex((t) => t.id === activeTab);
+                  const prev = enabledTabs[idx - 1];
+                  if (prev) setActiveTab(prev.id);
+                }}
+                disabled={enabledTabs[0]?.id === activeTab}
+              >
+                <ChevronLeft className="mr-1 h-4 w-4" />
+                Anterior
+              </Button>
+              <span className="hidden text-[11px] text-muted-foreground sm:inline">
+                Ctrl+S guarda · Alt+1… pestañas
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={loading}>
                 Cancelar
               </Button>
-              {activeTab !== tabs.filter((t) => t.enabled).at(-1)?.id ? (
+              {activeTab !== enabledTabs.at(-1)?.id && (
                 <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => {
-                    const idx = tabs.findIndex((t) => t.id === activeTab);
-                    const next = tabs.slice(idx + 1).find((t) => t.enabled);
+                    const idx = enabledTabs.findIndex((t) => t.id === activeTab);
+                    const next = enabledTabs[idx + 1];
                     if (next) setActiveTab(next.id);
                   }}
                 >
                   Siguiente
                   <ChevronRight className="ml-1 h-4 w-4" />
                 </Button>
-              ) : (
-                <Button type="submit" isLoading={loading}>
-                  {effectiveProduct ? "Guardar cambios" : "Crear producto"}
-                </Button>
               )}
+              <Button type="submit" size="sm" isLoading={loading}>
+                {effectiveProduct ? "Guardar" : "Crear"}
+              </Button>
             </div>
           </div>
         </form>

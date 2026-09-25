@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Plus, X, AlertTriangle, Package, AlertCircle, PackageX, TrendingDown, FileSpreadsheet, FileText, SlidersHorizontal, ArrowRightLeft, Calendar } from "lucide-react";
+import { Search, Plus, X, AlertTriangle, Package, AlertCircle, PackageX, TrendingDown, FileSpreadsheet, FileText, SlidersHorizontal, ArrowRightLeft, Calendar, ClipboardList, ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/page-header";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import {
   fetchInventoryMovements,
@@ -57,7 +58,7 @@ function movementBadgeClass(movementType?: string | null) {
   switch (movementType) {
     case "IN":
     case "RETURN":
-      return "bg-emerald-500/10 text-emerald-700";
+      return "bg-success/10 text-success";
     case "OUT":
     case "LOSS":
     case "DAMAGE":
@@ -65,7 +66,7 @@ function movementBadgeClass(movementType?: string | null) {
     case "TRANSFER":
       return "bg-primary/10 text-primary";
     case "ADJUSTMENT":
-      return "bg-amber-500/10 text-amber-700";
+      return "bg-warning/10 text-warning";
     default:
       return "bg-muted text-muted-foreground";
   }
@@ -82,6 +83,39 @@ function formatDateTime(v: string | null | undefined): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function formatDateOnly(v: string | null | undefined): string {
+  if (!v) return "—";
+  const date = new Date(v);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("es-CL", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+function formatTimeOnly(v: string | null | undefined): string {
+  if (!v) return "—";
+  const date = new Date(v);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" });
+}
+
+function isInputType(t?: string | null): boolean {
+  return t === "IN" || t === "RETURN";
+}
+
+function isOutputType(t?: string | null): boolean {
+  return t === "OUT" || t === "LOSS" || t === "DAMAGE";
+}
+
+function signedQuantity(m: InventoryHistory): string {
+  const q = parseAmount(m.quantity);
+  if (isInputType(m.movement_type)) return `+${q}`;
+  if (isOutputType(m.movement_type)) return `-${q}`;
+  return String(q);
 }
 
 function parseAmount(value: unknown): number {
@@ -132,9 +166,13 @@ export default function InventoryPage() {
 
   const { data: warehousesPage } = useQuery({
     queryKey: ["warehouses", "all"],
-    queryFn: () => fetchWarehouses({}),
+    queryFn: () => fetchWarehouses({ page_size: 100 }),
   });
-  const warehouses = warehousesPage?.results ?? [];
+  const warehouses = useMemo(() => {
+    if (Array.isArray(warehousesPage)) return warehousesPage;
+    const results = (warehousesPage as { results?: unknown } | undefined)?.results;
+    return Array.isArray(results) ? results : [];
+  }, [warehousesPage]);
 
   const filter = useMemo<MovementsFilter>(
     () => ({
@@ -194,8 +232,23 @@ export default function InventoryPage() {
     },
   });
 
-  const movements = movementsPage?.results ?? [];
+  const movements = useMemo(() => movementsPage?.results ?? [], [movementsPage]);
   const totalMovements = movementsPage?.count ?? 0;
+
+  const pageStats = useMemo(() => {
+    let inputs = 0;
+    let outputs = 0;
+    let cost = 0;
+    let sale = 0;
+    for (const m of movements) {
+      const q = parseAmount(m.quantity);
+      if (isInputType(m.movement_type)) inputs += q;
+      else if (isOutputType(m.movement_type)) outputs += q;
+      cost += parseAmount(m.cost_value);
+      sale += parseAmount(m.sale_value);
+    }
+    return { inputs, outputs, cost, sale };
+  }, [movements]);
 
   function handleExport(format: "excel" | "pdf") {
     downloadFile(() => exportInventoryMovements(filter, format), {
@@ -209,50 +262,49 @@ export default function InventoryPage() {
   }
 
   return (
-    <div className="flex min-h-full flex-col">
-      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <div>
-          <h1 className="text-lg font-semibold">Inventario</h1>
-          <p className="text-xs text-muted-foreground">
-            Movimientos y alertas de stock
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleExport("excel")}
-            disabled={isExporting}
-            className="h-9 w-9 px-0 sm:w-auto sm:px-3"
-            title="Exportar Excel"
-            aria-label="Exportar Excel"
-          >
-            <FileSpreadsheet className="h-4 w-4" />
-            <span className="hidden sm:inline">Excel</span>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleExport("pdf")}
-            disabled={isExporting}
-            className="h-9 w-9 px-0 sm:w-auto sm:px-3"
-            title="Exportar PDF"
-            aria-label="Exportar PDF"
-          >
-            <FileText className="h-4 w-4" />
-            <span className="hidden sm:inline">PDF</span>
-          </Button>
-          <Button
-            onClick={() => setModalOpen(true)}
-            className="h-9 w-9 px-0 sm:w-auto sm:px-3"
-            title="Registrar movimiento"
-            aria-label="Registrar movimiento"
-          >
-            <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">Registrar movimiento</span>
-          </Button>
-        </div>
-      </header>
+    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+      <PageHeader
+        title="Inventario"
+        subtitle="Stock por bodega y movimientos"
+        icon={<ClipboardList className="h-5 w-5" />}
+        actions={
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleExport("excel")}
+              disabled={isExporting}
+              className="h-9 w-9 px-0 sm:w-auto sm:px-3"
+              title="Exportar Excel"
+              aria-label="Exportar Excel"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              <span className="hidden sm:inline">Excel</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleExport("pdf")}
+              disabled={isExporting}
+              className="h-9 w-9 px-0 sm:w-auto sm:px-3"
+              title="Exportar PDF"
+              aria-label="Exportar PDF"
+            >
+              <FileText className="h-4 w-4" />
+              <span className="hidden sm:inline">PDF</span>
+            </Button>
+            <Button
+              onClick={() => setModalOpen(true)}
+              className="h-9 w-9 px-0 sm:w-auto sm:px-3"
+              title="Registrar movimiento"
+              aria-label="Registrar movimiento"
+            >
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">Registrar movimiento</span>
+            </Button>
+          </div>
+        }
+      />
 
       <div className="border-b border-border px-4 sm:px-6">
         <div className="flex gap-4">
@@ -284,27 +336,27 @@ export default function InventoryPage() {
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
+      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
         {tab === "movements" && (
           <>
             {totalAlerts > 0 && (
               <button
                 type="button"
                 onClick={() => setTab("alerts")}
-                className="flex w-full items-center gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-left transition-colors hover:bg-amber-500/20"
+                className="flex w-full items-center gap-3 rounded-lg border border-warning/40 bg-warning/10 px-4 py-2.5 text-left transition-colors hover:bg-warning/20"
               >
-                <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" />
+                <AlertTriangle className="h-5 w-5 shrink-0 text-warning" />
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-amber-700">
+                  <p className="text-sm font-medium text-warning">
                     {totalAlerts} alerta(s) de stock
                   </p>
-                  <p className="text-xs text-amber-600/90">
+                  <p className="text-xs text-warning/90">
                     {outOfStock.length > 0 && `${outOfStock.length} sin stock`}
                     {outOfStock.length > 0 && lowStock.length > 0 && " · "}
                     {lowStock.length > 0 && `${lowStock.length} con stock bajo`}
                   </p>
                 </div>
-                <span className="shrink-0 text-xs font-medium text-amber-700 hover:underline">
+                <span className="shrink-0 text-xs font-medium text-warning hover:underline">
                   Ver alertas
                 </span>
               </button>
@@ -488,48 +540,125 @@ export default function InventoryPage() {
               </div>
             ) : (
               <>
+                {/* Summary of the current page */}
+                <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border bg-border shadow-sm sm:grid-cols-4">
+                  {[
+                    {
+                      label: "Entradas",
+                      value: `+${pageStats.inputs}`,
+                      icon: <ArrowUpRight className="h-4 w-4 text-success" />,
+                      tone: "text-success",
+                    },
+                    {
+                      label: "Salidas",
+                      value: `-${pageStats.outputs}`,
+                      icon: <ArrowDownRight className="h-4 w-4 text-danger" />,
+                      tone: "text-danger",
+                    },
+                    {
+                      label: "Valor costo",
+                      value: formatCLP(pageStats.cost),
+                      icon: <Package className="h-4 w-4 text-muted-foreground" />,
+                      tone: "text-foreground",
+                    },
+                    {
+                      label: "Valor venta",
+                      value: formatCLP(pageStats.sale),
+                      icon: <TrendingDown className="h-4 w-4 text-muted-foreground" />,
+                      tone: "text-foreground",
+                    },
+                  ].map((s) => (
+                    <div key={s.label} className="bg-card px-4 py-3">
+                      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        {s.icon}
+                        {s.label}
+                      </div>
+                      <p className={cn("mt-1 text-lg font-semibold tabular-nums", s.tone)}>{s.value}</p>
+                      <p className="text-[10px] text-muted-foreground">en esta página</p>
+                    </div>
+                  ))}
+                </div>
+
                 {/* Desktop table */}
                 <div className="hidden overflow-x-auto rounded-xl border border-border bg-card shadow-sm md:block">
-                  <table className="w-full min-w-[980px] text-sm">
+                  <table className="w-full min-w-[980px] border-collapse text-sm">
                     <thead>
-                      <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                        <th className="px-4 py-3">Producto</th>
-                        <th className="px-4 py-3">Tipo</th>
-                        <th className="px-4 py-3 text-right">Cantidad</th>
-                        <th className="px-4 py-3 text-right">Stock previo</th>
-                        <th className="px-4 py-3 text-right">Stock actual</th>
-                        <th className="px-4 py-3 text-right">Valor costo</th>
-                        <th className="px-4 py-3 text-right">Valor venta</th>
-                        <th className="px-4 py-3">Usuario</th>
-                        <th className="px-4 py-3">Fecha</th>
+                      <tr className="border-y-2 border-foreground/80 bg-muted/40 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        <th className="px-4 py-2.5">Producto</th>
+                        <th className="px-4 py-2.5">Movimiento</th>
+                        <th className="px-4 py-2.5 text-right">Cantidad</th>
+                        <th className="px-4 py-2.5 text-right" colSpan={3}>
+                          <span className="mr-2 inline-flex items-center gap-1 normal-case tracking-normal">
+                            Stock previo <ArrowRightLeft className="h-3 w-3" /> Stock actual
+                          </span>
+                        </th>
+                        <th className="px-4 py-2.5 text-right">Valor costo</th>
+                        <th className="px-4 py-2.5 text-right">Valor venta</th>
+                        <th className="px-4 py-2.5">Usuario</th>
+                        <th className="px-4 py-2.5">Fecha</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {movements.map((m: InventoryHistory) => (
-                        <tr key={m.id} className="border-b border-border last:border-0">
-                          <td className="px-4 py-3">
+                      {movements.map((m: InventoryHistory, idx: number) => (
+                        <tr
+                          key={m.id}
+                          className={cn(
+                            "border-b border-border transition-colors last:border-b-2 last:border-foreground/80 hover:bg-muted/30",
+                            idx % 2 === 1 && "bg-muted/20"
+                          )}
+                        >
+                          <td className="max-w-[220px] px-4 py-2.5">
                             <div className="flex items-center gap-2">
-                              <Package className="h-3.5 w-3.5 text-muted-foreground" />
-                              <span className="font-medium">{m.product_name}</span>
+                              <Package className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                              <span className="truncate font-medium" title={m.product_name}>
+                                {m.product_name}
+                              </span>
                             </div>
                           </td>
-                          <td className="px-4 py-3">
-                            <span className={cn("inline-flex rounded-full px-2 py-0.5 text-xs font-medium", movementBadgeClass(m.movement_type))}>
+                          <td className="px-4 py-2.5">
+                            <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium", movementBadgeClass(m.movement_type))}>
+                              {isInputType(m.movement_type) ? (
+                                <ArrowUpRight className="h-3 w-3" />
+                              ) : isOutputType(m.movement_type) ? (
+                                <ArrowDownRight className="h-3 w-3" />
+                              ) : (
+                                <Minus className="h-3 w-3" />
+                              )}
                               {movementLabel(m.movement_type)}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-right tabular-nums">{m.quantity}</td>
-                          <td className="px-4 py-3 text-right tabular-nums">{m.previous_quantity}</td>
-                          <td className="px-4 py-3 text-right tabular-nums">{m.current_quantity}</td>
-                          <td className="px-4 py-3 text-right tabular-nums font-medium text-foreground">
+                          <td
+                            className={cn(
+                              "px-4 py-2.5 text-right font-semibold tabular-nums",
+                              isInputType(m.movement_type) && "text-success",
+                              isOutputType(m.movement_type) && "text-danger"
+                            )}
+                          >
+                            {signedQuantity(m)}
+                          </td>
+                          <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">
+                            {m.previous_quantity}
+                          </td>
+                          <td className="px-2 py-2.5 text-center text-muted-foreground">
+                            <ArrowRightLeft className="h-3 w-3" />
+                          </td>
+                          <td className="px-4 py-2.5 text-right tabular-nums font-semibold">
+                            {m.current_quantity}
+                          </td>
+                          <td className="px-4 py-2.5 text-right tabular-nums font-medium">
                             {formatCLP(parseAmount(m.cost_value))}
                           </td>
-                          <td className="px-4 py-3 text-right tabular-nums font-medium text-emerald-700">
+                          <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-success">
                             {formatCLP(parseAmount(m.sale_value))}
                           </td>
-                          <td className="px-4 py-3 text-muted-foreground">{m.user_name ?? "—"}</td>
-                          <td className="px-4 py-3 text-muted-foreground">
-                            {formatDateTime(m.created)}
+                          <td className="max-w-[140px] truncate px-4 py-2.5 text-muted-foreground">
+                            {m.user_name ?? "—"}
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-2.5 text-muted-foreground">
+                            <span className="block text-xs">{formatDateOnly(m.created)}</span>
+                            <span className="block text-[11px] tabular-nums text-muted-foreground/80">
+                              {formatTimeOnly(m.created)}
+                            </span>
                           </td>
                         </tr>
                       ))}
@@ -547,24 +676,39 @@ export default function InventoryPage() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="truncate font-medium">{m.product_name}</p>
-                          <span className={cn("mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium", movementBadgeClass(m.movement_type))}>
+                          <span className={cn("mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium", movementBadgeClass(m.movement_type))}>
+                            {isInputType(m.movement_type) ? (
+                              <ArrowUpRight className="h-3 w-3" />
+                            ) : isOutputType(m.movement_type) ? (
+                              <ArrowDownRight className="h-3 w-3" />
+                            ) : (
+                              <Minus className="h-3 w-3" />
+                            )}
                             {movementLabel(m.movement_type)}
                           </span>
                         </div>
+                        <p
+                          className={cn(
+                            "text-lg font-semibold tabular-nums",
+                            isInputType(m.movement_type) && "text-success",
+                            isOutputType(m.movement_type) && "text-danger"
+                          )}
+                        >
+                          {signedQuantity(m)}
+                        </p>
                       </div>
 
-                      <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                        <div className="text-muted-foreground">
-                          <span className="block text-[10px] uppercase tracking-wide">Cantidad</span>
-                          <span className="font-medium tabular-nums text-foreground">{m.quantity}</span>
-                        </div>
+                      <div className="mt-3 grid grid-cols-3 gap-2 border-t border-dashed border-border pt-3 text-xs">
                         <div className="text-muted-foreground">
                           <span className="block text-[10px] uppercase tracking-wide">Stock previo</span>
                           <span className="font-medium tabular-nums text-foreground">{m.previous_quantity}</span>
                         </div>
-                        <div className="text-muted-foreground">
+                        <div className="flex items-end justify-center text-muted-foreground">
+                          <ArrowRightLeft className="h-3.5 w-3.5" />
+                        </div>
+                        <div className="text-right text-muted-foreground">
                           <span className="block text-[10px] uppercase tracking-wide">Stock actual</span>
-                          <span className="font-medium tabular-nums text-foreground">{m.current_quantity}</span>
+                          <span className="font-semibold tabular-nums text-foreground">{m.current_quantity}</span>
                         </div>
                         <div className="text-muted-foreground">
                           <span className="block text-[10px] uppercase tracking-wide">Valor costo</span>
@@ -572,11 +716,12 @@ export default function InventoryPage() {
                         </div>
                         <div className="text-muted-foreground">
                           <span className="block text-[10px] uppercase tracking-wide">Valor venta</span>
-                          <span className="font-medium tabular-nums text-emerald-700">{formatCLP(parseAmount(m.sale_value))}</span>
+                          <span className="font-semibold tabular-nums text-success">{formatCLP(parseAmount(m.sale_value))}</span>
                         </div>
                         <div className="col-span-3 flex items-center gap-1.5 text-muted-foreground">
                           <Calendar className="h-3 w-3" />
                           <span>{formatDateTime(m.created)}</span>
+                          {m.user_name && <span className="truncate">· {m.user_name}</span>}
                         </div>
                       </div>
                     </div>
@@ -625,7 +770,7 @@ export default function InventoryPage() {
               </div>
               <div className="rounded-2xl border border-border bg-background p-4 shadow-sm">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <TrendingDown className="h-4 w-4 text-amber-500" />
+                  <TrendingDown className="h-4 w-4 text-warning" />
                   Stock bajo
                 </div>
                 <p className="mt-1 text-2xl font-semibold">{lowStock.length}</p>
@@ -702,7 +847,7 @@ export default function InventoryPage() {
 
             <section>
               <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
-                <TrendingDown className="h-4 w-4 text-amber-500" />
+                <TrendingDown className="h-4 w-4 text-warning" />
                 Stock bajo
               </h2>
               {filteredLowStock.length === 0 ? (
@@ -731,8 +876,8 @@ export default function InventoryPage() {
                         <tr key={p.id} className="border-b border-border last:border-0">
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
-                              <span className="rounded-full bg-amber-500/10 p-1">
-                                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                              <span className="rounded-full bg-warning/10 p-1">
+                                <AlertTriangle className="h-3.5 w-3.5 text-warning" />
                               </span>
                               <div>
                                 <p className="font-medium">{p.name}</p>
@@ -741,7 +886,7 @@ export default function InventoryPage() {
                             </div>
                           </td>
                           <td className="px-4 py-3 text-muted-foreground">{p.category_name || "—"}</td>
-                          <td className="px-4 py-3 text-right tabular-nums font-medium text-amber-600">{p.quantity ?? 0}</td>
+                          <td className="px-4 py-3 text-right tabular-nums font-medium text-warning">{p.quantity ?? 0}</td>
                           <td className="px-4 py-3 text-right tabular-nums">{p.minimum_stock ?? "—"}</td>
                         </tr>
                       ))}

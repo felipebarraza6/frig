@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { StatCard as SharedStatCard } from "@/components/ui/stat-card";
+import { PageHeader } from "@/components/page-header";
 import {
   Plus,
   Search,
@@ -22,6 +24,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { formatCLP, cn } from "@/lib/utils";
 import { useToast } from "@/lib/store/toast";
+import { isDateRangeValid } from "@/lib/validation";
 import { useQuery } from "@tanstack/react-query";
 import {
   useAllDiscounts,
@@ -34,10 +37,11 @@ import {
   type DiscountFormPayload,
 } from "@/lib/hooks/useDiscounts";
 import { useCategoryOptions } from "@/lib/hooks/useCategoryOptions";
-import { fetchDiscount, exportDiscountsExcel } from "@/lib/api/discounts";
+import { fetchDiscount, exportDiscountsExcel, discountFlagTrue } from "@/lib/api/discounts";
 import { fetchProducts, searchProductsForSale } from "@/lib/api/products";
 import { useCurrentBranch } from "@/lib/store/session";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
+import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 
 const DISCOUNT_TYPES = [
@@ -170,18 +174,22 @@ export default function DiscountsPage() {
   const [loadingDiscount, setLoadingDiscount] = useState(false);
   const toast = useToast();
 
-  const { data: discounts = [], isLoading, error } = useAllDiscounts();
+  // status/tipo van al API; búsqueda nombre+código y apply_to quedan en cliente
+  // sobre el listado ya paginado completo (catálogo de promos suele ser chico).
+  const listFilters = useMemo(
+    () => ({
+      status: statusFilter || undefined,
+      discount_type: typeFilter || undefined,
+    }),
+    [statusFilter, typeFilter],
+  );
+  const { data: discounts = [], isLoading, error } = useAllDiscounts(listFilters);
   const { data: dashboard } = useDiscountDashboard(branch?.branch_id);
   const { options: categoryOptions } = useCategoryOptions();
   const [productPickerQuery, setProductPickerQuery] = useState("");
-  const [debouncedProductPickerQuery, setDebouncedProductPickerQuery] = useState("");
+  const debouncedProductPickerQuery = useDebouncedValue(productPickerQuery, 300);
   const [categoryPickerQuery, setCategoryPickerQuery] = useState("");
   const [manualProductNames, setManualProductNames] = useState<Record<number, string>>({});
-
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedProductPickerQuery(productPickerQuery), 300);
-    return () => clearTimeout(t);
-  }, [productPickerQuery]);
 
   const productPickerSearch = useQuery({
     queryKey: ["products", "for-sale", "discounts", debouncedProductPickerQuery],
@@ -229,19 +237,19 @@ export default function DiscountsPage() {
   const { download: downloadFile, isLoading: isDownloading } = useDownloadFile();
 
   const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
     return discounts.filter((d) => {
-      const q = search.trim().toLowerCase();
+      // Búsqueda por código en cliente (el API filtra name__icontains; code se cruza aquí).
       const matchesSearch =
         !q ||
         d.name.toLowerCase().includes(q) ||
         d.code.toLowerCase().includes(q);
-      const matchesType = !typeFilter || d.discount_type === typeFilter;
-      const matchesStatus = !statusFilter || d.status === statusFilter;
       const matchesApplyTo = !applyToFilter || d.apply_to === applyToFilter;
-      const matchesActive = !activeOnly || (d.status === "ACTIVE" && !d.is_expired);
-      return matchesSearch && matchesType && matchesStatus && matchesApplyTo && matchesActive;
+      const matchesActive =
+        !activeOnly || (d.status === "ACTIVE" && !discountFlagTrue(d.is_expired));
+      return matchesSearch && matchesApplyTo && matchesActive;
     });
-  }, [discounts, search, typeFilter, statusFilter, applyToFilter, activeOnly]);
+  }, [discounts, search, applyToFilter, activeOnly]);
 
   async function handleExportExcel() {
     await downloadFile(
@@ -278,7 +286,6 @@ export default function DiscountsPage() {
     setForm(emptyForm());
     setFormError(null);
     setProductPickerQuery("");
-    setDebouncedProductPickerQuery("");
     setCategoryPickerQuery("");
     setManualProductNames({});
   }
@@ -291,7 +298,6 @@ export default function DiscountsPage() {
     );
     setManualProductNames((prev) => ({ ...prev, [productId]: name }));
     setProductPickerQuery("");
-    setDebouncedProductPickerQuery("");
   }
 
   function removeProductFromDiscount(productId: number) {
@@ -333,24 +339,59 @@ export default function DiscountsPage() {
       setFormError("El porcentaje no puede ser mayor a 100.");
       return;
     }
+    if (!form.start_date || !form.end_date) {
+      setFormError("Las fechas de inicio y fin son obligatorias.");
+      return;
+    }
+    if (!isDateRangeValid(form.start_date, form.end_date)) {
+      setFormError("La fecha de inicio debe ser anterior a la fecha de fin.");
+      return;
+    }
+    if (form.apply_to === "SPECIFIC_PRODUCTS" && form.products.length === 0) {
+      setFormError("Agrega al menos un producto para este alcance.");
+      return;
+    }
+    if (form.apply_to === "CATEGORY" && form.categories.length === 0) {
+      setFormError("Agrega al menos una categoría para este alcance.");
+      return;
+    }
+    if (form.discount_type === "BUY_X_GET_Y") {
+      const buy = Number(form.buy_quantity);
+      const get = Number(form.get_quantity);
+      if (!buy || buy < 1 || !get || get < 1) {
+        setFormError("Compra X lleva Y requiere cantidades válidas (≥ 1).");
+        return;
+      }
+    }
+    if (form.discount_type === "BULK_DISCOUNT") {
+      const threshold = Number(form.bulk_threshold);
+      if (!threshold || threshold < 1) {
+        setFormError("El umbral de volumen debe ser al menos 1.");
+        return;
+      }
+    }
 
     const payload: DiscountFormPayload = {
       branch: Number(branch?.branch_id ?? 0),
       name: form.name.trim(),
       code: form.code.trim().toUpperCase(),
-      description: form.description.trim() || null,
+      description: form.description.trim() || undefined,
       discount_type: form.discount_type,
       apply_to: form.apply_to,
       status: form.status,
       discount_value: value.toFixed(2),
-      minimum_amount: form.minimum_amount ? Number(form.minimum_amount).toFixed(2) : null,
-      maximum_discount: form.maximum_discount ? Number(form.maximum_discount).toFixed(2) : null,
-      buy_quantity: form.buy_quantity ? Number(form.buy_quantity) : null,
-      get_quantity: form.get_quantity ? Number(form.get_quantity) : null,
-      bulk_threshold: form.bulk_threshold ? Number(form.bulk_threshold) : null,
-      start_date: toIsoDateTime(form.start_date) ?? new Date().toISOString(),
-      end_date: toIsoDateTime(form.end_date, true) ?? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-      max_uses: form.max_uses ? Number(form.max_uses) : null,
+      minimum_amount: form.minimum_amount
+        ? Number(form.minimum_amount).toFixed(2)
+        : undefined,
+      maximum_discount: form.maximum_discount
+        ? Number(form.maximum_discount).toFixed(2)
+        : undefined,
+      buy_quantity: form.buy_quantity ? Number(form.buy_quantity) : undefined,
+      get_quantity: form.get_quantity ? Number(form.get_quantity) : undefined,
+      bulk_threshold: form.bulk_threshold ? Number(form.bulk_threshold) : undefined,
+      start_date: toIsoDateTime(form.start_date)!,
+      end_date: toIsoDateTime(form.end_date, true)!,
+      max_uses: form.max_uses ? Number(form.max_uses) : undefined,
       products: form.apply_to === "SPECIFIC_PRODUCTS" ? form.products : [],
       categories: form.apply_to === "CATEGORY" ? form.categories : [],
       is_stackable: form.is_stackable,
@@ -382,91 +423,170 @@ export default function DiscountsPage() {
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <div className="flex min-h-full flex-col">
-      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
-        <div>
-          <h1 className="text-lg font-semibold">Descuentos y cupones</h1>
-          <p className="text-xs text-muted-foreground">
-            Gestiona promociones, códigos y descuentos para el POS
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Mobile: icon-only export */}
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={handleExportExcel}
-            disabled={isDownloading || isLoading}
-            isLoading={isDownloading}
-            className="sm:hidden"
-            title="Exportar Excel"
-            aria-label="Exportar Excel"
-          >
-            <FileDown className="h-4 w-4" />
-          </Button>
-          {/* Desktop: export with text */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExportExcel}
-            disabled={isDownloading || isLoading}
-            isLoading={isDownloading}
-            className="hidden sm:flex"
-          >
-            <FileDown className="mr-2 h-4 w-4" />
-            Exportar Excel
-          </Button>
+    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+      <PageHeader
+        title="Descuentos y cupones"
+        icon={<Percent className="h-5 w-5" />}
+        subtitle="Gestiona promociones, códigos y descuentos para el POS"
+        actions={
+          <>
+            {/* Mobile: icon-only export */}
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleExportExcel}
+              disabled={isDownloading || isLoading}
+              isLoading={isDownloading}
+              className="sm:hidden"
+              title="Exportar Excel"
+              aria-label="Exportar Excel"
+            >
+              <FileDown className="h-4 w-4" />
+            </Button>
+            {/* Desktop: export with text */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportExcel}
+              disabled={isDownloading || isLoading}
+              isLoading={isDownloading}
+              className="hidden sm:flex"
+            >
+              <FileDown className="mr-2 h-4 w-4" />
+              Exportar Excel
+            </Button>
 
-          {/* Mobile: icon-only new discount */}
-          <Button
-            size="icon"
-            onClick={() => openModal()}
-            className="sm:hidden"
-            title="Nuevo descuento"
-            aria-label="Nuevo descuento"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-          {/* Desktop: new discount with text */}
-          <Button
-            size="sm"
-            onClick={() => openModal()}
-            className="hidden sm:flex"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo descuento
-          </Button>
-        </div>
-      </header>
+            {/* Mobile: icon-only new discount */}
+            <Button
+              size="icon"
+              onClick={() => openModal()}
+              className="sm:hidden"
+              title="Nuevo descuento"
+              aria-label="Nuevo descuento"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            {/* Desktop: new discount with text */}
+            <Button
+              size="sm"
+              onClick={() => openModal()}
+              className="hidden sm:flex"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo descuento
+            </Button>
+          </>
+        }
+      />
 
-      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
+      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
         {dashboard && (
-          <section className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-            <StatCard
-              label="Total descuentos"
-              value={dashboard.summary.total_discounts}
-              icon={Tag}
-              sub={`${dashboard.summary.active_discounts} activos`}
-            />
-            <StatCard
-              label="Usos totales"
-              value={dashboard.summary.total_usage}
-              icon={TrendingUp}
-              sub="acumulados"
-            />
-            <StatCard
-              label="Monto descontado"
-              value={formatCLP(dashboard.summary.total_discount_amount)}
-              icon={BarChart3}
-              sub="total"
-            />
-            <StatCard
-              label="Promos expirando"
-              value={dashboard.expiring_soon.length}
-              icon={Calendar}
-              sub="en 7 días"
-            />
-          </section>
+          <>
+            <section className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+              <SharedStatCard
+                label="Total descuentos"
+                value={dashboard.summary.total_discounts}
+                icon={Tag}
+                sub={`${dashboard.summary.active_discounts} activos`}
+              />
+              <SharedStatCard
+                label="Usos totales"
+                value={dashboard.summary.total_usage}
+                icon={TrendingUp}
+                sub="acumulados"
+              />
+              <SharedStatCard
+                label="Monto descontado"
+                value={formatCLP(dashboard.summary.total_discount_amount)}
+                icon={BarChart3}
+                sub="total"
+              />
+              <SharedStatCard
+                label="Promos expirando"
+                value={dashboard.expiring_soon.length}
+                icon={Calendar}
+                sub="en 7 días"
+              />
+            </section>
+
+            {(dashboard.top_performing.length > 0 ||
+              dashboard.recent_usage.length > 0 ||
+              dashboard.expiring_soon.length > 0) && (
+              <section className="grid gap-4 lg:grid-cols-3">
+                <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                  <h3 className="text-sm font-semibold">Mejor rendimiento</h3>
+                  <p className="mt-0.5 text-xs text-muted-foreground">Por usos y monto descontado</p>
+                  {dashboard.top_performing.length === 0 ? (
+                    <p className="mt-3 text-xs text-muted-foreground">Sin datos aún.</p>
+                  ) : (
+                    <ul className="mt-3 space-y-2">
+                      {dashboard.top_performing.slice(0, 5).map((p) => (
+                        <li key={p.id} className="flex items-start justify-between gap-2 text-sm">
+                          <div className="min-w-0">
+                            <p className="truncate font-medium">{p.name}</p>
+                            <p className="text-xs text-muted-foreground">{p.code}</p>
+                          </div>
+                          <div className="shrink-0 text-right text-xs tabular-nums">
+                            <p>{p.total_usage} usos</p>
+                            <p className="text-muted-foreground">{formatCLP(p.total_discount_amount)}</p>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                  <h3 className="text-sm font-semibold">Usos recientes</h3>
+                  <p className="mt-0.5 text-xs text-muted-foreground">Últimas aplicaciones</p>
+                  {dashboard.recent_usage.length === 0 ? (
+                    <p className="mt-3 text-xs text-muted-foreground">Sin usos registrados.</p>
+                  ) : (
+                    <ul className="mt-3 space-y-2">
+                      {dashboard.recent_usage.slice(0, 5).map((u, idx) => (
+                        <li key={`${u.order_id}-${idx}`} className="flex items-start justify-between gap-2 text-sm">
+                          <div className="min-w-0">
+                            <p className="truncate font-medium">{u.discount_code}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {u.user_name || "—"} · {new Date(u.usage_date).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <div className="shrink-0 text-right text-xs tabular-nums text-emerald-700">
+                            -{formatCLP(u.discount_amount)}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                  <h3 className="text-sm font-semibold">Por expirar</h3>
+                  <p className="mt-0.5 text-xs text-muted-foreground">Próximos 7 días</p>
+                  {dashboard.expiring_soon.length === 0 ? (
+                    <p className="mt-3 text-xs text-muted-foreground">Ninguna promo por expirar.</p>
+                  ) : (
+                    <ul className="mt-3 space-y-2">
+                      {dashboard.expiring_soon.slice(0, 5).map((p) => (
+                        <li key={p.id} className="flex items-start justify-between gap-2 text-sm">
+                          <div className="min-w-0">
+                            <p className="truncate font-medium">{p.name}</p>
+                            <p className="text-xs text-muted-foreground">{p.code}</p>
+                          </div>
+                          <div className="shrink-0 text-right text-xs tabular-nums">
+                            <p>{p.days_remaining}d</p>
+                            <p className="text-muted-foreground">
+                              {new Date(p.end_date).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </section>
+            )}
+          </>
         )}
 
         {/* Desktop filters */}
@@ -638,6 +758,8 @@ export default function DiscountsPage() {
                     <th className="px-4 py-3">Nombre / Código</th>
                     <th className="px-4 py-3">Tipo</th>
                     <th className="px-4 py-3">Valor</th>
+                    <th className="px-4 py-3">Alcance</th>
+                    <th className="px-4 py-3">Usos</th>
                     <th className="px-4 py-3">Estado</th>
                     <th className="px-4 py-3">Vigencia</th>
                     <th className="px-4 py-3 text-right">Acciones</th>
@@ -659,6 +781,13 @@ export default function DiscountsPage() {
                         {d.discount_type === "PERCENTAGE"
                           ? `${d.discount_value}%`
                           : formatCLP(d.discount_value)}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground">
+                        {d.apply_to_display ?? d.apply_to}
+                      </td>
+                      <td className="px-4 py-3 tabular-nums text-xs">
+                        {d.current_uses ?? 0}
+                        {d.max_uses != null ? ` / ${d.max_uses}` : ""}
                       </td>
                       <td className="px-4 py-3">
                         <span className={statusBadgeClass(d.status)}>
@@ -751,6 +880,19 @@ export default function DiscountsPage() {
                         {d.discount_type === "PERCENTAGE"
                           ? `${d.discount_value}%`
                           : formatCLP(d.discount_value)}
+                      </span>
+                    </div>
+                    <div className="text-muted-foreground">
+                      <span className="block text-[10px] uppercase tracking-wide">Alcance</span>
+                      <span className="font-medium text-foreground">
+                        {d.apply_to_display ?? d.apply_to}
+                      </span>
+                    </div>
+                    <div className="text-muted-foreground">
+                      <span className="block text-[10px] uppercase tracking-wide">Usos</span>
+                      <span className="font-medium tabular-nums text-foreground">
+                        {d.current_uses ?? 0}
+                        {d.max_uses != null ? ` / ${d.max_uses}` : ""}
                       </span>
                     </div>
                     <div className="col-span-2 flex items-center gap-1.5 text-muted-foreground">
@@ -1005,11 +1147,12 @@ export default function DiscountsPage() {
 
                   <div className="flex flex-col gap-2">
                     <label htmlFor="discount-start" className="text-sm font-medium">
-                      Fecha inicio
+                      Fecha inicio <span className="text-danger">*</span>
                     </label>
                     <Input
                       id="discount-start"
                       type="date"
+                      required
                       value={form.start_date}
                       onChange={(e) => setForm({ ...form, start_date: e.target.value })}
                     />
@@ -1017,11 +1160,12 @@ export default function DiscountsPage() {
 
                   <div className="flex flex-col gap-2">
                     <label htmlFor="discount-end" className="text-sm font-medium">
-                      Fecha fin
+                      Fecha fin <span className="text-danger">*</span>
                     </label>
                     <Input
                       id="discount-end"
                       type="date"
+                      required
                       value={form.end_date}
                       onChange={(e) => setForm({ ...form, end_date: e.target.value })}
                     />
@@ -1204,25 +1348,4 @@ export default function DiscountsPage() {
   );
 }
 
-function StatCard({
-  label,
-  value,
-  icon: Icon,
-  sub,
-}: {
-  label: string;
-  value: string | number;
-  icon: React.ComponentType<{ className?: string }>;
-  sub: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-border bg-background p-3 sm:p-4 shadow-sm">
-      <div className="mb-1.5 flex items-center gap-2 text-muted-foreground sm:mb-2">
-        <Icon className="h-4 w-4" />
-        <span className="text-xs font-medium">{label}</span>
-      </div>
-      <p className="text-base font-semibold tabular-nums sm:text-xl">{value}</p>
-      <p className="text-xs text-muted-foreground">{sub}</p>
-    </div>
-  );
-}
+

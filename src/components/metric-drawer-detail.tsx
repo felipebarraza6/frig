@@ -241,3 +241,50 @@ export function CustomersMetricDetail({
     </div>
   );
 }
+
+const PRODUCTS_PREVIEW = 40;
+
+export function ProductsMetricDetail({
+  products,
+  emptyMessage = "No hay productos en el catálogo.",
+}: {
+  products: import("@/lib/api/types").PosProduct[];
+  emptyMessage?: string;
+}) {
+  if (products.length === 0) {
+    return <p className="py-4 text-sm text-muted-foreground">{emptyMessage}</p>;
+  }
+
+  const preview = products.slice(0, PRODUCTS_PREVIEW);
+  const rest = products.length - preview.length;
+
+  return (
+    <div className="flex flex-col">
+      <p className="mb-1 text-xs font-medium text-muted-foreground">
+        Listado rápido · {products.length} producto{products.length === 1 ? "" : "s"}
+      </p>
+      {preview.map((product) => (
+        <div
+          key={product.id}
+          className="flex items-center justify-between gap-3 border-b border-border py-2.5 last:border-0"
+        >
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium">{product.name}</p>
+            <p className="truncate text-xs text-muted-foreground">
+              {product.categoryName ?? "Sin categoría"}
+              {product.code ? ` · ${product.code}` : ""}
+            </p>
+          </div>
+          <span className="shrink-0 text-sm font-semibold tabular-nums">
+            {formatCLP(product.price)}
+          </span>
+        </div>
+      ))}
+      {rest > 0 && (
+        <p className="pt-2 text-xs text-muted-foreground">
+          +{rest} más en el catálogo
+        </p>
+      )}
+    </div>
+  );
+}

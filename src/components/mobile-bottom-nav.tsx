@@ -13,8 +13,10 @@ import { cn } from "@/lib/utils";
 import {
   useIsCashier,
   useIsWaiter,
+  useIsCook,
   useCashierAllowedPaths,
   useWaiterAllowedPaths,
+  useCookAllowedPaths,
   useSessionStore,
 } from "@/lib/store/session";
 import { useFrigMenu } from "@/lib/hooks/useFrigMenu";
@@ -42,8 +44,10 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
   const pathname = usePathname();
   const isCashier = useIsCashier();
   const isWaiter = useIsWaiter();
+  const isCook = useIsCook();
   const cashierAllowedPaths = useCashierAllowedPaths();
   const waiterAllowedPaths = useWaiterAllowedPaths();
+  const cookAllowedPaths = useCookAllowedPaths();
   const menuGroups = useFrigMenu();
   const { favorites } = useNavFavorites();
 
@@ -56,9 +60,18 @@ export function MobileBottomNav({ onMenuClick }: MobileBottomNavProps) {
     return allMenuItems.filter((item) => {
       if (isCashier) return isAllowed(item.href, cashierAllowedPaths);
       if (isWaiter) return isAllowed(item.href, waiterAllowedPaths);
+      if (isCook) return isAllowed(item.href, cookAllowedPaths);
       return true;
     });
-  }, [allMenuItems, isCashier, isWaiter, cashierAllowedPaths, waiterAllowedPaths]);
+  }, [
+    allMenuItems,
+    isCashier,
+    isWaiter,
+    isCook,
+    cashierAllowedPaths,
+    waiterAllowedPaths,
+    cookAllowedPaths,
+  ]);
 
   const navItems = useMemo<NavItem[]>(() => {
     // Favoritos que existan en el menú visible y estén permitidos.

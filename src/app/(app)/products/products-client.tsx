@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/page-header";
 import { cn, formatCLP } from "@/lib/utils";
 import {
   fetchProductsForManage,
@@ -154,15 +155,15 @@ function ProductCard({
         !product.is_active && "opacity-50 grayscale",
       )}
     >
-      <div className="flex items-start gap-3 p-4 pb-3">
+      <div className="flex items-start gap-2.5 px-3.5 pt-3.5 pb-2">
         <div
           className={cn(
-            "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl",
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
             colorClass.bg,
             colorClass.text,
           )}
         >
-          <Package className="h-5 w-5" />
+          <Package className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1">
           <h3 className="truncate text-sm font-semibold leading-snug" title={product.name}>
@@ -175,7 +176,7 @@ function ProductCard({
           </p>
         </div>
         <div className="shrink-0 text-right">
-          <p className="text-base font-bold tabular-nums leading-none">
+          <p className="text-sm font-bold tabular-nums leading-none">
             {formatCLP(product.sale_price ?? product.price ?? "0")}
           </p>
           {inventoryEnabled && tracksInventory && lowStock && (
@@ -187,7 +188,7 @@ function ProductCard({
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-1.5 px-4 pb-3">
+      <div className="flex flex-wrap gap-1 px-3.5 pb-2.5">
         <span
           className={cn(
             "inline-flex max-w-[55%] truncate rounded-full px-2 py-0.5 text-[11px] font-medium",
@@ -214,7 +215,7 @@ function ProductCard({
       </div>
 
       {product.description && (
-        <p className="mt-auto line-clamp-1 px-4 pb-4 text-xs text-muted-foreground">{product.description}</p>
+        <p className="mt-auto line-clamp-1 px-3.5 pb-3 text-xs text-muted-foreground">{product.description}</p>
       )}
     </div>
   );
@@ -389,94 +390,92 @@ export function ProductsClient() {
     search.trim() || category || productTypes.length || forSale || active;
 
   return (
-    <div className="flex min-h-full flex-col">
-      <header className="flex flex-col gap-4 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <div>
-          <h1 className="text-lg font-semibold">Productos</h1>
-          <p className="text-xs text-muted-foreground">
-            Gestiona el catálogo de la sucursal
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="relative w-full sm:w-64 lg:w-80">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Buscar productos…"
-              className="h-10 rounded-xl pl-10"
-              aria-label="Buscar producto"
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <div className="flex items-center rounded-xl border border-border bg-muted/40 p-0.5">
-              <Button
-                variant={view === "grid" ? "secondary" : "ghost"}
-                size="icon"
-                className="h-8 w-8 rounded-lg"
-                onClick={() => setView("grid")}
-                title="Vista galería"
-                aria-label="Vista galería"
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={view === "list" ? "secondary" : "ghost"}
-                size="icon"
-                className="h-8 w-8 rounded-lg"
-                onClick={() => setView("list")}
-                title="Vista lista"
-                aria-label="Vista lista"
-              >
-                <List className="h-4 w-4" />
-              </Button>
+    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+      <PageHeader
+        title="Productos"
+        icon={<Package className="h-5 w-5" />}
+        subtitle="Gestiona el catálogo de la sucursal"
+        actions={
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative w-full sm:w-64 lg:w-80">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Buscar productos…"
+                className="h-10 rounded-xl pl-10"
+                aria-label="Buscar producto"
+              />
             </div>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleExport("excel")}
-              disabled={isExporting}
-              className="hidden h-9 w-9 px-0 sm:flex sm:h-9 sm:w-auto sm:px-3"
-              title="Exportar Excel"
-            >
-              <FileSpreadsheet className="h-4 w-4" />
-              <span className="hidden sm:inline">Excel</span>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleExport("pdf")}
-              disabled={isExporting}
-              className="hidden h-9 w-9 px-0 sm:flex sm:h-9 sm:w-auto sm:px-3"
-              title="Exportar PDF"
-            >
-              <FileText className="h-4 w-4" />
-              <span className="hidden sm:inline">PDF</span>
-            </Button>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center rounded-xl border border-border bg-muted/40 p-0.5">
+                <Button
+                  variant={view === "grid" ? "secondary" : "ghost"}
+                  size="icon"
+                  className="h-8 w-8 rounded-lg"
+                  onClick={() => setView("grid")}
+                  title="Vista galería"
+                  aria-label="Vista galería"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={view === "list" ? "secondary" : "ghost"}
+                  size="icon"
+                  className="h-8 w-8 rounded-lg"
+                  onClick={() => setView("list")}
+                  title="Vista lista"
+                  aria-label="Vista lista"
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+              </div>
 
-            <Button
-              size="icon"
-              onClick={() => setCreating(true)}
-              className="h-9 w-9 sm:hidden"
-              title="Nuevo producto"
-              aria-label="Nuevo producto"
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => setCreating(true)}
-              className="hidden h-9 sm:flex"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Nuevo producto
-            </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleExport("excel")}
+                disabled={isExporting}
+                className="hidden h-9 w-9 px-0 sm:flex sm:h-9 sm:w-auto sm:px-3"
+                title="Exportar Excel"
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                <span className="hidden sm:inline">Excel</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleExport("pdf")}
+                disabled={isExporting}
+                className="hidden h-9 w-9 px-0 sm:flex sm:h-9 sm:w-auto sm:px-3"
+                title="Exportar PDF"
+              >
+                <FileText className="h-4 w-4" />
+                <span className="hidden sm:inline">PDF</span>
+              </Button>
+
+              <Button
+                size="icon"
+                onClick={() => setCreating(true)}
+                className="h-9 w-9 sm:hidden"
+                title="Nuevo producto"
+                aria-label="Nuevo producto"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => setCreating(true)}
+                className="hidden h-9 sm:flex"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Nuevo producto
+              </Button>
+            </div>
           </div>
-        </div>
-      </header>
+        }
+      />
 
       <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
         <div className="-mx-1 flex items-center gap-1.5 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -542,7 +541,7 @@ export function ProductsClient() {
         {error ? (
           <p className="text-sm text-danger">No se pudo cargar el catálogo.</p>
         ) : isLoading ? (
-          <div className="grid w-full grid-cols-[repeat(auto-fill,minmax(18.5rem,1fr))] gap-4">
+          <div className="grid w-full grid-cols-[repeat(auto-fill,minmax(17.5rem,1fr))] gap-3">
             {Array.from({ length: 8 }).map((_, i) => (
               <div
                 key={i}
@@ -611,7 +610,7 @@ export function ProductsClient() {
                 {/* Vista galería */}
                 <div
                   className={cn(
-                    "grid grid-cols-[repeat(auto-fill,minmax(18.5rem,1fr))] gap-4",
+                    "grid grid-cols-[repeat(auto-fill,minmax(17.5rem,1fr))] gap-3",
                     view === "grid" ? "" : "sm:hidden",
                   )}
                 >
@@ -794,6 +793,7 @@ export function ProductsClient() {
 
       {creating && (
         <ProductForm
+          key="create"
           onClose={() => setCreating(false)}
           onSubmit={onSubmit}
         />
@@ -801,10 +801,12 @@ export function ProductsClient() {
 
       {editingId && (
         <ProductForm
+          key={`edit-${editingId}`}
           productId={editingId}
           initialTab={editInitialTab}
           onClose={() => {
             queryClient.removeQueries({ queryKey: ["products", "detail", editingId] });
+            queryClient.removeQueries({ queryKey: ["supplier-products", "by-product"] });
             setEditingId(null);
             setEditInitialTab("basic");
             clearEditParam();

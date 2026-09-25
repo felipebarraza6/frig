@@ -46,7 +46,8 @@ function getHomeRouteForUser(
   if (firstRole === "OWNER") return "/dashboard";
   if (firstRole === "ADMIN_LOCAL") return "/pos";
   if (firstRole === "CAJERO") return "/pos/terminal";
-  if (firstRole === "WAITER") return "/pos/terminal";
+  if (firstRole === "WAITER" || firstRole === "MESERO") return "/pos/terminal";
+  if (firstRole === "COCINERO" || firstRole === "COOK") return "/kds";
   return "/dashboard";
 }
 

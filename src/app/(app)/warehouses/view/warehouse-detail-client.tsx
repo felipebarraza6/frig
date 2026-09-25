@@ -2,103 +2,93 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
-  Package,
-  Plus,
   ArrowRightLeft,
-  Pencil,
-  X,
-  Warehouse,
-  ShieldCheck,
   Coins,
-  TrendingUp,
-  Layers,
-  Search,
-  ArrowUp,
-  ArrowDown,
   FileSpreadsheet,
-  SlidersHorizontal,
   LayoutGrid,
   List,
+  MapPin,
+  Package,
+  Plus,
+  Search,
+  TrendingUp,
+  Warehouse,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Field } from "@/components/ui/field";
+import { StatCard } from "@/components/ui/stat-card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { PageBody, PageShell } from "@/components/page-shell";
+import { WarehouseProductBin } from "@/components/warehouses/warehouse-product-bin";
+import { WarehouseInspector } from "@/components/warehouses/warehouse-inspector";
 import {
-  fetchWarehouses,
+  addProductToWarehouse,
   fetchWarehouse,
   fetchWarehouseProducts,
-  addProductToWarehouse,
-  updateWarehouseProduct,
-  updateWarehouseProductQuantity,
+  fetchWarehouses,
   transferStock,
+  type WarehouseProduct,
 } from "@/lib/api/warehouses";
 import { fetchProducts } from "@/lib/api/products";
-import { fetchSupplierProductsByBranch } from "@/lib/api/suppliers";
 import { formatCLP, cn, stockStatusLabel } from "@/lib/utils";
-import { useCurrentBranch } from "@/lib/store/session";
-import type { YggdraSchemas } from "@/lib/api/types";
+import { statusBadge } from "@/lib/status-styles";
+import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
+import { useToast } from "@/lib/store/toast";
+import {
+  formatQty,
+  groupWarehouseProductsByLocation,
+  numValue,
+  warehouseOccupancy,
+  warehouseTypeAccent,
+  warehouseTypeIcon,
+  warehouseTypeLabel,
+} from "@/lib/warehouses-ui";
 
-type WarehouseProduct = YggdraSchemas["WarehouseProduct"];
+const NO_INVENTORY_TYPES = new Set(["RECIPE_BASED", "SERVICE", "CERTIFICATE", "IOT"]);
 
-const SORT_OPTIONS = [
-  { value: "product_name", label: "Producto" },
-  { value: "product_category", label: "Categoría" },
-  { value: "current_quantity", label: "Cantidad" },
-  { value: "minimum_quantity", label: "Mínima" },
-  { value: "maximum_quantity", label: "Máxima" },
-  { value: "product_cost", label: "C/Unitario" },
-  { value: "total_value", label: "Costo" },
-  { value: "sale_price", label: "V/Unitario" },
-  { value: "total_sale_value", label: "Venta" },
-  { value: "stock_status", label: "Estado" },
-];
-
-function numValue(v: string | number | null | undefined): number {
-  if (v == null || v === "") return 0;
-  const n = typeof v === "number" ? v : parseFloat(v);
-  return n || 0;
-}
-
-function typeLabel(value?: string | null): string {
-  const labels: Record<string, string> = {
-    GENERAL: "General",
-    TOOLS: "Herramientas",
-    RAW_MATERIAL: "Materias primas",
-    WASTE: "Residuos",
-    CUSTOM: "Personalizada",
-  };
-  if (!value) return "Bodega";
-  return labels[value] ?? value;
-}
-
-function formatDateTime(v: string | null | undefined): string {
-  if (!v) return "—";
-  const date = new Date(v);
-  if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleString("es-CL", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+function FilterChip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "glass-chip inline-flex h-7 shrink-0 items-center justify-center rounded-full px-2.5 text-xs font-medium whitespace-nowrap transition-colors",
+        active
+          ? "bg-foreground/10 text-foreground"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+      )}
+    >
+      {children}
+    </button>
+  );
 }
 
 async function exportWarehouseProductsToExcel(warehouseName: string, warehouseId: number) {
-  // Import dinámico: xlsx solo se usa al exportar, fuera del bundle inicial.
   const XLSX = await import("xlsx");
   const allResults: WarehouseProduct[] = [];
-  let next: string | null | undefined = undefined;
+  let next: string | null | undefined;
   let first = true;
   while (first || next) {
     const data = await fetchWarehouseProducts(
       warehouseId,
-      first ? { page_size: 1000 } : { next },
+      first ? { page_size: 100 } : { next },
     );
     allResults.push(...(data.results ?? []));
     next = data.next;
@@ -110,232 +100,57 @@ async function exportWarehouseProductsToExcel(warehouseName: string, warehouseId
     Código: wp.product_code,
     Categoría: wp.product_category,
     Unidad: wp.product_measurement_unit,
+    Ubicación: wp.location_in_warehouse ?? "",
     Cantidad: wp.current_quantity,
     Mínima: wp.minimum_quantity ?? "",
+    Máxima: wp.maximum_quantity ?? "",
+    Reorden: wp.reorder_point ?? "",
     "Costo unitario": numValue(wp.product_cost),
     "Costo total": numValue(wp.total_value),
-    "Estado": stockStatusLabel(wp.stock_status ?? ""),
+    Estado: stockStatusLabel(wp.stock_status ?? ""),
   }));
 
   const ws = XLSX.utils.json_to_sheet(rows);
-  ws["!cols"] = [
-    { wch: 30 }, { wch: 12 }, { wch: 18 }, { wch: 10 },
-    { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 14 },
-  ];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Productos");
   const date = new Date().toLocaleDateString("en-CA");
   XLSX.writeFile(wb, `bodega-${warehouseName.toLowerCase().replace(/\s+/g, "-")}_${date}.xlsx`);
 }
 
-function SkeletonBlock({ className }: { className?: string }) {
-  return (
-    <div className={cn("animate-pulse rounded-xl bg-muted", className)} />
-  );
-}
-
-function WarehouseProductCard({
-  wp,
-  supplierName,
-  salePrice,
-  onConfigure,
-  onTransfer,
-}: {
-  wp: WarehouseProduct;
-  supplierName?: string;
-  salePrice: number;
-  onConfigure: (wp: WarehouseProduct) => void;
-  onTransfer: (wp: WarehouseProduct) => void;
-}) {
-  const totalValue = numValue(wp.total_value);
-  const totalSale = salePrice * wp.current_quantity;
-  const unitCost = numValue(wp.product_cost);
-  const status = wp.stock_status ?? "";
-  const isOk = status === "IN_STOCK";
-  const isLow = status === "LOW_STOCK";
-  const isOut = status === "OUT_OF_STOCK";
-
-  return (
-    <div className="flex flex-col rounded-2xl border border-border bg-background p-4 shadow-sm transition-colors hover:bg-background">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary">
-            <Package className="h-5 w-5 text-muted-foreground" />
-          </div>
-          <div className="min-w-0">
-            <p className="truncate font-medium leading-tight">{wp.product_name}</p>
-            <div className="mt-1 flex flex-wrap items-center gap-1.5">
-              <span
-                className={cn(
-                  "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium",
-                  isOk && "bg-success/10 text-success",
-                  isLow && "bg-warning/10 text-warning",
-                  isOut && "bg-danger/10 text-danger",
-                  !isOk && !isLow && !isOut && "bg-muted text-muted-foreground",
-                )}
-              >
-                {stockStatusLabel(status)}
-              </span>
-              <span className="text-[10px] text-muted-foreground">
-                {wp.product_measurement_unit}
-                {wp.product_code ? ` · ${wp.product_code}` : ""}
-              </span>
-            </div>
-          </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 p-0"
-            title="Configurar"
-            onClick={() => onConfigure(wp)}
-          >
-            <Pencil className="h-3.5 w-3.5" />
-            <span className="sr-only">Configurar</span>
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 p-0"
-            title="Transferir a otra bodega"
-            onClick={() => onTransfer(wp)}
-          >
-            <ArrowRightLeft className="h-3.5 w-3.5" />
-            <span className="sr-only">Mover</span>
-          </Button>
-        </div>
-      </div>
-
-      <div className="mt-4 grid grid-cols-3 gap-3">
-        <div>
-          <p className="text-[10px] text-muted-foreground">Cantidad</p>
-          <p className="text-sm font-semibold tabular-nums">{wp.current_quantity}</p>
-          <p className="text-[10px] tabular-nums text-muted-foreground">
-            mín {wp.minimum_quantity ?? 0} · máx {wp.maximum_quantity ?? "—"}
-          </p>
-        </div>
-        <div>
-          <p className="text-[10px] text-muted-foreground">Costo total</p>
-          <p className="text-sm font-semibold tabular-nums text-success">{formatCLP(totalValue)}</p>
-          <p className="text-[10px] tabular-nums text-muted-foreground">{formatCLP(unitCost)} c/u</p>
-        </div>
-        <div>
-          <p className="text-[10px] text-muted-foreground">Venta total</p>
-          <p className="text-sm font-semibold tabular-nums text-primary">{formatCLP(totalSale)}</p>
-          <p className="text-[10px] tabular-nums text-muted-foreground">{formatCLP(salePrice)} c/u</p>
-        </div>
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        {wp.product_category && (
-          <span className="inline-flex items-center rounded-sm bg-secondary px-2 py-1 text-[10px] font-medium text-foreground">
-            {wp.product_category}
-          </span>
-        )}
-        {supplierName && (
-          <span
-            className="inline-flex max-w-full items-center truncate rounded-sm bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary"
-            title={supplierName}
-          >
-            {supplierName}
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function MetricCard({
-  icon: Icon,
-  label,
-  value,
-  tone = "default",
-  alert,
-}: {
-  icon: React.ElementType;
-  label: string;
-  value: string | number;
-  tone?: "default" | "primary" | "emerald" | "violet" | "amber";
-  alert?: React.ReactNode;
-}) {
-  const tones = {
-    default: "bg-muted text-foreground",
-    primary: "bg-primary/10 text-primary",
-    emerald: "bg-primary/20 text-primary",
-    violet: "bg-primary/15 text-primary",
-    amber: "bg-amber-500/10 text-amber-700",
-  };
-  return (
-    <div className="rounded-2xl border border-border bg-background p-4 shadow-sm">
-      <div className="flex items-center gap-3">
-        <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", tones[tone])}>
-          <Icon className="h-5 w-5" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="text-lg font-semibold tabular-nums">{value}</p>
-          {alert && <div className="mt-1">{alert}</div>}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function WarehouseDetailPage() {
   const router = useRouter();
-  // El id se resuelve desde la URL: la app se exporta estática (output:
-  // "export") y la navegación client-side actualiza useSearchParams de forma
-  // reactiva. NO leer window.location en un useState inicial: al navegar con
-  // router.push la URL aún no está actualizada cuando el componente monta y
-  // el id quedaba en 0 para siempre, congelando la página en el skeleton.
-  // Soporta ?id=<n> y /warehouses/<n>.
   const searchParams = useSearchParams();
+  const toast = useToast();
+  const queryClient = useQueryClient();
+
   const warehouseId = useMemo(() => {
     if (typeof window === "undefined") return 0;
     const fromQuery = searchParams.get("id");
     const fromPath = window.location.pathname.match(/\/warehouses\/(\d+)/)?.[1];
     return Number(fromQuery ?? fromPath ?? 0) || 0;
   }, [searchParams]);
-  const queryClient = useQueryClient();
 
+  const alertParam = searchParams.get("alert");
+  const [stockFilter, setStockFilter] = useState<"all" | "low" | "out" | "reorder">(
+    alertParam === "out" ? "out" : alertParam === "low" ? "low" : "all",
+  );
+  const [view, setView] = useState<"zones" | "list">("zones");
+  const [searchInput, setSearchInput] = useState("");
+  const productSearch = useDebouncedValue(searchInput, 300);
+  const [pageUrl, setPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
+  const [inspected, setInspected] = useState<WarehouseProduct | null>(null);
   const [addOpen, setAddOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState("");
-  const [selectedProductName, setSelectedProductName] = useState("");
-  const [addProductQuery, setAddProductQuery] = useState("");
-  const [debouncedAddProductQuery, setDebouncedAddProductQuery] = useState("");
-  const [initialQuantity, setInitialQuantity] = useState("");
-  const [configOpen, setConfigOpen] = useState(false);
-  const [configProduct, setConfigProduct] = useState<WarehouseProduct | null>(null);
-  const [configForm, setConfigForm] = useState({
-    current_quantity: "",
-    minimum_quantity: "",
-    maximum_quantity: "",
-    reorder_point: "",
-    location_in_warehouse: "",
-    is_active: true,
-    is_preferred_location: false,
-  });
   const [transferOpen, setTransferOpen] = useState(false);
-  const [transferTarget, setTransferTarget] = useState("");
-  const [transferProduct, setTransferProduct] = useState<WarehouseProduct | null>(null);
-  const [transferQuantity, setTransferQuantity] = useState("");
   const [exporting, setExporting] = useState(false);
-  const [showMobileFilters, setShowMobileFilters] = useState(false);
-  const [view, setView] = useState<"grid" | "list">("grid");
-
-  const [productSearch, setProductSearch] = useState("");
-  const [productSearchInput, setProductSearchInput] = useState("");
-  const [productPageUrl, setProductPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
-  const [productSort, setProductSort] = useState<{ field: string; desc: boolean } | null>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setProductSearch(productSearchInput);
-      setProductPageUrl({});
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [productSearchInput]);
+    if (alertParam === "out") setStockFilter("out");
+    if (alertParam === "low") setStockFilter("low");
+  }, [alertParam]);
+
+  useEffect(() => {
+    setPageUrl({});
+  }, [productSearch, stockFilter]);
 
   const { data: warehouse, isLoading: loadingWarehouse } = useQuery({
     queryKey: ["warehouses", warehouseId],
@@ -346,10 +161,12 @@ export default function WarehouseDetailPage() {
   const productFilter = useMemo(
     () => ({
       search: productSearch || undefined,
-      ordering: productSort ? `${productSort.desc ? "-" : ""}${productSort.field}` : undefined,
-      ...productPageUrl,
+      low_stock: stockFilter === "low" || undefined,
+      out_of_stock: stockFilter === "out" || undefined,
+      page_size: 50,
+      ...pageUrl,
     }),
-    [productSearch, productSort, productPageUrl],
+    [productSearch, stockFilter, pageUrl],
   );
 
   const { data: productsPage, isLoading: loadingProducts } = useQuery({
@@ -357,1060 +174,736 @@ export default function WarehouseDetailPage() {
     queryFn: () => fetchWarehouseProducts(warehouseId, productFilter),
     enabled: Boolean(warehouseId),
   });
-  const products = useMemo(() => productsPage?.results ?? [], [productsPage]);
-  const totalProductsCount = productsPage?.count ?? 0;
 
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedAddProductQuery(addProductQuery), 300);
-    return () => clearTimeout(t);
-  }, [addProductQuery]);
+  const products = useMemo(() => {
+    const rows = productsPage?.results ?? [];
+    if (stockFilter === "reorder") {
+      return rows.filter((wp) => wp.stock_status === "NEEDS_REORDER");
+    }
+    return rows;
+  }, [productsPage, stockFilter]);
+
+  const zones = useMemo(() => groupWarehouseProductsByLocation(products), [products]);
+
+  const { data: warehousesPage } = useQuery({
+    queryKey: ["warehouses", "list", { page_size: 100 }],
+    queryFn: () => fetchWarehouses({ page_size: 100 }),
+  });
+  const targetWarehouses = (warehousesPage?.results ?? []).filter((w) => w.id !== warehouseId);
+
+  type PendingAdd = { id: number; name: string; code?: string; quantity: string };
+  const [pendingAdds, setPendingAdds] = useState<PendingAdd[]>([]);
+  const [addProductQuery, setAddProductQuery] = useState("");
+  const debouncedAddQuery = useDebouncedValue(addProductQuery, 300);
+  const [addMin, setAddMin] = useState("");
+  const [addReorder, setAddReorder] = useState("");
+  const [addLocation, setAddLocation] = useState("");
+  const [pickerValue, setPickerValue] = useState("");
 
   const addProductSearch = useQuery({
-    queryKey: ["products", "warehouse-add", debouncedAddProductQuery],
+    queryKey: ["products", "warehouse-add", debouncedAddQuery],
     queryFn: () =>
       fetchProducts({
-        search: debouncedAddProductQuery,
-        page_size: 20,
+        search: debouncedAddQuery.trim() || undefined,
+        page_size: 30,
+        is_active: true,
       }),
-    enabled: addOpen && debouncedAddProductQuery.trim().length >= 2,
+    enabled: addOpen,
     staleTime: 30_000,
   });
 
   const addProductOptions = useMemo(() => {
-    const found = (addProductSearch.data?.results ?? [])
-      .filter((p) => p.product_type !== "RECIPE_BASED")
+    const inWarehouse = new Set(products.map((p) => Number(p.product)));
+    const pendingIds = new Set(pendingAdds.map((p) => p.id));
+    return (addProductSearch.data?.results ?? [])
+      .filter(
+        (p) =>
+          !NO_INVENTORY_TYPES.has(p.product_type ?? "") &&
+          !inWarehouse.has(p.id) &&
+          !pendingIds.has(p.id),
+      )
       .map((p) => ({
         value: String(p.id),
         label: p.name,
-        description: p.code ?? undefined,
+        description: [p.code, p.product_type].filter(Boolean).join(" · ") || undefined,
       }));
-    if (
-      selectedProduct &&
-      selectedProductName &&
-      !found.some((o) => o.value === selectedProduct)
-    ) {
-      return [{ value: selectedProduct, label: selectedProductName }, ...found];
+  }, [addProductSearch.data, products, pendingAdds]);
+
+  function resetAddForm() {
+    setPendingAdds([]);
+    setAddProductQuery("");
+    setPickerValue("");
+    setAddMin("");
+    setAddReorder("");
+    setAddLocation("");
+  }
+
+  function queueProduct(value: string) {
+    if (!value) return;
+    const opt = addProductOptions.find((o) => o.value === value);
+    const id = Number(value);
+    if (!Number.isFinite(id) || pendingAdds.some((p) => p.id === id)) {
+      setPickerValue("");
+      return;
     }
-    return found;
-  }, [addProductSearch.data, selectedProduct, selectedProductName]);
-
-  const { data: catalog = [] } = useQuery({
-    queryKey: ["products", "catalog"],
-    queryFn: async () => {
-      // Solo para productSalePriceMap hasta que exista /products/price_map/.
-      const all: YggdraSchemas["ProductList"][] = [];
-      let next: string | null | undefined;
-      let first = true;
-      let pages = 0;
-      while ((first || next) && pages < 20) {
-        const data = await fetchProducts(first ? { page_size: 2000 } : { next });
-        all.push(...(data.results ?? []));
-        next = data.next;
-        first = false;
-        pages++;
-      }
-      return all;
-    },
-    staleTime: 60_000,
-  });
-
-  const productSalePriceMap = useMemo(() => {
-    const map = new Map<number, number>();
-    const list = Array.isArray(catalog) ? catalog : [];
-    for (const p of list) {
-      map.set(p.id, numValue(p.sale_price));
-    }
-    return map;
-  }, [catalog]);
-
-  // Los productos compuestos (RECIPE_BASED) no tienen stock propio en bodega:
-  // su disponibilidad se calcula desde los ingredientes de la receta, así que
-  // no se agregan ni se muestran en la bodega.
-  const compoundProductIds = useMemo(
-    () => new Set(catalog.filter((p) => p.product_type === "RECIPE_BASED").map((p) => p.id)),
-    [catalog],
-  );
-  const visibleProducts = useMemo(
-    () => products.filter((wp) => wp.product == null || !compoundProductIds.has(wp.product)),
-    [products, compoundProductIds],
-  );
-
-  const { data: warehousesPage } = useQuery({
-    queryKey: ["warehouses", "all"],
-    queryFn: () => fetchWarehouses({}),
-  });
-  const targetWarehouses = (warehousesPage?.results ?? []).filter((w) => w.id !== warehouseId);
-
-  const branch = useCurrentBranch();
-  const branchId = branch?.branch_id ? Number(branch.branch_id) : undefined;
-
-  const { data: supplierProducts = [] } = useQuery({
-    queryKey: ["supplier-products", "by-branch", branchId],
-    queryFn: () => fetchSupplierProductsByBranch(branchId!),
-    enabled: Boolean(branchId),
-    staleTime: 60_000,
-  });
-
-  const supplierNameByProduct = useMemo(() => {
-    const map = new Map<number, string>();
-    for (const sp of supplierProducts) {
-      if (sp.product && !map.has(sp.product)) {
-        map.set(sp.product, sp.supplier_name);
-      }
-    }
-    return map;
-  }, [supplierProducts]);
+    setPendingAdds((prev) => [
+      ...prev,
+      {
+        id,
+        name: opt?.label ?? `Producto #${id}`,
+        code: opt?.description,
+        quantity: "0",
+      },
+    ]);
+    setPickerValue("");
+    setAddProductQuery("");
+  }
 
   const add = useMutation({
-    mutationFn: () =>
-      addProductToWarehouse({
-        warehouse_id: warehouseId,
-        product_id: Number(selectedProduct),
-        initial_quantity: Number(initialQuantity),
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["warehouses", warehouseId, "products"] });
-      queryClient.invalidateQueries({ queryKey: ["warehouses", warehouseId] });
-      setAddOpen(false);
-      setSelectedProduct("");
-      setInitialQuantity("");
+    mutationFn: async () => {
+      if (pendingAdds.length === 0) throw new Error("Elige al menos un producto");
+      const results = await Promise.allSettled(
+        pendingAdds.map((item) =>
+          addProductToWarehouse({
+            warehouse_id: warehouseId,
+            product_id: item.id,
+            initial_quantity: Number(item.quantity) || 0,
+            minimum_quantity: addMin === "" ? undefined : Number(addMin),
+            reorder_point: addReorder === "" ? undefined : Number(addReorder),
+            location_in_warehouse: addLocation.trim() || undefined,
+          }),
+        ),
+      );
+      const ok = results.filter((r) => r.status === "fulfilled").length;
+      const fail = results.length - ok;
+      if (ok === 0) {
+        const first = results.find((r) => r.status === "rejected") as PromiseRejectedResult | undefined;
+        throw new Error(
+          first?.reason instanceof Error
+            ? first.reason.message
+            : "No se pudo agregar ningún producto",
+        );
+      }
+      return { ok, fail };
     },
+    onSuccess: ({ ok, fail }) => {
+      queryClient.invalidateQueries({ queryKey: ["warehouses", warehouseId] });
+      if (fail > 0) {
+        toast.warning(`${ok} agregados, ${fail} con error`);
+      } else {
+        toast.success(ok === 1 ? "Producto agregado al recinto" : `${ok} productos agregados`);
+      }
+      setAddOpen(false);
+      resetAddForm();
+    },
+    onError: (err: Error) => toast.error(err.message || "No se pudo agregar"),
   });
 
-  const config = useMutation({
-    mutationFn: async () => {
-      if (!configProduct) throw new Error("No hay producto seleccionado");
-      const currentQuantity = Number(configForm.current_quantity);
-      const configPayload: Partial<YggdraSchemas["PatchedWarehouseProductRequest"]> = {
-        minimum_quantity:
-          configForm.minimum_quantity === "" ? undefined : Number(configForm.minimum_quantity),
-        maximum_quantity:
-          configForm.maximum_quantity === "" ? null : Number(configForm.maximum_quantity),
-        reorder_point:
-          configForm.reorder_point === "" ? undefined : Number(configForm.reorder_point),
-        location_in_warehouse: configForm.location_in_warehouse.trim() || null,
-        is_active: configForm.is_active,
-        is_preferred_location: configForm.is_preferred_location,
-      };
-      await Promise.all([
-        updateWarehouseProductQuantity(Number(configProduct.id), { initial_quantity: currentQuantity }),
-        updateWarehouseProduct(Number(configProduct.id), configPayload),
-      ]);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["warehouses", warehouseId, "products"] });
-      queryClient.invalidateQueries({ queryKey: ["warehouses", warehouseId] });
-      setConfigOpen(false);
-      setConfigProduct(null);
-      setConfigForm({
-        current_quantity: "",
-        minimum_quantity: "",
-        maximum_quantity: "",
-        reorder_point: "",
-        location_in_warehouse: "",
-        is_active: true,
-        is_preferred_location: false,
-      });
-    },
-  });
+  const [transferRows, setTransferRows] = useState<Record<number, string>>({});
+  const [transferTarget, setTransferTarget] = useState("");
 
   const transfer = useMutation({
-    mutationFn: () =>
-      transferStock({
+    mutationFn: () => {
+      const items = products
+        .filter((wp) => Number(transferRows[wp.id] ?? 0) > 0 && wp.product)
+        .map((wp) => ({
+          product_id: Number(wp.product),
+          quantity: Number(transferRows[wp.id]),
+        }));
+      if (items.length === 0) throw new Error("Indica al menos una cantidad");
+      return transferStock({
         source_warehouse_id: warehouseId,
         target_warehouse_id: Number(transferTarget),
-        products: [
-          {
-            product_id: Number(transferProduct?.product),
-            quantity: Number(transferQuantity),
-          },
-        ],
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["warehouses", warehouseId, "products"] });
-      queryClient.invalidateQueries({ queryKey: ["warehouses", warehouseId] });
-      setTransferOpen(false);
-      setTransferTarget("");
-      setTransferProduct(null);
-      setTransferQuantity("");
+        products: items,
+      });
     },
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ["warehouses"] });
+      toast.success(res.message || "Transferencia lista");
+      setTransferOpen(false);
+      setTransferRows({});
+      setTransferTarget("");
+    },
+    onError: (err: Error) => toast.error(err.message || "No se pudo transferir"),
   });
 
-  // Mientras no hay id resuelto (SSR del export estático) mostramos el
-  // skeleton en vez de un falso "no encontrada".
   if (loadingWarehouse || !warehouseId) {
     return (
-      <div className="flex min-h-full flex-col">
+      <PageShell>
         <header className="flex items-center gap-3 border-b border-border px-4 py-3 sm:px-6">
           <Button variant="ghost" size="sm" onClick={() => router.push("/warehouses")}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div className="flex-1">
-            <SkeletonBlock className="h-6 w-48" />
-            <SkeletonBlock className="mt-2 h-4 w-32" />
-          </div>
+          <Skeleton className="h-6 w-48" />
         </header>
-        <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
+        <PageBody>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
-              <SkeletonBlock key={i} className="h-24" />
+              <Skeleton key={i} className="h-24 rounded-2xl" />
             ))}
           </div>
-          <div className="flex items-center justify-between">
-            <SkeletonBlock className="h-5 w-40" />
-            <SkeletonBlock className="h-9 w-48" />
-          </div>
-          <SkeletonBlock className="h-64 w-full" />
-        </div>
-      </div>
+          <Skeleton className="h-64 w-full rounded-2xl" />
+        </PageBody>
+      </PageShell>
     );
   }
 
   if (!warehouse) {
     return (
-      <div className="flex min-h-full flex-1 flex-col items-center justify-center p-6 text-center">
-        <p className="text-muted-foreground">Bodega no encontrada.</p>
-        <Button className="mt-4" onClick={() => router.push("/warehouses")}>
-          Volver a bodegas
-        </Button>
-      </div>
+      <PageShell>
+        <EmptyState
+          icon={Warehouse}
+          title="Bodega no encontrada"
+          action={
+            <Button onClick={() => router.push("/warehouses")}>Volver a bodegas</Button>
+          }
+        />
+      </PageShell>
     );
   }
 
-  const totalProducts = numValue(warehouse.total_products);
-  const totalQuantity = numValue(warehouse.total_quantity);
-  const totalCost = numValue(warehouse.total_value);
-  const totalSale = numValue(warehouse.total_sale_value);
+  const Icon = warehouseTypeIcon(warehouse.warehouse_type);
+  const occupancy = warehouseOccupancy(warehouse.capacity, warehouse.total_quantity);
   const lowStock = numValue(warehouse.low_stock_products);
   const outOfStock = numValue(warehouse.out_of_stock_products);
-  const hasAlerts = lowStock > 0 || outOfStock > 0;
+  const hasFilter = Boolean(productSearch) || stockFilter !== "all";
 
   return (
-    <div className="flex min-h-full flex-col">
-      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:px-6">
-        <Button variant="ghost" size="sm" onClick={() => router.push("/warehouses")}>
+    <PageShell>
+      <header className="glass-strong flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:px-6">
+        <Button variant="ghost" size="sm" onClick={() => router.push("/warehouses")} aria-label="Volver">
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 flex-1 items-start gap-3">
+          <div
+            className={cn(
+              "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border",
+              warehouseTypeAccent(warehouse.warehouse_type),
+            )}
+          >
+            <Icon className="h-5 w-5" />
+          </div>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-lg font-semibold">{warehouse.name}</h1>
+              <h1 className="font-display text-lg font-semibold tracking-tight">{warehouse.name}</h1>
               {warehouse.is_default && (
-                <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
                   Principal
                 </span>
               )}
+              <span className="text-xs text-muted-foreground">
+                {warehouseTypeLabel(warehouse.warehouse_type)}
+              </span>
             </div>
-            <p className="text-xs text-muted-foreground">
-              {typeLabel(warehouse.warehouse_type)} · {warehouse.location ?? "Sin ubicación"}
+            <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+              {warehouse.location ? (
+                <>
+                  <MapPin className="h-3 w-3" />
+                  {warehouse.location}
+                </>
+              ) : (
+                "Sin ubicación física"
+              )}
+              {occupancy != null ? ` · ${Math.round(occupancy)}% ocupación` : ""}
             </p>
-          </div>
-          <div className="flex items-center gap-1.5 self-start rounded-full border border-emerald-500/20 bg-emerald-500/5 px-2.5 py-1">
-            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-            <span className="hidden text-[10px] font-medium uppercase tracking-wide text-emerald-700 sm:inline">
-              Verificado
-            </span>
-            <span className="text-[10px] text-emerald-600">
-              {formatDateTime(warehouse.modified)}
-            </span>
           </div>
         </div>
       </header>
 
-      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
-        {/* Métricas principales */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <MetricCard
+      <PageBody>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard
             icon={Package}
-            label="Productos de bodega"
-            value={totalProducts}
-            alert={
-              hasAlerts ? (
-                <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+            label="Productos"
+            value={formatQty(warehouse.total_products)}
+            delta={
+              lowStock > 0 || outOfStock > 0 ? (
+                <div className="flex flex-wrap gap-1">
                   {lowStock > 0 && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-1.5 py-0.5 font-medium text-warning">
+                    <button
+                      type="button"
+                      className="rounded-full bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium text-warning"
+                      onClick={() => setStockFilter("low")}
+                    >
                       {lowStock} bajo
-                    </span>
+                    </button>
                   )}
                   {outOfStock > 0 && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-danger/10 px-1.5 py-0.5 font-medium text-danger">
+                    <button
+                      type="button"
+                      className="rounded-full bg-danger/10 px-1.5 py-0.5 text-[10px] font-medium text-danger"
+                      onClick={() => setStockFilter("out")}
+                    >
                       {outOfStock} sin stock
-                    </span>
+                    </button>
                   )}
                 </div>
               ) : undefined
             }
           />
-          <MetricCard icon={Layers} label="Unidades" value={totalQuantity} tone="default" />
-          <MetricCard icon={Coins} label="Valor costo" value={formatCLP(totalCost)} tone="emerald" />
-          <MetricCard icon={TrendingUp} label="Valor venta" value={formatCLP(totalSale)} tone="violet" />
+          <StatCard icon={Package} label="Unidades" value={formatQty(warehouse.total_quantity)} tone="muted" />
+          <StatCard
+            icon={Coins}
+            label="Valor costo"
+            value={formatCLP(numValue(warehouse.total_value))}
+            tone="success"
+          />
+          <StatCard
+            icon={TrendingUp}
+            label="Valor venta"
+            value={formatCLP(numValue(warehouse.total_sale_value))}
+            tone="primary"
+          />
         </div>
 
         <div className="flex flex-col gap-3">
-          {/* Desktop filters */}
-          <div className="hidden flex-wrap items-end justify-between gap-3 md:flex">
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="relative w-full max-w-xs">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={productSearchInput}
-                  onChange={(e) => setProductSearchInput(e.target.value)}
-                  placeholder="Buscar producto…"
-                  className="pl-9"
-                  aria-label="Buscar producto"
-                />
-              </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative min-w-[12rem] flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Buscar producto o código…"
+                className="pl-9"
+                aria-label="Buscar producto"
+              />
             </div>
-            <div className="flex items-center gap-2">
-              <div className="hidden sm:flex items-center rounded-lg border border-border p-0.5">
-                <Button
-                  variant={view === "grid" ? "secondary" : "ghost"}
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setView("grid")}
-                  aria-label="Vista tarjetas"
-                >
-                  <LayoutGrid className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant={view === "list" ? "secondary" : "ghost"}
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setView("list")}
-                  aria-label="Vista lista"
-                >
-                  <List className="h-4 w-4" />
-                </Button>
-              </div>
+            <div className="flex items-center rounded-lg border border-border p-0.5">
               <Button
+                variant={view === "zones" ? "secondary" : "ghost"}
                 size="sm"
-                variant="outline"
-                disabled={exporting || products.length === 0}
-                isLoading={exporting}
-                onClick={async () => {
-                  setExporting(true);
-                  try {
-                    await exportWarehouseProductsToExcel(warehouse.name, warehouseId);
-                  } finally {
-                    setExporting(false);
-                  }
-                }}
+                className="h-8 w-8 p-0"
+                onClick={() => setView("zones")}
+                aria-label="Vista zonas"
               >
-                <FileSpreadsheet className="mr-1 h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Excel</span>
+                <LayoutGrid className="h-4 w-4" />
               </Button>
-              <Button size="sm" variant="outline" onClick={() => setTransferOpen(true)}>
-                <ArrowRightLeft className="mr-1 h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Transferir</span>
-              </Button>
-              <Button size="sm" onClick={() => setAddOpen(true)}>
-                <Plus className="mr-1 h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Agregar</span>
+              <Button
+                variant={view === "list" ? "secondary" : "ghost"}
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={() => setView("list")}
+                aria-label="Vista lista"
+              >
+                <List className="h-4 w-4" />
               </Button>
             </div>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={exporting || products.length === 0}
+              isLoading={exporting}
+              onClick={async () => {
+                setExporting(true);
+                try {
+                  await exportWarehouseProductsToExcel(warehouse.name, warehouseId);
+                } finally {
+                  setExporting(false);
+                }
+              }}
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Excel</span>
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setTransferOpen(true)}>
+              <ArrowRightLeft className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Transferir</span>
+            </Button>
+            <Button size="sm" onClick={() => setAddOpen(true)}>
+              <Plus className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Agregar</span>
+            </Button>
           </div>
-
-          {/* Mobile filters */}
-          <div className="flex flex-col gap-3 md:hidden">
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={productSearchInput}
-                  onChange={(e) => setProductSearchInput(e.target.value)}
-                  placeholder="Buscar producto…"
-                  className="pl-9"
-                  aria-label="Buscar producto"
-                />
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-10 px-3"
-                onClick={() => setShowMobileFilters((v) => !v)}
-              >
-                <SlidersHorizontal className="h-4 w-4" />
-                <span className="ml-2">Filtros</span>
-              </Button>
-              <div className="flex items-center rounded-lg border border-border p-0.5">
-                <Button
-                  variant={view === "grid" ? "secondary" : "ghost"}
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setView("grid")}
-                  aria-label="Vista tarjetas"
-                >
-                  <LayoutGrid className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant={view === "list" ? "secondary" : "ghost"}
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setView("list")}
-                  aria-label="Vista lista"
-                >
-                  <List className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-
-            <div className={`flex flex-col gap-3 ${showMobileFilters ? "" : "hidden"}`}>
-              <div className="flex items-center gap-2">
-                <Select
-                  value={productSort?.field ?? ""}
-                  onChange={(e) => {
-                    const field = e.target.value;
-                    if (!field) {
-                      setProductSort(null);
-                    } else {
-                      setProductSort((prev) => ({
-                        field,
-                        desc: prev?.field === field ? !prev.desc : false,
-                      }));
-                    }
-                    setProductPageUrl({});
-                  }}
-                  className="flex-1"
-                >
-                  <option value="">Ordenar por…</option>
-                  {SORT_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </Select>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="px-2"
-                  disabled={!productSort}
-                  onClick={() =>
-                    setProductSort((prev) =>
-                      prev ? { ...prev, desc: !prev.desc } : null
-                    )
-                  }
-                  aria-label="Cambiar dirección"
-                >
-                  {productSort?.desc ? (
-                    <ArrowDown className="h-4 w-4" />
-                  ) : (
-                    <ArrowUp className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex-1"
-                  disabled={exporting || products.length === 0}
-                  isLoading={exporting}
-                  onClick={async () => {
-                    setExporting(true);
-                    try {
-                      await exportWarehouseProductsToExcel(warehouse.name, warehouseId);
-                    } finally {
-                      setExporting(false);
-                    }
-                  }}
-                >
-                  <FileSpreadsheet className="mr-1 h-3.5 w-3.5" />
-                  Excel
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => setTransferOpen(true)}
-                >
-                  <ArrowRightLeft className="mr-1 h-3.5 w-3.5" />
-                  Transferir
-                </Button>
-                <Button size="sm" className="flex-1" onClick={() => setAddOpen(true)}>
-                  <Plus className="mr-1 h-3.5 w-3.5" />
-                  Agregar
-                </Button>
-              </div>
-            </div>
+          <div className="flex gap-1 overflow-x-auto">
+            <FilterChip active={stockFilter === "all"} onClick={() => setStockFilter("all")}>
+              Todos
+            </FilterChip>
+            <FilterChip active={stockFilter === "low"} onClick={() => setStockFilter("low")}>
+              Stock bajo
+            </FilterChip>
+            <FilterChip active={stockFilter === "out"} onClick={() => setStockFilter("out")}>
+              Sin stock
+            </FilterChip>
+            <FilterChip active={stockFilter === "reorder"} onClick={() => setStockFilter("reorder")}>
+              Reorden
+            </FilterChip>
           </div>
         </div>
 
         {loadingProducts ? (
-          view === "grid" ? (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="rounded-2xl border border-border bg-background p-4 shadow-sm">
-                  <div className="flex items-start gap-3">
-                    <SkeletonBlock className="h-10 w-10 shrink-0 rounded-xl" />
-                    <div className="min-w-0 flex-1">
-                      <SkeletonBlock className="h-4 w-32" />
-                      <SkeletonBlock className="mt-2 h-3 w-20" />
-                    </div>
-                  </div>
-                  <div className="mt-4 grid grid-cols-3 gap-3">
-                    <SkeletonBlock className="h-12" />
-                    <SkeletonBlock className="h-12" />
-                    <SkeletonBlock className="h-12" />
-                  </div>
-                  <div className="mt-3 flex gap-2">
-                    <SkeletonBlock className="h-6 w-16" />
-                    <SkeletonBlock className="h-6 w-16" />
-                  </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-36 rounded-2xl" />
+            ))}
+          </div>
+        ) : products.length === 0 ? (
+          <EmptyState
+            icon={Warehouse}
+            title={hasFilter ? "Nada coincide con el filtro" : "Este recinto está vacío"}
+            description={
+              hasFilter
+                ? "Prueba otra búsqueda o limpia el filtro de alertas."
+                : "Agrega el primer producto con cantidad inicial y, si quieres, una ubicación (estante, pasillo)."
+            }
+            action={
+              hasFilter ? undefined : (
+                <Button size="sm" onClick={() => setAddOpen(true)}>
+                  <Plus className="h-3.5 w-3.5" />
+                  Agregar producto
+                </Button>
+              )
+            }
+          />
+        ) : view === "zones" ? (
+          <div className="flex flex-col gap-6">
+            {zones.map((zone) => (
+              <section key={zone.location ?? "__none"} className="space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="text-sm font-semibold">
+                    {zone.location ?? "General"}
+                    <span className="ml-2 text-xs font-normal text-muted-foreground">
+                      {zone.items.length}
+                    </span>
+                  </h2>
+                  {!zone.location ? (
+                    <p className="text-[11px] text-muted-foreground">Asigna un estante desde la ficha</p>
+                  ) : null}
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="overflow-hidden rounded-2xl border border-border">
-              <div className="border-b border-border bg-background p-4">
-                <SkeletonBlock className="h-4 w-48" />
-              </div>
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="flex items-center justify-between border-b border-border p-4 last:border-0">
-                  <div className="flex items-center gap-3">
-                    <SkeletonBlock className="h-8 w-8" />
-                    <div>
-                      <SkeletonBlock className="h-4 w-32" />
-                      <SkeletonBlock className="mt-1 h-3 w-20" />
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-8">
-                    <SkeletonBlock className="h-4 w-12" />
-                    <SkeletonBlock className="h-4 w-12" />
-                    <SkeletonBlock className="h-6 w-16" />
-                  </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                  {zone.items.map((wp) => (
+                    <WarehouseProductBin key={wp.id} wp={wp} onOpen={() => setInspected(wp)} />
+                  ))}
                 </div>
-              ))}
-            </div>
-          )
-        ) : visibleProducts.length === 0 ? (
-          <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-border p-12">
-            <div className="text-center">
-              <Warehouse className="mx-auto h-10 w-10 text-muted-foreground" />
-              <p className="mt-2 text-sm font-medium">No hay productos en esta bodega</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Agrega productos para comenzar a gestionar su stock.
-              </p>
-              <Button className="mt-4" size="sm" onClick={() => setAddOpen(true)}>
-                <Plus className="mr-1 h-3.5 w-3.5" />
-                Agregar producto
-              </Button>
-            </div>
+              </section>
+            ))}
+            <p className="text-xs text-muted-foreground">Zonas de esta página</p>
           </div>
         ) : (
-          <>
-          {view === "grid" ? (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-              {visibleProducts.map((wp) => (
-                <WarehouseProductCard
-                  key={wp.id}
-                  wp={wp}
-                  supplierName={supplierNameByProduct.get(wp.product ?? 0)}
-                  salePrice={productSalePriceMap.get(wp.product ?? 0) ?? 0}
-                  onConfigure={(wp) => {
-                    setConfigProduct(wp);
-                    setConfigForm({
-                      current_quantity: String(wp.current_quantity ?? 0),
-                      minimum_quantity:
-                        wp.minimum_quantity === null || wp.minimum_quantity === undefined
-                          ? ""
-                          : String(wp.minimum_quantity),
-                      maximum_quantity:
-                        wp.maximum_quantity === null || wp.maximum_quantity === undefined
-                          ? ""
-                          : String(wp.maximum_quantity),
-                      reorder_point:
-                        wp.reorder_point === null || wp.reorder_point === undefined
-                          ? ""
-                          : String(wp.reorder_point),
-                      location_in_warehouse: wp.location_in_warehouse ?? "",
-                      is_active: wp.is_active ?? true,
-                      is_preferred_location: wp.is_preferred_location ?? false,
-                    });
-                    setConfigOpen(true);
-                  }}
-                  onTransfer={(wp) => {
-                    setTransferProduct(wp);
-                    setTransferOpen(true);
-                  }}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="overflow-x-auto rounded-2xl border border-border bg-card shadow-sm">
-              <table className="w-full table-auto min-w-[950px] text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                    <th className="px-3 py-2 text-left">Producto</th>
-                    <th className="px-3 py-2 text-left">Proveedor</th>
-                    <th className="px-3 py-2 text-right">Cantidad</th>
-                    <th className="px-3 py-2 text-right">Rango</th>
-                    <th className="px-3 py-2 text-right">Costo</th>
-                    <th className="px-3 py-2 text-right">Venta</th>
-                    <th className="px-3 py-2 text-right">Acciones</th>
+          <div className="overflow-x-auto rounded-2xl border border-border">
+            <table className="w-full min-w-[820px] text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                  <th className="px-3 py-2">Producto</th>
+                  <th className="px-3 py-2">Zona</th>
+                  <th className="px-3 py-2 text-right">Cantidad</th>
+                  <th className="px-3 py-2 text-right">Rango</th>
+                  <th className="px-3 py-2 text-right">Costo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {products.map((wp) => (
+                  <tr
+                    key={wp.id}
+                    className="cursor-pointer border-b border-border last:border-0 hover:bg-muted/40"
+                    onClick={() => setInspected(wp)}
+                  >
+                    <td className="px-3 py-2">
+                      <p className="font-medium">{wp.product_name}</p>
+                      <span
+                        className={cn(
+                          "mt-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold",
+                          statusBadge(wp.stock_status),
+                        )}
+                      >
+                        {stockStatusLabel(wp.stock_status)}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-muted-foreground">
+                      {wp.location_in_warehouse || "—"}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums font-medium">
+                      {formatQty(wp.current_quantity)}
+                    </td>
+                    <td className="px-3 py-2 text-right text-xs tabular-nums text-muted-foreground">
+                      {wp.minimum_quantity ?? 0} – {wp.maximum_quantity ?? "—"}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums text-success">
+                      {formatCLP(numValue(wp.total_value))}
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {visibleProducts.map((wp) => {
-                    const unitCost = numValue(wp.product_cost);
-                    const totalValue = numValue(wp.total_value);
-                    const salePrice = productSalePriceMap.get(wp.product ?? 0) ?? 0;
-                    const totalSale = salePrice * wp.current_quantity;
-                    const status = wp.stock_status ?? "";
-                    const isOk = status === "IN_STOCK";
-                    const isLow = status === "LOW_STOCK";
-                    const isOut = status === "OUT_OF_STOCK";
-                    const supplierName = supplierNameByProduct.get(wp.product ?? 0);
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-                    return (
-                      <tr key={wp.id} className="border-b border-border last:border-0 hover:bg-background transition-colors">
-                        <td className="px-3 py-2">
-                          <div className="min-w-0 max-w-[280px]">
-                            <p className="truncate font-medium leading-tight">{wp.product_name}</p>
-                            <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                              <span
-                                className={cn(
-                                  "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium",
-                                  isOk && "bg-success/10 text-success",
-                                  isLow && "bg-warning/10 text-warning",
-                                  isOut && "bg-danger/10 text-danger",
-                                  !isOk && !isLow && !isOut && "bg-muted text-muted-foreground",
-                                )}
-                              >
-                                {stockStatusLabel(status)}
-                              </span>
-                              <span className="text-[10px] text-muted-foreground">
-                                {wp.product_measurement_unit}
-                                {wp.product_code ? ` · ${wp.product_code}` : ""}
-                              </span>
-                            </div>
-                            {wp.product_category && (
-                              <span className="mt-1 inline-flex items-center rounded-sm bg-secondary px-2 py-0.5 text-[10px] font-medium text-foreground">
-                                {wp.product_category}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-3 py-2 whitespace-nowrap">
-                          {supplierName ? (
-                            <span
-                              className="inline-flex max-w-full items-center truncate rounded-sm bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary"
-                              title={supplierName}
-                            >
-                              {supplierName}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          )}
-                        </td>
-                        <td className="px-3 py-2 text-right tabular-nums font-medium whitespace-nowrap">
-                          {wp.current_quantity}
-                        </td>
-                        <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
-                          <div className="inline-flex flex-col items-end leading-tight whitespace-nowrap">
-                            <span><span className="text-[10px]">mín</span> {wp.minimum_quantity ?? 0}</span>
-                            <span><span className="text-[10px]">máx</span> {wp.maximum_quantity ?? "—"}</span>
-                          </div>
-                        </td>
-                        <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap">
-                          <div className="leading-tight">
-                            <p className="font-medium text-success">{formatCLP(totalValue)}</p>
-                            <p className="text-xs text-muted-foreground">{formatCLP(unitCost)} c/u</p>
-                          </div>
-                        </td>
-                        <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap">
-                          <div className="leading-tight">
-                            <p className="font-medium text-primary">{formatCLP(totalSale)}</p>
-                            <p className="text-xs text-muted-foreground">{formatCLP(salePrice)} c/u</p>
-                          </div>
-                        </td>
-                        <td className="px-3 py-2 text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                              title="Configurar"
-                              onClick={() => {
-                                setConfigProduct(wp);
-                                setConfigForm({
-                                  current_quantity: String(wp.current_quantity ?? 0),
-                                  minimum_quantity:
-                                    wp.minimum_quantity === null || wp.minimum_quantity === undefined
-                                      ? ""
-                                      : String(wp.minimum_quantity),
-                                  maximum_quantity:
-                                    wp.maximum_quantity === null || wp.maximum_quantity === undefined
-                                      ? ""
-                                      : String(wp.maximum_quantity),
-                                  reorder_point:
-                                    wp.reorder_point === null || wp.reorder_point === undefined
-                                      ? ""
-                                      : String(wp.reorder_point),
-                                  location_in_warehouse: wp.location_in_warehouse ?? "",
-                                  is_active: wp.is_active ?? true,
-                                  is_preferred_location: wp.is_preferred_location ?? false,
-                                });
-                                setConfigOpen(true);
-                              }}
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                              <span className="sr-only">Configurar</span>
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                              title="Transferir a otra bodega"
-                              onClick={() => {
-                                setTransferProduct(wp);
-                                setTransferOpen(true);
-                              }}
-                            >
-                              <ArrowRightLeft className="h-3.5 w-3.5" />
-                              <span className="sr-only">Mover</span>
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-
+        {(productsPage?.next || productsPage?.previous) && (
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
             <p className="text-muted-foreground">
-              {totalProductsCount} producto{totalProductsCount === 1 ? "" : "s"} en total
+              {productsPage?.count ?? products.length} producto
+              {(productsPage?.count ?? products.length) === 1 ? "" : "s"}
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex gap-2">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setProductPageUrl({ previous: productsPage?.previous })}
                 disabled={!productsPage?.previous}
+                onClick={() => setPageUrl({ previous: productsPage?.previous })}
               >
                 Anterior
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setProductPageUrl({ next: productsPage?.next })}
                 disabled={!productsPage?.next}
+                onClick={() => setPageUrl({ next: productsPage?.next })}
               >
                 Siguiente
               </Button>
             </div>
           </div>
-          </>
         )}
-      </div>
+      </PageBody>
 
-      {addOpen && (
-        <Modal
-          title="Agregar producto a bodega"
-          onClose={() => {
-            setAddOpen(false);
-            setSelectedProduct("");
-            setSelectedProductName("");
-            setAddProductQuery("");
-            setDebouncedAddProductQuery("");
-            setInitialQuantity("");
-          }}
-        >
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Producto</label>
+      <WarehouseInspector
+        open={Boolean(inspected)}
+        wp={inspected}
+        warehouseId={warehouseId}
+        targets={targetWarehouses}
+        onClose={() => setInspected(null)}
+      />
+
+      <AnimatedOverlay
+        open={addOpen}
+        onClose={() => {
+          setAddOpen(false);
+          resetAddForm();
+        }}
+        panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
+      >
+        <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:h-auto md:max-h-[90vh] md:max-w-lg md:rounded-xl md:border">
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <div>
+              <h2 className="text-base font-semibold">Agregar productos</h2>
+              <p className="text-xs text-muted-foreground">
+                Busca y elige uno o varios. Cada ítem puede tener su cantidad.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setAddOpen(false);
+                resetAddForm();
+              }}
+              aria-label="Cerrar"
+              className="text-muted-foreground"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <div className="flex-1 space-y-4 overflow-y-auto p-4">
+            <Field label="Buscar y elegir" required>
               <SearchableSelect
                 options={addProductOptions}
-                value={selectedProduct}
-                onChange={(value) => {
-                  setSelectedProduct(value);
-                  const opt = addProductOptions.find((o) => o.value === value);
-                  setSelectedProductName(opt?.label ?? "");
-                }}
+                value={pickerValue}
+                onChange={queueProduct}
                 onQueryChange={setAddProductQuery}
-                minChars={2}
+                minChars={0}
                 loading={addProductSearch.isFetching}
                 clearable
-                selectedOption={
-                  selectedProduct && selectedProductName
-                    ? { value: selectedProduct, label: selectedProductName }
-                    : null
+                placeholder="Toca para buscar o elegir…"
+                searchPlaceholder="Nombre o código…"
+                emptyMessage={
+                  debouncedAddQuery.trim().length === 0
+                    ? "Escribe para filtrar el catálogo"
+                    : "Sin coincidencias o ya están en la lista"
                 }
-                placeholder="Buscar producto…"
-                searchPlaceholder="Nombre de producto…"
-                emptyMessage="Sin coincidencias"
               />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Cantidad inicial</label>
-              <Input
-                type="number"
-                min="0"
-                value={initialQuantity}
-                onChange={(e) => setInitialQuantity(e.target.value)}
-              />
-            </div>
-            {add.isError && (
-              <p className="text-sm text-danger">
-                {add.error instanceof Error ? add.error.message : "Error al agregar"}
-              </p>
+            </Field>
+
+            {pendingAdds.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-6 text-center">
+                <Package className="mx-auto h-8 w-8 text-muted-foreground" />
+                <p className="mt-2 text-sm font-medium">Ningún producto en cola</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Busca arriba y selecciona para ir armando la lista.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Para agregar ({pendingAdds.length})
+                  </p>
+                  <button
+                    type="button"
+                    className="text-xs font-medium text-muted-foreground hover:text-foreground hover:underline"
+                    onClick={() => setPendingAdds([])}
+                  >
+                    Vaciar lista
+                  </button>
+                </div>
+                <ul className="space-y-2">
+                  {pendingAdds.map((item) => (
+                    <li
+                      key={item.id}
+                      className="flex items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">{item.name}</p>
+                        {item.code && (
+                          <p className="truncate text-[11px] text-muted-foreground">{item.code}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <label className="sr-only" htmlFor={`qty-${item.id}`}>
+                          Cantidad {item.name}
+                        </label>
+                        <Input
+                          id={`qty-${item.id}`}
+                          type="number"
+                          min="0"
+                          className="h-9 w-20 text-center tabular-nums"
+                          value={item.quantity}
+                          onChange={(e) =>
+                            setPendingAdds((prev) =>
+                              prev.map((p) =>
+                                p.id === item.id ? { ...p, quantity: e.target.value } : p,
+                              ),
+                            )
+                          }
+                          placeholder="0"
+                        />
+                        <button
+                          type="button"
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-danger"
+                          aria-label={`Quitar ${item.name}`}
+                          onClick={() =>
+                            setPendingAdds((prev) => prev.filter((p) => p.id !== item.id))
+                          }
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setAddOpen(false)} disabled={add.isPending}>
-                Cancelar
-              </Button>
-              <Button
-                onClick={() => add.mutate()}
-                disabled={add.isPending || !selectedProduct || !initialQuantity}
-                isLoading={add.isPending}
-              >
-                Agregar
-              </Button>
-            </div>
-          </div>
-        </Modal>
-      )}
 
-      {configOpen && configProduct && (
-        <Modal
-          title="Configuración de producto en bodega"
-          onClose={() => setConfigOpen(false)}
-        >
-          <div className="flex flex-col gap-5">
-            <p className="text-sm text-muted-foreground">{configProduct.product_name}</p>
-
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold">Cantidades</h3>
+            <div className="rounded-xl border border-border/70 bg-muted/15 p-3">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Opciones para todos
+              </p>
               <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium" htmlFor="current_quantity">
-                    Cantidad <span className="text-danger">*</span>
-                  </label>
+                <Field label="Ubicación" htmlFor="add-loc">
                   <Input
-                    id="current_quantity"
+                    id="add-loc"
+                    value={addLocation}
+                    onChange={(e) => setAddLocation(e.target.value)}
+                    placeholder="Estante A"
+                  />
+                </Field>
+                <Field label="Mínima" htmlFor="add-min">
+                  <Input
+                    id="add-min"
                     type="number"
                     min="0"
-                    value={configForm.current_quantity}
-                    onChange={(e) =>
-                      setConfigForm((prev) => ({ ...prev, current_quantity: e.target.value }))
-                    }
+                    value={addMin}
+                    onChange={(e) => setAddMin(e.target.value)}
                   />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium" htmlFor="minimum_quantity">
-                    Cantidad mínima
-                  </label>
+                </Field>
+                <Field label="Reorden" htmlFor="add-re" className="col-span-2 sm:col-span-1">
                   <Input
-                    id="minimum_quantity"
+                    id="add-re"
                     type="number"
                     min="0"
-                    value={configForm.minimum_quantity}
-                    onChange={(e) =>
-                      setConfigForm((prev) => ({ ...prev, minimum_quantity: e.target.value }))
-                    }
+                    value={addReorder}
+                    onChange={(e) => setAddReorder(e.target.value)}
                   />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium" htmlFor="maximum_quantity">
-                    Cantidad máxima
-                  </label>
-                  <Input
-                    id="maximum_quantity"
-                    type="number"
-                    min="0"
-                    value={configForm.maximum_quantity}
-                    onChange={(e) =>
-                      setConfigForm((prev) => ({ ...prev, maximum_quantity: e.target.value }))
-                    }
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium" htmlFor="reorder_point">
-                    Punto de reorden
-                  </label>
-                  <Input
-                    id="reorder_point"
-                    type="number"
-                    min="0"
-                    value={configForm.reorder_point}
-                    onChange={(e) =>
-                      setConfigForm((prev) => ({ ...prev, reorder_point: e.target.value }))
-                    }
-                  />
-                </div>
+                </Field>
               </div>
-              {Number(configForm.current_quantity) < 0 && (
-                <p className="text-sm text-danger">La cantidad no puede ser negativa.</p>
-              )}
-            </div>
-
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold">Ubicación</h3>
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-medium" htmlFor="location_in_warehouse">
-                  Ubicación en bodega
-                </label>
-                <Input
-                  id="location_in_warehouse"
-                  value={configForm.location_in_warehouse}
-                  onChange={(e) =>
-                    setConfigForm((prev) => ({ ...prev, location_in_warehouse: e.target.value }))
-                  }
-                  placeholder="Estante, pasillo, etc."
-                />
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold">Estado</h3>
-              <div className="flex flex-col gap-2">
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={configForm.is_active}
-                    onChange={(e) =>
-                      setConfigForm((prev) => ({ ...prev, is_active: e.target.checked }))
-                    }
-                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                  />
-                  Activo en bodega
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={configForm.is_preferred_location}
-                    onChange={(e) =>
-                      setConfigForm((prev) => ({
-                        ...prev,
-                        is_preferred_location: e.target.checked,
-                      }))
-                    }
-                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                  />
-                  Ubicación preferida
-                </label>
-              </div>
-            </div>
-
-            {config.isError && (
-              <p className="text-sm text-danger">
-                {config.error instanceof Error ? config.error.message : "Error al guardar"}
-              </p>
-            )}
-
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setConfigOpen(false)}
-                disabled={config.isPending}
-              >
-                Cancelar
-              </Button>
-              <Button
-                onClick={() => config.mutate()}
-                disabled={
-                  config.isPending ||
-                  configForm.current_quantity === "" ||
-                  Number(configForm.current_quantity) < 0
-                }
-                isLoading={config.isPending}
-              >
-                Guardar
-              </Button>
             </div>
           </div>
-        </Modal>
-      )}
+          <div className="flex justify-end gap-2 border-t border-border px-4 py-3">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setAddOpen(false);
+                resetAddForm();
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => add.mutate()}
+              isLoading={add.isPending}
+              disabled={pendingAdds.length === 0}
+            >
+              {pendingAdds.length <= 1
+                ? "Agregar"
+                : `Agregar ${pendingAdds.length} productos`}
+            </Button>
+          </div>
+        </div>
+      </AnimatedOverlay>
 
-      {transferOpen && (
-        <Modal title="Transferir stock" onClose={() => setTransferOpen(false)}>
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Producto</label>
+      <AnimatedOverlay
+        open={transferOpen}
+        onClose={() => setTransferOpen(false)}
+        panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
+      >
+        <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:h-auto md:max-h-[90vh] md:max-w-lg md:rounded-xl md:border">
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <h2 className="text-base font-semibold">Transferir stock</h2>
+            <button onClick={() => setTransferOpen(false)} aria-label="Cerrar" className="text-muted-foreground">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <div className="flex-1 space-y-4 overflow-y-auto p-4">
+            <Field label="Bodega destino" htmlFor="xfer-target" required>
               <Select
-                value={transferProduct?.id ?? ""}
-                onChange={(e) => {
-                  const wp = products.find((p) => String(p.id) === e.target.value) ?? null;
-                  setTransferProduct(wp);
-                }}
-              >
-                <option value="">Selecciona un producto</option>
-                {visibleProducts.map((wp) => (
-                  <option key={wp.id} value={wp.id}>{wp.product_name}</option>
-                ))}
-              </Select>
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Bodega destino</label>
-              <Select
+                id="xfer-target"
                 value={transferTarget}
                 onChange={(e) => setTransferTarget(e.target.value)}
               >
-                <option value="">Selecciona bodega</option>
+                <option value="">Selecciona</option>
                 {targetWarehouses.map((w) => (
-                  <option key={w.id} value={w.id}>{w.name}</option>
+                  <option key={w.id} value={w.id}>
+                    {w.name}
+                  </option>
                 ))}
               </Select>
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Cantidad</label>
-              <Input
-                type="number"
-                min="0"
-                value={transferQuantity}
-                onChange={(e) => setTransferQuantity(e.target.value)}
-              />
-            </div>
-            {transfer.isError && (
-              <p className="text-sm text-danger">
-                {transfer.error instanceof Error ? transfer.error.message : "Error al transferir"}
-              </p>
-            )}
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setTransferOpen(false)} disabled={transfer.isPending}>
-                Cancelar
-              </Button>
-              <Button
-                onClick={() => transfer.mutate()}
-                disabled={transfer.isPending || !transferProduct || !transferTarget || !transferQuantity}
-                isLoading={transfer.isPending}
-              >
-                Transferir
-              </Button>
+            </Field>
+            <p className="text-xs text-muted-foreground">
+              Cantidades de esta página. Un solo envío mueve todos los ítems con cantidad.
+            </p>
+            <div className="space-y-2">
+              {products.map((wp) => (
+                <div key={wp.id} className="flex items-center gap-3 rounded-xl border border-border/60 px-3 py-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{wp.product_name}</p>
+                    <p className="text-[11px] tabular-nums text-muted-foreground">
+                      Disponible {formatQty(wp.current_quantity)}
+                    </p>
+                  </div>
+                  <Input
+                    className="w-24"
+                    type="number"
+                    min="0"
+                    value={transferRows[wp.id] ?? ""}
+                    onChange={(e) =>
+                      setTransferRows((prev) => ({ ...prev, [wp.id]: e.target.value }))
+                    }
+                    placeholder="0"
+                  />
+                </div>
+              ))}
             </div>
           </div>
-        </Modal>
-      )}
-    </div>
-  );
-}
-
-function Modal({
-  title,
-  children,
-  onClose,
-}: {
-  title: string;
-  children: React.ReactNode;
-  onClose: () => void;
-}) {
-  return (
-    <AnimatedOverlay
-      open={true}
-      onClose={onClose}
-      panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
-    >
-      <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-xl md:border">
-        <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
-          <h2 className="text-base font-semibold">{title}</h2>
-          <button onClick={onClose} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
-            <X className="h-5 w-5" />
-          </button>
+          <div className="flex justify-end gap-2 border-t border-border px-4 py-3">
+            <Button variant="outline" onClick={() => setTransferOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => transfer.mutate()}
+              isLoading={transfer.isPending}
+              disabled={!transferTarget}
+            >
+              Transferir
+            </Button>
+          </div>
         </div>
-        <div className="flex-1 overflow-y-auto p-4">
-          {children}
-        </div>
-      </div>
-    </AnimatedOverlay>
+      </AnimatedOverlay>
+    </PageShell>
   );
 }

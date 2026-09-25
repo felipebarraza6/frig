@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { PageHeader } from "@/components/page-header";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Pencil, Trash2, X, Copy, FolderOpen, Boxes } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, X, Copy, FolderOpen, Boxes, Tags } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { TableSkeleton } from "@/components/ui/skeleton";
@@ -20,14 +21,24 @@ import type { YggdraCategory } from "@/lib/api/types";
 
 function categoryTypeLabel(type?: string | null) {
   switch (type) {
-    case "FOOD":
-      return "Alimentos";
-    case "DRINK":
-      return "Bebidas";
-    case "RETAIL":
-      return "Retail";
-    case "SERVICE":
-      return "Servicio";
+    case "MEMBERSHIP":
+      return "Membresía";
+    case "SUBSCRIPTION":
+      return "Suscripción";
+    case "CONSULTING":
+      return "Consultoría";
+    case "TRAINING":
+      return "Capacitación";
+    case "MAINTENANCE":
+      return "Mantención";
+    case "SUPPORT":
+      return "Soporte";
+    case "RENTAL":
+      return "Arriendo";
+    case "COWORKING":
+      return "Coworking";
+    case "EVENT":
+      return "Evento";
     case "OTHER":
       return "General";
     default:
@@ -124,36 +135,35 @@ export default function CategoriesPage() {
   const hasData = categories.length > 0;
 
   return (
-    <div className="flex min-h-full flex-col">
-      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
-        <div>
-          <h1 className="text-lg font-semibold">Categorías</h1>
-          <p className="text-xs text-muted-foreground">
-            Agrupa y organiza tus productos
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            size="icon"
-            onClick={() => openModal()}
-            className="sm:hidden"
-            title="Nueva categoría"
-            aria-label="Nueva categoría"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => openModal()}
-            className="hidden sm:flex"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Nueva categoría
-          </Button>
-        </div>
-      </header>
+    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+      <PageHeader
+        title="Categorías"
+        icon={<Tags className="h-5 w-5" />}
+        subtitle="Agrupa y organiza tus productos"
+        actions={
+          <>
+            <Button
+              size="icon"
+              onClick={() => openModal()}
+              className="sm:hidden"
+              title="Nueva categoría"
+              aria-label="Nueva categoría"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => openModal()}
+              className="hidden sm:flex"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Nueva categoría
+            </Button>
+          </>
+        }
+      />
 
-      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
+      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
         <div className="relative max-w-sm">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input

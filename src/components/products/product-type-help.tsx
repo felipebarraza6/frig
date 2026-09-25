@@ -1,8 +1,9 @@
+import type { ComponentType } from "react";
 import { Info, ShoppingCart, ChefHat, Wheat } from "lucide-react";
 
 export const PRODUCT_TYPE_DESCRIPTIONS: Record<
   string,
-  { title: string; icon: React.ComponentType<{ className?: string }>; description: string; examples: string }
+  { title: string; icon: ComponentType<{ className?: string }>; description: string; examples: string }
 > = {
   DIRECT_SALE: {
     title: "Venta directa",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
@@ -14,7 +14,7 @@ import {
   X,
   Trash2,
   Users,
-  MapPin,
+  Cuboid,
   FileSpreadsheet,
   FileText,
   SlidersHorizontal,
@@ -25,7 +25,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/page-header";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
+import { TableShapeIcon, tableShapeLabel, type TableShape } from "@/components/tables/table-shape-icon";
+import { nextFreeTablePosition } from "@/lib/tables/layout";
 import {
   fetchTables,
   createTable,
@@ -83,7 +86,21 @@ export default function TablesPage() {
   const [creating, setCreating] = useState(false);
   const [transferringTable, setTransferringTable] = useState<TableItem | null>(null);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [formShape, setFormShape] = useState<TableShape>("ROUND");
+  const [formCapacity, setFormCapacity] = useState(4);
   const user = useSessionStore((s) => s.user);
+
+  const formOpen = !!(creating || editing);
+  useEffect(() => {
+    if (!formOpen) return;
+    const shape = editing?.shape;
+    setFormShape(
+      shape === "SQUARE" || shape === "RECTANGLE" || shape === "OVAL" || shape === "ROUND"
+        ? shape
+        : "ROUND",
+    );
+    setFormCapacity(editing?.capacity ?? 4);
+  }, [formOpen, editing]);
 
   const filter = useMemo<TablesFilter>(
     () => ({
@@ -189,13 +206,15 @@ export default function TablesPage() {
     const form = e.currentTarget;
     const formData = new FormData(form);
     const number = String(formData.get("number") ?? "").trim();
-    const capacity = Number(formData.get("capacity") || 4);
-    const shape = String(formData.get("shape") ?? "ROUND").trim() as TableItem["shape"];
+    const capacity = formCapacity;
+    const shape = formShape;
     const status = String(formData.get("status") ?? "").trim() as TableStatus | "";
     const area = String(formData.get("area") ?? "").trim() || null;
     const description = String(formData.get("description") ?? "").trim() || null;
-    const x = formData.get("x_position") ? Number(formData.get("x_position")) : null;
-    const y = formData.get("y_position") ? Number(formData.get("y_position")) : null;
+    const xRaw = formData.get("x_position");
+    const yRaw = formData.get("y_position");
+    let x = xRaw !== null && String(xRaw).trim() !== "" ? Number(xRaw) : null;
+    let y = yRaw !== null && String(yRaw).trim() !== "" ? Number(yRaw) : null;
     const assignedWaiterRaw = formData.get("assigned_waiter");
     const assigned_waiter = assignedWaiterRaw ? Number(assignedWaiterRaw) : null;
 
@@ -206,6 +225,18 @@ export default function TablesPage() {
     if (!branch) {
       toast.error("No hay sucursal seleccionada");
       return;
+    }
+
+    // Sin coordenadas: colocar automáticamente sin pisar otras mesas.
+    if ((x == null || Number.isNaN(x) || y == null || Number.isNaN(y)) && !editing) {
+      const pos = nextFreeTablePosition(
+        tables,
+        capacity || 4,
+        shape,
+        area,
+      );
+      x = pos.x;
+      y = pos.y;
     }
 
     const payload = {
@@ -242,61 +273,62 @@ export default function TablesPage() {
   }
 
   return (
-    <div className="flex min-h-full flex-col">
-      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <div>
-          <h1 className="text-lg font-semibold">Mesas</h1>
-          <p className="text-xs text-muted-foreground">Gestión de mesas del local</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleExport("excel")}
-            isLoading={isExporting}
-            className="h-9 w-9 px-0 sm:w-auto sm:px-3"
-            title="Exportar Excel"
-            aria-label="Exportar Excel"
-          >
-            <FileSpreadsheet className="h-4 w-4" />
-            <span className="hidden sm:inline">Excel</span>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleExport("pdf")}
-            isLoading={isExporting}
-            className="h-9 w-9 px-0 sm:w-auto sm:px-3"
-            title="Exportar PDF"
-            aria-label="Exportar PDF"
-          >
-            <FileText className="h-4 w-4" />
-            <span className="hidden sm:inline">PDF</span>
-          </Button>
-          <Link
-            href="/tables/map"
-            className="inline-flex h-9 w-9 items-center justify-center gap-1.5 rounded-lg border border-border/60 bg-background px-0 text-xs font-medium text-foreground transition-colors hover:bg-muted sm:w-auto sm:px-3"
-            title="Mapa de mesas"
-            aria-label="Mapa de mesas"
-          >
-            <MapPin className="h-4 w-4" />
-            <span className="hidden sm:inline">Mapa</span>
-          </Link>
-          {canManage && (
+    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+      <PageHeader
+        title="Mesas"
+        subtitle="Gestiona las mesas del salón y su estado"
+        icon={<Table className="h-5 w-5" />}
+        actions={
+          <>
             <Button
-              onClick={() => setCreating(true)}
+              variant="outline"
+              size="sm"
+              onClick={() => handleExport("excel")}
+              isLoading={isExporting}
               className="h-9 w-9 px-0 sm:w-auto sm:px-3"
-              title="Nueva mesa"
-              aria-label="Nueva mesa"
+              title="Exportar Excel"
+              aria-label="Exportar Excel"
             >
-              <Plus className="h-4 w-4" />
-              <span className="hidden sm:inline">Nueva mesa</span>
+              <FileSpreadsheet className="h-4 w-4" />
+              <span className="hidden sm:inline">Excel</span>
             </Button>
-          )}
-        </div>
-      </header>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleExport("pdf")}
+              isLoading={isExporting}
+              className="h-9 w-9 px-0 sm:w-auto sm:px-3"
+              title="Exportar PDF"
+              aria-label="Exportar PDF"
+            >
+              <FileText className="h-4 w-4" />
+              <span className="hidden sm:inline">PDF</span>
+            </Button>
+            <Link
+              href="/tables/map"
+              className="inline-flex h-9 w-9 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-0 text-xs font-medium text-foreground transition-colors hover:bg-muted sm:w-auto sm:px-3"
+              title="Virtual"
+              aria-label="Virtual"
+            >
+              <Cuboid className="h-4 w-4" />
+              <span className="hidden sm:inline">Virtual</span>
+            </Link>
+            {canManage && (
+              <Button
+                onClick={() => setCreating(true)}
+                className="h-9 w-9 px-0 sm:w-auto sm:px-3"
+                title="Nueva mesa"
+                aria-label="Nueva mesa"
+              >
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Nueva mesa</span>
+              </Button>
+            )}
+          </>
+        }
+      />
 
-      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
+      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
         <div className="flex flex-col gap-3">
           {/* Desktop: todos los filtros en una fila */}
           <div className="hidden flex-wrap items-end gap-3 md:flex">
@@ -476,12 +508,13 @@ export default function TablesPage() {
                       >
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-secondary">
-                              <Table className="h-4 w-4 text-muted-foreground" />
-                            </div>
+                            <TableShapeIcon shape={table.shape} capacity={table.capacity} />
                             <div>
                               <p className="font-medium">Mesa {table.number}</p>
-                              <p className="text-xs text-muted-foreground">{table.area || "Sin área"}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {tableShapeLabel(table.shape)}
+                                {table.area ? ` · ${table.area}` : ""}
+                              </p>
                             </div>
                           </div>
                         </td>
@@ -505,7 +538,7 @@ export default function TablesPage() {
                                 <button
                                   onClick={() => changeStatus.mutate({ id: table.id, action: "reserve" })}
                                   disabled={changeStatus.isPending}
-                                  className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-1 text-xs font-medium text-amber-700 hover:bg-amber-500/20"
+                                  className="inline-flex items-center gap-1 rounded-md bg-warning/10 px-2 py-1 text-xs font-medium text-warning hover:bg-warning/20"
                                 >
                                   <Calendar className="h-3 w-3" />
                                   Reservar
@@ -515,7 +548,7 @@ export default function TablesPage() {
                                 <button
                                   onClick={() => changeStatus.mutate({ id: table.id, action: "free" })}
                                   disabled={changeStatus.isPending}
-                                  className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-500/20"
+                                  className="inline-flex items-center gap-1 rounded-md bg-success/10 px-2 py-1 text-xs font-medium text-success hover:bg-success/20"
                                 >
                                   <CheckCircle2 className="h-3 w-3" />
                                   Liberar
@@ -525,7 +558,7 @@ export default function TablesPage() {
                                 <button
                                   onClick={() => changeStatus.mutate({ id: table.id, action: "free" })}
                                   disabled={changeStatus.isPending}
-                                  className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-500/20"
+                                  className="inline-flex items-center gap-1 rounded-md bg-success/10 px-2 py-1 text-xs font-medium text-success hover:bg-success/20"
                                 >
                                   <Sparkles className="h-3 w-3" />
                                   Libre
@@ -589,11 +622,15 @@ export default function TablesPage() {
                     )}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-semibold">Mesa {table.number}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {table.area || "Sin área"}
-                        </p>
+                      <div className="flex min-w-0 items-start gap-2">
+                        <TableShapeIcon shape={table.shape} capacity={table.capacity} />
+                        <div className="min-w-0">
+                          <p className="font-semibold">Mesa {table.number}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {tableShapeLabel(table.shape)}
+                            {table.area ? ` · ${table.area}` : " · Sin área"}
+                          </p>
+                        </div>
                       </div>
                       <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", statusColor(table.status))}>
                         {statusLabel(table.status)}
@@ -617,7 +654,7 @@ export default function TablesPage() {
                         </span>
                       ) : null}
                       {table.is_overdue ? (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-1 text-amber-700">
+                        <span className="inline-flex items-center gap-1 rounded-md bg-warning/10 px-2 py-1 text-warning">
                           <AlertTriangle className="h-3 w-3" />
                           Vencida
                         </span>
@@ -630,7 +667,7 @@ export default function TablesPage() {
                           <button
                             onClick={() => changeStatus.mutate({ id: table.id, action: "reserve" })}
                             disabled={changeStatus.isPending}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-amber-500/10 text-amber-700 hover:bg-amber-500/20"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-warning/10 text-warning hover:bg-warning/20"
                             title="Reservar"
                             aria-label="Reservar"
                           >
@@ -642,7 +679,7 @@ export default function TablesPage() {
                           <button
                             onClick={() => changeStatus.mutate({ id: table.id, action: "free" })}
                             disabled={changeStatus.isPending}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-success/10 text-success hover:bg-success/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             title="Liberar"
                             aria-label="Liberar"
                           >
@@ -654,7 +691,7 @@ export default function TablesPage() {
                           <button
                             onClick={() => changeStatus.mutate({ id: table.id, action: "free" })}
                             disabled={changeStatus.isPending}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-success/10 text-success hover:bg-success/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             title="Libre"
                             aria-label="Libre"
                           >
@@ -766,17 +803,36 @@ export default function TablesPage() {
                       name="capacity"
                       type="number"
                       min={1}
-                      defaultValue={editing?.capacity ?? 4}
+                      value={formCapacity}
+                      onChange={(e) => setFormCapacity(Math.max(1, Number(e.target.value) || 1))}
                     />
                   </div>
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-col gap-2 sm:col-span-2">
                     <label htmlFor="shape" className="text-sm font-medium">Forma</label>
-                    <Select id="shape" name="shape" defaultValue={editing?.shape ?? "ROUND"}>
-                      <option value="ROUND">Redonda</option>
-                      <option value="SQUARE">Cuadrada</option>
-                      <option value="RECTANGLE">Rectangular</option>
-                      <option value="OVAL">Ovalada</option>
-                    </Select>
+                    <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/30 p-3">
+                      <TableShapeIcon
+                        shape={formShape}
+                        capacity={formCapacity}
+                        size="lg"
+                        tone="primary"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <Select
+                          id="shape"
+                          name="shape"
+                          value={formShape}
+                          onChange={(e) => setFormShape(e.target.value as TableShape)}
+                        >
+                          <option value="ROUND">Redonda</option>
+                          <option value="SQUARE">Cuadrada</option>
+                          <option value="RECTANGLE">Rectangular</option>
+                          <option value="OVAL">Ovalada</option>
+                        </Select>
+                        <p className="mt-1.5 text-xs text-muted-foreground">
+                          Así se verá en el mapa: {tableShapeLabel(formShape).toLowerCase()}, {formCapacity} asientos.
+                        </p>
+                      </div>
+                    </div>
                   </div>
                   <div className="flex flex-col gap-2 sm:col-span-2">
                     <label htmlFor="area" className="text-sm font-medium">Área</label>

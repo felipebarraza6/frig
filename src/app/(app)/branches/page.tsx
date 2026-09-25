@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { PageHeader } from "@/components/page-header";
 import { useQuery, useQueries, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Plus, Search, Pencil, Power, Store, Users, Palette, Building2,
@@ -28,6 +29,7 @@ import type { BranchesFilter } from "@/lib/api/branches";
 import type { BranchModuleConfiguration } from "@/lib/api/branch-modules";
 import { cn } from "@/lib/utils";
 import { BrandLogo } from "@/components/brand-logo";
+import { useToast } from "@/lib/store/toast";
 
 type StatusFilter = "all" | "active" | "inactive";
 
@@ -96,6 +98,7 @@ export const FRIG_ROLE_CATALOG: { code: string; label: string; module: string | 
   { code: "EMPLOYEE", label: "Empleado", module: null },
   { code: "CAJERO", label: "Cajero", module: "pos" },
   { code: "WAITER", label: "Mesero", module: "tables" },
+  { code: "COCINERO", label: "Cocinero", module: "production" },
   { code: "REPARTIDOR", label: "Repartidor", module: "deliveries" },
 ];
 
@@ -195,6 +198,7 @@ export default function BranchesPage() {
   // aplicar. Reactivar es seguro y se hace directo.
   const [confirmDeactivate, setConfirmDeactivate] = useState<Branch | null>(null);
   const patchBranch = useSessionStore((s) => s.patchBranch);
+  const toast = useToast();
 
   // Siempre pedimos la lista completa: el backend oculta las inactivas por
   // defecto en el listado (show_inactive=true las incluye) y no tiene filtro
@@ -271,7 +275,10 @@ export default function BranchesPage() {
     onSuccess: (_res, vars) => {
       queryClient.invalidateQueries({ queryKey: ["branches"] });
       patchBranch(String(vars.id), { is_active: vars.isActive });
+      toast.success(vars.isActive ? "Sucursal activada." : "Sucursal desactivada.");
     },
+    onError: (err: Error) =>
+      toast.error(err.message || "No se pudo cambiar el estado de la sucursal."),
   });
 
   if (!canView) {
@@ -288,24 +295,19 @@ export default function BranchesPage() {
 
   return (
     <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
-      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
-        <div>
-          <h1 className="text-lg font-semibold">Sucursales</h1>
-          <p className="text-xs text-muted-foreground">
-            {isSuperAdmin
-              ? "Gestiona todas las sucursales"
-              : "Gestiona tus sucursales"}
-          </p>
-        </div>
-        {canCreateBranch && (
+      <PageHeader
+        title="Sucursales"
+        icon={<Store className="h-5 w-5" />}
+        subtitle={isSuperAdmin ? "Gestiona todas las sucursales" : "Gestiona tus sucursales"}
+        actions={canCreateBranch && (
           <Button size="sm" onClick={() => setCreating(true)}>
             <Plus className="mr-1.5 h-3.5 w-3.5" />
             Nueva sucursal
           </Button>
         )}
-      </header>
+      />
 
-      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
+      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
         {/* Fila única de filtros e indicadores + buscador, centrados */}
         {!isLoading && !error && (
           <>
@@ -670,24 +672,22 @@ export default function BranchesPage() {
                 Mostrando {branches.length} de {totalBranches} sucursales
               </p>
               <div className="flex items-center gap-2">
-                {pageUrl.previous && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPageUrl((prev) => ({ ...prev, previous: pageUrl.previous }))}
-                  >
-                    ← Anterior
-                  </Button>
-                )}
-                {pageUrl.next && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPageUrl((prev) => ({ ...prev, next: pageUrl.next }))}
-                  >
-                    Siguiente →
-                  </Button>
-                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPageUrl({ previous: data?.previous ?? null })}
+                  disabled={!data?.previous}
+                >
+                  ← Anterior
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPageUrl({ next: data?.next ?? null })}
+                  disabled={!data?.next}
+                >
+                  Siguiente →
+                </Button>
               </div>
             </div>
           </>

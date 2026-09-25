@@ -1,48 +1,24 @@
 "use client";
 
-import Link from "next/link";
 import { Minus } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { AnimatePresence, motion } from "framer-motion";
+import type { ReactNode } from "react";
+import { cn, formatCLP } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import {
+  DATE_PRESET_LABELS,
+  matchPreset,
+  rangeDates,
+  type DatePreset,
+} from "@/lib/date-range";
 
 /**
- * Kit de informes: navegación entre reportes y tarjetas KPI con comparación
- * período-a-período (metodología PoP estándar de BI: valor actual + delta %
- * vs el período anterior equivalente + mini-tendencia).
+ * Kit de informes: filtros de fecha, tarjetas KPI con comparación
+ * período-a-período (PoP: valor actual + delta % vs el período anterior
+ * equivalente) y secciones agrupadas con barra de participación.
+ * La navegación entre informes vive solo en el menú lateral.
  */
-
-export const REPORT_TABS = [
-  { href: "/reports/sales", label: "Ventas" },
-  { href: "/reports/dinero", label: "Dinero" },
-  { href: "/reports/ingresos", label: "Ingresos" },
-  { href: "/reports/gastos", label: "Gastos" },
-] as const;
-
-/** Navegación entre informes: pestañas enlazadas, la activa resaltada. */
-export function ReportNav({ active }: { active: string }) {
-  return (
-    <nav
-      aria-label="Informes"
-      className="flex flex-wrap items-center gap-1 rounded-xl border border-border bg-muted/40 p-1"
-    >
-      {REPORT_TABS.map((t) => (
-        <Link
-          key={t.href}
-          href={t.href}
-          aria-current={active === t.href ? "page" : undefined}
-          className={cn(
-            "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
-            active === t.href
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          {t.label}
-        </Link>
-      ))}
-    </nav>
-  );
-}
 
 /** Ventana del período anterior de igual duración, inmediatamente anterior. */
 export function previousWindow(
@@ -110,32 +86,6 @@ export function DeltaChip({
   );
 }
 
-/** Mini-tendencia SVG (polyline normalizada) para tarjetas KPI. */
-export function Sparkline({
-  values,
-  className,
-}: {
-  values: number[];
-  className?: string;
-}) {
-  const pts = values.filter((v) => Number.isFinite(v));
-  if (pts.length < 2) return null;
-  const max = Math.max(...pts, 1);
-  const min = Math.min(...pts, 0);
-  const range = max - min || 1;
-  const w = 96;
-  const h = 28;
-  const step = w / (pts.length - 1);
-  const d = pts
-    .map((v, i) => `${i === 0 ? "M" : "L"}${(i * step).toFixed(1)},${(h - ((v - min) / range) * (h - 4) - 2).toFixed(1)}`)
-    .join(" ");
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} className={cn("h-7 w-24", className)} aria-hidden>
-      <path d={d} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
-    </svg>
-  );
-}
-
 /** Chip circular de ícono con tono (mismo lenguaje que el Dashboard). */
 export type ReportKpiTone = "emerald" | "rose" | "blue" | "amber" | "slate";
 
@@ -147,12 +97,12 @@ const KPI_TONE_CHIP: Record<ReportKpiTone, string> = {
   slate: "bg-muted/12 text-muted-foreground",
 };
 
-const KPI_TONE_GRADIENT: Record<ReportKpiTone, string> = {
-  emerald: "from-emerald-500/10 via-background to-background",
-  rose: "from-danger/10 via-background to-background",
-  blue: "from-primary/10 via-background to-background",
-  amber: "from-warning/10 via-background to-background",
-  slate: "from-muted/40 via-background to-background",
+const KPI_TONE_ACCENT: Record<ReportKpiTone, string> = {
+  emerald: "border-l-[3px] border-l-success/45",
+  rose: "border-l-[3px] border-l-danger/45",
+  blue: "border-l-[3px] border-l-primary/45",
+  amber: "border-l-[3px] border-l-warning/45",
+  slate: "border-l-[3px] border-l-border",
 };
 
 interface ReportKpiProps {
@@ -165,14 +115,13 @@ interface ReportKpiProps {
   delta?: React.ReactNode;
 }
 
-/** Tarjeta KPI de informe: fondo con gradiente del tono, chip circular de
- *  ícono y delta PoP. Visual alineado con StatCard del Dashboard. */
+/** Tarjeta KPI de informe: superficie glass + chip de tono (alineada a StatCard). */
 export function ReportKpi({ label, value, icon: Icon, tone = "slate", hint, delta }: ReportKpiProps) {
   return (
     <div
       className={cn(
-        "group relative flex h-full flex-col gap-2 overflow-hidden rounded-2xl border border-border bg-gradient-to-br p-5 shadow-sm transition-transform hover:-translate-y-0.5",
-        KPI_TONE_GRADIENT[tone],
+        "group relative flex h-full flex-col gap-2 overflow-hidden rounded-2xl glass p-5 transition-colors hover:brightness-[1.02]",
+        KPI_TONE_ACCENT[tone],
       )}
     >
       <div className="flex items-start justify-between gap-2">
@@ -181,7 +130,7 @@ export function ReportKpi({ label, value, icon: Icon, tone = "slate", hint, delt
         </span>
         <span
           className={cn(
-            "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-transform group-hover:scale-110",
+            "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl",
             KPI_TONE_CHIP[tone],
           )}
         >
@@ -189,10 +138,279 @@ export function ReportKpi({ label, value, icon: Icon, tone = "slate", hint, delt
         </span>
       </div>
       <div className="flex items-end justify-between gap-2">
-        <span className="text-2xl font-bold tabular-nums tracking-tight">{value}</span>
+        <span className="text-2xl font-semibold tabular-nums tracking-tight">{value}</span>
         {delta}
       </div>
       {hint && <span className="text-[11px] text-muted-foreground">{hint}</span>}
     </div>
+  );
+}
+
+/** Transición suave al cambiar de pestaña en informes. */
+export function ReportTabPanels({
+  activeKey,
+  children,
+  className,
+}: {
+  activeKey: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={activeKey}
+        role="tabpanel"
+        className={className}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -6 }}
+        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+/** Presets que ReportDateFilters muestra por defecto. */
+const DEFAULT_DATE_PRESETS: DatePreset[] = [
+  "today",
+  "last_7_days",
+  "last_30_days",
+  "current_month",
+  "last_month",
+];
+
+interface ReportDateFiltersProps {
+  start: string;
+  end: string;
+  onChange: (range: { start: string; end: string }) => void;
+  /** Presets en píldora; por defecto hoy, 7d, 30d, este mes y mes pasado. */
+  presets?: DatePreset[];
+  /** Prefijo de los ids/labels de los inputs (para ids únicos por página). */
+  idPrefix?: string;
+}
+
+/** Filtros de fecha de informes: inputs Desde/Hasta + presets en píldoras +
+ *  etiqueta del rango activo. Controlado: el estado vive en la página y la
+ *  píldora activa se detecta comparando el rango con cada preset. */
+export function ReportDateFilters({
+  start,
+  end,
+  onChange,
+  presets = DEFAULT_DATE_PRESETS,
+  idPrefix = "rdf",
+}: ReportDateFiltersProps) {
+  const activePreset = matchPreset(start, end);
+  return (
+    <div className="flex flex-wrap items-end gap-2">
+      <div className="flex flex-col gap-1">
+        <label htmlFor={`${idPrefix}-start`} className="text-xs text-muted-foreground">
+          Desde
+        </label>
+        <Input
+          id={`${idPrefix}-start`}
+          type="date"
+          value={start}
+          onChange={(e) => onChange({ start: e.target.value, end })}
+          className="h-9 w-[150px]"
+        />
+      </div>
+      <div className="flex flex-col gap-1">
+        <label htmlFor={`${idPrefix}-end`} className="text-xs text-muted-foreground">
+          Hasta
+        </label>
+        <Input
+          id={`${idPrefix}-end`}
+          type="date"
+          value={end}
+          onChange={(e) => onChange({ start, end: e.target.value })}
+          className="h-9 w-[150px]"
+        />
+      </div>
+      <div className="flex gap-1 pb-0.5">
+        {presets.map((p) => {
+          const r = rangeDates(p);
+          const active = activePreset === p;
+          return (
+            <button
+              key={p}
+              type="button"
+              onClick={() => onChange({ start: r.start, end: r.end })}
+              className={cn(
+                "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                active
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border text-muted-foreground hover:border-primary/50",
+              )}
+            >
+              {DATE_PRESET_LABELS[p]}
+            </button>
+          );
+        })}
+      </div>
+      <span className="pb-1 text-[11px] text-muted-foreground">
+        {rangeDates(activePreset ?? "custom", { start, end }).label}
+      </span>
+    </div>
+  );
+}
+
+/** Barra horizontal de participación (value sobre max) con % al costado. */
+export function ShareBar({ value, max }: { value: number; max: number }) {
+  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
+  return (
+    <div className="flex items-center gap-2 whitespace-nowrap">
+      <div className="h-1.5 min-w-4 flex-1 overflow-hidden rounded-full bg-muted">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-primary/60 to-primary transition-[width] duration-500"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <span className="w-8 shrink-0 text-right text-[10px] font-medium tabular-nums text-muted-foreground">
+        {pct}%
+      </span>
+    </div>
+  );
+}
+
+export interface ReportGroupRow {
+  key: string;
+  count: number;
+  total: number;
+  /** Métrica secundaria opcional (ej. margen o neto); se colorea por signo. */
+  secondary?: number;
+}
+
+interface GroupPanelProps {
+  title: string;
+  icon: LucideIcon;
+  rows: ReportGroupRow[];
+  /** Encabezados de las columnas de datos. */
+  columns: { count: string; total: string; secondary?: string };
+  /** true cuando va embebido en un contenedor compartido (sin borde propio). */
+  full?: boolean;
+  emptyMessage?: string;
+}
+
+/** Sección agrupada de un informe: título con ícono, tabla en escritorio /
+ *  tarjetas en móvil, barra de participación y fila de totales. */
+export function GroupPanel({
+  title,
+  icon: Icon,
+  rows,
+  columns,
+  full,
+  emptyMessage = "Sin datos en el período.",
+}: GroupPanelProps) {
+  const max = Math.max(1, ...rows.map((r) => r.total));
+  const totalAll = rows.reduce((acc, r) => acc + r.total, 0);
+  const totalCount = rows.reduce((acc, r) => acc + r.count, 0);
+  const totalSecondary = rows.reduce((acc, r) => acc + (r.secondary ?? 0), 0);
+  return (
+    <section
+      className={cn(
+        "min-w-0",
+        !full && "glass overflow-hidden rounded-2xl",
+      )}
+    >
+      <div className={cn("flex items-center gap-2.5", full ? "px-4 pt-4 pb-3 sm:px-5" : "p-4 pb-3")}>
+        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
+          <Icon className="h-3.5 w-3.5 text-primary" />
+        </span>
+        <h3 className="text-sm font-semibold">{title}</h3>
+        <span className="ml-auto text-[11px] text-muted-foreground">{rows.length} grupo(s)</span>
+      </div>
+      {rows.length === 0 ? (
+        <p className="px-4 pb-4 text-sm text-muted-foreground">{emptyMessage}</p>
+      ) : (
+        <>
+          {/* Tabla en escritorio */}
+          <div className="hidden overflow-x-auto md:block">
+            <table className="w-full text-[13px]">
+              <thead>
+                <tr className="border-y border-border/60 bg-muted/30 text-left text-[11px] uppercase tracking-wide text-muted-foreground">
+                  <th className="px-4 py-2 font-medium sm:px-5">Detalle</th>
+                  <th className="px-3 py-2 text-center font-medium">{columns.count}</th>
+                  <th className="px-3 py-2 text-right font-medium">{columns.total}</th>
+                  {columns.secondary && (
+                    <th className="px-3 py-2 text-right font-medium">{columns.secondary}</th>
+                  )}
+                  <th className="w-32 px-4 py-2 font-medium sm:px-5">Participación</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/60">
+                {rows.map((g) => (
+                  <tr key={g.key} className="transition-colors hover:bg-muted/30">
+                    <td className="max-w-[200px] truncate px-4 py-2.5 font-medium sm:px-5">{g.key}</td>
+                    <td className="px-3 py-2.5 text-center tabular-nums text-muted-foreground">{g.count}</td>
+                    <td className="px-3 py-2.5 text-right font-semibold tabular-nums">{formatCLP(g.total)}</td>
+                    {columns.secondary && (
+                      <td
+                        className={cn(
+                          "px-3 py-2.5 text-right tabular-nums",
+                          (g.secondary ?? 0) >= 0 ? "text-success" : "text-danger",
+                        )}
+                      >
+                        {formatCLP(g.secondary ?? 0)}
+                      </td>
+                    )}
+                    <td className="px-4 py-2.5 sm:px-5">
+                      <ShareBar value={g.total} max={max} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t border-border/60 bg-muted/20 text-[13px] font-semibold">
+                  <td className="px-4 py-2.5 sm:px-5">Total</td>
+                  <td className="px-3 py-2.5 text-center tabular-nums">{totalCount}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">{formatCLP(totalAll)}</td>
+                  {columns.secondary && (
+                    <td
+                      className={cn(
+                        "px-3 py-2.5 text-right tabular-nums",
+                        totalSecondary >= 0 ? "text-success" : "text-danger",
+                      )}
+                    >
+                      {formatCLP(totalSecondary)}
+                    </td>
+                  )}
+                  <td />
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          {/* Tarjetas en móvil */}
+          <div className="divide-y divide-border/60 border-t border-border/60 md:hidden">
+            {rows.map((g) => (
+              <div key={g.key} className="flex flex-col gap-1.5 px-4 py-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate text-sm font-medium">{g.key}</span>
+                  <span className="shrink-0 text-sm font-bold tabular-nums">{formatCLP(g.total)}</span>
+                </div>
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="text-muted-foreground">
+                    {g.count} · {columns.count.toLowerCase()}
+                  </span>
+                  {columns.secondary && (
+                    <span
+                      className={cn(
+                        "font-medium tabular-nums",
+                        (g.secondary ?? 0) >= 0 ? "text-success" : "text-danger",
+                      )}
+                    >
+                      {columns.secondary} {formatCLP(g.secondary ?? 0)}
+                    </span>
+                  )}
+                </div>
+                <ShareBar value={g.total} max={max} />
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
   );
 }

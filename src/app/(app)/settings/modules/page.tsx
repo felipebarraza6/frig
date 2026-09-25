@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Sparkles, Monitor, Banknote, Table, LocateFixed, ChefHat, Boxes,
-  Apple, QrCode, FileText, Percent, X, Shield, Zap, ChevronLeft, ChevronRight,
+  Apple, QrCode, Store, FileText, Percent, X, Shield, Zap, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { useCurrentBranch, useIsOwner, useIsSuperAdmin, useSessionStore } from "@/lib/store/session";
 import { useToast } from "@/lib/store/toast";
@@ -16,6 +16,7 @@ import { fetchFrontendConfig } from "@/lib/api/frontend-config";
 import { ApiError } from "@/lib/api/client";
 import type { YggdraSchemas } from "@/lib/api/types";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/page-header";
 import { cn } from "@/lib/utils";
 import { FRIG_ALWAYS_ON_MODULES, FRIG_SETTINGS_MODULES } from "@/lib/modules";
 
@@ -41,7 +42,7 @@ const MODULES: ModuleDef[] = [
   { key: "production", label: "Cocina / KDS", shortLabel: "Cocina", icon: ChefHat, desc: "Pantallas de cocina", detail: "El Kitchen Display System reemplaza los tickets de papel en cocina. Las pantallas muestran las comandas que llegan desde mesas, POS y delivery, organizadas por tiempo de espera. Cada estación de cocina puede tener su propia pantalla. Los cocineros marcan items como listos y el sistema avisa al garzon o al repartidor automáticamente.", properties: ["Pantallas por estación", "Orden por tiempo de espera", "Marcado de items listos", "Historial de preparaciones"], enables: [], requires: ["tables", "deliveries"] },
   { key: "inventory", label: "Inventario y bodegas", shortLabel: "Inventario", icon: Boxes, desc: "Stock y bodegas", detail: "Controla cuánto tienes de cada producto y materia prima. Registra entradas por compras a proveedores, salidas por ventas o mermas, y transferencias entre bodegas. Las alertas de stock mínimo te avisan antes de que se te acabe algo importante. Puedes tener múltiples bodegas (principal, secundaria, cámara fría) con stock independiente.", properties: ["Múltiples bodegas", "Stock en tiempo real", "Alertas de stock mínimo", "Transferencias entre bodegas"], enables: ["production"], requires: [] },
   { key: "nutrition", label: "Etiquetado nutricional", shortLabel: "Nutricional", icon: Apple, desc: "Tablas nutricionales", detail: "Cumple con la normativa MINSAL de etiquetado nutricional. Vinculas recetas con sus ingredientes y el sistema calcula automáticamente las calorías, grasas, azúcares y sodio por porción. Genera las tablas nutricionales que puedes imprimir o mostrar en tu menú digital. Esencial si vendes productos envasados o quieres diferenciarte con información transparente.", properties: ["Recetas con ingredientes", "Cálculo automático por porción", "Cumplimiento normativa MINSAL", "Tablas imprimibles"], enables: ["public_catalog"], requires: [] },
-  { key: "public_catalog", label: "Menú digital QR", shortLabel: "Menú QR", icon: QrCode, desc: "Carta digital", detail: "Tus clientes escanean un QR y ven tu menú completo en su celular, con fotos, precios y descripción de cada producto. Si activaste el etiquetado nutricional, también se muestra ahí. Puedes generar un QR diferente por estación o mesa. El menú se actualiza automáticamente cuando cambias precios o disponibilidad en el sistema.", properties: ["QR único por estación", "Fotos y descripción", "Info nutricional integrada", "Actualización automática"], enables: [], requires: ["nutrition"] },
+  { key: "public_catalog", label: "Menús y vitrinas", shortLabel: "Menús", icon: Store, desc: "Cartas y vitrinas digitales", detail: "Tus clientes abren el menú o vitrina en el navegador (QR o link): fotos, precios y descripción. Puedes crear varios (menú del día, carta principal, postres). Si activaste el etiquetado nutricional, también se muestra. Se actualiza al cambiar precios o disponibilidad.", properties: ["Varios menús / vitrinas", "QR y link público", "Fotos y descripción", "Actualización automática"], enables: [], requires: ["nutrition"] },
   { key: "invoices", label: "SII", shortLabel: "SII", icon: FileText, desc: "Boletas y facturas", detail: "Emite documentos tributarios electrónicos válidos ante el SII. Boletas para clientes finales, facturas para empresas, y notas de crédito o débito para anulaciones y ajustes. Todo se envía automáticamente al SII, así que no tienes que hacer nada manual. Cumple con la ley de boleta electrónica y te evita multas.", properties: ["Boletas electrónicas", "Facturas empresas", "Notas de crédito/débito", "Envío automático al SII"], enables: [], requires: ["pos"] },
   { key: "promotions", label: "Promos y descuentos", shortLabel: "Promos", icon: Percent, desc: "Descuentos y códigos", detail: "Crea promociones para atraer clientes y aumentar tus ventas. Descuentos por producto, por categoría, o por monto mínimo de compra. Códigos promocionales que el cajero aplica en el POS. Configura vigencias para que las promos se activen y desactiven solas. Ideal para happy hours, días especiales o campañas de marketing.", properties: ["Descuentos por producto o categoría", "Códigos promocionales", "Monto mínimo de compra", "Vigencia automática"], enables: [], requires: ["pos"] },
 ];
@@ -119,26 +120,20 @@ export default function BranchModulesPage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-full w-full flex-col">
-      <header className="border-b border-border bg-background px-4 py-3 sm:px-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-              <Sparkles className="h-4 w-4 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-base font-semibold">Módulos</h1>
-              <p className="text-[11px] text-muted-foreground">Conecta las funciones de tu sucursal</p>
-            </div>
-          </div>
+    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+      <PageHeader
+        title="Módulos"
+        subtitle="Conecta las funciones de tu sucursal"
+        icon={<Sparkles className="h-5 w-5" />}
+        actions={
           <div className="flex items-center gap-2">
             <span className="text-xs font-medium text-muted-foreground">{activeCount}/{MODULES.length}</span>
             <div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted">
               <motion.div className="h-full rounded-full bg-primary" animate={{ width: `${(activeCount / MODULES.length) * 100}%` }} />
             </div>
           </div>
-        </div>
-      </header>
+        }
+      />
 
       <div className="flex flex-1 flex-col p-4 sm:p-6">
         {error ? (

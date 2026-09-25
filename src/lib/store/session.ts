@@ -410,7 +410,14 @@ export function useCashierStationOnly(): boolean {
 
 /** True si el rol activo es MESERO (WAITER). */
 export function useIsWaiter(): boolean {
-  return useCurrentBranchRole() === "WAITER";
+  const role = useCurrentBranchRole();
+  return role === "WAITER" || role === "MESERO";
+}
+
+/** True si el rol activo es cocinero (KDS). */
+export function useIsCook(): boolean {
+  const role = useCurrentBranchRole();
+  return role === "COCINERO" || role === "COOK";
 }
 
 /** True si el usuario puede gestionar mesas (crear/editar/eliminar). */
@@ -562,6 +569,15 @@ const WAITER_ALLOWED_PATHS = [
   "/profile",
 ];
 
+/** App de cocina: KDS + perfil (como el cajero con POS). */
+const COOK_ALLOWED_PATHS = [
+  "/kds",
+  "/kds/station",
+  "/kds/terminal",
+  "/kds/monitor",
+  "/profile",
+];
+
 /** Rutas a las que un cajero puede navegar libremente. */
 export function useCashierAllowedPaths(): string[] {
   return useMemo(() => CASHIER_ALLOWED_PATHS, []);
@@ -570,4 +586,9 @@ export function useCashierAllowedPaths(): string[] {
 /** Rutas a las que un mesero puede navegar libremente. */
 export function useWaiterAllowedPaths(): string[] {
   return useMemo(() => WAITER_ALLOWED_PATHS, []);
+}
+
+/** Rutas a las que un cocinero puede navegar libremente. */
+export function useCookAllowedPaths(): string[] {
+  return useMemo(() => COOK_ALLOWED_PATHS, []);
 }

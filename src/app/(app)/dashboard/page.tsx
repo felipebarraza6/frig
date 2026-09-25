@@ -17,25 +17,28 @@ import {
   Target,
   FlaskConical,
   ArrowRight,
-  BarChart3,
   type LucideIcon,
+  LayoutDashboard,
 } from "lucide-react";
 
 import {
   fetchModuleCounts,
   fetchDashboardSummary,
   fetchIngredientConsumption,
-  type DateRange,
 } from "@/lib/api/analytics";
 import { formatCLP, cn, orderStatusLabel, paymentStatusLabel } from "@/lib/utils";
-import { useCurrentBranch, useIsNutritionEnabled } from "@/lib/store/session";
+import { useCurrentBranch, useIsModuleEnabledFromConfig, useIsNutritionEnabled } from "@/lib/store/session";
 import { useProducts } from "@/lib/hooks/useCatalog";
 import { fetchOrders } from "@/lib/api/orders";
 import { MetricDrawer, type MetricDrawerSection } from "@/components/metric-drawer";
 import { Sparkline } from "@/components/sparkline";
-import { CustomersMetricDetail, IncomeMetricDetail, OrdersMetricDetail } from "@/components/metric-drawer-detail";
+import { CustomersMetricDetail, IncomeMetricDetail, OrdersMetricDetail, ProductsMetricDetail } from "@/components/metric-drawer-detail";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatCard as SharedStatCard, type StatTone } from "@/components/ui/stat-card";
+import { rangeDates, getCurrentMonthRange, type DatePreset } from "@/lib/date-range";
+import { PageHeader } from "@/components/page-header";
+import { Modal, ModalBody } from "@/components/ui/modal";
 
 const container: Variants = {
   hidden: { opacity: 0 },
@@ -56,73 +59,18 @@ type MetricConfig = {
   chart?: ReactNode;
   actions?: ReactNode;
   children?: ReactNode;
+  tone?: StatTone;
 };
-
-function formatDateInput(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-function getCurrentMonthRange(): { start: string; end: string } {
-  const today = new Date();
-  const start = new Date(today.getFullYear(), today.getMonth(), 1);
-  const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-  return { start: formatDateInput(start), end: formatDateInput(end) };
-}
-
-function rangeDates(
-  range: DateRange,
-  customRange: { start: string; end: string },
-): { start: string; end: string; label: string } {
-  const today = new Date();
-  const end = formatDateInput(today);
-
-  if (range === "custom") {
-    return {
-      start: customRange.start,
-      end: customRange.end,
-      label: "Rango personalizado",
-    };
-  }
-
-  const startDate = new Date(today);
-  switch (range) {
-    case "today":
-      break;
-    case "yesterday":
-      startDate.setDate(today.getDate() - 1);
-      return {
-        start: formatDateInput(startDate),
-        end: formatDateInput(startDate),
-        label: "Ayer",
-      };
-    case "week":
-      startDate.setDate(today.getDate() - 6);
-      break;
-    case "month":
-      startDate.setDate(today.getDate() - 29);
-      break;
-  }
-  const labels: Record<DateRange, string> = {
-    today: "Hoy",
-    yesterday: "Ayer",
-    week: "Últimos 7 días",
-    month: "Últimos 30 días",
-    single: "Día específico",
-    custom: "Rango personalizado",
-  };
-  return { start: formatDateInput(startDate), end, label: labels[range] };
-}
 
 export default function DashboardPage() {
   const branch = useCurrentBranch();
   const monthRange = useMemo(() => getCurrentMonthRange(), []);
-  const [range, setRange] = useState<DateRange>("custom");
+  const [range, setRange] = useState<DatePreset>("custom");
   const [customRange, setCustomRange] = useState<{ start: string; end: string }>(monthRange);
   const [drawer, setDrawer] = useState<{ open: boolean; metric?: MetricConfig }>({ open: false });
+  const [showBusinessSummary, setShowBusinessSummary] = useState(false);
   const dates = useMemo(() => rangeDates(range, customRange), [range, customRange]);
+  const deliveriesEnabled = useIsModuleEnabledFromConfig("deliveries");
 
   const branchId = branch?.branch_id;
 
@@ -148,14 +96,14 @@ export default function DashboardPage() {
 
   const { data: products = [] } = useProducts(!!branch);
 
-  // Últimos 5 registros para los widgets de pendientes.
+  // Últimos 5 registros para los widgets de pendientes (entrega solo con módulo deliveries).
   const { data: pendingDelivery = [] } = useQuery({
     queryKey: ["dashboard", "pending-delivery", "v2", branchId],
     queryFn: async () => {
       const data = await fetchOrders({ order_type: "ORDER", status: ["PENDING", "IN_PROGRESS"], page_size: 5 });
       return data.results ?? [];
     },
-    enabled: !!branch,
+    enabled: !!branch && deliveriesEnabled,
   });
 
   const { data: pendingPayment = [] } = useQuery({
@@ -208,14 +156,14 @@ export default function DashboardPage() {
   const expensesTotal = counts?.expenses_by_supplier?.reduce((sum, e) => sum + e.total, 0) ?? 0;
 
   return (
-    <div className="flex min-h-full flex-col">
-      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
-        <div>
-          <h1 className="font-display text-lg font-semibold">Dashboard</h1>
-          <p className="text-xs text-muted-foreground">Resumen general del negocio</p>
-        </div>
-        <div className="flex items-center justify-center sm:justify-end">
-          <div className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-background px-3 py-2 shadow-sm sm:w-auto">
+    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+      <PageHeader
+        title="Dashboard"
+        icon={<LayoutDashboard className="h-5 w-5" />}
+        subtitle="Resumen general del negocio"
+        className="sticky top-0 z-20 glass-strong border-b"
+        actions={
+          <div className="glass-chip inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2">
             <input
               type="date"
               value={customRange.start}
@@ -240,21 +188,21 @@ export default function DashboardPage() {
               className="min-w-0 flex-1 border-0 bg-transparent px-1 py-0.5 text-xs font-medium text-foreground outline-none sm:flex-none"
             />
           </div>
-        </div>
-      </header>
+        }
+      />
 
       <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
 
       {/* Stats principales */}
       <motion.section variants={container} initial="hidden" animate="show" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard
+        <SharedStatCard
           label="Ventas del período"
           value={formatCLP(salesTotal)}
           icon={TrendingUp}
           sub={`${salesCount} ventas`}
-          tone="emerald"
+          tone="success"
           href="/sales"
-          description="Ventas completadas en el rango seleccionado."
+
           onClick={() =>
             setDrawer({
               open: true,
@@ -262,6 +210,7 @@ export default function DashboardPage() {
                 title: "Ventas del período",
                 value: formatCLP(salesTotal),
                 icon: TrendingUp,
+                tone: "success",
                 description:
                   "Suma total de ventas completadas y pagadas en el rango seleccionado. Incluye ventas creadas desde el POS o manualmente.",
                 sections: [
@@ -277,7 +226,10 @@ export default function DashboardPage() {
                 ],
                 chart:
                   summary?.time_series && summary.time_series.length > 1 ? (
-                    <Sparkline data={summary.time_series.map((d) => d.sales)} />
+                    <Sparkline
+                      data={summary.time_series.map((d) => d.sales)}
+                      toneClass="text-success"
+                    />
                   ) : undefined,
                 actions: (
                   <Link
@@ -292,8 +244,7 @@ export default function DashboardPage() {
                 ),
                 children: (
                   <>
-                    <div className="energy-card rounded-2xl border border-border bg-background p-3">
-                      <OrdersMetricDetail
+                                          <OrdersMetricDetail
                         filter={{
                           start_date: dates.start,
                           end_date: dates.end,
@@ -302,7 +253,6 @@ export default function DashboardPage() {
                         }}
                         emptyMessage="No hay ventas completadas en el período seleccionado."
                       />
-                    </div>
                     <BestSellingProducts
                       items={summary?.products?.best_selling_sales ?? []}
                       title="Productos más vendidos en ventas"
@@ -315,14 +265,14 @@ export default function DashboardPage() {
             })
           }
         />
-        <StatCard
+        <SharedStatCard
           label="Órdenes del período"
           value={formatCLP(ordersTotal)}
           icon={Receipt}
           sub={`${ordersCount} órdenes`}
-          tone="blue"
+          tone="primary"
           href="/sales"
-          description="Órdenes de cliente completadas en el rango seleccionado."
+
           onClick={() =>
             setDrawer({
               open: true,
@@ -330,6 +280,7 @@ export default function DashboardPage() {
                 title: "Órdenes del período",
                 value: formatCLP(ordersTotal),
                 icon: Receipt,
+                tone: "primary",
                 description:
                   "Suma total de órdenes de cliente completadas y pagadas en el rango seleccionado. Pueden ser pedidos, cotizaciones convertidas o cualquier transacción tipo orden según tu negocio.",
                 sections: [
@@ -356,8 +307,7 @@ export default function DashboardPage() {
                 ),
                 children: (
                   <>
-                    <div className="energy-card rounded-2xl border border-border bg-background p-3">
-                      <OrdersMetricDetail
+                                          <OrdersMetricDetail
                         filter={{
                           start_date: dates.start,
                           end_date: dates.end,
@@ -366,7 +316,6 @@ export default function DashboardPage() {
                         }}
                         emptyMessage="No hay órdenes completadas en el período seleccionado."
                       />
-                    </div>
                     <BestSellingProducts
                       items={summary?.products?.best_selling_orders ?? []}
                       title="Productos más vendidos en órdenes"
@@ -379,14 +328,14 @@ export default function DashboardPage() {
             })
           }
         />
-        <StatCard
+        <SharedStatCard
           label="Cuentas abiertas"
           value={pendingOrders}
           icon={Clock}
           sub="ventas sin pagar"
-          tone="amber"
+          tone="warning"
           href="/sales"
-          description="Ventas pendientes de pago. Click para gestionarlas."
+
           onClick={() =>
             setDrawer({
               open: true,
@@ -412,8 +361,7 @@ export default function DashboardPage() {
                   </Link>
                 ),
                 children: (
-                  <div className="energy-card rounded-2xl border border-border bg-background p-3">
-                    <OrdersMetricDetail
+                                      <OrdersMetricDetail
                       filter={{
                         start_date: dates.start,
                         end_date: dates.end,
@@ -422,20 +370,19 @@ export default function DashboardPage() {
                       }}
                       emptyMessage="No hay cuentas abiertas en el período seleccionado."
                     />
-                  </div>
                 ),
               },
             })
           }
         />
-        <StatCard
+        <SharedStatCard
           label="Clientes"
           value={customers}
           icon={Users}
           sub="registrados"
-          tone="violet"
+          tone="primary"
           href="/customers"
-          description="Base de clientes registrados en la sucursal. Click para ver el listado."
+
           onClick={() =>
             setDrawer({
               open: true,
@@ -446,12 +393,10 @@ export default function DashboardPage() {
                 description: "Base de clientes registrados en la sucursal. Click para ver el listado.",
                 sections: [{ label: "Total registrados", value: String(customers) }],
                 children: (
-                  <div className="energy-card rounded-2xl border border-border bg-background p-3">
-                    <CustomersMetricDetail
+                                      <CustomersMetricDetail
                       filter={{}}
                       emptyMessage="No hay clientes registrados en la sucursal."
                     />
-                  </div>
                 ),
               },
             })
@@ -466,14 +411,14 @@ export default function DashboardPage() {
         animate="show"
         className={cn("grid grid-cols-2 gap-3", nutritionEnabled ? "lg:grid-cols-5" : "lg:grid-cols-4")}
       >
-        <StatCard
+        <SharedStatCard
           label="Productos"
           value={productsCount}
           icon={Package}
           sub="activos en catálogo"
-          tone="orange"
+          tone="warning"
           href="/products"
-          description="Productos activos en el catálogo."
+
           onClick={() =>
             setDrawer({
               open: true,
@@ -482,9 +427,7 @@ export default function DashboardPage() {
                 value: productsCount,
                 icon: Package,
                 description: "Productos activos en el catálogo.",
-                sections: [
-                  { label: "Catálogo local", value: String(productsCount) },
-                ],
+                children: <ProductsMetricDetail products={products} />,
                 actions: (
                   <Link
                     href="/products"
@@ -500,14 +443,14 @@ export default function DashboardPage() {
             })
           }
         />
-        <StatCard
+        <SharedStatCard
           label="Ingresos"
           value={formatCLP(totalRevenue)}
           icon={ArrowDownLeft}
           sub="ventas + órdenes"
-          tone="emerald"
+          tone="success"
           href="/sales"
-          description="Total de dinero ingresado por ventas y órdenes completadas en el período."
+
           onClick={() =>
             setDrawer({
               open: true,
@@ -535,22 +478,20 @@ export default function DashboardPage() {
                   </Link>
                 ),
                 children: (
-                  <div className="energy-card rounded-2xl border border-border bg-background p-3">
-                    <IncomeMetricDetail startDate={dates.start} endDate={dates.end} />
-                  </div>
+                                      <IncomeMetricDetail startDate={dates.start} endDate={dates.end} />
                 ),
               },
             })
           }
         />
-        <StatCard
+        <SharedStatCard
           label="Ganancia estimada"
           value={formatCLP(totalProfit)}
           icon={Wallet}
           sub="aproximada"
-          tone="teal"
+          tone="primary"
           href="/sales"
-          description="Margen aproximado calculado sobre ventas y órdenes completadas."
+
           onClick={() =>
             setDrawer({
               open: true,
@@ -577,14 +518,14 @@ export default function DashboardPage() {
           }
         />
         {nutritionEnabled && (
-          <StatCard
+          <SharedStatCard
             label="Costo de insumos"
             value={formatCLP(ingredientConsumption?.total_cost ?? 0)}
             icon={FlaskConical}
             sub="según recetas vendidas"
-            tone="slate"
-            href="/reports"
-            description="Costo estimado de los insumos consumidos según las recetas de los productos vendidos."
+            tone="muted"
+            href="/reports/nutrition"
+
             onClick={() =>
               setDrawer({
                 open: true,
@@ -602,7 +543,7 @@ export default function DashboardPage() {
                     ],
                   actions: (
                     <Link
-                      href="/reports"
+                      href="/reports/nutrition"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary/90"
@@ -612,7 +553,7 @@ export default function DashboardPage() {
                     </Link>
                   ),
                   children: (
-                    <div className="energy-card rounded-2xl border border-border bg-background p-3">
+                    <>
                       {ingredientConsumption?.items && ingredientConsumption.items.length > 0 ? (
                         <div className="flex flex-col">
                           {(() => {
@@ -659,21 +600,21 @@ export default function DashboardPage() {
                           <p className="text-xs text-muted-foreground">No hay insumos consumidos en el período seleccionado.</p>
                         </div>
                       )}
-                    </div>
+                    </>
                   ),
                 },
               })
             }
           />
         )}
-        <StatCard
+        <SharedStatCard
           label="Gastos"
           value={formatCLP(expensesTotal)}
           icon={ArrowUpRight}
           sub="pagados en el período"
-          tone="rose"
+          tone="danger"
           href="/expenses"
-          description="Dinero efectivamente pagado en el rango de fechas seleccionado."
+
           onClick={() =>
             setDrawer({
               open: true,
@@ -696,7 +637,7 @@ export default function DashboardPage() {
                   },
                 ],
                 children: (
-                  <div className="energy-card rounded-2xl border border-border bg-background p-3">
+                  <>
                     {counts?.expenses_by_supplier && counts.expenses_by_supplier.length > 0 ? (
                       <div className="flex flex-col">
                         {(() => {
@@ -740,7 +681,7 @@ export default function DashboardPage() {
                         <p className="text-xs text-muted-foreground">Aún no hay gastos fijos registrados para la sucursal.</p>
                       </div>
                     )}
-                  </div>
+                  </>
                 ),
                 actions: (
                   <Link
@@ -759,56 +700,70 @@ export default function DashboardPage() {
         />
       </motion.section>
 
-      {/* Últimos pendientes: entrega y pago */}
+      {/* Pendientes de entrega (solo módulo deliveries) o resumen del negocio */}
       <motion.section variants={container} initial="hidden" animate="show" className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <motion.div variants={item} className="rounded-2xl border border-border bg-background p-5 shadow-sm">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-sm font-semibold">
-              <Truck className="h-4 w-4 text-primary" />
-              Últimas órdenes pendientes de entrega
-            </h2>
-            <Link href="/orders" className="text-xs font-medium text-primary transition-colors hover:underline">
-              Ver todas
-            </Link>
-          </div>
-          {pendingDelivery.length === 0 ? (
-            <p className="py-4 text-center text-xs text-muted-foreground">
-              No hay órdenes pendientes de entrega.
-            </p>
-          ) : (
-            <ul className="divide-y divide-border">
-              {pendingDelivery.map((o) => (
-                <li key={o.id} className="flex items-center justify-between gap-3 py-2">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">
-                      {o.order_number ? `#${o.order_number}` : o.client?.name ?? "Sin cliente"}
-                      {o.order_number && o.client?.name && (
-                        <span className="ml-2 text-xs font-normal text-muted-foreground">
-                          {o.client.name}
-                        </span>
-                      )}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(o.date).toLocaleDateString("es-CL", { day: "2-digit", month: "short" })}
-                      {" · "}{orderStatusLabel(o.status)}
-                    </p>
-                  </div>
-                  <span className="shrink-0 text-sm font-semibold tabular-nums">
-                    {formatCLP(Number(o.total_amount ?? 0))}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </motion.div>
+        {deliveriesEnabled ? (
+          <motion.div variants={item} className="glass rounded-2xl p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-sm font-semibold">
+                <Truck className="h-4 w-4 text-primary" />
+                Últimas órdenes pendientes de entrega
+              </h2>
+              <Link href="/sales" className="text-xs font-medium text-primary transition-colors hover:underline">
+                Ver todas
+              </Link>
+            </div>
+            {pendingDelivery.length === 0 ? (
+              <p className="py-4 text-center text-xs text-muted-foreground">
+                No hay órdenes pendientes de entrega.
+              </p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {pendingDelivery.map((o) => (
+                  <li key={o.id} className="flex items-center justify-between gap-3 py-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">
+                        {o.order_number ? `#${o.order_number}` : o.client?.name ?? "Sin cliente"}
+                        {o.order_number && o.client?.name && (
+                          <span className="ml-2 text-xs font-normal text-muted-foreground">
+                            {o.client.name}
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(o.date).toLocaleDateString("es-CL", { day: "2-digit", month: "short" })}
+                        {" · "}{orderStatusLabel(o.status)}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-sm font-semibold tabular-nums">
+                      {formatCLP(Number(o.total_amount ?? 0))}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </motion.div>
+        ) : (
+          <motion.div variants={item} className="glass rounded-2xl p-5">
+            <BusinessSummaryPanel
+              salesTotal={salesTotal}
+              salesCount={salesCount}
+              ordersCount={ordersCount}
+              customers={customers}
+              productsCount={productsCount}
+              totalProfit={totalProfit}
+              totalRevenue={totalRevenue}
+            />
+          </motion.div>
+        )}
 
-        <motion.div variants={item} className="rounded-2xl border border-border bg-background p-5 shadow-sm">
+        <motion.div variants={item} className="glass rounded-2xl p-5">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-sm font-semibold">
               <Wallet className="h-4 w-4 text-primary" />
               Últimos pendientes por pagar
             </h2>
-            <Link href="/orders" className="text-xs font-medium text-primary transition-colors hover:underline">
+            <Link href="/sales" className="text-xs font-medium text-primary transition-colors hover:underline">
               Ver todas
             </Link>
           </div>
@@ -848,120 +803,37 @@ export default function DashboardPage() {
         </motion.div>
       </motion.section>
 
-      {/* Gráficos principales */}
-      <motion.section variants={container} initial="hidden" animate="show" className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-        <div className="rounded-2xl border border-border bg-background p-5 shadow-sm lg:col-span-2">
-          <div className="mb-4">
-            <h2 className="flex items-center gap-2 text-sm font-semibold">
-              <TrendingUp className="h-4 w-4 text-primary" />
-              Evolución de ventas
-            </h2>
-          </div>
-          {summary?.time_series && summary.time_series.length > 0 ? (
-            <SalesChart data={summary.time_series} startDate={dates.start} endDate={dates.end} />
-          ) : (
-            <div className="h-52">
-              <EmptyState
-                icon={BarChart3}
-                title="Sin datos de ventas"
-                subtitle="No hay ventas registradas en el período seleccionado."
-              />
-            </div>
-          )}
-        </div>
-
-        <div className="rounded-2xl border border-border bg-background p-5 shadow-sm">
-          <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold">
+      {/* Resumen del negocio: flotante solo si deliveries está activo */}
+      {deliveriesEnabled && (
+        <>
+          <button
+            type="button"
+            onClick={() => setShowBusinessSummary(true)}
+            className="glass-strong fixed bottom-5 right-5 z-30 inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold text-foreground shadow-lg transition-transform hover:scale-[1.02] active:scale-[0.98]"
+          >
             <Target className="h-4 w-4 text-primary" />
             Resumen del negocio
-          </h2>
-          <div className="flex flex-col items-center">
-            <RadarChart
-              metrics={[
-                { label: "Ventas", value: Math.min(salesTotal / 100000, 1) },
-                { label: "Órdenes", value: Math.min(ordersCount / 50, 1) },
-                { label: "Clientes", value: Math.min(customers / 100, 1) },
-                { label: "Productos", value: Math.min(productsCount / 50, 1) },
-                { label: "Ganancia", value: Math.min(totalProfit / 50000, 1) },
-              ]}
-            />
-          </div>
-          <div className="mt-5 grid grid-cols-2 gap-4 rounded-xl border border-border/60 bg-background/60 p-3 text-xs">
-            <div>
-              <p className="text-muted-foreground">Venta promedio</p>
-              <p className="font-semibold tabular-nums">
-                {salesCount > 0 ? formatCLP(salesTotal / salesCount) : "—"}
-              </p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Margen estimado</p>
-              <p className="font-semibold tabular-nums">
-                {totalRevenue > 0 ? `${((totalProfit / totalRevenue) * 100).toFixed(1)}%` : "—"}
-              </p>
-            </div>
-          </div>
-        </div>
-      </motion.section>
-
-      {/* Insumos consumidos */}
-      {nutritionEnabled && (
-        <motion.section variants={container} initial="hidden" animate="show" className="grid gap-3">
-          <div className="rounded-2xl border border-border bg-background p-4 shadow-sm">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="flex items-center gap-2 text-sm font-semibold">
-                <FlaskConical className="h-4 w-4 text-primary" />
-                Insumos consumidos
-              </h2>
-              <Link
-                href="/reports"
-                className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
-              >
-                Ver informe completo
-              </Link>
-            </div>
-            {ingredientConsumption?.items && ingredientConsumption.items.length > 0 ? (
-              (() => {
-                const maxCost = Math.max(...ingredientConsumption.items.map((i) => i.cost), 1);
-                return (
-                  <div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
-                    {ingredientConsumption.items.map((item) => {
-                      const pct = (item.cost / maxCost) * 100;
-                      return (
-                        <div
-                          key={item.ingredient_id}
-                          className="flex flex-col gap-1 border-b border-border pb-2.5 last:border-0"
-                          title={`${item.ingredient_name}: ${item.total_quantity} ${item.unit} consumidos`}
-                        >
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="min-w-0 truncate font-medium">{item.ingredient_name}</span>
-                            <span className="shrink-0 tabular-nums font-semibold">{formatCLP(item.cost)}</span>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            {item.total_quantity} {item.unit}
-                          </p>
-                          <div className="h-1.5 w-full rounded-full bg-muted">
-                            <motion.div
-                              initial={{ width: 0 }}
-                              animate={{ width: `${pct}%` }}
-                              transition={{ duration: 0.8 }}
-                              className="h-1.5 rounded-full bg-primary"
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })()
-            ) : (
-              <div className="py-6 text-center">
-                <FlaskConical className="mx-auto h-8 w-8 text-muted-foreground" />
-                <p className="mt-2 text-sm font-medium">Sin consumo de insumos</p>
-                <p className="text-xs text-muted-foreground">No hay insumos consumidos en el período seleccionado.</p>
-              </div>
-            )}
-          </div>
-        </motion.section>
+          </button>
+          <Modal
+            open={showBusinessSummary}
+            onClose={() => setShowBusinessSummary(false)}
+            title="Resumen del negocio"
+            size="sm"
+          >
+            <ModalBody>
+              <BusinessSummaryPanel
+                salesTotal={salesTotal}
+                salesCount={salesCount}
+                ordersCount={ordersCount}
+                customers={customers}
+                productsCount={productsCount}
+                totalProfit={totalProfit}
+                totalRevenue={totalRevenue}
+                hideTitle
+              />
+            </ModalBody>
+          </Modal>
+        </>
       )}
 
       {drawer.metric && (
@@ -975,6 +847,7 @@ export default function DashboardPage() {
           sections={drawer.metric.sections}
           chart={drawer.metric.chart}
           actions={drawer.metric.actions}
+          tone={drawer.metric.tone}
         >
           {drawer.metric.children}
         </MetricDrawer>
@@ -982,367 +855,6 @@ export default function DashboardPage() {
     </div>
   </div>
 );
-}
-
-function StatCard({
-  label,
-  value,
-  icon: Icon,
-  sub,
-  href,
-  description,
-  onClick,
-  tone = "slate",
-}: {
-  label: string;
-  value: string | number;
-  icon: LucideIcon;
-  sub: string;
-  href?: string;
-  description?: string;
-  onClick?: () => void;
-  tone?: "emerald" | "blue" | "amber" | "violet" | "orange" | "teal" | "rose" | "slate";
-}) {
-  const toneStyles = {
-    emerald: "from-emerald-500/10 via-background to-background shadow-emerald-500/5",
-    blue: "from-primary/10 via-background to-background shadow-primary/5",
-    amber: "from-amber-500/10 via-background to-background shadow-amber-500/5",
-    violet: "from-primary/10 via-background to-background shadow-primary/5",
-    orange: "from-primary/15 via-background to-background shadow-primary/5",
-    teal: "from-primary/8 via-background to-background shadow-primary/5",
-    rose: "from-rose-500/10 via-background to-background shadow-rose-500/5",
-    slate: "from-muted/50 via-background to-background shadow-primary/5",
-  };
-
-  const toneText = {
-    emerald: "text-success/80",
-    blue: "text-primary/80",
-    amber: "text-warning/80",
-    violet: "text-primary/80",
-    orange: "text-primary/80",
-    teal: "text-primary/80",
-    rose: "text-danger/80",
-    slate: "text-muted-foreground",
-  };
-
-  const toneIcon = {
-    emerald: "bg-success/12 text-success",
-    blue: "bg-primary/10 text-primary",
-    amber: "bg-warning/12 text-warning",
-    violet: "bg-primary/12 text-primary",
-    orange: "bg-primary/15 text-primary",
-    teal: "bg-primary/8 text-primary",
-    rose: "bg-danger/12 text-danger",
-    slate: "bg-muted/12 text-muted-foreground",
-  };
-
-  const content = (
-    <>
-      <div className="mb-2 flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <span className={cn("block text-[11px] font-medium tracking-wide", toneText[tone])}>
-            {label}
-          </span>
-          <p className="text-xl font-bold tabular-nums tracking-tight text-foreground">{value}</p>
-        </div>
-        <div
-          className={cn(
-            "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-transform group-hover:scale-110",
-            toneIcon[tone]
-          )}
-        >
-          <Icon className="h-4 w-4" strokeWidth={2} />
-        </div>
-      </div>
-      <p className="text-[11px] text-muted-foreground">{sub}</p>
-    </>
-  );
-
-  const baseClassName = cn(
-    "group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br p-4 shadow-sm backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-border hover:shadow-md",
-    toneStyles[tone]
-  );
-
-  if (href) {
-    return (
-      <motion.div variants={item}>
-        <Link
-          href={href}
-          title={description}
-          className={cn(baseClassName, "block cursor-pointer")}
-          onClick={(e) => {
-            if (!onClick) return;
-            e.preventDefault();
-            onClick();
-          }}
-        >
-          {content}
-        </Link>
-      </motion.div>
-    );
-  }
-
-  if (onClick) {
-    return (
-      <motion.button
-        type="button"
-        variants={item}
-        title={description}
-        onClick={onClick}
-        className={cn(baseClassName, "w-full cursor-pointer text-left")}
-      >
-        {content}
-      </motion.button>
-    );
-  }
-
-  return (
-    <motion.div variants={item} title={description} className={baseClassName}>
-      {content}
-    </motion.div>
-  );
-}
-
-function parseLocalDate(iso: string): Date {
-  return new Date(`${iso}T00:00:00`);
-}
-
-function formatLocalISO(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-function formatShortDate(iso: string): string {
-  return parseLocalDate(iso).toLocaleDateString("es-CL", { day: "numeric", month: "short" });
-}
-
-function formatFullDate(iso: string): string {
-  return parseLocalDate(iso).toLocaleDateString("es-CL", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
-}
-
-function parseHourKey(hourKey: string): Date {
-  const [datePart, timePart] = hourKey.split(" ");
-  const [hours] = timePart.split(":").map(Number);
-  const date = parseLocalDate(datePart);
-  date.setHours(hours);
-  return date;
-}
-
-function formatHourLabel(hourKey: string): string {
-  const [, timePart] = hourKey.split(" ");
-  return timePart;
-}
-
-function formatFullHour(hourKey: string): string {
-  return parseHourKey(hourKey).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" });
-}
-
-function SalesChart({
-  data,
-  startDate,
-  endDate,
-}: {
-  data: { date: string; sales: number; orders: number }[];
-  startDate: string;
-  endDate: string;
-}) {
-  const [hover, setHover] = useState<number | null>(null);
-  const isHourly = startDate === endDate;
-
-  const filled = useMemo(() => {
-    const map = new Map(data.map((d) => [d.date, d]));
-
-    if (isHourly) {
-      const hours = [];
-      for (let h = 0; h < 24; h++) {
-        const hourKey = `${startDate} ${String(h).padStart(2, "0")}:00`;
-        hours.push(map.get(hourKey) ?? { date: hourKey, sales: 0, orders: 0 });
-      }
-      return hours;
-    }
-
-    const start = parseLocalDate(startDate);
-    const end = parseLocalDate(endDate);
-    const days = [];
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      const iso = formatLocalISO(d);
-      days.push(map.get(iso) ?? { date: iso, sales: 0, orders: 0 });
-    }
-    return days;
-  }, [data, startDate, endDate, isHourly]);
-
-  if (filled.length === 0) return null;
-
-  const values = filled.map((d) => d.sales);
-  const max = Math.max(...values, 1);
-  const width = 600;
-  const height = 220;
-  const padding = { top: 16, right: 16, bottom: 32, left: 16 };
-  const chartW = width - padding.left - padding.right;
-  const chartH = height - padding.top - padding.bottom;
-
-  const xDivisor = Math.max(filled.length - 1, 1);
-  const getX = (i: number) => padding.left + (i / xDivisor) * chartW;
-  const getY = (v: number) => padding.top + chartH - (v / max) * chartH;
-
-  const path = filled.reduce((acc, d, i) => {
-    const px = getX(i);
-    const py = getY(d.sales);
-    if (i === 0) return `M ${px},${py}`;
-    const prevX = getX(i - 1);
-    const prevY = getY(filled[i - 1].sales);
-    const cpX = prevX + (px - prevX) / 2;
-    return `${acc} C ${cpX},${prevY} ${cpX},${py} ${px},${py}`;
-  }, "");
-
-  const areaPath = `${path} L ${getX(filled.length - 1)},${padding.top + chartH} L ${getX(0)},${padding.top + chartH} Z`;
-
-  const handleMove = (e: React.MouseEvent<SVGSVGElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const scaleX = width / rect.width;
-    const scaleY = height / rect.height;
-    const mx = (e.clientX - rect.left) * scaleX;
-    const my = (e.clientY - rect.top) * scaleY;
-    
-    let closestIdx = null;
-    let minDistance = 50; // Umbral de 50px de distancia para marcarlo
-
-    for (let i = 0; i < filled.length; i++) {
-      const px = getX(i);
-      const py = getY(filled[i].sales);
-      const dist = Math.sqrt((px - mx) ** 2 + (py - my) ** 2);
-      if (dist < minDistance) {
-        closestIdx = i;
-        minDistance = dist;
-      }
-    }
-    setHover(closestIdx);
-  };
-
-  const labelCount = Math.min(filled.length, 5);
-  const labelInterval = Math.max(1, Math.floor(filled.length / labelCount));
-
-  const hoverPoint = hover !== null ? filled[hover] : null;
-  const hoverX = hover !== null ? getX(hover) : 0;
-  const hoverY = hover !== null ? getY(hoverPoint?.sales ?? 0) : 0;
-
-  return (
-    <div className="relative select-none">
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        className="h-52 w-full"
-        onMouseMove={handleMove}
-        onMouseLeave={() => setHover(null)}
-      >
-        <defs>
-          <linearGradient id="sales-gradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="currentColor" stopOpacity="0.28" className="text-primary" />
-            <stop offset="100%" stopColor="currentColor" stopOpacity="0.03" className="text-primary" />
-          </linearGradient>
-        </defs>
-
-        {/* Área bajo la curva */}
-        <path
-          d={areaPath}
-          fill="url(#sales-gradient)"
-          className="text-primary"
-        />
-
-        {/* Línea principal */}
-        <motion.path
-          d={path}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="text-primary"
-          initial={{ pathLength: 0 }}
-          animate={{ pathLength: 1 }}
-          transition={{ duration: 1.2, ease: "easeOut" }}
-        />
-
-        {/* Puntos en cada dato */}
-        {filled.map((d, i) => (
-          <circle
-            key={i}
-            cx={getX(i)}
-            cy={getY(d.sales)}
-            r={hover === i ? 5 : 2.5}
-            className={cn(
-              "fill-background stroke-primary stroke-2 transition-all duration-150",
-              hover === i && "fill-primary"
-            )}
-          />
-        ))}
-
-        {/* Línea vertical y punto activo en hover */}
-        {hover !== null && hoverPoint && (
-          <g>
-            <line
-              x1={hoverX}
-              y1={padding.top}
-              x2={hoverX}
-              y2={padding.top + chartH}
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeDasharray="4 4"
-              className="text-muted-foreground/40"
-            />
-            <circle
-              cx={hoverX}
-              cy={hoverY}
-              r="6"
-              className="fill-primary stroke-background stroke-[2.5]"
-            />
-          </g>
-        )}
-
-        {/* Labels del eje X */}
-        {filled.map((d, i) =>
-          i % labelInterval === 0 || i === filled.length - 1 ? (
-            <text
-              key={i}
-              x={getX(i)}
-              y={height - 8}
-              textAnchor="middle"
-              className="fill-muted-foreground/80 text-[11px] font-medium"
-            >
-              {isHourly ? formatHourLabel(d.date) : formatShortDate(d.date)}
-            </text>
-          ) : null,
-        )}
-      </svg>
-
-      {/* Tooltip anclado al punto exacto */}
-      {hover !== null && hoverPoint && (
-        <div
-          className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-xl border border-border bg-background px-3 py-2 shadow-lg"
-          style={{
-            left: `${(hoverX / width) * 100}%`,
-            top: `${(hoverY / height) * 100}%`,
-          }}
-        >
-          <div className="mb-1.5 flex items-center gap-1.5">
-            <div className="h-2 w-2 rounded-full bg-primary" />
-            <p className="text-xs font-semibold">
-              {isHourly ? formatFullHour(hoverPoint.date) : formatFullDate(hoverPoint.date)}
-            </p>
-          </div>
-          <p className="text-sm font-bold tabular-nums">{formatCLP(hoverPoint.sales)}</p>
-          <p className="text-xs text-muted-foreground">
-            {hoverPoint.orders} {hoverPoint.orders === 1 ? "venta" : "ventas"} en este período
-          </p>
-        </div>
-      )}
-    </div>
-  );
 }
 
 function ProfitMiniReport({
@@ -1488,6 +1000,62 @@ function BestSellingProducts({
   );
 }
 
+function BusinessSummaryPanel({
+  salesTotal,
+  salesCount,
+  ordersCount,
+  customers,
+  productsCount,
+  totalProfit,
+  totalRevenue,
+  hideTitle = false,
+}: {
+  salesTotal: number;
+  salesCount: number;
+  ordersCount: number;
+  customers: number;
+  productsCount: number;
+  totalProfit: number;
+  totalRevenue: number;
+  hideTitle?: boolean;
+}) {
+  return (
+    <>
+      {!hideTitle && (
+        <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold">
+          <Target className="h-4 w-4 text-primary" />
+          Resumen del negocio
+        </h2>
+      )}
+      <div className="flex flex-col items-center">
+        <RadarChart
+          metrics={[
+            { label: "Ventas", value: Math.min(salesTotal / 100000, 1) },
+            { label: "Órdenes", value: Math.min(ordersCount / 50, 1) },
+            { label: "Clientes", value: Math.min(customers / 100, 1) },
+            { label: "Productos", value: Math.min(productsCount / 50, 1) },
+            { label: "Ganancia", value: Math.min(totalProfit / 50000, 1) },
+          ]}
+        />
+      </div>
+      <div className="mt-5 grid grid-cols-2 gap-4 rounded-xl border border-border/60 bg-background/60 p-3 text-xs">
+        <div>
+          <p className="text-muted-foreground">Venta promedio</p>
+          <p className="font-semibold tabular-nums">
+            {salesCount > 0 ? formatCLP(salesTotal / salesCount) : "—"}
+          </p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Margen estimado</p>
+          <p className="font-semibold tabular-nums">
+            {totalRevenue > 0 ? `${((totalProfit / totalRevenue) * 100).toFixed(1)}%` : "—"}
+          </p>
+        </div>
+      </div>
+    </>
+  );
+}
+
 function RadarChart({ metrics }: { metrics: { label: string; value: number }[] }) {
   const size = 160;
   const center = size / 2;
@@ -1547,28 +1115,22 @@ function RadarChart({ metrics }: { metrics: { label: string; value: number }[] }
           );
         })}
         {/* Data polygon */}
-        <motion.polygon
+        <polygon
           points={polygon}
           fill="currentColor"
           fillOpacity="0.2"
           stroke="currentColor"
           strokeWidth="2"
           className="text-primary"
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
         />
         {/* Data points */}
         {points.map((p, i) => (
-          <motion.circle
+          <circle
             key={i}
             cx={p.x}
             cy={p.y}
             r="3"
             className="fill-background stroke-primary stroke-2"
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.3 + i * 0.05 }}
           />
         ))}
         {/* Labels */}
@@ -1593,29 +1155,9 @@ function RadarChart({ metrics }: { metrics: { label: string; value: number }[] }
   );
 }
 
-function EmptyState({
-  icon: Icon,
-  title,
-  subtitle,
-}: {
-  icon: LucideIcon;
-  title: string;
-  subtitle: string;
-}) {
-  return (
-    <div className="grid h-full place-items-center rounded-xl border border-dashed border-border bg-background p-6 text-center">
-      <div>
-        <Icon className="mx-auto h-10 w-10 text-muted-foreground" />
-        <p className="mt-3 text-sm font-medium">{title}</p>
-        <p className="text-xs text-muted-foreground">{subtitle}</p>
-      </div>
-    </div>
-  );
-}
-
 function DashboardSkeleton() {
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
       <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
         <div className="space-y-2">
           <Skeleton className="h-5 w-32" />
@@ -1623,12 +1165,12 @@ function DashboardSkeleton() {
         </div>
         <Skeleton className="h-10 w-full sm:w-64" />
       </header>
-      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
+      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
 
       {/* Stats principales */}
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="rounded-2xl border border-border bg-background p-4 shadow-sm">
+          <div key={i} className="glass rounded-2xl p-4">
             <div className="mb-2 flex items-center gap-1.5">
               <Skeleton className="h-3.5 w-3.5 rounded-sm" />
               <Skeleton className="h-3 w-20" />
@@ -1642,7 +1184,7 @@ function DashboardSkeleton() {
       {/* Stats secundarias */}
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="rounded-2xl border border-border bg-background p-4 shadow-sm">
+          <div key={i} className="glass rounded-2xl p-4">
             <div className="mb-2 flex items-center gap-1.5">
               <Skeleton className="h-3.5 w-3.5 rounded-sm" />
               <Skeleton className="h-3 w-20" />
@@ -1653,21 +1195,15 @@ function DashboardSkeleton() {
         ))}
       </section>
 
-      {/* Gráficos */}
-      <section className="grid gap-3 lg:grid-cols-3">
-        <div className="rounded-2xl border border-border bg-background p-4 shadow-sm lg:col-span-2">
-          <Skeleton className="mb-2 h-4 w-40" />
-          <Skeleton className="h-36 w-full" />
+      {/* Pendientes / resumen */}
+      <section className="grid gap-3 lg:grid-cols-2">
+        <div className="glass rounded-2xl p-4">
+          <Skeleton className="mb-2 h-4 w-48" />
+          <Skeleton className="h-28 w-full" />
         </div>
-        <div className="rounded-2xl border border-border bg-background p-4 shadow-sm">
-          <Skeleton className="mb-2 h-4 w-36" />
-          <div className="flex flex-col items-center">
-            <Skeleton className="h-20 w-20 rounded-full" />
-          </div>
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-full" />
-          </div>
+        <div className="glass rounded-2xl p-4">
+          <Skeleton className="mb-2 h-4 w-40" />
+          <Skeleton className="h-28 w-full" />
         </div>
       </section>
       </div>

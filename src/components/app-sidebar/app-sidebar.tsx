@@ -8,7 +8,6 @@ import { m, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
   LogOut,
-  ChefHat,
   Search,
   PanelLeftClose,
   PanelLeft,
@@ -22,9 +21,11 @@ import {
   useCurrentBranch,
   useIsCashier,
   useIsWaiter,
+  useIsCook,
   useIsModuleEnabledFromConfig,
   useCashierAllowedPaths,
   useWaiterAllowedPaths,
+  useCookAllowedPaths,
 } from "@/lib/store/session";
 import { useIsSuperAdmin } from "@/lib/store/session";
 import { useFrigMenu } from "@/lib/hooks/useFrigMenu";
@@ -33,7 +34,6 @@ import { useNavFavorites } from "@/lib/store/nav-favorites";
 import { useSidebarStore } from "@/lib/store/sidebar";
 import { logout } from "@/lib/api/auth";
 import { clearToken } from "@/lib/api/session-storage";
-import { fetchKitchenStations } from "@/lib/api/kitchen-stations";
 import { fetchKitchenTickets } from "@/lib/api/kitchen";
 import { BrandLogo } from "@/components/brand-logo";
 import { BranchSwitcher } from "@/components/branch-switcher";
@@ -89,12 +89,14 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
   const menuGroups = useFrigMenu();
   const isCashier = useIsCashier();
   const isWaiter = useIsWaiter();
+  const isCook = useIsCook();
   const isSuperAdmin = useIsSuperAdmin();
   const appName = theme?.app_name ?? "FRIG";
   const { favorites, toggleFavorite, isFavorite } = useNavFavorites();
 
   const cashierAllowedPaths = useCashierAllowedPaths();
   const waiterAllowedPaths = useWaiterAllowedPaths();
+  const cookAllowedPaths = useCookAllowedPaths();
 
   function isAllowedPath(href: string, allowedPaths: string[]): boolean {
     return allowedPaths.some((p) => href === p || href.startsWith(`${p}/`));
@@ -111,22 +113,25 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
               if (item.href === "/pos") return true;
               return isAllowedPath(item.href, waiterAllowedPaths);
             }
+            if (isCook) return isAllowedPath(item.href, cookAllowedPaths);
             return true;
           }),
         }))
         .filter((group) => group.items.length > 0),
-    [menuGroups, isCashier, isWaiter, cashierAllowedPaths, waiterAllowedPaths],
+    [
+      menuGroups,
+      isCashier,
+      isWaiter,
+      isCook,
+      cashierAllowedPaths,
+      waiterAllowedPaths,
+      cookAllowedPaths,
+    ],
   );
 
-  const branchId = branch?.id ? Number(branch.id) : null;
   const isProductionEnabled = useIsModuleEnabledFromConfig("production");
   const frontendConfigBranchId = useSessionStore((s) => s.frontendConfigBranchId);
   const modulesReady = !!branch?.id && String(branch.id) === frontendConfigBranchId;
-  const { data: kitchenStations = [] } = useQuery({
-    queryKey: ["kitchen-stations"],
-    queryFn: fetchKitchenStations,
-    enabled: !!branchId && isProductionEnabled && modulesReady,
-  });
 
   const { data: kitchenTickets = [] } = useQuery({
     queryKey: ["kitchen-tickets", "READY"],
@@ -139,17 +144,6 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
     const readyCount = kitchenTickets.length;
     return { readyCount };
   }, [kitchenTickets]);
-
-  const stationItems = useMemo(
-    () =>
-      kitchenStations.map((station) => ({
-        href: `/kds/station/${station.id}`,
-        label: station.name,
-        icon: ChefHat,
-        description: undefined as string | undefined,
-      })),
-    [kitchenStations]
-  );
 
   const handleLogout = useCallback(async () => {
     try {
@@ -175,12 +169,6 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
           }))
         : [],
     );
-    const stations = kitchenStations.map((s) => ({
-      href: `/kds/station/${s.id}`,
-      label: s.name,
-      group: "Estaciones de cocina",
-      icon: ChefHat,
-    }));
     const admin = visibleMenuGroups
       .filter((g) => g.title.toLowerCase() !== "operaciones")
       .flatMap((g) =>
@@ -195,12 +183,12 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
     const actions: CommandPaletteItem[] = [
       { href: "", label: "Cerrar sesión", group: "Acciones", icon: LogOut, action: handleLogout },
     ];
-    return [...ops, ...stations, ...admin, ...actions];
-  }, [visibleMenuGroups, kitchenStations, handleLogout]);
+    return [...ops, ...admin, ...actions];
+  }, [visibleMenuGroups, handleLogout]);
 
   const allNavHrefs = useMemo(
-    () => [...visibleMenuGroups.flatMap((g) => g.items), ...stationItems],
-    [visibleMenuGroups, stationItems]
+    () => visibleMenuGroups.flatMap((g) => g.items),
+    [visibleMenuGroups],
   );
 
   function getBadgeValue(badge?: string) {
@@ -210,25 +198,21 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
 
   function getActiveHref(items: { href: string }[], path: string): string | null {
     const normalized = path.replace(/\/$/, "") || "/";
-    const exact = items.find((i) => {
+    const prefixMatches = items.filter((i) => {
       const href = i.href.replace(/\/$/, "") || "/";
-      return normalized === href;
+      return normalized === href || normalized.startsWith(`${href}/`);
     });
-    if (exact) return exact.href;
-    const matches = items.filter((i) => {
-      const href = i.href.replace(/\/$/, "") || "/";
-      return normalized.startsWith(`${href}/`);
-    });
-    if (matches.length === 0) return null;
-    return matches.reduce((a, b) => (a.href.length >= b.href.length ? a : b)).href;
+    if (prefixMatches.length > 0) {
+      return prefixMatches.reduce((a, b) => (a.href.length >= b.href.length ? a : b)).href;
+    }
+    return null;
   }
 
   const activeHref = getActiveHref(allNavHrefs, pathname);
-  const stationActiveHref = getActiveHref(stationItems, pathname);
 
   // Auto-abrir el grupo que contiene la página activa. El usuario SÍ puede
   // volver a cerrarlo: solo corre cuando cambia la ruta o en la primera carga
-  // de grupos. Cambios de datos (refresh de frontend-config, estaciones, etc.)
+  // de grupos. Cambios de datos (refresh de frontend-config, etc.)
   // no deben reabrir un grupo que el usuario cerró.
   /* eslint-disable react-hooks/set-state-in-effect */
   const autoOpenRef = useRef<{ path: string | null; hadGroups: boolean }>({
@@ -244,13 +228,17 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
       path: pathname,
       hadGroups: visibleMenuGroups.length > 0,
     };
-    if (stationActiveHref) {
-      setOpenGroup("Estaciones");
-      return;
+    let bestGroup: (typeof visibleMenuGroups)[number] | null = null;
+    let bestLen = 0;
+    for (const g of visibleMenuGroups) {
+      const match = getActiveHref(g.items, pathname);
+      if (match && match.length > bestLen) {
+        bestLen = match.length;
+        bestGroup = g;
+      }
     }
-    const active = visibleMenuGroups.find((g) => getActiveHref(g.items, pathname));
-    if (active) setOpenGroup(active.title);
-  }, [pathname, stationActiveHref, visibleMenuGroups]);
+    if (bestGroup) setOpenGroup(bestGroup.title);
+  }, [pathname, visibleMenuGroups]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
@@ -408,32 +396,6 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
             </nav>
           )}
 
-          {branchId && isProductionEnabled && stationItems.length > 0 && (
-            <NavGroup
-              title="Estaciones"
-              icon={ChefHat}
-              expanded={effectivelyExpanded}
-              isOpen={isGroupOpen("Estaciones")}
-              onToggle={() =>
-                setOpenGroup((prev) => (prev === "Estaciones" ? null : "Estaciones"))
-              }
-            >
-              {stationItems.map((item) => (
-                <NavItem
-                  key={item.href}
-                  href={item.href}
-                  label={item.label}
-                  icon={item.icon}
-                  active={activeHref === item.href}
-                  expanded={effectivelyExpanded}
-                  onToggleFavorite={() => toggleFavorite(item.href)}
-                  favorited={isFavorite(item.href)}
-                  onClick={onNavigate}
-                />
-              ))}
-            </NavGroup>
-          )}
-
           {visibleMenuGroups
             .filter((g) => g.title.toLowerCase() !== "operaciones")
             .map((group) => {
@@ -457,6 +419,11 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
                       icon={item.icon}
                       active={groupActiveHref === item.href}
                       expanded={effectivelyExpanded}
+                      badge={getBadgeValue(
+                        "badge" in item
+                          ? (item as { badge?: "kitchenReady" }).badge
+                          : undefined,
+                      )}
                       onToggleFavorite={() => toggleFavorite(item.href)}
                       favorited={isFavorite(item.href)}
                       onClick={onNavigate}

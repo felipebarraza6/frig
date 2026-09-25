@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Building2, Store, ChevronDown } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/page-header";
 import { useSessionStore, useCanViewOrganization } from "@/lib/store/session";
 import { fetchOrganizations, type OrganizationDetail } from "@/lib/api/organizations";
 import { OrgPlansEditor } from "@/components/organizations/org-plans-editor";
@@ -22,6 +23,7 @@ export default function OrganizationPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const canView = useCanViewOrganization();
+  const user = useSessionStore((s) => s.user);
   const ownedOrganizations = useSessionStore((s) => s.ownedOrganizations);
   const isSuperAdmin = useSessionStore(
     (s) => s.user?.is_superuser || s.user?.type_user === "ADM",
@@ -56,6 +58,13 @@ export default function OrganizationPage() {
     return visibleOrgs[0];
   }, [visibleOrgs, orgIdFromUrl]);
 
+  // El backend permite editar la org al owner o a superadmin: el botón Editar
+  // se ofrece a ambos; Eliminar sigue siendo exclusivo de superadmin.
+  const isOrgOwner = org
+    ? ownedOrganizations.some((o) => String(o.id) === String(org.id)) ||
+      Boolean(user?.is_organization_owner)
+    : false;
+
   if (!canView) {
     return (
       <div className="flex min-h-full flex-col items-center justify-center p-6 text-center">
@@ -71,25 +80,24 @@ export default function OrganizationPage() {
   const totalOrgs = visibleOrgs?.length ?? 0;
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-5xl flex-col">
-      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
-        <div>
-          <h1 className="text-lg font-semibold">Organizaciones</h1>
-          <p className="text-xs text-muted-foreground">
-            Gestiona las organizaciones y sus planes de módulos
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link
-            href="/branches"
-            className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-          >
-            <Store className="mr-1.5 h-3.5 w-3.5" />
-            Sucursales
-          </Link>
-          {isSuperAdmin && <CreateOrganizationButton />}
-        </div>
-      </header>
+    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+      <PageHeader
+        title="Organizaciones"
+        icon={<Building2 className="h-5 w-5" />}
+        subtitle="Gestiona las organizaciones y sus planes de módulos"
+        actions={
+          <>
+            <Link
+              href="/branches"
+              className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+            >
+              <Store className="mr-1.5 h-3.5 w-3.5" />
+              Sucursales
+            </Link>
+            {isSuperAdmin && <CreateOrganizationButton />}
+          </>
+        }
+      />
 
       <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
         {/* Selector de organización */}
@@ -116,10 +124,10 @@ export default function OrganizationPage() {
               <Building2 className="h-4 w-4 text-primary" />
               <h2 className="text-sm font-semibold">Datos de la organización</h2>
             </div>
-            {org && isSuperAdmin && (
+            {org && (isSuperAdmin || isOrgOwner) && (
               <div className="flex items-center gap-2">
                 <EditOrganizationButton organization={org} />
-                <DeleteOrganizationButton organization={org} />
+                {isSuperAdmin && <DeleteOrganizationButton organization={org} />}
               </div>
             )}
           </div>
@@ -149,7 +157,13 @@ export default function OrganizationPage() {
             Configura los planes de módulos que {org?.name ?? "esta organización"} ofrece a sus sucursales.
             Cada plan define qué módulos y límites tiene la sucursal.
           </p>
-          {org && <OrgPlansEditor organizationId={org.id} organizationName={org.name} />}
+          {isSuperAdmin && org ? (
+            <OrgPlansEditor organizationId={org.id} organizationName={org.name} />
+          ) : (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Los planes de módulos los configura el administrador de la plataforma.
+            </p>
+          )}
         </section>
       </div>
 

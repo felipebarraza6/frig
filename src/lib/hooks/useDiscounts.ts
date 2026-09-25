@@ -10,6 +10,7 @@ import {
   fetchDiscountUsageReport,
   fetchDiscountDetailReport,
   type DiscountFormPayload,
+  type DiscountsListFilter,
   type PromotionDiscount,
   type PromotionDiscountList,
   type DiscountUsageReportFilters,
@@ -17,13 +18,22 @@ import {
 
 export const DISCOUNT_KEYS = {
   all: ["discounts"] as const,
+  list: (filters: DiscountsListFilter = {}) =>
+    [...DISCOUNT_KEYS.all, "list", filters] as const,
   detail: (id: string) => [...DISCOUNT_KEYS.all, id] as const,
 };
 
-export function useAllDiscounts(enabled = true) {
+export function useAllDiscounts(
+  filtersOrEnabled: DiscountsListFilter | boolean = true,
+  enabledArg = true,
+) {
+  const filters: DiscountsListFilter =
+    typeof filtersOrEnabled === "boolean" ? {} : filtersOrEnabled;
+  const enabled =
+    typeof filtersOrEnabled === "boolean" ? filtersOrEnabled : enabledArg;
   return useQuery({
-    queryKey: DISCOUNT_KEYS.all,
-    queryFn: fetchAllDiscounts,
+    queryKey: DISCOUNT_KEYS.list(filters),
+    queryFn: () => fetchAllDiscounts(filters),
     staleTime: 60_000,
     enabled,
   });
@@ -42,7 +52,8 @@ export function useCreateDiscountMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: DiscountFormPayload) => createDiscount(payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: DISCOUNT_KEYS.all }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: DISCOUNT_KEYS.all }),
   });
 }
 
@@ -51,7 +62,10 @@ export function useUpdateDiscountMutation() {
   return useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: Partial<DiscountFormPayload> }) =>
       updateDiscount(id, payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: DISCOUNT_KEYS.all }),
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: DISCOUNT_KEYS.all });
+      queryClient.invalidateQueries({ queryKey: DISCOUNT_KEYS.detail(vars.id) });
+    },
   });
 }
 
@@ -59,7 +73,8 @@ export function useDeleteDiscountMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => deleteDiscount(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: DISCOUNT_KEYS.all }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: DISCOUNT_KEYS.all }),
   });
 }
 

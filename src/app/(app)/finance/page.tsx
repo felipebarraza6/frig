@@ -20,12 +20,16 @@ import {
   Download,
   FileText,
   Settings,
+  Landmark,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { StatCard as SharedStatCard } from "@/components/ui/stat-card";
+import { PageHeader } from "@/components/page-header";
+import { downloadCsv } from "@/lib/export-csv";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton, StatCardSkeleton } from "@/components/ui/skeleton";
 import {
   fetchFinancialMetricsSummary,
   fetchRevenuesByDateRange,
@@ -81,17 +85,6 @@ function getPresetRange(preset: RangePreset): { start: string; end: string } {
     default:
       return getCurrentMonthRange();
   }
-}
-
-function downloadCsv(filename: string, rows: string[][]) {
-  const csv = rows.map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
-  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
 }
 
 export default function FinanceDashboardPage() {
@@ -154,15 +147,14 @@ export default function FinanceDashboardPage() {
   const margin = getMetricAmount(summary, "profit_margin");
 
   return (
-    <div className="flex min-h-full flex-col">
-      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
-        <div>
-          <h1 className="text-lg font-semibold">Finanzas</h1>
-          <p className="text-xs text-muted-foreground">
-            Resumen financiero del período y flujo de caja
-          </p>
-        </div>
-        <div className="flex flex-wrap items-end gap-2">
+    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+      <PageHeader
+        title="Finanzas"
+        icon={<Landmark className="h-5 w-5" />}
+        subtitle="Resumen financiero del período y flujo de caja"
+        actions={
+          <>
+
           <div className="flex flex-col gap-1">
             <label htmlFor="finance-range-preset" className="text-xs text-muted-foreground">Período</label>
             <Select
@@ -216,7 +208,7 @@ export default function FinanceDashboardPage() {
                 d.date,
                 formatCLP(parseAmount(d.total)),
               ]);
-              downloadCsv(`finanzas_${range.start}_${range.end}.csv`, [
+              downloadCsv(`finanzas_${range.start}_${range.end}.csv`, [], [
                 ...rows,
                 [],
                 ["Fecha", "Ingreso"],
@@ -228,8 +220,9 @@ export default function FinanceDashboardPage() {
             <Download className="mr-1.5 h-3.5 w-3.5" />
             Exportar
           </Button>
-        </div>
-      </header>
+          </>
+        }
+      />
 
       <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
         {hasError ? (
@@ -256,40 +249,40 @@ export default function FinanceDashboardPage() {
             <section className="grid gap-3 overflow-x-auto pb-1 [grid-template-columns:repeat(4,minmax(150px,1fr))] sm:grid-cols-2 lg:grid-cols-4">
               {loadingSummary ? (
                 <>
-                  <StatSkeleton />
-                  <StatSkeleton />
-                  <StatSkeleton />
-                  <StatSkeleton />
+                  <StatCardSkeleton />
+                  <StatCardSkeleton />
+                  <StatCardSkeleton />
+                  <StatCardSkeleton />
                 </>
               ) : (
                 <>
-                  <StatCard
+                  <SharedStatCard
                     label="Ingresos del mes"
                     value={formatCLP(revenueTotal)}
                     icon={ArrowDownLeft}
                     sub="total ingresado"
-                    tone="emerald"
+                    tone="success"
                   />
-                  <StatCard
+                  <SharedStatCard
                     label="Egresos del mes"
                     value={formatCLP(expenseTotal)}
                     icon={ArrowUpRight}
                     sub="total gastado"
-                    tone="rose"
+                    tone="danger"
                   />
-                  <StatCard
+                  <SharedStatCard
                     label="Utilidad neta"
                     value={formatCLP(netProfit)}
                     icon={Wallet}
                     sub="ingresos - egresos"
-                    tone={netProfit >= 0 ? "emerald" : "rose"}
+                    tone={netProfit >= 0 ? "success" : "danger"}
                   />
-                  <StatCard
+                  <SharedStatCard
                     label="Margen"
                     value={`${margin.toFixed(1)}%`}
                     icon={Percent}
                     sub="rentabilidad aproximada"
-                    tone={margin >= 0 ? "teal" : "rose"}
+                    tone={margin >= 0 ? "primary" : "danger"}
                   />
                 </>
               )}
@@ -387,28 +380,28 @@ export default function FinanceDashboardPage() {
                   icon={Banknote}
                   title="Registrar ingreso"
                   description="Agrega ventas, servicios u otros ingresos."
-                  tone="emerald"
+                  tone="success"
                 />
                 <QuickAction
                   href="/expenses"
                   icon={CreditCard}
                   title="Registrar egreso"
                   description="Controla gastos, proveedores y pagos recurrentes."
-                  tone="rose"
+                  tone="danger"
                 />
                 <QuickAction
                   href="/payments"
                   icon={Wallet}
                   title="Ver pagos"
                   description="Ingresos, egresos y transacciones unificadas."
-                  tone="teal"
+                  tone="primary"
                 />
                 <QuickAction
                   href="/tax-documents"
                   icon={FileText}
                   title="Documentos SII"
                   description="Boletas, facturas y notas de crédito."
-                  tone="slate"
+                  tone="muted"
                 />
               </div>
             </section>
@@ -426,99 +419,34 @@ export default function FinanceDashboardPage() {
                   icon={Percent}
                   title="Impuestos y moneda"
                   description="Configura tasas, impuestos y ajustes."
-                  tone="slate"
+                  tone="muted"
                 />
                 <QuickAction
                   href="/payment-methods"
                   icon={CreditCard}
                   title="Métodos de pago"
                   description="Medios de pago de la sucursal."
-                  tone="slate"
+                  tone="muted"
                 />
                 <QuickAction
                   href="/bank-accounts"
                   icon={Wallet}
                   title="Billeteras digitales"
                   description="Cuentas y billeteras vinculadas."
-                  tone="slate"
+                  tone="muted"
                 />
                 <QuickAction
                   href="/reconciliations"
                   icon={ArrowRight}
                   title="Conciliaciones"
                   description="Cuadre de pagos y cuentas."
-                  tone="slate"
+                  tone="muted"
                 />
               </div>
             </section>
           </>
         )}
       </div>
-    </div>
-  );
-}
-
-function StatCard({
-  label,
-  value,
-  icon: Icon,
-  sub,
-  tone = "slate",
-}: {
-  label: string;
-  value: string | number;
-  icon: React.ComponentType<{ className?: string }>;
-  sub: string;
-  tone?: "emerald" | "rose" | "teal" | "slate";
-}) {
-  const toneStyles = {
-    emerald: "from-emerald-50/60 via-white/90 to-white/90",
-    rose: "from-rose-50/60 via-white/90 to-white/90",
-    teal: "from-primary/5 via-white/90 to-white/90",
-    slate: "from-muted/50 via-white/90 to-white/90",
-  };
-  const toneText = {
-    emerald: "text-emerald-700/90",
-    rose: "text-rose-700/90",
-    teal: "text-primary/80",
-    slate: "text-muted-foreground",
-  };
-  const toneIcon = {
-    emerald: "bg-emerald-500/12 text-emerald-600",
-    rose: "bg-rose-500/12 text-rose-600",
-    teal: "bg-primary/10 text-primary",
-    slate: "bg-muted text-muted-foreground",
-  };
-
-  return (
-    <div className={`rounded-2xl border border-border/60 bg-gradient-to-br p-4 shadow-sm ${toneStyles[tone]}`}>
-      <div className="mb-2 flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <span className={`block text-[11px] font-medium uppercase tracking-wider ${toneText[tone]}`}>
-            {label}
-          </span>
-          <p className="mt-1 break-words text-base font-bold tabular-nums tracking-tight text-foreground sm:text-lg lg:text-xl">{value}</p>
-        </div>
-        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${toneIcon[tone]}`}>
-          <Icon className="h-4 w-4" />
-        </div>
-      </div>
-      <p className="text-[11px] text-muted-foreground">{sub}</p>
-    </div>
-  );
-}
-
-function StatSkeleton() {
-  return (
-    <div className="rounded-2xl border border-border/60 bg-background p-4 shadow-sm">
-      <div className="mb-2 flex items-start justify-between gap-2">
-        <div className="min-w-0 space-y-2">
-          <Skeleton className="h-3 w-24" />
-          <Skeleton className="h-7 w-32" />
-        </div>
-        <Skeleton className="h-8 w-8 rounded-full" />
-      </div>
-      <Skeleton className="h-3 w-20" />
     </div>
   );
 }
@@ -557,19 +485,19 @@ function QuickAction({
   icon: Icon,
   title,
   description,
-  tone = "slate",
+  tone = "muted",
 }: {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   title: string;
   description: string;
-  tone?: "emerald" | "rose" | "teal" | "slate";
+  tone?: "success" | "danger" | "primary" | "muted";
 }) {
   const toneIcon = {
-    emerald: "bg-emerald-500/10 text-emerald-600",
-    rose: "bg-rose-500/10 text-rose-600",
-    teal: "bg-primary/10 text-primary",
-    slate: "bg-muted text-muted-foreground",
+    success: "bg-success/10 text-success",
+    danger: "bg-danger/10 text-danger",
+    primary: "bg-primary/10 text-primary",
+    muted: "bg-muted text-muted-foreground",
   };
   return (
     <Link

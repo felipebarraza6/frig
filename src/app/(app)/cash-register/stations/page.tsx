@@ -13,6 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/page-header";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import { cn } from "@/lib/utils";
 import {
@@ -144,36 +145,35 @@ export default function CashRegisterStationsPage() {
     (updateMutation.error instanceof Error ? updateMutation.error.message : null);
 
   return (
-    <div className="flex min-h-full flex-col">
-      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
-        <div>
-          <h1 className="text-lg font-semibold">Estaciones de caja / POS</h1>
-          <p className="text-xs text-muted-foreground">
-            {branch ? `Sucursal: ${branch.business_name}` : "Crea y gestiona los puntos de venta físicos"}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            size="icon"
-            onClick={() => openModal()}
-            className="sm:hidden"
-            title="Nueva estación"
-            aria-label="Nueva estación"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => openModal()}
-            className="hidden sm:flex"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Nueva estación
-          </Button>
-        </div>
-      </header>
+    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+      <PageHeader
+        title="Estaciones de caja / POS"
+        icon={<Monitor className="h-5 w-5" />}
+        subtitle={branch ? `Sucursal: ${branch.business_name}` : "Crea y gestiona los puntos de venta físicos"}
+        actions={
+          <>
+            <Button
+              size="icon"
+              onClick={() => openModal()}
+              className="sm:hidden"
+              title="Nueva estación"
+              aria-label="Nueva estación"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => openModal()}
+              className="hidden sm:flex"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Nueva estación
+            </Button>
+          </>
+        }
+      />
 
-      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
+      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
         <div className="relative max-w-sm">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -256,8 +256,8 @@ export default function CashRegisterStationsPage() {
                           className={cn(
                             "inline-flex rounded px-2 py-0.5 text-xs font-medium",
                             station.is_active
-                              ? "bg-emerald-500/10 text-emerald-700"
-                              : "bg-rose-500/10 text-rose-700",
+                              ? "bg-success/10 text-success"
+                              : "bg-danger/10 text-danger",
                           )}
                         >
                           {station.is_active ? "Activa" : "Inactiva"}
@@ -301,8 +301,8 @@ export default function CashRegisterStationsPage() {
                         className={cn(
                           "mt-1 inline-flex rounded px-2 py-0.5 text-[10px] font-medium",
                           station.is_active
-                            ? "bg-emerald-500/10 text-emerald-700"
-                            : "bg-rose-500/10 text-rose-700",
+                            ? "bg-success/10 text-success"
+                            : "bg-danger/10 text-danger",
                         )}
                       >
                         {station.is_active ? "Activa" : "Inactiva"}

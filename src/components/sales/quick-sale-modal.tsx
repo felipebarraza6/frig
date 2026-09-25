@@ -43,6 +43,7 @@ import { useCurrentBranch, useCanViewTables, useIsModuleEnabledFromConfig } from
 import { usePosConfig } from "@/lib/store/pos-config";
 import { useToast } from "@/lib/store/toast";
 import { formatCLP, cn } from "@/lib/utils";
+import { isValidRUT, isPositiveAmount, isNonNegativeNumber } from "@/lib/validation";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 type Product = ProductForSale;
@@ -510,6 +511,24 @@ export default function QuickSaleModal({
     setError(null);
     if (items.length === 0) {
       setError("Agrega al menos un producto.");
+      return;
+    }
+    if (items.some((i) => !isPositiveAmount(i.quantity))) {
+      setError("Todas las cantidades deben ser mayores a 0.");
+      return;
+    }
+    if (items.some((i) => !isNonNegativeNumber(i.unitPrice))) {
+      setError("Los precios unitarios no pueden ser negativos.");
+      return;
+    }
+    const newClientName = createClientData.name.trim();
+    const newClientDni = createClientData.dni.trim();
+    if (showCreateClient && newClientName && newClientDni && !isValidRUT(newClientDni)) {
+      setError("El RUT del cliente no es válido.");
+      return;
+    }
+    if (chargeNow && payments.some((p) => !isPositiveAmount(parseInt(p.amount || "0", 10)))) {
+      setError("Todos los montos de pago deben ser mayores a 0.");
       return;
     }
     const hasClient = Boolean(selectedClient || createClientData.name.trim());

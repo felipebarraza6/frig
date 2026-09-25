@@ -11,6 +11,8 @@ export const ROLE_LABELS: Record<string, string> = {
   MESERO: "Mesero",
   REPARTIDOR: "Repartidor",
   COURIER: "Repartidor",
+  COCINERO: "Cocinero",
+  COOK: "Cocinero",
 };
 
 export function getRoleLabel(code?: string | null): string | undefined {
@@ -32,6 +34,7 @@ const FRIG_ROLE_CATALOG: { codes: string[]; label: string; module: string | null
   { codes: ["EMPLOYEE", "EMPLEADO"], label: "Empleado", module: null },
   { codes: ["CAJERO"], label: "Cajero", module: "pos" },
   { codes: ["WAITER", "MESERO"], label: "Mesero", module: "tables" },
+  { codes: ["COCINERO", "COOK"], label: "Cocinero", module: "production" },
   { codes: ["REPARTIDOR", "COURIER"], label: "Repartidor", module: "deliveries" },
 ];
 

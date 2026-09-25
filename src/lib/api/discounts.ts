@@ -131,17 +131,77 @@ export type DiscountFormPayload = {
   is_first_time_only?: boolean;
 };
 
+export type DiscountsListFilter = {
+  status?: string;
+  discount_type?: string;
+  name__icontains?: string;
+  code__icontains?: string;
+  branch?: number | string;
+  page?: number;
+  page_size?: number;
+};
+
 type PaginatedPromotionDiscountList = YggdraSchemas["PaginatedPromotionDiscountListList"];
 
-export async function fetchDiscounts(status?: string): Promise<PromotionDiscountList[]> {
-  const qs = status ? `?status=${encodeURIComponent(status)}` : "";
-  const data = await apiFetch<PaginatedPromotionDiscountList>(`/promotions/discounts/${qs}`);
-  return data.results;
+/** Yggdra crashea con TypeError si recibe maximum_discount: null; omitir opcionales vacíos. */
+export function sanitizeDiscountPayload(
+  payload: Partial<DiscountFormPayload>,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(payload)) {
+    if (value === null || value === undefined) continue;
+    if (typeof value === "string" && value.trim() === "" && key !== "name" && key !== "code") {
+      continue;
+    }
+    out[key] = value;
+  }
+  return out;
 }
 
-export async function fetchAllDiscounts(): Promise<PromotionDiscountList[]> {
-  const data = await apiFetch<PaginatedPromotionDiscountList>("/promotions/discounts/");
-  return data.results;
+function buildDiscountsQuery(filters: DiscountsListFilter = {}): string {
+  const qs = new URLSearchParams();
+  if (filters.status) qs.set("status", filters.status);
+  if (filters.discount_type) qs.set("discount_type", filters.discount_type);
+  if (filters.name__icontains) qs.set("name__icontains", filters.name__icontains);
+  if (filters.code__icontains) qs.set("code__icontains", filters.code__icontains);
+  if (filters.branch != null && filters.branch !== "") qs.set("branch", String(filters.branch));
+  if (filters.page) qs.set("page", String(filters.page));
+  if (filters.page_size) qs.set("page_size", String(filters.page_size));
+  const s = qs.toString();
+  return s ? `?${s}` : "";
+}
+
+export async function fetchDiscounts(
+  statusOrFilter?: string | DiscountsListFilter,
+): Promise<PromotionDiscountList[]> {
+  const filters: DiscountsListFilter =
+    typeof statusOrFilter === "string"
+      ? { status: statusOrFilter }
+      : statusOrFilter ?? {};
+  const data = await apiFetch<PaginatedPromotionDiscountList>(
+    `/promotions/discounts/${buildDiscountsQuery(filters)}`,
+  );
+  return data.results ?? [];
+}
+
+/** Trae todas las páginas (PAGE_SIZE default del back = 10). */
+export async function fetchAllDiscounts(
+  filters: DiscountsListFilter = {},
+): Promise<PromotionDiscountList[]> {
+  const all: PromotionDiscountList[] = [];
+  const first = await apiFetch<PaginatedPromotionDiscountList>(
+    `/promotions/discounts/${buildDiscountsQuery({ ...filters, page_size: filters.page_size ?? 100 })}`,
+  );
+  all.push(...(first.results ?? []));
+  let nextUrl = first.next ?? null;
+  let guard = 0;
+  while (nextUrl && guard < 50) {
+    const page = await apiFetch<PaginatedPromotionDiscountList>(nextUrl);
+    all.push(...(page.results ?? []));
+    nextUrl = page.next ?? null;
+    guard += 1;
+  }
+  return all;
 }
 
 export async function fetchDiscount(id: string): Promise<PromotionDiscount> {
@@ -156,8 +216,11 @@ export async function fetchAvailableDiscounts(
   if (orderTotal !== undefined) qs.set("order_total", orderTotal.toFixed(2));
   if (branchId) qs.set("branch_id", String(branchId));
   const params = qs.toString() ? `?${qs.toString()}` : "";
-  const data = await apiFetch<{ results: PromotionDiscountList[] }>(`/promotions/discounts/available/${params}`);
-  return data.results;
+  const data = await apiFetch<PromotionDiscountList[] | { results: PromotionDiscountList[] }>(
+    `/promotions/discounts/available/${params}`,
+  );
+  if (Array.isArray(data)) return data;
+  return data.results ?? [];
 }
 
 export interface ValidatedDiscount {
@@ -168,9 +231,9 @@ export interface ValidatedDiscount {
     code: string;
     discount_type: string;
     apply_to: string;
-    discount_value: string;
-    minimum_amount: string;
-    maximum_discount?: string | null;
+    discount_value: string | number;
+    minimum_amount?: string | number;
+    maximum_discount?: string | number | null;
     products?: number[];
     categories?: number[];
     description?: string | null;
@@ -192,12 +255,19 @@ export async function validateDiscountCode(
   });
 }
 
+export type ApplyDiscountResult = PromotionDiscountApplication & {
+  final_amount?: string | number;
+  discount_amount?: string | number;
+  original_amount?: string | number;
+  message?: string;
+};
+
 export async function applyDiscountToOrder(
   orderId: string,
   code: string,
   branchId?: number | string | null,
-): Promise<PromotionDiscountApplication> {
-  return apiFetch<PromotionDiscountApplication>("/promotions/discounts/apply_discount/", {
+): Promise<ApplyDiscountResult> {
+  return apiFetch<ApplyDiscountResult>("/promotions/discounts/apply_discount/", {
     method: "POST",
     body: {
       order_id: orderId,
@@ -210,7 +280,7 @@ export async function applyDiscountToOrder(
 export async function createDiscount(payload: DiscountFormPayload): Promise<PromotionDiscount> {
   return apiFetch<PromotionDiscount>("/promotions/discounts/", {
     method: "POST",
-    body: payload,
+    body: sanitizeDiscountPayload(payload),
   });
 }
 
@@ -220,7 +290,7 @@ export async function updateDiscount(
 ): Promise<PromotionDiscount> {
   return apiFetch<PromotionDiscount>(`/promotions/discounts/${id}/`, {
     method: "PATCH",
-    body: payload,
+    body: sanitizeDiscountPayload(payload),
   });
 }
 
@@ -303,4 +373,38 @@ export async function fetchDiscountDetailReport(
   id: string,
 ): Promise<DiscountDetailReport> {
   return apiFetch<DiscountDetailReport>(`/promotions/discounts/${id}/detail-report/`);
+}
+
+export type DiscountUsageListFilter = {
+  order?: string;
+  discount?: string;
+  user?: number;
+  page_size?: number;
+};
+
+/** GET /promotions/discount-usage/?order=<uuid> — usos de cupón ligados a una orden. */
+export async function fetchDiscountUsages(
+  filters: DiscountUsageListFilter = {},
+): Promise<PromotionDiscountUsage[]> {
+  const qs = new URLSearchParams();
+  if (filters.order) qs.set("order", filters.order);
+  if (filters.discount) qs.set("discount", filters.discount);
+  if (filters.user != null) qs.set("user", String(filters.user));
+  qs.set("page_size", String(filters.page_size ?? 50));
+  const params = qs.toString() ? `?${qs.toString()}` : "";
+  const data = await apiFetch<PaginatedPromotionDiscountUsageList>(
+    `/promotions/discount-usage/${params}`,
+  );
+  return data.results ?? [];
+}
+
+/** Normaliza is_expired / is_active que el schema tipa como string pero el live envía boolean. */
+export function discountFlagTrue(value: unknown): boolean {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
+  if (typeof value === "string") {
+    const v = value.trim().toLowerCase();
+    return v === "true" || v === "1" || v === "yes";
+  }
+  return Boolean(value);
 }

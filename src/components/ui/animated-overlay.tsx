@@ -1,9 +1,17 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, m, LazyMotion, domAnimation } from "framer-motion";
 import { cn } from "@/lib/utils";
+
+function getFocusable(container: HTMLElement): HTMLElement[] {
+  return Array.from(
+    container.querySelectorAll<HTMLElement>(
+      'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])',
+    ),
+  );
+}
 
 interface AnimatedOverlayProps {
   open: boolean;
@@ -46,6 +54,8 @@ export function AnimatedOverlay({
   const [portalRoot] = useState<HTMLElement | null>(() =>
     typeof window !== "undefined" ? getPortalRoot("animated-overlay-root") : null
   );
+  const panelRef = useRef<HTMLDivElement>(null);
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
 
   // Escape key
   useEffect(() => {
@@ -56,6 +66,50 @@ export function AnimatedOverlay({
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, [open, onClose]);
+
+  // Foco inicial al abrir + restauración al cerrar
+  useEffect(() => {
+    if (!open) return;
+    restoreFocusRef.current = document.activeElement as HTMLElement | null;
+    const panel = panelRef.current;
+    if (!panel) return;
+    const first = getFocusable(panel)[0];
+    if (first) {
+      first.focus();
+    } else {
+      panel.setAttribute("tabindex", "-1");
+      panel.focus();
+    }
+    return () => {
+      const el = restoreFocusRef.current;
+      restoreFocusRef.current = null;
+      if (el && document.contains(el)) el.focus();
+    };
+  }, [open]);
+
+  // Focus trap: Tab / Shift+Tab ciclan dentro del panel
+  const handlePanelKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "Tab") return;
+    const panel = panelRef.current;
+    if (!panel) return;
+    const focusables = getFocusable(panel);
+    if (focusables.length === 0) {
+      e.preventDefault();
+      return;
+    }
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    const active = document.activeElement;
+    if (e.shiftKey) {
+      if (active === first || !panel.contains(active)) {
+        e.preventDefault();
+        last.focus();
+      }
+    } else if (active === last || !panel.contains(active)) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
 
   // Scroll lock
   useEffect(() => {
@@ -96,6 +150,8 @@ export function AnimatedOverlay({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 16 }}
               transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              ref={panelRef}
+              onKeyDown={handlePanelKeyDown}
               className={cn(
                 "relative z-10 h-full",
                 panelClassName?.includes("items-end") && "pb-[env(safe-area-inset-bottom)]",

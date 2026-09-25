@@ -23,7 +23,11 @@ export const statusBadge = (status?: string | null): string => {
     case "DELIVERED":
     case "DONE":
     case "OPEN":
+    case "IN_STOCK":
       return "bg-success/10 text-success border-success/20";
+
+    case "NEEDS_REORDER":
+      return "bg-warning/10 text-warning border-warning/20";
 
     case "OCCUPIED":
     case "INACTIVE":
@@ -35,6 +39,7 @@ export const statusBadge = (status?: string | null): string => {
     case "REFUNDED":
     case "RETURNED":
     case "CLOSED":
+    case "OUT_OF_STOCK":
       return "bg-danger/10 text-danger border-danger/20";
 
     case "RESERVED":
@@ -72,6 +77,7 @@ export const statusChip = (status?: string | null): string => {
     case "DELIVERED":
     case "DONE":
     case "OPEN":
+    case "IN_STOCK":
       return "bg-success text-success-foreground";
     case "OCCUPIED":
     case "INACTIVE":
@@ -83,6 +89,7 @@ export const statusChip = (status?: string | null): string => {
     case "REFUNDED":
     case "RETURNED":
     case "CLOSED":
+    case "OUT_OF_STOCK":
       return "bg-danger text-white";
     case "RESERVED":
     case "CLEANING":
@@ -94,6 +101,7 @@ export const statusChip = (status?: string | null): string => {
     case "DRAFT":
     case "MAINTENANCE":
     case "LOW_STOCK":
+    case "NEEDS_REORDER":
       return "bg-warning text-white";
     case "OUT_OF_SERVICE":
     default:
@@ -115,6 +123,7 @@ export const statusDot = (status?: string | null): string => {
     case "DELIVERED":
     case "DONE":
     case "OPEN":
+    case "IN_STOCK":
       return "bg-success";
     case "OCCUPIED":
     case "INACTIVE":
@@ -126,6 +135,7 @@ export const statusDot = (status?: string | null): string => {
     case "REFUNDED":
     case "RETURNED":
     case "CLOSED":
+    case "OUT_OF_STOCK":
       return "bg-danger";
     case "RESERVED":
     case "CLEANING":
@@ -137,6 +147,7 @@ export const statusDot = (status?: string | null): string => {
     case "DRAFT":
     case "MAINTENANCE":
     case "LOW_STOCK":
+    case "NEEDS_REORDER":
       return "bg-warning";
     default:
       return "bg-muted-foreground/40";

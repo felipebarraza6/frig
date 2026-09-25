@@ -21,6 +21,7 @@ import {
   FileText,
   Package,
   Lock,
+  ArrowDownLeft,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -55,7 +56,9 @@ import {
   paymentStatusLabel,
 } from "@/lib/utils";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton, StatCardSkeleton, MobileCardsSkeleton, TableSkeleton } from "@/components/ui/skeleton";
+import { StatCard as SharedStatCard } from "@/components/ui/stat-card";
+import { PageHeader } from "@/components/page-header";
 import { ActionsMenu } from "@/components/ui/actions-menu";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 
@@ -739,58 +742,57 @@ export default function RevenuesPage() {
   }
 
   return (
-    <div className="flex min-h-full flex-col">
-      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
-        <div>
-          <h1 className="text-lg font-semibold">Ingresos</h1>
-          <p className="text-xs text-muted-foreground">
-            Ventas, servicios y otros ingresos
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExportExcel}
-            isLoading={isDownloading}
-            className="h-9 w-9 px-0 sm:w-auto sm:px-3"
-            title="Exportar Excel"
-          >
-            <FileDown className="h-4 w-4" />
-            <span className="hidden sm:inline">Exportar Excel</span>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={openCategoryModal}
-            className="h-9 w-9 px-0 sm:w-auto sm:px-3"
-            title="Categorías"
-            aria-label="Categorías"
-          >
-            <Tags className="h-4 w-4" />
-            <span className="hidden sm:inline">Categorías</span>
-          </Button>
-          <Button
-            size="icon"
-            onClick={() => openModal()}
-            className="sm:hidden"
-            title="Nuevo ingreso"
-            aria-label="Nuevo ingreso"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => openModal()}
-            className="hidden sm:flex"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo ingreso
-          </Button>
-        </div>
-      </header>
+    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+      <PageHeader
+        title="Ingresos"
+        icon={<ArrowDownLeft className="h-5 w-5" />}
+        subtitle="Ventas, servicios y otros ingresos"
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportExcel}
+              isLoading={isDownloading}
+              className="h-9 w-9 px-0 sm:w-auto sm:px-3"
+              title="Exportar Excel"
+            >
+              <FileDown className="h-4 w-4" />
+              <span className="hidden sm:inline">Exportar Excel</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={openCategoryModal}
+              className="h-9 w-9 px-0 sm:w-auto sm:px-3"
+              title="Categorías"
+              aria-label="Categorías"
+            >
+              <Tags className="h-4 w-4" />
+              <span className="hidden sm:inline">Categorías</span>
+            </Button>
+            <Button
+              size="icon"
+              onClick={() => openModal()}
+              className="sm:hidden"
+              title="Nuevo ingreso"
+              aria-label="Nuevo ingreso"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => openModal()}
+              className="hidden sm:flex"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo ingreso
+            </Button>
+          </>
+        }
+      />
 
-      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
+      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
         <div className="flex flex-col gap-3">
           {/* Desktop filters */}
           <div className="hidden flex-nowrap items-end gap-2 md:flex">
@@ -981,35 +983,35 @@ export default function RevenuesPage() {
         <section className="grid gap-3 grid-cols-2 lg:grid-cols-4">
           {isLoadingPage ? (
             <>
-              <StatSkeleton />
-              <StatSkeleton />
-              <StatSkeleton />
-              <StatSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
             </>
           ) : (
             <>
-              <StatCard
+              <SharedStatCard
                 label="Total ingresos"
                 value={formatCLP(stats.total)}
                 icon={DollarSign}
                 sub={`${totalRevenues} registros efectivos`}
                 tone="success"
               />
-              <StatCard
+              <SharedStatCard
                 label="Recibidos"
                 value={formatCLP(stats.received)}
                 icon={TrendingUp}
                 sub="ingresos pagados"
-                tone="info"
+                tone="primary"
               />
-              <StatCard
+              <SharedStatCard
                 label="Proyectado"
                 value={formatCLP(stats.projected)}
                 icon={Clock}
                 sub="por cobrar · se paga desde Pagos"
                 tone="warning"
               />
-              <StatCard
+              <SharedStatCard
                 label="Atrasado"
                 value={formatCLP(stats.overdue)}
                 icon={AlertCircle}
@@ -1038,7 +1040,7 @@ export default function RevenuesPage() {
           </div>
         ) : isLoadingPage ? (
           <div className="flex flex-col gap-3">
-            <TableSkeleton />
+            <TableSkeleton rows={5} columns={7} />
             <MobileCardsSkeleton />
             <div className="flex justify-end">
               <Skeleton className="h-9 w-40" />
@@ -2063,89 +2065,3 @@ function StatCard({
   );
 }
 
-function StatSkeleton() {
-  return (
-    <div className="rounded-2xl border border-border/60 bg-background p-4 shadow-sm">
-      <div className="mb-2 flex items-start justify-between gap-2">
-        <div className="min-w-0 space-y-2">
-          <Skeleton className="h-3 w-24" />
-          <Skeleton className="h-7 w-32" />
-        </div>
-        <Skeleton className="h-8 w-8 rounded-full" />
-      </div>
-      <Skeleton className="h-3 w-20" />
-    </div>
-  );
-}
-
-function TableSkeleton() {
-  return (
-    <div className="hidden overflow-x-auto rounded-xl border border-border bg-card shadow-sm md:block">
-      <table className="w-full min-w-[900px] text-sm">
-        <thead>
-          <tr className="border-b border-border">
-            {Array.from({ length: 7 }).map((_, i) => (
-              <th key={i} className="px-4 py-3">
-                <Skeleton className="h-3.5 w-20" />
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {Array.from({ length: 5 }).map((_, row) => (
-            <tr key={row} className="border-b border-border last:border-0">
-              {Array.from({ length: 7 }).map((__, col) => (
-                <td key={col} className="px-4 py-3">
-                  <Skeleton className="h-4 w-full max-w-[80px]" />
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function MobileCardsSkeleton() {
-  return (
-    <div className="grid gap-3 md:hidden">
-      {Array.from({ length: 4 }).map((_, idx) => (
-        <div
-          key={idx}
-          className="rounded-2xl border border-border bg-background p-4 shadow-sm"
-        >
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="flex min-w-0 flex-1 items-start gap-3">
-              <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
-              <div className="min-w-0 flex-1 space-y-2">
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-3 w-1/2" />
-                <Skeleton className="h-5 w-16 rounded-full" />
-              </div>
-            </div>
-            <div className="shrink-0 space-y-1 text-right">
-              <Skeleton className="h-5 w-20" />
-              <Skeleton className="ml-auto h-3 w-16" />
-            </div>
-          </div>
-
-          <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-3">
-            {Array.from({ length: 4 }).map((__, i) => (
-              <div key={i} className="min-w-0 space-y-1">
-                <Skeleton className="h-3 w-16" />
-                <Skeleton className="h-4 w-full" />
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
-            {Array.from({ length: 4 }).map((__, i) => (
-              <Skeleton key={i} className="h-10 w-10 rounded-md" />
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}

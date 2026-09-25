@@ -18,7 +18,7 @@ export function useBranchRecipeMaps(enabled = true): BranchRecipeMaps {
 
   const { data: branchRecipes = [], isLoading: loadingRecipes } = useQuery({
     queryKey: ["recipes", "branch", branch?.branch_id],
-    queryFn: fetchBranchRecipes,
+    queryFn: () => fetchBranchRecipes(),
     enabled: !!branch?.branch_id && enabled,
     staleTime: 5 * 60_000,
   });
@@ -26,7 +26,7 @@ export function useBranchRecipeMaps(enabled = true): BranchRecipeMaps {
   const { data: branchRecipeIngredients = [], isLoading: loadingIngredients } =
     useQuery({
       queryKey: ["recipe-ingredients", "branch", branch?.branch_id],
-      queryFn: fetchBranchRecipeIngredients,
+      queryFn: () => fetchBranchRecipeIngredients(),
       enabled: !!branch?.branch_id && enabled,
       staleTime: 5 * 60_000,
     });

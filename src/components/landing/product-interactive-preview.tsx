@@ -6,6 +6,7 @@ import {
   Zap,
   HandCoins,
   ChefHat,
+  Monitor,
   LayoutGrid,
   Warehouse,
   CheckCircle2,
@@ -76,7 +77,7 @@ const SIDEBAR_GROUPS: {
     label: "Vender",
     tabs: [
       { key: "pos", label: "Punto de Venta (POS)", icon: HandCoins },
-      { key: "kds", label: "Cocina (KDS)", icon: ChefHat },
+      { key: "kds", label: "KDS", icon: Monitor },
       { key: "delivery", label: "Delivery y entrega", icon: LocateFixed },
       { key: "ventas", label: "Ventas & Cotizaciones", icon: ShoppingBag },
     ],

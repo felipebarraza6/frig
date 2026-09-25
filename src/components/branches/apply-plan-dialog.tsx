@@ -23,6 +23,22 @@ interface PlanOption {
   description?: string;
 }
 
+/**
+ * Fecha sugerida al renovar: 12 meses desde la expiración actual si aún está
+ * vigente (nunca acorta el plazo restante); si ya venció, 12 meses desde hoy.
+ * Sin fecha de expiración la suscripción queda indefinida (campo vacío).
+ */
+function suggestRenewalEndDate(iso?: string | null): string {
+  if (!iso) return "";
+  const current = new Date(iso);
+  if (Number.isNaN(current.getTime())) return "";
+  const base = current.getTime() > Date.now() ? current : new Date();
+  const d = new Date(base.getTime());
+  d.setFullYear(d.getFullYear() + 1);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 interface ApplyPlanDialogProps {
   branch: Branch;
   onClose: () => void;
@@ -39,13 +55,20 @@ interface ApplyPlanDialogProps {
 export function ApplyPlanDialog({ branch, onClose, onApplied }: ApplyPlanDialogProps) {
   const toast = useToast();
   const queryClient = useQueryClient();
-  const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null);
+  const currentPlanId = branch.plan != null ? Number(branch.plan) : null;
+  // Pre-seleccionados para renovar de inmediato: el plan actual y una fecha
+  // de término sugerida 12 meses hacia adelante (nunca en el pasado).
+  const [selectedPlanId, setSelectedPlanId] = useState<number | null>(
+    currentPlanId != null && !Number.isNaN(currentPlanId) ? currentPlanId : null,
+  );
   const [endDate, setEndDate] = useState<string>(
-    (branch.plan_expiration_date ?? "").slice(0, 10),
+    suggestRenewalEndDate(branch.plan_expiration_date),
   );
   const [confirmCancel, setConfirmCancel] = useState(false);
 
-  const currentPlanId = branch.plan != null ? Number(branch.plan) : null;
+  const isExpired = branch.plan_expiration_date
+    ? new Date(branch.plan_expiration_date) < new Date()
+    : false;
 
   const { data: plans = [], isLoading, isError } = useQuery({
     queryKey: ["module-plans"],
@@ -182,7 +205,13 @@ export function ApplyPlanDialog({ branch, onClose, onApplied }: ApplyPlanDialogP
               {currentPlanId != null ? (
                 confirmCancel ? (
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">¿Cancelar suscripción?</span>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-medium">¿Cancelar la suscripción?</span>
+                      <span className="max-w-52 text-[11px] text-muted-foreground">
+                        Se desactivan los módulos pagados y la sucursal pierde acceso a esas
+                        funciones.
+                      </span>
+                    </div>
                     <Button
                       variant="danger"
                       size="sm"
@@ -218,7 +247,11 @@ export function ApplyPlanDialog({ branch, onClose, onApplied }: ApplyPlanDialogP
                   disabled={!selectedPlanId}
                   isLoading={apply.isPending}
                 >
-                  {selectedPlanId === currentPlanId ? "Guardar" : "Aplicar plan"}
+                  {selectedPlanId !== currentPlanId
+                    ? "Aplicar plan"
+                    : isExpired
+                      ? "Renovar plan"
+                      : "Guardar"}
                 </Button>
               </div>
             </div>

@@ -39,10 +39,12 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/lib/store/toast";
+import { isPositiveAmount } from "@/lib/validation";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton, StatCardSkeleton, TableSkeleton, MobileCardsSkeleton } from "@/components/ui/skeleton";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
+import { PageHeader } from "@/components/page-header";
 import {
   fetchPayments,
   fetchPaymentsByDirection,
@@ -613,6 +615,7 @@ export default function PaymentsPage() {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       setCreateOpen(false);
     },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "No se pudo registrar el pago"),
   });
 
   // Editar pago (cambiar estado a completado, monto, método, referencia, notas)
@@ -623,6 +626,7 @@ export default function PaymentsPage() {
       queryClient.invalidateQueries({ queryKey: ["payments"] });
       setEditingPayment(null);
     },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "No se pudo actualizar el pago"),
   });
 
   // Download voucher handler (80mm térmico o A4 según formato)
@@ -705,15 +709,13 @@ export default function PaymentsPage() {
   };
 
   return (
-    <div className="flex min-h-full flex-col">
-      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
-        <div>
-          <h1 className="text-lg font-semibold">Pagos</h1>
-          <p className="text-xs text-muted-foreground">
-            Pagos unificados: ingresos, egresos y pagos a proveedores
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
+    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+      <PageHeader
+        title="Pagos"
+        icon={<Banknote className="h-5 w-5" />}
+        subtitle="Pagos unificados: ingresos, egresos y pagos a proveedores"
+        actions={
+          <>
           <Button
             variant="outline"
             size="sm"
@@ -730,8 +732,9 @@ export default function PaymentsPage() {
             <Plus className="mr-1.5 h-4 w-4" />
             Nuevo pago
           </Button>
-        </div>
-      </header>
+          </>
+        }
+      />
 
       <nav aria-label="Secciones de pagos" className="flex gap-1 border-b border-border bg-background px-4 sm:px-6">
         {([
@@ -757,12 +760,12 @@ export default function PaymentsPage() {
         </Link>
       </nav>
 
-      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
+      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
         {/* Stats cards */}
         <section className="grid gap-3 overflow-x-auto pb-1 [grid-template-columns:repeat(4,minmax(150px,1fr))] sm:grid-cols-2 lg:grid-cols-4">
           {view === "pendientes" ? (
             loadingPending ? (
-              <><StatSkeleton /><StatSkeleton /><StatSkeleton /><StatSkeleton /></>
+              <><StatCardSkeleton /><StatCardSkeleton /><StatCardSkeleton /><StatCardSkeleton /></>
             ) : (
               <>
                 <StatCard label="Ingresos pendientes" value={formatCLP(pendingStats.income)} icon={ArrowDownLeft} sub="por cobrar" tone="success" />
@@ -772,7 +775,7 @@ export default function PaymentsPage() {
               </>
             )
           ) : loadingDirectionSummary ? (
-            <><StatSkeleton /><StatSkeleton /><StatSkeleton /><StatSkeleton /></>
+            <><StatCardSkeleton /><StatCardSkeleton /><StatCardSkeleton /><StatCardSkeleton /></>
           ) : (
             <>
               <StatCard label="Ingresos" value={formatCLP(incomeTotal)} icon={ArrowDownLeft} sub="pagos recibidos" tone="success" />
@@ -791,7 +794,7 @@ export default function PaymentsPage() {
               <Button variant="outline" size="sm" onClick={() => refetchPending()}><RotateCcw className="mr-1.5 h-3.5 w-3.5" />Reintentar</Button>
             </div>
           ) : loadingPending ? (
-            <div className="flex flex-col gap-3"><TableSkeleton /><MobileCardsSkeleton /></div>
+            <div className="flex flex-col gap-3"><TableSkeleton rows={5} columns={7} /><MobileCardsSkeleton /></div>
           ) : (
             <>
               {/* Filters (cliente, sobre la lista unificada) */}
@@ -1074,7 +1077,7 @@ export default function PaymentsPage() {
             <Button variant="outline" size="sm" onClick={() => refetch()}><RotateCcw className="mr-1.5 h-3.5 w-3.5" />Reintentar</Button>
           </div>
         ) : isLoading ? (
-          <div className="flex flex-col gap-3"><TableSkeleton /><MobileCardsSkeleton /><div className="flex justify-end"><Skeleton className="h-9 w-40" /></div></div>
+          <div className="flex flex-col gap-3"><TableSkeleton rows={5} columns={7} /><MobileCardsSkeleton /><div className="flex justify-end"><Skeleton className="h-9 w-40" /></div></div>
         ) : filteredPayments.length === 0 ? (
           <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-border p-8 text-center">
             <div>
@@ -1417,6 +1420,7 @@ function CreatePaymentModal({ open, onClose, paymentMethods, orders, revenues, p
     ? allPendingEntities.find((e) => e.key === initialEntityKey)
     : undefined;
 
+  const toast = useToast();
   const [entityType, setEntityType] = useState<"revenue" | "expense">(
     initialEntity && !isIncomeEntity(initialEntity.kind) ? "expense" : "revenue",
   );
@@ -1490,6 +1494,10 @@ function CreatePaymentModal({ open, onClose, paymentMethods, orders, revenues, p
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedEntity || !paymentMethodId || !amount) return;
+    if (!isPositiveAmount(Number(amount))) {
+      toast.error("Ingresa un monto mayor a cero");
+      return;
+    }
     // Orden con crédito: se paga la cuota seleccionada, no la orden completa.
     if (selectedEntity.kind === "order" && orderHasInstallments) {
       if (!installmentId) return;
@@ -2126,7 +2134,21 @@ function PaymentOrderSection({ orderId, paymentId }: { orderId: string; paymentI
                       </p>
                     )}
                     {isPaying && (
-                      <div className="mt-2 grid gap-2 rounded-lg bg-background p-3">
+                      <form
+                        className="mt-2 grid gap-2 rounded-lg bg-background p-3"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          payCuotaMut.mutate({
+                            installmentId: inst.id,
+                            input: {
+                              payment_method_id: cuotaMethodId,
+                              amount: Number(Number(cuotaAmount).toFixed(2)),
+                              reference: cuotaReference || null,
+                              notes: cuotaNotes || null,
+                            },
+                          });
+                        }}
+                      >
                         <Select value={cuotaMethodId} onChange={(e) => setCuotaMethodId(e.target.value)} aria-label="Método de pago de la cuota">
                           <option value="">Método de pago…</option>
                           {activeMethods.map((m) => (<option key={m.id} value={m.id}>{m.name}</option>))}
@@ -2137,19 +2159,10 @@ function PaymentOrderSection({ orderId, paymentId }: { orderId: string; paymentI
                         <div className="flex items-center justify-end gap-2">
                           <Button type="button" variant="ghost" size="sm" onClick={() => setPayingCuotaId(null)} disabled={payCuotaMut.isPending}>Cancelar</Button>
                           <Button
-                            type="button"
+                            type="submit"
                             size="sm"
                             isLoading={payCuotaMut.isPending}
                             disabled={!cuotaMethodId || !cuotaAmount}
-                            onClick={() => payCuotaMut.mutate({
-                              installmentId: inst.id,
-                              input: {
-                                payment_method_id: cuotaMethodId,
-                                amount: Number(cuotaAmount).toFixed(2),
-                                reference: cuotaReference || null,
-                                notes: cuotaNotes || null,
-                              },
-                            })}
                           >
                             <Check className="mr-1 h-3.5 w-3.5" />Confirmar pago
                           </Button>
@@ -2157,7 +2170,7 @@ function PaymentOrderSection({ orderId, paymentId }: { orderId: string; paymentI
                         {payCuotaMut.isError && (
                           <p className="text-xs text-danger">{payCuotaMut.error instanceof Error ? payCuotaMut.error.message : "Error al pagar la cuota"}</p>
                         )}
-                      </div>
+                      </form>
                     )}
                   </li>
                 );
@@ -2240,14 +2253,3 @@ function StatCard({ label, value, icon: Icon, sub, tone = "slate" }: {
   );
 }
 
-function StatSkeleton() {
-  return (<div className="rounded-2xl border border-border/60 bg-background p-4 shadow-sm"><div className="mb-2 flex items-start justify-between gap-2"><div className="min-w-0 space-y-2"><Skeleton className="h-3 w-24" /><Skeleton className="h-7 w-32" /></div><Skeleton className="h-8 w-8 rounded-full" /></div><Skeleton className="h-3 w-20" /></div>);
-}
-
-function TableSkeleton() {
-  return (<div className="hidden overflow-x-auto rounded-2xl border border-border bg-card shadow-sm md:block"><table className="w-full min-w-[900px] text-sm"><thead><tr className="border-b border-border">{Array.from({ length: 7 }).map((_, i) => (<th key={i} className="px-4 py-3"><Skeleton className="h-3.5 w-20" /></th>))}</tr></thead><tbody>{Array.from({ length: 5 }).map((_, row) => (<tr key={row} className="border-b border-border last:border-0">{Array.from({ length: 7 }).map((__, col) => (<td key={col} className="px-4 py-3"><Skeleton className="h-4 w-full max-w-[80px]" /></td>))}</tr>))}</tbody></table></div>);
-}
-
-function MobileCardsSkeleton() {
-  return (<div className="grid gap-3 md:hidden">{Array.from({ length: 4 }).map((_, idx) => (<div key={idx} className="rounded-2xl border border-border bg-background p-4 shadow-sm"><div className="flex items-start gap-3"><Skeleton className="h-10 w-10 shrink-0 rounded-full" /><div className="min-w-0 flex-1"><div className="flex flex-wrap items-start justify-between gap-2"><div className="min-w-0 flex-1 space-y-2"><Skeleton className="h-4 w-3/4" /><Skeleton className="h-3 w-1/2" /></div><Skeleton className="h-5 w-20 shrink-0" /></div><div className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-3">{Array.from({ length: 4 }).map((__, i) => (<div key={i} className="min-w-0 space-y-1"><Skeleton className="h-3 w-16" /><Skeleton className="h-4 w-full" /></div>))}</div></div></div></div>))}</div>);
-}

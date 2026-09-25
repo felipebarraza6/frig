@@ -8,8 +8,10 @@ import {
   useSessionStore,
   useIsCashier,
   useIsWaiter,
+  useIsCook,
   useCashierAllowedPaths,
   useWaiterAllowedPaths,
+  useCookAllowedPaths,
   useBranchModulesState,
   useIsSuperAdmin,
 } from "@/lib/store/session";
@@ -27,13 +29,17 @@ import { HeroPlexus } from "@/components/landing/hero-plexus";
 import { enabledModuleSet, firstEnabledAllowedPath } from "@/lib/modules";
 import { SUPERADMIN_ALLOWED_PATHS as SUPERADMIN_MENU_PATHS } from "@/lib/hooks/useFrigMenu";
 
-const HIDDEN_SIDEBAR_PATHS = ["/pos/terminal", "/kds/terminal", "/kds/monitor"];
+const HIDDEN_SIDEBAR_PATHS = ["/pos/terminal", "/kds/terminal", "/kds/monitor", "/tables/map/full"];
 
 /**
  * Rutas operativas donde la capa cósmica NO se renderiza: en caja la
  * experiencia es densa y la animación en los huecos del layout estorba.
  */
-const NO_COSMOS_PATHS = ["/cash-register", "/pos/terminal", "/kds/terminal", "/kds/monitor"];
+/**
+ * Rutas sin capa cósmica (HeroPlexus): terminales densas donde la animación
+ * estorba. Caja sí la mantiene — forma parte de la atmósfera del módulo.
+ */
+const NO_COSMOS_PATHS = ["/pos/terminal", "/kds/terminal", "/kds/monitor"];
 
 /**
  * Rutas permitidas para el super admin (menú + rutas neutrales como profile/dashboard).
@@ -60,9 +66,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const currentBranchId = useSessionStore((s) => s.currentBranchId);
   const isCashier = useIsCashier();
   const isWaiter = useIsWaiter();
+  const isCook = useIsCook();
   const isSuperAdmin = useIsSuperAdmin();
   const cashierAllowedPaths = useCashierAllowedPaths();
   const waiterAllowedPaths = useWaiterAllowedPaths();
+  const cookAllowedPaths = useCookAllowedPaths();
   const sessionModules = useBranchModulesState();
   const enabledModules = useMemo(
     () => enabledModuleSet(sessionModules),
@@ -86,19 +94,44 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   // IMPORTANTE: la dependencia usa `user?.id` (primitivo), no `user` (objeto).
   // `setFrontendConfig` reemplaza `user` con una referencia nueva en cada
   // respuesta; depender del objeto re-disparaba este efecto en un loop infinito
-  // de GET /frontend-config. El ref además limita el refresco a una vez por
-  // sucursal en cada sesión de navegación.
+  // de GET /frontend-config. El ref solo se marca tras éxito: un 5xx no debe
+  // dejar la app con módulos stale sin posibilidad de reintento.
   const refreshedBranchRef = useRef<string | null>(null);
   const userId = user?.id;
   useEffect(() => {
     if (!hasHydrated || !userId || !currentBranchId) return;
     if (refreshedBranchRef.current === currentBranchId) return;
-    refreshedBranchRef.current = currentBranchId;
-    fetchFrontendConfig(Number(currentBranchId))
-      .then((config) => setFrontendConfig(config, String(currentBranchId)))
+    const branchIdNum = Number(currentBranchId);
+    if (!Number.isFinite(branchIdNum) || branchIdNum <= 0) {
+      console.warn("[layout] frontend-config: branch_id inválido:", currentBranchId);
+      return;
+    }
+    let cancelled = false;
+    fetchFrontendConfig(branchIdNum)
+      .then((config) => {
+        if (cancelled) return;
+        refreshedBranchRef.current = currentBranchId;
+        setFrontendConfig(config, String(currentBranchId));
+      })
       .catch((err) => {
-        console.error("[layout] failed to refresh frontend-config:", err);
+        if (cancelled) return;
+        const status =
+          err && typeof err === "object" && "status" in err
+            ? (err as { status?: number }).status
+            : undefined;
+        const detail =
+          err && typeof err === "object" && "detail" in err
+            ? (err as { detail?: unknown }).detail
+            : undefined;
+        console.error(
+          "[layout] failed to refresh frontend-config:",
+          status ? `HTTP ${status}` : err,
+          detail ?? "",
+        );
       });
+    return () => {
+      cancelled = true;
+    };
   }, [hasHydrated, userId, currentBranchId, setFrontendConfig]);
 
   useEffect(() => {
@@ -139,6 +172,13 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       return;
     }
 
+    if (isCook && !isAllowed(pathname, cookAllowedPaths)) {
+      const target =
+        firstEnabledAllowedPath(cookAllowedPaths, enabledModules) ?? "/profile";
+      router.replace(target);
+      return;
+    }
+
     // Superadmin: solo administra organizaciones/sucursales, no opera.
     // Si intenta acceder a una ruta operativa, redirigir a /organization.
     if (isSuperAdmin && !SUPERADMIN_ALLOWED_PATHS.has(pathname)) {
@@ -163,6 +203,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Cocinero: si production/KDS está apagado, fuera del hub; si no, se queda en /kds.
+    if (isCook && pathname.startsWith("/kds") && !enabledModules.has("production")) {
+      router.replace("/profile");
+      return;
+    }
+
     // Rutas no operativas: si el módulo de la ruta está deshabilitado,
     // redirigir a /dashboard (always-on y siempre disponible para admins).
     // Para roles operativos este chequeo ya pasó arriba; no llega acá.
@@ -177,9 +223,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     router,
     isCashier,
     isWaiter,
+    isCook,
     isSuperAdmin,
     cashierAllowedPaths,
     waiterAllowedPaths,
+    cookAllowedPaths,
     isRouteModuleEnabled,
     enabledModules,
     branches,
@@ -216,7 +264,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       <div className="flex min-h-full">
         {/* Capa cósmica de fondo: la muralla de datos de la landing, tenue
             y solo en desktop (la PWA móvil prioriza rendimiento/táctil).
-            En rutas operativas (caja, KDS) no se renderiza: estorba. */}
+            En terminales operativas densas (POS, KDS) no se renderiza. */}
         {!shouldHideSidebar && !NO_COSMOS_PATHS.some((p) => pathname.startsWith(p)) && (
           <div
             aria-hidden

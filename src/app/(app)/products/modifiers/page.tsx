@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/page-header";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { ActionsMenu } from "@/components/ui/actions-menu";
 import { Switch } from "@/components/ui/switch";
@@ -155,8 +156,8 @@ function groupStatus(group: ModifierGroupList): {
   }
   return {
     label: "Activo",
-    badgeBg: "bg-emerald-500/10",
-    badgeText: "text-emerald-700",
+    badgeBg: "bg-success/10",
+    badgeText: "text-success",
   };
 }
 
@@ -361,7 +362,7 @@ function OptionsEditor({ groupId }: { groupId: number }) {
                         className={cn(
                           "inline-flex rounded-full px-2 py-0.5 text-xs font-medium",
                           option.is_active
-                            ? "bg-emerald-500/10 text-emerald-700"
+                            ? "bg-success/10 text-success"
                             : "bg-danger/10 text-danger",
                         )}
                       >
@@ -488,7 +489,7 @@ function OptionEditRow({ draft, onChange, onSave, onCancel, isSaving }: OptionEd
             type="button"
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-emerald-600 hover:bg-emerald-500/10"
+            className="h-8 w-8 text-success hover:bg-success/10"
             onClick={onSave}
             disabled={isSaving}
           >
@@ -717,7 +718,7 @@ function GroupProducts({ groupId }: { groupId: number }) {
                 <div className="flex shrink-0 items-center gap-2">
                   <span className="text-xs text-muted-foreground">
                     {assignment.is_required ? (
-                      <span className="text-amber-600">Requerido</span>
+                      <span className="text-warning">Requerido</span>
                     ) : (
                       "Opcional"
                     )}
@@ -960,15 +961,14 @@ export default function ModifiersPage() {
   }, [groups]);
 
   return (
-    <div className="flex min-h-full flex-col">
-      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
-        <div>
-          <h1 className="text-lg font-semibold">Modificadores</h1>
-          <p className="text-xs text-muted-foreground">
-            Grupos y opciones de modificadores de productos
-          </p>
-        </div>
-        <Button
+    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+      <PageHeader
+        title="Modificadores"
+        icon={<ListChecks className="h-5 w-5" />}
+        subtitle="Grupos y opciones de modificadores de productos"
+        actions={
+          <>
+          <Button
           size="icon"
           onClick={() => openModal()}
           className="sm:hidden"
@@ -981,9 +981,11 @@ export default function ModifiersPage() {
           <Plus className="mr-2 h-4 w-4" />
           Nuevo grupo
         </Button>
-      </header>
+          </>
+        }
+      />
 
-      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
+      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
         <div className="relative max-w-sm">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -1030,13 +1032,13 @@ export default function ModifiersPage() {
               </div>
               <div className="rounded-2xl border border-border bg-background p-3 shadow-sm">
                 <p className="text-xs text-muted-foreground">Activos</p>
-                <p className="mt-1 text-2xl font-semibold leading-none tabular-nums text-emerald-700">
+                <p className="mt-1 text-2xl font-semibold leading-none tabular-nums text-success">
                   {stats.active}
                 </p>
               </div>
               <div className="rounded-2xl border border-border bg-background p-3 shadow-sm">
                 <p className="text-xs text-muted-foreground">Requeridos</p>
-                <p className="mt-1 text-2xl font-semibold leading-none tabular-nums text-amber-700">
+                <p className="mt-1 text-2xl font-semibold leading-none tabular-nums text-warning">
                   {stats.required}
                 </p>
               </div>
@@ -1081,7 +1083,7 @@ export default function ModifiersPage() {
                               className={cn(
                                 "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium",
                                 group.is_required
-                                  ? "bg-amber-500/10 text-amber-700"
+                                  ? "bg-warning/10 text-warning"
                                   : "bg-muted text-muted-foreground",
                               )}
                             >
@@ -1135,7 +1137,7 @@ export default function ModifiersPage() {
                                 className={cn(
                                   "rounded-full p-2 transition-colors",
                                   group.is_active
-                                    ? "text-emerald-600 hover:bg-emerald-500/10"
+                                    ? "text-success hover:bg-success/10"
                                     : "text-muted-foreground hover:bg-muted hover:text-danger",
                                 )}
                               >
@@ -1186,7 +1188,7 @@ export default function ModifiersPage() {
                           className={cn(
                             "rounded-full p-2 transition-colors",
                             group.is_active
-                              ? "text-emerald-600 hover:bg-emerald-500/10"
+                              ? "text-success hover:bg-success/10"
                               : "text-muted-foreground hover:bg-muted hover:text-danger",
                           )}
                         >

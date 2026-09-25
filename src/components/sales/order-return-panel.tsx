@@ -15,6 +15,8 @@ export interface ReturnRow {
   max: number;
   unitPrice: string | number;
   lineTotal?: string | number;
+  discountPercentage?: number | null;
+  discountAmount?: number | string | null;
 }
 
 function clampQty(raw: string, max: number): number {
@@ -152,6 +154,15 @@ export function OrderProductLines({
                 <p className="truncate font-medium">{p.name}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   x{p.max} · {formatCLP(p.unitPrice ?? 0)} c/u
+                  {Number(p.discountPercentage ?? 0) > 0 && (
+                    <span className="text-emerald-700">
+                      {" "}
+                      · −{Number(p.discountPercentage)}%
+                      {Number(p.discountAmount ?? 0) > 0
+                        ? ` (−${formatCLP(p.discountAmount ?? 0)})`
+                        : ""}
+                    </span>
+                  )}
                 </p>
               </div>
               <p className="shrink-0 font-semibold tabular-nums">
