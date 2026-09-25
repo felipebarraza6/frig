@@ -246,19 +246,21 @@ export function TablesCanvas({
   const pointerRef = useRef({ x: 24, y: 24 });
   const skipFloorWalkUntil = useRef(0);
 
-  const savedUi = useRef(loadSalonUi());
+  // Carga única de la UI persistida: como estado inicial perezoso (el
+  // inicializador es el lugar sancionado para leer localStorage).
+  const [savedUi] = useState(loadSalonUi);
   const [windows, setWindows] = useState<SalonWindow[]>(
-    () => savedUi.current?.windows ?? [],
+    () => savedUi?.windows ?? [],
   );
   const [fullscreenId, setFullscreenId] = useState<string | null>(
-    () => savedUi.current?.fullscreenId ?? null,
+    () => savedUi?.fullscreenId ?? null,
   );
   const [zOrder, setZOrder] = useState<Record<string, number>>(
-    () => savedUi.current?.zOrder ?? {},
+    () => savedUi?.zOrder ?? {},
   );
-  const zTick = useRef(savedUi.current?.zTick ?? 1);
+  const zTick = useRef(savedUi?.zTick ?? 1);
   const wrapRef = useRef<HTMLDivElement>(null);
-  const cameraStateRef = useRef(savedUi.current?.camera ?? null);
+  const cameraStateRef = useRef(savedUi?.camera ?? null);
   const [movingId, setMovingId] = useState<number | null>(null);
   const [editingTable, setEditingTable] = useState<TableItem | null>(null);
   const [draft, setDraft] = useState<{
@@ -477,6 +479,7 @@ export function TablesCanvas({
 
   // Si un módulo se apaga, cerrar ventanas huérfanas (p. ej. cocina sin production)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync intencional al montar/cambiar deps (código 3D/KDS recuperado)
     setWindows((prev) => {
       const next = prev.filter((w) => salonCaps[w.kind]);
       return next.length === prev.length ? prev : next;
@@ -829,6 +832,7 @@ export function TablesCanvas({
               skipUntilRef={skipFloorWalkUntil}
             />
             <SalonCameraPersist
+              // eslint-disable-next-line react-hooks/refs -- lectura única del valor inicial (ref latest)
               initial={cameraStateRef.current}
               onChange={(cam) => {
                 cameraStateRef.current = cam;
@@ -1630,7 +1634,10 @@ function SalonCameraPersist({
   const applied = useRef(false);
   const lastSave = useRef(0);
   const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  });
 
   useEffect(() => {
     if (applied.current || !initial) return;
@@ -1693,7 +1700,10 @@ function CameraHome({
   const { camera, controls } = useThree();
   const lastTick = useRef(0);
   const onArrivedRef = useRef(onArrived);
-  onArrivedRef.current = onArrived;
+
+  useEffect(() => {
+    onArrivedRef.current = onArrived;
+  });
 
   useEffect(() => {
     if (tick === 0 || tick === lastTick.current) return;
@@ -2794,13 +2804,19 @@ function TableStatusFx({
     const pos = new Float32Array(cleanCount * 3);
     const vel = new Float32Array(cleanCount * 3);
     for (let i = 0; i < cleanCount; i++) {
+      // eslint-disable-next-line react-hooks/purity -- aleatoriedad intencional: partículas procedurales del salón
       const a = Math.random() * Math.PI * 2;
+      // eslint-disable-next-line react-hooks/purity -- aleatoriedad intencional: partículas procedurales del salón
       const r = Math.random() * radius * 0.85;
       pos[i * 3] = Math.cos(a) * r;
+      // eslint-disable-next-line react-hooks/purity -- aleatoriedad intencional: partículas procedurales del salón
       pos[i * 3 + 1] = 0.7 + Math.random() * 0.2;
       pos[i * 3 + 2] = Math.sin(a) * r;
+      // eslint-disable-next-line react-hooks/purity -- aleatoriedad intencional: partículas procedurales del salón
       vel[i * 3] = (Math.random() - 0.5) * 0.4;
+      // eslint-disable-next-line react-hooks/purity -- aleatoriedad intencional: partículas procedurales del salón
       vel[i * 3 + 1] = 0.35 + Math.random() * 0.55;
+      // eslint-disable-next-line react-hooks/purity -- aleatoriedad intencional: partículas procedurales del salón
       vel[i * 3 + 2] = (Math.random() - 0.5) * 0.4;
     }
     const g = new THREE.BufferGeometry();
@@ -2813,11 +2829,14 @@ function TableStatusFx({
     const pos = new Float32Array(burstCount * 3);
     const vel = new Float32Array(burstCount * 3);
     for (let i = 0; i < burstCount; i++) {
+      // eslint-disable-next-line react-hooks/purity -- aleatoriedad intencional: partículas procedurales del salón
       const a = Math.random() * Math.PI * 2;
+      // eslint-disable-next-line react-hooks/purity -- aleatoriedad intencional: partículas procedurales del salón
       const elev = Math.random() * Math.PI * 0.45;
       pos[i * 3] = 0;
       pos[i * 3 + 1] = 0.75;
       pos[i * 3 + 2] = 0;
+      // eslint-disable-next-line react-hooks/purity -- aleatoriedad intencional: partículas procedurales del salón
       const sp = 1.2 + Math.random() * 1.8;
       vel[i * 3] = Math.cos(a) * Math.cos(elev) * sp;
       vel[i * 3 + 1] = Math.sin(elev) * sp + 0.8;

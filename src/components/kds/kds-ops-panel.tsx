@@ -63,6 +63,7 @@ export function KdsOpsPanel({
   const [tab, setTab] = useState<KdsOpsTab>(initialTab);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync intencional al montar/cambiar deps (código 3D/KDS recuperado)
     if (open) setTab(initialTab);
   }, [open, initialTab]);
 
@@ -440,6 +441,7 @@ function ProductsPane({ station }: { station?: KitchenStation | null }) {
   const searchQ = debounced.trim() || undefined;
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync intencional al montar/cambiar deps (código 3D/KDS recuperado)
     setPage(1);
     setAccumulated([]);
   }, [searchQ, categoryId]);
@@ -457,6 +459,7 @@ function ProductsPane({ station }: { station?: KitchenStation | null }) {
 
   useEffect(() => {
     if (!data?.results) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync intencional al montar/cambiar deps (código 3D/KDS recuperado)
     setAccumulated((prev) => (page === 1 ? data.results : [...prev, ...data.results]));
   }, [data, page]);
 

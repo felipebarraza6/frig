@@ -70,6 +70,7 @@ export function ProfileSubscriptionTab() {
     branch?.plan_expiration_date && new Date(branch.plan_expiration_date) < new Date(),
   );
   const daysLeft = branch?.plan_expiration_date
+    // eslint-disable-next-line react-hooks/purity -- aleatoriedad intencional: partículas procedurales del salón
     ? Math.round((new Date(branch.plan_expiration_date).getTime() - Date.now()) / 86_400_000)
     : null;
   const expiringSoon = daysLeft !== null && daysLeft >= 0 && daysLeft <= 7;

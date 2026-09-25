@@ -64,6 +64,7 @@ function StationDisplayCard({
   const cats = station.categories.map((c) => c.name).join(", ");
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync intencional al montar/cambiar deps (código 3D/KDS recuperado)
     setColors(loadKdsStatusColors(branchId, station.id, themePrimary));
   }, [branchId, station.id, themePrimary]);
 

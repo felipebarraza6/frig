@@ -1096,6 +1096,7 @@ function CategoryBreakdown({
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync intencional al montar/cambiar deps (código 3D/KDS recuperado)
     setMounted(true);
   }, []);
 

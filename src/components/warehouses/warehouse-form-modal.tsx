@@ -65,6 +65,7 @@ export function WarehouseFormModal({
   const [form, setForm] = useState<WarehouseFormValues>(warehouseToForm(editing));
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync intencional al montar/cambiar deps (código 3D/KDS recuperado)
     if (open) setForm(warehouseToForm(editing));
   }, [open, editing]);
 

@@ -65,6 +65,7 @@ export function WarehouseInspector({
 
   useEffect(() => {
     if (!wp) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync intencional al montar/cambiar deps (código 3D/KDS recuperado)
     setQuantity(String(wp.current_quantity ?? 0));
     setMinimum(wp.minimum_quantity == null ? "" : String(wp.minimum_quantity));
     setMaximum(wp.maximum_quantity == null ? "" : String(wp.maximum_quantity));

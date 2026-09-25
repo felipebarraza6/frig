@@ -172,11 +172,13 @@ function KdsMonitorInner() {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync intencional al montar/cambiar deps (código 3D/KDS recuperado)
     setClockConfig(loadClockConfig());
   }, []);
 
   useEffect(() => {
     // 1s: reloj + timers de prep en vivo (PENDING/PREPARING).
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync intencional al montar/cambiar deps (código 3D/KDS recuperado)
     setNow(new Date());
     const id = window.setInterval(() => setNow(new Date()), 1_000);
     return () => window.clearInterval(id);

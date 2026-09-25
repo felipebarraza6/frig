@@ -811,6 +811,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
     if (!PREVIEWABLE_DISCOUNT_TYPES.has(type)) return;
     const preview = calculateCodeDiscount(validatedDiscount, items, base);
     if (preview <= 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sync intencional al montar/cambiar deps (código 3D/KDS recuperado)
       setValidatedDiscount(null);
       toast.warning("El cupón ya no aplica al carrito actual. Vuelve a ingresar el código.");
     }
