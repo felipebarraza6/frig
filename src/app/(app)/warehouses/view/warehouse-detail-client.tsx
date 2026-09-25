@@ -49,7 +49,7 @@ import {
   numValue,
   warehouseOccupancy,
   warehouseTypeAccent,
-  warehouseTypeIcon,
+  WarehouseTypeIcon,
   warehouseTypeLabel,
 } from "@/lib/warehouses-ui";
 
@@ -144,11 +144,13 @@ export default function WarehouseDetailPage() {
   const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync intencional al montar/cambiar deps (código 3D/KDS recuperado)
     if (alertParam === "out") setStockFilter("out");
     if (alertParam === "low") setStockFilter("low");
   }, [alertParam]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync intencional al montar/cambiar deps (código 3D/KDS recuperado)
     setPageUrl({});
   }, [productSearch, stockFilter]);
 
@@ -362,7 +364,6 @@ export default function WarehouseDetailPage() {
     );
   }
 
-  const Icon = warehouseTypeIcon(warehouse.warehouse_type);
   const occupancy = warehouseOccupancy(warehouse.capacity, warehouse.total_quantity);
   const lowStock = numValue(warehouse.low_stock_products);
   const outOfStock = numValue(warehouse.out_of_stock_products);
@@ -381,7 +382,7 @@ export default function WarehouseDetailPage() {
               warehouseTypeAccent(warehouse.warehouse_type),
             )}
           >
-            <Icon className="h-5 w-5" />
+            <WarehouseTypeIcon value={warehouse.warehouse_type} className="h-5 w-5" />
           </div>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">

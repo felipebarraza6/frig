@@ -134,10 +134,14 @@ function OverlayShell({
   );
   const drag = useRef<{ ox: number; oy: number; x: number; y: number } | null>(null);
   const posRef = useRef(pos);
-  posRef.current = pos;
+
+  useEffect(() => {
+    posRef.current = pos;
+  }, [pos]);
 
   useEffect(() => {
     if (spawn == null || !initialPos) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync intencional al montar/cambiar deps (código 3D/KDS recuperado)
     setPos(initialPos);
     posRef.current = initialPos;
   }, [spawn, initialPos?.x, initialPos?.y]);

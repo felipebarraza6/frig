@@ -551,6 +551,7 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
   // También invalidamos el sync de proveedor: defaultType puede llegar después
   // y un reset del form no debe dejar el supplier “trabado” con el valor viejo.
   const supplierSyncKeyRef = useRef<string | null>(null);
+  const [supplierLabel, setSupplierLabel] = useState("");
   useEffect(() => {
     setForm(buildInitialForm(effectiveProduct, defaultType));
     setSupplierLabel("");
@@ -603,7 +604,6 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
 
   const [supplierQuery, setSupplierQuery] = useState("");
   const [debouncedSupplierQuery, setDebouncedSupplierQuery] = useState("");
-  const [supplierLabel, setSupplierLabel] = useState("");
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebouncedSupplierQuery(supplierQuery), 300);

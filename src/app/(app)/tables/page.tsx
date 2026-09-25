@@ -94,6 +94,7 @@ export default function TablesPage() {
   useEffect(() => {
     if (!formOpen) return;
     const shape = editing?.shape;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync intencional al montar/cambiar deps (código 3D/KDS recuperado)
     setFormShape(
       shape === "SQUARE" || shape === "RECTANGLE" || shape === "OVAL" || shape === "ROUND"
         ? shape

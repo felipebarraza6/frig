@@ -54,11 +54,13 @@ export function KdsStatusColorsModal({
   useEffect(() => {
     if (!open) return;
     const first = initialStationId ?? stations[0]?.id ?? null;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync intencional al montar/cambiar deps (código 3D/KDS recuperado)
     setStationId(first);
   }, [open, initialStationId, stations]);
 
   useEffect(() => {
     if (!open || stationId == null) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sync intencional al montar/cambiar deps (código 3D/KDS recuperado)
       setDraft(defaultKdsStatusColorsFromTheme(themePrimary));
       return;
     }

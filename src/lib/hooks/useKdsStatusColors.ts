@@ -28,6 +28,7 @@ export function useKdsStatusColors(stationId?: number | null) {
 
   useEffect(() => {
     const next = loadKdsStatusColors(branchId, stationId, themePrimary);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync intencional al montar/cambiar deps (código 3D/KDS recuperado)
     setColors(next);
     applyKdsStatusColorVars(next);
   }, [branchId, stationId, themePrimary]);

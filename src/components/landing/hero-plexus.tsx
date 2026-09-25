@@ -19,7 +19,10 @@ export function HeroPlexus({
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const idleBoostRef = useRef(idleBoost);
-  idleBoostRef.current = idleBoost;
+
+  useEffect(() => {
+    idleBoostRef.current = idleBoost;
+  }, [idleBoost]);
 
   useEffect(() => {
     const canvas = ref.current;

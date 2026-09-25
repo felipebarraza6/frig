@@ -10,11 +10,18 @@ import { useToastStore } from "@/lib/store/toast";
  * toast persistente pidiendo recargar: el bundle servido quedó atrás del
  * contrato del backend y las llamadas pueden romper.
  */
+
+// Guard a nivel módulo: el evento puede dispararse por CADA llamada API con
+// sha distinto — el aviso debe aparecer una sola vez, nunca spamear la UI.
+let driftToastShown = false;
+
 export function useSchemaDrift(): void {
   const addToast = useToastStore((s) => s.addToast);
 
   useEffect(() => {
     function handleDrift() {
+      if (driftToastShown) return;
+      driftToastShown = true;
       addToast({
         message: "El backend fue actualizado. Recarga la página.",
         variant: "warning",

@@ -26,6 +26,7 @@ export function usePublicMenuSlug(explicit?: string | null): string {
 
   useEffect(() => {
     if (explicit) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sync intencional al montar/cambiar deps (código 3D/KDS recuperado)
       setSlug(explicit);
       return;
     }
