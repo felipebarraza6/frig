@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  ArrowRight,
   Clock,
   Flame,
   Monitor,
@@ -177,16 +176,6 @@ function StationDisplayCard({
         <div className="mt-5 flex flex-col gap-2 border-t border-border/40 pt-4">
           <Button
             type="button"
-            className="w-full"
-            disabled={!active}
-            onClick={() => openPath(`/kds/station?id=${station.id}&mode=operate`)}
-          >
-            Modo estación
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
             className="w-full"
             disabled={!active}
             onClick={() => openPath(`/kds/monitor?station_id=${station.id}`)}

@@ -603,3 +603,131 @@ export function createSurveyFromTemplate(input: {
     allow_multiple_responses: true,
   };
 }
+
+// ── Adjuntos (preguntas tipo archivo) ────────────────────────────────────────
+
+export interface SurveyAttachmentRow {
+  id: string;
+  survey: string;
+  client: string | number | null;
+  url: string;
+  original_filename: string;
+  content_type: string;
+  size_bytes: number;
+  created: string;
+}
+
+/** Subida autenticada: la URL devuelta se guarda como valor de la pregunta. */
+export async function uploadSurveyAttachment(
+  surveyId: string,
+  file: File,
+): Promise<SurveyAttachmentRow> {
+  const form = new FormData();
+  form.append("survey", surveyId);
+  form.append("file", file);
+  return apiFetch<SurveyAttachmentRow>("/surveys/attachments/", {
+    method: "POST",
+    body: form,
+  });
+}
+
+/** Subida anónima para formularios públicos (allowlist y tope 5MB en backend). */
+export async function uploadPublicSurveyAttachment(
+  slug: string,
+  file: File,
+): Promise<SurveyAttachmentRow> {
+  const form = new FormData();
+  form.append("file", file);
+  return apiFetch<SurveyAttachmentRow>(`/surveys/public/${slug}/attach/`, {
+    method: "POST",
+    body: form,
+    auth: "none",
+    branch: "none",
+    credentials: "omit",
+  });
+}
+
+// ── Plantillas de encuesta (servidor, compartidas por sucursal) ──────────────
+
+export interface SurveyTemplateRow {
+  id: string;
+  name: string;
+  description: string;
+  survey_type: string;
+  questions: SurveyQuestion[];
+  is_active: boolean;
+  created: string;
+  modified: string;
+}
+
+export async function fetchSurveyTemplates(): Promise<SurveyTemplateRow[]> {
+  const data = await apiFetch<Paginated<SurveyTemplateRow> | SurveyTemplateRow[]>(
+    "/surveys/templates/",
+  );
+  return asList(data);
+}
+
+export async function createSurveyTemplate(payload: {
+  name: string;
+  description?: string;
+  survey_type?: string;
+  questions: SurveyQuestion[];
+}): Promise<SurveyTemplateRow> {
+  return apiFetch<SurveyTemplateRow>("/surveys/templates/", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export async function updateSurveyTemplate(
+  id: string,
+  payload: Partial<{ name: string; description: string; questions: SurveyQuestion[] }>,
+): Promise<SurveyTemplateRow> {
+  return apiFetch<SurveyTemplateRow>(`/surveys/templates/${id}/`, {
+    method: "PATCH",
+    body: payload,
+  });
+}
+
+export async function deleteSurveyTemplate(id: string): Promise<void> {
+  await apiFetch(`/surveys/templates/${id}/`, { method: "DELETE" });
+}
+
+/**
+ * Migra las plantillas viejas de localStorage al servidor (una sola vez).
+ * Devuelve true si migro algo, para refrescar la lista.
+ */
+export async function migrateLocalTemplatesToServer(): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  const raw = window.localStorage.getItem("frig_custom_survey_templates");
+  if (!raw) return false;
+  let moved = false;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      for (const item of parsed) {
+        const tmpl = item as {
+          name?: unknown;
+          survey_type?: unknown;
+          questions?: unknown;
+        };
+        if (
+          typeof tmpl.name === "string" &&
+          Array.isArray(tmpl.questions)
+        ) {
+          await createSurveyTemplate({
+            name: tmpl.name,
+            survey_type:
+              typeof tmpl.survey_type === "string" ? tmpl.survey_type : "CUSTOM",
+            questions: tmpl.questions as SurveyQuestion[],
+          });
+          moved = true;
+        }
+      }
+    }
+  } catch {
+    // JSON corrupto: se descarta la migración.
+  }
+  if (moved) window.localStorage.removeItem("frig_custom_survey_templates");
+  return moved;
+}

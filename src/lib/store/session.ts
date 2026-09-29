@@ -575,7 +575,6 @@ const WAITER_ALLOWED_PATHS = [
 /** App de cocina: KDS + perfil (como el cajero con POS). */
 const COOK_ALLOWED_PATHS = [
   "/kds",
-  "/kds/station",
   "/kds/terminal",
   "/kds/monitor",
   "/profile",

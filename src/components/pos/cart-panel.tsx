@@ -573,6 +573,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
           amount: Number(Number(payment.amount).toFixed(2)),
           status: "COMPLETED",
           cash_register_id: currentCashRegister.id,
+          skip_cash_register_validation: false,
         });
       }
 
@@ -696,6 +697,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
             amount: Number(Number(payment.amount).toFixed(2)),
             status: "COMPLETED",
             cash_register_id: currentCashRegister ? currentCashRegister.id : null,
+            skip_cash_register_validation: false,
           });
         }
       } catch (paymentErr) {

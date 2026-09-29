@@ -338,6 +338,7 @@ export async function ensureLeadFollowUpOpportunity(input: {
       weighted_value: created.weighted_value,
       client: null,
       client_name: "",
+      lead_name: input.leadName,
       assigned_to: null,
       assigned_to_name: "",
       expected_close_date: created.expected_close_date,
@@ -390,6 +391,7 @@ export async function ensureClientFollowUpOpportunity(input: {
       weighted_value: created.weighted_value,
       client: created.client ?? input.clientId,
       client_name: input.clientName,
+      lead_name: "",
       assigned_to: null,
       assigned_to_name: "",
       expected_close_date: created.expected_close_date,
@@ -578,4 +580,58 @@ export async function createOpportunityProduct(payload: {
 
 export async function deleteOpportunityProduct(id: string): Promise<void> {
   await apiFetch(`/crm/opportunity-products/${id}/`, { method: "DELETE" });
+}
+
+// ── Resumen agregado del informe CRM (server-side, sin sampleo) ──────────────
+
+export interface CrmDashboardSummary {
+  start: string;
+  end: string;
+  prev_start: string;
+  prev_end: string;
+  leads: {
+    new: number;
+    prev_new: number;
+    converted: number;
+    prev_converted: number;
+    by_status: Record<string, number>;
+    by_source: Record<string, number>;
+  };
+  opportunities: {
+    created: number;
+    prev_created: number;
+    open_count: number;
+    open_value: number | string;
+    open_weighted: number | string;
+    open_without_value: number;
+    won_count: number;
+    won_value: number | string;
+    by_stage: Array<{
+      id: string;
+      name: string;
+      is_closed: boolean;
+      is_won: boolean;
+      count: number;
+      total: number | string;
+      weighted: number | string;
+    }>;
+  };
+  activities: {
+    completed: number;
+    prev_completed: number;
+    overdue: number;
+    today: number;
+    unscheduled: number;
+    by_type: Record<string, number>;
+    by_category: Record<string, number>;
+  };
+  customers: { total: number };
+}
+
+export async function fetchCrmDashboardSummary(
+  start: string,
+  end: string,
+): Promise<CrmDashboardSummary> {
+  const qs = new URLSearchParams({ start, end });
+  return apiFetch<CrmDashboardSummary>(`/crm/dashboard/summary/?${qs.toString()}`);
 }

@@ -503,6 +503,32 @@ export const HELP_GUIDES: HelpGuide[] = [
     ],
   },
   {
+    slug: "pipeline",
+    title: "Pipeline comercial",
+    summary: "Embudo de oportunidades por etapa, con valor y cierre esperado.",
+    group: "crm",
+    module: "customers",
+    audience: ["admin", "ops"],
+    icon: "Kanban",
+    href: "/customers/pipeline",
+    sections: [
+      {
+        heading: "Mover",
+        body: [
+          "Arrastrá o usá las flechas ← → de cada tarjeta para cambiar de etapa.",
+          "El detalle permite editar valor, cierre esperado y notas (botón lápiz).",
+        ],
+      },
+      {
+        heading: "KPIs",
+        body: [
+          "Total abierto, valor ponderado por probabilidad de etapa y ganado.",
+          "Creá oportunidades desde un prospecto con el atajo de la tarjeta.",
+        ],
+      },
+    ],
+  },
+  {
     slug: "promociones",
     title: "Promociones y descuentos",
     summary: "Cupones, % y reglas aplicables en POS.",
@@ -849,6 +875,32 @@ export const HELP_GUIDES: HelpGuide[] = [
         body: [
           "Usa rango de fechas y presets del kit de informes.",
           "Exporta CSV/Excel según la pantalla.",
+        ],
+      },
+    ],
+  },
+  {
+    slug: "informe-crm",
+    title: "Informe CRM",
+    summary: "Prospectos, embudo y acciones del período con deltas.",
+    group: "informes",
+    module: "customers",
+    audience: ["admin"],
+    icon: "Users",
+    href: "/reports/crm",
+    sections: [
+      {
+        heading: "Pestañas",
+        body: [
+          "Resumen con KPIs vs. período anterior, Embudo por etapa, Acciones y Hallazgos.",
+          "Hallazgos enlazan directo a la pantalla para resolver cada problema.",
+        ],
+      },
+      {
+        heading: "Exportar",
+        body: [
+          "Botón Exportar CSV: resumen, embudo, estados, fuentes y acciones.",
+          "Los KPIs se calculan en el servidor (sin límite de registros).",
         ],
       },
     ],

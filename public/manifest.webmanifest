@@ -1,7 +1,7 @@
 {
   "name": "FRIG — Punto de venta gastronómico",
   "short_name": "FRIG",
-  "description": "POS, comandas y cocina para restaurantes.",
+  "description": "POS, comandas, cocina y CRM comercial para restaurantes.",
   "start_url": "/login",
   "scope": "/",
   "display": "standalone",

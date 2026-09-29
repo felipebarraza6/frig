@@ -148,6 +148,7 @@ const SECTION_PRESETS: PresetTemplate[] = [
       { name: "Presupuesto Estimado ($)", field_type: "NUMBER", is_required: false, display_in_card: true },
       { name: "Fecha Requerida de Ejecución", field_type: "DATE", is_required: false, display_in_card: true },
       { name: "Observaciones Técnicas", field_type: "TEXT", is_required: false, display_in_card: false },
+      { name: "Adjuntar Plano / Fotografía", field_type: "FILE", is_required: false, display_in_card: false },
     ],
   },
   {
@@ -1203,7 +1204,7 @@ const FIELD_TYPES: { value: string; label: string }[] = [
   { value: "PHONE", label: "Teléfono" },
   { value: "EMAIL", label: "Email" },
   { value: "URL", label: "URL" },
-  // "FILE" deshabilitado: sin endpoint de uploads el adjunto no llega al servidor (solo el nombre).
+  { value: "FILE", label: "Archivo" },
   { value: "SELECT", label: "Selección" },
   { value: "MULTISELECT", label: "Selección múltiple" },
 ];

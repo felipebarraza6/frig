@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,8 @@ import {
   submitPublicSurveyResponse,
   submitSurveyResponse,
   surveyTypeLabel,
+  uploadPublicSurveyAttachment,
+  uploadSurveyAttachment,
   type PublicSurvey,
   type Survey,
   type SurveyQuestion,
@@ -118,6 +120,10 @@ export function SurveyFillForm({
   const [answers, setAnswers] = useState<Record<string, string | number | boolean>>(
     {},
   );
+  // Preguntas tipo archivo: el File real vive aparte; answers guarda el nombre
+  // para mostrar, y al enviar se sube y el valor final es la URL del adjunto.
+  const [files, setFiles] = useState<Record<string, File>>({});
+  const lastUploadedAnswers = useRef<Record<string, string | number | boolean>>({});
   const [comment, setComment] = useState("");
   const [respondentName, setRespondentName] = useState("");
   const [done, setDone] = useState(false);
@@ -142,9 +148,18 @@ export function SurveyFillForm({
   });
 
   const submit = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
+      const uploadedAnswers = { ...answers };
+      for (const [questionId, file] of Object.entries(files)) {
+        const row =
+          mode === "public" && slug
+            ? await uploadPublicSurveyAttachment(slug, file)
+            : await uploadSurveyAttachment(survey.id, file);
+        uploadedAnswers[questionId] = row.url;
+      }
+      lastUploadedAnswers.current = uploadedAnswers;
       const payload = {
-        answers,
+        answers: uploadedAnswers,
         nps_score: npsScore,
         comment: comment.trim() || undefined,
         respondent_name: respondentName.trim() || undefined,
@@ -177,7 +192,7 @@ export function SurveyFillForm({
           const defs = await fetchExtraFieldDefinitions();
           const { applied } = await applySurveyAnswersToClientFicha({
             clientId,
-            answers,
+            answers: lastUploadedAnswers.current,
             definitions: defs,
           });
           queryClient.invalidateQueries({
@@ -324,11 +339,26 @@ export function SurveyFillForm({
                     className="text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-primary"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
-                      setAnswer(q, file ? file.name : "");
+                      if (file) {
+                        setFiles((prev) => ({ ...prev, [q.id]: file }));
+                        setAnswer(q, file.name);
+                      } else {
+                        setFiles((prev) => {
+                          const next = { ...prev };
+                          delete next[q.id];
+                          return next;
+                        });
+                        setAnswer(q, "");
+                      }
                     }}
                   />
                   {answers[q.id] ? (
-                    <p className="text-xs text-muted-foreground">{String(answers[q.id])}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {String(answers[q.id])}{" "}
+                      <span className="text-muted-foreground/70">
+                        (se sube al enviar · máx. 5 MB)
+                      </span>
+                    </p>
                   ) : null}
                 </div>
               )}

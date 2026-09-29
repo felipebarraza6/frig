@@ -21,7 +21,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { StatCard } from "@/components/ui/stat-card";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import { useToast } from "@/lib/store/toast";
-import { useCurrentBranch } from "@/lib/store/session";
+import { useCurrentBranch, useCanManageInventory } from "@/lib/store/session";
+import { CrmDenied } from "@/components/customers/crm-denied";
 import { createProduct } from "@/lib/api/products";
 import { fetchWarehouses } from "@/lib/api/warehouses";
 import {
@@ -52,6 +53,7 @@ export default function EquipmentPage() {
   const toast = useToast();
   const queryClient = useQueryClient();
   const branch = useCurrentBranch();
+  const canManage = useCanManageInventory();
   const branchId = Number(branch?.branch_id ?? 0);
   const [createOpen, setCreateOpen] = useState(false);
   const [detail, setDetail] = useState<EquipmentProfile | null>(null);
@@ -75,6 +77,10 @@ export default function EquipmentPage() {
 
   const outOfRange = recent.filter((m) => m.is_normal === false).length;
   const needsMeasure = profiles.filter((p) => p.requires_measurements).length;
+
+  if (!canManage) {
+    return <CrmDenied title="Equipos" icon={<Thermometer className="h-5 w-5" />} />;
+  }
 
   return (
     <PageShell>

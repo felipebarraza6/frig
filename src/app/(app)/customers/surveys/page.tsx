@@ -52,27 +52,29 @@ import {
   activateSurvey,
   createSurvey,
   createSurveyFromTemplate,
+  createSurveyTemplate,
   csatTemplateQuestions,
   customTemplateQuestions,
-  deleteCustomTemplate,
   deleteSurvey,
+  deleteSurveyTemplate,
   fetchGlobalNpsSummary,
   fetchSurvey,
   fetchSurveyNpsSummary,
   fetchSurveyResponsePage,
   fetchSurveys,
-  getAllTemplates,
-  getStoredCustomTemplates,
+  fetchSurveyTemplates,
+  migrateLocalTemplatesToServer,
   npsTemplateQuestions,
   parseSurveyQuestions,
   pauseSurvey,
   publicSurveyAbsoluteUrl,
-  saveCustomTemplate,
   surveyFillAbsoluteUrl,
   surveyFillPath,
   surveyStatusLabel,
   surveyTypeLabel,
   updateSurvey,
+  updateSurveyTemplate,
+  DEFAULT_SYSTEM_TEMPLATES,
   type CustomSurveyTemplate,
   type SurveyList,
   type SurveyQuestion,
@@ -141,10 +143,30 @@ export default function CustomerSurveysPage() {
     [surveys],
   );
 
-  const customTemplatesCount = useMemo(
-    () => (typeof window !== "undefined" ? getAllTemplates().length : 0),
-    [section, createOpen],
-  );
+  // Plantillas en servidor (compartidas por sucursal) + migración única de
+  // las plantillas viejas de localStorage.
+  const templatesQuery = useQuery({
+    queryKey: ["surveys", "templates"],
+    queryFn: fetchSurveyTemplates,
+    enabled: canManage,
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    migrateLocalTemplatesToServer()
+      .then((moved) => {
+        if (!cancelled && moved) {
+          queryClient.invalidateQueries({ queryKey: ["surveys", "templates"] });
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [queryClient]);
+
+  const customTemplatesCount =
+    (templatesQuery.data?.length ?? 0) + DEFAULT_SYSTEM_TEMPLATES.length;
 
   function applyFormat(kind: SurveyType) {
     setSurveyType(kind);
@@ -206,7 +228,7 @@ export default function CustomerSurveysPage() {
       }
 
       if (saveAsTemplateChecked && title.trim()) {
-        saveCustomTemplate({
+        await createSurveyTemplate({
           name: title.trim(),
           description: description.trim() || undefined,
           survey_type: surveyType,
@@ -329,13 +351,18 @@ export default function CustomerSurveysPage() {
       }
     }
     const qs = parseSurveyQuestions(detail.questions);
-    saveCustomTemplate({
-      name: detail.title || "Plantilla de Encuesta",
-      description: detail.description || undefined,
-      survey_type: detail.survey_type || "CUSTOM",
-      questions: qs,
-    });
-    toast.success(`Encuesta "${detail.title || "Plantilla"}" guardada en Mis Plantillas`);
+    try {
+      await createSurveyTemplate({
+        name: detail.title || "Plantilla de Encuesta",
+        description: detail.description || undefined,
+        survey_type: detail.survey_type || "CUSTOM",
+        questions: qs,
+      });
+      queryClient.invalidateQueries({ queryKey: ["surveys", "templates"] });
+      toast.success(`Encuesta "${detail.title || "Plantilla"}" guardada en Plantillas`);
+    } catch {
+      toast.error("No se pudo guardar la plantilla");
+    }
   }
 
   const filteredSurveys = useMemo(() => {
@@ -1194,17 +1221,36 @@ function CustomTemplatesSection({
 }: {
   onUseTemplate: (tmpl: CustomSurveyTemplate) => void;
 }) {
-  const [templates, setTemplates] = useState<CustomSurveyTemplate[]>(() => getAllTemplates());
+  const queryClient = useQueryClient();
+  const templatesQuery = useQuery({
+    queryKey: ["surveys", "templates"],
+    queryFn: fetchSurveyTemplates,
+  });
   const [editingTemplate, setEditingTemplate] = useState<CustomSurveyTemplate | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const toast = useToast();
 
-  const reload = () => setTemplates(getAllTemplates());
+  const templates: CustomSurveyTemplate[] = [
+    ...(templatesQuery.data ?? []).map((row) => ({
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      survey_type: (row.survey_type as SurveyType) ?? "CUSTOM",
+      questions: row.questions,
+      created_at: row.created,
+      is_system: false,
+    })),
+    ...DEFAULT_SYSTEM_TEMPLATES,
+  ];
 
-  const handleDelete = (id: string, name: string) => {
-    deleteCustomTemplate(id);
-    reload();
-    toast.success(`Plantilla "${name}" eliminada`);
+  const handleDelete = async (id: string, name: string) => {
+    try {
+      await deleteSurveyTemplate(id);
+      await queryClient.invalidateQueries({ queryKey: ["surveys", "templates"] });
+      toast.success(`Plantilla "${name}" eliminada`);
+    } catch {
+      toast.error("No se pudo eliminar la plantilla");
+    }
   };
 
   return (
@@ -1216,8 +1262,8 @@ function CustomTemplatesSection({
             Formatos predefinidos y plantillas guardadas para lanzar encuestas en 1-click.
           </p>
           <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-            <HardDrive className="h-3 w-3" />
-            Tus plantillas se guardan en este dispositivo (no se sincronizan con el equipo)
+            <Bookmark className="h-3 w-3" />
+            Tus plantillas se guardan en el servidor y quedan disponibles para todo el equipo
           </p>
         </div>
         <Button
@@ -1313,7 +1359,7 @@ function CustomTemplatesSection({
           template={editingTemplate}
           onClose={() => setModalOpen(false)}
           onSaved={() => {
-            reload();
+            void queryClient.invalidateQueries({ queryKey: ["surveys", "templates"] });
             setModalOpen(false);
           }}
         />
@@ -1340,22 +1386,34 @@ function TemplateEditorModal({
   );
   const toast = useToast();
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name.trim()) return;
     const ready = normalizeQuestions(questions);
     if (ready.length === 0) {
       toast.error("Agregá al menos una pregunta válida");
       return;
     }
-    saveCustomTemplate({
-      id: template?.id,
-      name: name.trim(),
-      description: description.trim(),
-      survey_type: "CUSTOM",
-      questions: ready,
-    });
-    toast.success(template ? "Plantilla actualizada" : "Plantilla guardada en Mis Plantillas");
-    onSaved();
+    try {
+      if (template) {
+        await updateSurveyTemplate(template.id, {
+          name: name.trim(),
+          description: description.trim(),
+          questions: ready,
+        });
+        toast.success("Plantilla actualizada");
+      } else {
+        await createSurveyTemplate({
+          name: name.trim(),
+          description: description.trim(),
+          survey_type: "CUSTOM",
+          questions: ready,
+        });
+        toast.success("Plantilla guardada (disponible para todo el equipo)");
+      }
+      onSaved();
+    } catch {
+      toast.error("No se pudo guardar la plantilla");
+    }
   };
 
   return (
@@ -1784,7 +1842,7 @@ const EXTRA_QUESTION_TYPES: { value: SurveyQuestion["type"]; label: string }[] =
   { value: "select", label: "Opciones de lista" },
   { value: "boolean", label: "Sí / No" },
   { value: "url", label: "Link / Web" },
-  // "file" deshabilitado: sin endpoint de uploads el adjunto no llega al servidor (solo el nombre).
+  { value: "file", label: "Archivo / Adjunto" },
 ];
 
 const EXTRA_QUESTION_ICONS = {

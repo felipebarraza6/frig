@@ -10,7 +10,7 @@ import {
   type BranchEventScope,
 } from "@/lib/realtime/useBranchWebSocket";
 
-const SCOPES: BranchEventScope[] = ["pos", "cash_register", "dashboard", "modules"];
+const SCOPES: BranchEventScope[] = ["pos", "cash_register", "dashboard", "modules", "crm"];
 
 function invalidateQueriesForEvent(
   queryClient: ReturnType<typeof useQueryClient>,
@@ -28,6 +28,12 @@ function invalidateQueriesForEvent(
       break;
     case "dashboard":
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      break;
+    case "crm":
+      // Leads, oportunidades, actividades y encuestas comparten la raíz "crm"
+      // (fábrica de keys); con una invalidación se refrescan nav, hub e informes.
+      queryClient.invalidateQueries({ queryKey: ["crm"] });
+      queryClient.invalidateQueries({ queryKey: ["surveys"] });
       break;
     case "modules":
       // Otro dispositivo/ventana cambió los módulos activos de la sucursal.

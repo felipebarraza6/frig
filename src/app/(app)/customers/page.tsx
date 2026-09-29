@@ -143,14 +143,22 @@ function CustomersInner() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [clearPhoto, setClearPhoto] = useState(false);
 
-  // Query filter
+  // Query filter (segmentos resueltos server-side)
   const filter = useMemo<CustomersFilter>(() => {
     return {
       search: search.trim() || undefined,
       status: segment === "inactive" ? "inactive" : undefined,
+      receiver_type:
+        segment === "companies"
+          ? "EMPRESA"
+          : segment === "people"
+            ? "PERSONA_NATURAL"
+            : undefined,
+      has_pending: segment === "debt" ? true : undefined,
+      tag: tagFilter.trim() || undefined,
       ...pageUrl,
     };
-  }, [search, segment, pageUrl]);
+  }, [search, segment, tagFilter, pageUrl]);
 
   // Reset de paginación al cambiar filtros (ajuste durante render, sin effect).
   const [filterKey, setFilterKey] = useState(`${search}|${segment}|${tagFilter}`);
@@ -242,38 +250,8 @@ function CustomersInner() {
     });
   }
 
-  // Filtered in-memory for fast instant segments & tags
-  const filteredCustomers = useMemo(() => {
-    let list = page?.results ?? [];
-
-    if (segment === "debt") {
-      list = list.filter((c) => debtMap.has(String(c.id)));
-    } else if (segment === "companies") {
-      list = list.filter(
-        (c) => (c as { receiver_type?: string | null }).receiver_type === "EMPRESA",
-      );
-    } else if (segment === "people") {
-      list = list.filter(
-        (c) => (c as { receiver_type?: string | null }).receiver_type !== "EMPRESA",
-      );
-    } else if (segment === "inactive") {
-      list = list.filter((c) => c.is_active === false);
-    }
-
-    if (tagFilter.trim()) {
-      const q = tagFilter.trim().toLowerCase();
-      list = list.filter((c) =>
-        getCustomerTags(c).some((t) => t.toLowerCase() === q),
-      );
-    }
-
-    return list;
-  }, [page, segment, debtMap, tagFilter]);
-
-  // Segmentos/tags que se filtran en memoria sobre la página actual: el
-  // conteo global del backend no aplica mientras el filtro esté activo.
-  const inMemorySegment =
-    segment === "debt" || segment === "companies" || segment === "people" || Boolean(tagFilter.trim());
+  // Segmentos/tags ya filtrados por el backend: el listado se usa directo.
+  const filteredCustomers = useMemo(() => page?.results ?? [], [page]);
 
   const save = useMutation({
     mutationFn: async () => {
@@ -1049,20 +1027,11 @@ function CustomersInner() {
         )}
 
         {/* Pagination controls */}
-        {(page?.next || page?.previous || inMemorySegment) && (
+        {(page?.next || page?.previous) && (
           <div className="flex items-center justify-between border-t border-border pt-3">
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">
-                {inMemorySegment ? (
-                  <>
-                    {filteredCustomers.length} de {page?.results?.length ?? 0} en esta página
-                    <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px]">
-                      filtro aplicado en memoria
-                    </span>
-                  </>
-                ) : (
-                  <>Mostrando {filteredCustomers.length} de {totalCustomers} clientes</>
-                )}
+                Mostrando {filteredCustomers.length} de {totalCustomers} clientes
               </span>
               {isFetching && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary animate-pulse">

@@ -31,6 +31,7 @@ export function getRoleLabel(code?: string | null): string | undefined {
 const FRIG_ROLE_CATALOG: { codes: string[]; label: string; module: string | null }[] = [
   { codes: ["OWNER"], label: "Propietario", module: null },
   { codes: ["ADMIN_LOCAL"], label: "Administrador local", module: null },
+  { codes: ["MANAGER"], label: "Gerente comercial", module: null },
   { codes: ["EMPLOYEE", "EMPLEADO"], label: "Empleado", module: null },
   { codes: ["CAJERO"], label: "Cajero", module: "pos" },
   { codes: ["WAITER", "MESERO"], label: "Mesero", module: "tables" },

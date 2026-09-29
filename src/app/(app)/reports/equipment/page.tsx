@@ -26,7 +26,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { getCurrentMonthRange } from "@/lib/date-range";
-import { useCurrentBranch } from "@/lib/store/session";
+import { useCurrentBranch, useCanManageInventory } from "@/lib/store/session";
+import { CrmDenied } from "@/components/customers/crm-denied";
 import {
   fetchEquipmentProfiles,
   fetchEquipmentMeasurements,
@@ -58,6 +59,7 @@ function inRange(iso: string, start: string, end: string): boolean {
 
 export default function EquipmentReportPage() {
   const branch = useCurrentBranch();
+  const canManage = useCanManageInventory();
   const branchId = Number(branch?.branch_id ?? 0);
   const month = getCurrentMonthRange();
   const [start, setStart] = useState(month.start);
@@ -162,6 +164,12 @@ export default function EquipmentReportPage() {
       .map(([key, v]) => ({ key, count: v.count, total: v.total, secondary: v.secondary }))
       .sort((a, b) => b.total - a.total);
   }, [rows]);
+
+  if (!canManage) {
+    return (
+      <CrmDenied title="Rendimiento de equipos" icon={<Thermometer className="h-5 w-5" />} />
+    );
+  }
 
   return (
     <div className="mx-auto flex min-h-full w-full min-w-0 max-w-7xl flex-col">

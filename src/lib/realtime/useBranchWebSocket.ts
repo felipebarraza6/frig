@@ -3,7 +3,13 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { API_BASE } from "@/lib/api/client";
 
-export type BranchEventScope = "pos" | "cash_register" | "dashboard" | "order" | "modules";
+export type BranchEventScope =
+  | "pos"
+  | "cash_register"
+  | "dashboard"
+  | "order"
+  | "modules"
+  | "crm";
 
 export type BranchEventMessage = {
   type: "branch_event";
@@ -17,7 +23,7 @@ export type WebSocketStatus = "connecting" | "open" | "closed" | "error";
 
 const RECONNECT_DELAY_MS = 3000;
 const MAX_RECONNECT_DELAY_MS = 30000;
-const DEFAULT_SCOPES: BranchEventScope[] = ["pos", "cash_register", "dashboard", "modules"];
+const DEFAULT_SCOPES: BranchEventScope[] = ["pos", "cash_register", "dashboard", "modules", "crm"];
 
 function getWsBaseUrl(): string {
   return API_BASE

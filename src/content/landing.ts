@@ -7,6 +7,7 @@ import {
   ChefHat,
   CreditCard,
   FileText,
+  Kanban,
   LayoutGrid,
   Leaf,
   Monitor,
@@ -33,7 +34,7 @@ export interface LandingValueProp {
 export const LANDING_VALUE_PROP: LandingValueProp = {
   headline: "Tu negocio completo, en una sola pantalla",
   subhead:
-    "POS, salón digital 3D, cocina, bodegas, informes y facturación en un solo sistema. Todo incluido en todos los planes.",
+    "POS, salón digital 3D, cocina, bodegas, CRM comercial, informes y facturación en un solo sistema. Todo incluido en todos los planes.",
 };
 
 /**
@@ -90,6 +91,12 @@ export const LANDING_FEATURES: LandingFeature[] = [
     title: "Informes y finanzas",
     description:
       "Ventas, dinero, gastos e ingresos: KPIs con deltas por período, listos para decidir.",
+  },
+  {
+    icon: Kanban,
+    title: "CRM comercial",
+    description:
+      "Prospectos, embudo de oportunidades, seguimientos y encuestas públicas con QR.",
   },
   {
     icon: FileText,

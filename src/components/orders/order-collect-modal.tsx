@@ -129,6 +129,7 @@ export default function OrderCollectModal({
           amount: Number(payment.amount),
           status: "COMPLETED",
           cash_register_id: currentCashRegister.id,
+          skip_cash_register_validation: false,
         });
       }
       // Al cobrar la cuenta completa, la mesa queda libre.

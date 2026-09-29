@@ -29,6 +29,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { fetchCustomerStats } from "@/lib/api/customers";
 import {
   activityTypeLabel,
+  fetchCrmDashboardSummary,
+  type CrmDashboardSummary,
   type FollowUpActivity,
   type OpportunityList,
   type OpportunityStage,
@@ -105,6 +107,15 @@ export default function CrmReportPage() {
     queryFn: fetchCustomerStats,
     enabled: canManage,
   });
+
+  // Agregados server-side (sin tope de sampleo); si falla, se cae al
+  // cálculo cliente con las listas (máx. 200 filas por colección).
+  const summaryQuery = useQuery({
+    queryKey: [...CRM_KEYS.all, "dashboard-summary", start, end],
+    queryFn: () => fetchCrmDashboardSummary(start, end),
+    enabled: canManage,
+  });
+  const summary: CrmDashboardSummary | undefined = summaryQuery.data;
 
   const leads = leadsQuery.data?.results ?? [];
   const opps = oppsQuery.data ?? [];
@@ -290,15 +301,15 @@ export default function CrmReportPage() {
       ["Informe CRM", start, end],
       [],
       ["Resumen", "Valor"],
-      ["Prospectos nuevos (período)", report.currLeads.length],
-      ["Convertidos (período)", report.currConverted.length],
-      ["Oportunidades creadas (período)", report.currOpps.length],
-      ["Acciones completadas (período)", report.currDone.length],
-      ["Pipeline abierto", report.openPipeline.length],
-      ["Valor pipeline (CLP)", report.pipelineValue],
-      ["Valor ponderado (CLP)", report.weighted],
-      ["Acciones vencidas", report.overdue.length],
-      ["Acciones sin fecha", report.unscheduled.length],
+      ["Prospectos nuevos (período)", kpis.newLeads],
+      ["Convertidos (período)", kpis.converted],
+      ["Oportunidades creadas (período)", kpis.oppsCreated],
+      ["Acciones completadas (período)", kpis.done],
+      ["Pipeline abierto", kpis.openCount],
+      ["Valor pipeline (CLP)", kpis.pipelineValue],
+      ["Valor ponderado (CLP)", kpis.weighted],
+      ["Acciones vencidas", kpis.overdue],
+      ["Acciones sin fecha", kpis.unscheduled],
       [],
       ["Embudo por etapa", "Oportunidades", "Valor estimado", "Valor ponderado"],
       ...report.stageRows.map((s) => [s.key, s.count, s.total, s.secondary]),
@@ -328,11 +339,29 @@ export default function CrmReportPage() {
     URL.revokeObjectURL(url);
   }
 
+  // KPIs con prioridad al resumen server-side (sin sampleo).
+  const kpis = {
+    newLeads: summary?.leads.new ?? report.currLeads.length,
+    prevNewLeads: summary?.leads.prev_new ?? report.prevLeads.length,
+    converted: summary?.leads.converted ?? report.currConverted.length,
+    prevConverted: summary?.leads.prev_converted ?? report.prevConverted.length,
+    oppsCreated: summary?.opportunities.created ?? report.currOpps.length,
+    prevOppsCreated: summary?.opportunities.prev_created ?? report.prevOpps.length,
+    done: summary?.activities.completed ?? report.currDone.length,
+    prevDone: summary?.activities.prev_completed ?? report.prevDone.length,
+    openCount: summary?.opportunities.open_count ?? report.openPipeline.length,
+    pipelineValue: Number(summary?.opportunities.open_value ?? report.pipelineValue),
+    weighted: Number(summary?.opportunities.open_weighted ?? report.weighted),
+    overdue: summary?.activities.overdue ?? report.overdue.length,
+    unscheduled: summary?.activities.unscheduled ?? report.unscheduled.length,
+  };
+
   const capped =
-    Boolean(leadsQuery.data?.next) ||
-    opps.length >= SAMPLE ||
-    openActs.length >= SAMPLE ||
-    doneActs.length >= SAMPLE;
+    !summary &&
+    (Boolean(leadsQuery.data?.next) ||
+      opps.length >= SAMPLE ||
+      openActs.length >= SAMPLE ||
+      doneActs.length >= SAMPLE);
 
   return (
     <div className="mx-auto flex min-h-full w-full min-w-0 max-w-7xl flex-col">
@@ -410,46 +439,46 @@ export default function CrmReportPage() {
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   <ReportKpi
                     label="Prospectos nuevos"
-                    value={String(report.currLeads.length)}
+                    value={String(kpis.newLeads)}
                     icon={Users}
                     tone="blue"
-                    delta={<DeltaChip curr={report.currLeads.length} prev={report.prevLeads.length} />}
+                    delta={<DeltaChip curr={kpis.newLeads} prev={kpis.prevNewLeads} />}
                     hint="Creados en el período"
                   />
                   <ReportKpi
                     label="Convertidos"
-                    value={String(report.currConverted.length)}
+                    value={String(kpis.converted)}
                     icon={CheckCircle2}
                     tone="emerald"
-                    delta={<DeltaChip curr={report.currConverted.length} prev={report.prevConverted.length} />}
+                    delta={<DeltaChip curr={kpis.converted} prev={kpis.prevConverted} />}
                     hint="Pasaron a cliente en el período"
                   />
                   <ReportKpi
                     label="Oportunidades nuevas"
-                    value={String(report.currOpps.length)}
+                    value={String(kpis.oppsCreated)}
                     icon={Kanban}
                     tone="blue"
-                    delta={<DeltaChip curr={report.currOpps.length} prev={report.prevOpps.length} />}
+                    delta={<DeltaChip curr={kpis.oppsCreated} prev={kpis.prevOppsCreated} />}
                   />
                   <ReportKpi
                     label="Acciones hechas"
-                    value={String(report.currDone.length)}
+                    value={String(kpis.done)}
                     icon={ListChecks}
                     tone="emerald"
-                    delta={<DeltaChip curr={report.currDone.length} prev={report.prevDone.length} />}
+                    delta={<DeltaChip curr={kpis.done} prev={kpis.prevDone} />}
                   />
                   <ReportKpi
                     label="Embudo abierto"
-                    value={formatCLP(report.pipelineValue)}
+                    value={formatCLP(kpis.pipelineValue)}
                     icon={FolderKanban}
                     tone="amber"
-                    hint={`${report.openPipeline.length} abiertas · ponderado ${formatCLP(report.weighted)}`}
+                    hint={`${kpis.openCount} abiertas · ponderado ${formatCLP(kpis.weighted)}`}
                   />
                   <ReportKpi
                     label="Acciones vencidas"
-                    value={String(report.overdue.length)}
+                    value={String(kpis.overdue)}
                     icon={AlertCircle}
-                    tone={report.overdue.length > 0 ? "rose" : "slate"}
+                    tone={kpis.overdue > 0 ? "rose" : "slate"}
                     hint="Abiertas con fecha ya pasada"
                   />
                 </div>
@@ -457,8 +486,8 @@ export default function CrmReportPage() {
                   {statsQuery.data
                     ? `La sucursal tiene ${statsQuery.data.active_clients} clientes activos de ${statsQuery.data.total_clients}. `
                     : ""}
-                  En este período entraron {report.currLeads.length} prospectos, se convirtieron{" "}
-                  {report.currConverted.length} y se cerraron {report.currDone.length} acciones.
+                  En este período entraron {kpis.newLeads} prospectos, se convirtieron{" "}
+                  {kpis.converted} y se cerraron {kpis.done} acciones.
                   {capped ? " Cada lista usa hasta 200 registros recientes." : ""}
                 </p>
                 <div className="grid gap-3 lg:grid-cols-2">

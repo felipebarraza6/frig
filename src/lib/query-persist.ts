@@ -13,6 +13,8 @@ const PERSIST_KEY_PREFIXES = [
   "categories",
   "suppliers",
   "customers",
+  "crm",
+  "surveys",
   "warehouses",
   "branch-modules",
   "module-catalog",

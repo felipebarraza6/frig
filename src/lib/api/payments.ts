@@ -85,11 +85,14 @@ export async function deletePaymentMethod(id: string): Promise<void> {
 }
 
 export async function createPayment(
-  payload: YggdraPaymentCreate,
+  // El contrato OpenAPI marca skip_cash_register_validation como requerido
+  // aunque el backend aplica default=false; se inyecta aquí para los callers.
+  payload: Omit<YggdraPaymentCreate, "skip_cash_register_validation"> &
+    Partial<Pick<YggdraPaymentCreate, "skip_cash_register_validation">>,
 ): Promise<YggdraPayment> {
   return apiFetch<YggdraPayment>("/finance/payments/", {
     method: "POST",
-    body: payload,
+    body: { ...payload, skip_cash_register_validation: payload.skip_cash_register_validation ?? false },
   });
 }
 

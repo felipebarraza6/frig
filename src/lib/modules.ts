@@ -23,7 +23,6 @@ export const ROUTE_MODULE_MAP: Record<string, ModuleName | null> = {
   "/cash-register": "cash_register",
   "/cash-register/stations": "cash_register",
   "/kds": "production",
-  "/kds/station": "production",
   "/kds/monitor": "production",
   "/kds/terminal": "production",
   "/products": "product_catalog",
@@ -130,7 +129,7 @@ const ROUTE_KEYS = Object.keys(ROUTE_MODULE_MAP);
  * Resuelve el módulo asociado a una ruta.
  *
  * - Match exacto primero.
- * - Luego prefix de mayor longitud (ej. /kds/station → /kds).
+ * - Luego prefix de mayor longitud (ej. /kds/monitor → /kds).
  * - Si no hay mapeo, devuelve `undefined` (se permite por defecto).
  */
 export function getModuleForPath(pathname: string): ModuleName | null | undefined {

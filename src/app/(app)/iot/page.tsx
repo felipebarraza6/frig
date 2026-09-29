@@ -34,7 +34,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { StatCard } from "@/components/ui/stat-card";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import { useToast } from "@/lib/store/toast";
-import { useCurrentBranch } from "@/lib/store/session";
+import { useCurrentBranch, useCanManageInventory } from "@/lib/store/session";
+import { CrmDenied } from "@/components/customers/crm-denied";
 import { downloadCsv } from "@/lib/export-csv";
 import { generateExcelBlob } from "@/lib/export-excel";
 import { fetchProducts } from "@/lib/api/products";
@@ -70,6 +71,7 @@ export default function IoTPage() {
   const toast = useToast();
   const queryClient = useQueryClient();
   const branch = useCurrentBranch();
+  const canManage = useCanManageInventory();
   const branchId = Number(branch?.branch_id ?? 0);
 
   const [activeTab, setActiveTab] = useState<TabId>("devices");
@@ -286,6 +288,10 @@ export default function IoTPage() {
     a.click();
     URL.revokeObjectURL(url);
     toast.success("Archivo JSON exportado exitosamente");
+  }
+
+  if (!canManage) {
+    return <CrmDenied title="Telemetría IoT" icon={<Radio className="h-5 w-5" />} />;
   }
 
   return (

@@ -14,6 +14,12 @@ export interface CustomersFilter {
   startDate?: string;
   endDate?: string;
   status?: CustomerStatusFilter;
+  /** Segmento server-side: EMPRESA / PERSONA_NATURAL. */
+  receiver_type?: string;
+  /** Segmento Deuda: clientes con ingresos PENDING. */
+  has_pending?: boolean;
+  /** Filtro por tag exacto (JSON contains server-side). */
+  tag?: string;
   page_size?: number;
   next?: string | null;
   previous?: string | null;
@@ -26,6 +32,9 @@ function buildCustomersQueryString(filter: CustomersFilter): URLSearchParams {
   if (filter.phone) qs.set("phone_number__icontains", filter.phone);
   if (filter.startDate) qs.set("created__gte", filter.startDate);
   if (filter.endDate) qs.set("created__lte", filter.endDate);
+  if (filter.receiver_type) qs.set("receiver_type", filter.receiver_type);
+  if (filter.has_pending !== undefined) qs.set("has_pending", String(filter.has_pending));
+  if (filter.tag) qs.set("tags", filter.tag);
   if (filter.status === "active") {
     qs.set("is_active", "true");
   } else if (filter.status === "inactive") {

@@ -1,64 +1,57 @@
-# Gaps CRM pendientes (fuera del alcance de la reparación 2026-09-29)
+# Gaps CRM — estado tras la reparación completa (2026-09-29)
 
-Auditoría del ecosistema CRM en `dev` (commit `bc15f6f`). Lo roto y lo de mayor
-impacto ya se reparó; esto es lo que queda, ordenado por dependencia.
+Auditoría del ecosistema CRM en `dev`. La reparación de P0+P1 y el cierre de
+los gaps de frontend/backend ya está aplicado y verificado; esto es el estado.
 
-## Backend (bloquea tipado y features)
+## Resueltos en esta pasada
 
-1. **Regenerar OpenAPI en deploy** — ítem de aceptación aún abierto en
-   `docs/requerimientos-backend-survey-client-token.md`. Mientras no se regenere,
-   estos contratos viven como tipos manuales en el frontend:
-   - `POST /surveys/surveys/{id}/client-link/` (`surveys.ts`)
-   - `GET/POST /surveys/public/{slug}/[/respond/]` (`PublicSurvey`, `surveys.ts`)
-   - `Survey.slug`, `SurveyList.slug/description/is_anonymous/…` (parches manuales)
-   - `SurveyResponse.workflow` (extensión cliente)
-   - `FollowUpCategory` (`crm.ts`), `OpportunityRow.lead/lead_name/description`
-   - `DELETE /support/ticket-attachments/{id}/` definido en
-     `docs/backend-cierre-produccion.md` §4 pero sin wrapper cliente.
-2. **Endpoint de uploads genérico** — sin él, el tipo de pregunta "archivo" quedó
-   deshabilitado en los creadores (el renderer sigue para respuestas existentes,
-   que solo guardan el nombre del archivo). Requiere decisión de diseño backend.
-3. **Plantillas de encuestas en servidor** — hoy `frig_custom_survey_templates`
-   en localStorage (rotulado en la UI como "este dispositivo"). Sincronizar
-   entre usuarios/dispositivos requiere endpoint nuevo.
-4. **Filtros server-side para segmentos de clientes** — deuda/empresas/personas
-   se filtran en memoria sobre la página actual (rotulado en la UI). Idealmente
-   query params en `/customers/clients/`.
-5. **Agregados para el informe CRM** — hoy samplea 200 filas por colección y
-   agrega en cliente. Con volumen, conviene un endpoint de resumen.
+1. **OpenAPI regenerado** — freeze del backend (`schema/openapi.yaml`, sha
+   `59644d2f`) y `yggdra.d.ts` regenerado vía `bun run sync-contract`. Los
+   contratos de encuestas públicas, client-link, adjuntos, plantillas y
+   filtros de segmento viven ahora en el schema generado.
+2. **Adjuntos de encuesta** — `POST /surveys/attachments/` (autenticado) y
+   `POST /surveys/public/<slug>/attach/` (anónimo, allowlist + tope 5 MB).
+   El tipo de pregunta "archivo" vuelve a ofrecerse; el valor de la respuesta
+   es la URL del adjunto.
+3. **Plantillas de encuesta en servidor** — CRUD `/surveys/templates/` por
+   sucursal; el hub las usa con react-query y migra una sola vez las viejas
+   de `localStorage` (`frig_custom_survey_templates`).
+4. **Segmentos de clientes server-side** — filtros `receiver_type`,
+   `has_pending` y `tags` en `/customers/clients/`; el hub dejó de filtrar
+   en memoria.
+5. **Agregados del informe CRM** — `GET /crm/dashboard/summary/?start=&end=`
+   devuelve KPIs + ventana previa; el informe los usa con fallback al
+   sampleo de 200 filas.
+6. **Realtime CRM** — scope `crm` en el websocket: leads/oportunidades/
+   actividades emiten eventos al escribir y el frontend invalida `["crm"]`
+   y `["surveys"]` (nav, hub, pipeline e informes entre dispositivos).
+   Persistencia offline: prefijos `crm` y `surveys` en `query-persist.ts`.
+7. **Guías de ayuda** — pipeline comercial e informe CRM en `help/guides.ts`.
+8. **Equipment/IoT con role gating** — `useCanManageInventory` en equipos,
+   telemetría y su informe.
+9. **Código muerto eliminado** — `customer-fields-tab.tsx`,
+   `LevantamientoSendActions`, `/reports/ventas` (duplicado de sales),
+   `/kds/station` (mapping + botón roto; el monitor cubre el flujo).
+10. **Rol MANAGER asignable** — "Gerente comercial" en el catálogo de roles.
+11. **Landing + PWA** — feature CRM en la landing, `/customers` y
+    `/survey/view` en el app shell del service worker, manifest actualizado.
 
-## Frontend (postergado a propósito)
+## Pendientes menores (aceptados)
 
-6. **Realtime/persistencia sin CRM** — `BranchEventScope` no tiene scope `crm`
-   (`useBranchWebSocket.ts`); `PERSIST_KEY_PREFIXES` no incluye `"crm"` ni
-   `"surveys"` (`query-persist.ts`), así que las listas CRM no se hidratan
-   offline en la PWA.
-7. **Guías de ayuda faltantes** — no hay guía para `/customers/pipeline` ni
-   para el Informe CRM (`src/lib/help/guides.ts`).
-8. **Equipment/IoT sin role gating** — cualquier rol puede crear equipos y
-   dispositivos por URL; además `equipment` es submodule de inventory pero su
-   ruta mapea a `null` (siempre visible).
-9. **Limpieza de código muerto mayor**:
-   - ~~`customer-fields-tab.tsx`~~ (eliminado en la reparación 2026-09-29)
-   - `LevantamientoSendActions` en `customer-levantamientos-block.tsx`
-   - `/reports/ventas` duplica `/reports/sales`; `/reports/finanzas` hace doble
-     redirect; `/kds/station` en `ROUTE_MODULE_MAP` y `COOK_ALLOWED_PATHS`
-     sin página real
-10. **Rol MANAGER inasignable** — los hooks de permiso lo autorizan
-    (`session.ts`) pero el catálogo de roles no lo ofrece (`roles.ts`).
-11. **Landing sin CRM** — `src/content/landing.ts` no menciona el ecosistema
-    CRM/encuestas/pipeline.
-12. **PWA offline** — el SW no precachea `/customers` ni `/survey/view`; un QR
-    escaneado offline cae en `/login`.
-13. **CES sin flujo de creación** y **`respondent_email`** aceptado por la API
-    pero no se recolecta en ningún formulario.
-14. **dash-fast sin KPIs CRM** — el dashboard principal ya tiene card CRM; el
-    cubo rápido no.
+- **CES sin flujo de creación** y **`respondent_email`** aceptado por la API
+  pero no recolectado en formularios.
+- **dash-fast sin KPIs CRM** (el dashboard principal ya tiene card CRM).
+- Las **tablas de detalle** del informe (estados/fuentes/tipos) siguen
+  armadas en cliente sobre el sampleo; los KPIs ya son server-side.
+- **173 warnings de lint** (preexistentes, no bloquean el gate): mayormente
+  `exhaustive-deps` y variables sin usar heredadas del WIP.
+- Los seeds `ensure*` de soporte (categorías/SLA) siguen corriendo desde el
+  cliente; los de CRM ya corren una vez por sesión vía `useCrm`.
 
-## Referencias de la auditoría
+## Referencias
 
-- `docs/plan-madurez-api.md` — la fábrica de keys (`src/lib/api/keys.ts`) y los
-  hooks (`src/lib/hooks/useCrm.ts`) son el inicio de su Fase 1; falta extender
-  el patrón al resto de los módulos.
-- `docs/api-map.md` — no incluye `/api/crm/*`, `/api/surveys/*` ni
-  `/api/support/*`; `FRIG_API_APPS` (consola API) tampoco.
+- `docs/plan-madurez-api.md` — la fábrica de keys (`src/lib/api/keys.ts`) y
+  los hooks (`src/lib/hooks/useCrm.ts`) son el inicio de su Fase 1; falta
+  extender el patrón al resto de los módulos.
+- `docs/api-map.md` y `FRIG_API_APPS` (consola API) siguen sin incluir
+  `crm`/`surveys`/`support`.

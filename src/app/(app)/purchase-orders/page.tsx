@@ -707,6 +707,9 @@ export default function PurchaseOrdersPage() {
             await updatePurchaseOrderItem(item.id, {
               quantity_ordered: Number(item.quantity),
               unit_price: Number(item.unit_price),
+              // Requeridos por contrato aunque el backend aplica defaults.
+              create_product_if_not_exists: false,
+              measurement_unit: "UN",
             });
           }
         } else {
@@ -1211,7 +1214,7 @@ export default function PurchaseOrdersPage() {
                 setSupplierName(opt?.label ?? "");
                 setPageUrl({});
               }}
-              onQueryChange={setFilterSupplierQuery}
+              onQueryChange={setFilterSupplierQuery}
               loading={filterSupplierLookup.isFetching}
               clearable
               selectedOption={
@@ -1429,7 +1432,7 @@ export default function PurchaseOrdersPage() {
                         const opt = formSupplierOptions.find((o) => o.value === value);
                         setFormSupplierLabel(opt?.label ?? "");
                       }}
-                      onQueryChange={setFormSupplierQuery}
+                      onQueryChange={setFormSupplierQuery}
                       loading={formSupplierLookup.isFetching}
                       clearable
                       selectedOption={
@@ -1858,7 +1861,7 @@ export default function PurchaseOrdersPage() {
                         const opt = editSupplierOptions.find((o) => o.value === value);
                         setEditSupplierLabel(opt?.label ?? "");
                       }}
-                      onQueryChange={setEditSupplierQuery}
+                      onQueryChange={setEditSupplierQuery}
                       loading={editSupplierLookup.isFetching}
                       clearable
                       selectedOption={
