@@ -11182,10 +11182,24 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description GET/POST /api/files — PDF de planes y archivos de biblioteca. */
+        /**
+         * @description GET/POST /api/files — PDF de planes y archivos de biblioteca.
+         *
+         *     El proxy nginx de producción limita cada request a ~1 MB, así que la SPA
+         *     sube los archivos grandes en partes (``uploadId`` + ``chunkIndex`` +
+         *     ``chunkCount``). Las partes se guardan temporalmente y, al llegar la
+         *     última, se arma el archivo y sigue el mismo flujo que una subida simple.
+         */
         get: operations["files_retrieve"];
         put?: never;
-        /** @description GET/POST /api/files — PDF de planes y archivos de biblioteca. */
+        /**
+         * @description GET/POST /api/files — PDF de planes y archivos de biblioteca.
+         *
+         *     El proxy nginx de producción limita cada request a ~1 MB, así que la SPA
+         *     sube los archivos grandes en partes (``uploadId`` + ``chunkIndex`` +
+         *     ``chunkCount``). Las partes se guardan temporalmente y, al llegar la
+         *     última, se arma el archivo y sigue el mismo flujo que una subida simple.
+         */
         post: operations["files_create"];
         delete?: never;
         options?: never;
