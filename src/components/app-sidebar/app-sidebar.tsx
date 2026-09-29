@@ -14,6 +14,8 @@ import {
   Pin,
   PinOff,
   User as UserIcon,
+  CreditCard,
+  LifeBuoy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -29,13 +31,16 @@ import {
 } from "@/lib/store/session";
 import { useIsSuperAdmin } from "@/lib/store/session";
 import { useFrigMenu } from "@/lib/hooks/useFrigMenu";
+import { useSubscriptionLock } from "@/lib/hooks/useSubscriptionLock";
 import { HeroPlexus } from "@/components/landing/hero-plexus";
 import { useNavFavorites } from "@/lib/store/nav-favorites";
 import { useSidebarStore } from "@/lib/store/sidebar";
+import { filterNavItemsByRole, type NavRoleFilter } from "@/lib/nav-access";
 import { logout } from "@/lib/api/auth";
-import { clearToken } from "@/lib/api/session-storage";
+import { logoutLocal } from "@/lib/logout-local";
 import { fetchKitchenTickets } from "@/lib/api/kitchen";
 import { BrandLogo } from "@/components/brand-logo";
+import { useProductBrand } from "@/lib/product-name";
 import { BranchSwitcher } from "@/components/branch-switcher";
 import { CommandPalette, type CommandPaletteItem } from "@/components/command-palette/command-palette";
 
@@ -83,7 +88,6 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
 
   const hasHydrated = useSessionStore((s) => s.hasHydrated);
   const user = useSessionStore((s) => s.user);
-  const clearSession = useSessionStore((s) => s.clearSession);
   const theme = useSessionStore((s) => s.theme);
   const branch = useCurrentBranch();
   const menuGroups = useFrigMenu();
@@ -91,35 +95,24 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
   const isWaiter = useIsWaiter();
   const isCook = useIsCook();
   const isSuperAdmin = useIsSuperAdmin();
-  const appName = theme?.app_name ?? "FRIG";
+  const { locked: subscriptionLocked } = useSubscriptionLock();
+  const { name: appName, logo: brandLogo } = useProductBrand();
   const { favorites, toggleFavorite, isFavorite } = useNavFavorites();
 
   const cashierAllowedPaths = useCashierAllowedPaths();
   const waiterAllowedPaths = useWaiterAllowedPaths();
   const cookAllowedPaths = useCookAllowedPaths();
 
-  function isAllowedPath(href: string, allowedPaths: string[]): boolean {
-    return allowedPaths.some((p) => href === p || href.startsWith(`${p}/`));
-  }
-
-  const visibleMenuGroups = useMemo(
-    () =>
-      menuGroups
-        .map((group) => ({
-          ...group,
-          items: group.items.filter((item) => {
-            if (isCashier) return isAllowedPath(item.href, cashierAllowedPaths);
-            if (isWaiter) {
-              if (item.href === "/pos") return true;
-              return isAllowedPath(item.href, waiterAllowedPaths);
-            }
-            if (isCook) return isAllowedPath(item.href, cookAllowedPaths);
-            return true;
-          }),
-        }))
-        .filter((group) => group.items.length > 0),
+  const roleFilter: NavRoleFilter = useMemo(
+    () => ({
+      isCashier,
+      isWaiter,
+      isCook,
+      cashierAllowedPaths,
+      waiterAllowedPaths,
+      cookAllowedPaths,
+    }),
     [
-      menuGroups,
       isCashier,
       isWaiter,
       isCook,
@@ -128,6 +121,46 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
       cookAllowedPaths,
     ],
   );
+
+  const visibleMenuGroups = useMemo(() => {
+    if (subscriptionLocked) {
+      return [
+        {
+          title: "Suscripción",
+          icon: CreditCard,
+          items: [
+            {
+              href: "/profile",
+              label: "Suscripción",
+              icon: CreditCard,
+              module: null,
+              description: "Activa el plan de la sucursal",
+            },
+            {
+              href: "/help",
+              label: "Documentación",
+              icon: LifeBuoy,
+              module: null,
+              description: "Guías y contrato API",
+            },
+            {
+              href: "/support",
+              label: "Soporte",
+              icon: LifeBuoy,
+              module: null,
+              description: "Casos, dudas e ideas al equipo",
+            },
+          ],
+        },
+      ];
+    }
+    return menuGroups
+      .map((group) => ({
+        ...group,
+        items: filterNavItemsByRole(group.items, roleFilter),
+      }))
+      .filter((group) => group.items.length > 0);
+  }, [menuGroups, roleFilter, subscriptionLocked]);
 
   const isProductionEnabled = useIsModuleEnabledFromConfig("production");
   const frontendConfigBranchId = useSessionStore((s) => s.frontendConfigBranchId);
@@ -151,11 +184,9 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
     } catch {
       // ignora errores de red en logout
     }
-    clearToken();
-    clearSession();
-    queryClient.clear();
+    await logoutLocal(queryClient);
     window.location.assign("/login");
-  }, [queryClient, clearSession]);
+  }, [queryClient]);
 
   const allItems = useMemo<CommandPaletteItem[]>(() => {
     const ops = visibleMenuGroups.flatMap((g) =>
@@ -279,7 +310,12 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
           <HeroPlexus className="h-full w-full" />
         </div>
         <div className="relative z-10 flex shrink-0 items-center gap-2 px-3 py-2">
-          <BrandLogo src={theme?.logo} alt={appName} containerClassName="h-9 w-9 shrink-0" />
+          <BrandLogo
+            src={brandLogo}
+            alt={appName}
+            name={appName}
+            containerClassName="h-9 w-9 shrink-0"
+          />
           <AnimatePresence>
             {effectivelyExpanded && (
               <m.div
@@ -291,7 +327,7 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
               >
                 {isSuperAdmin ? (
                   <span className="truncate text-sm font-bold tracking-wide text-white/90">
-                    FRIG ROOT
+                    ROOT
                   </span>
                 ) : (
                   <BranchSwitcher appName={appName} />
@@ -560,7 +596,6 @@ function NavItem({
     <div className={cn("group relative", !expanded && "flex justify-center")}>
       <Link
         href={href}
-        prefetch={false}
         onClick={onClick}
         className={cn(
           "relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
@@ -609,20 +644,18 @@ function NavItem({
             onToggleFavorite();
           }}
           className={cn(
-            "absolute right-1 top-1/2 z-10 -translate-y-1/2 rounded p-1 opacity-0 transition-opacity group-hover:opacity-100",
-            // El item activo tiene fondo blanco: un pin blanco quedaría
-            // invisible sobre él, hay que teñirlo del color de marca.
-            favorited
-              ? active
-                ? "text-[color:var(--brand-primary)] opacity-100"
-                : "text-white opacity-100"
-              : active
-                ? "text-[color:var(--brand-primary)]/70 hover:text-[color:var(--brand-primary)]"
-                : "text-white/70 hover:text-white"
+            "absolute right-1 top-1/2 z-10 -translate-y-1/2 rounded-md p-1 text-white",
+            "opacity-0 shadow-sm group-hover:opacity-100 group-hover:bg-white/20",
+            "hover:bg-white/30 hover:text-white",
+            favorited && "opacity-100 bg-white/20",
           )}
           title={favorited ? "Quitar de favoritos" : "Añadir a favoritos"}
         >
-          {favorited ? <Pin className="h-3 w-3" /> : <PinOff className="h-3 w-3" />}
+          {favorited ? (
+            <Pin className="h-3.5 w-3.5 fill-white text-white" strokeWidth={2.25} />
+          ) : (
+            <PinOff className="h-3.5 w-3.5 text-white" strokeWidth={2.25} />
+          )}
         </button>
       )}
     </div>

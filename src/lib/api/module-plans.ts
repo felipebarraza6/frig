@@ -97,21 +97,39 @@ export async function cancelBranchSubscription(branchId: number): Promise<unknow
 }
 export interface BranchSubscriptionHistoryItem {
   id: number;
-  branch: number;
+  branch?: number;
   branch_name?: string;
-  plan: number;
+  /** Algunas respuestas usan `plan`, otras `plan_id`. */
+  plan?: number;
+  plan_id?: number;
   plan_name: string;
   status: "ACTIVE" | "EXPIRED" | "CANCELLED" | "PENDING";
   start_date?: string;
   end_date?: string | null;
-  created: string;
+  created?: string;
 }
 
-export async function fetchBranchSubscriptionHistory(branchId: number | string): Promise<BranchSubscriptionHistoryItem[]> {
-  const data = await apiFetch<{ results?: BranchSubscriptionHistoryItem[] } | BranchSubscriptionHistoryItem[]>(
-    `/branches/${branchId}/subscriptions/`
+/** Respuesta real de GET /branches/{id}/subscriptions/ (no es un listado DRF). */
+interface BranchSubscriptionsPayload {
+  branch_id?: number;
+  branch_name?: string;
+  current_plan?: { id?: number; name?: string } | null;
+  subscriptions?: BranchSubscriptionHistoryItem[];
+  results?: BranchSubscriptionHistoryItem[];
+}
+
+export async function fetchBranchSubscriptionHistory(
+  branchId: number | string,
+): Promise<BranchSubscriptionHistoryItem[]> {
+  const data = await apiFetch<BranchSubscriptionsPayload | BranchSubscriptionHistoryItem[]>(
+    `/branches/${branchId}/subscriptions/`,
   );
-  return Array.isArray(data) ? data : (data.results ?? []);
+  if (Array.isArray(data)) return data;
+  const list = data.subscriptions ?? data.results ?? [];
+  return list.map((item) => ({
+    ...item,
+    plan: item.plan ?? item.plan_id,
+  }));
 }
 
 export async function fetchBranchCapabilities(branchId: number | string): Promise<Record<string, unknown>> {

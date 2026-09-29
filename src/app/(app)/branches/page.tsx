@@ -22,8 +22,8 @@ import { getRoleLabel } from "@/lib/roles";
 import { BranchForm } from "@/components/branches/branch-form";
 import { BranchUsersDialog } from "@/components/branches/branch-users-dialog";
 import { BranchThemeDialog } from "@/components/branches/branch-theme-dialog";
+import { BranchPlanDialog } from "@/components/branches/branch-plan-dialog";
 import { BranchSiiDialog } from "@/components/branches/branch-sii-dialog";
-import { ApplyPlanDialog } from "@/components/branches/apply-plan-dialog";
 import type { Branch } from "@/lib/types";
 import type { BranchesFilter } from "@/lib/api/branches";
 import type { BranchModuleConfiguration } from "@/lib/api/branch-modules";
@@ -91,7 +91,7 @@ const MODULE_SHORT_LABELS: Record<string, string> = {
   ingredients: "Ingredientes",
 };
 
-/** Roles FRIG por código, con el módulo que los habilita (null = siempre). */
+/** Roles por código, con el módulo que los habilita (null = siempre). */
 export const FRIG_ROLE_CATALOG: { code: string; label: string; module: string | null }[] = [
   { code: "OWNER", label: "Propietario", module: null },
   { code: "ADMIN_LOCAL", label: "Administrador local", module: null },
@@ -294,7 +294,7 @@ export default function BranchesPage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+    <div className="mx-auto flex min-h-full w-full min-w-0 max-w-7xl flex-col">
       <PageHeader
         title="Sucursales"
         icon={<Store className="h-5 w-5" />}
@@ -552,14 +552,12 @@ export default function BranchesPage() {
 
                       <button
                         type="button"
-                        disabled={!canConfigure || !invoicesOn}
-                        title={invoicesOn
-                          ? (canConfigure ? "Configuración SII" : "Solo el propietario puede configurar el SII")
-                          : "Requiere el módulo SII activo"}
-                        onClick={() => canConfigure && invoicesOn && setEditingSii(b)}
+                        disabled={!canConfigure}
+                        title={canConfigure ? "App, funciones, CAF y resolución de esta sucursal" : "Solo el propietario puede gestionar facturación"}
+                        onClick={() => canConfigure && setEditingSii(b)}
                         className={cn(
                           "flex flex-col items-start gap-0.5 rounded-xl border px-2.5 py-2 text-left transition-colors",
-                          canConfigure && invoicesOn
+                          canConfigure
                             ? "border-border hover:border-primary/50 hover:bg-muted/40"
                             : "border-border/60 opacity-70",
                         )}
@@ -568,16 +566,10 @@ export default function BranchesPage() {
                           <FileText className="h-3 w-3" /> Facturación
                         </span>
                         <span className="text-xs font-semibold">
-                          {invoicesOn
-                            ? b.sii_config?.sii_enabled ? "SII activo" : "sin configurar"
-                            : "módulo SII off"}
+                          {invoicesOn ? "Gestionar SII" : "módulo SII off"}
                         </span>
                         <span className="text-[10px] text-muted-foreground">
-                          {invoicesOn
-                            ? b.sii_config?.sii_resolution_number
-                              ? `res. ${b.sii_config.sii_resolution_number}`
-                              : "configurar"
-                            : "activa el módulo"}
+                          De esta sucursal
                         </span>
                       </button>
                     </div>
@@ -711,15 +703,24 @@ export default function BranchesPage() {
       {editingTheme && (
         <BranchThemeDialog branch={editingTheme} onClose={() => setEditingTheme(null)} />
       )}
-      {editingPlan && (
-        <ApplyPlanDialog branch={editingPlan} onClose={() => setEditingPlan(null)} onApplied={() => {
-          queryClient.invalidateQueries({ queryKey: ["branches"] });
-          setEditingPlan(null);
-        }} />
-      )}
       {editingSii && (
-        <BranchSiiDialog branch={editingSii} onClose={() => setEditingSii(null)} />
+        <BranchSiiDialog
+          branch={editingSii}
+          invoicesEnabled={(enabledModulesByBranch.get(String(editingSii.branch_id)) ?? []).some((m) => m.module_name === "invoices")}
+          onClose={() => setEditingSii(null)}
+        />
       )}
+      {editingPlan && (
+        <BranchPlanDialog
+          branch={editingPlan}
+          onClose={() => setEditingPlan(null)}
+          onApplied={() => {
+            queryClient.invalidateQueries({ queryKey: ["branches"] });
+            setEditingPlan(null);
+          }}
+        />
+      )}
+
       {confirmDeactivate && (
         <AnimatedOverlay
           open={true}

@@ -24,6 +24,12 @@ import { daysAgoInput, fmtDateInput } from "@/lib/date-range";
 import { downloadExpenseVoucher, fetchExpenses } from "@/lib/api/expenses";
 import { downloadRevenueVoucher, fetchRevenues } from "@/lib/api/revenues";
 import { fetchOrder, fetchOrders } from "@/lib/api/orders";
+import { fetchTaxTypes } from "@/lib/api/tax-types";
+import {
+  loadTaxViewSelection,
+  saveTaxViewSelection,
+  viewAmountWithTaxes,
+} from "@/lib/tax-view";
 import { formatCLP, cn, orderTypeLabel } from "@/lib/utils";
 
 type Variant = "gastos" | "ingresos";
@@ -444,6 +450,7 @@ export function FinanceReportView({ variant }: { variant: Variant }) {
   const [downloading, setDownloading] = useState<string | null>(null);
   const [detailKey, setDetailKey] = useState<string | null>(null);
   const [detailSide, setDetailSide] = useState<"paid" | "pending" | null>(null);
+  const [taxIds, setTaxIds] = useState<string[] | null>(null);
 
   const { download: downloadFile } = useDownloadFile();
 
@@ -510,7 +517,6 @@ export function FinanceReportView({ variant }: { variant: Variant }) {
   });
 
   const rowsRaw = useMemo(() => page ?? [], [page]);
-  const prevRows = useMemo(() => prevPage ?? [], [prevPage]);
 
   const linkedOrderIds = useMemo(() => {
     if (variant !== "ingresos") return "";
@@ -525,6 +531,32 @@ export function FinanceReportView({ variant }: { variant: Variant }) {
       .join(",");
   }, [variant, rowsRaw]);
 
+  const { data: taxTypes = [] } = useQuery({
+    queryKey: ["tax-types", branchId, "finance-report"],
+    queryFn: () => fetchTaxTypes({ branch: branchId, is_active: true }),
+    enabled: Boolean(branchId),
+    staleTime: 60_000,
+  });
+
+  const selectedTaxIds = useMemo(() => {
+    if (taxTypes.length === 0) return new Set<string>();
+    if (taxIds) return new Set(taxIds);
+    if (typeof window === "undefined" || !branchId) return new Set<string>();
+    return loadTaxViewSelection(branchId, taxTypes);
+  }, [variant, taxTypes, taxIds, branchId]);
+
+  const prevRows = useMemo(() => {
+    const raw = prevPage ?? [];
+    if (taxTypes.length === 0) return raw;
+    const ids = selectedTaxIds;
+    return raw.map((r) => ({
+      ...r,
+      amount: viewAmountWithTaxes(num(r.amount), taxTypes, ids),
+      total_paid: viewAmountWithTaxes(num(r.total_paid), taxTypes, ids),
+      pending_amount: viewAmountWithTaxes(pendingOf(r), taxTypes, ids),
+    }));
+  }, [prevPage, variant, taxTypes, selectedTaxIds]);
+
   const { data: orderNumberById = {} } = useQuery({
     queryKey: ["finance-report", "order-numbers", branchId, start, end, linkedOrderIds],
     queryFn: () =>
@@ -537,7 +569,7 @@ export function FinanceReportView({ variant }: { variant: Variant }) {
     staleTime: 60_000,
   });
 
-  const rows = useMemo(() => {
+  const rowsLabeled = useMemo(() => {
     if (variant !== "ingresos") return rowsRaw;
     return rowsRaw.map((r) => {
       if (!r.order) return r;
@@ -546,6 +578,17 @@ export function FinanceReportView({ variant }: { variant: Variant }) {
       return resolved ? { ...r, order_number: resolved } : r;
     });
   }, [variant, rowsRaw, orderNumberById]);
+
+  const rows = useMemo(() => {
+    if (taxTypes.length === 0) return rowsLabeled;
+    const ids = selectedTaxIds;
+    return rowsLabeled.map((r) => ({
+      ...r,
+      amount: viewAmountWithTaxes(num(r.amount), taxTypes, ids),
+      total_paid: viewAmountWithTaxes(num(r.total_paid), taxTypes, ids),
+      pending_amount: viewAmountWithTaxes(pendingOf(r), taxTypes, ids),
+    }));
+  }, [variant, rowsLabeled, taxTypes, selectedTaxIds]);
 
   const kpis = useMemo(() => {
     let total = 0;
@@ -676,7 +719,7 @@ export function FinanceReportView({ variant }: { variant: Variant }) {
   }
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+    <div className="mx-auto flex min-h-full w-full min-w-0 max-w-7xl flex-col">
       <PageHeader
         title={cfg.titulo}
         subtitle={cfg.subtitle}
@@ -740,7 +783,8 @@ export function FinanceReportView({ variant }: { variant: Variant }) {
       />
 
       <div className="flex flex-1 flex-col gap-5 p-4 sm:p-6">
-        <div className="relative max-w-md">
+        <div className="flex min-w-0 flex-col gap-3">
+        <div className="relative min-w-0 w-full max-w-md">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <input
             value={search}
@@ -749,6 +793,46 @@ export function FinanceReportView({ variant }: { variant: Variant }) {
             aria-label="Buscar"
             className="h-9 w-full rounded-xl border border-border bg-background pl-9 pr-3 text-sm outline-none transition-colors focus:border-primary/50"
           />
+        </div>
+        {taxTypes.length > 0 && branchId && (
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+            <span className="mr-1 flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
+              <Percent className="h-3.5 w-3.5" />
+              Ver con
+            </span>
+            {taxTypes.map((t) => {
+              const on = selectedTaxIds.has(t.id);
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => {
+                    const next = new Set(selectedTaxIds);
+                    if (on) next.delete(t.id);
+                    else next.add(t.id);
+                    const ids = Array.from(next);
+                    setTaxIds(ids);
+                    saveTaxViewSelection(branchId, ids);
+                  }}
+                  className={cn(
+                    "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                    on
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:border-primary/40",
+                  )}
+                >
+                  {t.name}
+                  {t.tax_calc === "PERCENTAGE" && t.rate != null ? ` ${t.rate}%` : ""}
+                </button>
+              );
+            })}
+            <span className="text-[11px] text-muted-foreground">
+              {selectedTaxIds.size === 0
+                ? "Montos netos (sin esos impuestos)"
+                : "Los montos del informe usan los impuestos marcados"}
+            </span>
+          </div>
+        )}
         </div>
 
         {isLoading ? (

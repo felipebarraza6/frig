@@ -1,29 +1,43 @@
 /* Service worker de FRIG (PWA).
  * Estrategia:
- *  - Assets estáticos de Next (_next/static, íconos): cache-first con
- *    precarga en el install (App Shell).
- *  - Navegaciones (documentos): network-first, con fallback al cache si
- *    no hay conexión (la app es client-side y requiere API de todas formas).
- *  - API y demás: passthrough directo a red, sin cachear.
+ *  - Assets estáticos de Next (_next/static, íconos, brand): cache-first.
+ *  - Navegaciones (HTML): network-first, fallback al cache offline.
+ *  - API Yggdra y mutaciones: passthrough (sin cachear).
+ *
+ * El build se lee de ?v= en la URL de registro (ServiceWorkerRegister).
+ * Al cambiar v, activate borra caches de builds anteriores.
  */
 
-const STATIC_CACHE = "frig-static-v1";
-const PAGES_CACHE = "frig-pages-v1";
+const BUILD =
+  (typeof self !== "undefined" &&
+    self.location &&
+    new URL(self.location.href).searchParams.get("v")) ||
+  "dev";
+const STATIC_CACHE = "frig-static-" + BUILD;
+const PAGES_CACHE = "frig-pages-" + BUILD;
 
-const APP_SHELL = ["/", "/login", "/manifest.webmanifest", "/icons/icon-192x192.png", "/icons/icon-512x512.png"];
+const APP_SHELL = [
+  "/",
+  "/login",
+  "/dashboard",
+  "/pos",
+  "/sales",
+  "/profile",
+  "/cash-register",
+  "/manifest.webmanifest",
+  "/icons/icon-192x192.png",
+  "/icons/icon-512x512.png",
+  "/icons/icon-512x512-maskable.png",
+];
 
 const STATIC_RE = /\/_next\/static\//;
 const SAME_ORIGIN = new RegExp("^" + self.location.origin);
-// Tope de páginas cacheadas (LRU simple): evita que frig-pages-v1 crezca
-// sin límite con una entrada por URL+querystring en tablets de POS.
 const PAGES_CACHE_MAX = 60;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open(STATIC_CACHE)
-      // Adds individuales tolerantes a fallo: si el hosting no reescribe
-      // /login → /login.html, un 404 en addAll abortaría todo el install.
       .then((cache) =>
         Promise.allSettled(APP_SHELL.map((url) => cache.add(url)))
       )
@@ -35,9 +49,26 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((k) => ![STATIC_CACHE, PAGES_CACHE].includes(k)).map((k) => caches.delete(k))))
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter((k) => k !== STATIC_CACHE && k !== PAGES_CACHE)
+            .map((k) => caches.delete(k))
+        )
+      )
       .then(() => self.clients.claim())
   );
+});
+
+self.addEventListener("message", (event) => {
+  const data = event.data;
+  if (!data || typeof data !== "object") return;
+  if (data.type === "GET_VERSION") {
+    event.ports?.[0]?.postMessage({ build: BUILD });
+  }
+  if (data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener("fetch", (event) => {
@@ -46,9 +77,11 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
 
-  // Assets inmutables de Next + marca (/brand: wordmark, symbol usados por
-  // login/landing): cache-first.
-  if (STATIC_RE.test(url.pathname) || url.pathname.startsWith("/icons/") || url.pathname.startsWith("/brand/")) {
+  if (
+    STATIC_RE.test(url.pathname) ||
+    url.pathname.startsWith("/icons/") ||
+    url.pathname.startsWith("/brand/")
+  ) {
     event.respondWith(
       caches.match(request).then(
         (cached) =>
@@ -65,7 +98,6 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Navegaciones (HTML): network-first con fallback al cache offline.
   if (request.mode === "navigate" || request.headers.get("accept")?.includes("text/html")) {
     event.respondWith(
       fetch(request)
@@ -75,7 +107,6 @@ self.addEventListener("fetch", (event) => {
             caches.open(PAGES_CACHE).then((cache) =>
               cache
                 .put(request, copy)
-                // LRU: si excede el tope, elimina las entradas más antiguas.
                 .then(() => cache.keys())
                 .then((keys) => {
                   if (keys.length > PAGES_CACHE_MAX) {
@@ -88,10 +119,12 @@ self.addEventListener("fetch", (event) => {
           }
           return response;
         })
-        .catch(() => caches.match(request).then((cached) => cached || caches.match("/")))
+        .catch(() =>
+          caches
+            .match(request)
+            .then((cached) => cached || caches.match("/login") || caches.match("/"))
+        )
     );
     return;
   }
-
-  // Resto (txt de RSC, etc.): red directa, sin cachear.
 });

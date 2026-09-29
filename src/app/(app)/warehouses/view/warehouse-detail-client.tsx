@@ -207,8 +207,9 @@ export default function WarehouseDetailPage() {
     queryFn: () =>
       fetchProducts({
         search: debouncedAddQuery.trim() || undefined,
-        page_size: 30,
+        page_size: debouncedAddQuery.trim() ? 30 : 10,
         is_active: true,
+        ordering: debouncedAddQuery.trim() ? undefined : "-id",
       }),
     enabled: addOpen,
     staleTime: 30_000,
@@ -459,7 +460,7 @@ export default function WarehouseDetailPage() {
 
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="relative min-w-[12rem] flex-1">
+            <div className="relative min-w-0 flex-1 basis-[12rem]">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={searchInput}
@@ -698,16 +699,11 @@ export default function WarehouseDetailPage() {
                 value={pickerValue}
                 onChange={queueProduct}
                 onQueryChange={setAddProductQuery}
-                minChars={0}
                 loading={addProductSearch.isFetching}
                 clearable
                 placeholder="Toca para buscar o elegir…"
                 searchPlaceholder="Nombre o código…"
-                emptyMessage={
-                  debouncedAddQuery.trim().length === 0
-                    ? "Escribe para filtrar el catálogo"
-                    : "Sin coincidencias o ya están en la lista"
-                }
+                emptyMessage="Sin coincidencias o ya están en la lista"
               />
             </Field>
 

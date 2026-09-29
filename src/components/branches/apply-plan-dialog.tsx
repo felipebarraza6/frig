@@ -12,7 +12,7 @@ import {
   cancelBranchSubscription,
 } from "@/lib/api/module-plans";
 import type { ApplyPlanResponse } from "@/lib/api/types/modules";
-import { isFrigPlanName } from "@/lib/plans";
+import { selectModulePlansForFrig } from "@/lib/plans";
 import { useToast } from "@/lib/store/toast";
 import { cn } from "@/lib/utils";
 import type { Branch } from "@/lib/types";
@@ -47,10 +47,8 @@ interface ApplyPlanDialogProps {
 }
 
 /**
- * Cambia el plan de una sucursal, renueva su vencimiento o cancela la
- * suscripción. El catálogo de planes de módulos es superadmin; si el usuario
- * actual no puede listarlo, se ofrece al menos la renovación/edición de
- * vencimiento del plan actual de la sucursal.
+ * Aplica, renueva o cancela un plan de módulos. Solo superadmin (Yggdra
+ * restringe cancel-subscription a superadmin). El dueño contrata con checkout.
  */
 export function ApplyPlanDialog({ branch, onClose, onApplied }: ApplyPlanDialogProps) {
   const toast = useToast();
@@ -77,13 +75,15 @@ export function ApplyPlanDialog({ branch, onClose, onApplied }: ApplyPlanDialogP
   });
 
   const options = useMemo<PlanOption[]>(() => {
-    // Catálogo compartido: solo se ofrecen los planes frig; los demás son de
-    // otras apps del mismo backend.
-    const frigPlans = plans.filter((p) => isFrigPlanName(p.name));
-    if (frigPlans.length > 0) {
-      return frigPlans.map((p) => ({ id: p.id, name: p.name, description: p.description ?? undefined }));
+    const selected = selectModulePlansForFrig(plans, currentPlanId);
+    if (selected.length > 0) {
+      return selected.map((p) => ({
+        id: p.id,
+        name: p.name,
+        description: p.description ?? undefined,
+      }));
     }
-    // Fallback: solo el plan actual (permite renovar / editar vencimiento).
+    // Sin catálogo: solo el plan actual (renovar / editar vencimiento).
     if (currentPlanId != null && !Number.isNaN(currentPlanId)) {
       return [
         {

@@ -204,7 +204,7 @@ export function ReportDateFilters({
 }: ReportDateFiltersProps) {
   const activePreset = matchPreset(start, end);
   return (
-    <div className="flex flex-wrap items-end gap-2">
+    <div className="flex min-w-0 flex-wrap items-end gap-2">
       <div className="flex flex-col gap-1">
         <label htmlFor={`${idPrefix}-start`} className="text-xs text-muted-foreground">
           Desde
@@ -261,7 +261,7 @@ export function ReportDateFilters({
 export function ShareBar({ value, max }: { value: number; max: number }) {
   const pct = max > 0 ? Math.round((value / max) * 100) : 0;
   return (
-    <div className="flex items-center gap-2 whitespace-nowrap">
+    <div className="flex min-w-0 items-center gap-2">
       <div className="h-1.5 min-w-4 flex-1 overflow-hidden rounded-full bg-muted">
         <div
           className="h-full rounded-full bg-gradient-to-r from-primary/60 to-primary transition-[width] duration-500"

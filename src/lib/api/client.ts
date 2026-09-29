@@ -13,6 +13,8 @@
  * y solo `next dev` cae en el backend local. Así un build de producción
  * hecho a mano no publica una app que habla con localhost.
  */
+import { getEffectiveBranchId } from "./branch-scope";
+
 export const API_BASE =
   process.env.NEXT_PUBLIC_YGGDRA_API_BASE ??
   (process.env.NODE_ENV === "production"
@@ -30,6 +32,14 @@ export const API_ORIGIN = API_BASE.replace(/\/api\/?$/, "");
 export function mediaUrl(src: string | null | undefined): string | null {
   if (!src) return null;
   if (/^(https?:)?\/\//i.test(src) || src.startsWith("data:") || src.startsWith("blob:")) {
+    return src;
+  }
+  // Assets de la web (marca FRIG), no del backend.
+  if (
+    src.startsWith("/brand/") ||
+    src.startsWith("/icon") ||
+    src.startsWith("/icons/")
+  ) {
     return src;
   }
   return `${API_ORIGIN}${src.startsWith("/") ? "" : "/"}${src}`;
@@ -56,6 +66,10 @@ function getToken(): string | null {
 function getBranchId(): string | null {
   if (typeof window === "undefined") return null;
   return window.localStorage.getItem("frig.branch_id");
+}
+
+function resolveBranchHeader(): string | null {
+  return getEffectiveBranchId(getBranchId());
 }
 
 function redirectToLogin(): void {
@@ -139,7 +153,9 @@ export async function apiFetch<T>(path: string, opts: ApiOptions = {}): Promise<
     ...headers,
   };
 
-  if (body !== undefined) {
+  const isFormData =
+    typeof FormData !== "undefined" && body instanceof FormData;
+  if (body !== undefined && !isFormData) {
     finalHeaders["Content-Type"] = "application/json";
   }
 
@@ -152,7 +168,7 @@ export async function apiFetch<T>(path: string, opts: ApiOptions = {}): Promise<
     finalHeaders["Authorization"] = `Token ${token}`;
   }
 
-  const branchId = getBranchId();
+  const branchId = resolveBranchHeader();
   if (branch === "auto" && branchId) {
     finalHeaders["X-Branch-ID"] = branchId;
   }
@@ -168,7 +184,12 @@ export async function apiFetch<T>(path: string, opts: ApiOptions = {}): Promise<
     const res = await fetch(url, {
       method,
       headers: finalHeaders,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body:
+        body === undefined
+          ? undefined
+          : isFormData
+            ? (body as FormData)
+            : JSON.stringify(body),
       credentials,
       signal: requestSignal,
     });
@@ -241,8 +262,16 @@ function formatErrorDetail(detail: unknown): string {
         if (value) return value;
       }
     }
-    const first = Object.values(record)[0];
-    if (first !== undefined) return formatErrorDetail(first);
+    const entry = Object.entries(record).find(([, value]) => value !== undefined);
+    if (entry) {
+      const [field, value] = entry;
+      const message = formatErrorDetail(value);
+      if (!message) return "";
+      if (field === "detail" || field === "non_field_errors" || field === "error") {
+        return message;
+      }
+      return `${field}: ${message}`;
+    }
   }
   return "";
 }
@@ -321,7 +350,7 @@ export async function apiFile(
     finalHeaders["Authorization"] = `Token ${token}`;
   }
 
-  const branchId = getBranchId();
+  const branchId = resolveBranchHeader();
   if (branch === "auto" && branchId) {
     finalHeaders["X-Branch-ID"] = branchId;
   }

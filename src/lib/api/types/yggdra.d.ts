@@ -30199,6 +30199,11 @@ export interface components {
        * @description 0-100, score de calificación
        */
       score?: number;
+      /**
+       * Fuente
+       * Format: uuid
+       */
+      source?: string | null;
       source_name: string;
       assigned_to_name: string;
       /** Convertido a Cliente */
@@ -44879,7 +44884,7 @@ export interface components {
        * * `52` - Guía de Despacho Electrónica
        * @enum {string}
        */
-      document_type?: "39" | "33" | "61" | "56" | "52";
+      document_type?: "33" | "34" | "39" | "41" | "43" | "46" | "52" | "56" | "61" | "110" | "111" | "112";
       /**
        * Archivo CAF (XML)
        * Format: binary
@@ -44935,7 +44940,7 @@ export interface components {
        * * `56` - Nota de Débito Electrónica
        * @enum {string}
        */
-      document_type?: "39" | "33" | "61" | "56";
+      document_type?: "33" | "34" | "39" | "41" | "43" | "46" | "52" | "56" | "61" | "110" | "111" | "112";
       /** @description Número correlativo del documento */
       folio?: string;
       /**
@@ -54222,7 +54227,7 @@ export interface components {
        * * `56` - Nota de Débito Electrónica
        * @enum {string}
        */
-      document_type: "39" | "33" | "61" | "56";
+      document_type: "33" | "34" | "39" | "41" | "43" | "46" | "52" | "56" | "61" | "110" | "111" | "112";
       document_type_display: string;
       /** @description Número correlativo del documento */
       folio: string;
@@ -54347,7 +54352,7 @@ export interface components {
        * * `56` - Nota de Débito Electrónica
        * @enum {string}
        */
-      document_type: "39" | "33" | "61" | "56";
+      document_type: "33" | "34" | "39" | "41" | "43" | "46" | "52" | "56" | "61" | "110" | "111" | "112";
       /** RUT Cliente */
       customer_rut: string;
       /** Nombre Cliente */
@@ -54394,7 +54399,7 @@ export interface components {
        * * `56` - Nota de Débito Electrónica
        * @enum {string}
        */
-      document_type: "39" | "33" | "61" | "56";
+      document_type: "33" | "34" | "39" | "41" | "43" | "46" | "52" | "56" | "61" | "110" | "111" | "112";
       /** RUT Cliente */
       customer_rut: string;
       /** Nombre Cliente */
@@ -54438,7 +54443,7 @@ export interface components {
        * * `52` - Guía de Despacho Electrónica
        * @enum {string}
        */
-      document_type: "39" | "33" | "61" | "56" | "52";
+      document_type: "33" | "34" | "39" | "41" | "43" | "46" | "52" | "56" | "61" | "110" | "111" | "112";
       document_type_display: string;
       /**
        * Archivo CAF (XML)
@@ -54505,7 +54510,7 @@ export interface components {
        * * `52` - Guía de Despacho Electrónica
        * @enum {string}
        */
-      document_type: "39" | "33" | "61" | "56" | "52";
+      document_type: "33" | "34" | "39" | "41" | "43" | "46" | "52" | "56" | "61" | "110" | "111" | "112";
       /**
        * Archivo CAF (XML)
        * Format: uri
@@ -54539,7 +54544,7 @@ export interface components {
        * * `52` - Guía de Despacho Electrónica
        * @enum {string}
        */
-      document_type: "39" | "33" | "61" | "56" | "52";
+      document_type: "33" | "34" | "39" | "41" | "43" | "46" | "52" | "56" | "61" | "110" | "111" | "112";
       /**
        * Archivo CAF (XML)
        * Format: binary
@@ -54573,7 +54578,7 @@ export interface components {
        * * `52` - Guía de Despacho Electrónica
        * @enum {string}
        */
-      document_type: "39" | "33" | "61" | "56" | "52";
+      document_type: "33" | "34" | "39" | "41" | "43" | "46" | "52" | "56" | "61" | "110" | "111" | "112";
       /**
        * Archivo CAF (XML)
        * Format: binary
@@ -54658,7 +54663,7 @@ export interface components {
        * * `56` - Nota de Débito Electrónica
        * @enum {string}
        */
-      document_type: "39" | "33" | "61" | "56";
+      document_type: "33" | "34" | "39" | "41" | "43" | "46" | "52" | "56" | "61" | "110" | "111" | "112";
       /** @description Número correlativo del documento */
       folio: string;
       /**

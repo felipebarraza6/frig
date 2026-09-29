@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import { Info, ShoppingCart, ChefHat, Wheat } from "lucide-react";
+import { Info, ShoppingCart, ChefHat, Wheat, Radio } from "lucide-react";
 
 export const PRODUCT_TYPE_DESCRIPTIONS: Record<
   string,
@@ -25,6 +25,13 @@ export const PRODUCT_TYPE_DESCRIPTIONS: Record<
     description:
       "Ingrediente base que usas dentro de recetas. Por defecto no se vende directamente al cliente, pero puedes tener stock y costo propio.",
     examples: "Ej: harina, aceite, tornillos, tela, papel.",
+  },
+  IOT: {
+    title: "Equipo IoT / Telemetría",
+    icon: Radio,
+    description:
+      "Dispositivo o maquinaria con telemetría integrada. Permite vincular sensores, monitorear variables en tiempo real y exportar lecturas.",
+    examples: "Ej: medidor de flujo, sonda de temperatura, estación meteorológica, sensor de nivel.",
   },
 };
 
@@ -55,7 +62,7 @@ export function ProductTypeLegend() {
     <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm">
       <div className="mb-2 flex items-center gap-2 font-medium">
         <Info className="h-4 w-4 text-primary" />
-        <span>Tipos de producto en FRIG</span>
+        <span>Tipos de producto en la app</span>
       </div>
       <div className="flex flex-col gap-2">
         {Object.entries(PRODUCT_TYPE_DESCRIPTIONS).map(([key, config]) => {

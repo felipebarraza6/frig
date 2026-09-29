@@ -23,6 +23,7 @@ export const statusBadge = (status?: string | null): string => {
     case "DELIVERED":
     case "DONE":
     case "OPEN":
+    case "RESOLVED":
     case "IN_STOCK":
       return "bg-success/10 text-success border-success/20";
 
@@ -48,6 +49,9 @@ export const statusBadge = (status?: string | null): string => {
     case "PREPARING":
     case "PARTIAL":
     case "IN_PROGRESS":
+    case "WAITING":
+    case "REVISION":
+    case "PENDING_VISIT":
     case "INVOICED":
     case "DRAFT":
     case "MAINTENANCE":

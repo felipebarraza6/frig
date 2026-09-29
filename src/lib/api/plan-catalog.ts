@@ -43,14 +43,50 @@ export interface PlanGroupDetail extends ManageableGroup {
 
 export type GroupPlanPayload = Partial<Omit<GroupPlanEditable, "id">>;
 
+/** Campos editables del grupo (name es de solo lectura en el backend). */
+export type PlanGroupUpdatePayload = Partial<
+  Pick<
+    PlanGroupDetail,
+    | "display_name"
+    | "description"
+    | "contact_email"
+    | "pricing_note"
+    | "hero_headline"
+    | "hero_subhead"
+    | "hero_cta_label"
+    | "landing_features"
+    | "frontend_url"
+    | "integration_uf"
+    | "is_active"
+  >
+>;
+
 /** GET /api/plan-checkout/groups/ — grupos gestionables por el usuario. */
-export function fetchManageableGroups(): Promise<ManageableGroup[]> {
-  return apiFetch<ManageableGroup[]>("/plan-checkout/groups/");
+export async function fetchManageableGroups(): Promise<ManageableGroup[]> {
+  const data = await apiFetch<
+    ManageableGroup[] | ManageableGroup | { results?: ManageableGroup[] }
+  >("/plan-checkout/groups/");
+  if (Array.isArray(data)) return data;
+  if (data && typeof data === "object" && "results" in data) {
+    return data.results ?? [];
+  }
+  if (data && typeof data === "object" && "name" in data) {
+    return [data as ManageableGroup];
+  }
+  return [];
 }
 
 /** GET /api/plan-checkout/groups/<slug>/ — detalle + planes del grupo. */
 export function fetchGroupDetail(slug: string): Promise<PlanGroupDetail> {
   return apiFetch<PlanGroupDetail>(`/plan-checkout/groups/${slug}/`);
+}
+
+/** PATCH /api/plan-checkout/groups/<slug>/ — actualiza copy y UF del grupo. */
+export function updateGroup(slug: string, payload: PlanGroupUpdatePayload): Promise<PlanGroupDetail> {
+  return apiFetch<PlanGroupDetail>(`/plan-checkout/groups/${slug}/`, {
+    method: "PATCH",
+    body: payload,
+  });
 }
 
 /** POST /api/plan-checkout/groups/<slug>/plans/ — crea un plan del grupo. */

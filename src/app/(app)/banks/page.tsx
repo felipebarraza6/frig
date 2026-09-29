@@ -103,7 +103,7 @@ export default function BanksPage() {
     BANK_NAME_OPTIONS.find((o) => o.value === val)?.label ?? val ?? "—";
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+    <div className="mx-auto flex min-h-full w-full min-w-0 max-w-7xl flex-col">
       <PageHeader
         title="Billeteras digitales"
         icon={<Landmark className="h-5 w-5" />}

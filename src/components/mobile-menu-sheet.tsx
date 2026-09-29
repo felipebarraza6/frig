@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence, useDragControls, type PanInfo } from "framer-motion";
 import {
@@ -24,15 +24,19 @@ import {
   useCanSwitchBranch,
   useIsCashier,
   useIsWaiter,
+  useIsCook,
   useCashierAllowedPaths,
   useWaiterAllowedPaths,
+  useCookAllowedPaths,
 } from "@/lib/store/session";
 import { BranchSwitcherModal } from "@/components/branch-switcher-modal";
 import { useFrigMenu } from "@/lib/hooks/useFrigMenu";
 import { useNavFavorites, MAX_NAV_FAVORITES } from "@/lib/store/nav-favorites";
+import { filterNavItemsByRole, type NavRoleFilter } from "@/lib/nav-access";
 import { logout } from "@/lib/api/auth";
-import { clearToken } from "@/lib/api/session-storage";
+import { logoutLocal } from "@/lib/logout-local";
 import { BrandLogo } from "@/components/brand-logo";
+import { useProductBrand } from "@/lib/product-name";
 
 interface MobileMenuSheetProps {
   open: boolean;
@@ -43,25 +47,44 @@ const QUICK_ACCESS_LIMIT = MAX_NAV_FAVORITES;
 
 export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const queryClient = useQueryClient();
   const dragControls = useDragControls();
   const sheetRef = useRef<HTMLDivElement>(null);
 
   const user = useSessionStore((s) => s.user);
-  const clearSession = useSessionStore((s) => s.clearSession);
   const theme = useSessionStore((s) => s.theme);
   const branch = useCurrentBranch();
   const canSwitchBranch = useCanSwitchBranch();
-  const appName = theme?.app_name ?? "FRIG";
+  const { name: appName, logo: brandLogo } = useProductBrand();
   const menuGroups = useFrigMenu();
   const { favorites, toggleFavorite, isFavorite } = useNavFavorites();
   const isCashier = useIsCashier();
   const isWaiter = useIsWaiter();
+  const isCook = useIsCook();
   const cashierAllowedPaths = useCashierAllowedPaths();
   const waiterAllowedPaths = useWaiterAllowedPaths();
+  const cookAllowedPaths = useCookAllowedPaths();
   const [editingQuickAccess, setEditingQuickAccess] = useState(false);
   const [branchPickerOpen, setBranchPickerOpen] = useState(false);
+
+  const roleFilter: NavRoleFilter = useMemo(
+    () => ({
+      isCashier,
+      isWaiter,
+      isCook,
+      cashierAllowedPaths,
+      waiterAllowedPaths,
+      cookAllowedPaths,
+    }),
+    [
+      isCashier,
+      isWaiter,
+      isCook,
+      cashierAllowedPaths,
+      waiterAllowedPaths,
+      cookAllowedPaths,
+    ],
+  );
 
   const handleClose = useCallback(() => {
     setEditingQuickAccess(false);
@@ -79,6 +102,15 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
     return () => window.removeEventListener("keydown", handleKey);
   }, [open, handleClose]);
 
+  // Al navegar (Link del sheet), cierra el menú; el dock inferior permanece.
+  const prevPathRef = useRef(pathname);
+  useEffect(() => {
+    if (prevPathRef.current !== pathname) {
+      prevPathRef.current = pathname;
+      if (open) handleClose();
+    }
+  }, [pathname, open, handleClose]);
+
   async function handleLogout() {
     handleClose();
     try {
@@ -86,9 +118,7 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
     } catch {
       // ignora errores de red en logout
     }
-    clearToken();
-    clearSession();
-    queryClient.clear();
+    await logoutLocal(queryClient);
     window.location.assign("/login");
   }
 
@@ -103,39 +133,24 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
     [menuGroups]
   );
 
-  const isAllowed = useCallback(
-    (href: string): boolean => {
-      if (isCashier)
-        return cashierAllowedPaths.some(
-          (p) => href === p || href.startsWith(`${p}/`),
-        );
-      if (isWaiter)
-        return waiterAllowedPaths.some(
-          (p) => href === p || href.startsWith(`${p}/`),
-        );
-      return true;
-    },
-    [isCashier, isWaiter, cashierAllowedPaths, waiterAllowedPaths]
-  );
-
   const quickAccess = useMemo(() => {
     // Solo favoritos reales del usuario, sin relleno con defaults (igual que el sidebar web).
     return favorites
       .map((href) => allItems.find((i) => i.href === href))
       .filter((item): item is NonNullable<typeof item> => Boolean(item))
-      .filter((item) => isAllowed(item.href))
+      .filter((item) => filterNavItemsByRole([item], roleFilter).length > 0)
       .slice(0, QUICK_ACCESS_LIMIT);
-  }, [allItems, favorites, isAllowed]);
+  }, [allItems, favorites, roleFilter]);
 
   const visibleGroups = useMemo(
     () =>
       menuGroups
         .map((group) => ({
           ...group,
-          items: group.items.filter((item) => isAllowed(item.href)),
+          items: filterNavItemsByRole(group.items, roleFilter),
         }))
         .filter((group) => group.items.length > 0),
-    [menuGroups, isAllowed]
+    [menuGroups, roleFilter]
   );
 
   const displayName = branch ? branchName(branch) : appName;
@@ -158,90 +173,85 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
           <motion.div
             ref={sheetRef}
             drag="y"
+            dragListener={false}
             dragControls={dragControls}
             dragConstraints={{ top: 0, bottom: 0 }}
-            dragElastic={0.15}
+            dragElastic={0.12}
             onDragEnd={handleDragEnd}
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="absolute bottom-0 left-0 right-0 flex max-h-[88dvh] flex-col rounded-t-3xl bg-background shadow-[0_-8px_40px_rgba(0,0,0,0.2)] pb-[env(safe-area-inset-bottom)]"
+            transition={{ type: "spring", stiffness: 320, damping: 32 }}
+            className="absolute bottom-0 left-0 right-0 flex h-[min(92dvh,720px)] max-h-[92dvh] flex-col overflow-hidden rounded-t-3xl bg-background shadow-[0_-8px_40px_rgba(0,0,0,0.2)]"
             role="dialog"
             aria-modal="true"
             aria-label="Menú de navegación"
           >
-            {/* Handle de arrastre */}
+            {/* Handle: único punto de arrastre (el scroll del cuerpo queda libre). */}
             <div
-              className="flex w-full cursor-grab items-center justify-center pt-3 pb-1 active:cursor-grabbing"
+              className="flex w-full shrink-0 cursor-grab items-center justify-center pt-3 pb-1 active:cursor-grabbing"
               onPointerDown={(e) => dragControls.start(e)}
             >
               <div className="h-1.5 w-10 rounded-full bg-muted-foreground/30" />
             </div>
 
-            {/* Header */}
-            <div className="relative overflow-hidden border-b border-border px-5 pb-10 pt-6">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
-              <button
-                type="button"
-                onClick={handleClose}
-                className="absolute right-4 top-3 z-10 rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                aria-label="Cerrar menú"
-              >
-                <X className="h-5 w-5" />
-              </button>
-
-              <div className="relative flex flex-col items-center gap-1 text-center">
-                {theme?.logo ? (
-                  <div className="mb-2 rounded-2xl bg-gradient-to-br from-primary to-primary/80 p-1 shadow-lg ring-4 ring-primary/10">
-                    <BrandLogo
-                      src={theme.logo}
-                      alt={appName}
-                      name={displayName}
-                      containerClassName="h-20 w-20 rounded-xl bg-white"
-                      className="h-full w-full p-1.5"
-                    />
-                  </div>
-                ) : (
-                  <div className="rounded-2xl bg-primary p-1 shadow-lg ring-4 ring-primary/10">
-                    <BrandLogo
-                      src={null}
-                      alt={appName}
-                      name={displayName}
-                      containerClassName="h-16 w-16 rounded-xl bg-primary text-lg text-primary-foreground"
-                    />
-                  </div>
-                )}
-                {branch ? (
-                  <p className="mt-3 text-lg font-bold">{branchName(branch)}</p>
-                ) : (
-                  <p className="mt-3 text-lg font-bold">{appName}</p>
-                )}
-                {user && (
-                  <p className="mt-1 truncate text-xs text-muted-foreground">
-                    {user.first_name ?? user.email}
+            {/* Cabecera: logo + sucursal + usuario en fila, sin recortes. */}
+            <div className="relative shrink-0 border-b border-border px-4 py-3">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent"
+              />
+              <div className="relative flex items-center gap-3 pr-10">
+                <BrandLogo
+                  src={brandLogo}
+                  alt={appName}
+                  name={appName}
+                  containerClassName="h-14 w-14 shrink-0 rounded-2xl bg-card text-sm text-primary-foreground shadow-sm ring-1 ring-border"
+                  className="h-full w-full object-contain p-1.5"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-base font-bold leading-snug text-foreground">
+                    {branch ? branchName(branch) : appName}
                   </p>
-                )}
+                  {user && (
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                      {[user.first_name, user.last_name].filter(Boolean).join(" ") ||
+                        user.email}
+                    </p>
+                  )}
+                  {user?.email && user.first_name && (
+                    <p className="mt-0.5 truncate text-[11px] text-muted-foreground/80">
+                      {user.email}
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  aria-label="Cerrar menú"
+                >
+                  <X className="h-5 w-5" />
+                </button>
               </div>
             </div>
 
-            {/* Contenido scrolleable */}
-            <div className="scrollbar-hide flex-1 overflow-y-auto px-5 py-4">
+            {/* Cuerpo scrolleable: min-h-0 evita que el footer se monte encima. */}
+            <div className="scrollbar-hide min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
               {editingQuickAccess ? (
-                /* Modo edición de accesos directos */
-                <section className="mb-5">
-                  <div className="mb-3 flex items-center justify-between">
+                <section className="mb-2">
+                  <div className="mb-3 flex items-center justify-between gap-2">
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       Accesos directos
                     </p>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="shrink-0 text-xs text-muted-foreground">
                       {favorites.length} de {QUICK_ACCESS_LIMIT}
                     </span>
                   </div>
                   <p className="mb-3 text-xs text-muted-foreground">
-                    Selecciona los accesos que quieres ver primero en el menú y la barra inferior.
+                    Elige hasta {QUICK_ACCESS_LIMIT} atajos. Aparecen en la barra inferior y arriba en este menú.
                   </p>
-                  <div className="grid grid-cols-4 gap-3">
+                  <div className="grid grid-cols-4 gap-2.5">
                     {visibleGroups.flatMap((group) =>
                       group.items.map((item) => {
                         const favorited = isFavorite(item.href);
@@ -253,18 +263,23 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
                             disabled={disabled}
                             onClick={() => toggleFavorite(item.href)}
                             className={cn(
-                              "relative flex min-h-[76px] flex-col items-center justify-center gap-1.5 rounded-xl border p-2.5 transition-all touch-manipulation active:scale-[0.96]",
+                              "relative flex min-h-[72px] flex-col items-center justify-center gap-1.5 rounded-xl border p-2 transition-all touch-manipulation active:scale-[0.96]",
                               favorited
                                 ? "border-primary bg-primary text-primary-foreground shadow-md"
                                 : "border-primary/20 bg-primary/[0.04] text-foreground hover:bg-primary/10 active:bg-primary/15",
                               disabled && "cursor-not-allowed opacity-40 active:scale-100",
                             )}
                           >
-                            <div className="absolute right-1.5 top-1.5">
+                            <div
+                              className={cn(
+                                "absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full",
+                                favorited ? "bg-white/25" : "bg-black/40",
+                              )}
+                            >
                               {favorited ? (
-                                <Pin className="h-3.5 w-3.5 text-primary" />
+                                <Pin className="h-3 w-3 fill-white text-white" strokeWidth={2.5} />
                               ) : (
-                                <PinOff className="h-3.5 w-3.5 text-muted-foreground/60" />
+                                <PinOff className="h-3 w-3 text-white" strokeWidth={2.5} />
                               )}
                             </div>
                             <item.icon
@@ -292,9 +307,8 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
                 </section>
               ) : (
                 <>
-                  {/* Accesos directos */}
                   <section className="mb-5">
-                    <div className="mb-3 flex items-center justify-between">
+                    <div className="mb-3 flex items-center justify-between gap-2">
                       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         Accesos directos
                       </p>
@@ -308,7 +322,7 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
                       </button>
                     </div>
                     {quickAccess.length > 0 ? (
-                      <div className="grid grid-cols-4 gap-3">
+                      <div className="grid grid-cols-4 gap-2.5">
                         {quickAccess.map((item) => (
                           <QuickAccessButton
                             key={item.href}
@@ -327,14 +341,13 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
                     )}
                   </section>
 
-                  {/* Grupos como cuadrículas de acceso rápido */}
-                  <section className="flex flex-col gap-5">
+                  <section className="flex flex-col gap-5 pb-2">
                     {visibleGroups.map((group) => (
                       <div key={group.title}>
                         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                           {group.title}
                         </p>
-                        <div className="grid grid-cols-4 gap-3">
+                        <div className="grid grid-cols-4 gap-2.5">
                           {group.items.map((item) => (
                             <QuickAccessButton
                               key={item.href}
@@ -353,49 +366,50 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
               )}
             </div>
 
-            {/* Footer */}
-            <div className="border-t border-border p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+            {/* Footer fijo: perfil + acciones; no compite con el scroll. */}
+            <div className="shrink-0 border-t border-border bg-background px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
               <Link
                 href="/profile"
+                prefetch
                 onClick={handleClose}
                 aria-label="Abrir mi perfil"
-                className="flex items-center gap-3 rounded-xl bg-muted p-3 transition-colors hover:bg-muted/80 active:bg-muted/60"
+                className="flex items-center gap-3 rounded-xl border border-border/80 bg-muted/50 p-3 transition-colors hover:bg-muted active:bg-muted/80"
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary">
                   <UserIcon className="h-5 w-5 text-secondary-foreground" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{user?.first_name ?? user?.email}</p>
+                  <p className="truncate text-sm font-medium">
+                    {user?.first_name ?? user?.email}
+                  </p>
                   <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
                 </div>
                 <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
               </Link>
 
-              <div className="mt-3 grid grid-cols-2 gap-2">
+              <div className="mt-2.5 grid grid-cols-2 gap-2">
                 {canSwitchBranch && (
                   <button
                     type="button"
                     onClick={() => {
-                      // El modal es a pantalla completa: se cierra el sheet y
-                      // queda el picker flotante encima de la app.
                       onClose();
                       setBranchPickerOpen(true);
                     }}
-                    className="flex items-center justify-center gap-2 rounded-xl bg-muted px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted/80"
+                    className="flex items-center justify-center gap-2 rounded-xl bg-muted px-3 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted/80"
                   >
-                    <ArrowRightLeft className="h-4 w-4" />
-                    Cambiar sucursal
+                    <ArrowRightLeft className="h-4 w-4 shrink-0" />
+                    <span className="truncate">Sucursal</span>
                   </button>
                 )}
                 <button
                   type="button"
                   onClick={handleLogout}
                   className={cn(
-                    "flex items-center justify-center gap-2 rounded-xl bg-danger px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-danger/90",
-                    !canSwitchBranch && "col-span-2"
+                    "flex items-center justify-center gap-2 rounded-xl bg-danger px-3 py-3 text-sm font-medium text-white transition-colors hover:bg-danger/90",
+                    !canSwitchBranch && "col-span-2",
                   )}
                 >
-                  <LogOut className="h-4 w-4" />
+                  <LogOut className="h-4 w-4 shrink-0" />
                   Cerrar sesión
                 </button>
               </div>
@@ -429,6 +443,7 @@ function QuickAccessButton({
   return (
     <Link
       href={href}
+      prefetch
       onClick={onClick}
       className={cn(
         "flex min-h-[76px] flex-col items-center justify-center gap-1.5 rounded-xl border p-2.5 transition-all touch-manipulation active:scale-[0.96]",

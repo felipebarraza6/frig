@@ -41,6 +41,25 @@ export function fetchCheckoutStatus(id: string, group = "frig") {
   });
 }
 
+/**
+ * Checkout autenticado para una sucursal existente.
+ * POST /api/branches/{id}/change-plan-checkout/
+ */
+export function createChangePlanCheckout(
+  branchId: number | string,
+  planId: string,
+  installmentsCount?: number,
+) {
+  const body: { plan_id: string; installments_count?: number } = {
+    plan_id: planId,
+  };
+  if (installmentsCount != null) body.installments_count = installmentsCount;
+  return apiFetch<CheckoutResponse>(
+    `/branches/${branchId}/change-plan-checkout/`,
+    { method: "POST", body },
+  );
+}
+
 // ── Catálogo público de planes (landing) ─────────────────────────────────────
 
 /** Plan de un grupo expuesto públicamente (precio en UF, null = a convenir). */

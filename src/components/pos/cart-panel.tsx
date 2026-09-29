@@ -270,7 +270,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
   const { data: customerResults = [], isLoading: searchingCustomers } = useQuery({
     queryKey: ["customers", "search", debouncedClientQuery, branchId],
     queryFn: () => searchCustomers(debouncedClientQuery, branchId ? Number(branchId) : undefined),
-    enabled: debouncedClientQuery.trim().length >= 1,
+    enabled: true,
   });
 
   const createCustomerMutation = useMutation({
@@ -912,11 +912,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                   exit={{ opacity: 0, y: -4 }}
                   className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-border bg-background shadow-lg"
                 >
-                  {clientQuery.trim().length === 0 ? (
-                    <p className="px-3 py-2 text-xs text-muted-foreground">
-                      Escribe nombre, RUT, teléfono, email o tag…
-                    </p>
-                  ) : searchingCustomers ? (
+                  {searchingCustomers ? (
                     <p className="px-3 py-2 text-xs text-muted-foreground">Buscando…</p>
                   ) : customerResults.length === 0 ? (
                     <p className="px-3 py-2 text-xs text-muted-foreground">No se encontraron clientes.</p>

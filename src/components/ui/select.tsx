@@ -23,10 +23,11 @@ export type SelectProps = {
   options?: SelectOption[];
   /** Extras por valor de opción (ej. ícono y negrita para categorías de sistema). */
   optionExtras?: Record<string, SelectOptionExtra>;
+  containerClassName?: string;
 } & Omit<SelectHTMLAttributes<HTMLSelectElement>, "size">;
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ className, children, value, onChange, optionExtras, ...props }, ref) => {
+  ({ className, containerClassName, children, value, onChange, optionExtras, ...props }, ref) => {
     const [open, setOpen] = useState(false);
     const [activeIndex, setActiveIndex] = useState(0);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -133,8 +134,24 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
       };
     }, [open, activeIndex, opts, onChange]);
 
+    const isCustomWidth = Boolean(
+      className?.match(/(?:^|\s)(w-\S+|min-w-\S+|max-w-\S+)/) ||
+        containerClassName?.match(/(?:^|\s)(w-\S+|min-w-\S+|max-w-\S+)/),
+    );
+    const layoutClasses = className
+      ?.split(/\s+/)
+      .filter((cls) => /^(w-|shrink|flex|grow|min-w-|max-w-)/.test(cls))
+      .join(" ");
+
     return (
-      <div ref={containerRef} className="relative">
+      <div
+        ref={containerRef}
+        className={cn(
+          "relative min-w-0",
+          isCustomWidth ? layoutClasses : "w-full",
+          containerClassName,
+        )}
+      >
         <button
           ref={triggerRef}
           type="button"

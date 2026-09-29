@@ -243,7 +243,7 @@ export default function DashFastPage() {
   const offline = countsQuery.isError && kitchenQuery.isError;
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+    <div className="mx-auto flex min-h-full w-full min-w-0 max-w-7xl flex-col">
       <PageHeader
         title="Dash Fast"
         subtitle="Tablero rápido del negocio"
@@ -260,7 +260,7 @@ export default function DashFastPage() {
         }
       />
 
-      <div className="flex items-center gap-2 overflow-x-auto border-b border-border bg-background px-4 py-2.5 sm:px-6" role="group" aria-label="Filtros del tablero">
+      <div className="flex min-w-0 items-center gap-2 overflow-x-auto border-b border-border bg-background px-4 py-2.5 sm:px-6" role="group" aria-label="Filtros del tablero">
         {([
           { id: "today", label: "Hoy" },
           { id: "week", label: "7 días" },

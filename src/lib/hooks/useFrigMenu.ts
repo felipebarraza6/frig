@@ -46,6 +46,9 @@ export const SUPERADMIN_ALLOWED_PATHS = new Set<string>([
   "/organization",
   "/users",
   "/branches",
+  "/profile",
+  "/support",
+  "/help",
 ]);
 
 /**

@@ -23,6 +23,8 @@ import {
   Tags,
   Truck,
   Ruler,
+  Radio,
+  ExternalLink,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -613,7 +615,7 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
   const supplierLookup = useQuery({
     queryKey: ["suppliers", "lookup", "product-form", debouncedSupplierQuery],
     queryFn: () => lookupSuppliers({ q: debouncedSupplierQuery, limit: 20 }),
-    enabled: debouncedSupplierQuery.trim().length >= 2,
+    enabled: true,
     staleTime: 30_000,
   });
 
@@ -930,7 +932,7 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
         product_type: "RAW_MATERIAL",
         search: ingredientSearch,
       }),
-    enabled: isCompound && ingredientSearch.trim().length >= 2,
+    enabled: isCompound,
   });
 
   const [loading, setLoading] = useState(false);
@@ -1445,6 +1447,28 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
                 options={productTypeOptions}
                 onChange={(v) => updateField("productType", v)}
               />
+              {form.productType === "IOT" && (
+                <div className="mt-3 flex flex-col gap-2 rounded-xl border border-cyan-500/20 bg-cyan-500/10 p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start gap-2.5">
+                    <Radio className="mt-0.5 h-4 w-4 shrink-0 text-cyan-500 dark:text-cyan-400" />
+                    <div>
+                      <p className="text-xs font-semibold text-foreground">Equipo con Telemetría IoT</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Este producto puede vincularse a un dispositivo IoT en el backend para reportar lecturas de variables y telemetría.
+                      </p>
+                    </div>
+                  </div>
+                  {product?.id && (
+                    <Link
+                      href={`/iot?product_id=${product.id}`}
+                      className="inline-flex items-center gap-1.5 self-start rounded-lg bg-cyan-500/20 px-2.5 py-1 text-xs font-medium text-cyan-600 hover:bg-cyan-500/30 dark:text-cyan-300 sm:self-auto"
+                    >
+                      <span>Gestionar en IoT</span>
+                      <ExternalLink className="h-3 w-3" />
+                    </Link>
+                  )}
+                </div>
+              )}
             </FormSection>
 
             <FormSection title="Datos" tint="none">
@@ -1521,7 +1545,6 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
                           );
                         }}
                         onQueryChange={setSupplierQuery}
-                        minChars={linkedSupplierOptions.length > 0 ? 0 : 2}
                         loading={supplierLookup.isFetching || loadingSupplierProduct}
                         clearable
                         selectedOption={
@@ -1532,11 +1555,6 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
                         placeholder={loadingSupplierProduct ? "Cargando…" : "Elegir o buscar…"}
                         searchPlaceholder="Nombre, RUT o razón social…"
                         emptyMessage="Sin coincidencias"
-                        searchHint={
-                          linkedSupplierOptions.length > 0
-                            ? "Vinculados · escribe para buscar otros"
-                            : undefined
-                        }
                         className="[&_button]:border-0 [&_button]:bg-primary/[0.06] [&_button]:shadow-[inset_0_1px_0_var(--glass-highlight)] [&_button]:ring-1 [&_button]:ring-border/40"
                       />
                     </IconFieldShell>
@@ -2027,7 +2045,7 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
                     placeholder="Buscar materia prima…"
                     className="pl-9"
                   />
-                  {ingredientSearchInput.trim().length >= 2 && (
+                  {(ingredientSearchInput.trim().length > 0 || ingredientProducts.length > 0) && (
                     <div className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-lg border border-border bg-background shadow-lg">
                       {ingredientProducts.length === 0 ? (
                         <p className="px-3 py-2 text-xs text-muted-foreground">No se encontraron materias primas.</p>

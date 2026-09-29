@@ -177,6 +177,34 @@
   }
 }
 
+/* Crossfade suave entre rutas del shell autenticado (ViewTransition update). */
+::view-transition-old(.nav-fade) {
+  animation: 140ms ease-in both nav-fade-out;
+}
+::view-transition-new(.nav-fade) {
+  animation: 180ms ease-out 60ms both nav-fade-in;
+}
+@keyframes nav-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes nav-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+::view-transition {
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation: none !important;
+  }
+}
+
 html {
   /* App-like: sin rebote de overscroll ni pull-to-refresh "suelto" en PWA. */
   overscroll-behavior: none;
@@ -191,11 +219,28 @@ html {
   }
 }
 
+html,
+body {
+  min-width: 0;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   -webkit-font-smoothing: antialiased;
   overscroll-behavior: none;
+}
+
+/* Flex/filtros: el control no impone un ancho mínimo que rompa la fila. */
+input,
+select,
+textarea {
+  max-width: 100%;
+}
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"] {
+  min-width: 0;
 }
 
 /* Manito en todos los elementos clickeables, incluidos los botones

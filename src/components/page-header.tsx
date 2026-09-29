@@ -29,6 +29,8 @@ export function PageHeader({
     <header
       className={cn(
         "mb-0 flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6",
+        // Sticky glass en móvil: se siente app al scrollear listados.
+        "max-md:sticky max-md:top-0 max-md:z-20 max-md:bg-background/90 max-md:backdrop-blur-md max-md:supports-[backdrop-filter]:bg-background/75",
         className,
       )}
     >
@@ -51,7 +53,7 @@ export function PageHeader({
         </div>
       </div>
       {actions ? (
-        <div className="flex flex-wrap items-center justify-end gap-2 sm:shrink-0">
+        <div className="flex min-w-0 w-full flex-wrap items-center justify-end gap-2 sm:w-auto sm:shrink-0">
           {actions}
         </div>
       ) : null}

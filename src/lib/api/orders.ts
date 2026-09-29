@@ -186,6 +186,72 @@ export async function fetchPendingOrdersByClient(clientId: string): Promise<Yggd
   return data.results ?? [];
 }
 
+/** Historial de órdenes de un cliente. El filtro exact `client=` no filtra; usar `client__in`. */
+export async function fetchOrdersByClient(
+  clientId: number | string,
+  opts: { page_size?: number } = {},
+): Promise<PaginatedOrder> {
+  return fetchOrders({
+    client__in: String(clientId),
+    page_size: opts.page_size ?? 20,
+    ordering: "-created",
+  });
+}
+
+export interface PosClientOrderProduct {
+  id: number;
+  name: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  product_type?: string | null;
+}
+
+export interface PosClientOrderRow {
+  id: string;
+  total_amount: number;
+  paid_amount: number;
+  remaining_amount: number;
+  status: string;
+  payment_status: string;
+  date: string;
+  observation?: string | null;
+  order_kind?: string | null;
+  products?: PosClientOrderProduct[];
+  client?: {
+    id: number;
+    name: string;
+    code?: string | null;
+    rut?: string | null;
+    phone?: string | null;
+    address?: string | null;
+  };
+  branch?: { id: number; name: string };
+}
+
+export interface PosClientOrdersResponse {
+  client: {
+    id: number;
+    name: string;
+    code?: string | null;
+    phone?: string | null;
+  };
+  summary: {
+    total_pending_amount: number;
+    pending_orders_count: number;
+  };
+  orders: PosClientOrderRow[];
+}
+
+/** Deuda operativa del cliente (órdenes pendientes/parciales). Preferir sobre with-pending-revenues en ficha. */
+export async function fetchPosClientOrders(
+  clientId: number | string,
+): Promise<PosClientOrdersResponse> {
+  return apiFetch<PosClientOrdersResponse>(
+    `/sales/pos/client_orders/?client_id=${encodeURIComponent(String(clientId))}`,
+  );
+}
+
 export async function fetchOrder(id: string): Promise<YggdraOrder> {
   return apiFetch<YggdraOrder>(`/sales/orders/${id}/`);
 }
@@ -234,6 +300,17 @@ export async function addItemsToOrder(
     body: { items },
   });
   return data;
+}
+
+/** Une otras órdenes abiertas en esta. Las de origen se anulan. */
+export async function mergeOrders(
+  targetId: string,
+  sourceOrderIds: string[],
+): Promise<{ order: YggdraOrder; lines_moved?: number }> {
+  return apiFetch(`/sales/orders/${targetId}/merge/`, {
+    method: "POST",
+    body: { source_order_ids: sourceOrderIds },
+  });
 }
 
 export interface DeliverItemInput {

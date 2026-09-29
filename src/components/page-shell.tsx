@@ -14,7 +14,7 @@ export function PageShell({
   className?: string;
 }) {
   return (
-    <div className={cn("mx-auto flex min-h-full w-full max-w-7xl flex-col", className)}>
+    <div className={cn("mx-auto flex min-h-full w-full min-w-0 max-w-7xl flex-col", className)}>
       {children}
     </div>
   );

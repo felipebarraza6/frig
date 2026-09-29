@@ -144,7 +144,7 @@ export default function FixedExpensesPage() {
   const openEdit = (e: FixedExpense) => { setEditing(e); setModalOpen(true); };
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+    <div className="mx-auto flex min-h-full w-full min-w-0 max-w-7xl flex-col">
       <PageHeader
         title="Gastos"
         icon={<TrendingDown className="h-5 w-5" />}
@@ -183,12 +183,12 @@ export default function FixedExpensesPage() {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="relative flex-1 max-w-xs">
+        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="relative min-w-0 w-full flex-1 sm:max-w-xs">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar..." className="pl-9" aria-label="Buscar" />
           </div>
-          <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full sm:w-44">
+          <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full min-w-0 sm:w-44">
             {STATUS_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
           </Select>
         </div>

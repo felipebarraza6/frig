@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode, ViewTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -16,6 +16,8 @@ import {
   useIsSuperAdmin,
 } from "@/lib/store/session";
 import { useIsRouteModuleEnabled } from "@/lib/hooks/useRouteModuleAccess";
+import { useSubscriptionLock } from "@/lib/hooks/useSubscriptionLock";
+import { isSubscriptionLockAllowedPath } from "@/lib/subscription";
 import { fetchFrontendConfig } from "@/lib/api/frontend-config";
 import { activateBranch, pickDefaultBranchId } from "@/lib/branch-session";
 import { useSidebarStore } from "@/lib/store/sidebar";
@@ -24,12 +26,19 @@ import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { MobileMenuSheet } from "@/components/mobile-menu-sheet";
 import { RealtimeProvider } from "@/components/realtime/realtime-provider";
 import { Toaster } from "@/components/ui/toaster";
+import { SupportLauncher } from "@/components/support/support-launcher";
+import { ProductIdentity } from "@/components/product-identity";
 import { ForbiddenListener } from "@/components/forbidden-listener";
 import { HeroPlexus } from "@/components/landing/hero-plexus";
 import { enabledModuleSet, firstEnabledAllowedPath } from "@/lib/modules";
 import { SUPERADMIN_ALLOWED_PATHS as SUPERADMIN_MENU_PATHS } from "@/lib/hooks/useFrigMenu";
+import { useToastStore } from "@/lib/store/toast";
+import { ApiError } from "@/lib/api/client";
 
 const HIDDEN_SIDEBAR_PATHS = ["/pos/terminal", "/kds/terminal", "/kds/monitor", "/tables/map/full"];
+
+/** Tras un 5xx de frontend-config, no martillar el API: reintento mínimo. */
+const FRONTEND_CONFIG_RETRY_MS = 30_000;
 
 /**
  * Rutas operativas donde la capa cósmica NO se renderiza: en caja la
@@ -49,6 +58,8 @@ const SUPERADMIN_ALLOWED_PATHS = new Set<string>([
   ...SUPERADMIN_MENU_PATHS,
   "/profile",
   "/dashboard",
+  "/support",
+  "/help",
 ]);
 
 function isAllowed(pathname: string, allowedPaths: string[]): boolean {
@@ -79,6 +90,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const sidebarExpanded = useSidebarStore((s) => s.expanded);
   const isRouteModuleEnabled = useIsRouteModuleEnabled(pathname);
+  const { locked: subscriptionLocked } = useSubscriptionLock();
   const setFrontendConfig = useSessionStore((s) => s.setFrontendConfig);
   const branches = useSessionStore((s) => s.branches);
   const queryClient = useQueryClient();
@@ -94,45 +106,84 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   // IMPORTANTE: la dependencia usa `user?.id` (primitivo), no `user` (objeto).
   // `setFrontendConfig` reemplaza `user` con una referencia nueva en cada
   // respuesta; depender del objeto re-disparaba este efecto en un loop infinito
-  // de GET /frontend-config. El ref solo se marca tras éxito: un 5xx no debe
-  // dejar la app con módulos stale sin posibilidad de reintento.
+  // de GET /frontend-config.
+  //
+  // Tras un 5xx no reintentamos en cada remount (martillaba Postgres cuando
+  // estaba sin cupo de conexiones). Marcamos el fallo y reintentamos a los
+  // FRONTEND_CONFIG_RETRY_MS o al cambiar de sucursal.
+  // inFlight evita doble fetch de StrictMode (toast/console duplicados).
   const refreshedBranchRef = useRef<string | null>(null);
+  const failedBranchRef = useRef<{ branchId: string; at: number; toasted?: boolean } | null>(null);
+  const inFlightBranchRef = useRef<string | null>(null);
+  const addToast = useToastStore((s) => s.addToast);
   const userId = user?.id;
   useEffect(() => {
     if (!hasHydrated || !userId || !currentBranchId) return;
     if (refreshedBranchRef.current === currentBranchId) return;
+    if (inFlightBranchRef.current === currentBranchId) return;
+    const failed = failedBranchRef.current;
+    if (
+      failed &&
+      failed.branchId === currentBranchId &&
+      Date.now() - failed.at < FRONTEND_CONFIG_RETRY_MS
+    ) {
+      return;
+    }
     const branchIdNum = Number(currentBranchId);
     if (!Number.isFinite(branchIdNum) || branchIdNum <= 0) {
       console.warn("[layout] frontend-config: branch_id inválido:", currentBranchId);
       return;
     }
     let cancelled = false;
+    inFlightBranchRef.current = currentBranchId;
     fetchFrontendConfig(branchIdNum)
       .then((config) => {
         if (cancelled) return;
         refreshedBranchRef.current = currentBranchId;
+        failedBranchRef.current = null;
         setFrontendConfig(config, String(currentBranchId));
       })
       .catch((err) => {
         if (cancelled) return;
-        const status =
-          err && typeof err === "object" && "status" in err
-            ? (err as { status?: number }).status
-            : undefined;
-        const detail =
-          err && typeof err === "object" && "detail" in err
-            ? (err as { detail?: unknown }).detail
-            : undefined;
-        console.error(
-          "[layout] failed to refresh frontend-config:",
-          status ? `HTTP ${status}` : err,
-          detail ?? "",
-        );
+        const prev = failedBranchRef.current;
+        const alreadyToasted =
+          prev?.branchId === currentBranchId &&
+          prev.toasted &&
+          Date.now() - prev.at < FRONTEND_CONFIG_RETRY_MS;
+        failedBranchRef.current = {
+          branchId: currentBranchId,
+          at: Date.now(),
+          toasted: true,
+        };
+        const status = err instanceof ApiError ? err.status : undefined;
+        // Un solo log por ventana de fallo (StrictMode / remounts).
+        if (!alreadyToasted) {
+          console.warn(
+            "[layout] frontend-config no disponible:",
+            status ? `HTTP ${status}` : err instanceof Error ? err.message : err,
+          );
+        }
+        if (!alreadyToasted && status !== 401) {
+          addToast({
+            message:
+              status && status >= 500
+                ? "El servidor está saturado. Espera unos segundos y recarga."
+                : err instanceof Error
+                  ? err.message
+                  : "No se pudo actualizar la configuración de la sucursal.",
+            variant: "error",
+          });
+        }
+      })
+      .finally(() => {
+        if (inFlightBranchRef.current === currentBranchId) {
+          inFlightBranchRef.current = null;
+        }
       });
     return () => {
       cancelled = true;
     };
-  }, [hasHydrated, userId, currentBranchId, setFrontendConfig]);
+  }, [hasHydrated, userId, currentBranchId, setFrontendConfig, addToast]);
 
   useEffect(() => {
     if (!hasHydrated) return;
@@ -151,6 +202,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           console.error("[layout] failed to activate default branch:", err);
         });
       }
+      return;
+    }
+
+    // Sin plan activo en la sucursal: solo perfil/suscripción (superadmin exento).
+    if (subscriptionLocked && !isSubscriptionLockAllowedPath(pathname)) {
+      router.replace("/profile");
       return;
     }
 
@@ -181,7 +238,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
     // Superadmin: solo administra organizaciones/sucursales, no opera.
     // Si intenta acceder a una ruta operativa, redirigir a /organization.
-    if (isSuperAdmin && !SUPERADMIN_ALLOWED_PATHS.has(pathname)) {
+    if (
+      isSuperAdmin &&
+      !isAllowed(pathname, [...SUPERADMIN_ALLOWED_PATHS])
+    ) {
       router.replace("/organization");
       return;
     }
@@ -232,6 +292,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     enabledModules,
     branches,
     queryClient,
+    subscriptionLocked,
   ]);
 
   if (!hasHydrated || !user) {
@@ -242,38 +303,32 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  // Fail-closed: si el módulo de la ruta está deshabilitado no se renderiza
-  // la página ni un frame (el efecto de arriba ya redirige a /dashboard).
-  // Sin esto, al entrar a una ruta desactivada (p. ej. Inventario off) la
-  // página completa se pintaba antes de la redirección.
-  // Superadmin: tampoco renderiza rutas operativas (solo admin).
-  if (
-    (!isRouteModuleEnabled && pathname !== "/dashboard") ||
-    (isSuperAdmin && !SUPERADMIN_ALLOWED_PATHS.has(pathname))
-  ) {
-    return (
-      <div className="flex flex-1 items-center justify-center bg-background">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-muted border-t-primary" />
-      </div>
-    );
-  }
+  // Fail-closed solo en el contenido de `main`. El chrome (sidebar + dock
+  // inferior) permanece montado para que el nav móvil no parpadee al cambiar
+  // de ruta / mientras carga el candado de suscripción.
+  const blockPageContent =
+    (!isRouteModuleEnabled && pathname !== "/dashboard" && !subscriptionLocked) ||
+    (isSuperAdmin && !isAllowed(pathname, [...SUPERADMIN_ALLOWED_PATHS])) ||
+    (subscriptionLocked && !isSubscriptionLockAllowedPath(pathname));
+
+  const showChrome = !shouldHideSidebar;
 
   return (
     <RealtimeProvider>
+      <ProductIdentity />
       <ForbiddenListener />
-      <div className="flex min-h-full">
-        {/* Capa cósmica de fondo: la muralla de datos de la landing, tenue
-            y solo en desktop (la PWA móvil prioriza rendimiento/táctil).
-            En terminales operativas densas (POS, KDS) no se renderiza. */}
-        {!shouldHideSidebar && !NO_COSMOS_PATHS.some((p) => pathname.startsWith(p)) && (
+      <div className="relative flex min-h-full">
+        {/* Misma muralla de datos en todos los módulos (Ayuda incluida).
+            z-0 sobre el body, debajo del contenido; main es transparente. */}
+        {showChrome && !NO_COSMOS_PATHS.some((p) => pathname.startsWith(p)) && (
           <div
             aria-hidden
-            className="pointer-events-none fixed inset-0 -z-10 hidden opacity-35 md:block"
+            className="pointer-events-none fixed inset-0 z-0 hidden opacity-45 md:block"
           >
             <HeroPlexus className="h-full w-full" />
           </div>
         )}
-        {!shouldHideSidebar && (
+        {showChrome && (
           <>
             <div className="hidden md:block">
               <AppSidebar />
@@ -284,21 +339,38 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
         <main
           className={cn(
-            "flex min-h-full flex-1 flex-col min-w-0",
-            !shouldHideSidebar && [
-                // El pin reserva espacio; el hover expande como overlay sin mover el layout.
-                sidebarExpanded ? "md:ml-60" : "md:ml-16",
-                "pb-24 md:pb-0",
+            "relative z-[1] flex min-h-full min-w-0 flex-1 flex-col overscroll-y-contain bg-transparent",
+            showChrome && [
+              // El pin reserva espacio; el hover expande como overlay sin mover el layout.
+              sidebarExpanded ? "md:ml-60" : "md:ml-16",
+              // Safe area superior (notch PWA) + espacio para el dock inferior.
+              "pt-[env(safe-area-inset-top)] pb-24 md:pt-0 md:pb-0",
               // Transición para que el contenido acompañe el ancho del sidebar
               // sin saltos al fijar/soltar el pin.
               "transition-[margin] duration-300 ease-out",
-            ]
+            ],
           )}
         >
-          {children}
+          {blockPageContent ? (
+            <div className="flex flex-1 items-center justify-center bg-background">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-muted border-t-primary" />
+            </div>
+          ) : shouldHideSidebar ? (
+            children
+          ) : (
+            // Crossfade solo del contenido; el dock inferior queda fuera.
+            <ViewTransition default="none" update="nav-fade">
+              {children}
+            </ViewTransition>
+          )}
         </main>
 
-        {!shouldHideSidebar && <MobileBottomNav onMenuClick={() => setMobileOpen(true)} />}
+        {/* Dock global inmutable: no se desmonta al abrir el menú ni al
+            cambiar de página (el sheet cubre por encima). */}
+        {showChrome && (
+          <MobileBottomNav onMenuClick={() => setMobileOpen(true)} />
+        )}
+        <SupportLauncher />
         <Toaster />
       </div>
     </RealtimeProvider>

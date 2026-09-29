@@ -266,7 +266,7 @@ export default function ProductNutritionPage() {
 
   if (!nutritionEnabled) {
     return (
-      <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+      <div className="mx-auto flex min-h-full w-full min-w-0 max-w-7xl flex-col">
         <PageHeader
           title="Etiquetado nutricional"
           icon={<Apple className="h-5 w-5" />}
@@ -287,7 +287,7 @@ export default function ProductNutritionPage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+    <div className="mx-auto flex min-h-full w-full min-w-0 max-w-7xl flex-col">
       <PageHeader
         title="Etiquetado nutricional"
         icon={<Apple className="h-5 w-5" />}

@@ -70,6 +70,14 @@ export interface Branch {
   plan?: ID | null;
   plan_name?: string | null;
   plan_expiration_date?: string | null;
+  /** Plan de venta (GroupPlan) activo, o null. */
+  commercial_plan?: {
+    plan_id: string;
+    display_name: string;
+    price_uf?: string | null;
+  } | null;
+  /** Estado canónico de la suscripción de la sucursal (detalle Yggdra). */
+  subscription_status?: "ACTIVE" | "EXPIRED" | "CANCELLED" | "PENDING" | string | null;
   /** Configuración SII de solo lectura (escritura vía PATCH de la sucursal). */
   sii_config?: {
     sii_enabled: boolean;

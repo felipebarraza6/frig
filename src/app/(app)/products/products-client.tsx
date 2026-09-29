@@ -390,14 +390,14 @@ export function ProductsClient() {
     search.trim() || category || productTypes.length || forSale || active;
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+    <div className="mx-auto flex min-h-full w-full min-w-0 max-w-7xl flex-col">
       <PageHeader
         title="Productos"
         icon={<Package className="h-5 w-5" />}
         subtitle="Gestiona el catálogo de la sucursal"
         actions={
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="relative w-full sm:w-64 lg:w-80">
+          <div className="flex min-w-0 w-full flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative min-w-0 w-full sm:max-w-xs lg:max-w-sm">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={searchInput}
@@ -408,7 +408,7 @@ export function ProductsClient() {
               />
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
               <div className="flex items-center rounded-xl border border-border bg-muted/40 p-0.5">
                 <Button
                   variant={view === "grid" ? "secondary" : "ghost"}

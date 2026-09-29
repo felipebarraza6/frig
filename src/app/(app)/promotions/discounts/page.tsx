@@ -3,7 +3,10 @@
 import { useMemo, useState } from "react";
 import { StatCard as SharedStatCard } from "@/components/ui/stat-card";
 import { PageHeader } from "@/components/page-header";
+import { PageBody, PageShell } from "@/components/page-shell";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
+  AlertCircle,
   Plus,
   Search,
   Pencil,
@@ -194,7 +197,7 @@ export default function DiscountsPage() {
   const productPickerSearch = useQuery({
     queryKey: ["products", "for-sale", "discounts", debouncedProductPickerQuery],
     queryFn: () => searchProductsForSale({ search: debouncedProductPickerQuery }),
-    enabled: modalOpen && form.apply_to === "SPECIFIC_PRODUCTS" && debouncedProductPickerQuery.trim().length >= 2,
+    enabled: modalOpen && form.apply_to === "SPECIFIC_PRODUCTS",
     staleTime: 30_000,
   });
 
@@ -423,7 +426,7 @@ export default function DiscountsPage() {
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+    <PageShell>
       <PageHeader
         title="Descuentos y cupones"
         icon={<Percent className="h-5 w-5" />}
@@ -479,41 +482,49 @@ export default function DiscountsPage() {
         }
       />
 
-      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
+      <PageBody className="gap-4">
         {dashboard && (
           <>
-            <section className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+            <section className="grid gap-2 grid-cols-2 lg:grid-cols-4">
               <SharedStatCard
-                label="Total descuentos"
+                variant="compact"
+                label="Total Descuentos"
                 value={dashboard.summary.total_discounts}
                 icon={Tag}
                 sub={`${dashboard.summary.active_discounts} activos`}
+                tone="primary"
               />
               <SharedStatCard
-                label="Usos totales"
+                variant="compact"
+                label="Usos Totales"
                 value={dashboard.summary.total_usage}
                 icon={TrendingUp}
-                sub="acumulados"
+                sub="acumulados en ventas"
+                tone="primary"
               />
               <SharedStatCard
-                label="Monto descontado"
+                variant="compact"
+                label="Monto Descontado"
                 value={formatCLP(dashboard.summary.total_discount_amount)}
                 icon={BarChart3}
-                sub="total"
+                sub="ahorro generado"
+                tone="success"
               />
               <SharedStatCard
-                label="Promos expirando"
+                variant="compact"
+                label="Promos Expirando"
                 value={dashboard.expiring_soon.length}
                 icon={Calendar}
-                sub="en 7 días"
+                sub="en los próximos 7 días"
+                tone={dashboard.expiring_soon.length > 0 ? "warning" : "muted"}
               />
             </section>
 
             {(dashboard.top_performing.length > 0 ||
               dashboard.recent_usage.length > 0 ||
               dashboard.expiring_soon.length > 0) && (
-              <section className="grid gap-4 lg:grid-cols-3">
-                <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+              <section className="grid gap-3 lg:grid-cols-3">
+                <div className="rounded-2xl border border-border bg-card p-4 shadow-2xs">
                   <h3 className="text-sm font-semibold">Mejor rendimiento</h3>
                   <p className="mt-0.5 text-xs text-muted-foreground">Por usos y monto descontado</p>
                   {dashboard.top_performing.length === 0 ? (
@@ -536,7 +547,7 @@ export default function DiscountsPage() {
                   )}
                 </div>
 
-                <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                <div className="rounded-2xl border border-border bg-card p-4 shadow-2xs">
                   <h3 className="text-sm font-semibold">Usos recientes</h3>
                   <p className="mt-0.5 text-xs text-muted-foreground">Últimas aplicaciones</p>
                   {dashboard.recent_usage.length === 0 ? (
@@ -551,7 +562,7 @@ export default function DiscountsPage() {
                               {u.user_name || "—"} · {new Date(u.usage_date).toLocaleDateString()}
                             </p>
                           </div>
-                          <div className="shrink-0 text-right text-xs tabular-nums text-emerald-700">
+                          <div className="shrink-0 text-right text-xs tabular-nums text-emerald-600 font-medium">
                             -{formatCLP(u.discount_amount)}
                           </div>
                         </li>
@@ -560,7 +571,7 @@ export default function DiscountsPage() {
                   )}
                 </div>
 
-                <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                <div className="rounded-2xl border border-border bg-card p-4 shadow-2xs">
                   <h3 className="text-sm font-semibold">Por expirar</h3>
                   <p className="mt-0.5 text-xs text-muted-foreground">Próximos 7 días</p>
                   {dashboard.expiring_soon.length === 0 ? (
@@ -589,169 +600,138 @@ export default function DiscountsPage() {
           </>
         )}
 
-        {/* Desktop filters */}
-        <div className="hidden flex-wrap items-end gap-3 md:flex">
-          <div className="relative w-full max-w-xs">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar descuento…"
-              className="pl-9"
-              aria-label="Buscar descuento"
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor="filter-type" className="text-xs text-muted-foreground">Tipo</label>
+        {/* Minimal Single-Row Toolbar */}
+        <div className="flex items-center justify-between gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+            {/* Omnisearch */}
+            <div className="relative w-48 sm:w-60 shrink-0">
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar descuento o código…"
+                className="pl-8 pr-7 text-xs h-8 rounded-xl bg-card"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+
+            {/* Tipo */}
             <Select
-              id="filter-type"
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
+              containerClassName="w-32 shrink-0"
+              className="text-xs h-8 rounded-xl"
             >
-              <option value="">Todos</option>
+              <option value="">Tipo: Todos</option>
               {DISCOUNT_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
               ))}
             </Select>
-          </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor="filter-status" className="text-xs text-muted-foreground">Estado</label>
+
+            {/* Estado */}
             <Select
-              id="filter-status"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
+              containerClassName="w-28 shrink-0"
+              className="text-xs h-8 rounded-xl"
             >
-              <option value="">Todos</option>
+              <option value="">Estado: Todos</option>
               {STATUS_OPTIONS.map((s) => (
                 <option key={s.value} value={s.value}>{s.label}</option>
               ))}
             </Select>
-          </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor="filter-apply" className="text-xs text-muted-foreground">Aplicar a</label>
+
+            {/* Aplicar a */}
             <Select
-              id="filter-apply"
               value={applyToFilter}
               onChange={(e) => setApplyToFilter(e.target.value)}
+              containerClassName="w-36 shrink-0"
+              className="text-xs h-8 rounded-xl"
             >
-              <option value="">Todos</option>
+              <option value="">Alcance: Todos</option>
               {APPLY_TO.map((a) => (
                 <option key={a.value} value={a.value}>{a.label}</option>
               ))}
             </Select>
-          </div>
-          <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm">
-            <input
-              type="checkbox"
-              checked={activeOnly}
-              onChange={(e) => setActiveOnly(e.target.checked)}
-              className="h-4 w-4 rounded border-border"
-            />
-            <span className="text-muted-foreground">Solo activos</span>
-          </label>
-        </div>
 
-        {/* Mobile filters */}
-        <div className="flex flex-col gap-3 md:hidden">
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar descuento…"
-                className="pl-9"
-                aria-label="Buscar descuento"
-              />
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-10 px-3"
-              onClick={() => setShowMobileFilters((v) => !v)}
+            {/* Solo Activos Pill */}
+            <button
+              type="button"
+              onClick={() => setActiveOnly(!activeOnly)}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-xl px-2.5 py-1 text-xs font-medium transition-all shrink-0",
+                activeOnly
+                  ? "bg-emerald-600 text-white shadow-xs font-semibold"
+                  : "bg-muted/70 text-muted-foreground hover:text-foreground"
+              )}
             >
-              <SlidersHorizontal className="h-4 w-4" />
-              <span className="ml-2">Filtros</span>
-            </Button>
+              Solo activos
+            </button>
+
+            {/* Limpiar shortcut */}
+            {(search || typeFilter || statusFilter || applyToFilter || activeOnly) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch("");
+                  setTypeFilter("");
+                  setStatusFilter("");
+                  setApplyToFilter("");
+                  setActiveOnly(false);
+                }}
+                className="shrink-0 text-[11px] text-muted-foreground hover:text-foreground px-2 py-1 rounded-lg hover:bg-muted transition-colors"
+              >
+                Limpiar
+              </button>
+            )}
           </div>
 
-          <div className={`flex flex-col gap-3 ${showMobileFilters ? "" : "hidden"}`}>
-            <div className="flex flex-col gap-1">
-              <label htmlFor="filter-type-mobile" className="text-xs text-muted-foreground">Tipo</label>
-              <Select
-                id="filter-type-mobile"
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-              >
-                <option value="">Todos</option>
-                {DISCOUNT_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
-                ))}
-              </Select>
-            </div>
-            <div className="flex flex-col gap-1">
-              <label htmlFor="filter-status-mobile" className="text-xs text-muted-foreground">Estado</label>
-              <Select
-                id="filter-status-mobile"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <option value="">Todos</option>
-                {STATUS_OPTIONS.map((s) => (
-                  <option key={s.value} value={s.value}>{s.label}</option>
-                ))}
-              </Select>
-            </div>
-            <div className="flex flex-col gap-1">
-              <label htmlFor="filter-apply-mobile" className="text-xs text-muted-foreground">Aplicar a</label>
-              <Select
-                id="filter-apply-mobile"
-                value={applyToFilter}
-                onChange={(e) => setApplyToFilter(e.target.value)}
-              >
-                <option value="">Todos</option>
-                {APPLY_TO.map((a) => (
-                  <option key={a.value} value={a.value}>{a.label}</option>
-                ))}
-              </Select>
-            </div>
-            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm">
-              <input
-                type="checkbox"
-                checked={activeOnly}
-                onChange={(e) => setActiveOnly(e.target.checked)}
-                className="h-4 w-4 rounded border-border"
-              />
-              <span className="text-muted-foreground">Solo activos</span>
-            </label>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {filtered.length} {filtered.length === 1 ? "descuento" : "descuentos"}
+            </span>
           </div>
         </div>
 
         {error ? (
-          <div className="rounded-lg bg-danger/10 p-4 text-sm text-danger">
-            <p className="font-medium">No se pudieron cargar los descuentos.</p>
-            {error instanceof Error && <p className="mt-1 opacity-90">{error.message}</p>}
-          </div>
+          <EmptyState
+            icon={AlertCircle}
+            title="Error al cargar promociones"
+            description="Hubo un problema al consultar los descuentos y cupones. Verificá tu conexión o reintentá."
+            action={
+              <Button size="sm" onClick={() => window.location.reload()}>
+                Reintentar
+              </Button>
+            }
+          />
         ) : isLoading ? (
           <div className="grid flex-1 place-items-center">
             <TableSkeleton rows={5} columns={4} />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">
-            <div>
-              <Percent className="mx-auto h-8 w-8 text-muted-foreground" />
-              <p className="mt-3 text-sm font-medium">
-                {search ? "No se encontraron descuentos." : "Aún no hay descuentos creados."}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {search ? "Prueba con otros filtros." : "Crea el primer descuento para comenzar."}
-              </p>
-            </div>
-          </div>
+          <EmptyState
+            icon={Percent}
+            title={search || typeFilter || statusFilter || applyToFilter || activeOnly ? "No hay promociones con estos filtros" : "Sin promociones creadas"}
+            description="Crea promociones y cupones para aplicar descuentos automáticos en el punto de venta (POS)."
+            action={
+              <Button size="sm" onClick={() => openModal()}>
+                <Plus className="mr-1.5 h-4 w-4" />
+                Nuevo descuento
+              </Button>
+            }
+          />
         ) : (
           <>
             {/* Desktop table */}
-            <div className="hidden overflow-x-auto rounded-xl border border-border bg-card shadow-sm md:block">
+            <div className={cn("hidden overflow-x-auto rounded-2xl border border-border bg-card shadow-2xs transition-opacity duration-300 md:block", isLoading ? "opacity-60" : "opacity-100")}>
               <table className="w-full min-w-full whitespace-nowrap text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -829,7 +809,7 @@ export default function DiscountsPage() {
             </div>
 
             {/* Mobile cards */}
-            <div className="grid gap-3 md:hidden">
+            <div className={cn("grid gap-3 transition-opacity duration-300 md:hidden", isLoading ? "opacity-60" : "opacity-100")}>
               {filtered.map((d) => (
                 <div
                   key={d.id}
@@ -918,7 +898,7 @@ export default function DiscountsPage() {
             </p>
           </>
         )}
-      </div>
+      </PageBody>
 
       <AnimatedOverlay
         open={modalOpen}
@@ -1195,8 +1175,7 @@ export default function DiscountsPage() {
                           if (!id || !opt) return;
                           addProductToDiscount(id, opt.label);
                         }}
-                        onQueryChange={setProductPickerQuery}
-                        minChars={2}
+                        onQueryChange={setProductPickerQuery}
                         loading={productPickerSearch.isFetching}
                         placeholder="Buscar y agregar producto…"
                         searchPlaceholder="Nombre o código…"
@@ -1344,7 +1323,7 @@ export default function DiscountsPage() {
           </div>
       </AnimatedOverlay>
 )}
-    </div>
+    </PageShell>
   );
 }
 

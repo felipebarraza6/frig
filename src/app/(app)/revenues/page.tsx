@@ -742,7 +742,7 @@ export default function RevenuesPage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+    <div className="mx-auto flex min-h-full w-full min-w-0 max-w-7xl flex-col">
       <PageHeader
         title="Ingresos"
         icon={<ArrowDownLeft className="h-5 w-5" />}
@@ -795,8 +795,8 @@ export default function RevenuesPage() {
       <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
         <div className="flex flex-col gap-3">
           {/* Desktop filters */}
-          <div className="hidden flex-nowrap items-end gap-2 md:flex">
-            <div className="relative min-w-40 flex-1">
+          <div className="hidden min-w-0 flex-wrap items-end gap-2 md:flex">
+            <div className="relative min-w-0 flex-[2] basis-[12rem]">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
@@ -806,7 +806,7 @@ export default function RevenuesPage() {
                 aria-label="Buscar ingreso"
               />
             </div>
-            <div className="flex w-36 shrink-0 flex-col gap-1">
+            <div className="flex min-w-0 flex-1 basis-[8rem] flex-col gap-1">
               <label htmlFor="filter-category" className="text-xs text-muted-foreground">Categoría</label>
               <Select
                 id="filter-category"
@@ -820,7 +820,7 @@ export default function RevenuesPage() {
                 ))}
               </Select>
             </div>
-            <div className="flex w-32 shrink-0 flex-col gap-1">
+            <div className="flex min-w-0 flex-1 basis-[7rem] flex-col gap-1">
               <label htmlFor="filter-status" className="text-xs text-muted-foreground">Estado</label>
               <Select
                 id="filter-status"
@@ -832,7 +832,7 @@ export default function RevenuesPage() {
                 ))}
               </Select>
             </div>
-            <div className="flex w-40 shrink-0 flex-col gap-1">
+            <div className="flex min-w-0 flex-1 basis-[9rem] flex-col gap-1">
               <label htmlFor="filter-start" className="text-xs text-muted-foreground">Desde</label>
               <Input
                 id="filter-start"
@@ -842,7 +842,7 @@ export default function RevenuesPage() {
                 onChange={(e) => handleStartDateChange(e.target.value)}
               />
             </div>
-            <div className="flex w-40 shrink-0 flex-col gap-1">
+            <div className="flex min-w-0 flex-1 basis-[9rem] flex-col gap-1">
               <label htmlFor="filter-end" className="text-xs text-muted-foreground">Hasta</label>
               <Input
                 id="filter-end"
@@ -869,8 +869,8 @@ export default function RevenuesPage() {
 
           {/* Mobile filters */}
           <div className="flex flex-col gap-3 md:hidden">
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="relative min-w-0 flex-1">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={search}

@@ -6,7 +6,11 @@ import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DEMO_CONTACTS, LANDING_INTEGRATION_UF, type LandingPlan } from "@/content/landing";
-import { fetchCheckout, fetchCheckoutStatus } from "@/lib/api/checkout";
+import {
+  createChangePlanCheckout,
+  fetchCheckout,
+  fetchCheckoutStatus,
+} from "@/lib/api/checkout";
 import { ApiError } from "@/lib/api/client";
 import { useApp } from "@/lib/app-context";
 
@@ -18,6 +22,16 @@ interface CheckoutModalProps {
   integrationUf?: number;
   /** Correo de contacto para el fallback mailto (del grupo; fallback local). */
   contactEmail?: string;
+  /** Prefill opcional (p. ej. dueño contratando desde dentro de la app). */
+  initialValues?: {
+    business_name?: string;
+    contact_name?: string;
+    email?: string;
+    website?: string;
+  };
+  /** Si hay sucursal, usa change-plan-checkout (no crea organización). */
+  existingBranchId?: number | string;
+  onPaid?: () => void;
   onClose: () => void;
 }
 
@@ -28,13 +42,21 @@ const POLL_MAX_ATTEMPTS = 80;
  * Flujo de contratación: plan elegido → datos del negocio → pago → el sistema
  * envía un correo con el código de acceso.
  *
- * Tras crear la sesión (POST /public/frig-checkout/) el modal se mantiene
+ * Tras crear la sesión (POST /public/{grupo}-checkout/) el modal se mantiene
  * abierto en estado "polling": la pasarela se abre en otra pestaña y aquí se
  * confirma el pago consultando el estado cada 3 s. Si el POST falla con error
  * de servidor, se cae a un mailto con todos los datos (la promesa del flujo
  * es el correo con el código).
  */
-export function CheckoutModal({ plan, integrationUf = LANDING_INTEGRATION_UF, contactEmail = DEMO_CONTACTS.to, onClose }: CheckoutModalProps) {
+export function CheckoutModal({
+  plan,
+  integrationUf = LANDING_INTEGRATION_UF,
+  contactEmail = DEMO_CONTACTS.to,
+  initialValues,
+  existingBranchId,
+  onPaid,
+  onClose,
+}: CheckoutModalProps) {
   const { checkoutGroup } = useApp();
   const storageKey = `frig.checkout_id.${checkoutGroup}`;
   const [state, setState] = useState<CheckoutState>(() => {
@@ -45,10 +67,10 @@ export function CheckoutModal({ plan, integrationUf = LANDING_INTEGRATION_UF, co
       window.sessionStorage.getItem(storageKey);
     return pending ? "polling" : "form";
   });
-  const [business, setBusiness] = useState("");
-  const [email, setEmail] = useState("");
-  const [contactName, setContactName] = useState("");
-  const [website, setWebsite] = useState("");
+  const [business, setBusiness] = useState(initialValues?.business_name ?? "");
+  const [email, setEmail] = useState(initialValues?.email ?? "");
+  const [contactName, setContactName] = useState(initialValues?.contact_name ?? "");
+  const [website, setWebsite] = useState(initialValues?.website ?? "");
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const prevPlanIdRef = useRef<string | null>(null);
@@ -79,6 +101,7 @@ export function CheckoutModal({ plan, integrationUf = LANDING_INTEGRATION_UF, co
         if (s.status === "PAID") {
           window.clearInterval(timer);
           window.sessionStorage.removeItem(storageKey);
+          onPaid?.();
           setState("done");
         } else if (s.status === "EXPIRED" || s.status === "FAILED") {
           window.clearInterval(timer);
@@ -101,7 +124,7 @@ export function CheckoutModal({ plan, integrationUf = LANDING_INTEGRATION_UF, co
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [state, checkoutGroup, storageKey]);
+  }, [state, checkoutGroup, storageKey, onPaid]);
 
   if (!plan) return null;
 
@@ -122,10 +145,13 @@ export function CheckoutModal({ plan, integrationUf = LANDING_INTEGRATION_UF, co
     };
 
     try {
-      const res = await fetchCheckout(payload, checkoutGroup);
+      const res = existingBranchId
+        ? await createChangePlanCheckout(existingBranchId, plan!.id)
+        : await fetchCheckout(payload, checkoutGroup);
       window.sessionStorage.setItem(storageKey, res.checkout_id);
 
       if (!res.payment_url && res.status === "PAID") {
+        onPaid?.();
         setState("done");
         return;
       }
@@ -175,8 +201,9 @@ export function CheckoutModal({ plan, integrationUf = LANDING_INTEGRATION_UF, co
           <div>
             <p className="text-base font-semibold">Confirmando tu pago…</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Completa el pago en la pasarela. La abrimos en otra pestaña; en
-              cuanto se confirme, te mostramos tu código de acceso.
+              {existingBranchId
+                ? "Completa el pago en la pasarela. La abrimos en otra pestaña; el plan se activa al confirmar."
+                : "Completa el pago en la pasarela. La abrimos en otra pestaña; en cuanto se confirme, te mostramos tu código de acceso."}
             </p>
           </div>
           {paymentUrl && (
@@ -197,11 +224,13 @@ export function CheckoutModal({ plan, integrationUf = LANDING_INTEGRATION_UF, co
             <Mail className="h-7 w-7" />
           </div>
           <div>
-            <p className="text-base font-semibold">Revisa tu correo</p>
+            <p className="text-base font-semibold">
+              {existingBranchId ? "Plan actualizado" : "Revisa tu correo"}
+            </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Una vez confirmado tu pago, te enviaremos a{" "}
-              <span className="font-medium text-foreground">{email}</span> un correo con
-              tu código de acceso para entrar a FRIG.
+              {existingBranchId
+                ? "El pago quedó confirmado. El plan de esta sucursal ya está activo."
+                : `Una vez confirmado tu pago, te enviaremos a ${email} un correo con tu código de acceso para entrar a FRIG.`}
             </p>
           </div>
           <Button variant="outline" onClick={onClose}>
@@ -226,6 +255,13 @@ export function CheckoutModal({ plan, integrationUf = LANDING_INTEGRATION_UF, co
               </div>
             </div>
 
+            {existingBranchId ? (
+              <p className="text-sm text-muted-foreground">
+                El pago aplica este plan a tu sucursal actual. No se crea otra
+                organización.
+              </p>
+            ) : (
+              <>
             <div className="flex flex-col gap-1.5">
               <label htmlFor="checkout-business" className="text-sm font-medium">
                 Nombre del negocio
@@ -282,6 +318,8 @@ export function CheckoutModal({ plan, integrationUf = LANDING_INTEGRATION_UF, co
                 tabIndex={-1}
               />
             </div>
+              </>
+            )}
 
             {error && (
               <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>

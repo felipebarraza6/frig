@@ -1087,7 +1087,7 @@ export default function SalesReportPage() {
   }, [clientDetailOrders]);
 
   return (
-    <div className="relative mx-auto flex min-h-full w-full max-w-7xl flex-col">
+    <div className="relative mx-auto flex min-h-full w-full min-w-0 max-w-7xl flex-col">
       <PageHeader
         title="Informe de ventas"
         subtitle="Analiza ventas del período: resumen, órdenes, ventas y clientes."

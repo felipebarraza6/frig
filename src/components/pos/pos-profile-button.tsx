@@ -8,7 +8,7 @@ import { LogOut, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProfilePanel } from "@/components/profile/profile-panel";
 import { logout } from "@/lib/api/auth";
-import { clearToken } from "@/lib/api/session-storage";
+import { logoutLocal } from "@/lib/logout-local";
 import { useSessionStore } from "@/lib/store/session";
 
 /**
@@ -20,7 +20,6 @@ import { useSessionStore } from "@/lib/store/session";
 export function PosProfileButton() {
   const [open, setOpen] = useState(false);
   const user = useSessionStore((s) => s.user);
-  const clearSession = useSessionStore((s) => s.clearSession);
   const queryClient = useQueryClient();
   const router = useRouter();
 
@@ -38,9 +37,7 @@ export function PosProfileButton() {
     } catch {
       // ignora errores de red en logout
     }
-    clearToken();
-    clearSession();
-    queryClient.clear();
+    await logoutLocal(queryClient);
     window.location.assign("/login");
   }
 
@@ -70,7 +67,7 @@ export function PosProfileButton() {
               if (e.target === e.currentTarget) setOpen(false);
             }}
           >
-            <div className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-xl">
+            <div className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-xl">
               <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2">
                 <p className="text-sm font-semibold">Mi perfil</p>
                 <div className="flex items-center gap-1">

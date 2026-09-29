@@ -558,6 +558,8 @@ const CASHIER_ALLOWED_PATHS = [
   "/cash-register",
   "/sales",
   "/profile",
+  "/help",
+  "/support",
 ];
 
 const WAITER_ALLOWED_PATHS = [
@@ -567,6 +569,8 @@ const WAITER_ALLOWED_PATHS = [
   "/tables/map",
   "/customers",
   "/profile",
+  "/help",
+  "/support",
 ];
 
 /** App de cocina: KDS + perfil (como el cajero con POS). */
@@ -576,6 +580,8 @@ const COOK_ALLOWED_PATHS = [
   "/kds/terminal",
   "/kds/monitor",
   "/profile",
+  "/help",
+  "/support",
 ];
 
 /** Rutas a las que un cajero puede navegar libremente. */

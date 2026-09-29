@@ -147,7 +147,7 @@ export default function FinanceDashboardPage() {
   const margin = getMetricAmount(summary, "profit_margin");
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+    <div className="mx-auto flex min-h-full w-full min-w-0 max-w-7xl flex-col">
       <PageHeader
         title="Finanzas"
         icon={<Landmark className="h-5 w-5" />}
@@ -399,8 +399,8 @@ export default function FinanceDashboardPage() {
                 <QuickAction
                   href="/tax-documents"
                   icon={FileText}
-                  title="Documentos SII"
-                  description="Boletas, facturas y notas de crédito."
+                  title="DTE y SII"
+                  description="Boletas, facturas y envío al SII. Configura app y CAF en Finanzas."
                   tone="muted"
                 />
               </div>

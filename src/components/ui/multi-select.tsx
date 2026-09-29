@@ -95,7 +95,7 @@ export function MultiSelect({
   const extraCount = selected.length - visibleChips.length;
 
   return (
-    <div className={cn("relative", className)}>
+    <div className={cn("relative min-w-0 w-full", className)}>
       {label && (
         <label htmlFor={fieldId} className="mb-1 block text-xs text-muted-foreground">
           {label}

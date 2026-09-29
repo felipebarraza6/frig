@@ -39,6 +39,7 @@ import { getCashRegisters, type CashRegister } from "@/lib/api/cash-register";
 import { fetchTaxTypes, type TaxType } from "@/lib/api/tax-types";
 import { searchCustomers, createCustomer } from "@/lib/api/customers";
 import { occupyTable, fetchTables } from "@/lib/api/tables";
+import { CashierTableTiles } from "@/components/tables/cashier-table-tiles";
 import { useCurrentBranch, useCanViewTables, useIsModuleEnabledFromConfig } from "@/lib/store/session";
 import { usePosConfig } from "@/lib/store/pos-config";
 import { useToast } from "@/lib/store/toast";
@@ -306,7 +307,7 @@ export default function QuickSaleModal({
   const { data: productResults = [], isLoading: searchingProducts } = useQuery({
     queryKey: ["products", "for-sale", "quick-sale", debouncedProductQuery, branch?.branch_id],
     queryFn: () => searchProductsForSale({ search: debouncedProductQuery.trim() }),
-    enabled: open && debouncedProductQuery.trim().length >= 2,
+    enabled: open,
     staleTime: 30_000,
   });
 
@@ -314,7 +315,7 @@ export default function QuickSaleModal({
     queryKey: ["customers", "search", debouncedClientQuery, branch?.branch_id],
     queryFn: () =>
       searchCustomers(debouncedClientQuery, branch?.branch_id ? Number(branch.branch_id) : undefined),
-    enabled: open && debouncedClientQuery.trim().length >= 2,
+    enabled: open,
     staleTime: 30_000,
   });
 
@@ -714,7 +715,6 @@ export default function QuickSaleModal({
                   }
                 }}
                 onQueryChange={setProductQuery}
-                minChars={2}
                 loading={searchingProducts}
                 placeholder="Buscar producto por nombre o código…"
                 searchPlaceholder="Nombre o SKU…"
@@ -849,7 +849,7 @@ export default function QuickSaleModal({
                     placeholder="Buscar cliente…"
                     className="h-9 pl-8 text-sm"
                   />
-                  {showClientResults && debouncedClientQuery.trim().length > 0 && (
+                  {showClientResults && (
                     <div className="absolute z-20 mt-1 max-h-40 w-full overflow-auto rounded-xl border border-border bg-background shadow-lg">
                       {searchingCustomers && (
                         <p className="px-3 py-2 text-xs text-muted-foreground">Buscando…</p>
@@ -1038,23 +1038,14 @@ export default function QuickSaleModal({
             </div>
 
             {showTables && (
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="quick-sale-table" className="text-xs font-medium text-muted-foreground">
-                  Mesa (opcional)
-                </label>
-                <Select
-                  id="quick-sale-table"
-                  value={tableId}
-                  onChange={(e) => setTableId(e.target.value)}
-                  className="h-9 text-sm"
-                >
-                  <option value="">Sin mesa</option>
-                  {(tablesPage?.results ?? []).map((table: TableItem) => (
-                    <option key={table.id} value={String(table.id)}>
-                      Mesa {table.number}
-                    </option>
-                  ))}
-                </Select>
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <p className="text-xs font-medium text-muted-foreground">Mesa</p>
+                <CashierTableTiles
+                  tables={tablesPage?.results ?? []}
+                  selectedId={tableId || null}
+                  hideUnavailable
+                  onSelect={(t) => setTableId(t ? String(t.id) : "")}
+                />
               </div>
             )}
 

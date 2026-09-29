@@ -274,7 +274,7 @@ export default function TablesPage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+    <div className="mx-auto flex min-h-full w-full min-w-0 max-w-7xl flex-col">
       <PageHeader
         title="Mesas"
         subtitle="Gestiona las mesas del salón y su estado"
@@ -332,8 +332,8 @@ export default function TablesPage() {
       <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
         <div className="flex flex-col gap-3">
           {/* Desktop: todos los filtros en una fila */}
-          <div className="hidden flex-wrap items-end gap-3 md:flex">
-            <div className="relative w-full max-w-xs">
+          <div className="hidden min-w-0 flex-wrap items-end gap-3 md:flex">
+            <div className="relative min-w-0 w-full max-w-xs flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
@@ -373,7 +373,7 @@ export default function TablesPage() {
           {/* Mobile/tablet: búsqueda principal + botón filtros */}
           <div className="flex flex-col gap-3 md:hidden">
             <div className="flex items-center gap-2">
-              <div className="relative flex-1">
+              <div className="relative min-w-0 flex-1">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={search}

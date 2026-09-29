@@ -65,6 +65,7 @@ import {
   type LandingFooterSocial,
 } from "@/lib/api/checkout";
 import { applyThemeConfig } from "@/lib/api/branches";
+import { mediaUrl } from "@/lib/api/client";
 import { ScrollReveal } from "@/components/landing/scroll-reveal";
 import { HeroPlexus } from "@/components/landing/hero-plexus";
 import { FrigWordmarkMatrix } from "@/components/landing/frig-wordmark-matrix";
@@ -77,23 +78,36 @@ import { cn } from "@/lib/utils";
  * Landing simple de FRIG: mensaje claro, módulos reales de la app,
  * el simulador del producto, demos operativas y precios. Nada más.
  */
+/**
+ * Solo acepta planes que vienen del API. El copy local (LANDING_PLANS) rellena
+ * bajada/features cuando el plan_id coincide; nunca inventa un catálogo propio
+ * (ids demo/pro rompían el checkout con 400).
+ */
 function resolvePlans(config: LandingConfig | undefined): {
   plans: LandingPlan[];
   integrationUf: number;
+  unavailable: boolean;
 } {
   const groupPlans = config?.plans;
   if (!groupPlans?.length) {
-    return { plans: LANDING_PLANS, integrationUf: LANDING_INTEGRATION_UF };
+    return {
+      plans: [],
+      integrationUf: LANDING_INTEGRATION_UF,
+      unavailable: true,
+    };
   }
   const copyById = new Map(LANDING_PLANS.map((p) => [p.id, p]));
   const plans = groupPlans.map((gp) => {
     const copy = copyById.get(gp.plan_id);
+    const features = Array.isArray(gp.features)
+      ? gp.features.filter((f): f is string => typeof f === "string")
+      : [];
     return {
       id: gp.plan_id,
       name: gp.display_name,
       tagline: gp.description || copy?.tagline || "",
       priceUf: gp.price_uf,
-      resources: gp.features?.length ? gp.features : (copy?.resources ?? []),
+      resources: features.length ? features : (copy?.resources ?? []),
       highlighted: gp.highlighted || copy?.highlighted,
       badge: gp.badge ?? null,
     } satisfies LandingPlan;
@@ -101,6 +115,7 @@ function resolvePlans(config: LandingConfig | undefined): {
   return {
     plans,
     integrationUf: config?.group.integration_uf ?? LANDING_INTEGRATION_UF,
+    unavailable: false,
   };
 }
 
@@ -115,6 +130,57 @@ const NAV_LINKS = [
 ];
 
 const GITHUB_URL = "https://github.com/FelipeBarraza6/frig";
+
+type LandingBrand = {
+  isFrig: boolean;
+  name: string;
+  logo: string | null;
+  accent: string;
+};
+
+function resolveLandingBrand(theme: { app_name?: string; logo?: string | null; primary_color?: string } | null): LandingBrand {
+  const app = theme?.app_name?.trim() ?? "";
+  const isFrig = !app || app.toLowerCase().includes("frig");
+  if (isFrig) {
+    return { isFrig: true, name: "FRIG", logo: "/brand/frig-symbol.png", accent: COPPER };
+  }
+  return {
+    isFrig: false,
+    name: app,
+    logo: mediaUrl(theme?.logo) ?? null,
+    accent: theme?.primary_color?.trim() || COPPER,
+  };
+}
+
+function BrandMark({
+  brand,
+  className,
+  glow = true,
+}: {
+  brand: LandingBrand;
+  className?: string;
+  glow?: boolean;
+}) {
+  if (brand.logo) {
+    return (
+      <img
+        src={brand.logo}
+        alt={brand.name}
+        className={className}
+        style={
+          glow
+            ? { filter: `drop-shadow(0 0 14px ${brand.accent}73)` }
+            : undefined
+        }
+      />
+    );
+  }
+  return (
+    <span className={cn("font-display font-semibold tracking-tight text-white", className)}>
+      {brand.name}
+    </span>
+  );
+}
 
 /* Separador de sección: energía que fluye de un extremo al otro. */
 function SectionDivider() {
@@ -136,9 +202,11 @@ function sessionDisplayName(user: User): string {
 function Nav({
   savedUser,
   links = NAV_LINKS,
+  brand,
 }: {
   savedUser: User | null;
   links?: LandingNavItem[];
+  brand: LandingBrand;
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [active, setActive] = useState<string>("");
@@ -163,14 +231,10 @@ function Nav({
   return (
     <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-[#0a0a0a]/85 backdrop-blur-md">
       <div className="mx-auto flex h-20 max-w-6xl items-center justify-between px-6 sm:px-8">
-        <Link href="/" className="flex items-center group">
-          <img
-            src="/brand/frig-symbol.png"
-            alt="FRIG"
-            className="h-12 w-auto transition-transform group-hover:scale-105"
-            style={{
-              filter: "drop-shadow(0 0 14px rgba(238,158,112,0.45))",
-            }}
+        <Link href="/" className="flex items-center gap-2 group">
+          <BrandMark
+            brand={brand}
+            className="h-12 w-auto max-h-12 object-contain transition-transform group-hover:scale-105"
           />
         </Link>
 
@@ -194,7 +258,7 @@ function Nav({
                   {isActive && (
                     <span
                       className="absolute -bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rotate-45"
-                      style={{ backgroundColor: COPPER }}
+                      style={{ backgroundColor: brand.accent }}
                       aria-hidden
                     />
                   )}
@@ -206,6 +270,7 @@ function Nav({
           <div className="hidden sm:block h-5 w-px bg-white/10" aria-hidden />
 
           <div className="flex items-center gap-3">
+            {brand.isFrig && (
             <a
               href={GITHUB_URL}
               target="_blank"
@@ -215,6 +280,7 @@ function Nav({
             >
               <GithubIcon className="h-5 w-5" />
             </a>
+            )}
             {savedUser ? (
               <Link
                 href="/dashboard"
@@ -330,12 +396,14 @@ function Hero({
   savedUser,
   entering,
   onReenter,
+  brand,
 }: {
   hero: LandingHero | null;
   ctas?: { primary?: LandingCta; secondary?: LandingCta };
   savedUser: User | null;
   entering: boolean;
   onReenter: () => void;
+  brand: LandingBrand;
 }) {
   // Contenido dinámico: el endpoint manda; el copy local es solo fallback.
   const headline = hero?.headline || LANDING_VALUE_PROP.headline;
@@ -358,7 +426,7 @@ function Hero({
             <div className="flex items-center gap-3 rounded-full border border-white/10 bg-white/[0.04] py-1.5 pl-1.5 pr-4">
               <span
                 className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-white"
-                style={{ backgroundColor: COPPER }}
+                style={{ backgroundColor: brand.accent }}
               >
                 {sessionDisplayName(savedUser).charAt(0).toUpperCase()}
               </span>
@@ -373,7 +441,7 @@ function Hero({
                   "text-sm font-medium disabled:opacity-60",
                   !entering && "hover:text-white",
                 )}
-                style={{ color: COPPER }}
+                style={{ color: brand.accent }}
               >
                 {entering ? "Cargando tu panel…" : "Reingresar →"}
               </button>
@@ -388,7 +456,14 @@ function Hero({
             transition={{ duration: 0.7, ease: "easeOut" }}
             className="relative"
           >
-            <FrigWordmarkMatrix className="h-16 w-auto sm:h-24" />
+            {brand.isFrig ? (
+              <FrigWordmarkMatrix className="h-16 w-auto sm:h-24" />
+            ) : (
+              <BrandMark
+                brand={brand}
+                className="h-16 w-auto max-h-24 object-contain sm:h-24"
+              />
+            )}
           </motion.div>
 
           <motion.h1
@@ -418,7 +493,7 @@ function Hero({
             >
               {hero.points.map((point) => (
                 <span key={point} className="flex items-center justify-center gap-2.5 sm:justify-start">
-                  <Check className="h-4 w-4 shrink-0" style={{ color: COPPER }} />
+                  <Check className="h-4 w-4 shrink-0" style={{ color: brand.accent }} />
                   <span className="text-left">{point}</span>
                 </span>
               ))}
@@ -455,16 +530,36 @@ function PricingSection({
   plans,
   integrationUf,
   pricingNote,
+  unavailable,
+  contactEmail,
   onPickPlan,
 }: {
   plans: LandingPlan[];
   integrationUf: number;
   pricingNote?: string;
+  unavailable?: boolean;
+  contactEmail?: string;
   onPickPlan: (p: LandingPlan) => void;
 }) {
   return (
     <section id="precios" className="relative z-10 pt-10 pb-28 sm:pt-14 sm:pb-44">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        {unavailable || plans.length === 0 ? (
+          <div className="mx-auto max-w-md rounded-2xl border border-white/10 bg-[#101010] px-6 py-10 text-center">
+            <p className="text-base font-semibold text-white">No pudimos cargar los planes</p>
+            <p className="mt-2 text-sm text-zinc-400">
+              En unos minutos vuelve a intentar, o escríbenos y te armamos la contratación a mano.
+            </p>
+            {contactEmail && (
+              <a
+                href={`mailto:${contactEmail}?subject=${encodeURIComponent("Contratación")}`}
+                className="mt-5 inline-flex rounded-lg border border-white/15 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/5"
+              >
+                Escribir a {contactEmail}
+              </a>
+            )}
+          </div>
+        ) : null}
         {/* Flex centrado: con 1, 2 o 3 planes (dinámicos a futuro) todo
             se acomoda perfecto al medio. */}
         <div className="flex flex-col items-stretch justify-center gap-4 md:flex-row md:flex-wrap md:items-center">
@@ -666,7 +761,7 @@ function demoMonogram(name: string): string {
     .join("");
 }
 
-function UseCases({ items }: { items?: LandingUseCaseItem[] }) {
+function UseCases({ items, brand }: { items?: LandingUseCaseItem[]; brand: LandingBrand }) {
   // Endpoint manda (orden + activos); fallback local si no viene nada.
   const cases = items
     ? items
@@ -698,7 +793,7 @@ function UseCases({ items }: { items?: LandingUseCaseItem[] }) {
             </h2>
             <p className="mt-4 text-sm leading-relaxed text-zinc-400">
               Una demo operativa por cada rubro, con datos y flujos reales.
-              Accede libremente y evalúa Frig en primera persona.
+              Accede libremente y evalúa {brand.name} en primera persona.
             </p>
           </div>
 
@@ -961,10 +1056,12 @@ function Footer({
   contactEmail,
   demoSubject,
   social = [],
+  brand,
 }: {
   contactEmail: string;
   demoSubject?: string;
   social?: LandingFooterSocial[];
+  brand: LandingBrand;
 }) {
   return (
     <footer className="relative z-10 overflow-hidden py-14">
@@ -992,15 +1089,14 @@ function Footer({
       </div>
       <ScrollReveal className="relative mx-auto mt-12 flex max-w-6xl flex-col items-center justify-between gap-6 px-6 text-sm text-zinc-500 sm:flex-row sm:px-8">
         <div className="flex items-center gap-3">
-          <img
-            src="/brand/frig-symbol.png"
-            alt="FRIG"
-            className="h-10 w-auto"
-            style={{ filter: "drop-shadow(0 0 10px rgba(238,158,112,0.35))" }}
-          />
+          <BrandMark brand={brand} className="h-10 w-auto max-h-10 object-contain" />
           <div className="flex flex-col">
-            <span className="font-semibold text-zinc-300">Frig</span>
-            <span className="text-xs">Tu negocio completo, en una sola pantalla · Chile</span>
+            <span className="font-semibold text-zinc-300">{brand.isFrig ? "Frig" : brand.name}</span>
+            <span className="text-xs">
+              {brand.isFrig
+                ? "Tu negocio completo, en una sola pantalla · Chile"
+                : brand.name}
+            </span>
           </div>
         </div>
         <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm">
@@ -1010,24 +1106,26 @@ function Footer({
           <a
             href={`mailto:${contactEmail}${demoSubject ? `?subject=${encodeURIComponent(demoSubject)}` : ""}`}
             className="transition-colors hover:text-white"
-            style={{ color: COPPER }}
+            style={{ color: brand.accent }}
           >
             {contactEmail}
           </a>
-          {social.map((s) =>
-            s.network === "github" ? (
-              <a
-                key={s.href}
-                href={s.href}
-                target="_blank"
-                rel="noreferrer"
-                aria-label="GitHub"
-                className="transition-colors hover:text-white"
-              >
-                <GithubIcon className="h-4 w-4" />
-              </a>
-            ) : null,
-          )}
+          {brand.isFrig
+            ? social.map((s) =>
+                s.network === "github" ? (
+                  <a
+                    key={s.href}
+                    href={s.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="GitHub"
+                    className="transition-colors hover:text-white"
+                  >
+                    <GithubIcon className="h-4 w-4" />
+                  </a>
+                ) : null,
+              )
+            : null}
         </nav>
       </ScrollReveal>
     </footer>
@@ -1045,8 +1143,8 @@ export function LandingSite() {
     () => false,
   );
 
-  const isFrigTheme = theme?.app_name?.toLowerCase().includes("frig") ?? false;
-  const byHost = status === "checking" ? "checking" : (theme && !isFrigTheme) ? "tenant" : "landing";
+  const brand = resolveLandingBrand(theme);
+  const hostReady = status !== "checking";
 
   const hasHydrated = useSessionStore((s) => s.hasHydrated);
   const sessionUser = useSessionStore((s) => s.user);
@@ -1073,13 +1171,15 @@ export function LandingSite() {
     queryFn: () => fetchLandingConfig(checkoutGroup),
     staleTime: 10 * 60 * 1000,
     retry: 1,
-    enabled: mounted && byHost === "landing",
+    enabled: mounted && hostReady,
   });
 
-  const { plans, integrationUf } = useMemo(
+  const { plans, integrationUf, unavailable: plansUnavailable } = useMemo(
     () => resolvePlans(configQuery.data),
     [configQuery.data],
   );
+  const plansMissing =
+    plansUnavailable || configQuery.isError || (configQuery.isSuccess && plans.length === 0);
 
   const group = configQuery.data?.group;
   const content = configQuery.data?.content ?? null;
@@ -1091,18 +1191,22 @@ export function LandingSite() {
     content?.pricing_note || group?.pricing_note || LANDING_PRICING_NOTE;
 
   useEffect(() => {
-    if (byHost === "tenant") window.location.replace("/login");
-  }, [byHost]);
-
-  useEffect(() => {
-    applyThemeConfig(null);
     document.documentElement.classList.remove("dark");
-  }, []);
+    if (brand.isFrig) {
+      applyThemeConfig(null);
+      return;
+    }
+    if (brand.accent) {
+      document.documentElement.style.setProperty("--color-primary", brand.accent);
+      document.documentElement.style.setProperty("--brand-primary", brand.accent);
+      window.dispatchEvent(new CustomEvent("frig:theme-changed"));
+    }
+  }, [brand.isFrig, brand.accent]);
 
-  if (!mounted || byHost !== "landing") {
+  if (!mounted || !hostReady) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-[#0a0a0a]" aria-hidden>
-        <img src="/brand/frig-symbol.png" alt="" className="h-10 w-10 opacity-60" />
+        <BrandMark brand={brand} className="h-10 w-auto max-h-10 object-contain opacity-60" glow={false} />
       </div>
     );
   }
@@ -1110,7 +1214,7 @@ export function LandingSite() {
   return (
     <div className="flex min-h-dvh flex-1 flex-col bg-[#0a0a0a] font-sans">
       <CosmicBackdrop />
-      <Nav savedUser={savedUser} links={content?.nav} />
+      <Nav savedUser={savedUser} links={content?.nav} brand={brand} />
       <main>
         <Hero
           hero={heroCopy}
@@ -1118,6 +1222,7 @@ export function LandingSite() {
           savedUser={savedUser}
           entering={entering}
           onReenter={handleReenter}
+          brand={brand}
         />
         <SimuladorSection />
         <ShowcaseSection />
@@ -1125,15 +1230,18 @@ export function LandingSite() {
           plans={plans}
           integrationUf={integrationUf}
           pricingNote={pricingNote}
+          unavailable={plansMissing}
+          contactEmail={contactEmail}
           onPickPlan={setPlan}
         />
-        <UseCases items={content?.use_cases} />
+        <UseCases items={content?.use_cases} brand={brand} />
         <Features items={content?.features} />
       </main>
       <Footer
         contactEmail={contactEmail}
         demoSubject={demoSubject}
         social={content?.footer?.social}
+        brand={brand}
       />
       <CheckoutModal
         plan={plan}

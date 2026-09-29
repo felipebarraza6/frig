@@ -41,6 +41,13 @@ import {
   LocateFixed,
   PiggyBank,
   Cuboid,
+  LifeBuoy,
+  FolderKanban,
+  BookOpen,
+  Code2,
+  Thermometer,
+  Radio,
+  Cpu,
 } from "lucide-react";
 
 /**
@@ -90,6 +97,13 @@ export const ICON_MAP: Record<string, LucideIcon> = {
   LocateFixed,
   PiggyBank,
   Cuboid,
+  LifeBuoy,
+  FolderKanban,
+  BookOpen,
+  Code2,
+  Thermometer,
+  Radio,
+  Cpu,
 };
 
 export type IconName = keyof typeof ICON_MAP;

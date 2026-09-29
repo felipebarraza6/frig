@@ -25,6 +25,7 @@ export async function fetchTaxTypes(params?: { branch?: number; is_active?: bool
   const qs = new URLSearchParams();
   if (params?.branch) qs.set("branch", String(params.branch));
   if (params?.is_active !== undefined) qs.set("is_active", String(params.is_active));
+  qs.set("page_size", "50");
   const query = qs.toString();
   const data = await apiFetch<{ results: TaxType[] }>(`/finance/tax-types/${query ? `?${query}` : ""}`);
   return data.results ?? [];

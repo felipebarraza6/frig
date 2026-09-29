@@ -52,6 +52,7 @@ export interface ProductsFilter {
   next?: string | null;
   previous?: string | null;
   ids?: number[];
+  ordering?: string;
 }
 
 export async function fetchProducts(filter: ProductsFilter = {}): Promise<YggdraPaginated> {
@@ -69,6 +70,7 @@ export async function fetchProducts(filter: ProductsFilter = {}): Promise<Yggdra
   if (filter.is_active !== undefined) qs.set("is_active", String(filter.is_active));
   if (filter.page_size) qs.set("page_size", String(filter.page_size));
   if (filter.ids?.length) qs.set("id__in", filter.ids.join(","));
+  if (filter.ordering) qs.set("ordering", filter.ordering);
   const q = qs.toString();
   return apiFetch<YggdraPaginated>(`/inventory/products/${q ? `?${q}` : ""}`);
 }
@@ -129,6 +131,7 @@ export interface ProductsForSaleFilter {
   in_stock_only?: boolean;
   page_size?: number;
   page?: number;
+  ordering?: string;
 }
 
 export interface ProductsForSalePage {
@@ -182,12 +185,15 @@ export async function fetchProductsForSalePage(
   filter: ProductsForSaleFilter = {},
 ): Promise<ProductsForSalePage> {
   const qs = new URLSearchParams();
-  if (filter.search) qs.set("search", filter.search);
+  const search = filter.search?.trim();
+  if (search) qs.set("search", search);
   if (filter.category_id) qs.set("category_id", String(filter.category_id));
   if (filter.branch_id) qs.set("branch_id", String(filter.branch_id));
   if (filter.in_stock_only !== undefined) qs.set("in_stock_only", String(filter.in_stock_only));
-  if (filter.page_size) qs.set("page_size", String(filter.page_size));
+  const pageSize = filter.page_size ?? (search ? 20 : 10);
+  qs.set("page_size", String(pageSize));
   if (filter.page) qs.set("page", String(filter.page));
+  qs.set("ordering", filter.ordering ?? (search ? "name" : "-id"));
   const q = qs.toString();
   const data = await apiFetch<unknown>(`/inventory/products/for-sale/${q ? `?${q}` : ""}`);
   return normalizeProductPage(data);

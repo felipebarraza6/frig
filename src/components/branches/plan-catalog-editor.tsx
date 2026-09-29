@@ -13,10 +13,14 @@ import {
   fetchGroupDetail,
   createGroupPlan,
   updateGroupPlan,
+  updateGroup,
   deleteGroupPlan,
   type GroupPlanPayload,
+  type PlanGroupDetail,
+  type PlanGroupUpdatePayload,
 } from "@/lib/api/plan-catalog";
-import { FRIG_GROUP_SLUG } from "@/lib/plans";
+import { fetchModulePlans } from "@/lib/api/module-plans";
+import { FRIG_GROUP_SLUG, selectModulePlansForFrig } from "@/lib/plans";
 import { useToast } from "@/lib/store/toast";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +33,7 @@ interface PlanDraft {
   sort_order: number;
   highlighted: boolean;
   is_active: boolean;
+  branch_module_plan: number | null;
 }
 
 function draftFromPlan(plan: {
@@ -40,6 +45,7 @@ function draftFromPlan(plan: {
   sort_order: number;
   highlighted: boolean;
   is_active: boolean;
+  branch_module_plan: number | null;
 }): PlanDraft {
   return {
     display_name: plan.display_name,
@@ -50,6 +56,7 @@ function draftFromPlan(plan: {
     sort_order: plan.sort_order,
     highlighted: plan.highlighted,
     is_active: plan.is_active,
+    branch_module_plan: plan.branch_module_plan ?? null,
   };
 }
 
@@ -63,6 +70,7 @@ function draftToPayload(draft: PlanDraft): GroupPlanPayload {
     sort_order: Number(draft.sort_order) || 0,
     highlighted: draft.highlighted,
     is_active: draft.is_active,
+    branch_module_plan: draft.branch_module_plan,
   };
 }
 
@@ -192,9 +200,21 @@ export function PlanCatalogEditor() {
     enabled: !!selectedSlug,
   });
 
+  const { data: modulePlans = [] } = useQuery({
+    queryKey: ["module-plans"],
+    queryFn: () => fetchModulePlans(),
+    retry: false,
+  });
+  const modulePlanOptions = useMemo(
+    () => selectModulePlansForFrig(modulePlans),
+    [modulePlans],
+  );
+
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["plan-group", selectedSlug] });
     queryClient.invalidateQueries({ queryKey: ["plans"] });
+    queryClient.invalidateQueries({ queryKey: ["public-plans"] });
+    queryClient.invalidateQueries({ queryKey: ["landing-config"] });
   };
 
   const save = useMutation({
@@ -312,6 +332,13 @@ export function PlanCatalogEditor() {
 
       {selectedSlug && detail && (
         <div className="grid gap-4 lg:grid-cols-2">
+          <GroupCopyEditor
+            key={`${detail.display_name}|${detail.integration_uf}|${detail.hero_headline}|${detail.pricing_note}`}
+            slug={selectedSlug}
+            detail={detail}
+            onSaved={invalidate}
+          />
+
           {plans.map((plan) => {
             const draft = draftFor(plan);
             const dirty = !!edits[plan.id];
@@ -423,6 +450,36 @@ export function PlanCatalogEditor() {
                           onChange={(features) => patchDraft(plan.id, { features })}
                         />
                       </Field>
+                      <Field
+                        label="Plan de módulos"
+                        hint="Se aplica a la sucursal al contratar"
+                        className="sm:col-span-2"
+                      >
+                        <select
+                          value={draft.branch_module_plan ?? ""}
+                          onChange={(e) =>
+                            patchDraft(plan.id, {
+                              branch_module_plan: e.target.value
+                                ? Number(e.target.value)
+                                : null,
+                            })
+                          }
+                          className="h-8 w-full rounded-lg border border-border bg-background px-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                        >
+                          <option value="">Sin vincular</option>
+                          {modulePlanOptions.map((mp) => (
+                            <option key={mp.id} value={mp.id}>
+                              {mp.name}
+                            </option>
+                          ))}
+                          {draft.branch_module_plan != null &&
+                            !modulePlanOptions.some((mp) => mp.id === draft.branch_module_plan) && (
+                              <option value={draft.branch_module_plan}>
+                                Plan #{draft.branch_module_plan} (actual)
+                              </option>
+                            )}
+                        </select>
+                      </Field>
                     </div>
 
                     {/* Acciones */}
@@ -512,5 +569,128 @@ export function PlanCatalogEditor() {
         Los cambios se reflejan de inmediato en la landing y el checkout del grupo.
       </p>
     </div>
+  );
+}
+
+function GroupCopyEditor({
+  slug,
+  detail,
+  onSaved,
+}: {
+  slug: string;
+  detail: PlanGroupDetail;
+  onSaved: () => void;
+}) {
+  const toast = useToast();
+  const [displayName, setDisplayName] = useState(detail.display_name);
+  const [contactEmail, setContactEmail] = useState(detail.contact_email);
+  const [pricingNote, setPricingNote] = useState(detail.pricing_note);
+  const [heroHeadline, setHeroHeadline] = useState(detail.hero_headline);
+  const [heroSubhead, setHeroSubhead] = useState(detail.hero_subhead);
+  const [heroCta, setHeroCta] = useState(detail.hero_cta_label);
+  const [integrationUf, setIntegrationUf] = useState(String(detail.integration_uf ?? ""));
+
+  const dirty =
+    displayName !== detail.display_name ||
+    contactEmail !== detail.contact_email ||
+    pricingNote !== detail.pricing_note ||
+    heroHeadline !== detail.hero_headline ||
+    heroSubhead !== detail.hero_subhead ||
+    heroCta !== detail.hero_cta_label ||
+    integrationUf !== String(detail.integration_uf ?? "");
+
+  const save = useMutation({
+    mutationFn: () => {
+      const payload: PlanGroupUpdatePayload = {
+        display_name: displayName,
+        contact_email: contactEmail,
+        pricing_note: pricingNote,
+        hero_headline: heroHeadline,
+        hero_subhead: heroSubhead,
+        hero_cta_label: heroCta,
+        integration_uf:
+          integrationUf.trim() === "" ? undefined : Number(integrationUf),
+      };
+      return updateGroup(slug, payload);
+    },
+    onSuccess: () => {
+      toast.success("Copy del grupo guardado");
+      onSaved();
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  return (
+    <section className="rounded-xl border border-border bg-muted/20 p-4 lg:col-span-2">
+      <h3 className="text-sm font-semibold">Copy del grupo ({slug})</h3>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Hero, UF de integración y contacto que consume la landing.
+      </p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <Field label="Nombre visible">
+          <Input
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            className="h-8"
+          />
+        </Field>
+        <Field label="UF de integración">
+          <Input
+            value={integrationUf}
+            onChange={(e) => setIntegrationUf(e.target.value)}
+            className="h-8"
+            inputMode="decimal"
+            placeholder="0"
+          />
+        </Field>
+        <Field label="Email de contacto">
+          <Input
+            value={contactEmail}
+            onChange={(e) => setContactEmail(e.target.value)}
+            className="h-8"
+            type="email"
+          />
+        </Field>
+        <Field label="Nota de pricing">
+          <Input
+            value={pricingNote}
+            onChange={(e) => setPricingNote(e.target.value)}
+            className="h-8"
+          />
+        </Field>
+        <Field label="Hero — titular" className="sm:col-span-2">
+          <Input
+            value={heroHeadline}
+            onChange={(e) => setHeroHeadline(e.target.value)}
+            className="h-8"
+          />
+        </Field>
+        <Field label="Hero — bajada" className="sm:col-span-2">
+          <Input
+            value={heroSubhead}
+            onChange={(e) => setHeroSubhead(e.target.value)}
+            className="h-8"
+          />
+        </Field>
+        <Field label="Hero — CTA">
+          <Input
+            value={heroCta}
+            onChange={(e) => setHeroCta(e.target.value)}
+            className="h-8"
+          />
+        </Field>
+      </div>
+      <div className="mt-3 flex justify-end">
+        <Button
+          size="sm"
+          disabled={!dirty}
+          isLoading={save.isPending}
+          onClick={() => save.mutate()}
+        >
+          <Save className="mr-1.5 h-3.5 w-3.5" />
+          Guardar copy
+        </Button>
+      </div>
+    </section>
   );
 }

@@ -432,7 +432,7 @@ export default function BankAccountsPage() {
   }, [selectedAccount, reconciliations]);
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+    <div className="mx-auto flex min-h-full w-full min-w-0 max-w-7xl flex-col">
       <PageHeader
         title="Billeteras digitales"
         icon={<Wallet className="h-5 w-5" />}
@@ -976,7 +976,7 @@ export default function BankAccountsPage() {
                   type="date"
                   value={txDateFrom}
                   onChange={(e) => setTxDateFrom(e.target.value)}
-                  className="h-8 w-36 text-xs"
+                  className="h-8 w-full min-w-0 max-w-[9.5rem] text-xs"
                   aria-label="Desde"
                 />
                 <span className="text-xs text-muted-foreground">hasta</span>
@@ -984,7 +984,7 @@ export default function BankAccountsPage() {
                   type="date"
                   value={txDateTo}
                   onChange={(e) => setTxDateTo(e.target.value)}
-                  className="h-8 w-36 text-xs"
+                  className="h-8 w-full min-w-0 max-w-[9.5rem] text-xs"
                   aria-label="Hasta"
                 />
               </div>

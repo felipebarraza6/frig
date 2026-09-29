@@ -29,6 +29,12 @@ const TYPE_TINT: Record<string, { chip: string; icon: string; ring: string; soft
     ring: "ring-success/35",
     soft: "from-success/20 via-success/5 to-transparent",
   },
+  IOT: {
+    chip: "bg-cyan-500/15 text-cyan-500 dark:text-cyan-400",
+    icon: "bg-cyan-500/20 text-cyan-500 dark:text-cyan-400",
+    ring: "ring-cyan-500/35",
+    soft: "from-cyan-500/20 via-cyan-500/5 to-transparent",
+  },
 };
 
 interface ProductTypePickerProps {
@@ -52,6 +58,9 @@ export function ProductTypePicker({ value, options, onChange, id }: ProductTypeP
     onChange(next);
   }
 
+  const gridColsClass =
+    options.length >= 4 ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" : "grid-cols-1 sm:grid-cols-3";
+
   return (
     <div className="flex flex-col gap-2">
       <div
@@ -59,7 +68,7 @@ export function ProductTypePicker({ value, options, onChange, id }: ProductTypeP
         id={id}
         role="radiogroup"
         aria-label="Tipo de producto"
-        className="grid grid-cols-1 gap-2 sm:grid-cols-3"
+        className={cn("grid gap-2", gridColsClass)}
         onKeyDown={(e) => {
           if (e.key === "ArrowRight" || e.key === "ArrowDown") {
             e.preventDefault();

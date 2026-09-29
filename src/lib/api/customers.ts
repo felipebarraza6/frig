@@ -132,17 +132,94 @@ export async function updateCustomer(
   });
 }
 
+/** RUT chileno compacto (12.345.678-9). Otros identificadores se muestran tal cual. */
+export function formatRut(raw?: string | null): string {
+  if (!raw) return "";
+  const trimmed = raw.trim();
+  const clean = trimmed.replace(/[.\s-]/g, "").toUpperCase();
+  if (!/^\d{7,8}[\dK]$/.test(clean)) return trimmed;
+  const body = clean.slice(0, -1);
+  const dv = clean.slice(-1);
+  const dotted = body.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `${dotted}-${dv}`;
+}
+
+export async function uploadCustomerPhoto(id: number, file: File): Promise<Client> {
+  const body = new FormData();
+  body.append("photo", file);
+  return apiFetch<Client>(`/customers/clients/${id}/`, {
+    method: "PATCH",
+    body,
+  });
+}
+
+export async function clearCustomerPhoto(id: number): Promise<Client> {
+  return apiFetch<Client>(`/customers/clients/${id}/`, {
+    method: "PATCH",
+    body: { photo: null },
+  });
+}
+
 export async function deleteCustomer(id: number): Promise<void> {
   await apiFetch(`/customers/clients/${id}/`, { method: "DELETE" });
+}
+
+export async function fetchCustomer(id: number): Promise<Client> {
+  return apiFetch<Client>(`/customers/clients/${id}/`);
+}
+
+/** Respuesta real de GET /customers/clients/stats/ (OpenAPI tipa mal ClientDepth). */
+export interface CustomerStats {
+  total_clients: number;
+  active_clients: number;
+  total_contacts: number;
+}
+
+export async function fetchCustomerStats(): Promise<CustomerStats> {
+  return apiFetch<CustomerStats>("/customers/clients/stats/");
+}
+
+export interface ClientWithPendingRevenue {
+  id: string;
+  name: string;
+  email?: string | null;
+  dni?: string | null;
+  phone_number?: string | null;
+  pending_amount: number;
+  pending_revenues_count: number;
+}
+
+export interface ClientsWithPendingRevenues {
+  results: ClientWithPendingRevenue[];
+  count: number;
+  total_pending_amount: number;
+}
+
+export async function fetchClientsWithPendingRevenues(
+  search?: string,
+): Promise<ClientsWithPendingRevenues> {
+  const qs = new URLSearchParams();
+  if (search?.trim()) qs.set("search", search.trim());
+  const q = qs.toString();
+  return apiFetch<ClientsWithPendingRevenues>(
+    `/customers/clients/with-pending-revenues/${q ? `?${q}` : ""}`,
+  );
+}
+
+export function getCustomerTags(customer: { tags?: unknown }): string[] {
+  const raw = customer.tags;
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((t) => (typeof t === "string" ? t.trim() : ""))
+    .filter(Boolean);
 }
 
 export async function fetchCustomerTags(): Promise<string[]> {
   const data = await apiFetch<PaginatedClientList>("/customers/clients/?page_size=1000");
   const tags = new Set<string>();
   for (const client of data.results) {
-    const clientTags = (client as unknown as { tags?: string[] }).tags ?? [];
-    for (const tag of clientTags) {
-      if (tag.trim()) tags.add(tag.trim());
+    for (const tag of getCustomerTags(client)) {
+      tags.add(tag);
     }
   }
   return Array.from(tags).sort();

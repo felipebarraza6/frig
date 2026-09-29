@@ -437,7 +437,7 @@ export default function PosPage() {
   const { data: accountClientResultsQuery, isLoading: searchingAccountCustomers } = useQuery({
     queryKey: ["customers", "search", accountDebouncedQuery, branch?.branch_id, "pos-terminal"],
     queryFn: () => searchCustomers(accountDebouncedQuery, branch?.branch_id ? Number(branch.branch_id) : undefined),
-    enabled: accountDebouncedQuery.trim().length >= 1 && showAccountClientModal,
+    enabled: showAccountClientModal,
   });
 
   const accountClientResults = useMemo(() => {
@@ -1987,19 +1987,14 @@ export default function PosPage() {
                         placeholder="Buscar cliente..."
                         className="h-10 pl-8 text-sm"
                       />
-                      {accountShowResults && accountDebouncedQuery.trim().length === 0 && !accountSelectedClient && (
-                        <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs text-muted-foreground shadow-md">
-                          Escribe para buscar clientes…
-                        </div>
-                      )}
-                      {accountShowResults && accountDebouncedQuery.trim().length > 0 && searchingAccountCustomers && (
-                        <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs text-muted-foreground shadow-md">
-                          Buscando…
-                        </div>
-                      )}
-                      {accountShowResults && accountDebouncedQuery.trim().length > 0 && !searchingAccountCustomers && accountClientResults.length > 0 && (
+                      {accountShowResults && !accountSelectedClient && (
                         <div className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-lg border border-border bg-background shadow-md">
-                          {accountClientResults.map((client) => (
+                          {searchingAccountCustomers ? (
+                            <p className="p-2 text-xs text-muted-foreground">Buscando…</p>
+                          ) : accountClientResults.length === 0 ? (
+                            <p className="p-2 text-xs text-muted-foreground">Sin resultados</p>
+                          ) : (
+                            accountClientResults.map((client) => (
                             <button
                               key={client.id}
                               type="button"
@@ -2013,12 +2008,8 @@ export default function PosPage() {
                               {client.name}
                               {client.email && <span className="ml-2 text-xs text-muted-foreground">{client.email}</span>}
                             </button>
-                          ))}
-                        </div>
-                      )}
-                      {accountShowResults && accountDebouncedQuery.trim().length > 0 && !searchingAccountCustomers && accountClientResults.length === 0 && !accountSelectedClient && (
-                        <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs text-muted-foreground shadow-md">
-                          Sin resultados
+                            ))
+                          )}
                         </div>
                       )}
                     </>

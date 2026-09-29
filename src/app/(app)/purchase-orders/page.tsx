@@ -357,21 +357,21 @@ export default function PurchaseOrdersPage() {
   const filterSupplierLookup = useQuery({
     queryKey: ["suppliers", "lookup", "po-filter", debouncedFilterSupplierQuery],
     queryFn: () => lookupSuppliers({ q: debouncedFilterSupplierQuery, limit: 20 }),
-    enabled: debouncedFilterSupplierQuery.trim().length >= 2,
+    enabled: true,
     staleTime: 30_000,
   });
 
   const formSupplierLookup = useQuery({
     queryKey: ["suppliers", "lookup", "po-form", debouncedFormSupplierQuery],
     queryFn: () => lookupSuppliers({ q: debouncedFormSupplierQuery, limit: 20 }),
-    enabled: debouncedFormSupplierQuery.trim().length >= 2,
+    enabled: true,
     staleTime: 30_000,
   });
 
   const editSupplierLookup = useQuery({
     queryKey: ["suppliers", "lookup", "po-edit", debouncedEditSupplierQuery],
     queryFn: () => lookupSuppliers({ q: debouncedEditSupplierQuery, limit: 20 }),
-    enabled: debouncedEditSupplierQuery.trim().length >= 2,
+    enabled: true,
     staleTime: 30_000,
   });
 
@@ -1189,8 +1189,8 @@ export default function PurchaseOrdersPage() {
         </section>
 
         {/* Filtros: una sola fila que envuelve en pantallas chicas */}
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="relative min-w-[200px] flex-1">
+        <div className="flex min-w-0 flex-wrap items-end gap-3">
+          <div className="relative min-w-0 flex-1 basis-[12rem]">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={search}
@@ -1200,7 +1200,7 @@ export default function PurchaseOrdersPage() {
               aria-label="Buscar orden"
             />
           </div>
-          <div className="flex min-w-[200px] flex-1 flex-col gap-1">
+          <div className="flex min-w-0 flex-1 basis-[12rem] flex-col gap-1">
             <label className="text-xs text-muted-foreground">Proveedor</label>
             <SearchableSelect
               options={filterSupplierOptions}
@@ -1211,8 +1211,7 @@ export default function PurchaseOrdersPage() {
                 setSupplierName(opt?.label ?? "");
                 setPageUrl({});
               }}
-              onQueryChange={setFilterSupplierQuery}
-              minChars={2}
+              onQueryChange={setFilterSupplierQuery}
               loading={filterSupplierLookup.isFetching}
               clearable
               selectedOption={
@@ -1430,8 +1429,7 @@ export default function PurchaseOrdersPage() {
                         const opt = formSupplierOptions.find((o) => o.value === value);
                         setFormSupplierLabel(opt?.label ?? "");
                       }}
-                      onQueryChange={setFormSupplierQuery}
-                      minChars={2}
+                      onQueryChange={setFormSupplierQuery}
                       loading={formSupplierLookup.isFetching}
                       clearable
                       selectedOption={
@@ -1860,8 +1858,7 @@ export default function PurchaseOrdersPage() {
                         const opt = editSupplierOptions.find((o) => o.value === value);
                         setEditSupplierLabel(opt?.label ?? "");
                       }}
-                      onQueryChange={setEditSupplierQuery}
-                      minChars={2}
+                      onQueryChange={setEditSupplierQuery}
                       loading={editSupplierLookup.isFetching}
                       clearable
                       selectedOption={

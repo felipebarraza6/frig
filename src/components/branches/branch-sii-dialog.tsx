@@ -1,70 +1,72 @@
 "use client";
 
-import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { FileText, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Field } from "@/components/ui/field";
-import { Switch } from "@/components/ui/switch";
+import { useEffect } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { FileText, X, Loader2 } from "lucide-react";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
-import { updateBranchSiiConfig } from "@/lib/api/branches";
-import { useToast } from "@/lib/store/toast";
+import { setBranchApiScope } from "@/lib/api/branch-scope";
+import {
+  fetchBranchFinanceConfigByBranch,
+  updateBranchFinanceConfig,
+} from "@/lib/api/branch-finance-config";
+import { SiiSection } from "@/app/(app)/finance/settings/page";
 import { branchName, type Branch } from "@/lib/types";
 
 interface BranchSiiDialogProps {
   branch: Branch;
+  invoicesEnabled?: boolean;
   onClose: () => void;
 }
 
 /**
- * Configuración SII (facturación electrónica) de una sucursal: resolución,
- * certificado digital y su contraseña. Solo disponible cuando el módulo de
- * documentos tributarios (invoices) está activo; la pantalla que decide
- * mostrarlo es la lista de sucursales.
+ * Facturación SII de una sucursal concreta, en el listado de sucursales.
+ * No cambia la sucursal de sesión: las llamadas van con X-Branch-ID de esta card.
  */
-export function BranchSiiDialog({ branch, onClose }: BranchSiiDialogProps) {
-  const toast = useToast();
+export function BranchSiiDialog({ branch, invoicesEnabled = true, onClose }: BranchSiiDialogProps) {
   const queryClient = useQueryClient();
-  const sii = branch.sii_config;
+  const branchId = Number(branch.branch_id);
 
-  const [enabled, setEnabled] = useState(sii?.sii_enabled ?? false);
-  const [resolutionNumber, setResolutionNumber] = useState(
-    sii?.sii_resolution_number ?? "",
-  );
-  const [resolutionDate, setResolutionDate] = useState(sii?.sii_resolution_date ?? "");
-  const [certificate, setCertificate] = useState<File | null>(null);
-  const [password, setPassword] = useState("");
+  useEffect(() => {
+    setBranchApiScope(branchId);
+    return () => setBranchApiScope(null);
+  }, [branchId]);
 
-  const save = useMutation({
-    mutationFn: () =>
-      updateBranchSiiConfig(branch.branch_id, {
-        sii_enabled: enabled,
-        sii_resolution_number: resolutionNumber.trim(),
-        sii_resolution_date: resolutionDate,
-        digital_certificate: certificate,
-        certificate_password: password,
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["branches"] });
-      onClose();
+  const { data: config, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ["branch-finance-configs", branchId, "dialog"],
+    queryFn: () => fetchBranchFinanceConfigByBranch(branchId),
+    enabled: Number.isFinite(branchId) && branchId > 0,
+  });
+
+  const updateMut = useMutation({
+    mutationFn: (payload: Parameters<typeof updateBranchFinanceConfig>[1]) => {
+      if (!config) throw new Error("Sin configuración financiera");
+      return updateBranchFinanceConfig(config.id, payload);
     },
-    onError: (err: Error) => toast.error(err.message),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["branch-finance-configs", branchId] });
+      queryClient.invalidateQueries({ queryKey: ["branches"] });
+    },
   });
 
   return (
     <AnimatedOverlay
-      open={true}
+      open
       onClose={onClose}
       panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4"
     >
-      <div className="flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:max-h-[90vh] md:max-w-lg md:rounded-xl md:border">
+      <div className="flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border-x border-t border-border bg-background shadow-lg md:max-h-[90vh] md:max-w-5xl md:rounded-xl md:border">
         <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
-          <div className="flex items-center gap-2">
-            <FileText className="h-4 w-4 text-primary" />
-            <h2 className="text-base font-semibold">Configuración SII — {branchName(branch)}</h2>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 shrink-0 text-primary" />
+              <h2 className="truncate text-base font-semibold">Facturación — {branchName(branch)}</h2>
+            </div>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              App, funciones, resolución y CAF de esta sucursal. No cambia la sucursal que tienes elegida.
+            </p>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="text-muted-foreground hover:text-foreground"
             aria-label="Cerrar"
@@ -73,91 +75,29 @@ export function BranchSiiDialog({ branch, onClose }: BranchSiiDialogProps) {
           </button>
         </div>
 
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            save.mutate();
-          }}
-          className="flex flex-1 flex-col overflow-hidden"
-        >
-          <div className="flex-1 space-y-4 overflow-y-auto p-4">
-            <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/60 px-3 py-2.5">
-              <div>
-                <p className="text-sm font-medium">Facturación SII habilitada</p>
-                <p className="text-xs text-muted-foreground">
-                  Activa la emisión de documentos tributarios electrónicos de esta sucursal.
-                </p>
-              </div>
-              <Switch
-                checked={enabled}
-                onCheckedChange={setEnabled}
-                label="Facturación SII habilitada"
-              />
+        <div className="min-h-0 flex-1 overflow-y-auto p-4">
+          {isLoading ? (
+            <div className="flex items-center gap-2 py-10 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Cargando configuración…
             </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field
-                label="N° de resolución"
-                hint="Resolución SII que autoriza la emisión."
-              >
-                <Input
-                  value={resolutionNumber}
-                  onChange={(e) => setResolutionNumber(e.target.value)}
-                  placeholder="Ej: 1234"
-                  className="h-9"
-                />
-              </Field>
-              <Field label="Fecha de resolución">
-                <Input
-                  type="date"
-                  value={resolutionDate}
-                  onChange={(e) => setResolutionDate(e.target.value)}
-                  className="h-9"
-                />
-              </Field>
-            </div>
-
-            <Field
-              label="Certificado digital"
-              hint={
-                certificate
-                  ? `Nuevo certificado: ${certificate.name}`
-                  : sii?.digital_certificate
-                    ? "Ya hay un certificado cargado; súbelo de nuevo solo para reemplazarlo."
-                    : "Archivo .p12 / .pfx entregado por el SII."
-              }
-            >
-              <Input
-                type="file"
-                accept=".p12,.pfx,.pem"
-                onChange={(e) => setCertificate(e.target.files?.[0] ?? null)}
-                className="h-9 cursor-pointer pt-1.5 text-xs file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-1 file:text-xs file:font-medium file:text-primary"
-              />
-            </Field>
-
-            <Field
-              label="Contraseña del certificado"
-              hint="Solo si cargas un certificado nuevo o necesitas actualizarla."
-            >
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="new-password"
-                className="h-9"
-              />
-            </Field>
-          </div>
-
-          <div className="flex shrink-0 justify-end gap-2 border-t border-border px-4 py-3">
-            <Button type="button" variant="outline" onClick={onClose} disabled={save.isPending}>
-              Cancelar
-            </Button>
-            <Button type="submit" isLoading={save.isPending}>
-              Guardar
-            </Button>
-          </div>
-        </form>
+          ) : isError || !config ? (
+            <p className="py-8 text-sm text-muted-foreground">
+              {error instanceof Error ? error.message : "No se pudo cargar la configuración de esta sucursal."}{" "}
+              <button type="button" className="font-medium text-primary hover:underline" onClick={() => refetch()}>
+                Reintentar
+              </button>
+            </p>
+          ) : (
+            <SiiSection
+              config={config}
+              onUpdate={(payload) => updateMut.mutate(payload)}
+              isPending={updateMut.isPending}
+              embedded
+              invoicesEnabled={invoicesEnabled}
+            />
+          )}
+        </div>
       </div>
     </AnimatedOverlay>
   );

@@ -423,13 +423,13 @@ export default function PayPendingItemModal({
   const { data: customerResults = [], isLoading: searchingCustomers } = useQuery({
     queryKey: ["customers", "search", clientQuery],
     queryFn: () => searchCustomers(clientQuery),
-    enabled: isCollect && open && clientQuery.trim().length >= 1,
+    enabled: isCollect && open,
   });
 
   const { data: filterCustomerResults = [], isLoading: searchingFilterCustomers } = useQuery({
     queryKey: ["customers", "search-filter", clientFilterQuery],
     queryFn: () => searchCustomers(clientFilterQuery),
-    enabled: type === "pay_account" && open && clientFilterQuery.trim().length >= 1,
+    enabled: type === "pay_account" && open,
   });
 
   const { data: orderDetail, isLoading: loadingOrderDetail } = useQuery({
@@ -1496,7 +1496,7 @@ export default function PayPendingItemModal({
                       Buscando clientes...
                     </p>
                   )}
-                  {clientFilterQuery.trim().length >= 1 && !searchingFilterCustomers && (
+                  {!searchingFilterCustomers && (
                     <div className="flex flex-col gap-1">
                       {filterCustomerResults.map((c) => (
                         <button

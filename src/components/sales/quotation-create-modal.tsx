@@ -46,11 +46,16 @@ export function QuotationCreateModal({
   open,
   onClose,
   quotation,
+  initialClient,
+  initialObservation,
 }: {
   open: boolean;
   onClose: () => void;
   /** Si viene, el modal funciona en modo edición de esa cotización. */
   quotation?: Quotation | null;
+  /** Prefill al crear desde ficha / levantamiento. */
+  initialClient?: Pick<Client, "id" | "name"> | null;
+  initialObservation?: string | null;
 }) {
   return (
     <AnimatedOverlay open={open} onClose={onClose} zIndex="z-[70]" panelClassName="flex items-end justify-center overflow-hidden p-0 md:items-center md:p-4">
@@ -58,8 +63,10 @@ export function QuotationCreateModal({
           el estado inicial siempre refleja el modo (crear vs editar) sin
           necesidad de effects. */}
       <QuotationForm
-        key={`${open}-${quotation?.id ?? "new"}`}
+        key={`${open}-${quotation?.id ?? "new"}-${initialClient?.id ?? ""}`}
         quotation={quotation ?? null}
+        initialClient={initialClient ?? null}
+        initialObservation={initialObservation ?? null}
         onClose={onClose}
       />
     </AnimatedOverlay>
@@ -68,9 +75,13 @@ export function QuotationCreateModal({
 
 function QuotationForm({
   quotation,
+  initialClient,
+  initialObservation,
   onClose,
 }: {
   quotation: Quotation | null;
+  initialClient: Pick<Client, "id" | "name"> | null;
+  initialObservation: string | null;
   onClose: () => void;
 }) {
   const toast = useToast();
@@ -80,7 +91,9 @@ function QuotationForm({
   const [client, setClient] = useState<Client | null>(
     quotation?.client
       ? ({ id: quotation.client.id, name: quotation.client.name } as Client)
-      : null,
+      : initialClient
+        ? ({ id: initialClient.id, name: initialClient.name } as Client)
+        : null,
   );
   const [clientSearch, setClientSearch] = useState("");
   const [productSearch, setProductSearch] = useState("");
@@ -94,7 +107,9 @@ function QuotationForm({
       quantity: String(p.quantity ?? 1),
     })),
   );
-  const [observation, setObservation] = useState(quotation?.observation ?? "");
+  const [observation, setObservation] = useState(
+    quotation?.observation ?? initialObservation ?? "",
+  );
   /** Fecha de vencimiento en formato yyyy-mm-dd (input type="date"). */
   const [expiration, setExpiration] = useState(quotation?.expiration_date?.slice(0, 10) ?? "");
   const [formError, setFormError] = useState<string | null>(null);
@@ -126,7 +141,7 @@ function QuotationForm({
   const customersQuery = useQuery({
     queryKey: ["customers", "search", debouncedClient, branchId],
     queryFn: () => searchCustomers(debouncedClient, branchId),
-    enabled: debouncedClient.trim().length > 0,
+    enabled: true,
     staleTime: 30_000,
     placeholderData: keepPreviousData,
   });
@@ -204,7 +219,7 @@ function QuotationForm({
   const productsQuery = useQuery({
     queryKey: ["quotation-create", "products-for-sale", debouncedProduct],
     queryFn: () => searchProductsForSale({ search: debouncedProduct.trim() }),
-    enabled: debouncedProduct.trim().length > 0,
+    enabled: true,
     staleTime: 30_000,
     placeholderData: keepPreviousData,
   });
@@ -401,7 +416,6 @@ function QuotationForm({
                 setClient(opt ? ({ id: Number(opt.value), name: opt.label } as Client) : null);
               }}
               onQueryChange={setClientSearch}
-              minChars={0}
               loading={customersQuery.isFetching}
               clearable
               selectedOption={
@@ -525,7 +539,6 @@ function QuotationForm({
                   setDebouncedProduct("");
                 }}
                 onQueryChange={setProductSearch}
-                minChars={0}
                 loading={productsQuery.isFetching}
                 placeholder="Buscar producto por nombre o código…"
                 searchPlaceholder="Nombre o SKU…"

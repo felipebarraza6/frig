@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Store } from "lucide-react";
 import { mediaUrl } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
@@ -29,10 +29,50 @@ function getInitials(name?: string | null): string {
   return (words[0][0] + words[words.length - 1][0]).toUpperCase();
 }
 
+/** JPG/BMP no tienen alfa: un plato blanco evita el “hueco”. PNG/SVG se ven sobre el fondo real. */
+function isOpaqueImage(src: string): boolean {
+  const path = src.split("?")[0].split("#")[0].toLowerCase();
+  return /\.(jpe?g|jfif|bmp)$/.test(path);
+}
+
+function LogoFrame({
+  src,
+  alt,
+  className,
+  containerClassName,
+  onError,
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+  containerClassName?: string;
+  onError?: () => void;
+}) {
+  const opaque = isOpaqueImage(src);
+  return (
+    <div
+      className={cn(
+        "flex items-center justify-center overflow-hidden rounded-lg",
+        containerClassName ?? "h-9 w-9",
+        opaque ? "bg-white" : "bg-transparent",
+      )}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        decoding="async"
+        onError={onError}
+        className={cn("object-contain", className ?? "h-full w-full p-0.5")}
+      />
+    </div>
+  );
+}
+
 /**
- * Logo de la sucursal (theme.logo) con fallback a iniciales de la tienda y,
- * en último caso, a un ícono genérico. Usa <img>: el dominio del backend es
- * dinámico en multi-tenant, no es configurable en next.config.
+ * Logo de marca: PNG con transparencia sobre el fondo de la UI;
+ * JPG sobre blanco. Usa <img> porque el dominio del backend es dinámico.
  */
 export function BrandLogo({
   src,
@@ -46,7 +86,26 @@ export function BrandLogo({
   const initials = getInitials(name);
   const resolvedSrc = mediaUrl(src);
 
+  useEffect(() => {
+    setError(false);
+  }, [src]);
+
+  const useFrigMark =
+    !resolvedSrc || error
+      ? !name || name.trim().toLowerCase() === "frig"
+      : false;
+
   if (!resolvedSrc || error) {
+    if (useFrigMark) {
+      return (
+        <LogoFrame
+          src="/brand/frig-symbol.png"
+          alt={alt || "Logo"}
+          className={className}
+          containerClassName={containerClassName}
+        />
+      );
+    }
     return (
       <div
         className={cn(
@@ -66,21 +125,12 @@ export function BrandLogo({
   }
 
   return (
-    <div
-      className={cn(
-        "flex items-center justify-center overflow-hidden rounded-lg bg-background",
-        containerClassName ?? "h-9 w-9",
-      )}
-    >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={resolvedSrc}
-        alt={alt}
-        loading="lazy"
-        decoding="async"
-        onError={() => setError(true)}
-        className={cn("object-contain", className ?? "h-full w-full p-1")}
-      />
-    </div>
+    <LogoFrame
+      src={resolvedSrc}
+      alt={alt}
+      className={className}
+      containerClassName={containerClassName}
+      onError={() => setError(true)}
+    />
   );
 }

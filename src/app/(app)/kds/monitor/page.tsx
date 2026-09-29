@@ -7,6 +7,7 @@ import { ChefHat, Clock, ClipboardList, Settings2, Utensils, X } from "lucide-re
 import { BrandLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import { useCurrentBranch } from "@/lib/store/session";
+import { useProductName } from "@/lib/product-name";
 import { branchName } from "@/lib/types";
 import { fetchKitchenTickets, type KitchenTicket } from "@/lib/api/kitchen";
 import { fetchKitchenStations } from "@/lib/api/kitchen-stations";
@@ -158,6 +159,7 @@ function filterTicketItems(ticket: KitchenTicket, stationId: number | null): Kit
 
 function KdsMonitorInner() {
   const branch = useCurrentBranch();
+  const productName = useProductName();
   const searchParams = useSearchParams();
   const stationId = useMemo(() => {
     const raw = searchParams.get("station_id") ?? searchParams.get("id");
@@ -259,7 +261,7 @@ function KdsMonitorInner() {
         <div className="flex min-w-0 items-center gap-3">
           <BrandLogo
             src={logoSrc}
-            name={branch ? branchName(branch) : "FRIG"}
+            name={branch ? branchName(branch) : productName}
             containerClassName="h-12 w-12 rounded-xl bg-primary-foreground/15"
             className="h-full w-full p-1"
           />

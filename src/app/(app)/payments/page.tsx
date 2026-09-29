@@ -709,7 +709,7 @@ export default function PaymentsPage() {
   };
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+    <div className="mx-auto flex min-h-full w-full min-w-0 max-w-7xl flex-col">
       <PageHeader
         title="Pagos"
         icon={<Banknote className="h-5 w-5" />}
@@ -993,8 +993,8 @@ export default function PaymentsPage() {
         <>
         {/* Filters */}
         <div className="flex flex-col gap-3">
-          <div className="hidden flex-wrap items-end gap-3 md:flex">
-            <div className="relative w-56 shrink-0">
+          <div className="hidden min-w-0 flex-wrap items-end gap-3 md:flex">
+            <div className="relative min-w-0 flex-1 basis-[12rem]">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por N° orden, método, referencia…" className="pl-9" aria-label="Buscar pago" />
             </div>
@@ -1024,8 +1024,8 @@ export default function PaymentsPage() {
           </div>
           {/* Mobile filters */}
           <div className="flex flex-col gap-3 md:hidden">
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="relative min-w-0 flex-1">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por N° orden, método, referencia…" className="h-10 pl-9" aria-label="Buscar pago" />
               </div>

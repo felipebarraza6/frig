@@ -786,7 +786,7 @@ function CatalogPanel() {
     queryKey: ["products", "catalog-panel", debounced],
     queryFn: () =>
       searchProductsForSale(
-        debounced.trim().length >= 2 ? { search: debounced.trim() } : {},
+        debounced.trim() ? { search: debounced.trim() } : {},
       ),
     staleTime: 30_000,
   });

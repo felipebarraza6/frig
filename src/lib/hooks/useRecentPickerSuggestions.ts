@@ -58,7 +58,7 @@ export function useRecentPickerSuggestions(enabled = true) {
   const fallbackProductsQuery = useQuery({
     queryKey: ["products", "picker-fallback"],
     queryFn: () =>
-      fetchProducts({ is_for_sale: true, is_active: true, page_size: 10 }),
+      fetchProducts({ is_for_sale: true, is_active: true, page_size: 10, ordering: "-id" }),
     enabled,
     staleTime: 60_000,
   });

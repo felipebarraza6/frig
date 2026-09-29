@@ -5,6 +5,7 @@ import { useSessionStore } from "@/lib/store/session";
 import { applyThemeConfig, fetchBranchTheme } from "@/lib/api/branches";
 import { getToken } from "@/lib/api/session-storage";
 import { setFaviconHref } from "@/lib/frig-identity";
+import { FRIG_SYMBOL, isLocalFrigHost } from "@/lib/product-name";
 import type { BranchThemeConfig } from "@/lib/types";
 
 function normalizeThemeBranch(
@@ -64,6 +65,14 @@ export function ThemeApplier() {
   useEffect(() => {
     if (!hasHydrated) return;
 
+    // Localhost: identidad FRIG. El tema de sucursal no pinta la chrome.
+    if (isLocalFrigHost()) {
+      applyThemeConfig(null);
+      document.documentElement.classList.remove("dark");
+      setFaviconHref(FRIG_SYMBOL);
+      return;
+    }
+
     // Super admin: tema Frig nativo (defaults de la web). Sin tema de
     // organización ni de sucursal — no hay sucursal "elegida" que coloree la
     // app. Se limpia el store por si quedó un tema persistido de una sesión
@@ -75,7 +84,7 @@ export function ThemeApplier() {
       }
       applyThemeConfig(null);
       document.documentElement.classList.remove("dark");
-      setFaviconHref("/icon.png");
+      setFaviconHref(FRIG_SYMBOL);
       return;
     }
 
@@ -83,8 +92,13 @@ export function ThemeApplier() {
     applyThemeConfig(effectiveTheme);
     // El favicon del tenant persiste durante toda la sesión en la app;
     // sin tema, vuelve al ícono de Frig.
-    if (effectiveTheme) setFaviconHref(effectiveTheme.favicon ?? effectiveTheme.logo ?? "/icon.png");
-    else setFaviconHref("/icon.png");
+    if (effectiveTheme) {
+      setFaviconHref(
+        effectiveTheme.favicon ?? effectiveTheme.logo ?? FRIG_SYMBOL,
+      );
+    } else {
+      setFaviconHref(FRIG_SYMBOL);
+    }
 
     document.documentElement.classList.remove("dark");
 

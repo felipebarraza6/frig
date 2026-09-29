@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/page-header";
 import { useSessionStore, useCanViewOrganization } from "@/lib/store/session";
 import { fetchOrganizations, type OrganizationDetail } from "@/lib/api/organizations";
 import { OrgPlansEditor } from "@/components/organizations/org-plans-editor";
+import { PlanCatalogEditor } from "@/components/branches/plan-catalog-editor";
 import { OrganizationPicker } from "@/components/organizations/organization-picker";
 import {
   CreateOrganizationButton,
@@ -80,7 +81,7 @@ export default function OrganizationPage() {
   const totalOrgs = visibleOrgs?.length ?? 0;
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+    <div className="mx-auto flex min-h-full w-full min-w-0 max-w-7xl flex-col">
       <PageHeader
         title="Organizaciones"
         icon={<Building2 className="h-5 w-5" />}
@@ -149,6 +150,19 @@ export default function OrganizationPage() {
             </p>
           )}
         </section>
+
+        {/* Catálogo comercial (landing + checkout) */}
+        {isSuperAdmin && (
+          <section className="rounded-xl border border-border bg-background p-4 sm:p-5">
+            <h2 className="text-sm font-semibold">Planes de venta</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Precios, sellos y copy del grupo que se muestran en la landing y el
+              checkout. Cada plan de venta puede vincularse a un plan de módulos
+              que se aplica al provisionar.
+            </p>
+            <PlanCatalogEditor />
+          </section>
+        )}
 
         {/* Planes de módulos de la organización */}
         <section className="rounded-xl border border-border bg-background p-4 sm:p-5">

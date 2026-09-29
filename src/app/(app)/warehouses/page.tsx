@@ -247,7 +247,7 @@ export default function WarehousesPage() {
         icon={<WarehouseIcon className="h-5 w-5" />}
         subtitle="Planta de recintos — entra a cada sala"
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             <Button
               variant="outline"
               size="sm"

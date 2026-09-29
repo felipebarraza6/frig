@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/page-header";
-import { Search, ShoppingBag, X, Eye, Ban, Plus, FileDown, ClipboardList, Receipt, FileText, SlidersHorizontal, Zap, Wallet, Clock, Store, Package, MoreHorizontal, LayoutGrid, List, HandHelping, MapPin, Truck, ChevronDown, Banknote } from "lucide-react";
+import { Search, ShoppingBag, X, Eye, Ban, Plus, FileDown, ClipboardList, Receipt, FileText, SlidersHorizontal, Zap, Wallet, Clock, Store, Package, MoreHorizontal, LayoutGrid, List, HandHelping, MapPin, Truck, ChevronDown, Banknote, Combine } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/ui/stat-card";
@@ -12,7 +12,6 @@ import { TableSkeleton } from "@/components/ui/skeleton";
 import { Select } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { MultiSelect } from "@/components/ui/multi-select";
-import { ActionsMenu } from "@/components/ui/actions-menu";
 import { DropdownPortal } from "@/components/ui/dropdown-portal";
 import {
   fetchOrders,
@@ -28,6 +27,8 @@ import {
   type PaymentInstallment,
 } from "@/lib/api/orders";
 import { fetchTables } from "@/lib/api/tables";
+import { generateTaxDocumentFromOrder } from "@/lib/api/tax-documents";
+import { CashierTableTiles } from "@/components/tables/cashier-table-tiles";
 import { searchCustomers, createCustomer } from "@/lib/api/customers";
 import { formatCLP, cn, paymentStatusLabel } from "@/lib/utils";
 import {
@@ -54,6 +55,17 @@ const OrderPayModal = dynamic(
 );
 const QuickSaleModal = dynamic(
   () => import("@/components/sales/quick-sale-modal"),
+  { ssr: false },
+);
+const MergeOrdersModal = dynamic(
+  () => import("@/components/sales/merge-orders-modal").then((mod) => mod.MergeOrdersModal),
+  { ssr: false },
+);
+const OrderInstallmentsPanel = dynamic(
+  () =>
+    import("@/components/sales/order-installments-panel").then(
+      (mod) => mod.OrderInstallmentsPanel,
+    ),
   { ssr: false },
 );
 
@@ -213,6 +225,7 @@ type OrderCardProps = {
   onTicket: (order: Order) => void;
   onDeliver: (order: Order) => void;
   onPay: (order: Order) => void;
+  onMerge: (order: Order) => void;
   onThermal: (order: Order) => void;
   onA4: (order: Order) => void;
   onCancel: (order: Order) => void;
@@ -230,6 +243,8 @@ function PdfFormatFlyout({
   disabled,
   onThermal,
   onA4,
+  onReceiptThermal,
+  onReceiptA4,
   triggerClassName,
   align = "left",
   children,
@@ -237,6 +252,8 @@ function PdfFormatFlyout({
   disabled?: boolean;
   onThermal: () => void;
   onA4: () => void;
+  onReceiptThermal?: () => void;
+  onReceiptA4?: () => void;
   triggerClassName?: string;
   align?: "left" | "right";
   children: React.ReactNode;
@@ -291,6 +308,37 @@ function PdfFormatFlyout({
           <FileText className="h-3.5 w-3.5 text-muted-foreground" />
           A4
         </button>
+        {onReceiptThermal && onReceiptA4 && (
+          <>
+            <div className="my-1 h-px bg-border" />
+            <button
+              type="button"
+              role="menuitem"
+              disabled={disabled}
+              onClick={() => {
+                onReceiptThermal();
+                setOpen(false);
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted disabled:opacity-50"
+            >
+              <Receipt className="h-3.5 w-3.5 text-muted-foreground" />
+              Boleta 80 mm
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              disabled={disabled}
+              onClick={() => {
+                onReceiptA4();
+                setOpen(false);
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted disabled:opacity-50"
+            >
+              <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+              Boleta A4
+            </button>
+          </>
+        )}
       </DropdownPortal>
     </div>
   );
@@ -345,6 +393,7 @@ function OrderListRow({
   onTicket,
   onDeliver,
   onPay,
+  onMerge,
   onThermal,
   onA4,
   onCancel,
@@ -492,6 +541,16 @@ function OrderListRow({
                         }}
                       />
                     )}
+                    {canRegisterPayment(order) && (
+                      <ActionMenuItem
+                        icon={Combine}
+                        label="Unir órdenes"
+                        onClick={() => {
+                          onMerge(order);
+                          setMenuOpen(false);
+                        }}
+                      />
+                    )}
                     {order.delivery_status !== "DELIVERED" && order.status !== "CANCELLED" && (
                       <ActionMenuItem
                         icon={Zap}
@@ -540,6 +599,7 @@ function OrderCard({
   onTicket,
   onDeliver,
   onPay,
+  onMerge,
   onThermal,
   onA4,
   onCancel,
@@ -692,6 +752,16 @@ function OrderCard({
                       label="Registrar pago"
                       onClick={() => {
                         onPay(order);
+                        setMenuOpen(false);
+                      }}
+                    />
+                  )}
+                  {canRegisterPayment(order) && (
+                    <ActionMenuItem
+                      icon={Combine}
+                      label="Unir órdenes"
+                      onClick={() => {
+                        onMerge(order);
                         setMenuOpen(false);
                       }}
                     />
@@ -955,7 +1025,7 @@ export default function SalesPage() {
     queryKey: ["customers", "search", clientFilterDebounced, branch?.branch_id],
     queryFn: () =>
       searchCustomers(clientFilterDebounced, branch?.branch_id ? Number(branch.branch_id) : undefined),
-    enabled: clientFilterDebounced.trim().length >= 2,
+    enabled: true,
     staleTime: 30_000,
   });
 
@@ -979,6 +1049,7 @@ export default function SalesPage() {
 
   const [detail, setDetail] = useState<Order | null>(null);
   const [payingOrder, setPayingOrder] = useState<Order | null>(null);
+  const [mergingOrder, setMergingOrder] = useState<Order | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [posModal, setPosModal] = useState<{
     open: boolean;
@@ -1034,7 +1105,7 @@ export default function SalesPage() {
   const { data: clientResultsQuery, isLoading: searchingCustomers } = useQuery({
     queryKey: ["customers", "search", debouncedClientQuery, branch?.branch_id],
     queryFn: () => searchCustomers(debouncedClientQuery, branch?.branch_id ? Number(branch.branch_id) : undefined),
-    enabled: debouncedClientQuery.trim().length >= 1,
+    enabled: true,
     staleTime: 30_000,
   });
 
@@ -1222,6 +1293,22 @@ export default function SalesPage() {
     },
   });
 
+  const emitDte = useMutation({
+    mutationFn: (order: Order) =>
+      generateTaxDocumentFromOrder({
+        order_id: order.id,
+        document_type: "39",
+        customer_rut: order.client?.dni?.trim() || "66666666-6",
+        customer_name: order.client?.name?.trim() || "Cliente",
+      }),
+    onSuccess: () => {
+      toast.success("DTE emitido desde la orden");
+      queryClient.invalidateQueries({ queryKey: ["tax-documents"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    },
+    onError: (err: Error) => toast.error(err.message || "No se pudo emitir el DTE"),
+  });
+
   function updateFilter<T>(setter: (v: T) => void, value: T) {
     setter(value);
     setPageUrl({});
@@ -1360,7 +1447,7 @@ export default function SalesPage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+    <div className="mx-auto flex min-h-full w-full min-w-0 max-w-7xl flex-col">
       <PageHeader
         title="Ventas"
         subtitle="Historial de ventas y cuentas abiertas"
@@ -1403,8 +1490,8 @@ export default function SalesPage() {
 
       <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
         {/* Filtros en una línea */}
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <div className="relative min-w-0 flex-1 basis-[12rem]">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               id="filter-search"
@@ -1572,7 +1659,7 @@ export default function SalesPage() {
                   className="h-10 sm:h-9"
                 />
               </div>
-              <div className="flex min-w-[180px] flex-col gap-1">
+              <div className="flex min-w-0 flex-1 basis-[12rem] flex-col gap-1">
                 <label className="text-xs text-muted-foreground">Cliente</label>
                 <SearchableSelect
                   options={clientFilterSelectOptions}
@@ -1586,7 +1673,6 @@ export default function SalesPage() {
                     setPageUrl({});
                   }}
                   onQueryChange={setClientFilterQuery}
-                  minChars={2}
                   loading={searchingClientFilter}
                   clearable
                   selectedOption={
@@ -1665,6 +1751,7 @@ export default function SalesPage() {
                     onTicket={handleDownloadTicketPdf}
                     onDeliver={openDelivering}
                     onPay={setPayingOrder}
+                    onMerge={setMergingOrder}
                     onThermal={handleDownloadThermalPdf}
                     onA4={handleDownloadA4Pdf}
                     onCancel={(o) => cancel.mutate(o.id)}
@@ -1687,6 +1774,7 @@ export default function SalesPage() {
                     onTicket={handleDownloadTicketPdf}
                     onDeliver={openDelivering}
                     onPay={setPayingOrder}
+                    onMerge={setMergingOrder}
                     onThermal={handleDownloadThermalPdf}
                     onA4={handleDownloadA4Pdf}
                     onCancel={(o) => cancel.mutate(o.id)}
@@ -1895,14 +1983,16 @@ export default function SalesPage() {
               )}
 
               {/* Divisiones de cuenta */}
-              {canRegisterPayment(detail) && (
-                <Button
-                  className="mt-5 w-full"
-                  onClick={() => setPayingOrder(detail)}
-                >
-                  <Banknote className="mr-2 h-4 w-4" />
-                  Registrar pago
-                </Button>
+
+
+              {detail.status !== "CANCELLED" && (
+                <OrderInstallmentsPanel
+                  orderId={detail.id}
+                  remaining={Math.max(
+                    0,
+                    Number(detail.total_amount ?? 0) - orderPaidAmount(detail),
+                  )}
+                />
               )}
 
 
@@ -1939,94 +2029,102 @@ export default function SalesPage() {
               )}
             </div>
 
-            {/* Footer con acciones */}
-            <div className="flex shrink-0 flex-col gap-3 border-t border-border bg-background p-4">
-              <div className="grid grid-cols-2 gap-2">
-                <PdfFormatFlyout
-                  disabled={isDownloading}
-                  onThermal={() => handleDownloadTicketPdf(detail)}
-                  onA4={() => handleDownloadA4Pdf(detail)}
-                  align="right"
-                  triggerClassName="inline-flex h-10 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-sm font-medium shadow-sm transition-colors hover:bg-muted disabled:opacity-50"
+            <div className="flex shrink-0 min-w-0 flex-wrap gap-2 border-t border-border bg-background p-3 sm:p-4">
+              {detail.payment_status === "PAID" && (
+                <Button
+                  variant="outline"
+                  className="h-11 min-w-0 flex-1 basis-[8.5rem]"
+                  disabled={emitDte.isPending}
+                  onClick={() => emitDte.mutate(detail)}
                 >
-                  <ClipboardList className="h-4 w-4" />
-                  Orden elaboración
-                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                </PdfFormatFlyout>
-                {detail.payment_status === "PAID" && (
-                  <>
-                    <Button
-                      variant="outline"
-                      className="h-10"
-                      onClick={() => handleDownloadThermalPdf(detail)}
-                      disabled={isDownloading}
-                    >
-                      <Receipt className="mr-1.5 h-4 w-4" />
-                      Boleta 80 mm
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="h-10"
-                      onClick={() => handleDownloadA4Pdf(detail)}
-                      disabled={isDownloading}
-                    >
-                      <FileText className="mr-1.5 h-4 w-4" />
-                      Boleta A4
-                    </Button>
-                  </>
-                )}
-                {detail.status !== "CANCELLED" &&
-                  (detail.delivery_status !== "DELIVERED" || canCancel(detail.owner)) && (
-                  <ActionsMenu
-                    ariaLabel="Más acciones"
-                    size="sm"
-                    variant="outline"
-                    className="h-10 w-10"
-                    items={[
-                      ...(canRegisterPayment(detail)
-                        ? [
-                            {
-                              label: "Registrar pago",
-                              icon: Banknote,
-                              onClick: () => setPayingOrder(detail),
-                            },
-                          ]
-                        : []),
-                      ...(detail.delivery_status !== "DELIVERED"
-                        ? [
-                            {
-                              label: "Entregar",
-                              icon: Zap,
-                              onClick: () => {
-                                openDelivering(detail);
-                                setDetail(null);
-                              },
-                            },
-                          ]
-                        : []),
-                      ...(canCancel(detail.owner)
-                        ? [
-                            {
-                              label: "Anular",
-                              icon: Ban,
-                              danger: true,
-                              onClick: () => {
-                                cancel.mutate(detail.id);
-                                setDetail(null);
-                              },
-                            },
-                          ]
-                        : []),
-                    ]}
-                  />
-                )}
-              </div>
-              <Button variant="ghost" className="w-full" onClick={() => setDetail(null)}>
-                Cerrar
-              </Button>
+                  <FileText className="mr-1.5 h-4 w-4" />
+                  {emitDte.isPending ? "Emitiendo…" : "Emitir DTE"}
+                </Button>
+              )}
+              {canRegisterPayment(detail) && (
+                <Button
+                  className="h-11 min-w-0 flex-1 basis-[8.5rem]"
+                  onClick={() => setPayingOrder(detail)}
+                >
+                  <Banknote className="mr-1.5 h-4 w-4" />
+                  Cobrar
+                </Button>
+              )}
+              {detail.status !== "CANCELLED" && detail.delivery_status !== "DELIVERED" && (
+                <Button
+                  variant="outline"
+                  className="h-11 min-w-0 flex-1 basis-[8.5rem]"
+                  disabled={deliver.isPending}
+                  onClick={() => {
+                    openDelivering(detail);
+                    setDetail(null);
+                  }}
+                >
+                  <Zap className="mr-1.5 h-4 w-4" />
+                  Entregar
+                </Button>
+              )}
+              {canRegisterPayment(detail) && (
+                <Button
+                  variant="outline"
+                  className="h-11 min-w-0 flex-1 basis-[8.5rem]"
+                  onClick={() => setMergingOrder(detail)}
+                >
+                  <Combine className="mr-1.5 h-4 w-4" />
+                  Unir
+                </Button>
+              )}
+              <PdfFormatFlyout
+                disabled={isDownloading}
+                onThermal={() => handleDownloadTicketPdf(detail)}
+                onA4={() => handleDownloadA4Pdf(detail)}
+                onReceiptThermal={
+                  detail.payment_status === "PAID"
+                    ? () => handleDownloadThermalPdf(detail)
+                    : undefined
+                }
+                onReceiptA4={
+                  detail.payment_status === "PAID"
+                    ? () => handleDownloadA4Pdf(detail)
+                    : undefined
+                }
+                align="right"
+                triggerClassName="inline-flex h-11 min-w-0 flex-1 basis-[7rem] items-center justify-center gap-1.5 rounded-lg border border-border px-3 text-sm font-medium hover:bg-muted disabled:opacity-50"
+              >
+                <ClipboardList className="h-4 w-4" />
+                Docs
+                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+              </PdfFormatFlyout>
+              {detail.status !== "CANCELLED" && canCancel(detail.owner) && (
+                <Button
+                  variant="ghost"
+                  className="h-11 text-danger hover:bg-danger/10 hover:text-danger"
+                  disabled={cancel.isPending}
+                  onClick={() => {
+                    cancel.mutate(detail.id);
+                    setDetail(null);
+                  }}
+                >
+                  <Ban className="mr-1.5 h-4 w-4" />
+                  Anular
+                </Button>
+              )}
             </div>
           </div>
         </div>
+      )}
+
+      {mergingOrder && (
+        <MergeOrdersModal
+          open
+          onClose={() => setMergingOrder(null)}
+          targetId={mergingOrder.id}
+          targetLabel={
+            mergingOrder.order_number
+              ? `Orden ${mergingOrder.order_number}`
+              : "esta cuenta"
+          }
+        />
       )}
 
       {payingOrder && (
@@ -2155,19 +2253,14 @@ export default function SalesPage() {
                       placeholder="Buscar cliente..."
                       className="h-9 pl-8 text-sm"
                     />
-                    {showClientResults && debouncedClientQuery.trim().length === 0 && !selectedClient && (
-                      <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs text-muted-foreground shadow-md">
-                        Escribe para buscar clientes…
-                      </div>
-                    )}
-                    {showClientResults && debouncedClientQuery.trim().length > 0 && searchingCustomers && (
-                      <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs text-muted-foreground shadow-md">
-                        Buscando…
-                      </div>
-                    )}
-                    {showClientResults && debouncedClientQuery.trim().length > 0 && !searchingCustomers && clientResults.length > 0 && (
+                    {showClientResults && !selectedClient && (
                       <div className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-lg border border-border bg-background shadow-md">
-                        {clientResults.map((client) => (
+                        {searchingCustomers ? (
+                          <p className="p-2 text-xs text-muted-foreground">Buscando…</p>
+                        ) : clientResults.length === 0 ? (
+                          <p className="p-2 text-xs text-muted-foreground">Sin resultados</p>
+                        ) : (
+                          clientResults.map((client) => (
                           <button
                             key={client.id}
                             type="button"
@@ -2181,12 +2274,8 @@ export default function SalesPage() {
                             {client.name}
                             {client.email && <span className="ml-2 text-xs text-muted-foreground">{client.email}</span>}
                           </button>
-                        ))}
-                      </div>
-                    )}
-                    {showClientResults && debouncedClientQuery.trim().length > 0 && !searchingCustomers && clientResults.length === 0 && !selectedClient && (
-                      <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-background p-2 text-xs text-muted-foreground shadow-md">
-                        Sin resultados
+                          ))
+                        )}
                       </div>
                     )}
                   </div>
@@ -2343,23 +2432,14 @@ export default function SalesPage() {
                 </div>
 
                 {showTables && (
-                  <div className="flex flex-col gap-1.5">
-                    <label htmlFor="account-table" className="text-xs font-medium text-muted-foreground">
-                      Mesa (opcional)
-                    </label>
-                    <Select
-                      id="account-table"
-                      value={selectedTableId}
-                      onChange={(e) => setSelectedTableId(e.target.value)}
-                      className="h-9 text-sm"
-                    >
-                      <option value="">Sin mesa</option>
-                      {(tablesPage?.results ?? []).map((table) => (
-                        <option key={table.id} value={String(table.id)}>
-                          Mesa {table.number}
-                        </option>
-                      ))}
-                    </Select>
+                  <div className="flex min-w-0 flex-col gap-1.5">
+                    <p className="text-xs font-medium text-muted-foreground">Mesa</p>
+                    <CashierTableTiles
+                      tables={tablesPage?.results ?? []}
+                      selectedId={selectedTableId || null}
+                      hideUnavailable
+                      onSelect={(t) => setSelectedTableId(t ? String(t.id) : "")}
+                    />
                   </div>
                 )}
 
@@ -2526,7 +2606,6 @@ export default function SalesPage() {
                     setPageUrl({});
                   }}
                   onQueryChange={setClientFilterQuery}
-                  minChars={2}
                   loading={searchingClientFilter}
                   clearable
                   selectedOption={
@@ -2654,6 +2733,7 @@ export default function SalesPage() {
                       onTicket={handleDownloadTicketPdf}
                       onDeliver={openDelivering}
                       onPay={setPayingOrder}
+                      onMerge={setMergingOrder}
                       onThermal={handleDownloadThermalPdf}
                       onA4={handleDownloadA4Pdf}
                       onCancel={(o) => cancel.mutate(o.id)}

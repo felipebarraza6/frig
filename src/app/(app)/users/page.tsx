@@ -111,7 +111,7 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+    <div className="mx-auto flex min-h-full w-full min-w-0 max-w-7xl flex-col">
       <PageHeader
         title="Usuarios"
         icon={<Users className="h-5 w-5" />}
@@ -140,7 +140,7 @@ export default function UsersPage() {
       />
 
       <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
-        <div className="relative w-full sm:max-w-sm">
+        <div className="relative min-w-0 w-full sm:max-w-sm">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}

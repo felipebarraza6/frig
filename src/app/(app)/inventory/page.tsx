@@ -111,17 +111,35 @@ function isOutputType(t?: string | null): boolean {
   return t === "OUT" || t === "LOSS" || t === "DAMAGE";
 }
 
-function signedQuantity(m: InventoryHistory): string {
-  const q = parseAmount(m.quantity);
-  if (isInputType(m.movement_type)) return `+${q}`;
-  if (isOutputType(m.movement_type)) return `-${q}`;
-  return String(q);
-}
-
 function parseAmount(value: unknown): number {
   if (value === undefined || value === null) return 0;
-  if (typeof value === "number") return value;
-  return parseFloat(String(value)) || 0;
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  const n = parseFloat(String(value).replace(",", "."));
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** Cantidades de inventario: máximo 2 decimales (evita basura float tipo 1.0000000002). */
+function formatQty(value: unknown): string {
+  const n = Math.round(parseAmount(value) * 100) / 100;
+  return n.toLocaleString("es-CL", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
+}
+
+/** Magnitud sin signo (el API a veces manda OUT ya negativo). */
+function absQty(value: unknown): number {
+  return Math.abs(Math.round(parseAmount(value) * 100) / 100);
+}
+
+function signedQuantity(m: InventoryHistory): string {
+  const formatted = formatQty(absQty(m.quantity));
+  if (isInputType(m.movement_type)) return `+${formatted}`;
+  if (isOutputType(m.movement_type)) return `−${formatted}`;
+  const raw = Math.round(parseAmount(m.quantity) * 100) / 100;
+  if (raw < 0) return `−${formatQty(Math.abs(raw))}`;
+  if (raw > 0) return `+${formatted}`;
+  return formatted;
 }
 
 export default function InventoryPage() {
@@ -147,8 +165,13 @@ export default function InventoryPage() {
 
   const productFilterSearch = useQuery({
     queryKey: ["products", "inventory-filter", debouncedProductFilterQuery],
-    queryFn: () => fetchProducts({ search: debouncedProductFilterQuery, page_size: 20 }),
-    enabled: debouncedProductFilterQuery.trim().length >= 2,
+    queryFn: () =>
+      fetchProducts({
+        search: debouncedProductFilterQuery.trim() || undefined,
+        page_size: debouncedProductFilterQuery.trim() ? 20 : 10,
+        ordering: debouncedProductFilterQuery.trim() ? undefined : "-id",
+      }),
+    enabled: true,
     staleTime: 30_000,
   });
 
@@ -241,13 +264,18 @@ export default function InventoryPage() {
     let cost = 0;
     let sale = 0;
     for (const m of movements) {
-      const q = parseAmount(m.quantity);
+      const q = absQty(m.quantity);
       if (isInputType(m.movement_type)) inputs += q;
       else if (isOutputType(m.movement_type)) outputs += q;
       cost += parseAmount(m.cost_value);
       sale += parseAmount(m.sale_value);
     }
-    return { inputs, outputs, cost, sale };
+    return {
+      inputs: Math.round(inputs * 100) / 100,
+      outputs: Math.round(outputs * 100) / 100,
+      cost,
+      sale,
+    };
   }, [movements]);
 
   function handleExport(format: "excel" | "pdf") {
@@ -262,7 +290,7 @@ export default function InventoryPage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+    <div className="mx-auto flex min-h-full w-full min-w-0 max-w-7xl flex-col">
       <PageHeader
         title="Inventario"
         subtitle="Stock por bodega y movimientos"
@@ -363,8 +391,8 @@ export default function InventoryPage() {
             )}
             <div className="flex flex-col gap-3">
               {/* Desktop filters */}
-              <div className="hidden flex-wrap items-end gap-3 md:flex">
-                <div className="relative w-full max-w-xs">
+              <div className="hidden min-w-0 flex-wrap items-end gap-3 md:flex">
+                <div className="relative min-w-0 w-full max-w-xs flex-1">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     value={search}
@@ -387,7 +415,7 @@ export default function InventoryPage() {
                     ))}
                   </Select>
                 </div>
-                <div className="flex min-w-[180px] flex-col gap-1">
+                <div className="flex min-w-0 flex-1 basis-[10rem] flex-col gap-1">
                   <label className="text-xs text-muted-foreground">Producto</label>
                   <SearchableSelect
                     options={productFilterOptions}
@@ -399,7 +427,6 @@ export default function InventoryPage() {
                       setPageUrl({});
                     }}
                     onQueryChange={setProductFilterQuery}
-                    minChars={2}
                     loading={productFilterSearch.isFetching}
                     clearable
                     selectedOption={
@@ -429,8 +456,8 @@ export default function InventoryPage() {
 
               {/* Mobile filters */}
               <div className="flex flex-col gap-3 md:hidden">
-                <div className="flex items-center gap-2">
-                  <div className="relative flex-1">
+                <div className="flex min-w-0 items-center gap-2">
+                  <div className="relative min-w-0 flex-1">
                     <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       value={search}
@@ -477,7 +504,6 @@ export default function InventoryPage() {
                         setPageUrl({});
                       }}
                       onQueryChange={setProductFilterQuery}
-                      minChars={2}
                       loading={productFilterSearch.isFetching}
                       clearable
                       selectedOption={
@@ -545,13 +571,13 @@ export default function InventoryPage() {
                   {[
                     {
                       label: "Entradas",
-                      value: `+${pageStats.inputs}`,
+                      value: `+${formatQty(pageStats.inputs)}`,
                       icon: <ArrowUpRight className="h-4 w-4 text-success" />,
                       tone: "text-success",
                     },
                     {
                       label: "Salidas",
-                      value: `-${pageStats.outputs}`,
+                      value: `−${formatQty(pageStats.outputs)}`,
                       icon: <ArrowDownRight className="h-4 w-4 text-danger" />,
                       tone: "text-danger",
                     },
@@ -637,13 +663,13 @@ export default function InventoryPage() {
                             {signedQuantity(m)}
                           </td>
                           <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">
-                            {m.previous_quantity}
+                            {formatQty(m.previous_quantity)}
                           </td>
                           <td className="px-2 py-2.5 text-center text-muted-foreground">
                             <ArrowRightLeft className="h-3 w-3" />
                           </td>
                           <td className="px-4 py-2.5 text-right tabular-nums font-semibold">
-                            {m.current_quantity}
+                            {formatQty(m.current_quantity)}
                           </td>
                           <td className="px-4 py-2.5 text-right tabular-nums font-medium">
                             {formatCLP(parseAmount(m.cost_value))}
@@ -701,14 +727,18 @@ export default function InventoryPage() {
                       <div className="mt-3 grid grid-cols-3 gap-2 border-t border-dashed border-border pt-3 text-xs">
                         <div className="text-muted-foreground">
                           <span className="block text-[10px] uppercase tracking-wide">Stock previo</span>
-                          <span className="font-medium tabular-nums text-foreground">{m.previous_quantity}</span>
+                          <span className="font-medium tabular-nums text-foreground">
+                            {formatQty(m.previous_quantity)}
+                          </span>
                         </div>
                         <div className="flex items-end justify-center text-muted-foreground">
                           <ArrowRightLeft className="h-3.5 w-3.5" />
                         </div>
                         <div className="text-right text-muted-foreground">
                           <span className="block text-[10px] uppercase tracking-wide">Stock actual</span>
-                          <span className="font-semibold tabular-nums text-foreground">{m.current_quantity}</span>
+                          <span className="font-semibold tabular-nums text-foreground">
+                            {formatQty(m.current_quantity)}
+                          </span>
                         </div>
                         <div className="text-muted-foreground">
                           <span className="block text-[10px] uppercase tracking-wide">Valor costo</span>
@@ -784,7 +814,7 @@ export default function InventoryPage() {
               </div>
             </div>
 
-            <div className="relative w-full max-w-xs">
+            <div className="relative min-w-0 w-full max-w-xs flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={alertSearch}
@@ -835,8 +865,14 @@ export default function InventoryPage() {
                             </div>
                           </td>
                           <td className="px-4 py-3 text-muted-foreground">{p.category_name || "—"}</td>
-                          <td className="px-4 py-3 text-right tabular-nums font-medium text-danger">{p.quantity ?? 0}</td>
-                          <td className="px-4 py-3 text-right tabular-nums">{p.minimum_stock ?? "—"}</td>
+                          <td className="px-4 py-3 text-right tabular-nums font-medium text-danger">
+                            {formatQty(p.quantity)}
+                          </td>
+                          <td className="px-4 py-3 text-right tabular-nums">
+                            {p.minimum_stock == null
+                              ? "—"
+                              : formatQty(p.minimum_stock)}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -886,8 +922,14 @@ export default function InventoryPage() {
                             </div>
                           </td>
                           <td className="px-4 py-3 text-muted-foreground">{p.category_name || "—"}</td>
-                          <td className="px-4 py-3 text-right tabular-nums font-medium text-warning">{p.quantity ?? 0}</td>
-                          <td className="px-4 py-3 text-right tabular-nums">{p.minimum_stock ?? "—"}</td>
+                          <td className="px-4 py-3 text-right tabular-nums font-medium text-warning">
+                            {formatQty(p.quantity)}
+                          </td>
+                          <td className="px-4 py-3 text-right tabular-nums">
+                            {p.minimum_stock == null
+                              ? "—"
+                              : formatQty(p.minimum_stock)}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -951,8 +993,13 @@ function MovementModal({
 
   const productSearch = useQuery({
     queryKey: ["products", "inventory-movement", debouncedProductQuery],
-    queryFn: () => fetchProducts({ search: debouncedProductQuery, page_size: 20 }),
-    enabled: debouncedProductQuery.trim().length >= 2,
+    queryFn: () =>
+      fetchProducts({
+        search: debouncedProductQuery.trim() || undefined,
+        page_size: debouncedProductQuery.trim() ? 20 : 10,
+        ordering: debouncedProductQuery.trim() ? undefined : "-id",
+      }),
+    enabled: true,
     staleTime: 30_000,
   });
 
@@ -979,7 +1026,7 @@ function MovementModal({
       warehouse: form.warehouse ? Number(form.warehouse) : null,
       movement_type: form.movement_type as "IN" | "OUT" | "ADJUSTMENT" | "RETURN" | "TRANSFER" | "LOSS" | "DAMAGE" | "CANCELLATION" | "EXPIRY",
       source_type: form.source_type as "SALE" | "ORDER" | "MANUAL" | "PURCHASE" | "TRANSFER" | "ADJUSTMENT" | "INTERNAL_USE" | "MAINTENANCE" | "TOOL_USAGE" | "RAW_MATERIAL" | "PRODUCTION" | "QUALITY_CONTROL" | "RETURN_CUSTOMER" | "RETURN_SUPPLIER",
-      quantity: Number(form.quantity),
+      quantity: Math.round(Number(form.quantity) * 100) / 100,
       notes: form.notes || undefined,
     });
   }
@@ -1011,7 +1058,6 @@ function MovementModal({
                     updateField("productName", opt?.label ?? "");
                   }}
                   onQueryChange={setProductQuery}
-                  minChars={2}
                   loading={productSearch.isFetching}
                   clearable
                   selectedOption={
@@ -1065,6 +1111,8 @@ function MovementModal({
                 <Input
                   type="number"
                   min="0"
+                  step="0.01"
+                  inputMode="decimal"
                   value={form.quantity}
                   onChange={(e) => updateField("quantity", e.target.value)}
                   required

@@ -203,7 +203,7 @@ export default function SalesReportPage() {
         debouncedClientQuery,
         branch?.branch_id ? Number(branch.branch_id) : undefined,
       ),
-    enabled: debouncedClientQuery.trim().length >= 2,
+    enabled: true,
     staleTime: 30_000,
   });
 
@@ -315,7 +315,7 @@ export default function SalesReportPage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+    <div className="mx-auto flex min-h-full w-full min-w-0 max-w-7xl flex-col">
       <PageHeader
         title="Informe de ventas"
         subtitle="Analiza y navega las ventas del período: por cliente, tipo y día."
@@ -374,8 +374,7 @@ export default function SalesReportPage() {
                     setClientId(value);
                     setClientName(c?.name ?? "");
                   }}
-                  onQueryChange={setClientQuery}
-                  minChars={2}
+                  onQueryChange={setClientQuery}
                   selectedOption={clientId ? { value: clientId, label: clientName } : null}
                   placeholder="Filtrar cliente…"
                   searchPlaceholder="Nombre del cliente…"

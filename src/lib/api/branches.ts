@@ -1,5 +1,6 @@
 import { API_BASE, ApiError } from "./client";
 import { apiFetch } from "./client";
+import { getEffectiveBranchId } from "./branch-scope";
 import { getBranchId, getToken } from "./session-storage";
 import type {
   Branch,
@@ -517,7 +518,7 @@ export async function updateBranchSiiConfig(
   }
 
   const token = getToken();
-  const branchId = getBranchId();
+  const branchId = getEffectiveBranchId(getBranchId());
   const headers: Record<string, string> = {};
   if (token) headers["Authorization"] = `Token ${token}`;
   if (branchId) headers["X-Branch-ID"] = branchId;

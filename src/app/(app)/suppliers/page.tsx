@@ -509,8 +509,8 @@ export default function SuppliersPage() {
 
         <div className="flex flex-col gap-3">
           {/* Desktop filters */}
-          <div className="hidden flex-wrap items-end gap-3 md:flex">
-            <div className="relative w-full max-w-xs">
+          <div className="hidden min-w-0 flex-wrap items-end gap-3 md:flex">
+            <div className="relative min-w-0 w-full max-w-xs flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={searchInput}
@@ -537,7 +537,7 @@ export default function SuppliersPage() {
           {/* Mobile filters */}
           <div className="flex flex-col gap-3 md:hidden">
             <div className="flex items-center gap-2">
-              <div className="relative flex-1">
+              <div className="relative min-w-0 flex-1">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={searchInput}

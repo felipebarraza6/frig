@@ -34,10 +34,20 @@ export const ROUTE_MODULE_MAP: Record<string, ModuleName | null> = {
   "/categories": "product_catalog",
   "/warehouses": "inventory",
   "/inventory": "inventory",
+  "/equipment": null,
+  "/iot": "iot_telemetry",
+  "/reports/equipment": null,
+  "/reports/crm": "customers",
   "/tables": "tables",
   "/tables/map": "tables",
   "/tables/map/full": "tables",
   "/customers": "customers",
+  "/customers/surveys": "customers",
+  "/customers/prospects": "customers",
+  "/customers/pipeline": "customers",
+  "/customers/forms": "customers",
+  "/customers/follow-ups": "customers",
+  "/survey/fill": "customers",
   "/promotions/discounts": "promotions",
   "/payments": "payment_methods",
   "/payment-methods": "payment_methods",
@@ -58,6 +68,8 @@ export const ROUTE_MODULE_MAP: Record<string, ModuleName | null> = {
   "/organization": "config",
   "/settings/modules": "config",
   "/profile": null,
+  "/support": null,
+  "/help": null,
 };
 
 /** Módulos que el backend trata como compuestos (tienen submódulos opcionales). */
@@ -194,6 +206,7 @@ export const FRIG_SETTINGS_MODULES: ModuleName[] = [
   "public_catalog",
   "invoices",
   "promotions",
+  "iot_telemetry",
 ];
 
 // ── Definición del menú de Frig ───────────────────────────────────────────────
@@ -240,6 +253,8 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
       { href: "/reports/revenues", label: "Ingresos", icon: "ArrowDownLeft", module: null, description: "Detalle de ingresos por categoría" },
       { href: "/reports/expenses", label: "Gastos", icon: "ArrowUpRight", module: null, description: "Detalle de gastos por categoría" },
       { href: "/reports/money", label: "Dinero", icon: "Wallet", module: null, description: "Flujo de caja completo: pagos, orígenes, ingresos y egresos" },
+      { href: "/reports/equipment", label: "Equipos", icon: "Thermometer", module: null, description: "Lecturas de máquinas y fuera de rango" },
+      { href: "/reports/crm", label: "CRM", icon: "Users", module: "customers", description: "Prospectos, embudo, acciones y hallazgos comerciales" },
     ],
   },
   {
@@ -265,7 +280,12 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
     title: "CRM",
     icon: "Users",
     items: [
-      { href: "/customers", label: "Clientes", icon: "UserCircle", module: "customers", description: "Base de clientes y su historial" },
+      { href: "/customers", label: "Clientes", icon: "UserCircle", module: "customers", description: "Ficha 360, historial y deuda" },
+      { href: "/customers/prospects", label: "Prospectos", icon: "Users", module: "customers", description: "Leads antes de convertir a cliente" },
+      { href: "/customers/pipeline", label: "Pipeline", icon: "Kanban", module: "customers", description: "Embudo de ventas y oportunidades" },
+      { href: "/customers/follow-ups", label: "Seguimientos", icon: "FolderKanban", module: "customers", description: "Tareas del día, sin entrar a cada ficha" },
+      { href: "/customers/forms", label: "Fichas", icon: "FileText", module: "customers", description: "Plantilla y levantamientos para cotizar" },
+      { href: "/customers/surveys", label: "Encuestas", icon: "ClipboardList", module: "customers", description: "Satisfacción con link público / QR" },
       { href: "/promotions/discounts", label: "Promociones", icon: "Percent", module: "promotions", description: "Descuentos y códigos promocionales" },
     ],
   },
@@ -281,6 +301,8 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
       { href: "/products/menus", label: "Menús y vitrinas", icon: "Store", module: "public_catalog", description: "Cartas digitales, QR y pantallas públicas" },
       { href: "/warehouses", label: "Bodegas", icon: "Warehouse", module: "inventory", description: "Bodegas y sus responsables" },
       { href: "/inventory", label: "Inventario", icon: "ClipboardList", module: "inventory", description: "Stock por bodega y movimientos" },
+      { href: "/equipment", label: "Equipos", icon: "Thermometer", module: null, description: "Máquinas, herramientas y mediciones" },
+      { href: "/iot", label: "Telemetría IoT", icon: "Radio", module: "iot_telemetry", description: "Dispositivos, variables, mediciones y exportación" },
     ],
   },
   {
@@ -291,12 +313,12 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
       { href: "/revenues", label: "Ingresos", icon: "ArrowDownLeft", module: "finance", description: "Registro de ingresos del negocio" },
       { href: "/expenses", label: "Egresos", icon: "ArrowUpRight", module: "finance", description: "Registro de egresos del negocio" },
       { href: "/fixed-expenses", label: "Gastos", icon: "TrendingDown", module: "finance", description: "Gastos fijos y programados" },
-      { href: "/tax-documents", label: "Documentos tributarios", icon: "FileText", module: "invoices", description: "Boletas, facturas y SII" },
-      { href: "/finance/settings", label: "Config. financiera", icon: "Settings", module: "finance", description: "Impuestos y configuración financiera" },
+      { href: "/tax-documents", label: "DTE", icon: "FileText", module: "invoices", description: "Boletas y facturas electrónicas al SII" },
       { href: "/suppliers", label: "Proveedores", icon: "Truck", module: "suppliers", description: "Directorio de proveedores" },
       { href: "/purchase-orders", label: "Órdenes de compra", icon: "ShoppingCart", module: "suppliers", description: "Pedidos a proveedores y su recepción" },
       { href: "/bank-accounts", label: "Billeteras", icon: "Wallet", module: "bank_accounts", description: "Cuentas y saldos bancarios" },
       { href: "/reconciliations", label: "Conciliaciones", icon: "ArrowLeftRight", module: "bank_accounts", description: "Cuadra movimientos con el banco" },
+      { href: "/finance/settings", label: "Configuración", icon: "Settings", module: "finance", description: "Impuestos, SII, funciones de la app y folios CAF" },
     ],
   },
   {
@@ -307,6 +329,33 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
       { href: "/users", label: "Usuarios", icon: "UserIcon", module: "config", description: "Usuarios y sus roles por sucursal" },
       { href: "/branches", label: "Sucursales", icon: "Store", module: "config", description: "Sucursales del negocio y su equipo" },
       { href: "/settings/modules", label: "Módulos", icon: "Settings", module: "config", description: "Activa o desactiva módulos por sucursal" },
+    ],
+  },
+  {
+    title: "Ayuda",
+    icon: "LifeBuoy",
+    items: [
+      {
+        href: "/help",
+        label: "Documentación",
+        icon: "BookOpen",
+        module: null,
+        description: "Guías claras para usar FRIG",
+      },
+      {
+        href: "/help/api",
+        label: "API para integrar",
+        icon: "Code2",
+        module: null,
+        description: "Rutas para conectar tu propio sistema",
+      },
+      {
+        href: "/support",
+        label: "Soporte",
+        icon: "LifeBuoy",
+        module: null,
+        description: "Problemas, dudas e ideas al equipo",
+      },
     ],
   },
 ];

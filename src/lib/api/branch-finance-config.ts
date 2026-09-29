@@ -1,10 +1,13 @@
 import { apiFetch } from "./client";
 import type { YggdraSchemas } from "@/lib/api/types";
 
+export type SiiActionKey = string;
+
 export type BranchFinanceConfig = YggdraSchemas["BranchFinanceConfig"] & {
   sii_provider_installation?: string | null;
   sii_generation_trigger?: "ON_CREATION" | "ON_COMPLETION" | "ON_PAYMENT" | "MANUAL";
   sii_document_preference?: "AUTO" | "BOLETA" | "FACTURA";
+  sii_action_endpoints?: Partial<Record<SiiActionKey, string>>;
 };
 type PaginatedBranchFinanceConfigList = YggdraSchemas["PaginatedBranchFinanceConfigList"];
 
@@ -25,11 +28,22 @@ export interface BranchFinanceConfigRequest {
   sii_provider_installation?: string | null;
   sii_generation_trigger?: "ON_CREATION" | "ON_COMPLETION" | "ON_PAYMENT" | "MANUAL";
   sii_document_preference?: "AUTO" | "BOLETA" | "FACTURA";
+  sii_action_endpoints?: Partial<Record<SiiActionKey, string>>;
+}
+
+function asConfigList(data: unknown): BranchFinanceConfig[] {
+  if (Array.isArray(data)) return data as BranchFinanceConfig[];
+  if (data && typeof data === "object") {
+    const rec = data as { results?: BranchFinanceConfig[]; id?: number };
+    if (Array.isArray(rec.results)) return rec.results;
+    if (typeof rec.id === "number") return [data as BranchFinanceConfig];
+  }
+  return [];
 }
 
 export async function fetchBranchFinanceConfigs(): Promise<BranchFinanceConfig[]> {
-  const data = await apiFetch<PaginatedBranchFinanceConfigList>("/finance/branch-configs/");
-  return data.results ?? [];
+  const data = await apiFetch<unknown>("/finance/branch-configs/");
+  return asConfigList(data);
 }
 
 export async function fetchBranchFinanceConfig(id: number): Promise<BranchFinanceConfig> {

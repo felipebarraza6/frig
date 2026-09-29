@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import {
   fetchAllDiscounts,
   fetchDiscount,
@@ -36,6 +36,7 @@ export function useAllDiscounts(
     queryFn: () => fetchAllDiscounts(filters),
     staleTime: 60_000,
     enabled,
+    placeholderData: keepPreviousData,
   });
 }
 

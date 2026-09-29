@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchBranchProductTypes } from "@/lib/api/product-types";
 import type { ProductTypeOption } from "@/lib/api/types/modules";
-import { useCurrentBranch } from "@/lib/store/session";
+import { useCurrentBranch, useIsModuleEnabledFromConfig } from "@/lib/store/session";
 
 /**
  * Tipos de producto que FRIG gestiona en el módulo Productos.
@@ -16,6 +16,8 @@ import { useCurrentBranch } from "@/lib/store/session";
  * independientemente de si el módulo de etiquetado nutricional está activo.
  */
 export const FRIG_PRODUCT_TYPES = new Set(["DIRECT_SALE", "RECIPE_BASED", "RAW_MATERIAL"]);
+const EQUIPMENT_PRODUCT_TYPES = new Set(["EQUIPMENT", "TOOL"]);
+const IOT_PRODUCT_TYPES = new Set(["IOT"]);
 
 /** Labels en español chileno para los tipos de producto del backend. */
 const PRODUCT_TYPE_LABELS: Record<string, string> = {
@@ -30,13 +32,13 @@ const PRODUCT_TYPE_LABELS: Record<string, string> = {
   SUPPLIER_PRODUCT: "Producto de proveedor",
   WASTE_MATERIAL: "Material de residuos",
   TANK_CONTAINER: "Estanque / contenedor",
-  IOT: "Equipo IoT",
+  IOT: "Equipo IoT / Telemetría",
 };
 
 /**
  * Fallback de tipos cuando el endpoint por sucursal falla (403 para roles
  * distintos de OWNER/ADMIN_LOCAL en `branch_modules.py`) o el plan no incluye
- * tipos gastronómicos. FRIG gestiona siempre estos 3 tipos.
+ * tipos gastronómicos. FRIG gestiona siempre estos 3 tipos más opcionales.
  */
 const FRIG_DEFAULT_OPTIONS: ProductTypeOption[] = [
   { value: "DIRECT_SALE", label: "Venta directa" },
@@ -47,6 +49,10 @@ const FRIG_DEFAULT_OPTIONS: ProductTypeOption[] = [
 export function useBranchProductTypes() {
   const branch = useCurrentBranch();
   const branchId = branch?.branch_id ? Number(branch.branch_id) : null;
+  const inventoryOn = useIsModuleEnabledFromConfig("inventory");
+  const equipmentMod = useIsModuleEnabledFromConfig("equipment");
+  const equipmentOn = inventoryOn || equipmentMod;
+  const iotMod = useIsModuleEnabledFromConfig("iot_telemetry");
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["branch-product-types", branchId],
@@ -55,20 +61,34 @@ export function useBranchProductTypes() {
     staleTime: 60_000,
   });
 
-  // Solo los tipos gastronómicos de FRIG permitidos por el plan de la sucursal.
-  // El backend puede devolver solo uno de los 3 (p. ej. solo DIRECT_SALE si el
-  // plan no incluye recetas/nutrición), pero en FRIG siempre ofrecemos los 3
-  // tipos gastronómicos para venta. Se mergean los labels del backend con los
-  // defaults para no perder ninguno.
+  // Solo los tipos gastronómicos de FRIG permitidos por el plan de la sucursal,
+  // más equipos y dispositivos IoT cuando los módulos correspondientes están activos.
   const options = useMemo<ProductTypeOption[]>(() => {
+    const allowed = new Set(FRIG_PRODUCT_TYPES);
+    if (equipmentOn) {
+      EQUIPMENT_PRODUCT_TYPES.forEach((v) => allowed.add(v));
+    }
+    // IOT habilitado si el módulo iot_telemetry está activo o si el backend lo devuelve en su plan
+    if (iotMod) {
+      IOT_PRODUCT_TYPES.forEach((v) => allowed.add(v));
+    }
     const configured = (data?.available_product_types ?? data?.product_types ?? []).filter((t) =>
-      FRIG_PRODUCT_TYPES.has(t.value),
+      allowed.has(t.value),
     );
     const merged = new Map<string, ProductTypeOption>();
     FRIG_DEFAULT_OPTIONS.forEach((t) => merged.set(t.value, t));
+    if (equipmentOn) {
+      merged.set("EQUIPMENT", { value: "EQUIPMENT", label: PRODUCT_TYPE_LABELS.EQUIPMENT });
+      merged.set("TOOL", { value: "TOOL", label: PRODUCT_TYPE_LABELS.TOOL });
+    }
+    // Siempre permitir IOT si el backend lo lista o si el módulo está habilitado
+    const hasIotInPlan = (data?.available_product_types ?? data?.product_types ?? []).some((t) => t.value === "IOT");
+    if (iotMod || hasIotInPlan) {
+      merged.set("IOT", { value: "IOT", label: PRODUCT_TYPE_LABELS.IOT });
+    }
     configured.forEach((t) => merged.set(t.value, t));
     return Array.from(merged.values());
-  }, [data]);
+  }, [data, equipmentOn, iotMod]);
 
   const defaultType =
     data?.default && FRIG_PRODUCT_TYPES.has(data.default) ? data.default : options[0]?.value;

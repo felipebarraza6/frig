@@ -14,7 +14,7 @@ import { createBranch, updateBranch } from "@/lib/api/branches";
 import { fetchModulePlans, applyBranchPlan } from "@/lib/api/module-plans";
 import { fetchOrganizations } from "@/lib/api/organizations";
 import { FRIG_PLAN_NAME } from "@/lib/modules";
-import { isFrigPlanName } from "@/lib/plans";
+import { selectModulePlansForFrig } from "@/lib/plans";
 import { branchName } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import type { Branch, BranchPayload } from "@/lib/types";
@@ -89,17 +89,17 @@ export function BranchForm({ branch, onClose, onSuccess }: BranchFormProps) {
     enabled: isSuperAdmin,
   });
 
-  // Catálogo compartido: aquí solo se ofrecen los planes frig (prefijo
-  // "frig-"); los demás son de otras apps del mismo backend.
-  const frigPlans = plans.filter((p) => isFrigPlanName(p.name));
+  const currentPlanId = branch?.plan != null ? Number(branch.plan) : null;
+  // Preferimos planes frig (prefijo o nombre canónico); el plan actual siempre entra.
+  const frigPlans = selectModulePlansForFrig(plans, currentPlanId);
 
   // Plan sugerido al crear: el plan FRIG de gestión gastronómica/comercial.
   const frigPlan = frigPlans.find(
     (p) => p.name.toLowerCase().includes(FRIG_PLAN_NAME.toLowerCase()),
   );
   const effectivePlanId = planId || (frigPlan ? String(frigPlan.id) : "");
-  // Al editar, si la sucursal tiene un plan no-frig, se muestra igual para
-  // que no quede una selección vacía con un valor invisible.
+  // Al editar, si la sucursal tiene un plan fuera del set preferido, se muestra
+  // igual para que no quede una selección vacía con un valor invisible.
   const currentPlanMissing =
     isEditing && effectivePlanId !== "" && !frigPlans.some((p) => String(p.id) === effectivePlanId);
 

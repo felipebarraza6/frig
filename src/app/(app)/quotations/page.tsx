@@ -212,7 +212,7 @@ export default function QuotationsPage() {
   const clientSearchQuery = useQuery({
     queryKey: ["customers", "search", "quotations-filter", debouncedClientQuery, branchId],
     queryFn: () => searchCustomers(debouncedClientQuery, branchId),
-    enabled: debouncedClientQuery.trim().length > 0,
+    enabled: true,
     staleTime: 30_000,
     placeholderData: keepPreviousData,
   });
@@ -273,7 +273,7 @@ export default function QuotationsPage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col">
+    <div className="mx-auto flex min-h-full w-full min-w-0 max-w-7xl flex-col">
       <PageHeader
         title="Cotizaciones"
         icon={<FileText className="h-5 w-5" />}
@@ -366,8 +366,8 @@ export default function QuotationsPage() {
         </section>
 
         {/* Filtros: una sola fila que envuelve en pantallas chicas */}
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="relative min-w-[200px] flex-1">
+        <div className="flex min-w-0 flex-wrap items-end gap-3">
+          <div className="relative min-w-0 flex-1 basis-[12rem]">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={search}
@@ -377,7 +377,7 @@ export default function QuotationsPage() {
               aria-label="Buscar cotización"
             />
           </div>
-          <div className="flex min-w-[200px] flex-1 flex-col gap-1">
+          <div className="flex min-w-0 flex-1 basis-[12rem] flex-col gap-1">
             <label className="text-xs text-muted-foreground">Cliente</label>
             <SearchableSelect
               options={clientFilterOptions}
@@ -389,7 +389,6 @@ export default function QuotationsPage() {
                 setPageUrl({});
               }}
               onQueryChange={setClientQuery}
-              minChars={0}
               loading={clientSearchQuery.isFetching}
               clearable
               selectedOption={

@@ -26,8 +26,6 @@ interface SearchableSelectProps {
   clearable?: boolean;
   loading?: boolean;
   onQueryChange?: (query: string) => void;
-  minChars?: number;
-  searchHint?: string;
   selectedOption?: SearchableSelectOption | null;
   className?: string;
 }
@@ -45,8 +43,6 @@ export function SearchableSelect({
   clearable = false,
   loading = false,
   onQueryChange,
-  minChars = 0,
-  searchHint,
   selectedOption,
   className,
 }: SearchableSelectProps) {
@@ -70,9 +66,6 @@ export function SearchableSelect({
 
   const filtered = useMemo(() => {
     if (isAsync) {
-      if (query.trim().length < minChars) {
-        return value ? options.filter((o) => o.value === value) : [];
-      }
       return options;
     }
     const q = query.trim().toLowerCase();
@@ -82,11 +75,7 @@ export function SearchableSelect({
         o.label.toLowerCase().includes(q) ||
         (o.description?.toLowerCase().includes(q) ?? false),
     );
-  }, [options, query, isAsync, minChars, value]);
-
-  const queryTooShort = isAsync && query.trim().length > 0 && query.trim().length < minChars;
-  const showHint =
-    isAsync && query.trim().length < minChars && !loading && filtered.length === 0;
+  }, [options, query, isAsync, value]);
 
   function setOpen(next: boolean) {
     if (next) {
@@ -124,9 +113,7 @@ export function SearchableSelect({
     setQuery(next);
     setHighlight(0);
     if (!isAsync) return;
-    if (next.trim().length === 0 || next.trim().length >= minChars) {
-      onQueryChange?.(next);
-    }
+    onQueryChange?.(next);
   }
 
   function handleTriggerKeyDown(e: React.KeyboardEvent) {
@@ -171,12 +158,8 @@ export function SearchableSelect({
     }
   }
 
-  const hintText =
-    searchHint ??
-    (minChars > 0 ? `Escribe al menos ${minChars} caracteres…` : "Escribe para buscar…");
-
   return (
-    <div className={cn("relative", className)}>
+    <div className={cn("relative min-w-0 w-full", className)}>
       {label && (
         <label htmlFor={fieldId} className="mb-1 block text-xs text-muted-foreground">
           {label}
@@ -261,9 +244,7 @@ export function SearchableSelect({
           className="max-h-60 overflow-y-auto p-1 scrollbar-thin"
           onKeyDown={handleListKeyDown}
         >
-          {showHint || queryTooShort ? (
-            <p className="px-3 py-2 text-sm text-muted-foreground">{hintText}</p>
-          ) : loading && filtered.length === 0 ? (
+          {loading && filtered.length === 0 ? (
             <p className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
               Buscando…
