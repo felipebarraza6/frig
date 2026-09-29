@@ -143,7 +143,7 @@ function loadPersisted(): { startDate?: string; endDate?: string; status?: strin
 
 export default function TaxDocumentsPage() {
   const month = getCurrentMonthRange();
-  const persisted = useMemo(loadPersisted, []);
+  const persisted = useMemo(() => loadPersisted(), []);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(persisted.status ?? "");
   const [typeFilter, setTypeFilter] = useState(persisted.type ?? "");
@@ -792,10 +792,10 @@ function FromOrderModal({
     enabled: open,
   });
 
-  useEffect(() => {
-    if (!open || readyTypes.length === 0) return;
-    if (!readyTypes.includes(docType)) setDocType(readyTypes[0]);
-  }, [open, docType, readyTypes]);
+  // Tipo de documento por defecto cuando cambia la disponibilidad (ajuste en render).
+  if (open && readyTypes.length > 0 && !readyTypes.includes(docType)) {
+    setDocType(readyTypes[0]);
+  }
 
   const orderOptions = (ordersPage?.results ?? []).map((o) => ({
     value: String(o.id),

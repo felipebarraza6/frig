@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Store } from "lucide-react";
 import { mediaUrl } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
@@ -83,12 +83,15 @@ export function BrandLogo({
   fallbackColor,
 }: BrandLogoProps) {
   const [error, setError] = useState(false);
+  const [erroredSrc, setErroredSrc] = useState<string | null>(null);
   const initials = getInitials(name);
   const resolvedSrc = mediaUrl(src);
 
-  useEffect(() => {
+  // Al cambiar el logo, reintenta la carga (ajuste durante render, sin effect).
+  if (erroredSrc !== null && erroredSrc !== resolvedSrc) {
+    setErroredSrc(null);
     setError(false);
-  }, [src]);
+  }
 
   const useFrigMark =
     !resolvedSrc || error
@@ -130,7 +133,10 @@ export function BrandLogo({
       alt={alt}
       className={className}
       containerClassName={containerClassName}
-      onError={() => setError(true)}
+      onError={() => {
+        setErroredSrc(resolvedSrc);
+        setError(true);
+      }}
     />
   );
 }

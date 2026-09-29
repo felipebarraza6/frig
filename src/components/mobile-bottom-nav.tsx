@@ -13,6 +13,7 @@ import {
   useCashierAllowedPaths,
   useWaiterAllowedPaths,
   useCookAllowedPaths,
+  useCanManageCustomers,
 } from "@/lib/store/session";
 import { useFrigMenu } from "@/lib/hooks/useFrigMenu";
 import { useNavFavorites } from "@/lib/store/nav-favorites";
@@ -53,6 +54,7 @@ export const MobileBottomNav = memo(function MobileBottomNav({
   const cashierAllowedPaths = useCashierAllowedPaths();
   const waiterAllowedPaths = useWaiterAllowedPaths();
   const cookAllowedPaths = useCookAllowedPaths();
+  const canManageCrm = useCanManageCustomers();
   const menuGroups = useFrigMenu();
   const { favorites } = useNavFavorites();
   const { locked: subscriptionLocked, isLoading: subscriptionLoading } =
@@ -69,6 +71,7 @@ export const MobileBottomNav = memo(function MobileBottomNav({
       isCashier,
       isWaiter,
       isCook,
+      canManageCrm,
       cashierAllowedPaths,
       waiterAllowedPaths,
       cookAllowedPaths,
@@ -77,6 +80,7 @@ export const MobileBottomNav = memo(function MobileBottomNav({
       isCashier,
       isWaiter,
       isCook,
+      canManageCrm,
       cashierAllowedPaths,
       waiterAllowedPaths,
       cookAllowedPaths,

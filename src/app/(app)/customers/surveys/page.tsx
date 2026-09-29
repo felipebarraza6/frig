@@ -17,6 +17,7 @@ import {
   ExternalLink,
   Eye,
   Globe,
+  HardDrive,
   HelpCircle,
   Info,
   Layers,
@@ -43,6 +44,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { LoadMoreFooter } from "@/components/ui/load-more";
 import { StatCard } from "@/components/ui/stat-card";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import { SurveyFillForm } from "@/components/surveys/survey-fill-form";
@@ -108,9 +110,12 @@ export default function CustomerSurveysPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showGuide, setShowGuide] = useState(true);
 
+  // "Cargar más" incremental: sin truncado silencioso de page_size fijo.
+  const [listPageSize, setListPageSize] = useState(50);
+
   const listQuery = useQuery({
-    queryKey: ["surveys", "list"],
-    queryFn: () => fetchSurveys({ page_size: 50 }),
+    queryKey: ["surveys", "list", listPageSize],
+    queryFn: () => fetchSurveys({ page_size: listPageSize }),
     enabled: canManage,
   });
 
@@ -769,6 +774,14 @@ export default function CustomerSurveysPage() {
             )}
           </>
         )}
+
+        <LoadMoreFooter
+          showing={filteredSurveys.length}
+          total={listQuery.data?.count ?? 0}
+          isLoading={listQuery.isFetching}
+          onLoadMore={() => setListPageSize((n) => Math.min(n + 50, 500))}
+          label="encuestas"
+        />
       </PageBody>
 
       {/* Creation & Editing Modal with Live Preview */}
@@ -900,7 +913,7 @@ export default function CustomerSurveysPage() {
                     className="rounded border-border text-primary"
                   />
                   <BookmarkPlus className="h-4 w-4 text-primary" />
-                  Guardar también en "Plantillas" para usar en el futuro
+                  Guardar también en &quot;Plantillas&quot; para usar en el futuro
                 </label>
               </div>
             </div>
@@ -1148,7 +1161,19 @@ function SurveyCard({
                 label: "Eliminar Encuesta",
                 icon: Trash2,
                 danger: true,
-                onClick: onDelete,
+                onClick: () => {
+                  const respuestas =
+                    survey.response_count > 0
+                      ? ` Se eliminarán también sus ${survey.response_count} ${survey.response_count === 1 ? "respuesta" : "respuestas"}.`
+                      : "";
+                  if (
+                    window.confirm(
+                      `¿Eliminar la encuesta "${survey.title}"?${respuestas} Esta acción no se puede deshacer.`,
+                    )
+                  ) {
+                    onDelete();
+                  }
+                },
               },
             ]}
           />
@@ -1169,16 +1194,12 @@ function CustomTemplatesSection({
 }: {
   onUseTemplate: (tmpl: CustomSurveyTemplate) => void;
 }) {
-  const [templates, setTemplates] = useState<CustomSurveyTemplate[]>([]);
+  const [templates, setTemplates] = useState<CustomSurveyTemplate[]>(() => getAllTemplates());
   const [editingTemplate, setEditingTemplate] = useState<CustomSurveyTemplate | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const toast = useToast();
 
   const reload = () => setTemplates(getAllTemplates());
-
-  useEffect(() => {
-    reload();
-  }, []);
 
   const handleDelete = (id: string, name: string) => {
     deleteCustomTemplate(id);
@@ -1193,6 +1214,10 @@ function CustomTemplatesSection({
           <h3 className="text-sm font-semibold text-foreground">Plantillas Disponibles</h3>
           <p className="text-xs text-muted-foreground">
             Formatos predefinidos y plantillas guardadas para lanzar encuestas en 1-click.
+          </p>
+          <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+            <HardDrive className="h-3 w-3" />
+            Tus plantillas se guardan en este dispositivo (no se sincronizan con el equipo)
           </p>
         </div>
         <Button
@@ -1742,7 +1767,7 @@ function SurveyAnalyticsSummary({ surveyId }: { surveyId: string }) {
             </div>
             <div className="mt-3 max-h-24 overflow-y-auto text-xs text-muted-foreground flex flex-col gap-1">
               {answers.slice(0, 5).map((ans, idx) => (
-                <p key={idx} className="truncate border-b border-border/40 pb-0.5">"{String(ans)}"</p>
+                <p key={idx} className="truncate border-b border-border/40 pb-0.5">&quot;{String(ans)}&quot;</p>
               ))}
             </div>
           </div>
@@ -1759,7 +1784,7 @@ const EXTRA_QUESTION_TYPES: { value: SurveyQuestion["type"]; label: string }[] =
   { value: "select", label: "Opciones de lista" },
   { value: "boolean", label: "Sí / No" },
   { value: "url", label: "Link / Web" },
-  { value: "file", label: "Archivo / Adjunto" },
+  // "file" deshabilitado: sin endpoint de uploads el adjunto no llega al servidor (solo el nombre).
 ];
 
 const EXTRA_QUESTION_ICONS = {
@@ -1935,11 +1960,13 @@ function SurveyQuestionsPanel({ surveyId }: { surveyId: string }) {
     queryFn: () => fetchSurvey(surveyId),
   });
   const [draft, setDraft] = useState<SurveyQuestion[] | null>(null);
+  const [draftFor, setDraftFor] = useState<typeof detailQuery.data>(undefined);
 
-  useEffect(() => {
-    if (!detailQuery.data) return;
+  // Deriva el draft del detalle (ajuste durante render, sin effect).
+  if (detailQuery.data && draftFor !== detailQuery.data) {
+    setDraftFor(detailQuery.data);
     setDraft(parseSurveyQuestions(detailQuery.data.questions));
-  }, [detailQuery.data]);
+  }
 
   const save = useMutation({
     mutationFn: (next: SurveyQuestion[]) =>
@@ -1991,9 +2018,12 @@ function SurveyAnswerSheet({ surveyId }: { surveyId: string }) {
     return () => clearTimeout(timer);
   }, [search]);
 
-  useEffect(() => {
+  // Reset de paginación al cambiar el texto buscado (ajuste durante render).
+  const [queryKey, setQueryKey] = useState(queryText);
+  if (queryKey !== queryText) {
+    setQueryKey(queryText);
     setPage(1);
-  }, [queryText]);
+  }
 
   const detailQuery = useQuery({
     queryKey: ["surveys", "detail", surveyId],

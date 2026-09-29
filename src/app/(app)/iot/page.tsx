@@ -1724,7 +1724,7 @@ function ProviderModal({
               <Select
                 id="prov-proto"
                 value={protocol}
-                onChange={(e) => setProtocol(e.target.value as any)}
+                onChange={(e) => setProtocol(e.target.value as "HTTP_REST" | "HTTP_GET" | "MQTT" | "WEBSOCKET" | "CUSTOM")}
               >
                 <option value="HTTP_REST">HTTP REST (JSON)</option>
                 <option value="HTTP_GET">HTTP GET</option>
@@ -1738,7 +1738,7 @@ function ProviderModal({
               <Select
                 id="prov-handler"
                 value={handlerName}
-                onChange={(e) => setHandlerName(e.target.value as any)}
+                onChange={(e) => setHandlerName(e.target.value as "generic_json" | "tdata" | "thethings" | "tago")}
               >
                 <option value="generic_json">JSON Genérico</option>
                 <option value="tdata">TDATA (TwinDimension)</option>
@@ -1762,7 +1762,7 @@ function ProviderModal({
               <Select
                 id="prov-auth"
                 value={authType}
-                onChange={(e) => setAuthType(e.target.value as any)}
+                onChange={(e) => setAuthType(e.target.value as "NONE" | "BASIC" | "BEARER" | "API_KEY_HEADER" | "QUERY_PARAM")}
               >
                 <option value="NONE">Sin autenticación</option>
                 <option value="BEARER">Bearer Token</option>

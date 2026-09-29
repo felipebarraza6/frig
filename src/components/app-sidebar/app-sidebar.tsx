@@ -30,6 +30,7 @@ import {
   useCookAllowedPaths,
 } from "@/lib/store/session";
 import { useIsSuperAdmin } from "@/lib/store/session";
+import { useCanManageCustomers } from "@/lib/store/session";
 import { useFrigMenu } from "@/lib/hooks/useFrigMenu";
 import { useSubscriptionLock } from "@/lib/hooks/useSubscriptionLock";
 import { HeroPlexus } from "@/components/landing/hero-plexus";
@@ -102,12 +103,14 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
   const cashierAllowedPaths = useCashierAllowedPaths();
   const waiterAllowedPaths = useWaiterAllowedPaths();
   const cookAllowedPaths = useCookAllowedPaths();
+  const canManageCrm = useCanManageCustomers();
 
   const roleFilter: NavRoleFilter = useMemo(
     () => ({
       isCashier,
       isWaiter,
       isCook,
+      canManageCrm,
       cashierAllowedPaths,
       waiterAllowedPaths,
       cookAllowedPaths,
@@ -116,6 +119,7 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
       isCashier,
       isWaiter,
       isCook,
+      canManageCrm,
       cashierAllowedPaths,
       waiterAllowedPaths,
       cookAllowedPaths,

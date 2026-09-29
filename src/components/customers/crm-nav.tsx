@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
 import {
   ClipboardList,
   FileText,
@@ -11,9 +10,7 @@ import {
   UserCircle,
   Users,
 } from "lucide-react";
-import { useCanManageCustomers } from "@/lib/store/session";
-import { fetchLeads } from "@/lib/api/crm-leads";
-import { fetchFollowUpActivities, fetchOpportunities } from "@/lib/api/crm";
+import { useCrmNavCounts } from "@/lib/hooks/useCrm";
 import { cn } from "@/lib/utils";
 
 interface CrmNavProps {
@@ -30,41 +27,17 @@ export function CrmNav({
   className,
 }: CrmNavProps) {
   const pathname = usePathname();
-  const canManage = useCanManageCustomers();
 
-  // Queries for real-time counts across all CRM pages
-  const leadsQuery = useQuery({
-    queryKey: ["crm", "leads", "nav-counter"],
-    queryFn: () => fetchLeads({ page_size: 50 }),
-    enabled: canManage && propProspects === undefined,
-    staleTime: 45_000,
-  });
+  // Contadores compartidos con el hub y los informes (misma query key).
+  const counts = useCrmNavCounts(
+    propProspects === undefined ||
+      propFollowUps === undefined ||
+      propPipeline === undefined,
+  );
 
-  const pipelineQuery = useQuery({
-    queryKey: ["crm", "opportunities", "nav-counter"],
-    queryFn: () => fetchOpportunities({ is_active: true, page_size: 100 }),
-    enabled: canManage && propPipeline === undefined,
-    staleTime: 45_000,
-  });
-
-  const followUpsQuery = useQuery({
-    queryKey: ["crm", "activities", "nav-counter"],
-    queryFn: () => fetchFollowUpActivities({ is_completed: false, page_size: 50 }),
-    enabled: canManage && propFollowUps === undefined,
-    staleTime: 45_000,
-  });
-
-  const prospectsCount =
-    propProspects ??
-    (leadsQuery.data?.results ?? []).filter(
-      (l) => !["CONVERTED", "LOST", "ARCHIVED"].includes(l.status ?? ""),
-    ).length;
-
-  const pipelineCount = propPipeline ?? (pipelineQuery.data?.length ?? 0);
-
-  const followUpsCount =
-    propFollowUps ??
-    (followUpsQuery.data ?? []).length;
+  const prospectsCount = propProspects ?? counts.prospectsCount;
+  const pipelineCount = propPipeline ?? counts.pipelineCount;
+  const followUpsCount = propFollowUps ?? counts.followUpsCount;
 
   const items = [
     {

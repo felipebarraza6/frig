@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
   Kanban,
@@ -38,10 +38,7 @@ import {
   createLead,
   createLeadSource,
   deleteLead,
-  ensureDefaultLeadSource,
   fetchLead,
-  fetchLeadSources,
-  fetchLeads,
   leadStatusLabel,
   updateLead,
   updateLeadSource,
@@ -50,6 +47,8 @@ import {
   type LeadSource,
   type LeadStatus,
 } from "@/lib/api/crm-leads";
+import { useCrmLeadSources, useCrmLeadsList } from "@/lib/hooks/useCrm";
+import { LoadMoreFooter } from "@/components/ui/load-more";
 import { useCanManageCustomers } from "@/lib/store/session";
 import { useToast } from "@/lib/store/toast";
 import { cn } from "@/lib/utils";
@@ -67,12 +66,11 @@ export default function ProspectsPage() {
   const toast = useToast();
   const queryClient = useQueryClient();
 
-  const [search, setSearch] = useState("");
-
-  useEffect(() => {
-    const q = new URLSearchParams(window.location.search).get("q");
-    if (q) setSearch(q);
-  }, []);
+  // Cross-link ?q=… (desde seguimientos/informes) aplicado en mount.
+  const [search, setSearch] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("q") ?? "";
+  });
   const [statusFilter, setStatusFilter] = useState("");
   const [sourceFilter, setSourceFilter] = useState("");
   const [viewMode, setViewMode] = useState<"table" | "cards">("cards");
@@ -97,33 +95,26 @@ export default function ProspectsPage() {
   const [sourceDesc, setSourceDesc] = useState("");
   const [sourceColor, setSourceColor] = useState("#1890ff");
 
-  const listQuery = useQuery({
-    queryKey: ["crm", "leads", statusFilter, sourceFilter, search],
-    queryFn: () =>
-      fetchLeads({
-        status: statusFilter || undefined,
-        source: sourceFilter || undefined,
-        search: search.trim() || undefined,
-        page_size: 100,
-      }),
-    enabled: canManage,
-    placeholderData: keepPreviousData,
+  // "Cargar más" incremental: sin truncado silencioso de page_size fijo.
+  const [listPageSize, setListPageSize] = useState(60);
+
+  const listQuery = useCrmLeadsList({
+    status: statusFilter || undefined,
+    source: sourceFilter || undefined,
+    search: search.trim() || undefined,
+    page_size: listPageSize,
   });
 
-  const sourcesQuery = useQuery({
-    queryKey: ["crm", "lead-sources", "admin"],
-    queryFn: async () => {
-      const list = await fetchLeadSources({ includeInactive: true });
-      if (list.length > 0) return list;
-      const created = await ensureDefaultLeadSource();
-      return created ? [created] : [];
-    },
-    enabled: canManage,
-  });
+  const sourcesQuery = useCrmLeadSources(true);
 
+  // "Convertidos" solo se excluye si no se pidió explícitamente (los leads
+  // convertidos siguen siendo historia comercial consultable).
   const allLeads = useMemo(
-    () => (listQuery.data?.results ?? []).filter((l) => l.status !== "CONVERTED"),
-    [listQuery.data?.results],
+    () =>
+      (listQuery.data?.results ?? []).filter(
+        (l) => statusFilter === "CONVERTED" || l.status !== "CONVERTED",
+      ),
+    [listQuery.data?.results, statusFilter],
   );
 
   const sources = sourcesQuery.data ?? [];
@@ -452,6 +443,7 @@ export default function ProspectsPage() {
               <option value="NEW">Nuevos</option>
               <option value="CONTACTED">Contactados</option>
               <option value="QUALIFIED">Calificados</option>
+              <option value="CONVERTED">Convertidos</option>
               <option value="LOST">Perdidos</option>
               <option value="ARCHIVED">Archivados</option>
             </Select>
@@ -834,6 +826,14 @@ export default function ProspectsPage() {
             </table>
           </div>
         )}
+
+        <LoadMoreFooter
+          showing={allLeads.length}
+          total={listQuery.data?.count ?? 0}
+          isLoading={listQuery.isFetching}
+          onLoadMore={() => setListPageSize((n) => Math.min(n + 100, 1000))}
+          label="prospectos"
+        />
       </PageBody>
 
       {/* Modal: Crear / Editar Prospecto */}

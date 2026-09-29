@@ -81,12 +81,15 @@ export default function HelpApiPage() {
   );
   const filtered = useMemo(() => filterPathsByQuery(paths, query), [paths, query]);
 
-  useEffect(() => {
+  // Reset de filtros al cambiar de app (ajuste durante render, sin effect).
+  const [appKey, setAppKey] = useState(app);
+  if (appKey !== app) {
+    setAppKey(app);
     setMethodFilter("__all__");
     setSelected(null);
     setQuery("");
     if (app) setMobileDrill("routes");
-  }, [app]);
+  }
 
   const flatOps = useMemo(() => {
     const rows: { path: string; method: HttpMethod; summary?: string }[] = [];

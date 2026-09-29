@@ -47,6 +47,7 @@ import {
   orderTypeLabel,
   paymentStatusLabel,
 } from "@/lib/utils";
+import { useToast } from "@/lib/store/toast";
 import { statusBadge } from "@/lib/status-styles";
 import type { YggdraSchemas } from "@/lib/api/types";
 
@@ -109,10 +110,10 @@ export function CustomerProfilePanel({
   initialTab?: string | null;
 }) {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const [payTarget, setPayTarget] = useState<PosClientOrderRow | null>(null);
   const [claimOpen, setClaimOpen] = useState(false);
   const [section, setSection] = useState("compras");
-  const appliedInitial = useRef(false);
 
   const customerQuery = useQuery({
     queryKey: ["customers", "detail", customerId],
@@ -135,24 +136,20 @@ export function CustomerProfilePanel({
     staleTime: 30_000,
   });
 
-  useEffect(() => {
-    appliedInitial.current = false;
-    setSection("compras");
-  }, [customerId]);
-
-  useEffect(() => {
-    if (appliedInitial.current) return;
-    appliedInitial.current = true;
-    if (initialTab === "cases" || initialTab === "casos") setSection("casos");
-    else if (initialTab === "follow-ups" || initialTab === "seguimientos") setSection("seguimientos");
-    else if (
-      initialTab === "fields" ||
-      initialTab === "levantamientos" ||
-      (initialTab && initialTab !== "compras")
-    ) {
+  // Sección inicial derivada del deep-link ?tab= (ajuste durante render, sin effect).
+  const [tabCtx, setTabCtx] = useState(`${customerId}|${initialTab ?? ""}`);
+  const tabCtxNow = `${customerId}|${initialTab ?? ""}`;
+  if (tabCtx !== tabCtxNow) {
+    setTabCtx(tabCtxNow);
+    const tab = initialTab ?? "";
+    if (tab === "cases" || tab === "casos") setSection("casos");
+    else if (tab === "follow-ups" || tab === "seguimientos") setSection("seguimientos");
+    else if (tab === "fields" || tab === "levantamientos" || (tab && tab !== "compras")) {
       setSection("levantamientos");
+    } else {
+      setSection("compras");
     }
-  }, [initialTab]);
+  }
 
   const openCasesCount = (casesQuery.data ?? []).filter((t) =>
     isSupportTicketOpen(t.status),
@@ -163,6 +160,8 @@ export function CustomerProfilePanel({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
     },
+    onError: () =>
+      toast.error("No se pudo cambiar el estado del cliente"),
   });
 
   const customer = customerQuery.data;

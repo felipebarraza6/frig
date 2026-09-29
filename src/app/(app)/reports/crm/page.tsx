@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   AlertCircle,
   CheckCircle2,
+  Download,
   FolderKanban,
   Kanban,
   LayoutDashboard,
@@ -28,14 +29,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { fetchCustomerStats } from "@/lib/api/customers";
 import {
   activityTypeLabel,
-  fetchFollowUpActivities,
-  fetchOpportunities,
-  fetchOpportunityStages,
   type FollowUpActivity,
   type OpportunityList,
   type OpportunityStage,
 } from "@/lib/api/crm";
-import { fetchLeads, leadStatusLabel, type LeadList } from "@/lib/api/crm-leads";
+import { CRM_KEYS } from "@/lib/api/keys";
+import { leadStatusLabel, type LeadList } from "@/lib/api/crm-leads";
+import {
+  useCrmActivitiesList,
+  useCrmLeadsList,
+  useCrmOpportunitiesList,
+  useCrmStages,
+} from "@/lib/hooks/useCrm";
 import { getCurrentMonthRange } from "@/lib/date-range";
 import { useCanManageCustomers } from "@/lib/store/session";
 import { cn, formatCLP } from "@/lib/utils";
@@ -88,33 +93,15 @@ export default function CrmReportPage() {
   const [tab, setTab] = useState<TabKey>("resumen");
   const prev = previousWindow(start, end);
 
-  const leadsQuery = useQuery({
-    queryKey: ["reports", "crm", "leads"],
-    queryFn: () => fetchLeads({ page_size: SAMPLE }),
-    enabled: canManage,
-  });
-  const oppsQuery = useQuery({
-    queryKey: ["reports", "crm", "opportunities"],
-    queryFn: () => fetchOpportunities({ page_size: SAMPLE, is_active: true }),
-    enabled: canManage,
-  });
-  const stagesQuery = useQuery({
-    queryKey: ["reports", "crm", "stages"],
-    queryFn: fetchOpportunityStages,
-    enabled: canManage,
-  });
-  const openActsQuery = useQuery({
-    queryKey: ["reports", "crm", "activities", "open"],
-    queryFn: () => fetchFollowUpActivities({ is_completed: false, page_size: SAMPLE }),
-    enabled: canManage,
-  });
-  const doneActsQuery = useQuery({
-    queryKey: ["reports", "crm", "activities", "done"],
-    queryFn: () => fetchFollowUpActivities({ is_completed: true, page_size: SAMPLE }),
-    enabled: canManage,
-  });
+  // Claves compartidas con el resto del CRM: cualquier mutación que invalide
+  // ["crm"] refresca también este informe.
+  const leadsQuery = useCrmLeadsList({ page_size: SAMPLE });
+  const oppsQuery = useCrmOpportunitiesList({ page_size: SAMPLE, is_active: true });
+  const stagesQuery = useCrmStages();
+  const openActsQuery = useCrmActivitiesList({ is_completed: false, page_size: SAMPLE });
+  const doneActsQuery = useCrmActivitiesList({ is_completed: true, page_size: SAMPLE });
   const statsQuery = useQuery({
-    queryKey: ["reports", "crm", "customer-stats"],
+    queryKey: [...CRM_KEYS.all, "customer-stats"],
     queryFn: fetchCustomerStats,
     enabled: canManage,
   });
@@ -296,6 +283,51 @@ export default function CrmReportPage() {
     return <CrmDenied title="Informe CRM" icon={<Users className="h-5 w-5" />} />;
   }
 
+  function exportCrmReportCsv() {
+    const esc = (v: string | number | undefined | null) =>
+      `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const rows: Array<Array<string | number>> = [
+      ["Informe CRM", start, end],
+      [],
+      ["Resumen", "Valor"],
+      ["Prospectos nuevos (período)", report.currLeads.length],
+      ["Convertidos (período)", report.currConverted.length],
+      ["Oportunidades creadas (período)", report.currOpps.length],
+      ["Acciones completadas (período)", report.currDone.length],
+      ["Pipeline abierto", report.openPipeline.length],
+      ["Valor pipeline (CLP)", report.pipelineValue],
+      ["Valor ponderado (CLP)", report.weighted],
+      ["Acciones vencidas", report.overdue.length],
+      ["Acciones sin fecha", report.unscheduled.length],
+      [],
+      ["Embudo por etapa", "Oportunidades", "Valor estimado", "Valor ponderado"],
+      ...report.stageRows.map((s) => [s.key, s.count, s.total, s.secondary]),
+      [],
+      ["Prospectos por estado", "Cantidad"],
+      ...report.statusRows.map((s) => [s.key, s.count]),
+      [],
+      ["Prospectos por fuente", "Cantidad"],
+      ...report.sourceRows.map((s) => [s.key, s.count]),
+      [],
+      ["Acciones completadas por tipo", "Cantidad"],
+      ...report.typeRows.map((s) => [s.key, s.count]),
+      [],
+      ["Acciones por categoría", "Cantidad"],
+      ...report.categoryRows.map((s) => [s.key, s.count]),
+    ];
+    // BOM para que Excel respete los acentos.
+    const csv = "\uFEFF" + rows.map((r) => r.map(esc).join(",")).join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `informe_crm_${start}_${end}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   const capped =
     Boolean(leadsQuery.data?.next) ||
     opps.length >= SAMPLE ||
@@ -309,12 +341,22 @@ export default function CrmReportPage() {
         icon={<Users className="h-5 w-5" />}
         subtitle="Prospectos, embudo y acciones comerciales del período"
         actions={
-          <Link
-            href="/customers"
-            className="inline-flex h-9 items-center rounded-xl border border-border px-3 text-sm font-medium hover:bg-muted"
-          >
-            Ir a clientes
-          </Link>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={exportCrmReportCsv}
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border px-3 text-sm font-medium hover:bg-muted"
+            >
+              <Download className="h-4 w-4" />
+              Exportar CSV
+            </button>
+            <Link
+              href="/customers"
+              className="inline-flex h-9 items-center rounded-xl border border-border px-3 text-sm font-medium hover:bg-muted"
+            >
+              Ir a clientes
+            </Link>
+          </div>
         }
       />
 

@@ -20,6 +20,15 @@ function asList<T>(data: T[] | Paginated<T> | null | undefined): T[] {
   return data.results ?? [];
 }
 
+/** Envelope con total para listas con "cargar más" (N de M real del backend). */
+export type PagedRows<T> = { rows: T[]; count: number };
+
+function asPaged<T>(data: T[] | Paginated<T> | null | undefined): PagedRows<T> {
+  if (!data) return { rows: [], count: 0 };
+  if (Array.isArray(data)) return { rows: data, count: data.length };
+  return { rows: data.results ?? [], count: data.count ?? data.results?.length ?? 0 };
+}
+
 const DEFAULT_STAGES: Array<{
   name: string;
   order: number;
@@ -177,9 +186,11 @@ function pickOpenFollowUpStage(stages: OpportunityStage[]): OpportunityStage | n
   return preferred ?? null;
 }
 
-type OpportunityRow = OpportunityList & {
+export type OpportunityRow = OpportunityList & {
   lead?: string | null;
   lead_name?: string;
+  /** El serializer de lista no siempre lo trae; el detail sí. */
+  description?: string;
 };
 
 export async function fetchOpportunitiesForClient(
@@ -213,6 +224,22 @@ export async function fetchOpportunities(filter: {
     `/crm/opportunities/?${qs.toString()}`,
   );
   return asList(data);
+}
+
+/** Igual que fetchOpportunities pero conserva el total (para "cargar más"). */
+export async function fetchOpportunitiesPage(filter: {
+  page_size?: number;
+  is_active?: boolean;
+} = {}): Promise<PagedRows<OpportunityRow>> {
+  const qs = new URLSearchParams();
+  qs.set("page_size", String(filter.page_size ?? 100));
+  if (filter.is_active !== undefined) {
+    qs.set("is_active", filter.is_active ? "true" : "false");
+  }
+  const data = await apiFetch<OpportunityList[] | Paginated<OpportunityList>>(
+    `/crm/opportunities/?${qs.toString()}`,
+  );
+  return asPaged(data);
 }
 
 export type OpportunityClientRef = {
@@ -259,6 +286,7 @@ export async function createOpportunity(payload: {
   lead?: string | null;
   description?: string;
   estimated_value?: number;
+  expected_close_date?: string | null;
 }): Promise<Opportunity> {
   return apiFetch<Opportunity>("/crm/opportunities/", {
     method: "POST",
@@ -402,6 +430,26 @@ export async function fetchFollowUpActivities(filter: {
   return asList(data);
 }
 
+/** Igual que fetchFollowUpActivities pero conserva el total (para "cargar más"). */
+export async function fetchFollowUpActivitiesPage(filter: {
+  is_completed?: boolean;
+  page_size?: number;
+  activity_type?: string;
+  category?: string;
+} = {}): Promise<PagedRows<FollowUpActivity>> {
+  const qs = new URLSearchParams();
+  if (filter.is_completed !== undefined) {
+    qs.set("is_completed", filter.is_completed ? "true" : "false");
+  }
+  if (filter.activity_type) qs.set("activity_type", filter.activity_type);
+  if (filter.category) qs.set("category", filter.category);
+  qs.set("page_size", String(filter.page_size ?? 50));
+  const data = await apiFetch<FollowUpActivity[] | Paginated<FollowUpActivity>>(
+    `/crm/opportunity-activities/?${qs.toString()}`,
+  );
+  return asPaged(data);
+}
+
 /** Actividades de todas las oportunidades activas del cliente, más recientes primero. */
 export async function fetchClientFollowUpActivities(
   clientId: number,
@@ -472,14 +520,22 @@ export async function moveOpportunity(
   id: string,
   stageId: string,
 ): Promise<Opportunity> {
+  let moveError: unknown;
   try {
     return await apiFetch<Opportunity>(`/crm/opportunities/${id}/move/`, {
       method: "POST",
       body: { stage_id: stageId },
     });
-  } catch {
+  } catch (err) {
+    moveError = err;
     // Si el endpoint de acción move falla por firma de serializador, fallback a PATCH
-    return await updateOpportunity(id, { stage_id: stageId });
+    try {
+      return await updateOpportunity(id, { stage_id: stageId });
+    } catch {
+      // Ambos fallaron: se propaga el error del move (contrato canónico) y
+      // no un éxito silencioso ni un error enmascarado.
+      throw moveError;
+    }
   }
 }
 

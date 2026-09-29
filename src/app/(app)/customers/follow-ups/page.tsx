@@ -39,14 +39,15 @@ import {
   createOpportunityActivity,
   deleteFollowUpCategory,
   ensureClientFollowUpOpportunity,
-  ensureFollowUpCategories,
   ensureLeadFollowUpOpportunity,
-  fetchFollowUpActivities,
-  fetchOpportunityClientMap,
+  fetchFollowUpActivitiesPage,
   FOLLOW_UP_ACTIVITY_OPTIONS,
   type FollowUpActivity,
   type OpportunityActivityType,
 } from "@/lib/api/crm";
+import { CRM_KEYS } from "@/lib/api/keys";
+import { useCrmFollowUpCategories, useCrmOpportunityClientMap } from "@/lib/hooks/useCrm";
+import { LoadMoreFooter } from "@/components/ui/load-more";
 import { useCanManageCustomers } from "@/lib/store/session";
 import { useToast } from "@/lib/store/toast";
 import { cn } from "@/lib/utils";
@@ -113,32 +114,29 @@ export default function FollowUpsHubPage() {
   const [categoryName, setCategoryName] = useState("");
   const [categoryColor, setCategoryColor] = useState(CATEGORY_COLORS[0]);
 
-  const categoriesQuery = useQuery({
-    queryKey: ["crm", "follow-up-categories"],
-    queryFn: ensureFollowUpCategories,
-    enabled: canManage,
-  });
+  const categoriesQuery = useCrmFollowUpCategories();
+
+  // "Cargar más" incremental: sin truncado silencioso de page_size fijo.
+  const [openPageSize, setOpenPageSize] = useState(60);
+  const [donePageSize, setDonePageSize] = useState(60);
 
   const openQuery = useQuery({
-    queryKey: ["crm", "activities", "open"],
-    queryFn: () => fetchFollowUpActivities({ is_completed: false, page_size: 150 }),
+    queryKey: CRM_KEYS.activities.list({ is_completed: false, page_size: openPageSize }),
+    queryFn: () =>
+      fetchFollowUpActivitiesPage({ is_completed: false, page_size: openPageSize }),
     enabled: canManage,
     placeholderData: keepPreviousData,
   });
 
   const doneQuery = useQuery({
-    queryKey: ["crm", "activities", "done"],
-    queryFn: () => fetchFollowUpActivities({ is_completed: true, page_size: 150 }),
+    queryKey: CRM_KEYS.activities.list({ is_completed: true, page_size: donePageSize }),
+    queryFn: () =>
+      fetchFollowUpActivitiesPage({ is_completed: true, page_size: donePageSize }),
     enabled: canManage,
     placeholderData: keepPreviousData,
   });
 
-  const clientMapQuery = useQuery({
-    queryKey: ["crm", "opportunity-client-map"],
-    queryFn: fetchOpportunityClientMap,
-    enabled: canManage,
-    staleTime: 30_000,
-  });
+  const clientMapQuery = useCrmOpportunityClientMap();
 
   const clientsQuery = useQuery({
     queryKey: ["customers", "task-picker", clientQuery],
@@ -235,8 +233,8 @@ export default function FollowUpsHubPage() {
 
   const categories = categoriesQuery.data ?? [];
   const clientMap = clientMapQuery.data ?? {};
-  const rawActivities = openQuery.data ?? [];
-  const rawDoneActivities = doneQuery.data ?? [];
+  const rawActivities = openQuery.data?.rows ?? [];
+  const rawDoneActivities = doneQuery.data?.rows ?? [];
 
   // Filter activities by search string
   const filteredActivities = useMemo(() => {
@@ -822,6 +820,24 @@ export default function FollowUpsHubPage() {
               )}
             </div>
           )
+        )}
+
+        {statusFilter === "open" ? (
+          <LoadMoreFooter
+            showing={rawActivities.length}
+            total={openQuery.data?.count ?? 0}
+            isLoading={openQuery.isFetching}
+            onLoadMore={() => setOpenPageSize((n) => Math.min(n + 100, 1000))}
+            label="acciones pendientes"
+          />
+        ) : (
+          <LoadMoreFooter
+            showing={rawDoneActivities.length}
+            total={doneQuery.data?.count ?? 0}
+            isLoading={doneQuery.isFetching}
+            onLoadMore={() => setDonePageSize((n) => Math.min(n + 100, 1000))}
+            label="acciones completadas"
+          />
         )}
       </PageBody>
 

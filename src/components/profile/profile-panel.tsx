@@ -242,15 +242,16 @@ export function ProfilePanel() {
   const [pickerTarget, setPickerTarget] = useState<"avatar" | "cover" | null>(null);
   const toast = useToast();
 
-  useEffect(() => {
-    if (subscriptionLocked) setActiveSection("suscripcion");
-  }, [subscriptionLocked]);
+  if (subscriptionLocked && activeSection !== "suscripcion") {
+    setActiveSection("suscripcion");
+  }
 
-  useEffect(() => {
-    if (user?.id != null) {
-      setAppearance(loadProfileAppearance(user.id));
-    }
-  }, [user?.id]);
+  // Apariencia persistida por usuario (ajuste durante render, sin effect).
+  const [appearanceUser, setAppearanceUser] = useState<string | number | null>(null);
+  if (user?.id != null && appearanceUser !== user.id) {
+    setAppearanceUser(user.id);
+    setAppearance(loadProfileAppearance(user.id));
+  }
 
   function handleAppearanceSave(next: ProfileAppearance) {
     const kind = pickerTarget;

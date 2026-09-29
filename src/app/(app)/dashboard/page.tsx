@@ -17,6 +17,7 @@ import {
   Target,
   FlaskConical,
   ArrowRight,
+  UserPlus,
   type LucideIcon,
   LayoutDashboard,
 } from "lucide-react";
@@ -27,7 +28,8 @@ import {
   fetchIngredientConsumption,
 } from "@/lib/api/analytics";
 import { formatCLP, cn, orderStatusLabel, paymentStatusLabel } from "@/lib/utils";
-import { useCurrentBranch, useIsModuleEnabledFromConfig, useIsNutritionEnabled } from "@/lib/store/session";
+import { useCurrentBranch, useIsModuleEnabledFromConfig, useIsNutritionEnabled, useCanManageCustomers } from "@/lib/store/session";
+import { useCrmNavCounts } from "@/lib/hooks/useCrm";
 import { useProducts } from "@/lib/hooks/useCatalog";
 import { fetchOrders } from "@/lib/api/orders";
 import { MetricDrawer, type MetricDrawerSection } from "@/components/metric-drawer";
@@ -87,6 +89,8 @@ export default function DashboardPage() {
   });
 
   const nutritionEnabled = useIsNutritionEnabled();
+  const canManageCrm = useCanManageCustomers();
+  const crmCounts = useCrmNavCounts();
 
   const { data: ingredientConsumption, isLoading: loadingIngredients } = useQuery({
     queryKey: ["dashboard", "ingredient-consumption", "v2", dates.start, dates.end, branchId],
@@ -698,6 +702,16 @@ export default function DashboardPage() {
             })
           }
         />
+        {canManageCrm && (
+          <SharedStatCard
+            label="CRM"
+            value={crmCounts.prospectsCount}
+            icon={UserPlus}
+            sub={`${crmCounts.pipelineCount} en pipeline · ${crmCounts.followUpsCount} seguimientos`}
+            tone="primary"
+            href="/customers/prospects"
+          />
+        )}
       </motion.section>
 
       {/* Pendientes de entrega (solo módulo deliveries) o resumen del negocio */}

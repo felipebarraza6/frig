@@ -11,13 +11,23 @@ export interface NavRoleFilter {
   isCashier: boolean;
   isWaiter: boolean;
   isCook: boolean;
+  /** Permiso de gestión comercial (OWNER/ADMIN_LOCAL/MANAGER/superuser). Sin él se oculta todo el grupo CRM. */
+  canManageCrm: boolean;
   cashierAllowedPaths: string[];
   waiterAllowedPaths: string[];
   cookAllowedPaths: string[];
 }
 
+/** Rutas del ecosistema CRM: requieren canManageCrm además del rol operativo. */
+const CRM_PATH_PREFIXES = ["/customers", "/reports/crm"];
+
+function isCrmPath(href: string): boolean {
+  return CRM_PATH_PREFIXES.some((p) => href === p || href.startsWith(`${p}/`));
+}
+
 /** True si el href es visible para el rol actual. */
 export function isNavHrefAllowed(href: string, role: NavRoleFilter): boolean {
+  if (!role.canManageCrm && isCrmPath(href)) return false;
   if (role.isCashier) return isPathAllowed(href, role.cashierAllowedPaths);
   if (role.isWaiter) {
     // Mesero: el hub /pos redirige al terminal; se deja visible en menú.
@@ -51,7 +61,7 @@ export function defaultBottomNavHrefs(role: {
     return ["/pos", "/cash-register", "/sales", "/profile"];
   }
   if (role.isWaiter) {
-    return ["/tables", "/pos", "/customers", "/profile"];
+    return ["/tables", "/pos", "/help", "/profile"];
   }
   if (role.isCook) {
     return ["/kds", "/profile"];

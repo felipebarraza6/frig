@@ -28,6 +28,7 @@ import {
   useCashierAllowedPaths,
   useWaiterAllowedPaths,
   useCookAllowedPaths,
+  useCanManageCustomers,
 } from "@/lib/store/session";
 import { BranchSwitcherModal } from "@/components/branch-switcher-modal";
 import { useFrigMenu } from "@/lib/hooks/useFrigMenu";
@@ -64,6 +65,7 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
   const cashierAllowedPaths = useCashierAllowedPaths();
   const waiterAllowedPaths = useWaiterAllowedPaths();
   const cookAllowedPaths = useCookAllowedPaths();
+  const canManageCrm = useCanManageCustomers();
   const [editingQuickAccess, setEditingQuickAccess] = useState(false);
   const [branchPickerOpen, setBranchPickerOpen] = useState(false);
 
@@ -72,6 +74,7 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
       isCashier,
       isWaiter,
       isCook,
+      canManageCrm,
       cashierAllowedPaths,
       waiterAllowedPaths,
       cookAllowedPaths,
@@ -80,6 +83,7 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
       isCashier,
       isWaiter,
       isCook,
+      canManageCrm,
       cashierAllowedPaths,
       waiterAllowedPaths,
       cookAllowedPaths,
@@ -103,13 +107,11 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
   }, [open, handleClose]);
 
   // Al navegar (Link del sheet), cierra el menú; el dock inferior permanece.
-  const prevPathRef = useRef(pathname);
-  useEffect(() => {
-    if (prevPathRef.current !== pathname) {
-      prevPathRef.current = pathname;
-      if (open) handleClose();
-    }
-  }, [pathname, open, handleClose]);
+  const [prevPath, setPrevPath] = useState(pathname);
+  if (prevPath !== pathname) {
+    setPrevPath(pathname);
+    if (open) handleClose();
+  }
 
   async function handleLogout() {
     handleClose();

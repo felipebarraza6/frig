@@ -51,6 +51,7 @@ import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/ui/stat-card";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
+import { QrModal } from "@/components/ui/qr-modal";
 import {
   createExtraFieldDefinition,
   createExtraFieldGroup,
@@ -147,7 +148,6 @@ const SECTION_PRESETS: PresetTemplate[] = [
       { name: "Presupuesto Estimado ($)", field_type: "NUMBER", is_required: false, display_in_card: true },
       { name: "Fecha Requerida de Ejecución", field_type: "DATE", is_required: false, display_in_card: true },
       { name: "Observaciones Técnicas", field_type: "TEXT", is_required: false, display_in_card: false },
-      { name: "Adjuntar Plano / Fotografía", field_type: "FILE", is_required: false, display_in_card: false },
     ],
   },
   {
@@ -518,23 +518,8 @@ export default function CustomerFormsPage() {
     }
   }
 
-  if (!canManage) {
-    return <CrmDenied title="Fichas" icon={<FileText className="h-5 w-5" />} />;
-  }
-
   const surveys = levantamientosQuery.data?.results ?? [];
   const prefixFor = (group: ExtraFieldGroup) => `Levantamiento · ${group.name}`;
-  const matchedSurveyIds = new Set(
-    surveys
-      .filter((survey) =>
-        groups.some((group) => (survey.title ?? "").startsWith(prefixFor(group))),
-      )
-      .map((survey) => survey.id),
-  );
-  const looseSurveys = surveys.filter((survey) => !matchedSurveyIds.has(survey.id));
-  const selectedGroup = groups.find((group) => group.id === openFormId) ?? null;
-  const totalResponses = surveys.reduce((sum, s) => sum + (s.response_count ?? 0), 0);
-  const publishedTotal = surveys.filter((s) => s.status === "ACTIVE").length;
 
   const filteredGroups = useMemo(() => {
     return groups.filter((g) => {
@@ -557,6 +542,21 @@ export default function CustomerFormsPage() {
       return true;
     });
   }, [groups, search, statusFilter, defsByGroup, surveys]);
+
+  if (!canManage) {
+    return <CrmDenied title="Fichas" icon={<FileText className="h-5 w-5" />} />;
+  }
+
+  const matchedSurveyIds = new Set(
+    surveys
+      .filter((survey) =>
+        groups.some((group) => (survey.title ?? "").startsWith(prefixFor(group))),
+      )
+      .map((survey) => survey.id),
+  );
+  const selectedGroup = groups.find((group) => group.id === openFormId) ?? null;
+  const totalResponses = surveys.reduce((sum, s) => sum + (s.response_count ?? 0), 0);
+  const publishedTotal = surveys.filter((s) => s.status === "ACTIVE").length;
 
   const needsOptions =
     fieldDraft.field_type === "SELECT" || fieldDraft.field_type === "MULTISELECT";
@@ -1105,7 +1105,19 @@ function SectionCard({
                   label: "Eliminar sección",
                   icon: Trash2,
                   danger: true,
-                  onClick: onDelete,
+                  onClick: () => {
+                    const respuestas =
+                      responsesCount > 0
+                        ? ` Se eliminarán también ${responsesCount} ${responsesCount === 1 ? "respuesta" : "respuestas"} asociadas.`
+                        : "";
+                    if (
+                      window.confirm(
+                        `¿Eliminar la sección "${group.name}" y sus ${fields.length} campos?${respuestas} Esta acción no se puede deshacer.`,
+                      )
+                    ) {
+                      onDelete();
+                    }
+                  },
                 },
               ]}
             />
@@ -1163,34 +1175,24 @@ function SectionCard({
   );
 }
 
+const FIELD_TYPE_ICON_BY_TYPE: Record<string, LucideIcon> = {
+  NUMBER: Hash,
+  INTEGER: Hash,
+  DECIMAL: Hash,
+  DATE: Calendar,
+  DATETIME: Calendar,
+  BOOLEAN: ToggleLeft,
+  SELECT: List,
+  MULTISELECT: ListChecks,
+  EMAIL: Mail,
+  PHONE: Phone,
+  URL: Link2,
+  FILE: Paperclip,
+  IMAGE: ImageIcon,
+};
+
 function fieldTypeIcon(type?: string | null): LucideIcon {
-  switch (type) {
-    case "NUMBER":
-    case "INTEGER":
-    case "DECIMAL":
-      return Hash;
-    case "DATE":
-    case "DATETIME":
-      return Calendar;
-    case "BOOLEAN":
-      return ToggleLeft;
-    case "SELECT":
-      return List;
-    case "MULTISELECT":
-      return ListChecks;
-    case "EMAIL":
-      return Mail;
-    case "PHONE":
-      return Phone;
-    case "URL":
-      return Link2;
-    case "FILE":
-      return Paperclip;
-    case "IMAGE":
-      return ImageIcon;
-    default:
-      return Type;
-  }
+  return FIELD_TYPE_ICON_BY_TYPE[String(type ?? "").toUpperCase()] ?? Type;
 }
 
 const FIELD_TYPES: { value: string; label: string }[] = [
@@ -1201,7 +1203,7 @@ const FIELD_TYPES: { value: string; label: string }[] = [
   { value: "PHONE", label: "Teléfono" },
   { value: "EMAIL", label: "Email" },
   { value: "URL", label: "URL" },
-  { value: "FILE", label: "Archivo" },
+  // "FILE" deshabilitado: sin endpoint de uploads el adjunto no llega al servidor (solo el nombre).
   { value: "SELECT", label: "Selección" },
   { value: "MULTISELECT", label: "Selección múltiple" },
 ];
@@ -1211,7 +1213,7 @@ const FIELD_TYPE_ICONS = Object.fromEntries(
 );
 
 function FieldChip({ field }: { field: ExtraFieldDefinition }) {
-  const Icon = fieldTypeIcon(field.field_type);
+  const Icon = FIELD_TYPE_ICON_BY_TYPE[String(field.field_type ?? "").toUpperCase()] ?? Type;
   return (
     <span
       title={field.name}
@@ -1242,7 +1244,7 @@ function FieldWorkspaceCard({
   onDelete: () => void;
   toggling: boolean;
 }) {
-  const Icon = fieldTypeIcon(field.field_type);
+  const Icon = FIELD_TYPE_ICON_BY_TYPE[String(field.field_type ?? "").toUpperCase()] ?? Type;
   const typeLabel =
     FIELD_TYPES.find((t) => t.value === field.field_type)?.label ?? field.field_type ?? "Texto";
   const opts = parseFieldOptions(field.options);
@@ -1709,52 +1711,6 @@ function exportResponsesToCSV(
   URL.revokeObjectURL(url);
 }
 
-function QRDialog({
-  url,
-  title,
-  onClose,
-}: {
-  url: string;
-  title: string;
-  onClose: () => void;
-}) {
-  const toast = useToast();
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(url)}`;
-  return (
-    <AnimatedOverlay open onClose={onClose} zIndex="z-[80]" panelClassName="flex items-center justify-center p-4">
-      <div className="w-full max-w-sm rounded-2xl border border-border bg-background p-6 text-center shadow-xl">
-        <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-          <QrCode className="h-5 w-5" />
-        </div>
-        <h3 className="mt-2 text-base font-bold text-foreground">Código QR para Clientes</h3>
-        <p className="mt-0.5 text-xs text-muted-foreground">{title}</p>
-        <div className="mt-4 flex justify-center rounded-xl border border-border bg-white p-4 shadow-inner">
-          {/* eslint-disable-next-next/no-img-element */}
-          <img src={qrUrl} alt="QR Code" className="h-44 w-44 rounded-lg object-contain" />
-        </div>
-        <p className="mt-3 truncate text-[11px] text-muted-foreground">{url}</p>
-        <div className="mt-4 flex justify-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            className="gap-1.5"
-            onClick={() => {
-              void navigator.clipboard.writeText(url);
-              toast.success("Enlace copiado al portapapeles");
-            }}
-          >
-            <Copy className="h-3.5 w-3.5" />
-            Copiar Link
-          </Button>
-          <Button size="sm" onClick={onClose}>
-            Cerrar
-          </Button>
-        </div>
-      </div>
-    </AnimatedOverlay>
-  );
-}
-
 const SHEET_PAGE = 25;
 
 function ResponseSheet({
@@ -1788,9 +1744,12 @@ function ResponseSheet({
     return () => clearTimeout(timer);
   }, [search]);
 
-  useEffect(() => {
+  // Reset de paginación al cambiar filtros (ajuste durante render, sin effect).
+  const [pageKey, setPageKey] = useState({ q: queryText, s: section });
+  if (pageKey.q !== queryText || pageKey.s !== section) {
+    setPageKey({ q: queryText, s: section });
     setPage(1);
-  }, [queryText, section]);
+  }
 
   const sections = useMemo(() => {
     const map = new Map<string, string[]>();
@@ -2130,9 +2089,10 @@ function LevantamientoList({
         ))}
       </ul>
       {qrSurvey && qrSurvey.slug ? (
-        <QRDialog
+        <QrModal
           url={publicSurveyAbsoluteUrl(qrSurvey.slug)}
           title={qrSurvey.title || "Ficha Pública"}
+          heading="Código QR para Clientes"
           onClose={() => setQrSurvey(null)}
         />
       ) : null}

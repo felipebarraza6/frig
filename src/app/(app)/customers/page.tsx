@@ -71,9 +71,9 @@ import {
   type CustomerPayload,
   type CustomerStatusFilter,
 } from "@/lib/api/customers";
-import { fetchLeads } from "@/lib/api/crm-leads";
-import { fetchFollowUpActivities } from "@/lib/api/crm";
+import { useCrmNavCounts } from "@/lib/hooks/useCrm";
 import { useCanManageCustomers, useIsModuleEnabledFromConfig } from "@/lib/store/session";
+import { useToast } from "@/lib/store/toast";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
 import { cn, formatCLP } from "@/lib/utils";
 import type { YggdraSchemas } from "@/lib/api/types";
@@ -105,6 +105,7 @@ export default function CustomersPage() {
 
 function CustomersInner() {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedIdRaw = searchParams.get("id");
@@ -151,10 +152,12 @@ function CustomersInner() {
     };
   }, [search, segment, pageUrl]);
 
-  // Reset pagination to page 1 when filters change
-  useEffect(() => {
+  // Reset de paginación al cambiar filtros (ajuste durante render, sin effect).
+  const [filterKey, setFilterKey] = useState(`${search}|${segment}|${tagFilter}`);
+  if (filterKey !== `${search}|${segment}|${tagFilter}`) {
+    setFilterKey(`${search}|${segment}|${tagFilter}`);
     setPageUrl({});
-  }, [search, segment, tagFilter]);
+  }
 
   const { data: page, isLoading, isFetching, error } = useQuery({
     queryKey: ["customers", "manage", filter],
@@ -193,19 +196,7 @@ function CustomersInner() {
     staleTime: 30_000,
   });
 
-  const leadsQuery = useQuery({
-    queryKey: ["crm", "leads", "hub-count"],
-    queryFn: () => fetchLeads({ page_size: 50 }),
-    enabled: canManage,
-    staleTime: 30_000,
-  });
-
-  const followUpsQuery = useQuery({
-    queryKey: ["crm", "activities", "open", "hub"],
-    queryFn: () => fetchFollowUpActivities({ is_completed: false, page_size: 50 }),
-    enabled: canManage,
-    staleTime: 30_000,
-  });
+  const crmCounts = useCrmNavCounts();
 
   const promotionsDashboardQuery = useQuery({
     queryKey: ["discounts", "hub-kpi"],
@@ -223,11 +214,7 @@ function CustomersInner() {
     return map;
   }, [pendingQuery.data]);
 
-  const openProspects = useMemo(() => {
-    return (leadsQuery.data?.results ?? []).filter(
-      (l) => !["CONVERTED", "LOST", "ARCHIVED"].includes(l.status ?? ""),
-    ).length;
-  }, [leadsQuery.data]);
+  const openProspects = crmCounts.prospectsCount;
 
   const totalCustomers = page?.count ?? 0;
 
@@ -283,6 +270,11 @@ function CustomersInner() {
     return list;
   }, [page, segment, debtMap, tagFilter]);
 
+  // Segmentos/tags que se filtran en memoria sobre la página actual: el
+  // conteo global del backend no aplica mientras el filtro esté activo.
+  const inMemorySegment =
+    segment === "debt" || segment === "companies" || segment === "people" || Boolean(tagFilter.trim());
+
   const save = useMutation({
     mutationFn: async () => {
       const saved = editing
@@ -304,6 +296,8 @@ function CustomersInner() {
     mutationFn: ({ id, isActive }: { id: number; isActive: boolean }) =>
       updateCustomer(id, { is_active: isActive }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["customers"] }),
+    onError: () =>
+      toast.error("No se pudo cambiar el estado del cliente"),
   });
 
   const remove = useMutation({
@@ -394,9 +388,9 @@ function CustomersInner() {
     return <CrmDenied title="Clientes" icon={<UserCircle className="h-5 w-5" />} />;
   }
 
-  if (selectedId != null) {
-    return (
-      <PageShell>
+  return (
+    <PageShell>
+      {selectedId != null ? (
         <CustomerProfilePanel
           customerId={selectedId}
           invoicesEnabled={invoicesEnabled}
@@ -404,13 +398,9 @@ function CustomersInner() {
           onClose={closeCustomer}
           onEdit={(customer) => openModal(customer)}
         />
-      </PageShell>
-    );
-  }
-
-  return (
-    <PageShell>
-      <PageHeader
+      ) : (
+        <>
+          <PageHeader
         title="Directorio de Clientes"
         icon={<UserCircle className="h-5 w-5" />}
         subtitle="Gestión comercial 360, saldos por cobrar, historial y fidelización de clientes."
@@ -448,11 +438,7 @@ function CustomersInner() {
 
       <PageBody className="gap-4">
         {/* Navigation Tabs */}
-        <CrmNav
-          prospectsCount={openProspects}
-          followUpsCount={followUpsQuery.data?.length ?? 0}
-          className="glass rounded-2xl p-1.5"
-        />
+        <CrmNav className="glass rounded-2xl p-1.5" />
 
         {/* Commercial KPIs Bar */}
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
@@ -488,7 +474,7 @@ function CustomersInner() {
           <StatCard
             variant="compact"
             label="Acciones del Día"
-            value={followUpsQuery.data?.length ?? 0}
+            value={crmCounts.followUpsCount}
             sub="Tareas pendientes"
             icon={NotebookPen}
             tone="muted"
@@ -1063,11 +1049,20 @@ function CustomersInner() {
         )}
 
         {/* Pagination controls */}
-        {page && (page.next || page.previous) && (
+        {(page?.next || page?.previous || inMemorySegment) && (
           <div className="flex items-center justify-between border-t border-border pt-3">
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">
-                Mostrando {filteredCustomers.length} de {totalCustomers} clientes
+                {inMemorySegment ? (
+                  <>
+                    {filteredCustomers.length} de {page?.results?.length ?? 0} en esta página
+                    <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px]">
+                      filtro aplicado en memoria
+                    </span>
+                  </>
+                ) : (
+                  <>Mostrando {filteredCustomers.length} de {totalCustomers} clientes</>
+                )}
               </span>
               {isFetching && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary animate-pulse">
@@ -1098,24 +1093,7 @@ function CustomersInner() {
         )}
       </PageBody>
 
-      {/* Slide-over Drawer / Modal: Ficha 360 del Cliente */}
-      {selectedId != null && (
-        <AnimatedOverlay
-          open={Boolean(selectedId)}
-          onClose={closeCustomer}
-          zIndex="z-[60]"
-          panelClassName="fixed inset-y-0 right-0 w-full sm:max-w-2xl lg:max-w-3xl flex flex-col bg-background border-l border-border shadow-2xl"
-        >
-          <div className="flex h-full min-h-0 flex-col">
-            <CustomerProfilePanel
-              customerId={selectedId}
-              invoicesEnabled={invoicesEnabled}
-              onClose={closeCustomer}
-              onEdit={(customer) => openModal(customer)}
-              initialTab={selectedTab}
-            />
-          </div>
-        </AnimatedOverlay>
+        </>
       )}
 
       {/* Modal: Crear / Editar Cliente */}

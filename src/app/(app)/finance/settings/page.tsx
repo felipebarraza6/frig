@@ -168,13 +168,14 @@ export default function FinanceSettingsPage() {
   const branch = useCurrentBranch();
   const branchId = Number(branch?.branch_id ?? 0);
   const [selectedIdx, setSelectedIdx] = useState(0);
-  const [tab, setTab] = useState<SettingsTab>("general");
-
-  useEffect(() => {
-    const hash = typeof window !== "undefined" ? window.location.hash : "";
-    if (hash === "#fin-sii" || hash === "#fin-folios") setTab("sii");
-    if (hash === "#fin-taxes") setTab("taxes");
-  }, []);
+  // Deep-links por hash (#fin-sii…) aplicados en mount.
+  const [tab, setTab] = useState<SettingsTab>(() => {
+    if (typeof window === "undefined") return "general";
+    const hash = window.location.hash;
+    if (hash === "#fin-sii" || hash === "#fin-folios") return "sii";
+    if (hash === "#fin-taxes") return "taxes";
+    return "general";
+  });
 
   const { data: configs = [], isLoading, isError, error, refetch } = useQuery({
     queryKey: ["branch-finance-configs", branchId],
@@ -1001,20 +1002,19 @@ export function SiiSection({
 
   const siiApps = catalog;
 
-  useEffect(() => {
-    if (providerInstallation || installingApp) return;
-    const wanted = config.sii_provider_installation;
-    const match = installations.find((i) => i.id === wanted);
+  // Derivación del proveedor SII cuando no hay selección manual (ajuste en render).
+  if (!providerInstallation && !installingApp) {
+    const match = installations.find((i) => i.id === config.sii_provider_installation);
     if (match) {
       setProviderInstallation(match.id);
-      return;
+    } else {
+      const siiInstalls = installations.filter((i) => {
+        const app = siiApps.find((a) => a.id === installationAppId(i));
+        return app ? isSiiBillingApp(app) : i.external_app_category === "sii";
+      });
+      if (siiInstalls.length === 1) setProviderInstallation(siiInstalls[0].id);
     }
-    const siiInstalls = installations.filter((i) => {
-      const app = siiApps.find((a) => a.id === installationAppId(i));
-      return app ? isSiiBillingApp(app) : i.external_app_category === "sii";
-    });
-    if (siiInstalls.length === 1) setProviderInstallation(siiInstalls[0].id);
-  }, [installations, config.sii_provider_installation, providerInstallation, installingApp, siiApps]);
+  }
 
   const activeInstall = installations.find((i) => i.id === providerInstallation) ?? null;
   const activeAppId = activeInstall ? installationAppId(activeInstall) : installingApp?.id ?? "";
@@ -1031,12 +1031,11 @@ export function SiiSection({
     staleTime: 60 * 60 * 1000,
   });
 
-  useEffect(() => {
-    if (endpoints.length === 0) return;
-    if (Object.values(actionEndpoints).some(Boolean)) return;
+  // Guess de endpoints de acción cuando no hay ninguno guardado (ajuste en render).
+  if (endpoints.length > 0 && !Object.values(actionEndpoints).some(Boolean)) {
     const guessed = guessActionEndpoints(endpoints, siiCatalog);
     if (Object.values(guessed).some(Boolean)) setActionEndpoints(guessed);
-  }, [endpoints, actionEndpoints, siiCatalog]);
+  }
 
   const { data: branchPage } = useQuery({
     queryKey: ["branches"],
@@ -1061,8 +1060,17 @@ export function SiiSection({
 
   const activeApp = siiApps.find((a) => a.id === activeAppId) ?? null;
 
-  useEffect(() => {
-    if (!revealedCreds || installingApp) return;
+  // Draft de credenciales derivado de las credenciales reveladas (ajuste en render).
+  const [credDraftSrc, setCredDraftSrc] = useState<{
+    creds: typeof revealedCreds;
+    app: string;
+  }>({ creds: undefined, app: "" });
+  if (
+    revealedCreds &&
+    !installingApp &&
+    (credDraftSrc.creds !== revealedCreds || credDraftSrc.app !== (activeApp?.id ?? ""))
+  ) {
+    setCredDraftSrc({ creds: revealedCreds, app: activeApp?.id ?? "" });
     const keys = activeApp
       ? credentialKeysForApp(activeApp)
       : Object.keys(revealedCreds);
@@ -1072,7 +1080,7 @@ export function SiiSection({
       if (!(k in next)) next[k] = v;
     }
     setCredDraft(next);
-  }, [revealedCreds, installingApp, activeApp, providerInstallation]);
+  }
 
   const savedActions = {
     ...(activeInstall?.config_override as { action_endpoints?: Partial<Record<SiiActionKey, string>> } | undefined)

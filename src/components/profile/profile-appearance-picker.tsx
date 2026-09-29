@@ -42,11 +42,18 @@ export function ProfileAppearancePicker({
   const [textColorId, setTextColorId] = useState(appearance.textColorId);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    if (!open) return;
-    setDraft(target === "avatar" ? appearance.avatar : appearance.cover);
-    setTextColorId(appearance.textColorId);
-  }, [open, target, appearance.avatar, appearance.cover, appearance.textColorId]);
+  // Resetea el draft al abrir o cambiar de target/apariencia (ajuste en render).
+  const syncKey = open
+    ? JSON.stringify([target, appearance.avatar, appearance.cover, appearance.textColorId])
+    : null;
+  const [pickerKey, setPickerKey] = useState<string | null>(syncKey);
+  if (pickerKey !== syncKey) {
+    setPickerKey(syncKey);
+    if (open) {
+      setDraft(target === "avatar" ? appearance.avatar : appearance.cover);
+      setTextColorId(appearance.textColorId);
+    }
+  }
 
   const title = target === "avatar" ? "Foto de perfil" : "Imagen de fondo";
   const description =

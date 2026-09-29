@@ -69,13 +69,16 @@ export function SupportTicketCase({ ticketId, onBack }: SupportTicketCaseProps) 
   const [ratingHover, setRatingHover] = useState(0);
   const [ratingComment, setRatingComment] = useState("");
 
-  useEffect(() => {
+  // Reset del formulario de respuesta al cambiar de ticket (ajuste en render).
+  const [ticketKey, setTicketKey] = useState(ticketId);
+  if (ticketKey !== ticketId) {
+    setTicketKey(ticketId);
     setReply("");
     setReplyAttachments([]);
     setRating(0);
     setRatingHover(0);
     setRatingComment("");
-  }, [ticketId]);
+  }
 
   const ticketQuery = useQuery({
     queryKey: ["support-ticket", ticketId],

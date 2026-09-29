@@ -92,12 +92,16 @@ export function SupportCreateModal({
   const [attachments, setAttachments] = useState<SupportAttachment[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  // Reset del formulario al reabrir o cambiar de tipo inicial (ajuste en render).
+  const [openKey, setOpenKey] = useState<string | null>(null);
+  const openKeyNow = open ? initialKind : null;
+  if (openKey !== openKeyNow) {
+    setOpenKey(openKeyNow);
     if (open) {
       setKind(initialKind);
       setError(null);
     }
-  }, [open, initialKind]);
+  }
 
   const bootstrapQuery = useQuery({
     queryKey: ["support-bootstrap", currentBranchId, productName],

@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AnimatedOverlay } from "@/components/ui/animated-overlay";
+import { QrModal } from "@/components/ui/qr-modal";
 import { QuotationCreateModal } from "@/components/sales/quotation-create-modal";
 import { SurveyFillForm } from "@/components/surveys/survey-fill-form";
 import {
@@ -462,46 +462,13 @@ export function CustomerLevantamientosTab({
       />
 
       {qrModal ? (
-        <AnimatedOverlay
-          open
+        <QrModal
+          url={qrModal.url}
+          title={qrModal.title}
+          heading="Código QR Personalizado"
+          copyMessage="Enlace personalizado copiado"
           onClose={() => setQrModal(null)}
-          zIndex="z-[80]"
-          panelClassName="flex items-center justify-center p-4"
-        >
-          <div className="w-full max-w-sm rounded-2xl border border-border bg-background p-6 text-center shadow-xl">
-            <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <QrCode className="h-5 w-5" />
-            </div>
-            <h3 className="mt-2 text-base font-bold text-foreground">Código QR Personalizado</h3>
-            <p className="mt-0.5 text-xs text-muted-foreground">{qrModal.title}</p>
-            <div className="mt-4 flex justify-center rounded-xl border border-border bg-white p-4 shadow-inner">
-              {/* eslint-disable-next-next/no-img-element */}
-              <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrModal.url)}`}
-                alt="QR Code"
-                className="h-44 w-44 rounded-lg object-contain"
-              />
-            </div>
-            <p className="mt-3 truncate text-[11px] text-muted-foreground">{qrModal.url}</p>
-            <div className="mt-4 flex justify-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-1.5"
-                onClick={() => {
-                  void navigator.clipboard.writeText(qrModal.url);
-                  toast.success("Enlace personalizado copiado");
-                }}
-              >
-                <Copy className="h-3.5 w-3.5" />
-                Copiar Link
-              </Button>
-              <Button size="sm" onClick={() => setQrModal(null)}>
-                Cerrar
-              </Button>
-            </div>
-          </div>
-        </AnimatedOverlay>
+        />
       ) : null}
     </div>
   );

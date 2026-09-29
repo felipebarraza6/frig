@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Sparkles, Monitor, Banknote, Table, LocateFixed, ChefHat, Boxes,
-  Apple, Store, FileText, Percent, X, Shield, Zap, Download,
+  Apple, Store, FileText, Percent, X, Shield, Zap, Download, Radio,
 } from "lucide-react";
 import { useCurrentBranch, useIsOwner, useIsSuperAdmin, useSessionStore } from "@/lib/store/session";
 import { useToast } from "@/lib/store/toast";
@@ -48,6 +48,7 @@ const MODULES: ModuleDef[] = [
   { key: "public_catalog", label: "Menús y vitrinas", shortLabel: "Menús", icon: Store, desc: "Cartas y vitrinas digitales", detail: "Tus clientes abren el menú o vitrina en el navegador (QR o link): fotos, precios y descripción. Puedes crear varios (menú del día, carta principal, postres). Si activaste el etiquetado nutricional, también se muestra. Se actualiza al cambiar precios o disponibilidad.", properties: ["Varios menús / vitrinas", "QR y link público", "Fotos y descripción", "Actualización automática"], enables: [], requires: ["nutrition"], setupHref: "/products/menus", setupLabel: "Configurar cartas" },
   { key: "invoices", label: "SII", shortLabel: "SII", icon: FileText, desc: "Boletas y facturas", detail: "Emite documentos tributarios electrónicos válidos ante el SII. Boletas para clientes finales, facturas para empresas, y notas de crédito o débito para anulaciones y ajustes. Todo se envía automáticamente al SII. En Finanzas cargas el certificado y los datos del emisor (RUT, razón social) del cliente.", properties: ["Boletas electrónicas", "Facturas empresas", "Notas de crédito/débito", "Certificado y datos del emisor"], enables: [], requires: ["pos"], setupHref: "/finance/settings", setupLabel: "Certificado y emisor" },
   { key: "promotions", label: "Promos y descuentos", shortLabel: "Promos", icon: Percent, desc: "Descuentos y códigos", detail: "Crea promociones para atraer clientes y aumentar tus ventas. Descuentos por producto, por categoría, o por monto mínimo de compra. Códigos promocionales que el cajero aplica en el POS. Configura vigencias para que las promos se activen y desactiven solas. Ideal para happy hours, días especiales o campañas de marketing.", properties: ["Descuentos por producto o categoría", "Códigos promocionales", "Monto mínimo de compra", "Vigencia automática"], enables: [], requires: ["pos"], setupHref: "/promotions/discounts", setupLabel: "Crear promociones" },
+  { key: "iot_telemetry", label: "Telemetría IoT", shortLabel: "IoT", icon: Radio, desc: "Sensores y mediciones", detail: "Monitoreo continuo de tus equipos y bodegas con dispositivos conectados. Registra variables como temperatura, humedad o energía de forma automática, revisa el histórico de mediciones por equipo, y exporta los datos para mantenimiento preventivo o cumplimiento normativo. Si un sensor sale del rango definido, queda registrado para su revisión.", properties: ["Dispositivos y variables configurables", "Mediciones automáticas", "Histórico por equipo", "Exportación de datos"], enables: [], requires: [], setupHref: "/iot", setupLabel: "Ver telemetría" },
 ];
 
 export default function BranchModulesPage() {

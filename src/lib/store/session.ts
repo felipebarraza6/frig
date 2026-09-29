@@ -567,7 +567,6 @@ const WAITER_ALLOWED_PATHS = [
   "/pos/terminal",
   "/tables",
   "/tables/map",
-  "/customers",
   "/profile",
   "/help",
   "/support",

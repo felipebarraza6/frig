@@ -38,19 +38,22 @@ import {
   createOpportunityProduct,
   deleteOpportunity,
   deleteOpportunityProduct,
-  ensureDefaultOpportunityStages,
-  fetchOpportunities,
+  fetchOpportunitiesPage,
   fetchOpportunityActivities,
   fetchOpportunityProducts,
   moveOpportunity,
-  type OpportunityList,
+  updateOpportunity,
+  type OpportunityRow,
   type OpportunityProduct,
   type OpportunityStage,
   type OpportunityActivity,
   type OpportunityActivityType,
 } from "@/lib/api/crm";
+import { CRM_KEYS } from "@/lib/api/keys";
 import { fetchLeads } from "@/lib/api/crm-leads";
 import { searchCustomers } from "@/lib/api/customers";
+import { useCrmStages } from "@/lib/hooks/useCrm";
+import { LoadMoreFooter } from "@/components/ui/load-more";
 import { useCanManageCustomers } from "@/lib/store/session";
 import { useToast } from "@/lib/store/toast";
 import { cn, formatCLP } from "@/lib/utils";
@@ -63,21 +66,32 @@ function PipelineInner() {
   const queryClient = useQueryClient();
 
   const [search, setSearch] = useState("");
-  const [selectedOpportunity, setSelectedOpportunity] = useState<OpportunityList | null>(null);
+  const [selectedOpportunity, setSelectedOpportunity] = useState<OpportunityRow | null>(null);
   const [detailTab, setDetailTab] = useState<"info" | "products" | "activities">("info");
-  const [createModalOpen, setCreateModalOpen] = useState(false);
-
-  // Form states for new opportunity
-  const [newTitle, setNewTitle] = useState("");
-  const [contactType, setContactType] = useState<"client" | "prospect">("client");
-  const [newClientId, setNewClientId] = useState("");
+  // Prefill desde cross-links (?new=true&leadId=…&clientId=…&title=…) en mount.
+  // Al cerrar el modal, closeCreateModal limpia los params para que no reaparezca.
+  const hasNewParams = Boolean(
+    searchParams.get("new") === "true" ||
+      searchParams.get("leadId") ||
+      searchParams.get("clientId") ||
+      searchParams.get("title"),
+  );
+  const [createModalOpen, setCreateModalOpen] = useState(hasNewParams);
+  const [newTitle, setNewTitle] = useState(() => searchParams.get("title") ?? "");
+  const [contactType, setContactType] = useState<"client" | "prospect">(() =>
+    searchParams.get("leadId") ? "prospect" : "client",
+  );
+  const [newClientId, setNewClientId] = useState(() => searchParams.get("clientId") ?? "");
+  const [newLeadId, setNewLeadId] = useState(() => searchParams.get("leadId") ?? "");
   const [clientQuery, setClientQuery] = useState("");
-  const [newLeadId, setNewLeadId] = useState("");
   const [leadQuery, setLeadQuery] = useState("");
   const [newStageId, setNewStageId] = useState("");
   const [newEstimatedValue, setNewEstimatedValue] = useState("");
   const [newExpectedCloseDate, setNewExpectedCloseDate] = useState("");
   const [newDescription, setNewDescription] = useState("");
+
+  // Edición de oportunidad existente (reutiliza el modal de creación)
+  const [editingOpp, setEditingOpp] = useState<OpportunityRow | null>(null);
 
   // Product form states for opportunity detail
   const [newProdName, setNewProdName] = useState("");
@@ -88,16 +102,14 @@ function PipelineInner() {
   const [newActType, setNewActType] = useState<OpportunityActivityType>("NOTE");
   const [newActDesc, setNewActDesc] = useState("");
 
-  const stagesQuery = useQuery({
-    queryKey: ["crm", "opportunity-stages"],
-    queryFn: ensureDefaultOpportunityStages,
-    enabled: canManage,
-    staleTime: 60_000,
-  });
+  // Tamaño de página creíble + "cargar más" (sin truncado silencioso)
+  const [oppPageSize, setOppPageSize] = useState(60);
+
+  const stagesQuery = useCrmStages();
 
   const opportunitiesQuery = useQuery({
-    queryKey: ["crm", "opportunities", "pipeline"],
-    queryFn: () => fetchOpportunities({ page_size: 150, is_active: true }),
+    queryKey: CRM_KEYS.opportunities.list({ page_size: oppPageSize, is_active: true }),
+    queryFn: () => fetchOpportunitiesPage({ page_size: oppPageSize, is_active: true }),
     enabled: canManage,
     placeholderData: keepPreviousData,
   });
@@ -115,28 +127,8 @@ function PipelineInner() {
   });
 
   const stages = stagesQuery.data ?? [];
-  const allOpportunities = opportunitiesQuery.data ?? [];
-
-  useEffect(() => {
-    const isNew = searchParams.get("new") === "true";
-    const leadId = searchParams.get("leadId");
-    const clientId = searchParams.get("clientId");
-    const title = searchParams.get("title");
-
-    if (isNew || leadId || clientId || title) {
-      if (title) setNewTitle(title);
-      if (leadId) {
-        setNewLeadId(leadId);
-        setContactType("prospect");
-      }
-      if (clientId) {
-        setNewClientId(clientId);
-        setContactType("client");
-      }
-      if (stages[0]?.id && !newStageId) setNewStageId(stages[0].id);
-      setCreateModalOpen(true);
-    }
-  }, [searchParams, stages, newStageId]);
+  const allOpportunities = opportunitiesQuery.data?.rows ?? [];
+  const opportunitiesTotal = opportunitiesQuery.data?.count ?? 0;
 
   // Filter opportunities by search term
   const opportunities = useMemo(() => {
@@ -189,6 +181,16 @@ function PipelineInner() {
       const stageId = newStageId || stages[0]?.id;
       if (!stageId) throw new Error("No hay etapas disponibles");
 
+      if (editingOpp) {
+        return updateOpportunity(editingOpp.id, {
+          title: newTitle.trim(),
+          stage_id: stageId,
+          description: newDescription.trim() || undefined,
+          estimated_value: Number(newEstimatedValue) || 0,
+          expected_close_date: newExpectedCloseDate || null,
+        });
+      }
+
       return createOpportunity({
         title: newTitle.trim(),
         stage_id: stageId,
@@ -196,15 +198,17 @@ function PipelineInner() {
         lead: contactType === "prospect" && newLeadId ? newLeadId : null,
         description: newDescription.trim() || undefined,
         estimated_value: Number(newEstimatedValue) || 0,
+        expected_close_date: newExpectedCloseDate || undefined,
       });
     },
     onSuccess: () => {
       setCreateModalOpen(false);
+      setEditingOpp(null);
       resetCreateForm();
-      queryClient.invalidateQueries({ queryKey: ["crm", "opportunities"] });
-      toast.success("Oportunidad creada");
+      queryClient.invalidateQueries({ queryKey: CRM_KEYS.opportunities.root() });
+      toast.success(editingOpp ? "Oportunidad actualizada" : "Oportunidad creada");
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Error al crear"),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Error al guardar"),
   });
 
   const deleteMut = useMutation({
@@ -299,9 +303,41 @@ function PipelineInner() {
     setNewDescription("");
   }
 
+  /** Limpia ?new=true&leadId=… para que el modal no reaparezca al volver/recargar. */
+  function clearNewParams() {
+    if (
+      searchParams.get("new") ||
+      searchParams.get("leadId") ||
+      searchParams.get("clientId") ||
+      searchParams.get("title")
+    ) {
+      router.replace("/customers/pipeline");
+    }
+  }
+
+  function closeCreateModal() {
+    setCreateModalOpen(false);
+    setEditingOpp(null);
+    clearNewParams();
+  }
+
   function openCreate() {
     resetCreateForm();
     if (stages[0]?.id) setNewStageId(stages[0].id);
+    setCreateModalOpen(true);
+  }
+
+  function openEdit(opp: OpportunityRow) {
+    setEditingOpp(opp);
+    setNewTitle(opp.title ?? "");
+    setNewStageId(opp.stage ? String(opp.stage) : stages[0]?.id ?? "");
+    setNewEstimatedValue(
+      opp.estimated_value != null && Number(opp.estimated_value) > 0
+        ? String(opp.estimated_value)
+        : "",
+    );
+    setNewExpectedCloseDate(opp.expected_close_date ?? "");
+    setNewDescription(opp.description ?? "");
     setCreateModalOpen(true);
   }
 
@@ -496,9 +532,22 @@ function PipelineInner() {
                             <h3 className="text-sm font-medium leading-snug line-clamp-2">
                               {opp.title}
                             </h3>
-                            <span className="shrink-0 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary tabular-nums">
-                              {formatCLP(Number(opp.estimated_value) || 0)}
-                            </span>
+                            <div className="flex shrink-0 items-center gap-1">
+                              <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary tabular-nums">
+                                {formatCLP(Number(opp.estimated_value) || 0)}
+                              </span>
+                              <button
+                                type="button"
+                                title="Editar oportunidad"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openEdit(opp);
+                                }}
+                                className="rounded-md p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
                           </div>
 
                           {opp.client ? (
@@ -571,19 +620,31 @@ function PipelineInner() {
             })}
           </div>
         )}
+
+        <LoadMoreFooter
+          showing={allOpportunities.length}
+          total={opportunitiesTotal}
+          isLoading={opportunitiesQuery.isFetching}
+          onLoadMore={() => setOppPageSize((n) => Math.min(n + 100, 1000))}
+          label="oportunidades"
+        />
       </PageBody>
 
       {/* Modal: Nueva Oportunidad */}
       <AnimatedOverlay
         open={createModalOpen}
-        onClose={() => setCreateModalOpen(false)}
+        onClose={closeCreateModal}
         zIndex="z-[70]"
         panelClassName="flex items-end justify-center p-0 sm:items-center sm:p-4"
       >
         <div className="w-full max-h-[90vh] overflow-y-auto rounded-t-2xl border border-border bg-background p-4 shadow-xl sm:max-w-2xl sm:rounded-2xl sm:p-6">
-          <h2 className="text-base font-semibold">Nueva Oportunidad Comercial</h2>
+          <h2 className="text-base font-semibold">
+            {editingOpp ? "Editar Oportunidad" : "Nueva Oportunidad Comercial"}
+          </h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Registrá una negociación o cotización para hacerle seguimiento en el embudo.
+            {editingOpp
+              ? "Actualizá etapa, valor, cierre esperado o notas del trato."
+              : "Registrá una negociación o cotización para hacerle seguimiento en el embudo."}
           </p>
 
           <div className="mt-4 flex flex-col gap-3">
@@ -597,7 +658,8 @@ function PipelineInner() {
               />
             </div>
 
-            {/* Tipo de contacto: Prospecto o Cliente */}
+            {/* Tipo de contacto: Prospecto o Cliente (solo alta; en edición se mantiene) */}
+            {!editingOpp && (
             <div>
               <label className="text-xs font-medium text-muted-foreground">Vincular a</label>
               <div className="mt-1.5 flex rounded-xl border border-border overflow-hidden text-xs">
@@ -664,9 +726,12 @@ function PipelineInner() {
                 )}
               </div>
             </div>
+            )}
 
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Etapa inicial</label>
+              <label className="text-xs font-medium text-muted-foreground">
+                {editingOpp ? "Etapa" : "Etapa inicial"}
+              </label>
               <p className="mt-0.5 text-[11px] text-muted-foreground">
                 Elegí en qué parte del embudo entra. La barra es la chance de cierre de esa etapa.
               </p>
@@ -713,7 +778,7 @@ function PipelineInner() {
             </div>
 
             <div className="mt-2 flex justify-end gap-2 border-t border-border pt-3">
-              <Button variant="outline" size="sm" onClick={() => setCreateModalOpen(false)}>
+              <Button variant="outline" size="sm" onClick={closeCreateModal}>
                 Cancelar
               </Button>
               <Button
@@ -722,7 +787,7 @@ function PipelineInner() {
                 isLoading={createMut.isPending}
                 onClick={() => createMut.mutate()}
               >
-                Crear Oportunidad
+                {editingOpp ? "Guardar Cambios" : "Crear Oportunidad"}
               </Button>
             </div>
           </div>
@@ -754,6 +819,17 @@ function PipelineInner() {
               </div>
 
               <div className="flex items-center gap-1.5">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const opp = selectedOpportunity;
+                    setSelectedOpportunity(null);
+                    openEdit(opp);
+                  }}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
                 <Button
                   size="sm"
                   variant="outline"

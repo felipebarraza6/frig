@@ -158,7 +158,9 @@ export function PlanningCard({
   onComplete?: (id: string) => void;
   completing?: boolean;
 }) {
-  const Icon = actionIcon(activity.activity_type);
+  const Icon =
+    (activity.activity_type ? ACTION_ICONS[activity.activity_type] : undefined) ??
+    NotebookPen;
   const done = Boolean(activity.is_completed);
   const color = activity.category_color || "#64748b";
   return (
