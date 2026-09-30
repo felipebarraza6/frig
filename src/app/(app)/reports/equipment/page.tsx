@@ -9,7 +9,7 @@ import {
   Warehouse,
   Package,
   LayoutDashboard,
-  List,
+
 } from "lucide-react";
 import Link from "next/link";
 import { motion, type Variants } from "framer-motion";
@@ -71,13 +71,13 @@ export default function EquipmentReportPage() {
     queryKey: ["equipment-profiles", branchId],
     queryFn: fetchEquipmentProfiles,
   });
-  const profiles = profilesData ?? [];
+  const profiles = useMemo(() => profilesData ?? [], [profilesData]);
 
   const { data: measurementsData } = useQuery({
     queryKey: ["equipment-measurements", "report", branchId],
     queryFn: () => fetchEquipmentMeasurements(),
   });
-  const measurements = measurementsData ?? [];
+  const measurements = useMemo(() => measurementsData ?? [], [measurementsData]);
 
   const warehouseIds = useMemo(
     () =>

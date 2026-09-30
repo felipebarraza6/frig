@@ -1,31 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Zap,
   HandCoins,
-  ChefHat,
+
   Monitor,
   LayoutGrid,
   Warehouse,
   CheckCircle2,
-  Clock,
+
   Trash2,
   Flame,
   Coffee,
   Beer,
   Utensils,
   Wallet,
-  ArrowDownLeft,
-  ArrowUpRight,
   CreditCard,
   Banknote,
   Coins,
-  ShieldCheck,
   FileText,
-  Plus,
-  Minus,
   Receipt,
   Check,
   Lock,
@@ -34,7 +29,6 @@ import {
   User,
   Percent,
   QrCode,
-  Layers,
   LocateFixed,
   Truck,
   Package,
@@ -181,7 +175,7 @@ export function ProductInteractivePreview() {
   const [discountApplied, setDiscountApplied] = useState(false);
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const [checkoutMethod, setCheckoutMethod] = useState<string>("card_debit");
-  const [cashTendered, setCashTendered] = useState<number>(30000);
+  const [_cashTendered, _setCashTendered] = useState<number>(30000);
   const [saleCompleted, setSaleCompleted] = useState(false);
 
   // === ESTADO DE FINANZAS ===

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -165,7 +165,7 @@ export function CustomerProfilePanel({
   });
 
   const customer = customerQuery.data;
-  const orders = ordersQuery.data?.results ?? [];
+  const orders = useMemo(() => ordersQuery.data?.results ?? [], [ordersQuery.data?.results]);
   const pending = pendingQuery.data;
   const tags = customer ? getCustomerTags(customer as Customer & { tags?: string[] }) : [];
 

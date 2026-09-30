@@ -30,9 +30,7 @@ import {
   Bitcoin,
   Landmark,
   Check,
-  CheckCircle2,
   Settings,
-  SlidersHorizontal,
   Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -143,7 +141,7 @@ export default function CashRegisterPage() {
   const [historyActionType, setHistoryActionType] = useState<"close" | "open" | null>(null);
   const [historyActionAmounts, setHistoryActionAmounts] = useState<Record<number, string>>({});
 
-  const { data: stations = [], isLoading: loadingStations } = useQuery({
+  const { data: stations = [], isLoading: _loadingStations } = useQuery({
     queryKey: ["cash-register-stations", branch?.branch_id],
     queryFn: fetchCashRegisterStations,
     enabled: !!branch,

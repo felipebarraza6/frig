@@ -53,7 +53,7 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
   const sheetRef = useRef<HTMLDivElement>(null);
 
   const user = useSessionStore((s) => s.user);
-  const theme = useSessionStore((s) => s.theme);
+  const _theme = useSessionStore((s) => s.theme);
   const branch = useCurrentBranch();
   const canSwitchBranch = useCanSwitchBranch();
   const { name: appName, logo: brandLogo } = useProductBrand();
@@ -121,7 +121,7 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
       // ignora errores de red en logout
     }
     await logoutLocal(queryClient);
-    window.location.assign("/login");
+    window.location.assign(window.location.origin + "/login");
   }
 
   function handleDragEnd(_: unknown, info: PanInfo) {
@@ -155,7 +155,7 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
     [menuGroups, roleFilter]
   );
 
-  const displayName = branch ? branchName(branch) : appName;
+  const _displayName = branch ? branchName(branch) : appName;
 
   return (
     <>

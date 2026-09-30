@@ -411,7 +411,7 @@ const CONFIG = {
   },
 } as const;
 
-function payStatus(r: FinanceRow, variant: Variant): { label: string; className: string } {
+function payStatus(r: FinanceRow, _variant: Variant): { label: string; className: string } {
   const paid = num(r.total_paid);
   const pending = pendingOf(r);
   const st = (r.status ?? "").toUpperCase();
@@ -543,7 +543,7 @@ export function FinanceReportView({ variant }: { variant: Variant }) {
     if (taxIds) return new Set(taxIds);
     if (typeof window === "undefined" || !branchId) return new Set<string>();
     return loadTaxViewSelection(branchId, taxTypes);
-  }, [variant, taxTypes, taxIds, branchId]);
+  }, [taxTypes, taxIds, branchId]);
 
   const prevRows = useMemo(() => {
     const raw = prevPage ?? [];
@@ -555,7 +555,7 @@ export function FinanceReportView({ variant }: { variant: Variant }) {
       total_paid: viewAmountWithTaxes(num(r.total_paid), taxTypes, ids),
       pending_amount: viewAmountWithTaxes(pendingOf(r), taxTypes, ids),
     }));
-  }, [prevPage, variant, taxTypes, selectedTaxIds]);
+  }, [prevPage, taxTypes, selectedTaxIds]);
 
   const { data: orderNumberById = {} } = useQuery({
     queryKey: ["finance-report", "order-numbers", branchId, start, end, linkedOrderIds],
@@ -588,7 +588,7 @@ export function FinanceReportView({ variant }: { variant: Variant }) {
       total_paid: viewAmountWithTaxes(num(r.total_paid), taxTypes, ids),
       pending_amount: viewAmountWithTaxes(pendingOf(r), taxTypes, ids),
     }));
-  }, [variant, rowsLabeled, taxTypes, selectedTaxIds]);
+  }, [rowsLabeled, taxTypes, selectedTaxIds]);
 
   const kpis = useMemo(() => {
     let total = 0;

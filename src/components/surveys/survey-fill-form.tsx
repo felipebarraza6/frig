@@ -126,6 +126,7 @@ export function SurveyFillForm({
   const lastUploadedAnswers = useRef<Record<string, string | number | boolean>>({});
   const [comment, setComment] = useState("");
   const [respondentName, setRespondentName] = useState("");
+  const [respondentEmail, setRespondentEmail] = useState("");
   const [done, setDone] = useState(false);
   const slug = "slug" in survey ? survey.slug : null;
   const status = "status" in survey ? survey.status : "ACTIVE";
@@ -163,6 +164,7 @@ export function SurveyFillForm({
         nps_score: npsScore,
         comment: comment.trim() || undefined,
         respondent_name: respondentName.trim() || undefined,
+        respondent_email: respondentEmail.trim() || undefined,
         channel: mode === "public" ? "qr" : "web",
       };
       if (mode === "public") {
@@ -279,6 +281,16 @@ export function SurveyFillForm({
             value={respondentName}
             onChange={(e) => setRespondentName(e.target.value)}
             placeholder="Nombre"
+          />
+          <label className="mt-1 text-xs text-muted-foreground" htmlFor="respondent-email">
+            Tu email (opcional, para dar seguimiento)
+          </label>
+          <Input
+            id="respondent-email"
+            type="email"
+            value={respondentEmail}
+            onChange={(e) => setRespondentEmail(e.target.value)}
+            placeholder="email@ejemplo.cl"
           />
         </div>
       )}

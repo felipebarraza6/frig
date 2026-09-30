@@ -33,12 +33,11 @@ import {
   fetchSupportTickets,
   slaDeadlineStatus,
   supportPriorityLabel,
-  supportStatusLabel,
+
   type SupportInquiryKind,
   type SupportTicketList,
 } from "@/lib/api/support";
 import { useSessionStore } from "@/lib/store/session";
-import { statusBadge } from "@/lib/status-styles";
 import { cn } from "@/lib/utils";
 
 type HubSection = "board" | "feedback";
@@ -174,7 +173,7 @@ function SupportInner() {
     staleTime: 30_000,
   });
 
-  const allTickets = ticketsQuery.data ?? [];
+  const allTickets = useMemo(() => ticketsQuery.data ?? [], [ticketsQuery.data]);
   const feedbackTickets = useMemo(
     () => allTickets.filter(isFeedbackTicket),
     [allTickets],

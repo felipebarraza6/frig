@@ -285,3 +285,24 @@ const apiFetch = (path, options = {}) => {
 ---
 
 *Próximo paso: generar `schema.json` levantando Yggdra y corriendo `openapi-typescript http://localhost:8000/api/schema/ -o packages/api-client/types/yggdra.d.ts`.*
+
+## 17. CRM, Encuestas y Soporte (2026-09-29)
+
+Agregadas al mapa tras el ecosistema CRM. Tipado real: `src/lib/api/types/yggdra.d.ts`
+(generado con `bun run sync-contract` desde el freeze del backend).
+
+| Área | Endpoint(s) |
+|------|-------------|
+| Prospectos | CRUD `/api/crm/leads/`, `POST /api/crm/leads/{id}/convert/`, CRUD `/api/crm/lead-sources/` |
+| Embudo | CRUD `/api/crm/opportunities/`, `POST .../{id}/move/`, CRUD `/api/crm/opportunity-stages/` |
+| Seguimientos | CRUD `/api/crm/opportunity-activities/`, `POST .../{id}/complete/`, CRUD `/api/crm/follow-up-categories/` |
+| Resumen CRM | `GET /api/crm/dashboard/summary/?start=&end=` (KPIs + ventana previa) |
+| Encuestas | CRUD `/api/surveys/surveys/`, `POST .../{id}/activate|pause/`, `.../nps-summary/` |
+| Respuestas | CRUD `/api/surveys/responses/`, `GET /api/surveys/responses/nps-global/` |
+| Encuestas públicas | `GET/POST /api/surveys/public/{slug}/[/respond/]` (AllowAny), `POST .../attach/` (adjuntos anónimos, 5 MB) |
+| Client-link | `POST /api/surveys/surveys/{id}/client-link/` (token HMAC por cliente) |
+| Adjuntos | `POST/GET/DELETE /api/surveys/attachments/` (autenticado) |
+| Plantillas | CRUD `/api/surveys/templates/` (por sucursal) |
+| Soporte | CRUD `/api/support/tickets/`, `/api/support/comments/`, `/api/support/ticket-attachments/`, `GET /api/support/work-orders/?ticket=` |
+
+Consola API in-app: `crm`, `surveys` y `support` ya están en `FRIG_API_APPS`.

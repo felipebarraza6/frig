@@ -232,9 +232,9 @@ export default function FollowUpsHubPage() {
   });
 
   const categories = categoriesQuery.data ?? [];
-  const clientMap = clientMapQuery.data ?? {};
-  const rawActivities = openQuery.data?.rows ?? [];
-  const rawDoneActivities = doneQuery.data?.rows ?? [];
+  const clientMap = useMemo(() => clientMapQuery.data ?? {}, [clientMapQuery.data]);
+  const rawActivities = useMemo(() => openQuery.data?.rows ?? [], [openQuery.data?.rows]);
+  const rawDoneActivities = useMemo(() => doneQuery.data?.rows ?? [], [doneQuery.data?.rows]);
 
   // Filter activities by search string
   const filteredActivities = useMemo(() => {

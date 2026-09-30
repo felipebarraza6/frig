@@ -628,7 +628,7 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
     enabled: !!effectiveProduct?.id,
     staleTime: 0,
   });
-  const supplierProductsForProduct = supplierLinkQuery.data ?? [];
+  const supplierProductsForProduct = useMemo(() => supplierLinkQuery.data ?? [], [supplierLinkQuery.data]);
   const loadingSupplierProduct = supplierLinkQuery.isFetching && !supplierLinkQuery.isFetched;
 
   const linkedSupplierOptions = useMemo(

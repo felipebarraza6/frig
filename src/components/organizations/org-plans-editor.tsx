@@ -6,7 +6,7 @@ import {
   Plus,
   Save,
   Trash2,
-  X,
+
   Package,
   Check,
   ChevronDown,

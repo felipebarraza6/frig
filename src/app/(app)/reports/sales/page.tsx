@@ -981,7 +981,7 @@ export default function SalesReportPage() {
     staleTime: 60_000,
   });
 
-  const rows = orders ?? [];
+  const rows = useMemo(() => orders ?? [], [orders]);
   const orderOnlyRows = useMemo(
     () => rows.filter((o) => o.order_type === "ORDER"),
     [rows],

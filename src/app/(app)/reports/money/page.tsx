@@ -1046,7 +1046,7 @@ export default function MoneyReportPage() {
     staleTime: 60_000,
   });
 
-  const allPayments = paymentsBundle?.payments ?? [];
+  const allPayments = useMemo(() => paymentsBundle?.payments ?? [], [paymentsBundle?.payments]);
   const paymentsTruncated = Boolean(paymentsBundle?.truncated);
   const paymentsTotalCount = paymentsBundle?.totalCount ?? allPayments.length;
 

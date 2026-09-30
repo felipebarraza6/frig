@@ -35,8 +35,8 @@ import {
   type OpportunityList,
   type OpportunityStage,
 } from "@/lib/api/crm";
+import { leadStatusLabel } from "@/lib/api/crm-leads";
 import { CRM_KEYS } from "@/lib/api/keys";
-import { leadStatusLabel, type LeadList } from "@/lib/api/crm-leads";
 import {
   useCrmActivitiesList,
   useCrmLeadsList,
@@ -83,10 +83,6 @@ function isOpenOpp(stages: OpportunityStage[], opp: OpportunityList): boolean {
   return !stage?.is_closed;
 }
 
-function leadName(lead: LeadList): string {
-  return lead.full_name || `${lead.first_name} ${lead.last_name ?? ""}`.trim() || "Prospecto";
-}
-
 export default function CrmReportPage() {
   const canManage = useCanManageCustomers();
   const month = getCurrentMonthRange();
@@ -117,11 +113,11 @@ export default function CrmReportPage() {
   });
   const summary: CrmDashboardSummary | undefined = summaryQuery.data;
 
-  const leads = leadsQuery.data?.results ?? [];
-  const opps = oppsQuery.data ?? [];
-  const stages = stagesQuery.data ?? [];
-  const openActs = openActsQuery.data ?? [];
-  const doneActs = doneActsQuery.data ?? [];
+  const leads = useMemo(() => leadsQuery.data?.results ?? [], [leadsQuery.data?.results]);
+  const opps = useMemo(() => oppsQuery.data ?? [], [oppsQuery.data]);
+  const stages = useMemo(() => stagesQuery.data ?? [], [stagesQuery.data]);
+  const openActs = useMemo(() => openActsQuery.data ?? [], [openActsQuery.data]);
+  const doneActs = useMemo(() => doneActsQuery.data ?? [], [doneActsQuery.data]);
   const loading =
     leadsQuery.isLoading ||
     oppsQuery.isLoading ||
@@ -312,19 +308,19 @@ export default function CrmReportPage() {
       ["Acciones sin fecha", kpis.unscheduled],
       [],
       ["Embudo por etapa", "Oportunidades", "Valor estimado", "Valor ponderado"],
-      ...report.stageRows.map((s) => [s.key, s.count, s.total, s.secondary]),
+      ...stageRows.map((s) => [s.key, s.count, s.total, s.secondary]),
       [],
       ["Prospectos por estado", "Cantidad"],
-      ...report.statusRows.map((s) => [s.key, s.count]),
+      ...statusRows.map((s) => [s.key, s.count]),
       [],
       ["Prospectos por fuente", "Cantidad"],
-      ...report.sourceRows.map((s) => [s.key, s.count]),
+      ...sourceRows.map((s) => [s.key, s.count]),
       [],
       ["Acciones completadas por tipo", "Cantidad"],
-      ...report.typeRows.map((s) => [s.key, s.count]),
+      ...typeRows.map((s) => [s.key, s.count]),
       [],
       ["Acciones por categoría", "Cantidad"],
-      ...report.categoryRows.map((s) => [s.key, s.count]),
+      ...categoryRows.map((s) => [s.key, s.count]),
     ];
     // BOM para que Excel respete los acentos.
     const csv = "\uFEFF" + rows.map((r) => r.map(esc).join(",")).join("\r\n");
@@ -355,6 +351,35 @@ export default function CrmReportPage() {
     overdue: summary?.activities.overdue ?? report.overdue.length,
     unscheduled: summary?.activities.unscheduled ?? report.unscheduled.length,
   };
+
+  // Filas de las tablas: prioridad al resumen server-side (sin sampleo).
+  type ActivityTypeParam = Parameters<typeof activityTypeLabel>[0];
+  const stageRows = summary
+    ? summary.opportunities.by_stage.map((s) => ({
+        key: s.name,
+        count: s.count,
+        total: Number(s.total),
+        secondary: Number(s.weighted),
+      }))
+    : report.stageRows;
+  const statusRows = summary
+    ? Object.entries(summary.leads.by_status).map(([k, v]) => ({
+        key: leadStatusLabel(k) || k,
+        count: v,
+      }))
+    : report.statusRows;
+  const sourceRows = summary
+    ? Object.entries(summary.leads.by_source).map(([k, v]) => ({ key: k, count: v }))
+    : report.sourceRows;
+  const typeRows = summary
+    ? Object.entries(summary.activities.by_type).map(([k, v]) => ({
+        key: activityTypeLabel(k as ActivityTypeParam),
+        count: v,
+      }))
+    : report.typeRows;
+  const categoryRows = summary
+    ? Object.entries(summary.activities.by_category).map(([k, v]) => ({ key: k, count: v }))
+    : report.categoryRows;
 
   const capped =
     !summary &&
@@ -491,8 +516,8 @@ export default function CrmReportPage() {
                   {capped ? " Cada lista usa hasta 200 registros recientes." : ""}
                 </p>
                 <div className="grid gap-3 lg:grid-cols-2">
-                  <CountPanel title="Prospectos del período por estado" rows={report.statusRows} />
-                  <CountPanel title="Prospectos del período por fuente" rows={report.sourceRows} />
+                  <CountPanel title="Prospectos del período por estado" rows={statusRows} />
+                  <CountPanel title="Prospectos del período por fuente" rows={sourceRows} />
                 </div>
               </>
             ) : null}
@@ -501,7 +526,7 @@ export default function CrmReportPage() {
               <GroupPanel
                 title="Oportunidades por etapa"
                 icon={Kanban}
-                rows={report.stageRows}
+                rows={stageRows}
                 columns={{ count: "Cantidad", total: "Valor estimado", secondary: "Ponderado" }}
                 emptyMessage="No hay oportunidades en el embudo."
               />
@@ -510,8 +535,8 @@ export default function CrmReportPage() {
             {tab === "acciones" ? (
               <>
                 <div className="grid gap-3 lg:grid-cols-2">
-                  <CountPanel title="Acciones hechas por tipo" rows={report.typeRows} />
-                  <CountPanel title="Acciones del período por categoría" rows={report.categoryRows} />
+                  <CountPanel title="Acciones hechas por tipo" rows={typeRows} />
+                  <CountPanel title="Acciones del período por categoría" rows={categoryRows} />
                 </div>
                 <OverdueList items={report.overdue} />
               </>

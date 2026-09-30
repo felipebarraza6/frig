@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { X, Trash2, History, Package, PackageSearch, Plus } from "lucide-react";
+import { X, Trash2, History, Package, PackageSearch } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -224,7 +224,7 @@ function QuotationForm({
     placeholderData: keepPreviousData,
   });
 
-  const productResults = productsQuery.data ?? [];
+  const productResults = useMemo(() => productsQuery.data ?? [], [productsQuery.data]);
   const productOptions = useMemo(() => {
     const recents = recentProducts.map((p) => ({
       value: String(p.id),

@@ -9,7 +9,6 @@ export type BranchFinanceConfig = YggdraSchemas["BranchFinanceConfig"] & {
   sii_document_preference?: "AUTO" | "BOLETA" | "FACTURA";
   sii_action_endpoints?: Partial<Record<SiiActionKey, string>>;
 };
-type PaginatedBranchFinanceConfigList = YggdraSchemas["PaginatedBranchFinanceConfigList"];
 
 export interface BranchFinanceConfigRequest {
   branch: number;

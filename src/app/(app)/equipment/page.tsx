@@ -50,7 +50,7 @@ const UNIT_BY_TYPE: Record<string, string> = {
 };
 
 export default function EquipmentPage() {
-  const toast = useToast();
+  const _toast = useToast();
   const queryClient = useQueryClient();
   const branch = useCurrentBranch();
   const canManage = useCanManageInventory();

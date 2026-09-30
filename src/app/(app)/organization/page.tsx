@@ -21,7 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export default function OrganizationPage() {
-  const router = useRouter();
+  const _router = useRouter();
   const searchParams = useSearchParams();
   const canView = useCanViewOrganization();
   const user = useSessionStore((s) => s.user);

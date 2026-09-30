@@ -29,7 +29,7 @@ import {
   formatSurveyAnswersForQuotation,
   parseSurveyQuestions,
   publicSurveyAbsoluteUrl,
-  surveyFillPath,
+
   updateSurveyResponse,
   type SurveyList,
   type SurveyQuestion,
@@ -134,7 +134,7 @@ export function CustomerLevantamientosTab({
     enabled: Boolean(fillingId),
   });
 
-  const published = customQuery.data?.results ?? [];
+  const published = useMemo(() => customQuery.data?.results ?? [], [customQuery.data?.results]);
   const encuestas = satisfactionQuery.data ?? [];
 
   const responses = useMemo(() => {

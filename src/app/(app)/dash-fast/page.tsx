@@ -21,7 +21,8 @@ import { cn } from "@/lib/utils";
 import { fetchModuleCounts, fetchDashboardSummary, type DateRange } from "@/lib/api/analytics";
 import { fetchKitchenTickets } from "@/lib/api/kitchen";
 import { formatCLP } from "@/lib/utils";
-import { useCurrentBranch, useSessionStore } from "@/lib/store/session";
+import { useCurrentBranch, useSessionStore, useCanManageCustomers } from "@/lib/store/session";
+import { useCrmNavCounts } from "@/lib/hooks/useCrm";
 import { branchName } from "@/lib/types";
 
 interface CubeFace {
@@ -119,6 +120,9 @@ export default function DashFastPage() {
     refetchInterval: 30_000,
   });
 
+  const canManageCrm = useCanManageCustomers();
+  const crmCounts = useCrmNavCounts();
+
   const counts = countsQuery.data;
   const summary = summaryQuery.data;
   const ticketCounts = useMemo(() => {
@@ -202,7 +206,13 @@ export default function DashFastPage() {
         tint: brandPrimary,
         stats: [
           { label: "Registrados", value: counts?.customers?.total !== undefined ? String(counts.customers.total) : "—" },
-          { label: "Proveedores", value: counts?.suppliers?.total !== undefined ? String(counts.suppliers.total) : "—" },
+          ...(canManageCrm
+            ? [
+                { label: "Prospectos", value: String(crmCounts.prospectsCount) },
+                { label: "Pipeline", value: String(crmCounts.pipelineCount) },
+                { label: "Seguimientos", value: String(crmCounts.followUpsCount) },
+              ]
+            : [{ label: "Proveedores", value: counts?.suppliers?.total !== undefined ? String(counts.suppliers.total) : "—" }]),
         ],
       },
       {
@@ -220,7 +230,7 @@ export default function DashFastPage() {
         ],
       },
     ],
-    [counts, summary, ticketCounts, brandPrimary, brandSecondary, rangeLabel],
+    [counts, summary, ticketCounts, brandPrimary, brandSecondary, rangeLabel, canManageCrm, crmCounts.prospectsCount, crmCounts.pipelineCount, crmCounts.followUpsCount],
   );
 
   const go = useCallback((dir: 1 | -1) => {

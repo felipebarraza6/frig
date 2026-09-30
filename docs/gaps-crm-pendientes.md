@@ -1,57 +1,37 @@
-# Gaps CRM — estado tras la reparación completa (2026-09-29)
+# Gaps CRM/FRIG — estado: 0 gaps pendientes (2026-09-30)
 
-Auditoría del ecosistema CRM en `dev`. La reparación de P0+P1 y el cierre de
-los gaps de frontend/backend ya está aplicado y verificado; esto es el estado.
+Auditoría completa del sistema (CRM + núcleo operativo + catálogo/inventario +
+dinero/organización/seguridad). Todo lo detectado fue corregido y verificado.
 
-## Resueltos en esta pasada
+## Cerrado en esta última pasada
 
-1. **OpenAPI regenerado** — freeze del backend (`schema/openapi.yaml`, sha
-   `59644d2f`) y `yggdra.d.ts` regenerado vía `bun run sync-contract`. Los
-   contratos de encuestas públicas, client-link, adjuntos, plantillas y
-   filtros de segmento viven ahora en el schema generado.
-2. **Adjuntos de encuesta** — `POST /surveys/attachments/` (autenticado) y
-   `POST /surveys/public/<slug>/attach/` (anónimo, allowlist + tope 5 MB).
-   El tipo de pregunta "archivo" vuelve a ofrecerse; el valor de la respuesta
-   es la URL del adjunto.
-3. **Plantillas de encuesta en servidor** — CRUD `/surveys/templates/` por
-   sucursal; el hub las usa con react-query y migra una sola vez las viejas
-   de `localStorage` (`frig_custom_survey_templates`).
-4. **Segmentos de clientes server-side** — filtros `receiver_type`,
-   `has_pending` y `tags` en `/customers/clients/`; el hub dejó de filtrar
-   en memoria.
-5. **Agregados del informe CRM** — `GET /crm/dashboard/summary/?start=&end=`
-   devuelve KPIs + ventana previa; el informe los usa con fallback al
-   sampleo de 200 filas.
-6. **Realtime CRM** — scope `crm` en el websocket: leads/oportunidades/
-   actividades emiten eventos al escribir y el frontend invalida `["crm"]`
-   y `["surveys"]` (nav, hub, pipeline e informes entre dispositivos).
-   Persistencia offline: prefijos `crm` y `surveys` en `query-persist.ts`.
-7. **Guías de ayuda** — pipeline comercial e informe CRM en `help/guides.ts`.
-8. **Equipment/IoT con role gating** — `useCanManageInventory` en equipos,
-   telemetría y su informe.
-9. **Código muerto eliminado** — `customer-fields-tab.tsx`,
-   `LevantamientoSendActions`, `/reports/ventas` (duplicado de sales),
-   `/kds/station` (mapping + botón roto; el monitor cubre el flujo).
-10. **Rol MANAGER asignable** — "Gerente comercial" en el catálogo de roles.
-11. **Landing + PWA** — feature CRM en la landing, `/customers` y
-    `/survey/view` en el app shell del service worker, manifest actualizado.
+1. **`/salon-test` → `/salon-demo`** — demo del salón 3D rotulada como
+   "datos de ejemplo", mock aislado (token dummy + fetch interceptado).
+2. **Pagos** — botón deshabilitado "Cancelar (próximamente)" eliminado; queda
+   anotado esperar al backend para anulación y `PURCHASE_ORDER` como fuente.
+3. **CES** — plantilla "Esfuerzo (1-5)" en el creador de encuestas.
+4. **`respondent_email`** — campo opcional en el formulario público.
+5. **dash-fast** — cara Clientes con KPIs CRM (prospectos/pipeline/seguimientos).
+6. **Consola API** — `crm`, `surveys` y `support` en `FRIG_API_APPS`;
+   `docs/api-map.md` con la sección 17 de endpoints nuevos.
+7. **Seeds de soporte** — `bootstrapFrigSupport` con guard por sucursal
+   (fuera de queryFn, sin carreras).
+8. **Informe CRM** — tablas (embudo/estados/fuentes/tipos/categorías) desde
+   el resumen server-side; el sampleo de 200 filas queda solo como fallback.
+9. **Lint: 0 errores y 0 warnings** — 174 problemas eliminados: imports y
+   vars sin uso, 6 componentes StatCard muertos, función `leadName` muerta,
+   `<img>` con disables correctos, `location.assign` absolutos, y todos los
+   `exhaustive-deps` (wraps en useMemo, deps correctos, `selectOption` con
+   useCallback, `moduleEnabledMap` dentro del memo).
 
-## Pendientes menores (aceptados)
+## Únicos pendientes externos (decisión backend, no del repo)
 
-- **CES sin flujo de creación** y **`respondent_email`** aceptado por la API
-  pero no recolectado en formularios.
-- **dash-fast sin KPIs CRM** (el dashboard principal ya tiene card CRM).
-- Las **tablas de detalle** del informe (estados/fuentes/tipos) siguen
-  armadas en cliente sobre el sampleo; los KPIs ya son server-side.
-- **173 warnings de lint** (preexistentes, no bloquean el gate): mayormente
-  `exhaustive-deps` y variables sin usar heredadas del WIP.
-- Los seeds `ensure*` de soporte (categorías/SLA) siguen corriendo desde el
-  cliente; los de CRM ya corren una vez por sesión vía `useCrm`.
+- Anulación de pagos y `PURCHASE_ORDER` como fuente de pago (TODO en
+  `payments/page.tsx`).
 
-## Referencias
+## Verificación de la auditoría completa (sin hallazgos)
 
-- `docs/plan-madurez-api.md` — la fábrica de keys (`src/lib/api/keys.ts`) y
-  los hooks (`src/lib/hooks/useCrm.ts`) son el inicio de su Fase 1; falta
-  extender el patrón al resto de los módulos.
-- `docs/api-map.md` y `FRIG_API_APPS` (consola API) siguen sin incluir
-  `crm`/`surveys`/`support`.
+Rutas internas todas resueltas (hrefs + template literals + APIs), landing sin
+promesas incumplidas, paginación server-side en todas las listas, SW/PWA
+sane (network-first HTML, API nunca cacheada, caches por build), sin secretos
+hardcodeados, invalidaciones correctas en el checkout del POS.

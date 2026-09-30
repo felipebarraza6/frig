@@ -93,6 +93,26 @@ export async function createSupportCategory(payload: {
 }
 
 /**
+ * Seeds de soporte (categorías + SLA) corriendo UNA vez por sucursal y
+ * sesión, fuera de los queryFn: React Query puede re-ejecutar un queryFn
+ * (retry, remount, refetch) y los POST repetidos producían carreras.
+ */
+const supportBootstrapPromises = new Map<string, Promise<unknown>>();
+
+export function bootstrapFrigSupport(branchId: number, productName?: string) {
+  const key = `${branchId}|${productName ?? ""}`;
+  let promise = supportBootstrapPromises.get(key);
+  if (!promise) {
+    promise = Promise.allSettled([
+      ensureFrigSupportCategories(branchId, productName),
+      ensureFrigSlaPolicy(branchId, productName),
+    ]);
+    supportBootstrapPromises.set(key, promise);
+  }
+  return promise;
+}
+
+/**
  * Asegura las 4 categorías FRIG. Si ya existen (por nombre), las reutiliza.
  * Si el create falla por permisos, devuelve las que haya.
  */

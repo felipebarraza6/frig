@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CircleHelp,
@@ -16,9 +16,10 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   SUPPORT_INQUIRY_OPTIONS,
+  bootstrapFrigSupport,
   createSupportTicket,
-  ensureFrigSlaPolicy,
-  ensureFrigSupportCategories,
+  fetchSupportCategories,
+  fetchSupportSlaPolicies,
   type SupportAttachment,
   type SupportInquiryKind,
 } from "@/lib/api/support";
@@ -106,9 +107,10 @@ export function SupportCreateModal({
   const bootstrapQuery = useQuery({
     queryKey: ["support-bootstrap", currentBranchId, productName],
     queryFn: async () => {
+      await bootstrapFrigSupport(branchIdNum, productName);
       const [categories, sla] = await Promise.all([
-        ensureFrigSupportCategories(branchIdNum, productName),
-        ensureFrigSlaPolicy(branchIdNum, productName),
+        fetchSupportCategories(),
+        fetchSupportSlaPolicies(),
       ]);
       return { categories, sla };
     },
@@ -137,7 +139,7 @@ export function SupportCreateModal({
           "Soporte no tiene categorías configuradas en esta sucursal. Escribe a contacto@frig.cl.",
         );
       }
-      const slaId = bootstrapQuery.data?.sla?.id;
+      const slaId = bootstrapQuery.data?.sla?.[0]?.id;
       if (!slaId) {
         throw new Error(
           "Falta una política SLA de soporte en esta sucursal. Escribe a contacto@frig.cl.",

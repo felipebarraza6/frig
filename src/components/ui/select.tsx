@@ -2,6 +2,7 @@ import {
   useState,
   useRef,
   useEffect,
+  useCallback,
   forwardRef,
   type SelectHTMLAttributes,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -51,12 +52,15 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
     );
     const selected = opts[selectedIndex];
 
-    const selectOption = (index: number) => {
-      const opt = opts[index];
-      if (!opt) return;
-      onChange?.({ target: { value: opt.value } } as React.ChangeEvent<HTMLSelectElement>);
-      setOpen(false);
-    };
+    const selectOption = useCallback(
+      (index: number) => {
+        const opt = opts[index];
+        if (!opt) return;
+        onChange?.({ target: { value: opt.value } } as React.ChangeEvent<HTMLSelectElement>);
+        setOpen(false);
+      },
+      [opts, onChange],
+    );
 
     // Al abrir, el foco entra al listbox y sigue a la opción activa.
     useEffect(() => {
@@ -132,7 +136,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
         window.removeEventListener("keydown", handleKey, true);
         if (typeaheadTimerRef.current) clearTimeout(typeaheadTimerRef.current);
       };
-    }, [open, activeIndex, opts, onChange]);
+    }, [open, activeIndex, opts, onChange, selectOption]);
 
     const isCustomWidth = Boolean(
       className?.match(/(?:^|\s)(w-\S+|min-w-\S+|max-w-\S+)/) ||

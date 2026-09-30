@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import {
@@ -44,9 +44,8 @@ import {
   moveOpportunity,
   updateOpportunity,
   type OpportunityRow,
-  type OpportunityProduct,
+
   type OpportunityStage,
-  type OpportunityActivity,
   type OpportunityActivityType,
 } from "@/lib/api/crm";
 import { CRM_KEYS } from "@/lib/api/keys";
@@ -126,8 +125,8 @@ function PipelineInner() {
     enabled: canManage && createModalOpen && contactType === "prospect",
   });
 
-  const stages = stagesQuery.data ?? [];
-  const allOpportunities = opportunitiesQuery.data?.rows ?? [];
+  const stages = useMemo(() => stagesQuery.data ?? [], [stagesQuery.data]);
+  const allOpportunities = useMemo(() => opportunitiesQuery.data?.rows ?? [], [opportunitiesQuery.data?.rows]);
   const opportunitiesTotal = opportunitiesQuery.data?.count ?? 0;
 
   // Filter opportunities by search term

@@ -1145,29 +1145,6 @@ export default function BankAccountsPage() {
   );
 }
 
-function StatCard({
-  label,
-  value,
-  icon: Icon,
-  sub,
-}: {
-  label: string;
-  value: string | number;
-  icon: React.ComponentType<{ className?: string }>;
-  sub: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-border bg-background p-4 shadow-sm">
-      <div className="mb-2 flex items-center gap-2 text-muted-foreground">
-        <Icon className="h-4 w-4" />
-        <span className="text-xs font-medium">{label}</span>
-      </div>
-      <p className="text-xl font-semibold tabular-nums">{value}</p>
-      <p className="text-xs text-muted-foreground">{sub}</p>
-    </div>
-  );
-}
-
 function BankAccountCard({
   account,
   onTransactions,

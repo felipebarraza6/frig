@@ -128,7 +128,7 @@ export default function PosZenPage() {
     },
   });
 
-  const activeStationId =
+  const _activeStationId =
     selectedStationId ??
     (userStation?.station_id ? Number(userStation.station_id) : null) ??
     stations[0]?.id ??

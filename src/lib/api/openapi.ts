@@ -13,6 +13,9 @@ export const FRIG_API_APPS = [
   { id: "promotions", label: "Promociones", blurb: "Descuentos y cupones del POS" },
   { id: "recipes", label: "Recetas", blurb: "Fichas de receta e insumos" },
   { id: "nutrition", label: "Nutrición", blurb: "Tablas y etiquetado de productos" },
+  { id: "crm", label: "CRM", blurb: "Prospectos, embudo, seguimientos y resumen" },
+  { id: "surveys", label: "Encuestas", blurb: "Encuestas, respuestas, adjuntos y plantillas" },
+  { id: "support", label: "Soporte", blurb: "Tickets, comentarios y adjuntos" },
 ] as const;
 
 export type FrigApiAppId = (typeof FRIG_API_APPS)[number]["id"];

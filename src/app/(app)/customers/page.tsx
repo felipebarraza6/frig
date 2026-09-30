@@ -1,27 +1,26 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   AlertCircle,
-  ArrowUpDown,
+
   Banknote,
   Building2,
-  Check,
+
   ChevronRight,
   CreditCard,
-  Download,
+
   FileDown,
   FileText,
-  Filter,
+
   LayoutGrid,
   List,
   Loader2,
   Mail,
   MapPin,
   MessageCircle,
-  MoreHorizontal,
   NotebookPen,
   Pencil,
   Percent,
@@ -29,13 +28,9 @@ import {
   Plus,
   Power,
   Search,
-  SlidersHorizontal,
-  Tag,
   Trash2,
   User,
-  UserCheck,
   UserCircle,
-  UserPlus,
   Users,
   X,
 } from "lucide-react";
@@ -69,7 +64,6 @@ import {
   fetchClientsWithPendingRevenues,
   type CustomersFilter,
   type CustomerPayload,
-  type CustomerStatusFilter,
 } from "@/lib/api/customers";
 import { useCrmNavCounts } from "@/lib/hooks/useCrm";
 import { useCanManageCustomers, useIsModuleEnabledFromConfig } from "@/lib/store/session";

@@ -108,6 +108,7 @@ export default function PoliticasPage() {
         <div className="mx-auto flex h-14 max-w-4xl items-center justify-between px-4 sm:px-6">
           <Link href="/" className="flex items-center gap-2">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/brand/frig-symbol.png" alt="Frig" className="h-5 w-5" />
             </span>
             <span className="text-base font-semibold tracking-[0.2em] text-white">FRIG</span>
@@ -166,6 +167,7 @@ export default function PoliticasPage() {
       <footer className="mt-auto border-t border-white/10">
         <div className="mx-auto flex max-w-4xl flex-col items-center justify-between gap-3 px-4 py-8 text-xs text-zinc-500 sm:flex-row sm:px-6">
           <span className="flex items-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/brand/frig-symbol.png" alt="Frig" className="h-4 w-4" />
             FRIG — Gestión comercial y gastronómica
           </span>

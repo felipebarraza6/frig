@@ -17,10 +17,7 @@ import {
   ExternalLink,
   Eye,
   Globe,
-  HardDrive,
   HelpCircle,
-  Info,
-  Layers,
   Link2,
   List,
   MessageSquare,
@@ -53,8 +50,9 @@ import {
   createSurvey,
   createSurveyFromTemplate,
   createSurveyTemplate,
+  cesTemplateQuestions,
   csatTemplateQuestions,
-  customTemplateQuestions,
+
   deleteSurvey,
   deleteSurveyTemplate,
   fetchGlobalNpsSummary,
@@ -103,7 +101,7 @@ export default function CustomerSurveysPage() {
   const [saveAsTemplateChecked, setSaveAsTemplateChecked] = useState(false);
   const [modalTab, setModalTab] = useState<"edit" | "preview">("edit");
 
-  const [npsFor, setNpsFor] = useState<string | null>(null);
+  const [npsFor, _setNpsFor] = useState<string | null>(null);
   const [questionsFor, setQuestionsFor] = useState<string | null>(null);
   const [openSurveyId, setOpenSurveyId] = useState<string | null>(null);
 
@@ -127,7 +125,7 @@ export default function CustomerSurveysPage() {
     enabled: canManage,
   });
 
-  const detailNpsQuery = useQuery({
+  const _detailNpsQuery = useQuery({
     queryKey: ["surveys", "nps", npsFor],
     queryFn: () => fetchSurveyNpsSummary(npsFor!),
     enabled: Boolean(npsFor),
@@ -172,6 +170,7 @@ export default function CustomerSurveysPage() {
     setSurveyType(kind);
     if (kind === "CSAT") setQuestions(csatTemplateQuestions());
     else if (kind === "NPS") setQuestions(npsTemplateQuestions());
+    else if (kind === "CES") setQuestions(cesTemplateQuestions());
     else
       setQuestions([
         { id: `q_${Date.now()}_1`, type: "text", label: "¿Cómo fue tu experiencia?", required: false },
@@ -181,7 +180,7 @@ export default function CustomerSurveysPage() {
   function openCreate(kind: SurveyType = "CUSTOM", initialQuestions?: SurveyQuestion[], initialTitle?: string) {
     setEditingSurveyId(null);
     setSurveyType(kind);
-    setTitle(initialTitle || (kind === "CSAT" ? "Nota de la visita" : kind === "NPS" ? "Después de tu visita" : "Nueva Encuesta"));
+    setTitle(initialTitle || (kind === "CSAT" ? "Nota de la visita" : kind === "NPS" ? "Después de tu visita" : kind === "CES" ? "¿Qué tan fácil fue?" : "Nueva Encuesta"));
     setDescription("");
     setSaveAsTemplateChecked(false);
     setModalTab("edit");
@@ -885,7 +884,7 @@ export default function CustomerSurveysPage() {
               {!editingSurveyId ? (
                 <div className="flex flex-col gap-1.5">
                   <span className="text-xs font-medium text-muted-foreground">Plantilla inicial sugerida</span>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     <button
                       type="button"
                       onClick={() => applyFormat("CUSTOM")}
@@ -924,6 +923,19 @@ export default function CustomerSurveysPage() {
                     >
                       <span className="block text-xs font-medium">Atención / Visita (1-5★)</span>
                       <span className="block text-[10px] opacity-75">Satisfacción puntual</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => applyFormat("CES")}
+                      className={cn(
+                        "rounded-xl border px-3 py-2 text-left transition-all",
+                        surveyType === "CES"
+                          ? "border-primary bg-primary/10 font-semibold text-primary shadow-xs"
+                          : "border-border text-muted-foreground hover:bg-muted",
+                      )}
+                    >
+                      <span className="block text-xs font-medium">Esfuerzo (1-5)</span>
+                      <span className="block text-[10px] opacity-75">¿Qué tan fácil fue?</span>
                     </button>
                   </div>
                 </div>
@@ -1047,7 +1059,6 @@ function SurveyCard({
   onCopyPublic,
   onCopyInternal,
   onToggle,
-  toggling,
   onEdit,
   onDuplicate,
   onSaveAsTemplate,
@@ -1471,8 +1482,6 @@ function TemplateEditorModal({
 function SurveyWorkspace({
   survey,
   onBack,
-  questionsOpen,
-  onToggleQuestions,
   onOpenPublic,
   onCopyPublic,
   onToggle,

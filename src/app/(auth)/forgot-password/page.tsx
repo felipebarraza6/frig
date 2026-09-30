@@ -99,11 +99,14 @@ export default function ForgotPasswordPage() {
                 className="h-12 w-12 rounded-xl object-contain"
               />
             ) : (
-              <img
-                src="/brand/frig-wordmark.png"
-                alt="Frig"
-                className="frig-flame h-10 w-auto"
-              />
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/brand/frig-wordmark.png"
+                  alt="Frig"
+                  className="frig-flame h-10 w-auto"
+                />
+              </>
             )}
             <div>
               <h1 className="font-display text-2xl font-semibold tracking-tight">
@@ -185,6 +188,7 @@ export default function ForgotPasswordPage() {
                   FRIG
                 </a>
               </p>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/brand/frig-symbol.png"
                 alt=""

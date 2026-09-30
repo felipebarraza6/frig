@@ -21,7 +21,7 @@ export function PosProfileButton() {
   const [open, setOpen] = useState(false);
   const user = useSessionStore((s) => s.user);
   const queryClient = useQueryClient();
-  const router = useRouter();
+  const _router = useRouter();
 
   const displayName =
     user?.full_name?.trim() ||
@@ -38,7 +38,7 @@ export function PosProfileButton() {
       // ignora errores de red en logout
     }
     await logoutLocal(queryClient);
-    window.location.assign("/login");
+    window.location.assign(window.location.origin + "/login");
   }
 
   return (

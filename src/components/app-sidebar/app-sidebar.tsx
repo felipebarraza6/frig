@@ -60,7 +60,7 @@ interface AppSidebarProps {
 
 export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: AppSidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
+  const _router = useRouter();
   const queryClient = useQueryClient();
   const storeExpanded = useSidebarStore((s) => s.expanded);
   const toggleExpanded = useSidebarStore((s) => s.toggle);
@@ -89,7 +89,7 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
 
   const hasHydrated = useSessionStore((s) => s.hasHydrated);
   const user = useSessionStore((s) => s.user);
-  const theme = useSessionStore((s) => s.theme);
+  const _theme = useSessionStore((s) => s.theme);
   const branch = useCurrentBranch();
   const menuGroups = useFrigMenu();
   const isCashier = useIsCashier();
@@ -189,7 +189,7 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
       // ignora errores de red en logout
     }
     await logoutLocal(queryClient);
-    window.location.assign("/login");
+    window.location.assign(window.location.origin + "/login");
   }, [queryClient]);
 
   const allItems = useMemo<CommandPaletteItem[]>(() => {
@@ -249,7 +249,6 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
   // volver a cerrarlo: solo corre cuando cambia la ruta o en la primera carga
   // de grupos. Cambios de datos (refresh de frontend-config, etc.)
   // no deben reabrir un grupo que el usuario cerró.
-  /* eslint-disable react-hooks/set-state-in-effect */
   const autoOpenRef = useRef<{ path: string | null; hadGroups: boolean }>({
     path: null,
     hadGroups: false,
@@ -273,8 +272,7 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
       }
     }
     if (bestGroup) setOpenGroup(bestGroup.title);
-  }, [pathname, visibleMenuGroups]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+  }, [pathname, visibleMenuGroups]);
 
   useEffect(() => {
     function handleShortcut(e: KeyboardEvent) {

@@ -61,7 +61,7 @@ export function CustomerFollowUpsTab({
     enabled: Boolean(opportunityId),
   });
 
-  const activities = activitiesQuery.data ?? [];
+  const activities = useMemo(() => activitiesQuery.data ?? [], [activitiesQuery.data]);
   const openCount = useMemo(
     () => activities.filter((a) => !a.is_completed).length,
     [activities],

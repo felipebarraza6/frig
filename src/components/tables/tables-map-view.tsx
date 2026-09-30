@@ -137,7 +137,7 @@ export function TablesMapView({ immersive = false }: { immersive?: boolean }) {
   function handleToggleImmersive() {
     if (immersive) {
       if (window.opener) window.close();
-      else window.location.assign("/tables/map");
+      else window.location.assign(window.location.origin + "/tables/map");
       return;
     }
     window.open(FULL_PATH, "frig-salon-virtual", "noopener,noreferrer");

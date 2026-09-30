@@ -144,7 +144,7 @@ function OverlayShell({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- sync intencional al montar/cambiar deps (código 3D/KDS recuperado)
     setPos(initialPos);
     posRef.current = initialPos;
-  }, [spawn, initialPos?.x, initialPos?.y]);
+  }, [spawn, initialPos]);
 
   return (
     <LazyMotion features={domAnimation} strict>

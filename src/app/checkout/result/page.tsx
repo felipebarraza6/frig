@@ -37,6 +37,7 @@ export default function CheckoutResultPage() {
       className="flex min-h-dvh flex-1 flex-col items-center justify-center gap-6 bg-[#0a0a0a] px-4 text-zinc-100"
     >
       <span className="flex h-12 w-12 items-center justify-center bg-primary text-primary-foreground">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/brand/frig-symbol.png" alt="Frig" className="h-7 w-7" />
       </span>
       <div className="flex w-full max-w-sm flex-col items-center gap-4 rounded-xl border border-white/10 bg-white/[0.03] px-8 py-10 text-center">

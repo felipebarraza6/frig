@@ -28,7 +28,7 @@ import {
 import {
   fetchRecipesByProduct,
   calculateRecipeNutrition,
-  downloadRecipeNutritionLabel,
+
   fetchRecipeNutritionLabel,
 } from "@/lib/api/recipes";
 import { ProductForm } from "@/components/products/product-form";
@@ -442,7 +442,7 @@ function NutritionLabelStudio({
   const queryClient = useQueryClient();
   const branch = useCurrentBranch();
   const branchTheme = useSessionStore((s) => s.theme ?? s.organizationTheme);
-  const { download: downloadNutritionPdf, isLoading: downloadingNutritionPdf } = useDownloadFile();
+  const { isLoading: downloadingNutritionPdf } = useDownloadFile();
 
   const [labelMode, setLabelMode] = useState<NutritionLabelMode>("simple");
   const [labelPortion, setLabelPortion] = useState<NutritionLabelPortion>("per_100g");

@@ -123,7 +123,6 @@ interface ProductCardProps {
 function ProductCard({
   product,
   recipe,
-  ingredients,
   colorClass,
   productTypeLabel,
   onOpen,
@@ -224,10 +223,10 @@ function ProductCard({
 export function ProductsClient() {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const branch = useCurrentBranch();
+  const _branch = useCurrentBranch();
   const { download: downloadFile, isLoading: isExporting } = useDownloadFile();
   const { options: productTypeOptions, labelFor: productTypeLabel } = useBranchProductTypes();
-  const { options: categoryOptions, isLoading: loadingCategories, error: categoriesError } = useCategoryOptions();
+  const { options: categoryOptions, isLoading: loadingCategories, error: _categoriesError } = useCategoryOptions();
 
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");

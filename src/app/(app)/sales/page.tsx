@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/ui/stat-card";
 import { Badge } from "@/components/ui/badge";
-import { TableSkeleton } from "@/components/ui/skeleton";
 import { Select } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { MultiSelect } from "@/components/ui/multi-select";
@@ -974,7 +973,7 @@ export default function SalesPage() {
   });
   const [clientFilterQuery, setClientFilterQuery] = useState(clientFilterName);
   const [clientFilterDebounced, setClientFilterDebounced] = useState(clientFilterName);
-  const [clientFilterOpen, setClientFilterOpen] = useState(false);
+  const [_clientFilterOpen, setClientFilterOpen] = useState(false);
   const [pendingDeliveryType, setPendingDeliveryType] = useState<"ALL" | "SALE" | "ORDER">("ALL");
   const [pendingDeliveryPayment, setPendingDeliveryPayment] = useState<"ALL" | "PENDING" | "PARTIAL" | "PAID">("ALL");
   const [statDetail, setStatDetail] = useState<"totalAmount" | "pendingPayment" | "pendingDelivery" | "deliveredCount" | null>(null);
@@ -1133,7 +1132,7 @@ export default function SalesPage() {
 
   // Modales de acciones por orden
   const [delivering, setDelivering] = useState<Order | null>(null);
-  const [deliverQuantities, setDeliverQuantities] = useState<Record<string, number>>({});
+  const [_deliverQuantities, setDeliverQuantities] = useState<Record<string, number>>({});
 
   function openDelivering(order: Order) {
     const initial: Record<string, number> = {};

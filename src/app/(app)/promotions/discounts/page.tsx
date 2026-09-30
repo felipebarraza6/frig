@@ -18,7 +18,7 @@ import {
   BarChart3,
   TrendingUp,
   Tag,
-  SlidersHorizontal,
+
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -168,7 +168,7 @@ export default function DiscountsPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [applyToFilter, setApplyToFilter] = useState("");
   const [activeOnly, setActiveOnly] = useState(false);
-  const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [_showMobileFilters, _setShowMobileFilters] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<PromotionDiscountList | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<PromotionDiscountList | null>(null);

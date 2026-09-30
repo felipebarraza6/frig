@@ -87,13 +87,17 @@ function DimensionExit({
         ) : (
           <>
             {!brandName && (
-              <img
-                src="/brand/frig-symbol.png"
-                alt=""
-                className="h-16 w-auto"
-                style={{ filter: "drop-shadow(0 0 16px rgba(238,158,112,0.5))" }}
-              />
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/brand/frig-symbol.png"
+                  alt=""
+                  className="h-16 w-auto"
+                  style={{ filter: "drop-shadow(0 0 16px rgba(238,158,112,0.5))" }}
+                />
+              </>
             )}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/brand/frig-wordmark.png"
               alt="Frig"
@@ -145,7 +149,7 @@ export default function LoginPage() {
     window.setTimeout(callback, 700);
     window.setTimeout(() => {
       if (window.location.pathname === "/login") {
-        window.location.href = "/dashboard";
+        window.location.href = window.location.origin + "/dashboard";
       }
     }, 8000);
   }
@@ -702,6 +706,7 @@ export default function LoginPage() {
                   FRIG
                 </a>
               </p>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/brand/frig-symbol.png"
                 alt=""

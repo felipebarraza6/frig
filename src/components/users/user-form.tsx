@@ -58,14 +58,13 @@ export function UserForm({ user, onClose, onSuccess }: UserFormProps) {
 
   const currentAssignment = user?.branch_access;
 
-  const moduleEnabledMap: Record<string, boolean> = {
-    pos: isPosModuleEnabled,
-    tables: isTablesModuleEnabled,
-    production: isProductionModuleEnabled,
-    deliveries: isDeliveriesModuleEnabled,
-  };
-
   const availableRoles = useMemo(() => {
+    const moduleEnabledMap: Record<string, boolean> = {
+      pos: isPosModuleEnabled,
+      tables: isTablesModuleEnabled,
+      production: isProductionModuleEnabled,
+      deliveries: isDeliveriesModuleEnabled,
+    };
     let roles = ALL_ROLES.filter((r) => !r.module || moduleEnabledMap[r.module]);
     if (!isSuperAdmin) {
       roles = roles.filter((r) => r.code !== "OWNER");
@@ -83,12 +82,12 @@ export function UserForm({ user, onClose, onSuccess }: UserFormProps) {
     return roles;
   }, [
     isSuperAdmin,
+    isEditing,
+    currentAssignment?.role_code,
     isPosModuleEnabled,
     isTablesModuleEnabled,
     isProductionModuleEnabled,
     isDeliveriesModuleEnabled,
-    isEditing,
-    currentAssignment?.role_code,
   ]);
 
   // Solo un owner multi-sucursal (o superadmin) puede crear/editar usuarios

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -444,7 +444,7 @@ export function ProfilePanel() {
                   /* ignora errores de red */
                 }
                 await logoutLocal(queryClient);
-                window.location.assign("/login");
+                window.location.assign(window.location.origin + "/login");
               }}
               className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-white/25 bg-black/35 px-2.5 py-1.5 text-xs font-medium text-white backdrop-blur-md transition-colors hover:bg-black/50"
               title="Cerrar sesión"

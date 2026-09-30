@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { PRESET_THEMES, getThemeById, getBaseThemes, type ThemePalette } from "@/lib/themes";
+import { PRESET_THEMES, getThemeById, type ThemePalette } from "@/lib/themes";
 import { TrendingUp, Package, DollarSign, ArrowUpRight } from "lucide-react";
 
 /** Mini-card tipo dashboard dentro del preview — alto contraste. */

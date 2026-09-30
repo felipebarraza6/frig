@@ -136,7 +136,8 @@ export default function PublicMenuPage({ slug: slugProp }: { slug?: string } = {
   const secondaryColor = catalog?.secondary_color ?? "#f2e8cf";
   const fontFamily = catalog?.font_family ?? "system";
 
-  const products = enrichedProducts ?? data?.products ?? [];
+  const baseProducts = enrichedProducts ?? data?.products;
+  const products = useMemo(() => baseProducts ?? [], [baseProducts]);
   const grouped = useMemo(() => groupByCategory(products), [products]);
   const [activeCategory, setActiveCategory] = useState<string>("__all__");
   const [cart, setCart] = useState<PublicCartLine[]>([]);

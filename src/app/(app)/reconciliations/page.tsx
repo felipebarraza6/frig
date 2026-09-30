@@ -442,20 +442,3 @@ function CreateReconciliationModal({ open, onClose, accounts, onSubmit, isPendin
   );
 }
 
-function StatCard({ label, value, icon: Icon, sub, tone = "slate" }: {
-  label: string; value: number; icon: React.ComponentType<{ className?: string }>; sub: string; tone?: "emerald" | "rose" | "amber" | "slate";
-}) {
-  const tones = { slate: "bg-background", emerald: "bg-success/[0.06] border-success/15", rose: "bg-danger/[0.06] border-danger/15", amber: "bg-amber-500/[0.06] border-amber-500/15" };
-  const icons = { slate: "bg-muted text-muted-foreground", emerald: "bg-success/15 text-success", rose: "bg-danger/15 text-danger", amber: "bg-amber-500/15 text-warning" };
-  return (
-    <div className={`rounded-2xl border border-border p-3 shadow-sm ${tones[tone]}`}>
-      <div className="mb-1.5 flex items-center gap-2">
-        <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${icons[tone]}`}><Icon className="h-3.5 w-3.5" /></div>
-        <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
-      </div>
-      <p className="text-lg font-semibold tabular-nums">{value}</p>
-      <p className="text-[11px] text-muted-foreground">{sub}</p>
-    </div>
-  );
-}
-

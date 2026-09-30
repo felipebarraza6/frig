@@ -60,7 +60,6 @@ import {
   type VariableType,
   type TelemetryDevice,
   type TelemetryVariable,
-  type TelemetryReading,
   type TelemetryProvider,
 } from "@/lib/api/iot";
 import { cn } from "@/lib/utils";
@@ -91,7 +90,7 @@ export default function IoTPage() {
   // Queries
   const {
     data: devices = [],
-    isLoading: loadingDevices,
+    isLoading: _loadingDevices,
     isError: errorDevices,
     refetch: refetchDevices,
   } = useQuery({

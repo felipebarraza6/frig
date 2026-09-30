@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { PageShell, PageBody } from "@/components/page-shell";
 import { Field } from "@/components/ui/field";

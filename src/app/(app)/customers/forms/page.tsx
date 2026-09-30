@@ -2,22 +2,20 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AnimatePresence, LazyMotion, domAnimation, m } from "framer-motion";
 import {
   ArrowLeft,
   ArrowRight,
   Calendar,
-  CheckCircle2,
+
   Copy,
   ClipboardList,
   Download,
-  ExternalLink,
+
   Eye,
   FileText,
   Globe,
   Hash,
   Image as ImageIcon,
-  Layers,
   Link2,
   List,
   ListChecks,
@@ -59,7 +57,7 @@ import {
   deleteExtraFieldGroup,
   fetchExtraFieldDefinitions,
   fetchExtraFieldGroups,
-  fieldTypeLabel,
+
   parseFieldOptions,
   updateExtraFieldDefinition,
   updateExtraFieldGroup,
@@ -228,8 +226,8 @@ export default function CustomerFormsPage() {
     enabled: canManage,
   });
 
-  const groups = groupsQuery.data ?? [];
-  const defs = defsQuery.data ?? [];
+  const groups = useMemo(() => groupsQuery.data ?? [], [groupsQuery.data]);
+  const defs = useMemo(() => defsQuery.data ?? [], [defsQuery.data]);
 
   const defsByGroup = useMemo(() => {
     const map = new Map<string, ExtraFieldDefinition[]>();
@@ -329,7 +327,7 @@ export default function CustomerFormsPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
   });
 
-  const renameGroup = useMutation({
+  const _renameGroup = useMutation({
     mutationFn: async (payload: { id: string; name: string; description: string }) => {
       const name = payload.name.trim();
       if (!name) throw new Error("Nombre obligatorio");
@@ -519,7 +517,7 @@ export default function CustomerFormsPage() {
     }
   }
 
-  const surveys = levantamientosQuery.data?.results ?? [];
+  const surveys = useMemo(() => levantamientosQuery.data?.results ?? [], [levantamientosQuery.data?.results]);
   const prefixFor = (group: ExtraFieldGroup) => `Levantamiento · ${group.name}`;
 
   const filteredGroups = useMemo(() => {
@@ -548,7 +546,7 @@ export default function CustomerFormsPage() {
     return <CrmDenied title="Fichas" icon={<FileText className="h-5 w-5" />} />;
   }
 
-  const matchedSurveyIds = new Set(
+  const _matchedSurveyIds = new Set(
     surveys
       .filter((survey) =>
         groups.some((group) => (survey.title ?? "").startsWith(prefixFor(group))),

@@ -121,7 +121,7 @@ function resolvePlans(config: LandingConfig | undefined): {
 
 /* Paleta del logo: cobre sobre negro neutro. Un solo acento. */
 const COPPER = "#c67d52";
-const COPPER_HOVER = "#d68c5f";
+const _COPPER_HOVER = "#d68c5f";
 
 const NAV_LINKS = [
   { href: "#novedades", label: "Novedades" },
@@ -163,16 +163,19 @@ function BrandMark({
 }) {
   if (brand.logo) {
     return (
-      <img
-        src={brand.logo}
-        alt={brand.name}
-        className={className}
-        style={
-          glow
-            ? { filter: `drop-shadow(0 0 14px ${brand.accent}73)` }
-            : undefined
-        }
-      />
+      <>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={brand.logo}
+          alt={brand.name}
+          className={className}
+          style={
+            glow
+              ? { filter: `drop-shadow(0 0 14px ${brand.accent}73)` }
+              : undefined
+          }
+        />
+      </>
     );
   }
   return (
@@ -226,7 +229,7 @@ function Nav({
       if (el) obs.observe(el);
     }
     return () => obs.disconnect();
-  }, []);
+  }, [links]);
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-[#0a0a0a]/85 backdrop-blur-md">
@@ -528,8 +531,6 @@ function Hero({
 
 function PricingSection({
   plans,
-  integrationUf,
-  pricingNote,
   unavailable,
   contactEmail,
   onPickPlan,
@@ -709,7 +710,7 @@ function ShowcaseSection() {
                 </div>
                 <div className="shrink-0">
                   <Link
-                    href={hero.href ?? "/salon-test"}
+                    href={hero.href ?? "/salon-demo"}
                     target="_blank"
                     rel="noreferrer"
                     className="btn-copper inline-flex items-center gap-2 rounded-lg px-6 py-3 text-sm font-semibold text-white"

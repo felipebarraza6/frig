@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -117,7 +117,7 @@ export default function ProspectsPage() {
     [listQuery.data?.results, statusFilter],
   );
 
-  const sources = sourcesQuery.data ?? [];
+  const sources = useMemo(() => sourcesQuery.data ?? [], [sourcesQuery.data]);
   const activeSources = useMemo(
     () => sources.filter((s) => s.is_active !== false),
     [sources],

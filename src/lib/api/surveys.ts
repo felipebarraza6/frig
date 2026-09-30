@@ -240,6 +240,24 @@ export function csatTemplateQuestions(): SurveyQuestion[] {
   ];
 }
 
+export function cesTemplateQuestions(): SurveyQuestion[] {
+  return [
+    {
+      id: "ces",
+      type: "rating",
+      label: "¿Qué tan fácil fue resolver lo que necesitabas? (1 = difícil, 5 = muy fácil)",
+      required: true,
+      max: 5,
+    },
+    {
+      id: "obstacle",
+      type: "text",
+      label: "¿Qué te lo hizo difícil? (opcional)",
+      required: false,
+    },
+  ];
+}
+
 export function customTemplateQuestions(): SurveyQuestion[] {
   return [
     {

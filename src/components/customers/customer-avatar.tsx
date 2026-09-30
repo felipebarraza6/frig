@@ -38,11 +38,14 @@ export function CustomerAvatar({
   const src = mediaUrl(photo);
   if (src) {
     return (
-      <img
-        src={src}
-        alt=""
-        className={cn("shrink-0 bg-muted object-cover", className)}
-      />
+      <>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={src}
+          alt=""
+          className={cn("shrink-0 bg-muted object-cover", className)}
+        />
+      </>
     );
   }
   return (

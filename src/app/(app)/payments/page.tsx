@@ -19,7 +19,6 @@ import {
   TrendingUp,
   TrendingDown,
   Plus,
-  Ban,
   FileDown,
   FileText,
   Loader2,
@@ -1194,9 +1193,7 @@ export default function PaymentsPage() {
                                 >
                                   <Pencil className="h-4 w-4" />
                                 </Button>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-danger" title="Cancelar pago (próximamente)" disabled>
-                                  <Ban className="h-4 w-4" />
-                                </Button>
+                                {/* Anulación de pago: esperar al backend (ver TODO de PURCHASE_ORDER/payment_source). */}
                               </>
                             )}
                           </div>

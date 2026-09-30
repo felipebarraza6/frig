@@ -484,14 +484,7 @@ export function TablesCanvas({
       const next = prev.filter((w) => salonCaps[w.kind]);
       return next.length === prev.length ? prev : next;
     });
-  }, [
-    salonCaps.kitchen,
-    salonCaps.inventory,
-    salonCaps.orders,
-    salonCaps.catalog,
-    salonCaps.deliveries,
-    salonCaps.cash,
-  ]);
+  }, [salonCaps]);
 
   const focusWindow = useCallback((id: string) => {
     zTick.current += 1;
@@ -1586,7 +1579,6 @@ function CornerAccent({
   x,
   z,
   primary,
-  phase,
   wallH,
   dark,
 }: {
@@ -1818,7 +1810,7 @@ function FloorExplore({
       el.removeEventListener("pointerup", onUp);
       el.removeEventListener("wheel", onWheel);
     };
-  }, [camera, controls, floorPlane, gl, hit, raycaster]);
+  }, [camera, controls, floorPlane, gl, hit, raycaster, skipUntilRef]);
 
   useFrame(() => {
     if (!walkTarget.current || !walkCam.current) return;
@@ -1934,7 +1926,6 @@ function TableMesh({
   canManage = false,
   ghost = false,
   fitScale = 1,
-  neighbors = [],
 }: {
   table: TableItem;
   mapX: number;

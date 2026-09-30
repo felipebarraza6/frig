@@ -8,7 +8,7 @@ import {
   Minus,
   Trash2,
   X,
-  Loader2,
+
   Banknote,
   ClipboardList,
   Store,
@@ -48,7 +48,6 @@ import { isValidRUT, isPositiveAmount, isNonNegativeNumber } from "@/lib/validat
 import type { YggdraSchemas } from "@/lib/api/types";
 
 type Product = ProductForSale;
-type TableItem = YggdraSchemas["Table"];
 type ClientOption = { id: number; name: string; email?: string | null; address?: string | null };
 
 type OrderDetail = YggdraSchemas["Order"] & {
@@ -114,7 +113,6 @@ export default function QuickSaleModal({
   orderType,
   existingOrderId,
   onClose,
-  onOpenFullPos,
 }: QuickSaleModalProps) {
   const toast = useToast();
   const queryClient = useQueryClient();

@@ -75,7 +75,7 @@ export function SearchableSelect({
         o.label.toLowerCase().includes(q) ||
         (o.description?.toLowerCase().includes(q) ?? false),
     );
-  }, [options, query, isAsync, value]);
+  }, [options, query, isAsync]);
 
   function setOpen(next: boolean) {
     if (next) {
