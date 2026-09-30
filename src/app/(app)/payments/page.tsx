@@ -23,6 +23,7 @@ import {
   FileText,
   Loader2,
   User,
+  Ban,
   ShoppingBag,
   Pencil,
   Check,
@@ -55,6 +56,7 @@ import {
   downloadPaymentVoucher,
   exportPaymentsExcel,
   processPayment,
+  voidPayment,
   type ProcessPaymentPayload,
   type YggdraPaymentList,
   type YggdraPaymentMethod,
@@ -66,6 +68,7 @@ import { fetchRevenues, type Revenue } from "@/lib/api/revenues";
 import { fetchPurchaseOrders, payPurchaseOrder, type PurchaseOrderList } from "@/lib/api/suppliers";
 import { fetchBranchFinanceConfigByBranch } from "@/lib/api/branch-finance-config";
 import { formatCLP, paymentTypeLabel } from "@/lib/utils";
+import { useIsOwner, useIsAdminLocal } from "@/lib/store/session";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
 import { generateExcelBlob } from "@/lib/export-excel";
 
@@ -75,12 +78,11 @@ const DIRECTION_OPTIONS = [
   { value: "EXPENSE", label: "Egresos" },
 ];
 
-// TODO: cuando el backend agregue PURCHASE_ORDER a payment_source,
-// separar "Orden de compra / Gasto" en dos opciones distintas.
 const SOURCE_OPTIONS = [
   { value: "", label: "Todos los orígenes" },
   { value: "ORDER", label: "Orden de venta" },
-  { value: "EXPENSE", label: "Orden de compra / Gasto" },
+  { value: "EXPENSE", label: "Gasto" },
+  { value: "PURCHASE_ORDER", label: "Orden de compra" },
   { value: "REVENUE", label: "Ingreso directo" },
   { value: "REFUND", label: "Reembolso" },
   { value: "OTHER", label: "Otro" },
@@ -332,7 +334,7 @@ export default function PaymentsPage() {
   const toast = useToast();
   // Filtros persistidos en localStorage para que sobrevivan recargas/navegación
   const [direction, setDirection] = usePersistedState("frig.payments.direction", "EXPENSE", ["", "INCOME", "EXPENSE"]);
-  const [source, setSource] = usePersistedState("frig.payments.source", "", ["", "ORDER", "EXPENSE", "REVENUE", "REFUND", "OTHER"]);
+  const [source, setSource] = usePersistedState("frig.payments.source", "", ["", "ORDER", "EXPENSE", "PURCHASE_ORDER", "REVENUE", "REFUND", "OTHER"]);
   const [dateFrom, setDateFrom] = usePersistedState("frig.payments.dateFrom", "");
   const [dateTo, setDateTo] = usePersistedState("frig.payments.dateTo", "");
   const [search, setSearch] = usePersistedState("frig.payments.search", "");
@@ -371,6 +373,10 @@ export default function PaymentsPage() {
   const [payingId, setPayingId] = useState<string | null>(null);
   const [detailPayment, setDetailPayment] = useState<YggdraPaymentList | null>(null);
   const [editingPayment, setEditingPayment] = useState<YggdraPaymentList | null>(null);
+  const [voidingPayment, setVoidingPayment] = useState<YggdraPaymentList | null>(null);
+  const isOwner = useIsOwner();
+  const isAdminLocal = useIsAdminLocal();
+  const canVoidPayments = isOwner || isAdminLocal;
 
   const queryClient = useQueryClient();
 
@@ -575,6 +581,22 @@ export default function PaymentsPage() {
   // - installment → pago de una cuota puntual de una orden (payInstallment,
   //   el mismo flujo que usa Ventas; marca la cuota como pagada).
   // - order / revenue / expense → pago unificado estándar.
+  const voidMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) => voidPayment(id, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payments"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["revenues"] });
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-register"] });
+      setVoidingPayment(null);
+      toast.success("Pago anulado y efectos revertidos");
+    },
+    onError: (err) =>
+      toast.error(err instanceof Error ? err.message : "No se pudo anular el pago"),
+  });
+
   const createMutation = useMutation({
     mutationFn: (payload: SubmitPaymentPayload): Promise<unknown> => {
       if (payload.kind === "purchase_order") {
@@ -1193,7 +1215,19 @@ export default function PaymentsPage() {
                                 >
                                   <Pencil className="h-4 w-4" />
                                 </Button>
-                                {/* Anulación de pago: esperar al backend (ver TODO de PURCHASE_ORDER/payment_source). */}
+                                {canVoidPayments && p.payment_source !== "REFUND" && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-muted-foreground hover:text-danger"
+                                    onClick={() => setVoidingPayment(p)}
+                                    title="Anular pago y revertir efectos"
+                                  >
+                                    <Ban className="h-4 w-4" />
+                                  </Button>
+                                )}
+
+
                               </>
                             )}
                           </div>
@@ -1333,6 +1367,45 @@ export default function PaymentsPage() {
         </>
         )}
       </div>
+
+      {/* Confirmación de anulación */}
+      {voidingPayment && (
+        <AnimatedOverlay
+          open
+          onClose={() => setVoidingPayment(null)}
+          zIndex="z-[80]"
+          panelClassName="flex items-center justify-center p-4"
+        >
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-background p-6 text-center shadow-xl">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
+              <Ban className="h-6 w-6" />
+            </div>
+            <h3 className="mt-4 text-base font-semibold">¿Anular este pago?</h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Se revierten sus efectos: el monto sale de la caja, el revenue/orden
+              asociado vuelve a pendiente y la orden de compra descuenta lo pagado.
+              Queda registrado con tu usuario y el motivo.
+            </p>
+            <p className="mt-2 text-xs font-medium text-foreground">
+              {formatCLP(Number(voidingPayment.amount) || 0)} · {voidingPayment.payment_method_name || "método"}
+            </p>
+            <div className="mt-5 flex justify-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setVoidingPayment(null)}>
+                Cancelar
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                disabled={voidMutation.isPending}
+                isLoading={voidMutation.isPending}
+                onClick={() => voidMutation.mutate({ id: voidingPayment.id })}
+              >
+                Sí, anular pago
+              </Button>
+            </div>
+          </div>
+        </AnimatedOverlay>
+      )}
 
       {/* Payment Detail Modal */}
       <PaymentDetailModal

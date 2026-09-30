@@ -96,6 +96,18 @@ export async function createPayment(
   });
 }
 
+/** Anula un pago (OWNER/ADMIN_LOCAL) y revierte sus efectos: revenue, orden,
+ * caja y ordenes de compra enlazadas. 409 si ya está anulado/reembolsado. */
+export async function voidPayment(
+  id: string,
+  reason?: string,
+): Promise<YggdraPayment> {
+  return apiFetch<YggdraPayment>(`/finance/payments/${id}/void/`, {
+    method: "POST",
+    body: { reason: reason ?? "" },
+  });
+}
+
 export async function fetchPayment(id: string): Promise<YggdraPayment> {
   return apiFetch<YggdraPayment>(`/finance/payments/${id}/`);
 }

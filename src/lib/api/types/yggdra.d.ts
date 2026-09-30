@@ -13130,6 +13130,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/finance/payments/{id}/void/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Anular un pago (OWNER/ADMIN_LOCAL) y revertir sus efectos. */
+        post: operations["finance_payments_void_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/finance/payments/by_direction/": {
         parameters: {
             query?: never;
@@ -57812,6 +57829,14 @@ export interface components {
             expense?: string | null;
             /** Format: uuid */
             expense_id?: string | null;
+            /**
+             * Orden de Compra
+             * Format: uuid
+             * @description Orden de compra pagada directamente con este pago (si aplica)
+             */
+            purchase_order?: string | null;
+            /** Format: uuid */
+            purchase_order_id?: string | null;
             /** Format: uuid */
             revenue_id?: string | null;
             /**
@@ -57843,12 +57868,13 @@ export interface components {
              *
              *     * `ORDER` - Orden de Venta
              *     * `EXPENSE` - Gasto
+             *     * `PURCHASE_ORDER` - Orden de Compra
              *     * `REVENUE` - Ingreso
              *     * `REFUND` - Reembolso
              *     * `OTHER` - Otro
              * @enum {string}
              */
-            payment_source?: "ORDER" | "EXPENSE" | "REVENUE" | "REFUND" | "OTHER";
+            payment_source?: "ORDER" | "EXPENSE" | "PURCHASE_ORDER" | "REVENUE" | "REFUND" | "OTHER";
             /**
              * Fecha de Pago
              * Format: date-time
@@ -61720,6 +61746,13 @@ export interface components {
              * @description Gasto asociado al pago (si aplica)
              */
             expense?: string | null;
+            /**
+             * Orden de Compra
+             * Format: uuid
+             * @description Orden de compra pagada directamente con este pago (si aplica)
+             */
+            purchase_order?: string | null;
+            readonly purchase_order_number: string;
             readonly revenue: components["schemas"]["Revenue"];
             /**
              * Monto
@@ -61769,12 +61802,13 @@ export interface components {
              *
              *     * `ORDER` - Orden de Venta
              *     * `EXPENSE` - Gasto
+             *     * `PURCHASE_ORDER` - Orden de Compra
              *     * `REVENUE` - Ingreso
              *     * `REFUND` - Reembolso
              *     * `OTHER` - Otro
              * @enum {string}
              */
-            payment_source: "ORDER" | "EXPENSE" | "REVENUE" | "REFUND" | "OTHER";
+            payment_source: "ORDER" | "EXPENSE" | "PURCHASE_ORDER" | "REVENUE" | "REFUND" | "OTHER";
             readonly payment_source_display: string;
             /**
              * Dirección del Pago
@@ -61819,6 +61853,12 @@ export interface components {
              * @description Archivo del comprobante (PDF, imagen, etc.). Si no se adjunta, se generará automáticamente desde los datos.
              */
             voucher_file?: string | null;
+            /** Format: date-time */
+            readonly voided_at: string;
+            /** Anulado por */
+            readonly voided_by: number | null;
+            readonly voided_by_username: string;
+            readonly void_reason: string;
             /**
              * Created at
              * Format: date-time
@@ -61842,6 +61882,8 @@ export interface components {
             expense_id?: string | null;
             /** Format: uuid */
             revenue_id?: string | null;
+            /** Format: uuid */
+            purchase_order_id?: string | null;
             /**
              * Monto
              * Format: double
@@ -61901,6 +61943,8 @@ export interface components {
             expense_id?: string | null;
             /** Format: uuid */
             revenue_id?: string | null;
+            /** Format: uuid */
+            purchase_order_id?: string | null;
             /**
              * Monto
              * Format: double
@@ -62078,12 +62122,13 @@ export interface components {
              *
              *     * `ORDER` - Orden de Venta
              *     * `EXPENSE` - Gasto
+             *     * `PURCHASE_ORDER` - Orden de Compra
              *     * `REVENUE` - Ingreso
              *     * `REFUND` - Reembolso
              *     * `OTHER` - Otro
              * @enum {string}
              */
-            payment_source: "ORDER" | "EXPENSE" | "REVENUE" | "REFUND" | "OTHER";
+            payment_source: "ORDER" | "EXPENSE" | "PURCHASE_ORDER" | "REVENUE" | "REFUND" | "OTHER";
             readonly payment_source_display: string;
             /**
              * Dirección del Pago
@@ -62369,6 +62414,14 @@ export interface components {
             expense?: string | null;
             /** Format: uuid */
             expense_id?: string | null;
+            /**
+             * Orden de Compra
+             * Format: uuid
+             * @description Orden de compra pagada directamente con este pago (si aplica)
+             */
+            purchase_order?: string | null;
+            /** Format: uuid */
+            purchase_order_id?: string | null;
             /** Format: uuid */
             revenue_id?: string | null;
             /**
@@ -62400,12 +62453,13 @@ export interface components {
              *
              *     * `ORDER` - Orden de Venta
              *     * `EXPENSE` - Gasto
+             *     * `PURCHASE_ORDER` - Orden de Compra
              *     * `REVENUE` - Ingreso
              *     * `REFUND` - Reembolso
              *     * `OTHER` - Otro
              * @enum {string}
              */
-            payment_source: "ORDER" | "EXPENSE" | "REVENUE" | "REFUND" | "OTHER";
+            payment_source: "ORDER" | "EXPENSE" | "PURCHASE_ORDER" | "REVENUE" | "REFUND" | "OTHER";
             /**
              * Fecha de Pago
              * Format: date-time
@@ -100139,11 +100193,12 @@ export interface operations {
                  *
                  *     * `ORDER` - Orden de Venta
                  *     * `EXPENSE` - Gasto
+                 *     * `PURCHASE_ORDER` - Orden de Compra
                  *     * `REVENUE` - Ingreso
                  *     * `REFUND` - Reembolso
                  *     * `OTHER` - Otro
                  */
-                payment_source?: "EXPENSE" | "ORDER" | "OTHER" | "REFUND" | "REVENUE";
+                payment_source?: "EXPENSE" | "ORDER" | "OTHER" | "PURCHASE_ORDER" | "REFUND" | "REVENUE";
                 /** @description Múltiples valores separados por comas. */
                 payment_source__in?: string[];
                 /** @description Un término de búsqueda. */
@@ -100429,6 +100484,37 @@ export interface operations {
         };
     };
     finance_payments_refund_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un Cadena UUID que identifique este Pago. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PaymentRequest"];
+                "multipart/form-data": components["schemas"]["PaymentRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Payment"];
+                    "*/*": components["schemas"]["Payment"];
+                };
+            };
+        };
+    };
+    finance_payments_void_create: {
         parameters: {
             query?: {
                 format?: "binary" | "json";
