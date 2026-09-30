@@ -83,7 +83,7 @@ export function UserForm({ user, onClose, onSuccess }: UserFormProps) {
   }, [
     isSuperAdmin,
     isEditing,
-    currentAssignment?.role_code,
+    currentAssignment,
     isPosModuleEnabled,
     isTablesModuleEnabled,
     isProductionModuleEnabled,
