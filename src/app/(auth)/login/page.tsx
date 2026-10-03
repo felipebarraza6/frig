@@ -17,7 +17,7 @@ import {
 } from "@/lib/api/branches";
 import type { BranchThemeConfig } from "@/lib/types";
 import { setToken } from "@/lib/api/session-storage";
-import { pickDefaultBranchId } from "@/lib/branch-session";
+import { pickDefaultBranchId, reconcileStoredBranch } from "@/lib/branch-session";
 import { cn } from "@/lib/utils";
 import { FRIG_IDENTITY_STYLE, FRIG_REPO_URL, setTenantFavicon } from "@/lib/frig-identity";
 import { FrigWordmarkMatrix } from "@/components/landing/frig-wordmark-matrix";
@@ -270,6 +270,9 @@ export default function LoginPage() {
       // Activa la sucursal por defecto (o la única) y entra directo: el cambio
       // de sucursal dentro de la app lo hace el switcher del sidebar.
       const target = pickDefaultBranchId(res.user, res.branches);
+      // Sucursal guardada de otra sesión/demo → fuera antes de cualquier request
+      // (el X-Branch-ID se lee de localStorage en cada apiFetch).
+      reconcileStoredBranch(res.user, res.branches, target);
       if (target) {
         try {
           const config = await fetchFrontendConfig(Number(target));

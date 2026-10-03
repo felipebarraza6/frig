@@ -183,7 +183,8 @@ export const FRIG_ALWAYS_ON_MODULES: ModuleName[] = [
   "payment_methods",
   "bank_accounts",
   "suppliers",
-  "recipes",
+  // `recipes` NO va aquí: en el backend es submódulo de `nutrition` (ver
+  // useIsRecipesEnabled); tratarlo como core ocultaba sus 403.
 ];
 
 /**

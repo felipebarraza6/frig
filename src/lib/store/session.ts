@@ -479,19 +479,33 @@ export function useIsSubmoduleEnabledFromConfig(
 }
 
 /**
- * True si el módulo/submódulo de recetas está habilitado.
- * Recipes es un módulo core en Frig: siempre está disponible.
+ * True si recetas está disponible en la sucursal.
+ *
+ * En el backend `recipes` es un submódulo opcional de la extensión
+ * `nutrition` (y lo usa `production`/KDS), no un módulo core: si la sucursal
+ * no tiene ninguno de los dos, la API responde 403 "módulo no habilitado".
+ * - Si el backend reporta `recipes` explícitamente, manda ese estado.
+ * - Si no, se infiere de `nutrition` o `production`.
  */
 export function useIsRecipesEnabled(): boolean {
-  // Recipes es un módulo core en Frig: siempre está disponible.
-  return true;
+  return useSessionStore((s) => isRecipesEnabledIn(s.modules));
 }
 
+export function isRecipesEnabledIn(
+  modules: Record<string, { is_enabled?: boolean } | undefined>,
+): boolean {
+  const recipes = modules["recipes"];
+  if (recipes) return recipes.is_enabled === true;
+  return (
+    modules["nutrition"]?.is_enabled === true ||
+    modules["production"]?.is_enabled === true
+  );
+}
 
 /**
  * True si el módulo de nutrición está habilitado.
  * El etiquetado nutricional y la página `/products/nutrition` dependen de este
- * módulo. Recetas e ingredientes están siempre disponibles.
+ * módulo (recetas e ingredientes son sus submódulos).
  *
  * Importante: si bien el módulo compuesto `nutrition` puede estar activo,
  * los submódulos `recipes` e `ingredients` también deben estar habilitados
