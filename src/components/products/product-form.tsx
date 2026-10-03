@@ -83,7 +83,11 @@ import {
 } from "@/lib/api/modifier-groups";
 import { useBranchProductTypes } from "@/lib/hooks/useBranchProductTypes";
 
-import { useIsNutritionEnabled, useIsModuleEnabledFromConfig } from "@/lib/store/session";
+import {
+  useIsNutritionEnabled,
+  useIsModuleEnabledFromConfig,
+  useIsRecipesEnabled,
+} from "@/lib/store/session";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 const RECIPE_TYPES = [
@@ -501,6 +505,9 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
 
   const { options: productTypeOptions, defaultType, isLoading: loadingProductTypes } = useBranchProductTypes();
   const nutritionEnabled = useIsNutritionEnabled();
+  // Recetas (submódulo de nutrition / usado por production): sin módulo, la
+  // API de recetas responde 403.
+  const recipesEnabled = useIsRecipesEnabled();
   // El check "Público en menú QR" depende del módulo Menús y vitrinas
   // (public_catalog), igual que el tab Nutrición depende de `nutrition`.
   const publicCatalogEnabled = useIsModuleEnabledFromConfig("public_catalog");
@@ -891,7 +898,7 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
   } = useQuery({
     queryKey: ["recipes", "by-product", effectiveProduct?.id],
     queryFn: () => fetchRecipesByProduct(effectiveProduct!.id),
-    enabled: !!effectiveProduct && isCompound,
+    enabled: !!effectiveProduct && isCompound && recipesEnabled,
   });
 
   useEffect(() => {

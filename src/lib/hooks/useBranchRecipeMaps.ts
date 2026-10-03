@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useCurrentBranch } from "@/lib/store/session";
+import { useCurrentBranch, useIsRecipesEnabled } from "@/lib/store/session";
 import {
   fetchBranchRecipes,
   fetchBranchRecipeIngredients,
@@ -15,11 +15,13 @@ export interface BranchRecipeMaps {
 
 export function useBranchRecipeMaps(enabled = true): BranchRecipeMaps {
   const branch = useCurrentBranch();
+  // Sin recetas habilitadas (nutrition/production) la API responde 403.
+  const recipesEnabled = useIsRecipesEnabled();
 
   const { data: branchRecipes = [], isLoading: loadingRecipes } = useQuery({
     queryKey: ["recipes", "branch", branch?.branch_id],
     queryFn: () => fetchBranchRecipes(),
-    enabled: !!branch?.branch_id && enabled,
+    enabled: !!branch?.branch_id && enabled && recipesEnabled,
     staleTime: 5 * 60_000,
   });
 
@@ -27,7 +29,7 @@ export function useBranchRecipeMaps(enabled = true): BranchRecipeMaps {
     useQuery({
       queryKey: ["recipe-ingredients", "branch", branch?.branch_id],
       queryFn: () => fetchBranchRecipeIngredients(),
-      enabled: !!branch?.branch_id && enabled,
+      enabled: !!branch?.branch_id && enabled && recipesEnabled,
       staleTime: 5 * 60_000,
     });
 

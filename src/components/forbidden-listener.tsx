@@ -1,11 +1,29 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/lib/api/client";
-import { useToast } from "@/lib/store/toast";
+import { toggleBranchModule, type ModuleName } from "@/lib/api/branch-modules";
+import { activateBranch } from "@/lib/branch-session";
+import { getModuleMetadata } from "@/lib/hooks/useModuleCatalog";
+import { useToast, useToastStore } from "@/lib/store/toast";
 import { FRIG_ALWAYS_ON_MODULES } from "@/lib/modules";
-import { useIsPosFirstRole } from "@/lib/store/session";
+import {
+  useIsOwner,
+  useIsPosFirstRole,
+  useIsSuperAdmin,
+  useSessionStore,
+} from "@/lib/store/session";
+
+/**
+ * Extrae el módulo de un 403 "módulo no habilitado" del backend:
+ * «El módulo 'nutrition' no está habilitado para esta sucursal.»
+ */
+export function parseDisabledModule(message: string): string | null {
+  const match = /m[oó]dulo\s+['"«]?([a-z_]+)['"»]?\s+no est[aá] habilitado/i.exec(message);
+  return match ? match[1].toLowerCase() : null;
+}
 
 /**
  * Escucha el evento global "api:forbidden" disparado por apiFetch cuando una
@@ -21,6 +39,15 @@ export function ForbiddenListener() {
   const pathname = usePathname();
   const toast = useToast();
   const isPosFirstRole = useIsPosFirstRole();
+  const isOwner = useIsOwner();
+  const isSuperAdmin = useIsSuperAdmin();
+  const canManageModules = isOwner || isSuperAdmin;
+  const currentBranchId = useSessionStore((s) => s.currentBranchId);
+  const addToast = useToastStore((s) => s.addToast);
+  const queryClient = useQueryClient();
+  // Un aviso por módulo y sucursal mientras dure la sesión en la app: varias
+  // peticiones paralelas/polling al mismo módulo no deben repetir el toast.
+  const noticedModulesRef = useRef<Set<string>>(new Set());
 
   // Regex compilada una sola vez con word-boundaries: evita que "sales"
   // matchee "salesperson" o "config" matchee "configuration".
@@ -52,6 +79,58 @@ export function ForbiddenListener() {
       const isSecondaryModule = /\b(tables|public_catalog|product_catalog|nutrition|catalogs)\b/i.test(
         rawMessage,
       );
+
+      // 403 "módulo no habilitado": un aviso por módulo con acción para
+      // activarlo. OWNER/superadmin lo activan aquí mismo (toggle + refresco de
+      // frontend-config); el resto recibe el aviso de pedirlo al dueño.
+      const disabledModule = parseDisabledModule(rawMessage);
+      if (disabledModule) {
+        if (isPosRoute && isSecondaryModule) return;
+        const noticeKey = `${currentBranchId ?? ""}:${disabledModule}`;
+        if (noticedModulesRef.current.has(noticeKey)) return;
+        noticedModulesRef.current.add(noticeKey);
+        const label = getModuleMetadata(disabledModule, {}).label;
+        const branchId = Number(currentBranchId);
+        const canEnableHere =
+          canManageModules && Number.isFinite(branchId) && branchId > 0;
+        addToast({
+          message: canEnableHere
+            ? `El módulo «${label}» no está habilitado en esta sucursal.`
+            : `El módulo «${label}» no está habilitado. Pide al dueño de la sucursal que lo active.`,
+          variant: "warning",
+          duration: 8000,
+          ...(canEnableHere
+            ? {
+                action: {
+                  label: "Activar módulo",
+                  onClick: () => {
+                    void (async () => {
+                      try {
+                        await toggleBranchModule({
+                          branchId,
+                          moduleName: disabledModule as ModuleName,
+                          isEnabled: true,
+                        });
+                        await activateBranch(String(branchId), queryClient);
+                        noticedModulesRef.current.delete(noticeKey);
+                        toast.success(`Módulo «${label}» activado.`);
+                      } catch (err) {
+                        toast.error(
+                          err instanceof Error
+                            ? err.message
+                            : "No se pudo activar el módulo.",
+                        );
+                      }
+                    })();
+                  },
+                },
+              }
+            : {}),
+        });
+        // Sin redirección: el usuario puede activarlo y seguir donde estaba.
+        return;
+      }
+
       // Errores de "módulo no habilitado para esta sucursal": la UI ya oculta
       // esas secciones y el 403 suele venir de peticiones secundarias/paralelas
       // (no de una acción del usuario). Mostrar el toast rompe la experiencia.
@@ -74,7 +153,17 @@ export function ForbiddenListener() {
 
     window.addEventListener("api:forbidden", handleForbidden);
     return () => window.removeEventListener("api:forbidden", handleForbidden);
-  }, [router, pathname, toast, isPosFirstRole, alwaysOnRegex]);
+  }, [
+    router,
+    pathname,
+    toast,
+    isPosFirstRole,
+    alwaysOnRegex,
+    canManageModules,
+    currentBranchId,
+    addToast,
+    queryClient,
+  ]);
 
   return null;
 }
