@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   Clock,
+  Download,
   FileText,
   Percent,
   Search,
@@ -30,6 +31,7 @@ import {
   saveTaxViewSelection,
   viewAmountWithTaxes,
 } from "@/lib/tax-view";
+import { downloadCsv } from "@/lib/export-csv";
 import { formatCLP, cn, orderTypeLabel } from "@/lib/utils";
 
 type Variant = "gastos" | "ingresos";
@@ -718,6 +720,55 @@ export function FinanceReportView({ variant }: { variant: Variant }) {
     setDetailKey(key);
   }
 
+  function exportFinanceCsv() {
+    const branchName = branch?.branch_name || branch?.business_name || "sucursal";
+    const prefix = variant === "gastos" ? "informe_gastos" : "informe_ingresos";
+    const rowsCsv: Array<Array<string | number | null | undefined>> = [
+      [cfg.titulo, start, end, branchName],
+      [],
+      ["Resumen", "Valor"],
+      ["Total", Math.round(kpis.total)],
+      [cfg.labelPaid, Math.round(kpis.paid)],
+      [cfg.labelPending, Math.round(kpis.pending)],
+      ["Registros", kpis.count],
+      ["% cobrado/pagado", kpis.pct],
+      [],
+      ["Por categoría", "Categoría", "Cantidad", "Total", cfg.labelPaid, cfg.labelPending],
+      ...categoryGroups.map((g) => [
+        g.key,
+        g.count,
+        Math.round(g.total),
+        Math.round(g.paid),
+        Math.round(g.pending),
+      ]),
+      [],
+      [
+        "Detalle",
+        "Nombre",
+        "Categoría",
+        "Contraparte",
+        "Fecha",
+        "Total",
+        cfg.labelPaid,
+        cfg.labelPending,
+        "Estado",
+        "Orden",
+      ],
+      ...rows.map((r) => [
+        cfg.nombre(r),
+        r.category_name ?? "Sin categoría",
+        cfg.contraparte(r),
+        r.revenue_date || r.start_date || r.received_date || "",
+        Math.round(cfg.monto(r)),
+        Math.round(cfg.pagado(r)),
+        Math.round(cfg.pendiente(r)),
+        payStatus(r, variant).label,
+        r.order_number ?? "",
+      ]),
+    ];
+    downloadCsv(`${prefix}_${start}_${end}.csv`, [], rowsCsv);
+  }
+
   return (
     <div className="mx-auto flex min-h-full w-full min-w-0 max-w-7xl flex-col">
       <PageHeader
@@ -727,6 +778,15 @@ export function FinanceReportView({ variant }: { variant: Variant }) {
         className="sticky top-0 z-20 glass-strong border-b"
         actions={
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={exportFinanceCsv}
+              disabled={isLoading || rows.length === 0}
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border px-3 text-xs font-medium transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Exportar CSV
+            </button>
             <div
               role="tablist"
               aria-label="Secciones del informe"

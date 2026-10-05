@@ -249,7 +249,7 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
     icon: "BarChart3",
     items: [
       { href: "/reports/nutrition", label: "Nutricional", icon: "Apple", module: "nutrition", description: "Productos compuestos, insumos y cálculo nutricional" },
-      { href: "/reports/sales", label: "Ventas", icon: "TrendingUp", module: null, description: "Informe de ventas por cliente, tipo y día" },
+      { href: "/reports/sales", label: "Ventas", icon: "TrendingUp", module: null, description: "Informe de ventas por cliente, tipo, día y hora" },
       { href: "/reports/revenues", label: "Ingresos", icon: "ArrowDownLeft", module: null, description: "Detalle de ingresos por categoría" },
       { href: "/reports/expenses", label: "Gastos", icon: "ArrowUpRight", module: null, description: "Detalle de gastos por categoría" },
       { href: "/reports/money", label: "Dinero", icon: "Wallet", module: null, description: "Flujo de caja completo: pagos, orígenes, ingresos y egresos" },

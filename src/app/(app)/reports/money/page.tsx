@@ -8,6 +8,7 @@ import {
   Banknote,
   Bitcoin,
   CreditCard,
+  Download,
   FileCheck,
   FileText,
   Landmark,
@@ -30,6 +31,7 @@ import { useCurrentBranch } from "@/lib/store/session";
 import { downloadPaymentVoucher, fetchPayments } from "@/lib/api/payments";
 import { fetchOrder, fetchOrders } from "@/lib/api/orders";
 import { fetchRevenue, fetchRevenues } from "@/lib/api/revenues";
+import { downloadCsv } from "@/lib/export-csv";
 import { formatCLP, cn, orderTypeLabel, paymentTypeLabel } from "@/lib/utils";
 
 type Payment = {
@@ -1160,6 +1162,72 @@ export default function MoneyReportPage() {
 
   const loading = loadingPayments || loadingIndex || loadingRevenues;
 
+  function exportMoneyCsv() {
+    const branchName = branch?.branch_name || branch?.business_name || "sucursal";
+    const rowsCsv: Array<Array<string | number | null | undefined>> = [
+      ["Informe de dinero", start, end, branchName],
+      [],
+      ["Resumen", "Valor"],
+      ["Recibido", Math.round(kpis.income)],
+      ["Pagado", Math.round(kpis.expense)],
+      ["Neto", Math.round(kpis.net)],
+      ["Comisiones", Math.round(kpis.fees)],
+      ["Transacciones", kpis.count],
+      [],
+      ["Por origen", "Origen", "Cantidad", "Recibido", "Pagado", "Neto"],
+      ...bySource.map((g) => [
+        g.key,
+        g.count,
+        Math.round(g.income),
+        Math.round(g.expense),
+        Math.round(g.net),
+      ]),
+      [],
+      ["Por método", "Método", "Cantidad", "Recibido", "Pagado", "Neto"],
+      ...byMethod.map((g) => [
+        g.key,
+        g.count,
+        Math.round(g.income),
+        Math.round(g.expense),
+        Math.round(g.net),
+      ]),
+      [],
+      ["Por cliente / contraparte", "Nombre", "Cantidad", "Recibido", "Pagado", "Neto"],
+      ...byClient.map((g) => [
+        g.key,
+        g.count,
+        Math.round(g.income),
+        Math.round(g.expense),
+        Math.round(g.net),
+      ]),
+      [],
+      [
+        "Transacciones",
+        "Fecha",
+        "Dirección",
+        "Origen",
+        "Método",
+        "Monto",
+        "Neto",
+        "Comisión",
+        "Referencia",
+        "Orden",
+      ],
+      ...rows.map((p) => [
+        p.payment_date,
+        p.payment_direction === "EXPENSE" ? "Egreso" : "Ingreso",
+        cashOriginLabel(p, clientIndex, revenueIndex),
+        p.payment_method_name || paymentTypeLabel(p.payment_method_type) || "—",
+        Math.round(num(p.amount)),
+        Math.round(num(p.net_amount)),
+        Math.round(num(p.processing_fee_amount)),
+        p.reference ?? "",
+        p.order_number ?? "",
+      ]),
+    ];
+    downloadCsv(`informe_dinero_${start}_${end}.csv`, [], rowsCsv);
+  }
+
   return (
     <div className="mx-auto flex min-h-full w-full min-w-0 max-w-7xl flex-col">
       <PageHeader
@@ -1169,6 +1237,15 @@ export default function MoneyReportPage() {
         className="sticky top-0 z-20 glass-strong border-b"
         actions={
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={exportMoneyCsv}
+              disabled={loading || rows.length === 0}
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border px-3 text-xs font-medium transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Exportar CSV
+            </button>
             <div
               role="tablist"
               aria-label="Secciones del informe"
