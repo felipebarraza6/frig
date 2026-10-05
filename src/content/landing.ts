@@ -10,7 +10,6 @@ import {
   Kanban,
   LayoutGrid,
   Leaf,
-  Monitor,
   QrCode,
   Rotate3d,
   ShieldCheck,
