@@ -871,10 +871,18 @@ export const HELP_GUIDES: HelpGuide[] = [
     href: "/reports/sales",
     sections: [
       {
-        heading: "Filtros",
+        heading: "Filtros y vistas",
         body: [
-          "Usa rango de fechas y presets del kit de informes.",
-          "Exporta CSV/Excel según la pantalla.",
+          "Elige el rango de fechas en el encabezado.",
+          "Resumen: KPIs, por hora, por día, día de la semana, top productos y pagos por medio.",
+          "Órdenes, Ventas y Clientes desglosan el detalle del período.",
+        ],
+      },
+      {
+        heading: "Exportar",
+        body: [
+          "Exportar CSV: resumen, horas, días, semana, productos, medios de pago, origen, clientes y órdenes.",
+          "Excel órdenes: descarga el archivo del servidor con el mismo rango de fechas.",
         ],
       },
     ],
@@ -920,6 +928,12 @@ export const HELP_GUIDES: HelpGuide[] = [
         body: [
           "Ingresos y Gastos detallan categorías.",
           "Dinero une pagos, orígenes, ingresos y egresos del período.",
+        ],
+      },
+      {
+        heading: "Exportar",
+        body: [
+          "En Dinero, Ingresos y Gastos: Exportar CSV con resumen, agrupaciones y detalle del período.",
         ],
       },
     ],

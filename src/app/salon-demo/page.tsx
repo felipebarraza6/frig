@@ -2,6 +2,8 @@
 
 import "./mock";
 import { useState } from "react";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { TablesCanvas } from "@/components/tables/tables-canvas";
 import type { YggdraSchemas } from "@/lib/api/types";
 import type { TableShape } from "@/components/tables/table-shape-icon";
@@ -46,12 +48,24 @@ export default function SalonDemoPage() {
   const [selected, setSelected] = useState<TableItem | null>(null);
 
   return (
-    <div className="flex h-screen flex-col p-3">
-      <p className="mb-2 shrink-0 rounded-xl border border-border bg-muted/40 px-3 py-2 text-center text-xs text-muted-foreground">
-        Demo interactiva del salón digital 3D — datos de ejemplo, sin conexión
-        a tu cuenta. Mové mesas, creá una nueva y seleccioná para ver el
-        detalle. El salón real vive en la app, en Mesas → Mapa 3D.
-      </p>
+    <div className="flex h-dvh flex-col gap-3 p-3 sm:p-4">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2.5 sm:px-4">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold tracking-tight text-white">
+            Demo del salón digital 3D
+          </p>
+          <p className="text-[11px] text-zinc-400">
+            Datos de ejemplo · mové mesas, creá una nueva y seleccioná el detalle
+          </p>
+        </div>
+        <Link
+          href="/"
+          className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-white/15 px-3 text-xs font-medium text-zinc-200 transition-colors hover:bg-white/10"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Volver a FRIG
+        </Link>
+      </header>
       <div className="min-h-0 flex-1">
         <TablesCanvas
           tables={tables}

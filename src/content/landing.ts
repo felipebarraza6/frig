@@ -192,65 +192,6 @@ export const LANDING_PLANS: LandingPlan[] = [
 
 export const LANDING_PRICING_NOTE = "Precios en UF. Plan demo sin costo.";
 
-// ── Novedades (showcase de lo nuevo) ─────────────────────────────────────────
-
-/**
- * Lo último de FRIG: tarjetas para la sección "Novedades" de la landing.
- * La primera (el salón 3D) enlaza a la demo interactiva pública.
- */
-export interface LandingShowcaseItem {
-  icon: LucideIcon;
-  title: string;
-  description: string;
-  /** Enlace opcional (demo, módulo) */
-  href?: string;
-  hrefLabel?: string;
-  /** Destacada: borde cobre y ancho doble en desktop. */
-  highlighted?: boolean;
-}
-
-export const LANDING_SHOWCASE: LandingShowcaseItem[] = [
-  {
-    icon: Rotate3d,
-    title: "Salón digital 3D",
-    description:
-      "Tu restaurante entero en 3D: mesas que responden al click, pantallas de cocina vivas en los muros, tótem de catálogo y recorrido en primera persona. Todo sin salir de la vista.",
-    href: "/salon-test",
-    hrefLabel: "Recorrer la demo 3D",
-    highlighted: true,
-  },
-  {
-    icon: ChartColumn,
-    title: "Informes de principio a fin",
-    description:
-      "Ventas, dinero, gastos e ingresos con KPIs, deltas por período y exportación a CSV.",
-  },
-  {
-    icon: Boxes,
-    title: "Bodegas en 3D",
-    description:
-      "Salas, casillas y stock visual: encuentra cualquier producto a golpe de vista.",
-  },
-  {
-    icon: Monitor,
-    title: "KDS que se lee desde la puerta",
-    description:
-      "Colores de estado por comanda, monitor del salón y panel de operaciones en vivo.",
-  },
-  {
-    icon: Leaf,
-    title: "Etiquetas nutricionales",
-    description:
-      "Desde la receta a la etiqueta normada, imprimible en un clic.",
-  },
-  {
-    icon: QrCode,
-    title: "Menú público + tótem",
-    description:
-      "Carta digital con carrito, vista de mesa y modo tótem para autoservicio.",
-  },
-];
-
 // ── Casos de uso (demos) ─────────────────────────────────────────────────────
 
 /**

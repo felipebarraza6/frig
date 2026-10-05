@@ -24,6 +24,8 @@ const dynamicRewrites = [
   ["^warehouses/\\d+/?$", "/warehouses/view.html"],
   ["^kds/station/(\\d+)/?$", "/kds/station.html?id=$1"],
   ["^reset-password/[^/]+/?$", "/reset-password/__.html"],
+  // Legacy: el salón 3D se renombró de /salon-test → /salon-demo
+  ["^salon-test/?$", "/salon-demo.html"],
 ];
 
 const dynamicRules = dynamicRewrites

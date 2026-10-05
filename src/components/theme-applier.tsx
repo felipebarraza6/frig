@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 import { useSessionStore } from "@/lib/store/session";
 import { applyThemeConfig, fetchBranchTheme } from "@/lib/api/branches";
 import { getToken } from "@/lib/api/session-storage";
@@ -44,6 +45,8 @@ function resolveEffectiveTheme(
  * Debe montarse una única vez, alto en el árbol, para evitar parpadeo de color.
  */
 export function ThemeApplier() {
+  const pathname = usePathname();
+  const isSalonDemo = Boolean(pathname?.startsWith("/salon-demo"));
   const theme = useSessionStore((s) => s.theme);
   const orgTheme = useSessionStore((s) => s.organizationTheme);
   const currentBranchId = useSessionStore((s) => s.currentBranchId);
@@ -64,6 +67,13 @@ export function ThemeApplier() {
 
   useEffect(() => {
     if (!hasHydrated) return;
+
+    // Demo pública del salón 3D: mantiene `.dark` (layout propio).
+    if (isSalonDemo) {
+      document.documentElement.classList.add("dark");
+      setFaviconHref(FRIG_SYMBOL);
+      return;
+    }
 
     // Localhost: identidad FRIG. El tema de sucursal no pinta la chrome.
     if (isLocalFrigHost()) {
@@ -146,7 +156,16 @@ export function ThemeApplier() {
     return () => {
       cancelled = true;
     };
-  }, [theme, orgTheme, effectiveTheme, currentBranchId, hasHydrated, setTheme, isSuperAdmin]);
+  }, [
+    theme,
+    orgTheme,
+    effectiveTheme,
+    currentBranchId,
+    hasHydrated,
+    setTheme,
+    isSuperAdmin,
+    isSalonDemo,
+  ]);
 
   return null;
 }

@@ -4,28 +4,55 @@ import { useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   CalendarDays,
+  Clock,
+  Download,
+  FileSpreadsheet,
   FileText,
   Layers,
   Loader2,
+  Package,
   Receipt,
   Store,
   Target,
   TrendingUp,
   Users,
+  Wallet,
 } from "lucide-react";
 import { motion, type Variants } from "framer-motion";
 import { PageHeader } from "@/components/page-header";
 import { previousWindow, DeltaChip, ReportTabPanels } from "@/components/reports/report-kit";
+import {
+  HourlyChart,
+  HourlyKpis,
+  WeekdayChart,
+} from "@/components/reports/hourly-performance";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Modal, ModalBody } from "@/components/ui/modal";
 import { useCurrentBranch } from "@/lib/store/session";
+import { fetchDashboardSummary } from "@/lib/api/analytics";
 import {
   downloadOrderA4Pdf,
+  exportOrdersFile,
   fetchOrders,
 } from "@/lib/api/orders";
+import {
+  buildHoursFromOrders,
+  fetchSalesByDay,
+  fetchSalesByHour,
+  hourInsights,
+  type SalesByDayRow,
+  type SalesByHourRow,
+} from "@/lib/api/sales-analytics";
+import { downloadCsv } from "@/lib/export-csv";
 import { useDownloadFile } from "@/lib/hooks/useDownloadFile";
-import { formatCLP, cn, orderStatusLabel, orderTypeLabel } from "@/lib/utils";
+import {
+  formatCLP,
+  cn,
+  orderStatusLabel,
+  orderTypeLabel,
+  paymentTypeLabel,
+} from "@/lib/utils";
 
 type OrderRow = {
   id: string;
@@ -755,7 +782,7 @@ function visualRatio(value: number, max: number): number {
 }
 
 /**
- * Barras CSS: valor siempre arriba, hover = zoom sutil, click = modal con detalle.
+ * Barras CSS: valor siempre arriba, hover = zoom sutil, click = modal con detalle por hora.
  */
 function DailyChart({
   daily,
@@ -791,6 +818,26 @@ function DailyChart({
   const { download: downloadPdf } = useDownloadFile();
   const selectedOrders = selectedDay ? (byDay.get(selectedDay) ?? []) : [];
   const selectedTotal = selectedOrders.reduce((s, o) => s + num(o.total_amount), 0);
+
+  const {
+    data: dayHoursRemote,
+    isLoading: dayHoursLoading,
+    isError: dayHoursError,
+  } = useQuery({
+    queryKey: ["sales-report", "by-hour", "day", selectedDay],
+    queryFn: () => fetchSalesByHour(selectedDay!, selectedDay!),
+    enabled: Boolean(selectedDay),
+    staleTime: 60_000,
+    retry: 1,
+  });
+
+  const dayHoursFallback = useMemo(
+    () => (selectedDay ? buildHoursFromOrders(selectedOrders) : []),
+    [selectedDay, selectedOrders],
+  );
+
+  const dayHours: SalesByHourRow[] =
+    dayHoursError || !dayHoursRemote ? dayHoursFallback : dayHoursRemote;
 
   async function handleDownloadA4(order: OrderRow) {
     setDownloadingId(order.id);
@@ -828,6 +875,9 @@ function DailyChart({
           <span className="text-muted-foreground">Mín</span>
           <span className="font-semibold tabular-nums">{formatCLP(minVal)}</span>
         </span>
+        <span className="text-[11px] text-muted-foreground">
+          Click en un día para ver el detalle por hora
+        </span>
       </div>
 
       <div className="flex items-end gap-1 overflow-x-auto pb-1 sm:gap-1.5">
@@ -848,7 +898,7 @@ function DailyChart({
               key={s.day}
               type="button"
               disabled={!interactive}
-              aria-label={`${fmtDayLabel(s.day)}: ${formatCLP(s.total)}, ${orderCount} orden${orderCount === 1 ? "" : "es"}, promedio ${formatCLP(avgPerOrder)} por orden. Abrir detalle.`}
+              aria-label={`${fmtDayLabel(s.day)}: ${formatCLP(s.total)}, ${orderCount} orden${orderCount === 1 ? "" : "es"}, promedio ${formatCLP(avgPerOrder)} por orden. Abrir detalle por hora.`}
               onClick={() => {
                 if (interactive) setSelectedDay(s.day);
               }}
@@ -892,7 +942,7 @@ function DailyChart({
       <Modal
         open={Boolean(selectedDay)}
         onClose={() => setSelectedDay(null)}
-        size="sm"
+        size="lg"
         title={selectedDay ? fmtDayLabel(selectedDay) : "Detalle del día"}
         description={
           selectedDay
@@ -900,51 +950,85 @@ function DailyChart({
             : undefined
         }
       >
-        <ModalBody className="pt-2">
-          {selectedOrders.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Sin órdenes este día.</p>
-          ) : (
-            <ul className="divide-y divide-border/60">
-              {selectedOrders.map((o) => {
-                const busy = downloadingId === o.id;
-                return (
-                  <li
-                    key={o.id}
-                    className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate font-mono text-[13px] font-medium">
-                        {o.order_number || `#${o.id.slice(0, 8)}`}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {orderTypeLabel(o.order_type)}
-                        <span className="mx-1.5 text-border">·</span>
-                        <span className="tabular-nums">{formatCLP(num(o.total_amount))}</span>
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleDownloadA4(o)}
-                      disabled={Boolean(downloadingId)}
-                      title="Descargar boleta A4"
-                      aria-label={`Descargar PDF A4 de ${o.order_number || o.id.slice(0, 8)}`}
-                      className={cn(
-                        "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-border px-2.5 text-xs font-medium transition-colors",
-                        "hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50",
-                      )}
+        <ModalBody className="flex min-h-0 flex-col gap-5 pt-2">
+          <div className="shrink-0 space-y-3">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-primary" strokeWidth={2} />
+              <h4 className="text-sm font-semibold tracking-tight">Detalle por hora</h4>
+            </div>
+            <HourlyKpis rows={dayHours} loading={dayHoursLoading && !dayHoursError} />
+            <HourlyChart
+              rows={dayHours}
+              loading={dayHoursLoading && !dayHoursError}
+              compact
+            />
+            {dayHoursError ? (
+              <p className="text-[11px] text-muted-foreground">
+                Horas calculadas desde las órdenes cargadas (el servidor no respondió).
+              </p>
+            ) : null}
+          </div>
+
+          <div className="min-h-0 border-t border-border/60 pt-4">
+            <p className="mb-2 text-xs font-medium text-muted-foreground">
+              Órdenes del día
+            </p>
+            {selectedOrders.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Sin órdenes este día.</p>
+            ) : (
+              <ul className="max-h-[min(40vh,18rem)] divide-y divide-border/60 overflow-y-auto">
+                {selectedOrders.map((o) => {
+                  const busy = downloadingId === o.id;
+                  return (
+                    <li
+                      key={o.id}
+                      className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
                     >
-                      {busy ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <FileText className="h-3.5 w-3.5" />
-                      )}
-                      PDF A4
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+                      <div className="min-w-0">
+                        <p className="truncate font-mono text-[13px] font-medium">
+                          {o.order_number || `#${o.id.slice(0, 8)}`}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {orderTypeLabel(o.order_type)}
+                          <span className="mx-1.5 text-border">·</span>
+                          <span className="tabular-nums">{formatCLP(num(o.total_amount))}</span>
+                          {o.date ? (
+                            <>
+                              <span className="mx-1.5 text-border">·</span>
+                              <span className="tabular-nums">
+                                {new Date(o.date).toLocaleTimeString("es-CL", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </span>
+                            </>
+                          ) : null}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadA4(o)}
+                        disabled={Boolean(downloadingId)}
+                        title="Descargar boleta A4"
+                        aria-label={`Descargar PDF A4 de ${o.order_number || o.id.slice(0, 8)}`}
+                        className={cn(
+                          "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-border px-2.5 text-xs font-medium transition-colors",
+                          "hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50",
+                        )}
+                      >
+                        {busy ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <FileText className="h-3.5 w-3.5" />
+                        )}
+                        PDF A4
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
         </ModalBody>
       </Modal>
     </div>
@@ -982,6 +1066,56 @@ export default function SalesReportPage() {
   });
 
   const rows = useMemo(() => orders ?? [], [orders]);
+  const singleDayRange = Boolean(start && end && start === end);
+
+  const {
+    data: periodHoursRemote,
+    isLoading: periodHoursLoading,
+    isError: periodHoursError,
+  } = useQuery({
+    queryKey: ["sales-report", "by-hour", start, end, branch?.branch_id],
+    queryFn: () => fetchSalesByHour(start || undefined, end || undefined),
+    enabled: Boolean(branch?.branch_id && start && end),
+    staleTime: 60_000,
+    retry: 1,
+  });
+
+  const periodHoursFallback = useMemo(
+    () => buildHoursFromOrders(rows),
+    [rows],
+  );
+
+  const periodHours: SalesByHourRow[] =
+    periodHoursError || !periodHoursRemote
+      ? periodHoursFallback
+      : periodHoursRemote;
+
+  const { data: summary, isLoading: summaryLoading } = useQuery({
+    queryKey: ["sales-report", "summary", start, end, branch?.branch_id],
+    queryFn: () =>
+      fetchDashboardSummary(start || undefined, end || undefined, branch?.branch_id),
+    enabled: Boolean(branch?.branch_id && start && end),
+    staleTime: 60_000,
+    retry: 1,
+  });
+
+  const {
+    data: weekdaysRemote,
+    isLoading: weekdaysLoading,
+    isError: weekdaysError,
+  } = useQuery({
+    queryKey: ["sales-report", "by-day", start, end, branch?.branch_id],
+    queryFn: () => fetchSalesByDay(start || undefined, end || undefined),
+    enabled: Boolean(branch?.branch_id && start && end),
+    staleTime: 60_000,
+    retry: 1,
+  });
+
+  const weekdays: SalesByDayRow[] = weekdaysRemote ?? [];
+
+  const [exportingExcel, setExportingExcel] = useState(false);
+  const { download: downloadExcel } = useDownloadFile();
+
   const orderOnlyRows = useMemo(
     () => rows.filter((o) => o.order_type === "ORDER"),
     [rows],
@@ -1050,7 +1184,18 @@ export default function SalesReportPage() {
   // Vuelta de comparación por KPI (solo si hay datos del período anterior).
   const hasBase = prevKpis.count > 0 || prevRows.length > 0;
 
+  /** Preferir serie del servidor (sin tope de paginación); fallback a órdenes. */
   const daily = useMemo(() => {
+    const series = summary?.time_series;
+    if (series && series.length > 0) {
+      return series
+        .map((d) => ({
+          day: String(d.date || "").slice(0, 10),
+          total: Number(d.sales) || 0,
+        }))
+        .filter((d) => d.day)
+        .sort((a, b) => a.day.localeCompare(b.day));
+    }
     const map = new Map<string, { day: string; total: number }>();
     for (const o of rows) {
       const d = (o.date || "").slice(0, 10);
@@ -1060,7 +1205,36 @@ export default function SalesReportPage() {
       map.set(d, g);
     }
     return Array.from(map.values()).sort((a, b) => a.day.localeCompare(b.day));
-  }, [rows]);
+  }, [rows, summary?.time_series]);
+
+  const topProducts = useMemo(() => {
+    const list = summary?.products?.best_selling ?? [];
+    return list.slice(0, 8).map((p) => ({
+      name: p.product__name || "Producto",
+      quantity: Number(p.quantity) || 0,
+      total: Number(p.total) || 0,
+    }));
+  }, [summary?.products?.best_selling]);
+
+  /** Medios de pago del summary (transversal ventas ↔ caja). */
+  const paymentsByType = useMemo(() => {
+    const list = summary?.payments ?? [];
+    return list
+      .map((p) => ({
+        name: paymentTypeLabel(p.type_payment__name) || p.type_payment__name || "—",
+        total: Number(p.total) || 0,
+      }))
+      .filter((p) => p.total > 0)
+      .sort((a, b) => b.total - a.total);
+  }, [summary?.payments]);
+
+  const canExportCsv =
+    rows.length > 0 ||
+    Boolean(summary?.sales) ||
+    periodHours.some((h) => (Number(h.order_count) || 0) > 0) ||
+    daily.length > 0 ||
+    topProducts.length > 0 ||
+    paymentsByType.length > 0;
 
   const byClient = useMemo(
     () => buildGroups(rows, (o) => o.client?.name ?? "Sin cliente"),
@@ -1070,6 +1244,140 @@ export default function SalesReportPage() {
     () => buildGroups(rows, (o) => orderTypeLabel(o.order_type)),
     [rows],
   );
+
+  const hourKpi = useMemo(() => hourInsights(periodHours), [periodHours]);
+
+  function exportSalesReportCsv() {
+    const branchName = branch?.branch_name || branch?.business_name || "sucursal";
+    const rowsCsv: Array<Array<string | number | null | undefined>> = [
+      ["Informe de ventas", start, end, branchName],
+      [],
+      ["Resumen", "Valor"],
+      ["Ventas (órdenes cargadas)", Math.round(kpis.total)],
+      ["Órdenes (cargadas)", kpis.count],
+      ["Ticket promedio", Math.round(kpis.avgPerOrder)],
+      ["Margen estimado", Math.round(kpis.margin)],
+      ["Clientes distintos", byClient.length],
+    ];
+    if (summary?.sales) {
+      rowsCsv.push(
+        ["Ventas (servidor)", Math.round(Number(summary.sales.total_amount) || 0)],
+        ["Cobrado (servidor)", Math.round(Number(summary.sales.paid_amount) || 0)],
+        ["Ganancia (servidor)", Math.round(Number(summary.sales.profit) || 0)],
+        ["Órdenes completadas (servidor)", summary.sales.completed?.count ?? ""],
+      );
+    }
+    rowsCsv.push(
+      [],
+      ["Rendimiento por hora", "Hora", "Ventas", "Órdenes"],
+      ...periodHours.map((h) => [
+        h.hour,
+        h.hour_24,
+        Math.round(Number(h.total_sales) || 0),
+        h.order_count,
+      ]),
+    );
+    if (hourKpi.peakSales) {
+      rowsCsv.push(
+        [],
+        ["KPI hora", "Valor"],
+        ["Hora más vendida", hourKpi.peakSales.hour],
+        ["Monto hora pico", Math.round(Number(hourKpi.peakSales.total_sales) || 0)],
+        ["Participación hora pico %", hourKpi.peakShare],
+        ["Horas con venta", hourKpi.activeHours],
+        ["Ticket hora pico", Math.round(hourKpi.peakTicket)],
+      );
+    }
+    rowsCsv.push(
+      [],
+      ["Ventas por día (calendario)", "Fecha", "Ventas"],
+      ...daily.map((d) => [d.day, Math.round(d.total)]),
+    );
+    if (weekdays.length > 0) {
+      rowsCsv.push(
+        [],
+        ["Por día de la semana", "Día", "Ventas", "Órdenes"],
+        ...weekdays.map((d) => [
+          d.day_name,
+          Math.round(Number(d.total_sales) || 0),
+          d.order_count,
+        ]),
+      );
+    }
+    if (topProducts.length > 0) {
+      rowsCsv.push(
+        [],
+        ["Top productos", "Producto", "Cantidad", "Total"],
+        ...topProducts.map((p) => [p.name, p.quantity, Math.round(p.total)]),
+      );
+    }
+    if (paymentsByType.length > 0) {
+      rowsCsv.push(
+        [],
+        ["Pagos por medio", "Medio", "Total"],
+        ...paymentsByType.map((p) => [p.name, Math.round(p.total)]),
+      );
+    }
+    rowsCsv.push(
+      [],
+      ["Por origen", "Tipo", "Órdenes", "Total", "Margen"],
+      ...byOrigen.map((g) => [g.key, g.count, Math.round(g.total), Math.round(g.margin)]),
+      [],
+      ["Por cliente", "Cliente", "Órdenes", "Total", "Margen"],
+      ...byClient.map((g) => [g.key, g.count, Math.round(g.total), Math.round(g.margin)]),
+    );
+    if (rows.length > 0) {
+      rowsCsv.push(
+        [],
+        [
+          "Órdenes",
+          "Número",
+          "Fecha",
+          "Tipo",
+          "Estado",
+          "Cliente",
+          "Total",
+          "Costo",
+          "Margen",
+        ],
+        ...rows.map((o) => {
+          const total = num(o.total_amount);
+          const cost = num(o.total_cost);
+          return [
+            o.order_number || o.id.slice(0, 8),
+            o.date,
+            orderTypeLabel(o.order_type),
+            orderStatusLabel(o.status),
+            o.client?.name ?? "Sin cliente",
+            Math.round(total),
+            Math.round(cost),
+            Math.round(total - cost),
+          ];
+        }),
+      );
+    }
+    downloadCsv(
+      `informe_ventas_${start}_${end}.csv`,
+      [],
+      rowsCsv,
+    );
+  }
+
+  async function exportSalesExcel() {
+    setExportingExcel(true);
+    try {
+      await downloadExcel(
+        () =>
+          exportOrdersFile({
+            start_date: start || undefined,
+            end_date: end || undefined,
+          }),
+        { filename: `ordenes_${start}_${end}.xlsx` },
+      );
+    } finally {
+      setExportingExcel(false);
+    }
+  }
 
   const clientDetailOrders = useMemo(() => {
     if (!clientDetail) return [];
@@ -1090,11 +1398,33 @@ export default function SalesReportPage() {
     <div className="relative mx-auto flex min-h-full w-full min-w-0 max-w-7xl flex-col">
       <PageHeader
         title="Informe de ventas"
-        subtitle="Analiza ventas del período: resumen, órdenes, ventas y clientes."
+        subtitle="Analiza ventas del período: por día, por hora, órdenes y clientes."
         icon={<TrendingUp className="h-5 w-5" />}
         className="sticky top-0 z-20 glass-strong border-b"
         actions={
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={exportSalesReportCsv}
+              disabled={isLoading || !canExportCsv}
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border px-3 text-xs font-medium transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Exportar CSV
+            </button>
+            <button
+              type="button"
+              onClick={() => void exportSalesExcel()}
+              disabled={exportingExcel || !start || !end}
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border px-3 text-xs font-medium transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {exportingExcel ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="h-3.5 w-3.5" />
+              )}
+              Excel órdenes
+            </button>
             <div
               role="tablist"
               aria-label="Secciones del informe"
@@ -1208,18 +1538,167 @@ export default function SalesReportPage() {
               </motion.div>
             </motion.div>
 
-            <section>
+            {summary?.sales ? (
+              <motion.div
+                variants={container}
+                initial="hidden"
+                animate="show"
+                className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"
+              >
+                <motion.div variants={item}>
+                  <KpiTile
+                    icon={Wallet}
+                    label="Cobrado"
+                    value={formatCLP(Number(summary.sales.paid_amount) || 0)}
+                    hint="Montos marcados como pagados (servidor)"
+                    tone="success"
+                  />
+                </motion.div>
+                <motion.div variants={item}>
+                  <KpiTile
+                    icon={TrendingUp}
+                    label="Ganancia"
+                    value={formatCLP(Number(summary.sales.profit) || 0)}
+                    hint="Utilidad agregada del servidor en el período"
+                    tone="primary"
+                  />
+                </motion.div>
+                <motion.div variants={item}>
+                  <KpiTile
+                    icon={Receipt}
+                    label="Completadas"
+                    value={String(summary.sales.completed?.count ?? 0)}
+                    hint={`Total ${formatCLP(Number(summary.sales.completed?.total_amount) || 0)} en órdenes completadas`}
+                    tone="warning"
+                  />
+                </motion.div>
+              </motion.div>
+            ) : summaryLoading ? (
+              <div className="grid gap-3 sm:grid-cols-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Skeleton key={i} className="h-24 rounded-2xl" />
+                ))}
+              </div>
+            ) : null}
+
+            <section className="flex flex-col gap-4">
               <SectionHeading
-                title="Ventas por día"
-                hint={`${daily.length} día${daily.length === 1 ? "" : "s"}`}
-                icon={CalendarDays}
+                title="Rendimiento por hora"
+                hint={
+                  singleDayRange
+                    ? "Detalle del día elegido"
+                    : "Patrón horario del período"
+                }
+                icon={Clock}
               />
-              {daily.length === 0 ? (
-                <EmptyState message="Sin ventas en el período." />
-              ) : (
-                <DailyChart daily={daily} orders={rows} />
-              )}
+              <HourlyKpis
+                rows={periodHours}
+                loading={periodHoursLoading && !periodHoursError && rows.length === 0}
+              />
+              <HourlyChart
+                rows={periodHours}
+                loading={periodHoursLoading && !periodHoursError && rows.length === 0}
+              />
+              {periodHoursError ? (
+                <p className="text-[11px] text-muted-foreground">
+                  Horas calculadas desde las órdenes cargadas (el servidor no respondió).
+                </p>
+              ) : null}
             </section>
+
+            {!singleDayRange ? (
+              <section>
+                <SectionHeading
+                  title="Ventas por día"
+                  hint={`${daily.length} día${daily.length === 1 ? "" : "s"} · click para ver por hora${summary?.time_series?.length ? " · serie servidor" : ""}`}
+                  icon={CalendarDays}
+                />
+                {daily.length === 0 ? (
+                  <EmptyState message="Sin ventas en el período." />
+                ) : (
+                  <DailyChart daily={daily} orders={rows} />
+                )}
+              </section>
+            ) : null}
+
+            {!singleDayRange && !weekdaysError ? (
+              <section className="flex flex-col gap-4">
+                <SectionHeading
+                  title="Por día de la semana"
+                  hint="Patrón Dom–Sáb del período"
+                  icon={CalendarDays}
+                />
+                <WeekdayChart rows={weekdays} loading={weekdaysLoading} />
+              </section>
+            ) : null}
+
+            {topProducts.length > 0 || paymentsByType.length > 0 ? (
+              <div className="grid min-w-0 gap-6 lg:grid-cols-2">
+                {topProducts.length > 0 ? (
+                  <section>
+                    <SectionHeading
+                      title="Top productos"
+                      hint={`${topProducts.length} más vendidos · servidor`}
+                      icon={Package}
+                    />
+                    <ul className="grid gap-2">
+                      {topProducts.map((p, i) => (
+                        <li
+                          key={`${p.name}-${i}`}
+                          className="glass flex items-center justify-between gap-3 rounded-2xl px-4 py-3"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold tracking-tight">
+                              <span className="mr-2 tabular-nums text-muted-foreground">
+                                {String(i + 1).padStart(2, "0")}
+                              </span>
+                              {p.name}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {p.quantity} und.
+                            </p>
+                          </div>
+                          <p className="shrink-0 font-display text-sm font-semibold tabular-nums">
+                            {formatCLP(p.total)}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ) : null}
+                {paymentsByType.length > 0 ? (
+                  <section>
+                    <SectionHeading
+                      title="Pagos por medio"
+                      hint="Cobros de venta completados · por fecha de pago"
+                      icon={Wallet}
+                    />
+                    <ul className="grid gap-2">
+                      {paymentsByType.map((p, i) => {
+                        const all = paymentsByType.reduce((a, x) => a + x.total, 0);
+                        const pct = all > 0 ? Math.round((p.total / all) * 100) : 0;
+                        return (
+                          <li
+                            key={`${p.name}-${i}`}
+                            className="glass flex items-center justify-between gap-3 rounded-2xl px-4 py-3"
+                          >
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold tracking-tight">
+                                {p.name}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground">{pct}% del cobrado</p>
+                            </div>
+                            <p className="shrink-0 font-display text-sm font-semibold tabular-nums">
+                              {formatCLP(p.total)}
+                            </p>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </section>
+                ) : null}
+              </div>
+            ) : null}
 
             <div className="grid min-w-0 gap-6 lg:grid-cols-12 lg:gap-8">
               <section className="min-w-0 lg:col-span-8">
