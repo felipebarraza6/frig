@@ -816,8 +816,14 @@ function DailyChart({
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const { download: downloadPdf } = useDownloadFile();
-  const selectedOrders = selectedDay ? (byDay.get(selectedDay) ?? []) : [];
-  const selectedTotal = selectedOrders.reduce((s, o) => s + num(o.total_amount), 0);
+  const selectedOrders = useMemo(
+    () => (selectedDay ? (byDay.get(selectedDay) ?? []) : []),
+    [selectedDay, byDay],
+  );
+  const selectedTotal = useMemo(
+    () => selectedOrders.reduce((s, o) => s + num(o.total_amount), 0),
+    [selectedOrders],
+  );
 
   const {
     data: dayHoursRemote,
