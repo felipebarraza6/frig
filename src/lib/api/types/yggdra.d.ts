@@ -875,6 +875,26 @@ export interface paths {
         patch: operations["ai_agents_agents_partial_update"];
         trace?: never;
     };
+    "/api/ai-agents/agents/{id}/app-access/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Prestar o quitar las tools de la app a un agente
+         * @description Suma o quita buscar/describir/llamar. No cambia el prompt.
+         */
+        post: operations["ai_agents_agents_app_access_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ai-agents/agents/{id}/skill-config/{skill_id}/": {
         parameters: {
             query?: never;
@@ -1009,6 +1029,26 @@ export interface paths {
         get: operations["ai_agents_agents_default_retrieve"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai-agents/agents/ensure-operator/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Crear o actualizar el operador de sucursal
+         * @description Alta idempotente del operador. No corre en el provisioning.
+         */
+        post: operations["ai_agents_agents_ensure_operator_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -20445,6 +20485,8 @@ export interface paths {
          *     Query params:
          *     - date_from: Fecha inicio (YYYY-MM-DD)
          *     - date_to: Fecha fin (YYYY-MM-DD)
+         *
+         *     El día de la semana usa TIME_ZONE (America/Santiago), no UTC.
          */
         get: operations["sales_analytics_by_day_retrieve"];
         put?: never;
@@ -20469,6 +20511,8 @@ export interface paths {
          *     Query params:
          *     - date_from: Fecha inicio (YYYY-MM-DD)
          *     - date_to: Fecha fin (YYYY-MM-DD)
+         *
+         *     Las horas usan TIME_ZONE (America/Santiago), no UTC.
          */
         get: operations["sales_analytics_by_hour_retrieve"];
         put?: never;
@@ -78038,6 +78082,37 @@ export interface operations {
             };
         };
     };
+    ai_agents_agents_app_access_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este Configuracion de Agente. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentConfigRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["AgentConfigRequest"];
+                "multipart/form-data": components["schemas"]["AgentConfigRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentConfig"];
+                    "*/*": components["schemas"]["AgentConfig"];
+                };
+            };
+        };
+    };
     ai_agents_agents_skill_config_retrieve: {
         parameters: {
             query?: {
@@ -78262,6 +78337,34 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentConfig"];
+                    "*/*": components["schemas"]["AgentConfig"];
+                };
+            };
+        };
+    };
+    ai_agents_agents_ensure_operator_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentConfigRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["AgentConfigRequest"];
+                "multipart/form-data": components["schemas"]["AgentConfigRequest"];
+            };
+        };
         responses: {
             200: {
                 headers: {
@@ -115212,6 +115315,13 @@ export interface operations {
             };
             /** @description No response body */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No response body */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

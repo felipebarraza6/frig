@@ -38,15 +38,42 @@ interface CheckoutModalProps {
 /** Máximo de intentos de polling (3 s c/u ≈ 4 min) antes de dar por perdido el pago. */
 const POLL_MAX_ATTEMPTS = 80;
 
+const PAYMENT_UNAVAILABLE =
+  "El pago en línea no está disponible en este momento. Intenta más tarde o escríbenos.";
+const NETWORK_ERROR =
+  "No pudimos conectar. Revisa tu conexión e intenta de nuevo.";
+
+function isUsablePaymentUrl(url: string | null | undefined): url is string {
+  return typeof url === "string" && url.length > 0;
+}
+
+function closePopup(win: Window | null) {
+  if (!win || win.closed) return;
+  try {
+    win.close();
+  } catch {
+    // El navegador puede negar close() si ya no controlamos la pestaña.
+  }
+}
+
+function checkoutErrorMessage(err: unknown): string {
+  if (err instanceof ApiError) {
+    const message = err.message.trim();
+    if (message && !/^Error \d+$/.test(message)) return message;
+    return err.status >= 500 ? PAYMENT_UNAVAILABLE : "Revisa los datos e intenta de nuevo";
+  }
+  return NETWORK_ERROR;
+}
+
 /**
  * Flujo de contratación: plan elegido → datos del negocio → pago → el sistema
  * envía un correo con el código de acceso.
  *
  * Tras crear la sesión (POST /public/{grupo}-checkout/) el modal se mantiene
  * abierto en estado "polling": la pasarela se abre en otra pestaña y aquí se
- * confirma el pago consultando el estado cada 3 s. Si el POST falla con error
- * de servidor, se cae a un mailto con todos los datos (la promesa del flujo
- * es el correo con el código).
+ * confirma el pago consultando el estado cada 3 s. Si no hay payment_url o el
+ * POST falla (4xx/5xx o red), se muestra el error en el modal para reintentar;
+ * el mailto queda como opción secundaria.
  */
 export function CheckoutModal({
   plan,
@@ -97,7 +124,7 @@ export function CheckoutModal({
       try {
         const s = await fetchCheckoutStatus(id, checkoutGroup);
         if (cancelled) return;
-        if (s.payment_url) setPaymentUrl(s.payment_url);
+        if (isUsablePaymentUrl(s.payment_url)) setPaymentUrl(s.payment_url);
         if (s.status === "PAID") {
           window.clearInterval(timer);
           window.sessionStorage.removeItem(storageKey);
@@ -144,44 +171,48 @@ export function CheckoutModal({
       website: website || undefined,
     };
 
+    // Capturar la pestaña en el gesto del usuario; tras el await el navegador
+    // bloquearía window.open. Si el checkout falla, la cerramos.
+    const popup = window.open("", "_blank");
+    // Equivalente a noopener: la pasarela no debe poder controlar esta pestaña.
+    if (popup) popup.opener = null;
+
     try {
       const res = existingBranchId
         ? await createChangePlanCheckout(existingBranchId, plan!.id)
         : await fetchCheckout(payload, checkoutGroup);
-      window.sessionStorage.setItem(storageKey, res.checkout_id);
 
-      if (!res.payment_url && res.status === "PAID") {
+      if (!isUsablePaymentUrl(res.payment_url) && res.status === "PAID") {
+        closePopup(popup);
+        window.sessionStorage.removeItem(storageKey);
         onPaid?.();
         setState("done");
         return;
       }
 
-      setPaymentUrl(res.payment_url);
-      setState("polling");
-      window.open(res.payment_url, "_blank", "noopener,noreferrer");
-      return;
-    } catch (e) {
-      if (
-        e instanceof ApiError &&
-        e.status >= 400 &&
-        e.status < 500 &&
-        e.status !== 429
-      ) {
-        setError(e.message || "Revisa los datos e intenta de nuevo");
+      if (!isUsablePaymentUrl(res.payment_url)) {
+        closePopup(popup);
+        window.sessionStorage.removeItem(storageKey);
+        setError(PAYMENT_UNAVAILABLE);
         setState("form");
         return;
       }
-      const body = [
-        `Plan: ${plan!.name} (${monthly})`,
-        `Negocio: ${payload.business_name}`,
-        `Contacto: ${payload.contact_name}`,
-        `Correo: ${payload.email}`,
-      ].join("\n");
-      window.location.href =
-        `mailto:${contactEmail}?subject=${encodeURIComponent(`Contratación FRIG — ${plan!.name}`)}` +
-        `&body=${encodeURIComponent(body)}`;
+
+      window.sessionStorage.setItem(storageKey, res.checkout_id);
+      setPaymentUrl(res.payment_url);
+      setState("polling");
+      if (popup && !popup.closed) {
+        popup.location.href = res.payment_url;
+      } else {
+        window.open(res.payment_url, "_blank", "noopener,noreferrer");
+      }
+      return;
+    } catch (e) {
+      closePopup(popup);
+      window.sessionStorage.removeItem(storageKey);
+      setError(checkoutErrorMessage(e));
+      setState("form");
     }
-    setState("done");
   }
 
   return (
@@ -206,7 +237,7 @@ export function CheckoutModal({
                 : "Completa el pago en la pasarela. La abrimos en otra pestaña; en cuanto se confirme, te mostramos tu código de acceso."}
             </p>
           </div>
-          {paymentUrl && (
+          {isUsablePaymentUrl(paymentUrl) && (
             <Button
               variant="outline"
               onClick={() =>
@@ -322,7 +353,26 @@ export function CheckoutModal({
             )}
 
             {error && (
-              <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>
+              <div className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
+                <p>{error}</p>
+                <a
+                  href={
+                    `mailto:${contactEmail}?subject=${encodeURIComponent(`Contratación FRIG — ${plan.name}`)}` +
+                    `&body=${encodeURIComponent(
+                      [
+                        `Plan: ${plan.name} (${monthly})`,
+                        `Negocio: ${business.trim()}`,
+                        `Contacto: ${contactName.trim()}`,
+                        `Correo: ${email.trim()}`,
+                      ].join("\n"),
+                    )}`
+                  }
+                  className="mt-1 inline-flex items-center gap-1 font-medium underline underline-offset-2"
+                >
+                  <Mail className="h-3.5 w-3.5" />
+                  Escríbenos
+                </a>
+              </div>
             )}
           </ModalBody>
 

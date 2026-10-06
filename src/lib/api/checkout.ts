@@ -11,13 +11,13 @@ export interface CheckoutRequest {
 
 export interface CheckoutResponse {
   checkout_id: string;
-  payment_url: string;
+  payment_url: string | null;
   status: string;
 }
 
 export interface CheckoutStatus {
   status: string;
-  payment_url?: string;
+  payment_url?: string | null;
 }
 
 export function checkoutPath(group = "frig"): string {
