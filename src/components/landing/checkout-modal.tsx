@@ -174,6 +174,8 @@ export function CheckoutModal({
     // Capturar la pestaña en el gesto del usuario; tras el await el navegador
     // bloquearía window.open. Si el checkout falla, la cerramos.
     const popup = window.open("", "_blank");
+    // Equivalente a noopener: la pasarela no debe poder controlar esta pestaña.
+    if (popup) popup.opener = null;
 
     try {
       const res = existingBranchId
