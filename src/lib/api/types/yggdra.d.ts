@@ -17971,6 +17971,126 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/p90/panel/comments/{comment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Borrar comentario (lógico) */
+        delete: operations["p90_panel_comments_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/p90/panel/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Configuración del panel semanal */
+        get: operations["p90_panel_config_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/p90/panel/participants/{client_id}/analysis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Alertas y análisis de la semana */
+        get: operations["p90_panel_participants_analysis_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/p90/panel/participants/{client_id}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Listar comentarios del alumno */
+        get: operations["p90_panel_participants_comments_retrieve"];
+        put?: never;
+        /** Crear comentario */
+        post: operations["p90_panel_participants_comments_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/p90/panel/participants/{client_id}/week": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ficha semanal de un alumno */
+        get: operations["p90_panel_participants_week_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/p90/panel/week": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Resumen y filas de una semana */
+        get: operations["p90_panel_week_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/p90/panel/weeks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Semanas disponibles del panel */
+        get: operations["p90_panel_weeks_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/plan-checkout/billing-status/": {
         parameters: {
             query?: never;
@@ -37720,6 +37840,20 @@ export interface components {
             notes?: string | null;
             items?: components["schemas"]["ComboItemWriteRequest"][];
         };
+        CommentCreate: {
+            text: string;
+            /** Format: date */
+            week_start?: string | null;
+            /** Format: uuid */
+            client_request_id?: string | null;
+        };
+        CommentCreateRequest: {
+            text: string;
+            /** Format: date */
+            week_start?: string | null;
+            /** Format: uuid */
+            client_request_id?: string | null;
+        };
         /** @description Serializer para giros comerciales. */
         CommercialBusiness: {
             readonly id: number;
@@ -51932,6 +52066,18 @@ export interface components {
              */
             previous?: string | null;
             results: components["schemas"]["WorkflowList"][];
+        };
+        PanelConfig: {
+            panel_enabled: boolean;
+            thresholds: {
+                [key: string]: unknown;
+            };
+            percent_decimals: number;
+            show_summary_cards: boolean;
+            show_email_in_table: boolean;
+            ai_summary_enabled: boolean;
+            can_comment: boolean;
+            comment_delete_policy: string;
         };
         /** @description Serializer para conexiones entre nodos. */
         PatchedAIAgentWorkflowEdgeRequest: {
@@ -112181,6 +112327,190 @@ export interface operations {
                     "application/json": components["schemas"]["DriverProfile"];
                     "*/*": components["schemas"]["DriverProfile"];
                 };
+            };
+        };
+    };
+    p90_panel_comments_destroy: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                comment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    p90_panel_config_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelConfig"];
+                    "*/*": components["schemas"]["PanelConfig"];
+                };
+            };
+        };
+    };
+    p90_panel_participants_analysis_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                client_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    p90_panel_participants_comments_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                client_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentCreate"];
+                    "*/*": components["schemas"]["CommentCreate"];
+                };
+            };
+        };
+    };
+    p90_panel_participants_comments_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                client_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommentCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["CommentCreateRequest"];
+                "multipart/form-data": components["schemas"]["CommentCreateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentCreate"];
+                    "*/*": components["schemas"]["CommentCreate"];
+                };
+            };
+        };
+    };
+    p90_panel_participants_week_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                client_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    p90_panel_week_retrieve: {
+        parameters: {
+            query?: {
+                filter?: string;
+                format?: "binary" | "json";
+                week_start?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    p90_panel_weeks_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

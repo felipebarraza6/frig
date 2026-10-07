@@ -205,9 +205,6 @@ export interface LandingUseCase {
   brandColor: string;
   /** Qué demuestra. */
   highlight: string;
-  /** Credenciales de acceso (misma clave para todas las demos). */
-  demoUser: string;
-  demoPassword: string;
 }
 
 export const LANDING_USE_CASES: LandingUseCase[] = [
@@ -217,8 +214,6 @@ export const LANDING_USE_CASES: LandingUseCase[] = [
     rubro: "Punto de venta",
     brandColor: "#f97316",
     highlight: "Cobro táctil en segundos",
-    demoUser: "pos@demo.yggdra.cl",
-    demoPassword: "Demo2026!",
   },
   {
     slug: "minimarket",
@@ -226,8 +221,6 @@ export const LANDING_USE_CASES: LandingUseCase[] = [
     rubro: "Minimarket",
     brandColor: "#16a34a",
     highlight: "Catálogo con código y stock",
-    demoUser: "minimarket@demo.yggdra.cl",
-    demoPassword: "Demo2026!",
   },
   {
     slug: "comida",
@@ -235,8 +228,6 @@ export const LANDING_USE_CASES: LandingUseCase[] = [
     rubro: "Comida rápida / takeaway",
     brandColor: "#dc2626",
     highlight: "Combos y modificadores al vuelo",
-    demoUser: "comida@demo.yggdra.cl",
-    demoPassword: "Demo2026!",
   },
   {
     slug: "bistro",
@@ -244,8 +235,6 @@ export const LANDING_USE_CASES: LandingUseCase[] = [
     rubro: "Restaurante mediano",
     brandColor: "#d4a017",
     highlight: "9 mesas con cuentas por mesa",
-    demoUser: "bistro@demo.yggdra.cl",
-    demoPassword: "Demo2026!",
   },
   {
     slug: "grande",
@@ -253,8 +242,6 @@ export const LANDING_USE_CASES: LandingUseCase[] = [
     rubro: "Restaurante grande",
     brandColor: "#1e3a8a",
     highlight: "18 mesas, cajero y garzones",
-    demoUser: "grande@demo.yggdra.cl",
-    demoPassword: "Demo2026!",
   },
   {
     slug: "heladeria",
@@ -262,8 +249,6 @@ export const LANDING_USE_CASES: LandingUseCase[] = [
     rubro: "Heladería artesanal",
     brandColor: "#d946ef",
     highlight: "Recetas y sabores por combinación",
-    demoUser: "heladeria@demo.yggdra.cl",
-    demoPassword: "Demo2026!",
   },
   {
     slug: "pub",
@@ -271,8 +256,6 @@ export const LANDING_USE_CASES: LandingUseCase[] = [
     rubro: "Pub / Bar",
     brandColor: "#8E44AD",
     highlight: "Tragos y tablas con ventas rápidas",
-    demoUser: "pub@demo.yggdra.cl",
-    demoPassword: "Demo2026!",
   },
   {
     slug: "cafeteria",
@@ -280,8 +263,6 @@ export const LANDING_USE_CASES: LandingUseCase[] = [
     rubro: "Cafetería / Pastelería",
     brandColor: "#E67E22",
     highlight: "Recetas que descuentan insumos",
-    demoUser: "cafeteria@demo.yggdra.cl",
-    demoPassword: "Demo2026!",
   },
   {
     slug: "gestion",
@@ -289,7 +270,5 @@ export const LANDING_USE_CASES: LandingUseCase[] = [
     rubro: "Gestión comercial",
     brandColor: "#2C3E50",
     highlight: "Solo finanzas: lo esencial de tu negocio",
-    demoUser: "gestion@demo.yggdra.cl",
-    demoPassword: "Demo2026!",
   },
 ];
