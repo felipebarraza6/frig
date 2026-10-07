@@ -714,8 +714,8 @@ function UseCases({ items, brand }: { items?: LandingUseCaseItem[]; brand: Landi
               Mira nuestras demos
             </h2>
             <p className="mt-4 text-sm leading-relaxed text-zinc-400">
-              Una demo operativa por cada rubro, con datos y flujos reales.
-              Accede libremente y evalúa {brand.name} en primera persona.
+              Una demo operativa por cada rubro. Entra al login del caso y
+              evalúa {brand.name} con las credenciales que te entreguen.
             </p>
           </div>
 

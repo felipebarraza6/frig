@@ -70,6 +70,9 @@ interface OptionDraft {
   id: number | null;
   name: string;
   surcharge: string;
+  product: string;
+  productLabel: string;
+  quantity: string;
   is_default: boolean;
   order: string;
   is_active: boolean;
@@ -116,6 +119,9 @@ function emptyOptionDraft(): OptionDraft {
     id: null,
     name: "",
     surcharge: "",
+    product: "",
+    productLabel: "",
+    quantity: "1",
     is_default: false,
     order: "0",
     is_active: true,
@@ -127,6 +133,12 @@ function optionToDraft(option: ModifierOption): OptionDraft {
     id: option.id,
     name: option.name,
     surcharge: option.surcharge != null ? String(option.surcharge) : "",
+    product: option.product != null ? String(option.product) : "",
+    productLabel:
+      typeof option.product_detail === "string" && option.product_detail
+        ? option.product_detail
+        : "",
+    quantity: option.quantity != null ? String(option.quantity) : "1",
     is_default: option.is_default ?? false,
     order: String(option.order ?? 0),
     is_active: option.is_active ?? true,
@@ -239,10 +251,13 @@ function OptionsEditor({ groupId }: { groupId: number }) {
       return;
     }
     const surchargeValue = draft.surcharge.trim();
+    const productId = draft.product.trim() ? Number(draft.product) : null;
     const payload: ModifierOptionWriteRequest = {
       group: groupId,
       name,
       surcharge: Number(surchargeValue || "0"),
+      product: productId && Number.isFinite(productId) ? productId : null,
+      quantity: Number(draft.quantity || "1") || 1,
       is_default: draft.is_default,
       order: Number(draft.order) || 0,
       is_active: draft.is_active,
@@ -304,11 +319,13 @@ function OptionsEditor({ groupId }: { groupId: number }) {
         </p>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
-          <table className="w-full min-w-[600px] text-sm">
+          <table className="w-full min-w-[780px] text-sm">
             <thead className="bg-background text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th className="px-3 py-2">Nombre</th>
                 <th className="px-3 py-2 text-right">Cargo adicional</th>
+                <th className="px-3 py-2">Materia prima</th>
+                <th className="px-3 py-2 text-right">Cant.</th>
                 <th className="px-3 py-2 text-center">Por defecto</th>
                 <th className="px-3 py-2 text-center">Orden</th>
                 <th className="px-3 py-2 text-center">Activo</th>
@@ -341,6 +358,16 @@ function OptionsEditor({ groupId }: { groupId: number }) {
                     <td className="px-3 py-2 font-medium">{option.name}</td>
                     <td className="px-3 py-2 text-right tabular-nums">
                       {formatCLP(option.surcharge ?? 0)}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-muted-foreground">
+                      {option.product
+                        ? (typeof option.product_detail === "string" && option.product_detail
+                            ? option.product_detail
+                            : `Producto #${option.product}`)
+                        : "—"}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                      {option.product ? (option.quantity ?? 1) : "—"}
                     </td>
                     <td className="px-3 py-2 text-center">
                       <span
@@ -436,6 +463,34 @@ interface OptionEditRowProps {
 }
 
 function OptionEditRow({ draft, onChange, onSave, onCancel, isSaving }: OptionEditRowProps) {
+  const [rawQuery, setRawQuery] = useState("");
+  const [debouncedRawQuery, setDebouncedRawQuery] = useState("");
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedRawQuery(rawQuery), 300);
+    return () => clearTimeout(t);
+  }, [rawQuery]);
+
+  const { data: rawMaterialsPage, isFetching: loadingRaw } = useQuery({
+    queryKey: ["products", "raw-materials", "modifiers", debouncedRawQuery],
+    queryFn: () =>
+      fetchProducts({
+        product_type: "RAW_MATERIAL",
+        is_active: true,
+        search: debouncedRawQuery || undefined,
+        page_size: 30,
+      }),
+  });
+
+  const rawOptions = useMemo(
+    () =>
+      (rawMaterialsPage?.results ?? []).map((p: { id: number; name: string; code?: string | null }) => ({
+        value: String(p.id),
+        label: p.code ? `${p.name} (${p.code})` : p.name,
+      })),
+    [rawMaterialsPage],
+  );
+
   return (
     <tr className="bg-muted/20">
       <td className="px-3 py-2">
@@ -457,6 +512,45 @@ function OptionEditRow({ draft, onChange, onSave, onCancel, isSaving }: OptionEd
           placeholder="0"
           className="h-8 text-sm tabular-nums"
           disabled={isSaving}
+        />
+      </td>
+      <td className="px-3 py-2 min-w-[180px]">
+        <SearchableSelect
+          options={rawOptions}
+          value={draft.product}
+          onChange={(value) => {
+            const opt = rawOptions.find((o) => o.value === value);
+            onChange({
+              ...draft,
+              product: value,
+              productLabel: opt?.label ?? draft.productLabel,
+            });
+          }}
+          onQueryChange={setRawQuery}
+          loading={loadingRaw}
+          clearable
+          selectedOption={
+            draft.product && draft.productLabel
+              ? { value: draft.product, label: draft.productLabel }
+              : null
+          }
+          placeholder="Materia prima…"
+          searchPlaceholder="Buscar materia prima…"
+          emptyMessage="Sin materias primas"
+          disabled={isSaving}
+          className="[&_button]:h-8 [&_button]:text-xs"
+        />
+      </td>
+      <td className="px-3 py-2">
+        <Input
+          type="number"
+          min={0}
+          step="0.001"
+          value={draft.quantity}
+          onChange={(e) => onChange({ ...draft, quantity: e.target.value })}
+          placeholder="1"
+          className="h-8 w-20 text-sm tabular-nums"
+          disabled={isSaving || !draft.product}
         />
       </td>
       <td className="px-3 py-2 text-center">
@@ -664,7 +758,7 @@ function GroupProducts({ groupId }: { groupId: number }) {
               options={availableOptions}
               value={selectedProductId}
               onChange={setSelectedProductId}
-              onQueryChange={setProductAssignQuery}
+              onQueryChange={setProductAssignQuery}
               loading={availableProductsLoading}
               placeholder="Buscar producto…"
               searchPlaceholder="Nombre o código…"

@@ -199,6 +199,7 @@ export default function PosPage() {
   const [selectedTableState, setSelectedTableState] = useState<TableItem | null | undefined>(undefined);
   const [showCashRegisterModal, setShowCashRegisterModal] = useState(false);
   const [cashRegisterAmount, setCashRegisterAmount] = useState("");
+  const [cashRegisterCloseNotes, setCashRegisterCloseNotes] = useState("");
   const [cashRegisterTab, setCashRegisterTab] = useState<"summary" | "movements">("summary");
   const [movementType, setMovementType] = useState<"CASH_IN" | "CASH_OUT">("CASH_IN");
   const [movementAmount, setMovementAmount] = useState("");
@@ -502,13 +503,16 @@ export default function PosPage() {
   const closeCashRegisterMutation = useMutation({
     mutationFn: () => {
       if (!currentCashRegister) throw new Error("No hay caja abierta");
+      const notes = cashRegisterCloseNotes.trim();
       return closeCashRegister(currentCashRegister.id, {
         closing_amount: Number(Number(cashRegisterAmount || "0").toFixed(2)),
+        ...(notes ? { notes } : {}),
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cash-register"] });
       setCashRegisterAmount("");
+      setCashRegisterCloseNotes("");
       setShowCashRegisterModal(false);
     },
     onError: (err: Error) => {
@@ -815,9 +819,11 @@ export default function PosPage() {
   }, [openAccountsPage, isWaiter, user, myTables, openAccountsQuery, tables]);
 
   const pendingDeliveriesBase = useMemo(() => {
-    // Mostramos todas las cuentas/órdenes pendientes o en progreso.
-    // El backend ya filtra por status__in=PENDING,IN_PROGRESS y order_type__in=SALE,ORDER.
-    return (pendingDeliveriesPage?.results ?? []) as Order[];
+    // El backend filtra por status PENDING/IN_PROGRESS. Tras entregar sin
+    // cobrar la orden sigue PENDING, así que excluimos las ya entregadas.
+    return ((pendingDeliveriesPage?.results ?? []) as Order[]).filter(
+      (o) => o.delivery_status !== "DELIVERED",
+    );
   }, [pendingDeliveriesPage]);
 
   const _pendingDeliveriesCount = useMemo(() => pendingDeliveriesBase.length, [pendingDeliveriesBase]);
@@ -1843,7 +1849,22 @@ export default function PosPage() {
                 </div>
               ) : (
                 <div className="flex flex-col gap-2">
-                  {(visibleOpenAccounts as Order[]).map((order) => (
+                  {(visibleOpenAccounts as Order[]).map((order) => {
+                    const orderProducts = (order.products ?? []).filter(
+                      (p) => p.is_active !== false,
+                    );
+                    const showTableChip =
+                      !!order.table &&
+                      !(
+                        selectedTable &&
+                        String(selectedTable.id) === String(order.table)
+                      );
+                    const itemsLabel = orderProducts
+                      .slice(0, 4)
+                      .map((p) => `${p.quantity ?? 1}× ${p.product_name}`)
+                      .join(" · ");
+                    const moreCount = Math.max(0, orderProducts.length - 4);
+                    return (
                     <div
                       key={order.id}
                       className="group flex flex-col gap-2 rounded-xl border border-border bg-background p-3 transition-colors hover:border-primary/30 hover:bg-background"
@@ -1855,12 +1876,18 @@ export default function PosPage() {
                           </p>
                           <p className="truncate text-xs text-muted-foreground">
                             {order.client?.name ?? "Sin cliente"}
-                            {order.table ? (
+                            {showTableChip ? (
                               <span className="ml-1 rounded bg-primary/10 px-1 py-0.5 text-[10px] font-medium text-primary">
                                 Mesa {tables.find((t) => t.id === order.table)?.number ?? order.table}
                               </span>
                             ) : null}
                           </p>
+                          {itemsLabel ? (
+                            <p className="mt-1 line-clamp-2 text-xs leading-snug text-foreground/80">
+                              {itemsLabel}
+                              {moreCount > 0 ? ` · +${moreCount}` : ""}
+                            </p>
+                          ) : null}
                         </div>
                         <span className="shrink-0 text-sm font-semibold tabular-nums">
                           {formatCLP(order.total_amount ?? "0")}
@@ -1917,7 +1944,8 @@ export default function PosPage() {
                         </div>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -2538,24 +2566,39 @@ export default function PosPage() {
                     className="h-11 text-base tabular-nums sm:h-10 sm:text-sm"
                     autoFocus
                   />
-                  {cashRegisterAmount && dailySummary?.expected_amount !== undefined && (
-                    <p className="mt-2 text-xs">
-                      Diferencia:{" "}
-                      <span
-                        className={cn(
-                          "font-medium tabular-nums",
-                          parseFloat(cashRegisterAmount || "0") - parseFloat(String(dailySummary.expected_amount)) === 0
-                            ? "text-emerald-600"
-                            : "text-amber-600"
+                  {cashRegisterAmount && dailySummary?.expected_amount !== undefined && (() => {
+                    const diff =
+                      parseFloat(cashRegisterAmount || "0") -
+                      parseFloat(String(dailySummary.expected_amount));
+                    return (
+                      <div className="mt-2 space-y-1.5">
+                        <p className="text-xs">
+                          Diferencia:{" "}
+                          <span
+                            className={cn(
+                              "font-medium tabular-nums",
+                              diff === 0 ? "text-emerald-600" : "text-amber-600",
+                            )}
+                          >
+                            {formatCLP(diff)}
+                          </span>
+                        </p>
+                        {diff !== 0 && (
+                          <>
+                            <p className="text-[11px] leading-snug text-muted-foreground">
+                              Puedes cerrar con diferencia. Queda registrada en el arqueo.
+                            </p>
+                            <Input
+                              value={cashRegisterCloseNotes}
+                              onChange={(e) => setCashRegisterCloseNotes(e.target.value)}
+                              placeholder="Nota de la diferencia (opcional)"
+                              className="h-9 text-xs"
+                            />
+                          </>
                         )}
-                      >
-                        {formatCLP(
-                          parseFloat(cashRegisterAmount || "0") -
-                            parseFloat(String(dailySummary.expected_amount))
-                        )}
-                      </span>
-                    </p>
-                  )}
+                      </div>
+                    );
+                  })()}
                 </div>
               </>
             )}
