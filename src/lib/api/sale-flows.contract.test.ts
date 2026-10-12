@@ -168,6 +168,41 @@ describe("contrato: caja abrir/cerrar", () => {
   });
 });
 
+describe("contrato: ingresos/retiros de caja (cualquier miembro)", () => {
+  it("POST /finance/cash-registers/{id}/cash_in/ con amount y reason", async () => {
+    apiFetch.mockResolvedValueOnce({ id: 1, movement_type: "CASH_IN" });
+    const { cashIn } = await import("./cash-register");
+    await cashIn(9, { amount: "1000", reason: "Vuelto" } as never);
+    const [path, opts] = apiFetch.mock.calls[0]!;
+    expect(path).toBe("/finance/cash-registers/9/cash_in/");
+    expect(opts.method).toBe("POST");
+    expect(opts.body).toMatchObject({ amount: "1000", reason: "Vuelto" });
+  });
+
+  it("POST /finance/cash-registers/{id}/cash_out/ con amount y reason", async () => {
+    apiFetch.mockResolvedValueOnce({ id: 2, movement_type: "CASH_OUT" });
+    const { cashOut } = await import("./cash-register");
+    await cashOut(9, { amount: "500", reason: "Retiro" } as never);
+    const [path, opts] = apiFetch.mock.calls[0]!;
+    expect(path).toBe("/finance/cash-registers/9/cash_out/");
+    expect(opts.method).toBe("POST");
+    expect(opts.body).toMatchObject({ amount: "500", reason: "Retiro" });
+  });
+
+  it("cualquier rol de la sucursal activa puede registrar; no miembro no", async () => {
+    const { canRegisterCashMovements } = await import("../store/session");
+    const user = (role: string) =>
+      ({ branch_assignments: [{ branch_id: 7, role_code: role }] }) as never;
+    for (const role of ["OWNER", "ADMIN_LOCAL", "MANAGER", "CAJERO", "MESERO"]) {
+      expect(canRegisterCashMovements(user(role), "7")).toBe(true);
+    }
+    expect(canRegisterCashMovements(user("CAJERO"), "8")).toBe(false);
+    expect(canRegisterCashMovements(user("CAJERO"), null)).toBe(false);
+    expect(canRegisterCashMovements(null, "7")).toBe(false);
+    expect(canRegisterCashMovements({ is_superuser: true } as never, null)).toBe(true);
+  });
+});
+
 describe("contrato: mesa / comanda", () => {
   it("POST /tables/tables/{id}/occupy/ con action occupy|free", async () => {
     apiFetch
