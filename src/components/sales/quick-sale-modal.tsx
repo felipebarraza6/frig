@@ -615,8 +615,12 @@ export default function QuickSaleModal({
           try {
             await occupyTable(table, { action: "occupy", order_id: order.id });
             queryClient.invalidateQueries({ queryKey: ["tables"] });
-          } catch {
-            // La mesa pudo quedar ocupada por otro proceso; no bloquea la venta.
+          } catch (err) {
+            toast.error(
+              err instanceof Error
+                ? `Pedido creado, pero no se pudo ocupar la mesa: ${err.message}`
+                : "Pedido creado, pero no se pudo ocupar la mesa. Asígnala desde Mesas.",
+            );
           }
         }
       }
