@@ -445,7 +445,10 @@ export function useCanViewTables(): boolean {
   const currentRole = useCurrentBranchRole();
   if (!user) return false;
   if (isUserAdminOrSuperuser(user)) return true;
-  return ["OWNER", "ADMIN_LOCAL", "MANAGER", "WAITER", "CAJERO"].includes(currentRole ?? "");
+  // MESERO es alias de WAITER en algunos seeds/backend; sin él el POS oculta mesas.
+  return ["OWNER", "ADMIN_LOCAL", "MANAGER", "WAITER", "MESERO", "CAJERO"].includes(
+    currentRole ?? "",
+  );
 }
 
 /** Menú filtrado devuelto por frontend-config. */

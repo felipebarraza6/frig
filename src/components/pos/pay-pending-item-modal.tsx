@@ -632,6 +632,11 @@ export default function PayPendingItemModal({
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       queryClient.invalidateQueries({ queryKey: ["pending-orders-for-pos"] });
       queryClient.invalidateQueries({ queryKey: ["all-pending-accounts-for-collect"] });
+      if (failed > 0) {
+        toast.error(
+          `Se cobraron ${success} cuenta(s), pero ${failed} fallaron. Revisa las pendientes.`,
+        );
+      }
       handleClose();
     } else if (failed > 0) {
       toast.error("No se pudo registrar ningún pago");

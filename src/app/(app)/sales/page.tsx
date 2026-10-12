@@ -1408,8 +1408,11 @@ export default function SalesPage() {
       resetAccountForm();
       // Abrir el registro rápido con la cuenta creada para agregar productos y cobrar.
       setQuickModal({ open: true, orderType: "SALE", existingOrderId: order.id });
-    } catch {
-      // ignore - error handled by api client
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "No se pudo abrir la cuenta";
+      setAccountError(message);
+      toast.error(message);
     } finally {
       setCreatingAccount(false);
     }
