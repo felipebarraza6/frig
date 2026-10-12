@@ -10,8 +10,9 @@ import { getModuleMetadata } from "@/lib/hooks/useModuleCatalog";
 import { useToast, useToastStore } from "@/lib/store/toast";
 import { FRIG_ALWAYS_ON_MODULES } from "@/lib/modules";
 import {
+  useIsAdminLocal,
+  useIsOperationalFloorRole,
   useIsOwner,
-  useIsPosFirstRole,
   useIsSuperAdmin,
   useSessionStore,
 } from "@/lib/store/session";
@@ -38,10 +39,12 @@ export function ForbiddenListener() {
   const router = useRouter();
   const pathname = usePathname();
   const toast = useToast();
-  const isPosFirstRole = useIsPosFirstRole();
+  const isOperationalFloor = useIsOperationalFloorRole();
   const isOwner = useIsOwner();
+  const isAdminLocal = useIsAdminLocal();
   const isSuperAdmin = useIsSuperAdmin();
-  const canManageModules = isOwner || isSuperAdmin;
+  // OWNER / ADMIN_LOCAL / superadmin pueden activar módulos desde el toast.
+  const canManageModules = isOwner || isAdminLocal || isSuperAdmin;
   const currentBranchId = useSessionStore((s) => s.currentBranchId);
   const addToast = useToastStore((s) => s.addToast);
   const queryClient = useQueryClient();
@@ -140,8 +143,9 @@ export function ForbiddenListener() {
       }
 
       // No redirigir si estamos en POS y el error es de un módulo secundario.
-      // Tampoco redirigir para roles operativos ni si ya estamos en /dashboard.
-      if (isPosFirstRole || pathname === "/dashboard") {
+      // Tampoco redirigir para roles de piso (cajero/mesero/cocinero) ni /dashboard:
+      // el layout los saca de /dashboard y provocaría ping-pong.
+      if (isOperationalFloor || pathname === "/dashboard") {
         return;
       }
       if (isPosRoute && isSecondaryModule) {
@@ -157,7 +161,7 @@ export function ForbiddenListener() {
     router,
     pathname,
     toast,
-    isPosFirstRole,
+    isOperationalFloor,
     alwaysOnRegex,
     canManageModules,
     currentBranchId,

@@ -14,6 +14,8 @@ import {
   Pin,
   PinOff,
   Settings2,
+  CreditCard,
+  LifeBuoy,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -34,8 +36,10 @@ import { BranchSwitcherModal } from "@/components/branch-switcher-modal";
 import { useFrigMenu } from "@/lib/hooks/useFrigMenu";
 import { useNavFavorites, MAX_NAV_FAVORITES } from "@/lib/store/nav-favorites";
 import { filterNavItemsByRole, type NavRoleFilter } from "@/lib/nav-access";
+import { useSubscriptionLock } from "@/lib/hooks/useSubscriptionLock";
 import { logout } from "@/lib/api/auth";
 import { logoutLocal } from "@/lib/logout-local";
+import { loginRedirectUrl } from "@/lib/login-slug";
 import { BrandLogo } from "@/components/brand-logo";
 import { useProductBrand } from "@/lib/product-name";
 
@@ -66,6 +70,7 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
   const waiterAllowedPaths = useWaiterAllowedPaths();
   const cookAllowedPaths = useCookAllowedPaths();
   const canManageCrm = useCanManageCustomers();
+  const { locked: subscriptionLocked } = useSubscriptionLock();
   const [editingQuickAccess, setEditingQuickAccess] = useState(false);
   const [branchPickerOpen, setBranchPickerOpen] = useState(false);
 
@@ -121,7 +126,7 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
       // ignora errores de red en logout
     }
     await logoutLocal(queryClient);
-    window.location.assign(window.location.origin + "/login");
+    window.location.assign(loginRedirectUrl(window.location.origin));
   }
 
   function handleDragEnd(_: unknown, info: PanInfo) {
@@ -144,16 +149,44 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
       .slice(0, QUICK_ACCESS_LIMIT);
   }, [allItems, favorites, roleFilter]);
 
-  const visibleGroups = useMemo(
-    () =>
-      menuGroups
-        .map((group) => ({
-          ...group,
-          items: filterNavItemsByRole(group.items, roleFilter),
-        }))
-        .filter((group) => group.items.length > 0),
-    [menuGroups, roleFilter]
-  );
+  const visibleGroups = useMemo(() => {
+    if (subscriptionLocked) {
+      return [
+        {
+          title: "Suscripción",
+          items: [
+            {
+              href: "/profile",
+              label: "Suscripción",
+              icon: CreditCard,
+              module: null as string | null,
+              description: "Activa el plan de la sucursal",
+            },
+            {
+              href: "/help",
+              label: "Documentación",
+              icon: LifeBuoy,
+              module: null as string | null,
+              description: "Guías y contrato API",
+            },
+            {
+              href: "/support",
+              label: "Soporte",
+              icon: LifeBuoy,
+              module: null as string | null,
+              description: "Casos, dudas e ideas al equipo",
+            },
+          ],
+        },
+      ];
+    }
+    return menuGroups
+      .map((group) => ({
+        ...group,
+        items: filterNavItemsByRole(group.items, roleFilter),
+      }))
+      .filter((group) => group.items.length > 0);
+  }, [menuGroups, roleFilter, subscriptionLocked]);
 
   const _displayName = branch ? branchName(branch) : appName;
 
@@ -368,8 +401,28 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
               )}
             </div>
 
-            {/* Footer fijo: perfil + acciones; no compite con el scroll. */}
+            {/* Footer fijo: soporte + perfil + acciones; no compite con el scroll. */}
             <div className="shrink-0 border-t border-border bg-background px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              <Link
+                href="/support"
+                prefetch
+                onClick={handleClose}
+                aria-label="Soporte / Enviar feedback"
+                className="mb-2 flex items-center gap-3 rounded-xl border border-primary/25 bg-primary/8 p-3 transition-colors hover:bg-primary/12 active:bg-primary/15"
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+                  <LifeBuoy className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-foreground">
+                    Soporte / Enviar feedback
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    Dudas, incidencias e ideas al equipo
+                  </p>
+                </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+              </Link>
               <Link
                 href="/profile"
                 prefetch

@@ -26537,6 +26537,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/support/tickets/submit/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Crear ticket self-service (FRIG / apps tenant)
+         * @description POST /api/support/tickets/submit/
+         *     Body: subject, description, category_code (duda|incidencia|reclamo|feedback|manual), priority.
+         *     Auth Token + X-Branch-ID. Auto-provisión de categoría y SLA en servidor (yggdra_infra #95).
+         */
+        post: operations["support_tickets_submit_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/support/tickets/sla_breached/": {
         parameters: {
             query?: never;
@@ -73674,6 +73696,35 @@ export interface components {
              * @description Fecha de modificacion.
              */
             readonly modified: string;
+        };
+        /**
+         * Body de POST /api/support/tickets/submit/ (yggdra_infra #95).
+         * category_code en minúsculas; el servidor auto-provisiona categoría + SLA.
+         */
+        TicketSubmitRequest: {
+            /** Asunto */
+            subject: string;
+            /** Descripción */
+            description: string;
+            /**
+             * Código de categoría
+             * @description * `duda` - Duda
+             *     * `incidencia` - Incidencia
+             *     * `reclamo` - Reclamo
+             *     * `feedback` - Feedback
+             *     * `manual` - Manual
+             * @enum {string}
+             */
+            category_code: "duda" | "incidencia" | "reclamo" | "feedback" | "manual";
+            /**
+             * Prioridad
+             * @description * `LOW` - Baja
+             *     * `MEDIUM` - Media
+             *     * `HIGH` - Alta
+             *     * `CRITICAL` - Crítica
+             * @enum {string}
+             */
+            priority: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
         };
         TicketListRequest: {
             /** Asunto */
@@ -129714,6 +129765,43 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["TicketList"];
                     "*/*": components["schemas"]["TicketList"];
+                };
+            };
+        };
+    };
+    support_tickets_submit_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TicketSubmitRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["TicketSubmitRequest"];
+                "multipart/form-data": components["schemas"]["TicketSubmitRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketCreateUpdate"];
+                    "*/*": components["schemas"]["TicketCreateUpdate"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketCreateUpdate"];
+                    "*/*": components["schemas"]["TicketCreateUpdate"];
                 };
             };
         };

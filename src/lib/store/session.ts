@@ -332,8 +332,9 @@ export function useCanManageCustomers(): boolean {
   return ["OWNER", "ADMIN_LOCAL", "MANAGER"].includes(currentRole ?? "");
 }
 
-/** True si el usuario debe llegar al POS primero (ADMIN_LOCAL / CAJERO / WAITER).
+/** True si el usuario debe llegar al POS primero (ADMIN_LOCAL / CAJERO / WAITER / MESERO).
  * OWNER y superadmin entran al dashboard por defecto, pero pueden navegar a POS.
+ * Incluye aliases MESERO (mesero) — usado también para no redirigir 403 a /dashboard.
  */
 export function useIsPosFirstRole(): boolean {
   const user = useSessionStore((s) => s.user);
@@ -341,7 +342,7 @@ export function useIsPosFirstRole(): boolean {
   const currentRole = useCurrentBranchRole();
   if (!user || !currentBranchId) return false;
   if (isUserAdminOrSuperuser(user)) return false;
-  return ["ADMIN_LOCAL", "CAJERO", "WAITER"].includes(currentRole ?? "");
+  return ["ADMIN_LOCAL", "CAJERO", "WAITER", "MESERO"].includes(currentRole ?? "");
 }
 
 /** True si el usuario es superadmin (is_superuser o type_user === "ADM"). */
@@ -418,6 +419,15 @@ export function useIsWaiter(): boolean {
 export function useIsCook(): boolean {
   const role = useCurrentBranchRole();
   return role === "COCINERO" || role === "COOK";
+}
+
+/** Roles operativos de piso: no redirigir 403 a /dashboard (el layout los saca). */
+export function useIsOperationalFloorRole(): boolean {
+  const isCashier = useIsCashier();
+  const isWaiter = useIsWaiter();
+  const isCook = useIsCook();
+  const isPosFirst = useIsPosFirstRole();
+  return isCashier || isWaiter || isCook || isPosFirst;
 }
 
 /** True si el usuario puede gestionar mesas (crear/editar/eliminar). */

@@ -11,6 +11,7 @@ import { BrandLogo } from "@/components/brand-logo";
 import { FRIG_IDENTITY_STYLE, FRIG_REPO_URL, setTenantFavicon } from "@/lib/frig-identity";
 import type { BranchThemeConfig } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { loginPath } from "@/lib/login-slug";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -128,7 +129,7 @@ export default function ForgotPasswordPage() {
                 </p>
               </div>
               <Link
-                href="/login"
+                href={loginPath()}
                 className={cn(buttonVariants({ size: "lg" }), "bg-primary text-primary-foreground hover:bg-primary/90 mt-2 rounded-lg text-white")}
               >
                 Volver al inicio de sesión
@@ -166,7 +167,7 @@ export default function ForgotPasswordPage() {
 
               <div className="mt-3 text-center">
                 <Link
-                  href="/login"
+                  href={loginPath()}
                   className="text-xs text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
                 >
                   Volver al inicio de sesión
