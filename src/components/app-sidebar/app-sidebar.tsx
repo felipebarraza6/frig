@@ -39,6 +39,7 @@ import { useSidebarStore } from "@/lib/store/sidebar";
 import { filterNavItemsByRole, type NavRoleFilter } from "@/lib/nav-access";
 import { logout } from "@/lib/api/auth";
 import { logoutLocal } from "@/lib/logout-local";
+import { loginRedirectUrl } from "@/lib/login-slug";
 import { fetchKitchenTickets } from "@/lib/api/kitchen";
 import { BrandLogo } from "@/components/brand-logo";
 import { useProductBrand } from "@/lib/product-name";
@@ -189,7 +190,7 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
       // ignora errores de red en logout
     }
     await logoutLocal(queryClient);
-    window.location.assign(window.location.origin + "/login");
+    window.location.assign(loginRedirectUrl(window.location.origin));
   }, [queryClient]);
 
   const allItems = useMemo<CommandPaletteItem[]>(() => {
@@ -272,7 +273,7 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
       }
     }
     if (bestGroup) setOpenGroup(bestGroup.title);
-  }, [pathname, visibleMenuGroups]);
+  }, [pathname, visibleMenuGroups]);
 
   useEffect(() => {
     function handleShortcut(e: KeyboardEvent) {

@@ -19,7 +19,7 @@ export interface NavRoleFilter {
 }
 
 /** Rutas del ecosistema CRM: requieren canManageCrm además del rol operativo. */
-const CRM_PATH_PREFIXES = ["/customers", "/reports/crm"];
+const CRM_PATH_PREFIXES = ["/customers", "/reports/crm", "/promotions"];
 
 function isCrmPath(href: string): boolean {
   return CRM_PATH_PREFIXES.some((p) => href === p || href.startsWith(`${p}/`));

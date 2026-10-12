@@ -1,4 +1,4 @@
-import { apiFetch } from "./client";
+import { ApiError, apiFetch } from "./client";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 export type SupportTicketList = YggdraSchemas["TicketList"];
@@ -12,7 +12,18 @@ export type SupportSlaPolicy = YggdraSchemas["SLAPolicy"];
 export type SupportTicketPriority = NonNullable<SupportTicketCreate["priority"]>;
 export type SupportTicketStatus = NonNullable<SupportTicketList["status"]>;
 
-/** Tipos de consulta de la UI FRIG (se mapean a categorías del API). */
+/**
+ * Códigos de categoría FRIG (contrato self-service en yggdra_infra).
+ * El servidor auto-provisiona categoría + SLA; el front NO debe hacer seed.
+ */
+export type SupportCategoryCode =
+  | "Duda"
+  | "Incidencia"
+  | "Reclamo"
+  | "Feedback"
+  | "Manual";
+
+/** Tipos de consulta de la UI FRIG (se mapean a category_code del API). */
 export type SupportInquiryKind =
   | "doubt"
   | "incident"
@@ -23,13 +34,16 @@ export type SupportInquiryKind =
 export const SUPPORT_INQUIRY_OPTIONS: {
   value: SupportInquiryKind;
   label: string;
-  categoryName: string;
+  categoryCode: SupportCategoryCode;
+  /** @deprecated usar categoryCode */
+  categoryName: SupportCategoryCode;
   priority: SupportTicketPriority;
   subjectPrefix: string;
 }[] = [
   {
     value: "doubt",
     label: "Duda",
+    categoryCode: "Duda",
     categoryName: "Duda",
     priority: "MEDIUM",
     subjectPrefix: "[Duda]",
@@ -37,6 +51,7 @@ export const SUPPORT_INQUIRY_OPTIONS: {
   {
     value: "incident",
     label: "Incidencia",
+    categoryCode: "Incidencia",
     categoryName: "Incidencia",
     priority: "HIGH",
     subjectPrefix: "[Incidencia]",
@@ -44,6 +59,7 @@ export const SUPPORT_INQUIRY_OPTIONS: {
   {
     value: "claim",
     label: "Reclamo",
+    categoryCode: "Reclamo",
     categoryName: "Reclamo",
     priority: "HIGH",
     subjectPrefix: "[Reclamo]",
@@ -51,6 +67,7 @@ export const SUPPORT_INQUIRY_OPTIONS: {
   {
     value: "feedback",
     label: "Feedback",
+    categoryCode: "Feedback",
     categoryName: "Feedback",
     priority: "LOW",
     subjectPrefix: "[Feedback]",
@@ -58,6 +75,7 @@ export const SUPPORT_INQUIRY_OPTIONS: {
   {
     value: "manual",
     label: "Manual o guía",
+    categoryCode: "Manual",
     categoryName: "Manual",
     priority: "LOW",
     subjectPrefix: "[Manual]",
@@ -70,7 +88,7 @@ function asList<T>(data: T[] | { results?: T[] } | null | undefined): T[] {
   return data.results ?? [];
 }
 
-/** GET /api/support/categories/ */
+/** GET /api/support/categories/ — solo lectura (sin seed desde el navegador). */
 export async function fetchSupportCategories(): Promise<SupportTicketCategory[]> {
   const data = await apiFetch<SupportTicketCategory[] | { results?: SupportTicketCategory[] }>(
     "/support/categories/?page_size=100",
@@ -78,78 +96,7 @@ export async function fetchSupportCategories(): Promise<SupportTicketCategory[]>
   return asList(data).filter((c) => c.is_active !== false);
 }
 
-/** POST /api/support/categories/ — seed mínimo si la sucursal no tiene categorías. */
-export async function createSupportCategory(payload: {
-  name: string;
-  description?: string;
-  color?: string;
-  /** El API exige branch en create (UUID/id de sucursal). */
-  branch: number;
-}): Promise<SupportTicketCategory> {
-  return apiFetch<SupportTicketCategory>("/support/categories/", {
-    method: "POST",
-    body: payload,
-  });
-}
-
-/**
- * Seeds de soporte (categorías + SLA) corriendo UNA vez por sucursal y
- * sesión, fuera de los queryFn: React Query puede re-ejecutar un queryFn
- * (retry, remount, refetch) y los POST repetidos producían carreras.
- */
-const supportBootstrapPromises = new Map<string, Promise<unknown>>();
-
-export function bootstrapFrigSupport(branchId: number, productName?: string) {
-  const key = `${branchId}|${productName ?? ""}`;
-  let promise = supportBootstrapPromises.get(key);
-  if (!promise) {
-    promise = Promise.allSettled([
-      ensureFrigSupportCategories(branchId, productName),
-      ensureFrigSlaPolicy(branchId, productName),
-    ]);
-    supportBootstrapPromises.set(key, promise);
-  }
-  return promise;
-}
-
-/**
- * Asegura las 4 categorías FRIG. Si ya existen (por nombre), las reutiliza.
- * Si el create falla por permisos, devuelve las que haya.
- */
-export async function ensureFrigSupportCategories(
-  branchId: number,
-  productName = "App",
-): Promise<SupportTicketCategory[]> {
-  const existing = await fetchSupportCategories();
-  const byName = new Map(existing.map((c) => [c.name.trim().toLowerCase(), c]));
-  const colors: Record<string, string> = {
-    Duda: "#3b82f6",
-    Incidencia: "#ef4444",
-    Reclamo: "#f97316",
-    Feedback: "#8b5cf6",
-    Manual: "#10b981",
-  };
-
-  for (const opt of SUPPORT_INQUIRY_OPTIONS) {
-    const key = opt.categoryName.toLowerCase();
-    if (byName.has(key)) continue;
-    try {
-      const created = await createSupportCategory({
-        name: opt.categoryName,
-        description: `Casos de tipo ${opt.label} · ${productName}`,
-        color: colors[opt.categoryName] ?? "#1890ff",
-        branch: branchId,
-      });
-      byName.set(key, created);
-    } catch {
-      // Sin permiso de crear categorías: se usa lo que ya exista.
-    }
-  }
-
-  return Array.from(byName.values());
-}
-
-/** GET /api/support/sla-policies/ */
+/** GET /api/support/sla-policies/ — solo lectura. */
 export async function fetchSupportSlaPolicies(): Promise<SupportSlaPolicy[]> {
   const data = await apiFetch<SupportSlaPolicy[] | { results?: SupportSlaPolicy[] }>(
     "/support/sla-policies/?page_size=50",
@@ -157,38 +104,35 @@ export async function fetchSupportSlaPolicies(): Promise<SupportSlaPolicy[]> {
   return asList(data).filter((p) => p.is_active !== false);
 }
 
-/**
- * El create de tickets exige una política SLA activa.
- * Si no hay ninguna, intenta crear una política de soporte por defecto.
- */
-export async function ensureFrigSlaPolicy(
-  branchId: number,
-  productName = "App",
-): Promise<SupportSlaPolicy | null> {
-  const existing = await fetchSupportSlaPolicies();
-  if (existing.length > 0) return existing[0] ?? null;
-  try {
-    return await apiFetch<SupportSlaPolicy>("/support/sla-policies/", {
-      method: "POST",
-      body: {
-        branch: branchId,
-        name: `Soporte ${productName}`,
-        description: "Política por defecto para casos del local",
-        response_time_low: 1440,
-        response_time_medium: 480,
-        response_time_high: 240,
-        response_time_critical: 60,
-        resolution_time_low: 10080,
-        resolution_time_medium: 2880,
-        resolution_time_high: 1440,
-        resolution_time_critical: 480,
-        escalation_time: 1440,
-        is_active: true,
-      },
-    });
-  } catch {
-    return null;
+/** Mensaje claro para fallos al crear tickets (403, 4xx, 5xx, red). */
+export function supportCreateErrorMessage(err: unknown): string {
+  if (err instanceof ApiError) {
+    if (err.status === 403) {
+      return (
+        "No tienes permiso para crear solicitudes de soporte en esta sucursal. " +
+        "Pide a un administrador que habilite el acceso o escribe a contacto@frig.cl."
+      );
+    }
+    if (err.status === 401) {
+      return "Tu sesión expiró. Vuelve a iniciar sesión e intenta de nuevo.";
+    }
+    if (err.status === 404) {
+      return (
+        "El servicio de soporte aún no está disponible en esta sucursal. " +
+        "Escribe a contacto@frig.cl."
+      );
+    }
+    if (err.status >= 500) {
+      return (
+        "El servidor de soporte no responde ahora. Intenta en unos minutos o escribe a contacto@frig.cl."
+      );
+    }
+    const msg = err.message?.trim();
+    if (msg && !/^Error \d+$/.test(msg)) return msg;
+    return "No se pudo crear la solicitud. Revisa los datos e intenta de nuevo.";
   }
+  if (err instanceof Error && err.message) return err.message;
+  return "No se pudo crear la solicitud. Revisa tu conexión e intenta de nuevo.";
 }
 
 /** GET /api/support/ticket-types/ */
@@ -466,6 +410,127 @@ export async function createSupportTicket(
       } catch {
         /* se conserva el ticket aunque un archivo falle */
       }
+    }
+  }
+  return ticket;
+}
+
+export interface CreateSupportTicketByCodeInput {
+  subject: string;
+  description: string;
+  category_code: SupportCategoryCode;
+  priority?: SupportTicketPriority;
+  client?: number | null;
+  requester_email?: string;
+  requester_name?: string;
+  attachments?: SupportAttachment[];
+}
+
+/**
+ * Crea un ticket con código de categoría.
+ *
+ * Contrato preferido (yggdra_infra, auto-provisión en servidor):
+ *   POST /support/tickets/self_create/
+ *   { subject, description, category_code, priority?, client?, requester_* }
+ *
+ * Fallback 1: POST /support/tickets/ con `category_code` (sin UUID ni SLA).
+ * Fallback 2: si ya hay categorías leídas, POST clásico por UUID (sin seed).
+ */
+export async function createSupportTicketByCode(
+  payload: CreateSupportTicketByCodeInput,
+): Promise<YggdraSchemas["TicketCreateUpdate"]> {
+  const { attachments, ...rest } = payload;
+  const body = {
+    subject: rest.subject,
+    description: rest.description,
+    category_code: rest.category_code,
+    ...(rest.priority ? { priority: rest.priority } : {}),
+    ...(rest.client != null ? { client: rest.client } : {}),
+    ...(rest.requester_email ? { requester_email: rest.requester_email } : {}),
+    ...(rest.requester_name ? { requester_name: rest.requester_name } : {}),
+    source: "INTERNAL" as const,
+  };
+
+  let ticket: YggdraSchemas["TicketCreateUpdate"] | null = null;
+  let lastError: unknown;
+
+  // 1) Endpoint self-service con auto-provisión.
+  try {
+    ticket = await apiFetch<YggdraSchemas["TicketCreateUpdate"]>(
+      "/support/tickets/self_create/",
+      { method: "POST", body },
+    );
+  } catch (err) {
+    lastError = err;
+    // 403/401: permiso/sesión — mensaje claro en la UI, sin enmascarar.
+    if (err instanceof ApiError && (err.status === 403 || err.status === 401)) {
+      throw err;
+    }
+    // 404/405/400: acción aún no desplegada o ruta tomada como {id}.
+    // 5xx: probar fallbacks antes de fallar al usuario.
+  }
+
+  // 2) Create estándar aceptando category_code.
+  if (!ticket) {
+    try {
+      ticket = await apiFetch<YggdraSchemas["TicketCreateUpdate"]>("/support/tickets/", {
+        method: "POST",
+        body,
+      });
+    } catch (err) {
+      lastError = err;
+      if (err instanceof ApiError && (err.status === 403 || err.status === 401)) {
+        throw err;
+      }
+    }
+  }
+
+  // 3) Fallback de lectura: categorías ya provisionadas → create clásico (sin seed).
+  if (!ticket) {
+    try {
+      const categories = await fetchSupportCategories();
+      const match = categories.find(
+        (c) => c.name.trim().toLowerCase() === rest.category_code.toLowerCase(),
+      );
+      const categoryId = match?.id ?? null;
+      if (!categoryId) {
+        throw (
+          lastError ??
+          new ApiError(
+            400,
+            "Soporte aún no está listo en esta sucursal. Escribe a contacto@frig.cl.",
+          )
+        );
+      }
+      const policies = await fetchSupportSlaPolicies();
+      ticket = await createSupportTicket({
+        subject: rest.subject,
+        description: rest.description,
+        category: categoryId,
+        priority: rest.priority,
+        sla_policy: policies[0]?.id ?? null,
+        client: rest.client,
+        requester_email: rest.requester_email,
+        requester_name: rest.requester_name,
+      });
+    } catch (err) {
+      if (err instanceof ApiError || err instanceof Error) throw err;
+      throw lastError ?? err;
+    }
+  }
+
+  const id = String((ticket as { id?: string }).id ?? "");
+  if (id && attachments && attachments.length > 0) {
+    const failed: string[] = [];
+    for (const att of attachments) {
+      try {
+        await uploadTicketAttachment(id, att);
+      } catch {
+        failed.push(att.name);
+      }
+    }
+    if (failed.length > 0) {
+      (ticket as { _attachment_warnings?: string[] })._attachment_warnings = failed;
     }
   }
   return ticket;

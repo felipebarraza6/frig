@@ -32,6 +32,7 @@ import {
 } from "@/lib/store/session";
 import { logout } from "@/lib/api/auth";
 import { logoutLocal } from "@/lib/logout-local";
+import { loginRedirectUrl } from "@/lib/login-slug";
 import { useToast } from "@/lib/store/toast";
 import { APP_BUILD, checkForAppUpdate, isStandalonePwa } from "@/lib/pwa";
 import { getRoleLabel } from "@/lib/roles";
@@ -444,7 +445,7 @@ export function ProfilePanel() {
                   /* ignora errores de red */
                 }
                 await logoutLocal(queryClient);
-                window.location.assign(window.location.origin + "/login");
+                window.location.assign(loginRedirectUrl(window.location.origin));
               }}
               className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-white/25 bg-black/35 px-2.5 py-1.5 text-xs font-medium text-white backdrop-blur-md transition-colors hover:bg-black/50"
               title="Cerrar sesión"

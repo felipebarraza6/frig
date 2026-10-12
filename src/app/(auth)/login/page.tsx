@@ -26,6 +26,7 @@ import { BrandLogo } from "@/components/brand-logo";
 import { LANDING_USE_CASES } from "@/content/landing";
 import type { LandingUseCase } from "@/content/landing";
 import type { LoginCompleteResponse } from "@/lib/types";
+import { rememberLoginSlug } from "@/lib/login-slug";
 import { Clock, KeyRound } from "lucide-react";
 
 
@@ -185,6 +186,8 @@ export default function LoginPage() {
     let cancelled = false;
     (async () => {
       const slug = new URLSearchParams(window.location.search).get("branch");
+      // Persistir slug para que 401/logout vuelvan a /login/<slug> (marca).
+      if (slug) rememberLoginSlug(slug);
       let theme = slug
         ? await fetchPublicLoginTheme(slug)
         : await fetchPublicLoginThemeByHost();

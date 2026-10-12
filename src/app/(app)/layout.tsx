@@ -34,6 +34,8 @@ import { enabledModuleSet, firstEnabledAllowedPath } from "@/lib/modules";
 import { SUPERADMIN_ALLOWED_PATHS as SUPERADMIN_MENU_PATHS } from "@/lib/hooks/useFrigMenu";
 import { useToastStore } from "@/lib/store/toast";
 import { ApiError } from "@/lib/api/client";
+import { loginPath } from "@/lib/login-slug";
+import { TrialBanner } from "@/components/trial-banner";
 
 const HIDDEN_SIDEBAR_PATHS = ["/pos/terminal", "/kds/terminal", "/kds/monitor", "/tables/map/full"];
 
@@ -92,6 +94,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const isRouteModuleEnabled = useIsRouteModuleEnabled(pathname);
   const { locked: subscriptionLocked } = useSubscriptionLock();
   const setFrontendConfig = useSessionStore((s) => s.setFrontendConfig);
+  const frontendConfigBranchId = useSessionStore((s) => s.frontendConfigBranchId);
   const branches = useSessionStore((s) => s.branches);
   const queryClient = useQueryClient();
   // Evita disparar la auto-selección dos veces (StrictMode re-ejecuta effects).
@@ -121,6 +124,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     if (!hasHydrated || !userId || !currentBranchId) return;
     if (refreshedBranchRef.current === currentBranchId) return;
     if (inFlightBranchRef.current === currentBranchId) return;
+    // B4: login/activateBranch ya cargaron frontend-config para esta sucursal
+    // (frontendConfigBranchId no se persiste; en reload queda null y sí refrescamos).
+    if (frontendConfigBranchId === currentBranchId) {
+      refreshedBranchRef.current = currentBranchId;
+      return;
+    }
     const failed = failedBranchRef.current;
     if (
       failed &&
@@ -183,12 +192,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [hasHydrated, userId, currentBranchId, setFrontendConfig, addToast]);
+  }, [hasHydrated, userId, currentBranchId, frontendConfigBranchId, setFrontendConfig, addToast]);
 
   useEffect(() => {
     if (!hasHydrated) return;
     if (!user) {
-      router.replace("/login");
+      router.replace(loginPath());
       return;
     }
     if (!currentBranchId) {
@@ -360,7 +369,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           ) : (
             // Crossfade solo del contenido; el dock inferior queda fuera.
             <ViewTransition default="none" update="nav-fade">
-              {children}
+              <>
+                <TrialBanner />
+                {children}
+              </>
             </ViewTransition>
           )}
         </main>

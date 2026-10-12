@@ -12,6 +12,7 @@ import { BrandLogo } from "@/components/brand-logo";
 import { FRIG_IDENTITY_STYLE, FRIG_REPO_URL, setTenantFavicon } from "@/lib/frig-identity";
 import type { BranchThemeConfig } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { loginPath } from "@/lib/login-slug";
 
 function extractTokenFromPath(): string {
   if (typeof window === "undefined") return "";
@@ -142,7 +143,7 @@ export default function ResetPasswordPage() {
               <Button
                 size="lg"
                 className="mt-2"
-                onClick={() => router.push("/login")}
+                onClick={() => router.push(loginPath())}
               >
                 Ir al inicio de sesión
               </Button>
@@ -196,7 +197,7 @@ export default function ResetPasswordPage() {
 
               <div className="mt-3 text-center">
                 <Link
-                  href="/login"
+                  href={loginPath()}
                   className="text-xs text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
                 >
                   Volver al inicio de sesión

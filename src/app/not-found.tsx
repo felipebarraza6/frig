@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FileQuestion, Home, LogIn } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { loginPath } from "@/lib/login-slug";
 
 export default function RootNotFound() {
   return (
@@ -21,7 +22,7 @@ export default function RootNotFound() {
           Volver al inicio
         </Link>
         <Link
-          href="/login"
+          href={loginPath()}
           className={cn(buttonVariants({ variant: "outline" }))}
         >
           <LogIn className="mr-2 h-4 w-4" />

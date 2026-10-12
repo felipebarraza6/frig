@@ -14,6 +14,7 @@
  * hecho a mano no publica una app que habla con localhost.
  */
 import { getEffectiveBranchId } from "./branch-scope";
+import { loginRedirectUrl } from "@/lib/login-slug";
 
 export const API_BASE =
   process.env.NEXT_PUBLIC_YGGDRA_API_BASE ??
@@ -76,12 +77,12 @@ function redirectToLogin(): void {
   if (typeof window === "undefined") return;
   // Limpiar la sesión persistida: si no, el localStorage queda con token y
   // datos de sucursal stale hasta que un nuevo login los sobrescriba.
+  // Conservamos frig.login_slug para redirigir a /login/<slug> (marca).
   window.localStorage.removeItem("frig.token");
   window.localStorage.removeItem("frig.branch_id");
   window.localStorage.removeItem("frig.session");
   window.localStorage.removeItem("frig.demo_expires_at");
-  // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-  window.location.assign(`${window.location.origin}/login`);
+  window.location.assign(loginRedirectUrl(window.location.origin));
 }
 
 type ApiOptions = {
