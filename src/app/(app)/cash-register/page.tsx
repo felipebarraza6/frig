@@ -67,6 +67,8 @@ import {
   useCanViewCashRegisterHistory,
   useCashierStationOnly,
   useCanManageCashMovements,
+  useCanRegisterCashMovements,
+  useCanOpenCashRegister,
   useSessionStore,
   useIsOwner,
   useIsSuperAdmin,
@@ -128,6 +130,8 @@ export default function CashRegisterPage() {
 
   const canViewHistory = useCanViewCashRegisterHistory();
   const canManageMovements = useCanManageCashMovements();
+  const canRegisterMovements = useCanRegisterCashMovements();
+  const canOpenRegister = useCanOpenCashRegister();
   const cashierStationOnly = useCashierStationOnly();
   const user = useSessionStore((s) => s.user);
   const isOwner = useIsOwner();
@@ -670,12 +674,12 @@ export default function CashRegisterPage() {
             </div>
           </section>
         ) : (
-          <section className={cn("grid gap-4", canManageMovements && "lg:grid-cols-3")}>
+          <section className={cn("grid gap-4", canRegisterMovements && "lg:grid-cols-3")}>
             {/* Cash register panel */}
             <div
               className={cn(
                 "flex flex-col gap-4 rounded-2xl border border-border bg-background p-5 shadow-sm",
-                canManageMovements && "lg:col-span-2",
+                canRegisterMovements && "lg:col-span-2",
               )}
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -840,7 +844,7 @@ export default function CashRegisterPage() {
                     </div>
                   )}
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    {canManageMovements ? (
+                    {canOpenRegister ? (
                       <>
                         <Input
                           value={openAmount ? formatCLP(parseFloat(toDecimal(openAmount))) : ""}
@@ -864,7 +868,7 @@ export default function CashRegisterPage() {
                       </>
                     ) : (
                       <p className="rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
-                        Solo el propietario o administrador pueden abrir/cerrar caja.
+                        Debes pertenecer a esta sucursal para abrir caja.
                       </p>
                     )}
                   </div>
@@ -873,7 +877,7 @@ export default function CashRegisterPage() {
             </div>
 
             {/* Movements panel */}
-            {canManageMovements && (
+            {canRegisterMovements && (
               <div className="flex flex-col gap-3 rounded-2xl border border-border bg-background p-5 shadow-sm">
                 <h2 className="flex items-center gap-2 text-sm font-semibold">
                   <Coins className="h-4 w-4 text-primary" />
