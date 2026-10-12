@@ -209,11 +209,11 @@ function SupportInner() {
   return (
     <PageShell className={selectedId ? "max-w-none" : undefined}>
       <PageHeader
-        title="Soporte"
-        subtitle="Tablero de casos, visitas técnicas y seguimiento."
+        title="Soporte / Feedback"
+        subtitle="Crea una solicitud, envía feedback o sigue tus casos."
         icon={<LifeBuoy className="h-5 w-5" />}
         actions={
-          <Button size="sm" onClick={() => openCreate("doubt")}>
+          <Button size="sm" onClick={() => openCreate("doubt")} aria-label="Nueva solicitud de soporte">
             <Plus className="mr-1.5 h-4 w-4" />
             Nueva solicitud
           </Button>

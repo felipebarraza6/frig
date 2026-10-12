@@ -401,8 +401,28 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
               )}
             </div>
 
-            {/* Footer fijo: perfil + acciones; no compite con el scroll. */}
+            {/* Footer fijo: soporte + perfil + acciones; no compite con el scroll. */}
             <div className="shrink-0 border-t border-border bg-background px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              <Link
+                href="/support"
+                prefetch
+                onClick={handleClose}
+                aria-label="Soporte / Enviar feedback"
+                className="mb-2 flex items-center gap-3 rounded-xl border border-primary/25 bg-primary/8 p-3 transition-colors hover:bg-primary/12 active:bg-primary/15"
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+                  <LifeBuoy className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-foreground">
+                    Soporte / Enviar feedback
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    Dudas, incidencias e ideas al equipo
+                  </p>
+                </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+              </Link>
               <Link
                 href="/profile"
                 prefetch

@@ -475,6 +475,22 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
 
         <div className="relative z-10 flex shrink-0 flex-col border-t border-white/15 p-1.5 pt-0">
           <div className="flow-line mx-2 mt-1" aria-hidden />
+          {/* Soporte siempre visible (fuera del acordeón Ayuda). */}
+          <div
+            className={cn(
+              "flex flex-col gap-0.5",
+              effectivelyExpanded ? "px-1.5 pb-1 pt-1.5" : "items-center pt-1.5",
+            )}
+          >
+            <NavItem
+              href="/support"
+              label="Soporte / Feedback"
+              icon={LifeBuoy}
+              active={pathname === "/support" || pathname.startsWith("/support/")}
+              expanded={effectivelyExpanded}
+              onClick={onNavigate}
+            />
+          </div>
           <div
             className={cn(
               "flex flex-col rounded-lg",

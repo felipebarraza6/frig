@@ -462,12 +462,12 @@ export async function createSupportTicketByCode(
     );
   } catch (err) {
     lastError = err;
-    // 403/401: permiso/sesión — mensaje claro en la UI, sin enmascarar.
+    // 403/401: permiso o sesión — mensaje claro en la UI.
+    // Si self_create aún no existe como @action, DRF lo trata como {id}
+    // y responde 400/404/405 → caemos a fallbacks.
     if (err instanceof ApiError && (err.status === 403 || err.status === 401)) {
       throw err;
     }
-    // 404/405/400: acción aún no desplegada o ruta tomada como {id}.
-    // 5xx: probar fallbacks antes de fallar al usuario.
   }
 
   // 2) Create estándar aceptando category_code.

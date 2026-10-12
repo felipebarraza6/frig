@@ -51,20 +51,6 @@ export const BOTTOM_NAV_SLOTS = 4;
 /**
  * Orden preferido de tabs por rol cuando el usuario aún no pinneó favoritos.
  * Se intersecta después con el menú visible/permitido.
+ * Delegado a support-access para incluir Soporte siempre.
  */
-export function defaultBottomNavHrefs(role: {
-  isCashier: boolean;
-  isWaiter: boolean;
-  isCook: boolean;
-}): string[] {
-  if (role.isCashier) {
-    return ["/pos", "/cash-register", "/sales", "/profile"];
-  }
-  if (role.isWaiter) {
-    return ["/tables", "/pos", "/help", "/profile"];
-  }
-  if (role.isCook) {
-    return ["/kds", "/profile"];
-  }
-  return ["/dashboard", "/sales", "/pos", "/cash-register", "/tables", "/customers"];
-}
+export { supportAwareBottomNavHrefs as defaultBottomNavHrefs } from "@/lib/support-access";
