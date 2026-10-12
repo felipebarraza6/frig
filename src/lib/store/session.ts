@@ -383,13 +383,46 @@ export function useCanViewCashRegisterHistory(): boolean {
   return ["OWNER", "ADMIN_LOCAL", "MANAGER"].includes(currentRole ?? "");
 }
 
-/** True si el usuario puede registrar ingresos/retiros de caja (OWNER o super admin). */
+/** True si el usuario puede anular movimientos y cerrar/reabrir caja (OWNER o super admin). */
 export function useCanManageCashMovements(): boolean {
   const user = useSessionStore((s) => s.user);
   const currentRole = useCurrentBranchRole();
   if (!user) return false;
   if (isUserAdminOrSuperuser(user)) return true;
   return currentRole === "OWNER";
+}
+
+/**
+ * True si el usuario puede registrar ingresos/retiros (cash in/out) de caja:
+ * cualquier miembro de la sucursal activa (cualquiera puede vender) o super admin.
+ * Anular movimientos, cerrar y reabrir siguen siendo OWNER (useCanManageCashMovements).
+ */
+export function canRegisterCashMovements(
+  user: User | null,
+  currentBranchId: string | null | undefined,
+): boolean {
+  if (!user) return false;
+  if (isUserAdminOrSuperuser(user)) return true;
+  if (!currentBranchId) return false;
+  return !!user.branch_assignments?.some((a) => String(a.branch_id) === currentBranchId);
+}
+
+export function useCanRegisterCashMovements(): boolean {
+  const user = useSessionStore((s) => s.user);
+  const currentBranchId = useSessionStore((s) => s.currentBranchId);
+  return canRegisterCashMovements(user, currentBranchId);
+}
+
+/**
+ * True si el usuario puede abrir caja: cualquier miembro de la sucursal activa
+ * o super admin. Cerrar, anular y acciones de histórico siguen OWNER.
+ */
+export const canOpenCashRegister = canRegisterCashMovements;
+
+export function useCanOpenCashRegister(): boolean {
+  const user = useSessionStore((s) => s.user);
+  const currentBranchId = useSessionStore((s) => s.currentBranchId);
+  return canOpenCashRegister(user, currentBranchId);
 }
 
 /**
