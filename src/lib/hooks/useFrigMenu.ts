@@ -9,6 +9,10 @@ import {
 } from "@/lib/store/session";
 import { FRIG_MENU_DEF, FRIG_ALWAYS_ON_MODULES } from "@/lib/modules";
 import { getIcon, type IconName } from "@/lib/icons";
+import {
+  SUPPORT_NAV_SEED,
+  ensureSupportInMenuGroups,
+} from "@/lib/support-access";
 import type { LucideIcon } from "lucide-react";
 
 /** Item del menú con ícono ya resuelto a componente Lucide. */
@@ -103,6 +107,19 @@ export function useFrigMenu(): FrigNavGroup[] {
         groups.push({ title: group.title, icon: getIcon(group.icon as IconName), items });
       }
     }
-    return groups;
+    // Canal de soporte siempre presente (module:null), incluso si el menú
+    // del backend o un filtro raro lo omitiera.
+    const supportItem: FrigNavItem = {
+      href: SUPPORT_NAV_SEED.href,
+      label: SUPPORT_NAV_SEED.label,
+      icon: getIcon("LifeBuoy"),
+      module: null,
+      description: SUPPORT_NAV_SEED.description,
+    };
+    return ensureSupportInMenuGroups(groups, supportItem, (item) => ({
+      title: "Ayuda",
+      icon: getIcon("LifeBuoy"),
+      items: [item],
+    }));
   }, [modules, canViewBranches, canViewOrganization, isSuperAdmin]);
 }

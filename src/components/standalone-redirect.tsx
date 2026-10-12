@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { loginPath } from "@/lib/login-slug";
 
 /**
  * La PWA instalada arranca en start_url "/". Si abre en standalone, el
@@ -15,7 +16,7 @@ export function StandaloneRedirect() {
     const standalone =
       window.matchMedia("(display-mode: standalone)").matches ||
       (navigator as unknown as { standalone?: boolean }).standalone === true;
-    if (standalone) router.replace("/login");
+    if (standalone) router.replace(loginPath());
   }, [router]);
 
   return null;

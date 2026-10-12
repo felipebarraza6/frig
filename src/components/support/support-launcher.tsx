@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   LifeBuoy,
@@ -12,10 +12,14 @@ import {
   BookOpen,
   FolderKanban,
   MessageSquareWarning,
+  X,
+  MessageSquarePlus,
 } from "lucide-react";
 import { SupportCreateModal } from "@/components/support/support-create-modal";
 import type { SupportInquiryKind } from "@/lib/api/support";
 import { useProductName } from "@/lib/product-name";
+import { SUPPORT_FEEDBACK_LABEL, SUPPORT_PATH } from "@/lib/support-access";
+import { cn } from "@/lib/utils";
 
 const QUICK: {
   kind: SupportInquiryKind;
@@ -56,25 +60,31 @@ const QUICK: {
 ];
 
 /**
- * Cachico fijo en el borde: el tab no cambia de tamaño.
- * El panel flota a la izquierda con opacity/x (sin animar width/maxHeight,
- * que dejaba una franja rota al abrir/cerrar).
+ * Acceso global a crear tickets / feedback.
+ *
+ * Antes era una tira de ~17px en el borde (casi invisible). Ahora:
+ * - Desktop: chip fijo a la derecha con texto "Soporte".
+ * - Móvil: FAB sobre el dock inferior con etiqueta clara.
+ *
+ * No se oculta por módulo, plan ni rol: cualquier usuario autenticado lo ve
+ * (el layout solo lo monta dentro de la app autenticada).
  */
 export function SupportLauncher() {
   const router = useRouter();
+  const pathname = usePathname();
   const productName = useProductName();
   const reduceMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<SupportInquiryKind>("doubt");
   const [formOpen, setFormOpen] = useState(false);
-  const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    return () => {
-      if (leaveTimer.current) clearTimeout(leaveTimer.current);
-    };
-  }, []);
+  // En terminales densas el FAB estorba; el hub /support sigue disponible.
+  const hideOnDense =
+    pathname.startsWith("/pos/terminal") ||
+    pathname.startsWith("/kds/terminal") ||
+    pathname.startsWith("/kds/monitor") ||
+    pathname.startsWith("/tables/map/full");
 
   useEffect(() => {
     if (!open) return;
@@ -84,30 +94,18 @@ export function SupportLauncher() {
       const target = event.target as Node | null;
       if (target && !root.contains(target)) setOpen(false);
     }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
     document.addEventListener("mousedown", onPointerDown);
     document.addEventListener("touchstart", onPointerDown);
+    document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("mousedown", onPointerDown);
       document.removeEventListener("touchstart", onPointerDown);
+      document.removeEventListener("keydown", onKey);
     };
   }, [open]);
-
-  function clearLeave() {
-    if (leaveTimer.current) {
-      clearTimeout(leaveTimer.current);
-      leaveTimer.current = null;
-    }
-  }
-
-  function handleEnter() {
-    clearLeave();
-    setOpen(true);
-  }
-
-  function handleLeave() {
-    clearLeave();
-    leaveTimer.current = setTimeout(() => setOpen(false), 140);
-  }
 
   function openKind(next: SupportInquiryKind) {
     setKind(next);
@@ -115,93 +113,114 @@ export function SupportLauncher() {
     setFormOpen(true);
   }
 
+  if (hideOnDense) return null;
+
   return (
     <>
       <div
         ref={rootRef}
-        className="fixed right-0 top-[max(0.5rem,env(safe-area-inset-top))] z-40"
-        onMouseEnter={handleEnter}
-        onMouseLeave={handleLeave}
+        className={cn(
+          "fixed z-40 flex flex-col items-end gap-2",
+          // Móvil: sobre el dock (pb-24 del main). Desktop: centro-derecha.
+          "bottom-[calc(4.75rem+env(safe-area-inset-bottom))] right-3",
+          "md:bottom-auto md:right-3 md:top-1/2 md:-translate-y-1/2",
+        )}
       >
-        <div className="relative flex justify-end">
-          <AnimatePresence>
-            {open && (
-              <motion.div
-                key="support-panel"
-                initial={
-                  reduceMotion
-                    ? { opacity: 1 }
-                    : { opacity: 0, x: 10, scale: 0.98 }
-                }
-                animate={{ opacity: 1, x: 0, scale: 1 }}
-                exit={
-                  reduceMotion
-                    ? { opacity: 0 }
-                    : { opacity: 0, x: 10, scale: 0.98 }
-                }
-                transition={
-                  reduceMotion
-                    ? { duration: 0 }
-                    : { type: "spring", stiffness: 420, damping: 32, mass: 0.5 }
-                }
-                className="absolute right-[1.1rem] top-0 z-10 w-[13.25rem] origin-top-right"
-              >
-                <div className="rounded-2xl rounded-tr-md border border-border/80 bg-background/95 p-1.5 shadow-lg backdrop-blur-md">
-                  <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                    Soporte
+        <AnimatePresence>
+          {open && (
+            <motion.div
+              key="support-panel"
+              role="dialog"
+              aria-label={SUPPORT_FEEDBACK_LABEL}
+              initial={
+                reduceMotion ? { opacity: 1 } : { opacity: 0, y: 8, scale: 0.98 }
+              }
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.98 }}
+              transition={
+                reduceMotion
+                  ? { duration: 0 }
+                  : { type: "spring", stiffness: 420, damping: 32, mass: 0.5 }
+              }
+              className="w-[min(18rem,calc(100vw-1.5rem))] origin-bottom-right md:origin-right"
+            >
+              <div className="rounded-2xl border border-border/80 bg-background/95 p-1.5 shadow-lg backdrop-blur-md">
+                <div className="flex items-center justify-between gap-2 px-2 py-1.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                    {SUPPORT_FEEDBACK_LABEL}
                   </p>
-                  {QUICK.map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <button
-                        key={item.kind}
-                        type="button"
-                        onClick={() => openKind(item.kind)}
-                        className="flex w-full items-center gap-2 rounded-xl px-2 py-1.5 text-left transition-colors hover:bg-primary/10"
-                      >
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                          <Icon className="h-3.5 w-3.5" strokeWidth={2} />
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block text-[13px] font-semibold leading-tight">
-                            {item.label}
-                          </span>
-                          <span className="block text-[11px] leading-tight text-muted-foreground">
-                            {item.kind === "doubt"
-                              ? `Cómo usar ${productName}`
-                              : item.hint}
-                          </span>
-                        </span>
-                      </button>
-                    );
-                  })}
-                  <Link
-                    href="/support"
+                  <button
+                    type="button"
+                    aria-label="Cerrar"
                     onClick={() => setOpen(false)}
-                    className="mt-0.5 flex w-full items-center gap-2 rounded-xl px-2 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+                    className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
                   >
-                    <FolderKanban className="h-3.5 w-3.5" />
-                    Ver tablero
-                  </Link>
+                    <X className="h-3.5 w-3.5" />
+                  </button>
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                {QUICK.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.kind}
+                      type="button"
+                      onClick={() => openKind(item.kind)}
+                      className="flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left transition-colors hover:bg-primary/10"
+                    >
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <Icon className="h-3.5 w-3.5" strokeWidth={2} />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-[13px] font-semibold leading-tight">
+                          {item.label}
+                        </span>
+                        <span className="block text-[11px] leading-tight text-muted-foreground">
+                          {item.kind === "doubt"
+                            ? `Cómo usar ${productName}`
+                            : item.hint}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+                <Link
+                  href={SUPPORT_PATH}
+                  onClick={() => setOpen(false)}
+                  className="mt-0.5 flex w-full items-center gap-2 rounded-xl px-2 py-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+                >
+                  <FolderKanban className="h-3.5 w-3.5" />
+                  Ver tablero de casos
+                </Link>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-          <button
-            type="button"
-            aria-expanded={open}
-            aria-label="Soporte"
-            title="Soporte"
-            onClick={() => {
-              clearLeave();
-              setOpen((v) => !v);
-            }}
-            className="relative z-20 flex h-10 w-[1.1rem] shrink-0 items-center justify-center rounded-l-md border border-r-0 border-border/80 bg-background/90 text-primary shadow-sm backdrop-blur-md"
-          >
-            <LifeBuoy className="h-3.5 w-3.5" strokeWidth={2.25} />
-          </button>
-        </div>
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-label={SUPPORT_FEEDBACK_LABEL}
+          title={SUPPORT_FEEDBACK_LABEL}
+          onClick={() => setOpen((v) => !v)}
+          className={cn(
+            "flex items-center gap-2 rounded-full border border-primary/30 bg-background/95 px-3.5 py-2.5 text-sm font-semibold text-primary shadow-lg backdrop-blur-md",
+            "hover:bg-primary hover:text-primary-foreground",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            "touch-manipulation",
+            open && "bg-primary text-primary-foreground",
+          )}
+        >
+          {open ? (
+            <X className="h-4 w-4 shrink-0" strokeWidth={2.25} />
+          ) : (
+            <MessageSquarePlus className="h-4 w-4 shrink-0" strokeWidth={2.25} />
+          )}
+          <span className="max-w-[11rem] truncate">
+            <span className="md:hidden">Soporte</span>
+            <span className="hidden md:inline">{SUPPORT_FEEDBACK_LABEL}</span>
+          </span>
+          <LifeBuoy className="hidden h-3.5 w-3.5 shrink-0 opacity-80 sm:block" />
+        </button>
       </div>
 
       <SupportCreateModal
@@ -210,7 +229,7 @@ export function SupportLauncher() {
         onClose={() => setFormOpen(false)}
         onCreated={(id) => {
           setFormOpen(false);
-          router.push(`/support?id=${encodeURIComponent(id)}`);
+          router.push(`${SUPPORT_PATH}?id=${encodeURIComponent(id)}`);
         }}
       />
     </>

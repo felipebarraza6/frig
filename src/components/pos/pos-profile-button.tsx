@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ProfilePanel } from "@/components/profile/profile-panel";
 import { logout } from "@/lib/api/auth";
 import { logoutLocal } from "@/lib/logout-local";
+import { loginRedirectUrl } from "@/lib/login-slug";
 import { useSessionStore } from "@/lib/store/session";
 
 /**
@@ -38,7 +39,7 @@ export function PosProfileButton() {
       // ignora errores de red en logout
     }
     await logoutLocal(queryClient);
-    window.location.assign(window.location.origin + "/login");
+    window.location.assign(loginRedirectUrl(window.location.origin));
   }
 
   return (

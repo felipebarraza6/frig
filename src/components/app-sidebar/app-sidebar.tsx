@@ -39,6 +39,7 @@ import { useSidebarStore } from "@/lib/store/sidebar";
 import { filterNavItemsByRole, type NavRoleFilter } from "@/lib/nav-access";
 import { logout } from "@/lib/api/auth";
 import { logoutLocal } from "@/lib/logout-local";
+import { loginRedirectUrl } from "@/lib/login-slug";
 import { fetchKitchenTickets } from "@/lib/api/kitchen";
 import { BrandLogo } from "@/components/brand-logo";
 import { useProductBrand } from "@/lib/product-name";
@@ -189,7 +190,7 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
       // ignora errores de red en logout
     }
     await logoutLocal(queryClient);
-    window.location.assign(window.location.origin + "/login");
+    window.location.assign(loginRedirectUrl(window.location.origin));
   }, [queryClient]);
 
   const allItems = useMemo<CommandPaletteItem[]>(() => {
@@ -272,7 +273,7 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
       }
     }
     if (bestGroup) setOpenGroup(bestGroup.title);
-  }, [pathname, visibleMenuGroups]);
+  }, [pathname, visibleMenuGroups]);
 
   useEffect(() => {
     function handleShortcut(e: KeyboardEvent) {
@@ -474,6 +475,22 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
 
         <div className="relative z-10 flex shrink-0 flex-col border-t border-white/15 p-1.5 pt-0">
           <div className="flow-line mx-2 mt-1" aria-hidden />
+          {/* Soporte siempre visible (fuera del acordeón Ayuda). */}
+          <div
+            className={cn(
+              "flex flex-col gap-0.5",
+              effectivelyExpanded ? "px-1.5 pb-1 pt-1.5" : "items-center pt-1.5",
+            )}
+          >
+            <NavItem
+              href="/support"
+              label="Soporte / Feedback"
+              icon={LifeBuoy}
+              active={pathname === "/support" || pathname.startsWith("/support/")}
+              expanded={effectivelyExpanded}
+              onClick={onNavigate}
+            />
+          </div>
           <div
             className={cn(
               "flex flex-col rounded-lg",
