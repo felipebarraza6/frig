@@ -13,15 +13,16 @@ export type SupportTicketPriority = NonNullable<SupportTicketCreate["priority"]>
 export type SupportTicketStatus = NonNullable<SupportTicketList["status"]>;
 
 /**
- * Códigos de categoría FRIG (contrato self-service en yggdra_infra).
+ * Códigos de categoría (yggdra_infra PR #95):
+ * POST /support/tickets/submit/ · category_code en minúsculas.
  * El servidor auto-provisiona categoría + SLA; el front NO debe hacer seed.
  */
 export type SupportCategoryCode =
-  | "Duda"
-  | "Incidencia"
-  | "Reclamo"
-  | "Feedback"
-  | "Manual";
+  | "duda"
+  | "incidencia"
+  | "reclamo"
+  | "feedback"
+  | "manual";
 
 /** Tipos de consulta de la UI FRIG (se mapean a category_code del API). */
 export type SupportInquiryKind =
@@ -35,15 +36,15 @@ export const SUPPORT_INQUIRY_OPTIONS: {
   value: SupportInquiryKind;
   label: string;
   categoryCode: SupportCategoryCode;
-  /** @deprecated usar categoryCode */
-  categoryName: SupportCategoryCode;
+  /** Nombre legible / match en categorías ya provisionadas (fallback). */
+  categoryName: string;
   priority: SupportTicketPriority;
   subjectPrefix: string;
 }[] = [
   {
     value: "doubt",
     label: "Duda",
-    categoryCode: "Duda",
+    categoryCode: "duda",
     categoryName: "Duda",
     priority: "MEDIUM",
     subjectPrefix: "[Duda]",
@@ -51,7 +52,7 @@ export const SUPPORT_INQUIRY_OPTIONS: {
   {
     value: "incident",
     label: "Incidencia",
-    categoryCode: "Incidencia",
+    categoryCode: "incidencia",
     categoryName: "Incidencia",
     priority: "HIGH",
     subjectPrefix: "[Incidencia]",
@@ -59,7 +60,7 @@ export const SUPPORT_INQUIRY_OPTIONS: {
   {
     value: "claim",
     label: "Reclamo",
-    categoryCode: "Reclamo",
+    categoryCode: "reclamo",
     categoryName: "Reclamo",
     priority: "HIGH",
     subjectPrefix: "[Reclamo]",
@@ -67,7 +68,7 @@ export const SUPPORT_INQUIRY_OPTIONS: {
   {
     value: "feedback",
     label: "Feedback",
-    categoryCode: "Feedback",
+    categoryCode: "feedback",
     categoryName: "Feedback",
     priority: "LOW",
     subjectPrefix: "[Feedback]",
@@ -75,7 +76,7 @@ export const SUPPORT_INQUIRY_OPTIONS: {
   {
     value: "manual",
     label: "Manual o guía",
-    categoryCode: "Manual",
+    categoryCode: "manual",
     categoryName: "Manual",
     priority: "LOW",
     subjectPrefix: "[Manual]",
@@ -419,52 +420,58 @@ export interface CreateSupportTicketByCodeInput {
   subject: string;
   description: string;
   category_code: SupportCategoryCode;
-  priority?: SupportTicketPriority;
+  priority: SupportTicketPriority;
   client?: number | null;
   requester_email?: string;
   requester_name?: string;
   attachments?: SupportAttachment[];
 }
 
+/** Body del contrato yggdra_infra PR #95. */
+export interface SupportTicketSubmitBody {
+  subject: string;
+  description: string;
+  category_code: SupportCategoryCode;
+  priority: SupportTicketPriority;
+}
+
+export const SUPPORT_TICKET_SUBMIT_PATH = "/support/tickets/submit/";
+
 /**
  * Crea un ticket con código de categoría.
  *
- * Contrato preferido (yggdra_infra, auto-provisión en servidor):
- *   POST /support/tickets/self_create/
- *   { subject, description, category_code, priority?, client?, requester_* }
+ * Contrato (yggdra_infra PR #95, auto-provisión en servidor):
+ *   POST /support/tickets/submit/
+ *   { subject, description, category_code, priority }
+ *   Auth Token + X-Branch-ID. Sin seed de categorías/SLA en el cliente.
  *
- * Fallback 1: POST /support/tickets/ con `category_code` (sin UUID ni SLA).
+ * Fallback 1: POST /support/tickets/ con el mismo body (category_code).
  * Fallback 2: si ya hay categorías leídas, POST clásico por UUID (sin seed).
  */
 export async function createSupportTicketByCode(
   payload: CreateSupportTicketByCodeInput,
 ): Promise<YggdraSchemas["TicketCreateUpdate"]> {
   const { attachments, ...rest } = payload;
-  const body = {
+  const submitBody: SupportTicketSubmitBody = {
     subject: rest.subject,
     description: rest.description,
     category_code: rest.category_code,
-    ...(rest.priority ? { priority: rest.priority } : {}),
-    ...(rest.client != null ? { client: rest.client } : {}),
-    ...(rest.requester_email ? { requester_email: rest.requester_email } : {}),
-    ...(rest.requester_name ? { requester_name: rest.requester_name } : {}),
-    source: "INTERNAL" as const,
+    priority: rest.priority,
   };
 
   let ticket: YggdraSchemas["TicketCreateUpdate"] | null = null;
   let lastError: unknown;
 
-  // 1) Endpoint self-service con auto-provisión.
+  // 1) Endpoint submit (contrato final).
   try {
     ticket = await apiFetch<YggdraSchemas["TicketCreateUpdate"]>(
-      "/support/tickets/self_create/",
-      { method: "POST", body },
+      SUPPORT_TICKET_SUBMIT_PATH,
+      { method: "POST", body: submitBody },
     );
   } catch (err) {
     lastError = err;
     // 403/401: permiso o sesión — mensaje claro en la UI.
-    // Si self_create aún no existe como @action, DRF lo trata como {id}
-    // y responde 400/404/405 → caemos a fallbacks.
+    // 400/404/405: acción aún no desplegada o ruta tomada como {id} → fallbacks.
     if (err instanceof ApiError && (err.status === 403 || err.status === 401)) {
       throw err;
     }
@@ -475,7 +482,13 @@ export async function createSupportTicketByCode(
     try {
       ticket = await apiFetch<YggdraSchemas["TicketCreateUpdate"]>("/support/tickets/", {
         method: "POST",
-        body,
+        body: {
+          ...submitBody,
+          ...(rest.client != null ? { client: rest.client } : {}),
+          ...(rest.requester_email ? { requester_email: rest.requester_email } : {}),
+          ...(rest.requester_name ? { requester_name: rest.requester_name } : {}),
+          source: "INTERNAL",
+        },
       });
     } catch (err) {
       lastError = err;
@@ -489,9 +502,11 @@ export async function createSupportTicketByCode(
   if (!ticket) {
     try {
       const categories = await fetchSupportCategories();
-      const match = categories.find(
-        (c) => c.name.trim().toLowerCase() === rest.category_code.toLowerCase(),
-      );
+      const code = rest.category_code.toLowerCase();
+      const match = categories.find((c) => {
+        const name = c.name.trim().toLowerCase();
+        return name === code || name === code.normalize("NFD").replace(/\p{M}/gu, "");
+      });
       const categoryId = match?.id ?? null;
       if (!categoryId) {
         throw (

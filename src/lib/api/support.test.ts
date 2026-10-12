@@ -31,31 +31,36 @@ describe("createSupportTicketByCode", () => {
     vi.restoreAllMocks();
   });
 
-  it("usa self_create con category_code (sin bootstrap de categorías)", async () => {
+  it("usa POST /tickets/submit/ con category_code en minúsculas (sin bootstrap)", async () => {
     apiFetch.mockResolvedValueOnce({ id: "t-1", subject: "[Duda] Hola" });
-    const { createSupportTicketByCode } = await import("./support");
+    const { createSupportTicketByCode, SUPPORT_TICKET_SUBMIT_PATH } =
+      await import("./support");
     const ticket = await createSupportTicketByCode({
       subject: "[Duda] Hola",
       description: "Necesito ayuda con la caja",
-      category_code: "Duda",
+      category_code: "duda",
       priority: "MEDIUM",
       requester_email: "a@b.cl",
     });
     expect(ticket.id).toBe("t-1");
     expect(apiFetch).toHaveBeenCalledOnce();
     const [path, opts] = apiFetch.mock.calls[0]!;
-    expect(path).toBe("/support/tickets/self_create/");
+    expect(path).toBe(SUPPORT_TICKET_SUBMIT_PATH);
+    expect(path).toBe("/support/tickets/submit/");
     expect(opts.method).toBe("POST");
-    expect(opts.body).toMatchObject({
-      category_code: "Duda",
-      source: "INTERNAL",
+    expect(opts.body).toEqual({
       subject: "[Duda] Hola",
+      description: "Necesito ayuda con la caja",
+      category_code: "duda",
+      priority: "MEDIUM",
     });
     expect(opts.body).not.toHaveProperty("category");
     expect(opts.body).not.toHaveProperty("sla_policy");
+    expect(opts.body).not.toHaveProperty("source");
+    expect(opts.body).not.toHaveProperty("requester_email");
   });
 
-  it("hace fallback a POST /tickets/ con category_code si self_create es 404", async () => {
+  it("hace fallback a POST /tickets/ con category_code si submit es 404", async () => {
     const { ApiError } = await import("./client");
     apiFetch
       .mockRejectedValueOnce(new ApiError(404, "Not found"))
@@ -64,15 +69,18 @@ describe("createSupportTicketByCode", () => {
     const ticket = await createSupportTicketByCode({
       subject: "[Feedback] Idea",
       description: "Me gustaría un reporte semanal",
-      category_code: "Feedback",
+      category_code: "feedback",
       priority: "LOW",
     });
     expect(ticket.id).toBe("t-2");
     expect(apiFetch.mock.calls.map((c) => c[0])).toEqual([
-      "/support/tickets/self_create/",
+      "/support/tickets/submit/",
       "/support/tickets/",
     ]);
-    expect(apiFetch.mock.calls[1]![1].body).toMatchObject({ category_code: "Feedback" });
+    expect(apiFetch.mock.calls[1]![1].body).toMatchObject({
+      category_code: "feedback",
+      priority: "LOW",
+    });
   });
 
   it("propaga 403 sin intentar seed de categorías", async () => {
@@ -83,11 +91,12 @@ describe("createSupportTicketByCode", () => {
       createSupportTicketByCode({
         subject: "[Incidencia] Caída",
         description: "El POS no carga",
-        category_code: "Incidencia",
+        category_code: "incidencia",
+        priority: "HIGH",
       }),
     ).rejects.toMatchObject({ status: 403 });
     expect(apiFetch).toHaveBeenCalledOnce();
-    expect(apiFetch.mock.calls[0]![0]).toBe("/support/tickets/self_create/");
+    expect(apiFetch.mock.calls[0]![0]).toBe("/support/tickets/submit/");
   });
 
   it("fallback de lectura: categorías existentes sin POST de seed", async () => {
@@ -102,10 +111,12 @@ describe("createSupportTicketByCode", () => {
     const ticket = await createSupportTicketByCode({
       subject: "[Duda] X",
       description: "Cómo cierro la caja del día",
-      category_code: "Duda",
+      category_code: "duda",
+      priority: "MEDIUM",
     });
     expect(ticket.id).toBe("t-3");
     const paths = apiFetch.mock.calls.map((c) => c[0] as string);
+    expect(paths[0]).toBe("/support/tickets/submit/");
     expect(paths).toContain("/support/categories/?page_size=100");
     expect(paths).toContain("/support/sla-policies/?page_size=50");
     expect(paths.filter((p) => p === "/support/categories/")).toHaveLength(0);
@@ -121,14 +132,14 @@ describe("createSupportTicketByCode", () => {
 });
 
 describe("SUPPORT_INQUIRY_OPTIONS", () => {
-  it("cubre los cinco códigos del contrato", async () => {
+  it("cubre los cinco códigos del contrato submit (minúsculas)", async () => {
     const { SUPPORT_INQUIRY_OPTIONS } = await import("./support");
     expect(SUPPORT_INQUIRY_OPTIONS.map((o) => o.categoryCode)).toEqual([
-      "Duda",
-      "Incidencia",
-      "Reclamo",
-      "Feedback",
-      "Manual",
+      "duda",
+      "incidencia",
+      "reclamo",
+      "feedback",
+      "manual",
     ]);
   });
 });
