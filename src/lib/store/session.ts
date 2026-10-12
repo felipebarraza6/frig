@@ -414,6 +414,18 @@ export function useCanRegisterCashMovements(): boolean {
 }
 
 /**
+ * True si el usuario puede abrir caja: cualquier miembro de la sucursal activa
+ * o super admin. Cerrar, anular y acciones de histórico siguen OWNER.
+ */
+export const canOpenCashRegister = canRegisterCashMovements;
+
+export function useCanOpenCashRegister(): boolean {
+  const user = useSessionStore((s) => s.user);
+  const currentBranchId = useSessionStore((s) => s.currentBranchId);
+  return canOpenCashRegister(user, currentBranchId);
+}
+
+/**
  * True si el cajero debe estar restringido a su estación asignada
  * en el histórico de cajas.
  */

@@ -68,6 +68,7 @@ import {
   useCashierStationOnly,
   useCanManageCashMovements,
   useCanRegisterCashMovements,
+  useCanOpenCashRegister,
   useSessionStore,
   useIsOwner,
   useIsSuperAdmin,
@@ -130,6 +131,7 @@ export default function CashRegisterPage() {
   const canViewHistory = useCanViewCashRegisterHistory();
   const canManageMovements = useCanManageCashMovements();
   const canRegisterMovements = useCanRegisterCashMovements();
+  const canOpenRegister = useCanOpenCashRegister();
   const cashierStationOnly = useCashierStationOnly();
   const user = useSessionStore((s) => s.user);
   const isOwner = useIsOwner();
@@ -842,7 +844,7 @@ export default function CashRegisterPage() {
                     </div>
                   )}
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    {canManageMovements ? (
+                    {canOpenRegister ? (
                       <>
                         <Input
                           value={openAmount ? formatCLP(parseFloat(toDecimal(openAmount))) : ""}
@@ -866,7 +868,7 @@ export default function CashRegisterPage() {
                       </>
                     ) : (
                       <p className="rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
-                        Solo el propietario o administrador pueden abrir/cerrar caja.
+                        Debes pertenecer a esta sucursal para abrir caja.
                       </p>
                     )}
                   </div>

@@ -203,6 +203,20 @@ describe("contrato: ingresos/retiros de caja (cualquier miembro)", () => {
   });
 });
 
+describe("regla: abrir caja (cualquier miembro)", () => {
+  it("cualquier rol de la sucursal activa o super admin puede abrir caja", async () => {
+    const { canOpenCashRegister } = await import("../store/session");
+    const user = (role: string) =>
+      ({ branch_assignments: [{ branch_id: 7, role_code: role }] }) as never;
+    for (const role of ["OWNER", "ADMIN_LOCAL", "CAJERO", "MESERO"]) {
+      expect(canOpenCashRegister(user(role), "7")).toBe(true);
+    }
+    expect(canOpenCashRegister(user("CAJERO"), "8")).toBe(false);
+    expect(canOpenCashRegister(null, "7")).toBe(false);
+    expect(canOpenCashRegister({ type_user: "ADM" } as never, null)).toBe(true);
+  });
+});
+
 describe("contrato: mesa / comanda", () => {
   it("POST /tables/tables/{id}/occupy/ con action occupy|free", async () => {
     apiFetch
