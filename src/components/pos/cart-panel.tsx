@@ -581,8 +581,12 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
         try {
           await freeTable(existingOrder.table);
           queryClient.invalidateQueries({ queryKey: ["tables"] });
-        } catch {
-          // Ignorar errores de liberación; la mesa puede liberarse manualmente.
+        } catch (err) {
+          toast.error(
+            err instanceof Error
+              ? `Pago ok, pero la mesa no se liberó: ${err.message}`
+              : "Pago ok, pero la mesa no se liberó. Libérala desde Mesas.",
+          );
         }
       }
 
@@ -732,8 +736,12 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
         try {
           await freeTable(order.table);
           queryClient.invalidateQueries({ queryKey: ["tables"] });
-        } catch {
-          // Ignorar errores de liberación; la mesa puede liberarse manualmente.
+        } catch (err) {
+          toast.error(
+            err instanceof Error
+              ? `Venta ok, pero la mesa no se liberó: ${err.message}`
+              : "Venta ok, pero la mesa no se liberó. Libérala desde Mesas.",
+          );
         }
       }
 

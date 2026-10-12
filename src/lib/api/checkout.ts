@@ -7,6 +7,10 @@ export interface CheckoutRequest {
   contact_name: string;
   email: string;
   website?: string;
+  /** Alineado a PlanCheckoutCreateRequest (default backend: organization). */
+  checkout_type?: "organization" | "branch_client";
+  /** Alineado a PlanCheckoutCreateRequest (default backend: 1). */
+  installments_count?: number;
 }
 
 export interface CheckoutResponse {
@@ -27,7 +31,15 @@ export function checkoutPath(group = "frig"): string {
 export function fetchCheckout(p: CheckoutRequest, group = "frig", signal?: AbortSignal) {
   return apiFetch<CheckoutResponse>(checkoutPath(group), {
     method: "POST",
-    body: p,
+    body: {
+      checkout_type: p.checkout_type ?? "organization",
+      installments_count: p.installments_count ?? 1,
+      plan_id: p.plan_id,
+      business_name: p.business_name,
+      contact_name: p.contact_name,
+      email: p.email,
+      ...(p.website ? { website: p.website } : {}),
+    },
     auth: "none",
     branch: "none",
     signal,
