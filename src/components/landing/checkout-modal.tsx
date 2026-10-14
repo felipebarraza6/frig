@@ -223,7 +223,9 @@ export function CheckoutModal({
       description={
         state === "done"
           ? undefined
-          : `${monthly} · +${integrationUf} UF única de integración y puesta en marcha`
+          : integrationUf > 0
+            ? `${monthly} · +${integrationUf} UF única de integración y puesta en marcha`
+            : monthly
       }
     >
       {state === "polling" ? (

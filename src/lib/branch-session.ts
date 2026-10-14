@@ -7,6 +7,7 @@ import { fetchBranchTheme, applyThemeConfig } from "@/lib/api/branches";
 import { getBranchId, setBranchId, clearBranchId } from "@/lib/api/session-storage";
 import { setBranchApiScope } from "@/lib/api/branch-scope";
 import type { Branch, User } from "@/lib/types";
+import { rememberLoginSlug } from "@/lib/login-slug";
 
 /**
  * Sucursal con la que entrar a la app: la asignada por defecto (activa),
@@ -69,6 +70,13 @@ export function reconcileStoredBranch(
 export async function activateBranch(branchId: string, queryClient?: QueryClient): Promise<void> {
   const config = await fetchFrontendConfig(Number(branchId));
   useSessionStore.getState().setFrontendConfig(config, branchId);
+  const branch =
+    config.current_branch ??
+    config.branches?.find((b) => String(b.branch_id) === String(branchId));
+  const slug =
+    (branch as Branch | undefined)?.login_slug ??
+    (config.current_branch as Branch | undefined)?.login_slug;
+  if (slug) rememberLoginSlug(String(slug));
   // Super admin: black puro — nunca aplica el tema de la sucursal activada.
   const user = useSessionStore.getState().user;
   if (user?.is_superuser || user?.type_user === "ADM") {

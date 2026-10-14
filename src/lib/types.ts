@@ -67,6 +67,8 @@ export interface Branch {
   custom_domain?: string | null;
   /** Remitente de correos de la sucursal (SPF/DKIM). */
   from_email?: string | null;
+  /** Slug de login white-label: /login/{slug}. */
+  login_slug?: string | null;
   plan?: ID | null;
   plan_name?: string | null;
   plan_expiration_date?: string | null;

@@ -332,8 +332,9 @@ export function useCanManageCustomers(): boolean {
   return ["OWNER", "ADMIN_LOCAL", "MANAGER"].includes(currentRole ?? "");
 }
 
-/** True si el usuario debe llegar al POS primero (ADMIN_LOCAL / CAJERO / WAITER).
+/** True si el usuario debe llegar al POS primero (ADMIN_LOCAL / CAJERO / WAITER / MESERO).
  * OWNER y superadmin entran al dashboard por defecto, pero pueden navegar a POS.
+ * Incluye aliases MESERO (mesero) — usado también para no redirigir 403 a /dashboard.
  */
 export function useIsPosFirstRole(): boolean {
   const user = useSessionStore((s) => s.user);
@@ -341,7 +342,7 @@ export function useIsPosFirstRole(): boolean {
   const currentRole = useCurrentBranchRole();
   if (!user || !currentBranchId) return false;
   if (isUserAdminOrSuperuser(user)) return false;
-  return ["ADMIN_LOCAL", "CAJERO", "WAITER"].includes(currentRole ?? "");
+  return ["ADMIN_LOCAL", "CAJERO", "WAITER", "MESERO"].includes(currentRole ?? "");
 }
 
 /** True si el usuario es superadmin (is_superuser o type_user === "ADM"). */
@@ -382,13 +383,46 @@ export function useCanViewCashRegisterHistory(): boolean {
   return ["OWNER", "ADMIN_LOCAL", "MANAGER"].includes(currentRole ?? "");
 }
 
-/** True si el usuario puede registrar ingresos/retiros de caja (OWNER o super admin). */
+/** True si el usuario puede anular movimientos y cerrar/reabrir caja (OWNER o super admin). */
 export function useCanManageCashMovements(): boolean {
   const user = useSessionStore((s) => s.user);
   const currentRole = useCurrentBranchRole();
   if (!user) return false;
   if (isUserAdminOrSuperuser(user)) return true;
   return currentRole === "OWNER";
+}
+
+/**
+ * True si el usuario puede registrar ingresos/retiros (cash in/out) de caja:
+ * cualquier miembro de la sucursal activa (cualquiera puede vender) o super admin.
+ * Anular movimientos, cerrar y reabrir siguen siendo OWNER (useCanManageCashMovements).
+ */
+export function canRegisterCashMovements(
+  user: User | null,
+  currentBranchId: string | null | undefined,
+): boolean {
+  if (!user) return false;
+  if (isUserAdminOrSuperuser(user)) return true;
+  if (!currentBranchId) return false;
+  return !!user.branch_assignments?.some((a) => String(a.branch_id) === currentBranchId);
+}
+
+export function useCanRegisterCashMovements(): boolean {
+  const user = useSessionStore((s) => s.user);
+  const currentBranchId = useSessionStore((s) => s.currentBranchId);
+  return canRegisterCashMovements(user, currentBranchId);
+}
+
+/**
+ * True si el usuario puede abrir caja: cualquier miembro de la sucursal activa
+ * o super admin. Cerrar, anular y acciones de histórico siguen OWNER.
+ */
+export const canOpenCashRegister = canRegisterCashMovements;
+
+export function useCanOpenCashRegister(): boolean {
+  const user = useSessionStore((s) => s.user);
+  const currentBranchId = useSessionStore((s) => s.currentBranchId);
+  return canOpenCashRegister(user, currentBranchId);
 }
 
 /**
@@ -420,6 +454,15 @@ export function useIsCook(): boolean {
   return role === "COCINERO" || role === "COOK";
 }
 
+/** Roles operativos de piso: no redirigir 403 a /dashboard (el layout los saca). */
+export function useIsOperationalFloorRole(): boolean {
+  const isCashier = useIsCashier();
+  const isWaiter = useIsWaiter();
+  const isCook = useIsCook();
+  const isPosFirst = useIsPosFirstRole();
+  return isCashier || isWaiter || isCook || isPosFirst;
+}
+
 /** True si el usuario puede gestionar mesas (crear/editar/eliminar). */
 export function useCanManageTables(): boolean {
   const user = useSessionStore((s) => s.user);
@@ -435,7 +478,10 @@ export function useCanViewTables(): boolean {
   const currentRole = useCurrentBranchRole();
   if (!user) return false;
   if (isUserAdminOrSuperuser(user)) return true;
-  return ["OWNER", "ADMIN_LOCAL", "MANAGER", "WAITER", "CAJERO"].includes(currentRole ?? "");
+  // MESERO es alias de WAITER en algunos seeds/backend; sin él el POS oculta mesas.
+  return ["OWNER", "ADMIN_LOCAL", "MANAGER", "WAITER", "MESERO", "CAJERO"].includes(
+    currentRole ?? "",
+  );
 }
 
 /** Menú filtrado devuelto por frontend-config. */

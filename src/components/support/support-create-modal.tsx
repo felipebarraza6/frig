@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState, type FormEvent } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   CircleHelp,
   AlertTriangle,
@@ -13,13 +13,10 @@ import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   SUPPORT_INQUIRY_OPTIONS,
-  bootstrapFrigSupport,
-  createSupportTicket,
-  fetchSupportCategories,
-  fetchSupportSlaPolicies,
+  createSupportTicketByCode,
+  supportCreateErrorMessage,
   type SupportAttachment,
   type SupportInquiryKind,
 } from "@/lib/api/support";
@@ -81,11 +78,9 @@ export function SupportCreateModal({
   initialClientName = null,
 }: SupportCreateModalProps) {
   const user = useSessionStore((s) => s.user);
-  const currentBranchId = useSessionStore((s) => s.currentBranchId);
   const productName = useProductName();
   const toast = useToast();
   const queryClient = useQueryClient();
-  const branchIdNum = Number(currentBranchId);
 
   const [kind, setKind] = useState<SupportInquiryKind>(initialKind);
   const [subject, setSubject] = useState("");
@@ -95,56 +90,23 @@ export function SupportCreateModal({
 
   // Reset del formulario al reabrir o cambiar de tipo inicial (ajuste en render).
   const [openKey, setOpenKey] = useState<string | null>(null);
-  const openKeyNow = open ? initialKind : null;
+  const openKeyNow = open ? `${initialKind}|${initialClientId ?? ""}` : null;
   if (openKey !== openKeyNow) {
     setOpenKey(openKeyNow);
     if (open) {
       setKind(initialKind);
+      setSubject("");
+      setDescription("");
+      setAttachments([]);
       setError(null);
     }
   }
-
-  const bootstrapQuery = useQuery({
-    queryKey: ["support-bootstrap", currentBranchId, productName],
-    queryFn: async () => {
-      await bootstrapFrigSupport(branchIdNum, productName);
-      const [categories, sla] = await Promise.all([
-        fetchSupportCategories(),
-        fetchSupportSlaPolicies(),
-      ]);
-      return { categories, sla };
-    },
-    enabled: open && Number.isFinite(branchIdNum) && branchIdNum > 0,
-    staleTime: 5 * 60 * 1000,
-    retry: 1,
-  });
-
-  const categoryId = useMemo(() => {
-    const opt = SUPPORT_INQUIRY_OPTIONS.find((o) => o.value === kind);
-    const cats = bootstrapQuery.data?.categories;
-    if (!opt || !cats?.length) return null;
-    const match = cats.find(
-      (c) => c.name.trim().toLowerCase() === opt.categoryName.toLowerCase(),
-    );
-    return match?.id ?? cats[0]?.id ?? null;
-  }, [kind, bootstrapQuery.data?.categories]);
 
   const meta = KIND_META[kind];
 
   const create = useMutation({
     mutationFn: async () => {
       const opt = SUPPORT_INQUIRY_OPTIONS.find((o) => o.value === kind)!;
-      if (!categoryId) {
-        throw new Error(
-          "Soporte no tiene categorías configuradas en esta sucursal. Escribe a contacto@frig.cl.",
-        );
-      }
-      const slaId = bootstrapQuery.data?.sla?.[0]?.id;
-      if (!slaId) {
-        throw new Error(
-          "Falta una política SLA de soporte en esta sucursal. Escribe a contacto@frig.cl.",
-        );
-      }
       const cleanSubject = subject.trim();
       const prefixed = cleanSubject.toLowerCase().startsWith(opt.subjectPrefix.toLowerCase())
         ? cleanSubject
@@ -153,12 +115,11 @@ export function SupportCreateModal({
         [user?.first_name, user?.last_name].filter(Boolean).join(" ").trim() ||
         user?.username ||
         undefined;
-      return createSupportTicket({
+      return createSupportTicketByCode({
         subject: prefixed,
         description: description.trim(),
-        category: categoryId,
+        category_code: opt.categoryCode,
         priority: opt.priority,
-        sla_policy: slaId,
         client: initialClientId ?? undefined,
         requester_email: user?.email || undefined,
         requester_name: name,
@@ -166,11 +127,18 @@ export function SupportCreateModal({
       });
     },
     onSuccess: (ticket) => {
-      toast.success(
-        initialClientId
-          ? "Reclamo registrado en la ficha del cliente."
-          : "Solicitud enviada. Te responderemos aquí.",
-      );
+      const warnings = (ticket as { _attachment_warnings?: string[] })._attachment_warnings;
+      if (warnings?.length) {
+        toast.error(
+          `Solicitud creada, pero no se subieron: ${warnings.join(", ")}. Puedes adjuntarlos en el caso.`,
+        );
+      } else {
+        toast.success(
+          initialClientId
+            ? "Reclamo registrado en la ficha del cliente."
+            : "Solicitud enviada. Te responderemos aquí.",
+        );
+      }
       queryClient.invalidateQueries({ queryKey: ["support-tickets"] });
       if (initialClientId != null) {
         queryClient.invalidateQueries({
@@ -185,9 +153,10 @@ export function SupportCreateModal({
       onCreated?.(ticket.id);
       onClose();
     },
-    onError: (err: Error) => {
-      setError(err.message || "No se pudo crear la solicitud.");
-      toast.error(err.message || "No se pudo crear la solicitud.");
+    onError: (err: unknown) => {
+      const message = supportCreateErrorMessage(err);
+      setError(message);
+      toast.error(message);
     },
   });
 
@@ -204,15 +173,6 @@ export function SupportCreateModal({
     }
     create.mutate();
   }
-
-  const categoriesMissing =
-    bootstrapQuery.isSuccess &&
-    (!bootstrapQuery.data?.categories || bootstrapQuery.data.categories.length === 0);
-  const ready =
-    !bootstrapQuery.isLoading &&
-    !categoriesMissing &&
-    !!categoryId &&
-    !!bootstrapQuery.data?.sla;
 
   return (
     <Modal
@@ -236,52 +196,52 @@ export function SupportCreateModal({
               </span>
             </div>
           )}
-          {bootstrapQuery.isLoading ? (
-            <div className="flex flex-col gap-2">
-              <Skeleton className="h-4 w-40" />
-              <Skeleton className="h-20 w-full rounded-xl" />
-            </div>
-          ) : (
-            <div>
-              <p className="mb-2 text-xs font-medium text-muted-foreground">Tipo de consulta</p>
-              <div className="grid grid-cols-2 gap-2">
-                {SUPPORT_INQUIRY_OPTIONS.map((opt) => {
-                  const meta = KIND_META[opt.value];
-                  if (!meta) return null;
-                  const Icon = meta.icon;
-                  const selected = kind === opt.value;
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setKind(opt.value)}
+          <div>
+            <p className="mb-2 text-xs font-medium text-muted-foreground">Tipo de consulta</p>
+            <div
+              className="grid grid-cols-2 gap-2"
+              role="radiogroup"
+              aria-label="Tipo de consulta"
+            >
+              {SUPPORT_INQUIRY_OPTIONS.map((opt) => {
+                const kindMeta = KIND_META[opt.value];
+                if (!kindMeta) return null;
+                const Icon = kindMeta.icon;
+                const selected = kind === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => setKind(opt.value)}
+                    className={cn(
+                      "flex items-start gap-2 rounded-xl border px-3 py-2.5 text-left transition-colors",
+                      selected
+                        ? "border-primary bg-primary/5 text-foreground"
+                        : "border-border text-muted-foreground hover:border-primary/40",
+                    )}
+                  >
+                    <Icon
                       className={cn(
-                        "flex items-start gap-2 rounded-xl border px-3 py-2.5 text-left transition-colors",
-                        selected
-                          ? "border-primary bg-primary/5 text-foreground"
-                          : "border-border text-muted-foreground hover:border-primary/40",
+                        "mt-0.5 h-4 w-4 shrink-0",
+                        selected ? "text-primary" : "text-muted-foreground",
                       )}
-                    >
-                      <Icon
-                        className={cn(
-                          "mt-0.5 h-4 w-4 shrink-0",
-                          selected ? "text-primary" : "text-muted-foreground",
-                        )}
-                      />
-                      <span>
-                        <span className="block text-sm font-medium">{opt.label}</span>
-                        <span className="mt-0.5 block text-[10px] leading-snug opacity-80">
-                          {opt.value === "doubt"
-                            ? `Algo no te queda claro del uso de ${productName}.`
-                            : meta.hint}
-                        </span>
+                      aria-hidden
+                    />
+                    <span>
+                      <span className="block text-sm font-medium">{opt.label}</span>
+                      <span className="mt-0.5 block text-[10px] leading-snug opacity-80">
+                        {opt.value === "doubt"
+                          ? `Algo no te queda claro del uso de ${productName}.`
+                          : kindMeta.hint}
                       </span>
-                    </button>
-                  );
-                })}
-              </div>
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-          )}
+          </div>
 
           <Field label="Asunto" required>
             <Input
@@ -289,6 +249,7 @@ export function SupportCreateModal({
               onChange={(e) => setSubject(e.target.value)}
               placeholder={meta.placeholder}
               maxLength={200}
+              aria-required
             />
           </Field>
 
@@ -302,6 +263,7 @@ export function SupportCreateModal({
               onChange={(e) => setDescription(e.target.value)}
               rows={5}
               placeholder="Cuéntanos qué pasó, qué esperabas y cómo te podemos ayudar."
+              aria-required
               className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             />
           </Field>
@@ -313,42 +275,17 @@ export function SupportCreateModal({
             <SupportAttachmentPicker value={attachments} onChange={setAttachments} />
           </Field>
 
-          {bootstrapQuery.isError && (
-            <p className="rounded-lg bg-danger/10 px-3 py-2 text-xs text-danger">
-              No pudimos preparar el soporte. Reintenta o escribe a{" "}
-              <a className="underline" href="mailto:contacto@frig.cl">
-                contacto@frig.cl
-              </a>
-              .
-            </p>
-          )}
-          {categoriesMissing && (
-            <p className="rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">
-              Soporte aún no está configurado en esta sucursal. Contacta a{" "}
-              <a className="underline" href="mailto:contacto@frig.cl">
-                contacto@frig.cl
-              </a>
-              .
-            </p>
-          )}
-          {bootstrapQuery.isSuccess && !bootstrapQuery.data?.sla && (
-            <p className="rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">
-              Falta la política SLA de soporte. Un administrador debe configurarla o escribe a{" "}
-              <a className="underline" href="mailto:contacto@frig.cl">
-                contacto@frig.cl
-              </a>
-              .
-            </p>
-          )}
           {error && (
-            <p className="rounded-lg bg-danger/10 px-3 py-2 text-xs text-danger">{error}</p>
+            <p role="alert" className="rounded-lg bg-danger/10 px-3 py-2 text-xs text-danger">
+              {error}
+            </p>
           )}
         </ModalBody>
         <ModalFooter>
           <Button type="button" variant="outline" onClick={onClose}>
             Cancelar
           </Button>
-          <Button type="submit" isLoading={create.isPending} disabled={!ready}>
+          <Button type="submit" isLoading={create.isPending}>
             Enviar solicitud
           </Button>
         </ModalFooter>

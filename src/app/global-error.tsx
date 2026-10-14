@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { AlertTriangle, RotateCcw, LogIn } from "lucide-react";
+import { loginPath } from "@/lib/login-slug";
 import "./globals.css";
 
 export default function GlobalError({
@@ -46,7 +47,7 @@ export default function GlobalError({
             Recargar página
           </button>
           <Link
-            href="/login"
+            href={loginPath()}
             className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
           >
             <LogIn className="h-4 w-4" />

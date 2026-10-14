@@ -63,10 +63,10 @@ const PILLARS = [
   },
   {
     href: "/support",
-    title: "Soporte",
-    blurb: "Reporta un problema, pide una aclaración o envía una idea al equipo.",
+    title: "Soporte / Enviar feedback",
+    blurb: "Reporta un problema, pide una aclaración o envía una idea al equipo. Disponible para todos los roles.",
     icon: LifeBuoy,
-    cta: "Abrir soporte",
+    cta: "Nueva solicitud",
   },
 ] as const;
 

@@ -20,10 +20,14 @@ import { useNavFavorites } from "@/lib/store/nav-favorites";
 import { useSubscriptionLock } from "@/lib/hooks/useSubscriptionLock";
 import {
   BOTTOM_NAV_SLOTS,
-  defaultBottomNavHrefs,
   filterNavItemsByRole,
   type NavRoleFilter,
 } from "@/lib/nav-access";
+import {
+  SUPPORT_PATH,
+  ensureSupportNavHref,
+  supportAwareBottomNavHrefs,
+} from "@/lib/support-access";
 
 interface NavItem {
   href: string;
@@ -137,13 +141,45 @@ export const MobileBottomNav = memo(function MobileBottomNav({
       .filter((item): item is NonNullable<typeof item> => Boolean(item))
       .map(toNavItem);
 
-    if (starred.length > 0) return starred.slice(0, BOTTOM_NAV_SLOTS);
+    // Favoritos del usuario: si no incluyen Soporte, lo inyectamos (canal siempre on).
+    if (starred.length > 0) {
+      const hrefs = ensureSupportNavHref(starred.map((i) => i.href));
+      const merged = hrefs
+        .map((href) => {
+          const existing = starred.find((i) => i.href === href);
+          if (existing) return existing;
+          const fromMenu = visibleMenuItems.find((i) => i.href === href);
+          if (fromMenu) return toNavItem(fromMenu);
+          if (href === SUPPORT_PATH) {
+            return {
+              href: SUPPORT_PATH,
+              label: "Soporte",
+              icon: LifeBuoy,
+              description: "Casos, dudas e ideas al equipo",
+            } satisfies NavItem;
+          }
+          return null;
+        })
+        .filter((item): item is NavItem => Boolean(item));
+      return merged.slice(0, BOTTOM_NAV_SLOTS);
+    }
 
-    const preferred = defaultBottomNavHrefs({ isCashier, isWaiter, isCook });
+    const preferred = supportAwareBottomNavHrefs({ isCashier, isWaiter, isCook });
     return preferred
-      .map((href) => visibleMenuItems.find((i) => i.href === href))
-      .filter((item): item is NonNullable<typeof item> => Boolean(item))
-      .map(toNavItem)
+      .map((href) => {
+        const fromMenu = visibleMenuItems.find((i) => i.href === href);
+        if (fromMenu) return toNavItem(fromMenu);
+        if (href === SUPPORT_PATH) {
+          return {
+            href: SUPPORT_PATH,
+            label: "Soporte",
+            icon: LifeBuoy,
+            description: "Casos, dudas e ideas al equipo",
+          } satisfies NavItem;
+        }
+        return null;
+      })
+      .filter((item): item is NavItem => Boolean(item))
       .slice(0, BOTTOM_NAV_SLOTS);
   }, [visibleMenuItems, favorites, isCashier, isWaiter, isCook, lockedStable]);
 

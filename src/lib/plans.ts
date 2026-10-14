@@ -83,6 +83,6 @@ export function formatPlanPriceUf(priceUf: number | string | null | undefined): 
   if (priceUf == null || priceUf === "") return "A convenir";
   const n = typeof priceUf === "number" ? priceUf : Number(priceUf);
   if (Number.isNaN(n)) return "A convenir";
-  if (n === 0) return "0 UF/mes";
+  if (n === 0) return "Gratis";
   return `${n} UF/mes`;
 }
