@@ -759,6 +759,20 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
   const [ingredients, setIngredients] = useState<IngredientDraft[]>([]);
   const [ingredientSearch, setIngredientSearch] = useState("");
   const [ingredientSearchInput, setIngredientSearchInput] = useState("");
+  // Lista de resultados de materias primas: se abre al enfocar/escribir y se
+  // cierra con click afuera o Escape (antes dependía solo de que hubiera
+  // resultados, así que quedaba abierta hasta elegir uno).
+  const [ingredientListOpen, setIngredientListOpen] = useState(false);
+  const ingredientPickerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!ingredientListOpen) return;
+    function handlePointerDown(e: PointerEvent | MouseEvent) {
+      if (ingredientPickerRef.current?.contains(e.target as Node)) return;
+      setIngredientListOpen(false);
+    }
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [ingredientListOpen]);
 
   useEffect(() => {
     const timer = setTimeout(() => setIngredientSearch(ingredientSearchInput), 300);
@@ -1000,6 +1014,7 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
     ]);
     setIngredientSearch("");
     setIngredientSearchInput("");
+    setIngredientListOpen(false);
   }
 
   function updateIngredient(localId: string, patch: Partial<IngredientDraft>) {
@@ -2044,15 +2059,31 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
               <div className="mt-4">
                 <label className="mb-2 block text-xs font-medium text-muted-foreground">Ingredientes / materias primas</label>
 
-                <div className="relative mb-3">
+                <div ref={ingredientPickerRef} className="relative mb-3">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     value={ingredientSearchInput}
-                    onChange={(e) => setIngredientSearchInput(e.target.value)}
+                    onChange={(e) => {
+                      setIngredientSearchInput(e.target.value);
+                      setIngredientListOpen(true);
+                    }}
+                    onFocus={() => setIngredientListOpen(true)}
+                    onClick={() => setIngredientListOpen(true)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape" && ingredientListOpen) {
+                        // No cerrar el modal del producto, solo la lista.
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIngredientListOpen(false);
+                      }
+                    }}
                     placeholder="Buscar materia prima…"
                     className="pl-9"
+                    aria-expanded={ingredientListOpen}
+                    aria-autocomplete="list"
                   />
-                  {(ingredientSearchInput.trim().length > 0 || ingredientProducts.length > 0) && (
+                  {ingredientListOpen &&
+                    (ingredientSearchInput.trim().length > 0 || ingredientProducts.length > 0) && (
                     <div className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-lg border border-border bg-background shadow-lg">
                       {ingredientProducts.length === 0 ? (
                         <p className="px-3 py-2 text-xs text-muted-foreground">No se encontraron materias primas.</p>
