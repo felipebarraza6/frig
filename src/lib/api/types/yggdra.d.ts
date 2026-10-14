@@ -16682,7 +16682,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Obtener resumen de bodegas de una sucursal. */
+        /**
+         * @description Obtener resumen de bodegas de la sucursal del request.
+         *
+         *     Valida branch_id (query o X-Branch-ID) contra las sucursales del
+         *     usuario para evitar fuga entre clientes. Nunca convierte excepciones
+         *     internas en 400 genéricos (regresión KeyError → 400).
+         */
         get: operations["inventory_warehouses_branch_summary_retrieve"];
         put?: never;
         post?: never;
@@ -18002,6 +18008,94 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
+        /** Actualizar configuración del panel (admin) */
+        patch: operations["p90_panel_config_partial_update"];
+        trace?: never;
+    };
+    "/api/p90/panel/messages/broadcast": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Publicar aviso general a todos los alumnos
+         * @description Aviso general a todos los alumnos (sin copiar mensajes privados).
+         */
+        post: operations["p90_panel_messages_broadcast_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/p90/panel/messages/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Listar mensajes del hilo del alumno autenticado
+         * @description Hilo propio del alumno: listar y escribir eligiendo destinatario.
+         */
+        get: operations["p90_panel_messages_me_retrieve"];
+        put?: never;
+        /**
+         * Enviar mensaje (alumno → nutri/admin)
+         * @description Hilo propio del alumno: listar y escribir eligiendo destinatario.
+         */
+        post: operations["p90_panel_messages_me_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/p90/panel/messages/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stream SSE de mensajes P90
+         * @description SSE: eventos {type:message, thread_id, message} + heartbeat/timeout.
+         *
+         *     Auth: ``?stream_token=`` (recomendado para EventSource) o Authorization/cookie
+         *     + ``X-Branch-ID``. El branch va embebido en el stream_token.
+         */
+        get: operations["p90_panel_messages_stream_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/p90/panel/messages/stream-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Obtener token de corta vida para SSE de mensajería
+         * @description Emite un stream_token corto para EventSource (no usar el token principal en URL).
+         */
+        post: operations["p90_panel_messages_stream_token_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
         patch?: never;
         trace?: never;
     };
@@ -18034,6 +18128,66 @@ export interface paths {
         put?: never;
         /** Crear comentario */
         post: operations["p90_panel_participants_comments_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/p90/panel/participants/{client_id}/habit-plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Plan de hábitos vigente e historial */
+        get: operations["p90_panel_participants_habit_plan_retrieve"];
+        put?: never;
+        /** Crear o actualizar plan de hábitos */
+        post: operations["p90_panel_participants_habit_plan_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/p90/panel/participants/{client_id}/macro-targets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Listar metas de macros por tramo */
+        get: operations["p90_panel_participants_macro_targets_retrieve"];
+        put?: never;
+        /** Crear meta de macros por tramo */
+        post: operations["p90_panel_participants_macro_targets_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/p90/panel/participants/{client_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Listar mensajes del hilo de un alumno
+         * @description Hilo de mensajería de un alumno (staff: nutri/admin; coach si está habilitado).
+         */
+        get: operations["p90_panel_participants_messages_retrieve"];
+        put?: never;
+        /**
+         * Responder en el hilo (o broadcast a todos)
+         * @description Hilo de mensajería de un alumno (staff: nutri/admin; coach si está habilitado).
+         */
+        post: operations["p90_panel_participants_messages_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -22668,7 +22822,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Obtener resumen por sucursal. */
+        /** @description Obtener resumen por sucursal (solo sucursales del usuario). */
         get: operations["scheduling_admin_dashboard_branch_retrieve"];
         put?: never;
         post?: never;
@@ -26380,15 +26534,29 @@ export interface paths {
         };
         /**
          * Listar tickets
-         * @description Mixin para ViewSets que necesitan soporte opcional de ``branch`` en el
-         *     payload para super administradores.
+         * @description Tickets de soporte.
+         *
+         *     Self-service (cualquier BranchUser activo):
+         *     - list / retrieve / create / submit de tickets propios (requester=user)
+         *     - no exige permiso de escritura en ``config``
+         *
+         *     Gestión (escritura en ``config``):
+         *     - ver/editar todos los tickets de la sucursal
+         *     - assign / close / cancel / stats / etc.
          */
         get: operations["support_tickets_list"];
         put?: never;
         /**
          * Crear ticket
-         * @description Mixin para ViewSets que necesitan soporte opcional de ``branch`` en el
-         *     payload para super administradores.
+         * @description Tickets de soporte.
+         *
+         *     Self-service (cualquier BranchUser activo):
+         *     - list / retrieve / create / submit de tickets propios (requester=user)
+         *     - no exige permiso de escritura en ``config``
+         *
+         *     Gestión (escritura en ``config``):
+         *     - ver/editar todos los tickets de la sucursal
+         *     - assign / close / cancel / stats / etc.
          */
         post: operations["support_tickets_create"];
         delete?: never;
@@ -26406,28 +26574,56 @@ export interface paths {
         };
         /**
          * Obtener ticket
-         * @description Mixin para ViewSets que necesitan soporte opcional de ``branch`` en el
-         *     payload para super administradores.
+         * @description Tickets de soporte.
+         *
+         *     Self-service (cualquier BranchUser activo):
+         *     - list / retrieve / create / submit de tickets propios (requester=user)
+         *     - no exige permiso de escritura en ``config``
+         *
+         *     Gestión (escritura en ``config``):
+         *     - ver/editar todos los tickets de la sucursal
+         *     - assign / close / cancel / stats / etc.
          */
         get: operations["support_tickets_retrieve"];
         /**
          * Actualizar ticket
-         * @description Mixin para ViewSets que necesitan soporte opcional de ``branch`` en el
-         *     payload para super administradores.
+         * @description Tickets de soporte.
+         *
+         *     Self-service (cualquier BranchUser activo):
+         *     - list / retrieve / create / submit de tickets propios (requester=user)
+         *     - no exige permiso de escritura en ``config``
+         *
+         *     Gestión (escritura en ``config``):
+         *     - ver/editar todos los tickets de la sucursal
+         *     - assign / close / cancel / stats / etc.
          */
         put: operations["support_tickets_update"];
         post?: never;
         /**
          * Eliminar ticket
-         * @description Mixin para ViewSets que necesitan soporte opcional de ``branch`` en el
-         *     payload para super administradores.
+         * @description Tickets de soporte.
+         *
+         *     Self-service (cualquier BranchUser activo):
+         *     - list / retrieve / create / submit de tickets propios (requester=user)
+         *     - no exige permiso de escritura en ``config``
+         *
+         *     Gestión (escritura en ``config``):
+         *     - ver/editar todos los tickets de la sucursal
+         *     - assign / close / cancel / stats / etc.
          */
         delete: operations["support_tickets_destroy"];
         options?: never;
         head?: never;
         /**
-         * @description Mixin para ViewSets que necesitan soporte opcional de ``branch`` en el
-         *     payload para super administradores.
+         * @description Tickets de soporte.
+         *
+         *     Self-service (cualquier BranchUser activo):
+         *     - list / retrieve / create / submit de tickets propios (requester=user)
+         *     - no exige permiso de escritura en ``config``
+         *
+         *     Gestión (escritura en ``config``):
+         *     - ver/editar todos los tickets de la sucursal
+         *     - assign / close / cancel / stats / etc.
          */
         patch: operations["support_tickets_partial_update"];
         trace?: never;
@@ -26443,8 +26639,15 @@ export interface paths {
         put?: never;
         /**
          * Asignar ticket
-         * @description Mixin para ViewSets que necesitan soporte opcional de ``branch`` en el
-         *     payload para super administradores.
+         * @description Tickets de soporte.
+         *
+         *     Self-service (cualquier BranchUser activo):
+         *     - list / retrieve / create / submit de tickets propios (requester=user)
+         *     - no exige permiso de escritura en ``config``
+         *
+         *     Gestión (escritura en ``config``):
+         *     - ver/editar todos los tickets de la sucursal
+         *     - assign / close / cancel / stats / etc.
          */
         post: operations["support_tickets_assign_create"];
         delete?: never;
@@ -26464,8 +26667,15 @@ export interface paths {
         put?: never;
         /**
          * Anular ticket
-         * @description Mixin para ViewSets que necesitan soporte opcional de ``branch`` en el
-         *     payload para super administradores.
+         * @description Tickets de soporte.
+         *
+         *     Self-service (cualquier BranchUser activo):
+         *     - list / retrieve / create / submit de tickets propios (requester=user)
+         *     - no exige permiso de escritura en ``config``
+         *
+         *     Gestión (escritura en ``config``):
+         *     - ver/editar todos los tickets de la sucursal
+         *     - assign / close / cancel / stats / etc.
          */
         post: operations["support_tickets_cancel_create"];
         delete?: never;
@@ -26485,8 +26695,15 @@ export interface paths {
         put?: never;
         /**
          * Cerrar ticket
-         * @description Mixin para ViewSets que necesitan soporte opcional de ``branch`` en el
-         *     payload para super administradores.
+         * @description Tickets de soporte.
+         *
+         *     Self-service (cualquier BranchUser activo):
+         *     - list / retrieve / create / submit de tickets propios (requester=user)
+         *     - no exige permiso de escritura en ``config``
+         *
+         *     Gestión (escritura en ``config``):
+         *     - ver/editar todos los tickets de la sucursal
+         *     - assign / close / cancel / stats / etc.
          */
         post: operations["support_tickets_close_create"];
         delete?: never;
@@ -26504,8 +26721,15 @@ export interface paths {
         };
         /**
          * Tickets asignados al usuario actual
-         * @description Mixin para ViewSets que necesitan soporte opcional de ``branch`` en el
-         *     payload para super administradores.
+         * @description Tickets de soporte.
+         *
+         *     Self-service (cualquier BranchUser activo):
+         *     - list / retrieve / create / submit de tickets propios (requester=user)
+         *     - no exige permiso de escritura en ``config``
+         *
+         *     Gestión (escritura en ``config``):
+         *     - ver/editar todos los tickets de la sucursal
+         *     - assign / close / cancel / stats / etc.
          */
         get: operations["support_tickets_my_tickets_retrieve"];
         put?: never;
@@ -26526,9 +26750,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Crear ticket público desde formulario web
-         * @description Mixin para ViewSets que necesitan soporte opcional de ``branch`` en el
-         *     payload para super administradores.
+         * Crear ticket desde formulario web (requiere auth + membresía)
+         * @description Antes era AllowAny y auto-provisionaba catálogo Frig. Ya no: exige autenticación y membresía activa en la sucursal, y solo usa categorías/SLA ya existentes (no crea ni reactiva config). El front Frig no consume este endpoint; preferir /submit/ o POST /.
          */
         post: operations["support_tickets_public_create_create"];
         delete?: never;
@@ -26546,8 +26769,15 @@ export interface paths {
         };
         /**
          * Tickets vencidos de SLA
-         * @description Mixin para ViewSets que necesitan soporte opcional de ``branch`` en el
-         *     payload para super administradores.
+         * @description Tickets de soporte.
+         *
+         *     Self-service (cualquier BranchUser activo):
+         *     - list / retrieve / create / submit de tickets propios (requester=user)
+         *     - no exige permiso de escritura en ``config``
+         *
+         *     Gestión (escritura en ``config``):
+         *     - ver/editar todos los tickets de la sucursal
+         *     - assign / close / cancel / stats / etc.
          */
         get: operations["support_tickets_sla_breached_retrieve"];
         put?: never;
@@ -26567,12 +26797,39 @@ export interface paths {
         };
         /**
          * Estadísticas de tickets
-         * @description Mixin para ViewSets que necesitan soporte opcional de ``branch`` en el
-         *     payload para super administradores.
+         * @description Tickets de soporte.
+         *
+         *     Self-service (cualquier BranchUser activo):
+         *     - list / retrieve / create / submit de tickets propios (requester=user)
+         *     - no exige permiso de escritura en ``config``
+         *
+         *     Gestión (escritura en ``config``):
+         *     - ver/editar todos los tickets de la sucursal
+         *     - assign / close / cancel / stats / etc.
          */
         get: operations["support_tickets_stats_retrieve"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/support/tickets/submit/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Crear ticket Frig (category_code)
+         * @description Endpoint self-service para Frig. Cualquier BranchUser activo puede abrir un ticket propio sin permiso de `config`. Auto-provisiona categorías Frig (duda, incidencia, reclamo, feedback, manual) y una SLA por defecto si faltan. Notifica a PLATFORM_SUPPORT_EMAIL.
+         */
+        post: operations["support_tickets_submit_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -26588,8 +26845,15 @@ export interface paths {
         };
         /**
          * Tickets sin asignar
-         * @description Mixin para ViewSets que necesitan soporte opcional de ``branch`` en el
-         *     payload para super administradores.
+         * @description Tickets de soporte.
+         *
+         *     Self-service (cualquier BranchUser activo):
+         *     - list / retrieve / create / submit de tickets propios (requester=user)
+         *     - no exige permiso de escritura en ``config``
+         *
+         *     Gestión (escritura en ``config``):
+         *     - ver/editar todos los tickets de la sucursal
+         *     - assign / close / cancel / stats / etc.
          */
         get: operations["support_tickets_unassigned_retrieve"];
         put?: never;
@@ -52076,8 +52340,68 @@ export interface components {
             show_summary_cards: boolean;
             show_email_in_table: boolean;
             ai_summary_enabled: boolean;
-            can_comment: boolean;
+            readonly can_comment: boolean;
             comment_delete_policy: string;
+            habit_weights: {
+                [key: string]: unknown;
+            };
+            partial_day_policy: string;
+            missing_day_policy: string;
+            macro_met_requires: string[];
+            macro_ranges: {
+                [key: string]: unknown;
+            };
+            macro_weights: {
+                [key: string]: unknown;
+            };
+            calories_min_enabled: boolean;
+            calories_low_alert_enabled: boolean;
+            /** Format: double */
+            calories_low_ratio: number;
+            goal_resolution: string;
+            summary_avg_mode: string;
+            allow_student_rest: boolean;
+            messaging_coach_enabled: boolean;
+            rest_day_counts: string;
+            default_water_goal_ml: number;
+            default_sessions_per_week: number;
+            training_mode: string;
+            macros_source: string;
+            week_start_weekday: number;
+            timezone: string;
+            report_grace_hours: number;
+            start_date_source: string;
+            challenge_length_days: number;
+            show_after_challenge_end: boolean;
+            prorate_partial_weeks: boolean;
+            training_alert_closed_weeks_only: boolean;
+            no_data_counts_as_risk: boolean;
+            status_multi_badge: boolean;
+            comment_visible_to_participant_default: boolean;
+            notify_participant_on_comment: boolean;
+            professional_scope: string;
+            reviewer_access: string;
+            min_days_for_analysis: number;
+            min_days_per_metric: number;
+            alert_min_affected_days: number;
+            missing_alert_min_days: number;
+            duplicate_window_seconds: number;
+            comment_max_length: number;
+            block_length_days: number;
+            adherence_equal_weights_as_40_40_20: boolean;
+            milestone_days: number[];
+            milestone_windows: {
+                [key: string]: unknown;
+            };
+            weight_min_kg: number;
+            weight_max_kg: number;
+            height_min_cm: number;
+            height_max_cm: number;
+            /** Format: double */
+            ai_temperature: number;
+            ai_max_tokens: number;
+            ai_timeout_s: number;
+            readonly config_version: number;
         };
         /** @description Serializer para conexiones entre nodos. */
         PatchedAIAgentWorkflowEdgeRequest: {
@@ -58373,6 +58697,77 @@ export interface components {
             /** Activa */
             is_active?: boolean;
         };
+        /** @description Body parcial de PATCH /api/p90/panel/config (todos opcionales). */
+        PatchedPanelConfigPatchRequest: {
+            panel_enabled?: boolean;
+            thresholds?: {
+                [key: string]: unknown;
+            };
+            percent_decimals?: number;
+            show_summary_cards?: boolean;
+            show_email_in_table?: boolean;
+            ai_summary_enabled?: boolean;
+            comment_delete_policy?: string;
+            habit_weights?: {
+                [key: string]: unknown;
+            };
+            partial_day_policy?: string;
+            missing_day_policy?: string;
+            macro_met_requires?: string[];
+            macro_ranges?: {
+                [key: string]: unknown;
+            };
+            macro_weights?: {
+                [key: string]: unknown;
+            };
+            calories_min_enabled?: boolean;
+            calories_low_alert_enabled?: boolean;
+            /** Format: double */
+            calories_low_ratio?: number;
+            goal_resolution?: string;
+            summary_avg_mode?: string;
+            allow_student_rest?: boolean;
+            messaging_coach_enabled?: boolean;
+            rest_day_counts?: string;
+            default_water_goal_ml?: number;
+            default_sessions_per_week?: number;
+            training_mode?: string;
+            macros_source?: string;
+            week_start_weekday?: number;
+            timezone?: string;
+            report_grace_hours?: number;
+            start_date_source?: string;
+            challenge_length_days?: number;
+            show_after_challenge_end?: boolean;
+            prorate_partial_weeks?: boolean;
+            training_alert_closed_weeks_only?: boolean;
+            no_data_counts_as_risk?: boolean;
+            status_multi_badge?: boolean;
+            comment_visible_to_participant_default?: boolean;
+            notify_participant_on_comment?: boolean;
+            professional_scope?: string;
+            reviewer_access?: string;
+            min_days_for_analysis?: number;
+            min_days_per_metric?: number;
+            alert_min_affected_days?: number;
+            missing_alert_min_days?: number;
+            duplicate_window_seconds?: number;
+            comment_max_length?: number;
+            block_length_days?: number;
+            adherence_equal_weights_as_40_40_20?: boolean;
+            milestone_days?: number[];
+            milestone_windows?: {
+                [key: string]: unknown;
+            };
+            weight_min_kg?: number;
+            weight_max_kg?: number;
+            height_min_cm?: number;
+            height_max_cm?: number;
+            /** Format: double */
+            ai_temperature?: number;
+            ai_max_tokens?: number;
+            ai_timeout_s?: number;
+        };
         /** @description Serializer para métodos de pago. */
         PatchedPaymentMethodRequest: {
             /**
@@ -61549,6 +61944,12 @@ export interface components {
             branch?: number | null;
             /** Nombre */
             name?: string;
+            /**
+             * Código
+             * @description Código estable para clientes (ej. feedback, incidencia).
+             * @default
+             */
+            code: string;
             /** Descripción */
             description?: string;
             /**
@@ -61615,6 +62016,8 @@ export interface components {
              * Format: uuid
              */
             category?: string;
+            /** @description Código de categoría Frig (duda, incidencia, reclamo, feedback, manual). */
+            category_code?: string;
             /**
              * Prioridad
              * @description * `LOW` - Baja
@@ -72974,6 +73377,12 @@ export interface components {
             branch?: number | null;
             /** Nombre */
             name: string;
+            /**
+             * Código
+             * @description Código estable para clientes (ej. feedback, incidencia).
+             * @default
+             */
+            code: string;
             /** Descripción */
             description?: string;
             /**
@@ -73021,6 +73430,12 @@ export interface components {
             branch?: number | null;
             /** Nombre */
             name: string;
+            /**
+             * Código
+             * @description Código estable para clientes (ej. feedback, incidencia).
+             * @default
+             */
+            code: string;
             /** Descripción */
             description?: string;
             /**
@@ -73170,6 +73585,8 @@ export interface components {
             assigned_to?: string | null;
             /** Cliente */
             client?: number | null;
+            /** Solicitante */
+            readonly requester: number | null;
             /**
              * Email del Solicitante
              * Format: email
@@ -73250,6 +73667,8 @@ export interface components {
              * Format: uuid
              */
             category: string;
+            /** @description Código de categoría Frig (duda, incidencia, reclamo, feedback, manual). */
+            category_code?: string;
             /**
              * Prioridad
              * @description * `LOW` - Baja
@@ -73353,6 +73772,8 @@ export interface components {
              */
             category: string;
             readonly category_name: string;
+            /** @default  */
+            readonly category_code: string;
             readonly category_parent_name: string;
             /** @default #1890ff */
             readonly category_color: string;
@@ -73419,6 +73840,8 @@ export interface components {
             /** Cliente */
             client?: number | null;
             readonly client_name: string;
+            /** Solicitante */
+            readonly requester: number | null;
             /**
              * Email del Solicitante
              * Format: email
@@ -73557,6 +73980,8 @@ export interface components {
              */
             category: string;
             readonly category_name: string;
+            /** @default  */
+            readonly category_code: string;
             readonly category_parent_name: string;
             /** @default #1890ff */
             readonly category_color: string;
@@ -73623,6 +74048,8 @@ export interface components {
             /** Cliente */
             client?: number | null;
             readonly client_name: string;
+            /** Solicitante */
+            readonly requester: number | null;
             /**
              * Email del Solicitante
              * Format: email
@@ -73787,6 +74214,33 @@ export interface components {
              * @description Indica si el registro está activo. Use esto en lugar de eliminar.
              */
             is_active?: boolean;
+        };
+        TicketSubmitError: {
+            error: string;
+        };
+        /**
+         * @description Contrato self-service (Frig / usuarios sin escritura en ``config``).
+         *
+         *     Solo subject, description, category/category_code y priority permitidas.
+         *     Campos de gestión (assigned_to, status, sla_policy, …) no forman parte
+         *     de este contrato.
+         */
+        TicketSubmitRequest: {
+            subject: string;
+            description: string;
+            /** @description duda | incidencia | reclamo | feedback | manual */
+            category_code?: string;
+            /** Format: uuid */
+            category?: string | null;
+            /**
+             * @description * `LOW` - LOW
+             *     * `MEDIUM` - MEDIUM
+             *     * `HIGH` - HIGH
+             *     * `CRITICAL` - CRITICAL
+             * @default MEDIUM
+             * @enum {string}
+             */
+            priority: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
         };
         TicketTimer: {
             /** Format: uuid */
@@ -112374,6 +112828,136 @@ export interface operations {
             };
         };
     };
+    p90_panel_config_partial_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedPanelConfigPatchRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedPanelConfigPatchRequest"];
+                "multipart/form-data": components["schemas"]["PatchedPanelConfigPatchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelConfig"];
+                    "*/*": components["schemas"]["PanelConfig"];
+                };
+            };
+        };
+    };
+    p90_panel_messages_broadcast_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    p90_panel_messages_me_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    p90_panel_messages_me_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    p90_panel_messages_stream_retrieve: {
+        parameters: {
+            query?: {
+                after_id?: number;
+                format?: "binary" | "json";
+                stream_token?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    p90_panel_messages_stream_token_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     p90_panel_participants_analysis_retrieve: {
         parameters: {
             query?: {
@@ -112447,6 +113031,138 @@ export interface operations {
                     "application/json": components["schemas"]["CommentCreate"];
                     "*/*": components["schemas"]["CommentCreate"];
                 };
+            };
+        };
+    };
+    p90_panel_participants_habit_plan_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                client_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    p90_panel_participants_habit_plan_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                client_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    p90_panel_participants_macro_targets_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                client_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    p90_panel_participants_macro_targets_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                client_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    p90_panel_participants_messages_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                client_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    p90_panel_participants_messages_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                client_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -128159,6 +128875,7 @@ export interface operations {
         parameters: {
             query?: {
                 branch?: number;
+                code?: string;
                 format?: "binary" | "json";
                 is_active?: boolean;
                 /** @description Qué campo usar para ordenar los resultados. */
@@ -129399,6 +130116,7 @@ export interface operations {
                  *     * `CRITICAL` - Crítica
                  */
                 priority?: "CRITICAL" | "HIGH" | "LOW" | "MEDIUM";
+                requester?: number;
                 requester_email?: string;
                 /** @description Un término de búsqueda. */
                 search?: string;
@@ -129758,6 +130476,43 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["TicketList"];
                     "*/*": components["schemas"]["TicketList"];
+                };
+            };
+        };
+    };
+    support_tickets_submit_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TicketSubmitRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["TicketSubmitRequest"];
+                "multipart/form-data": components["schemas"]["TicketSubmitRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketList"];
+                    "*/*": components["schemas"]["TicketList"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketSubmitError"];
+                    "*/*": components["schemas"]["TicketSubmitError"];
                 };
             };
         };
