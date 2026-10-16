@@ -158,13 +158,32 @@ describe("contrato: caja abrir/cerrar", () => {
     });
   });
 
-  it("GET current / daily_summary toleran 404/403 → null", async () => {
+  it("GET current: 404 → null; 403 → throw (no confundir con sin caja)", async () => {
     const { ApiError } = await import("./client");
     const { getCurrentCashRegister, getDailySummary } = await import("./cash-register");
     apiFetch.mockRejectedValueOnce(new ApiError(404, "No abierta"));
     await expect(getCurrentCashRegister(1)).resolves.toBeNull();
     apiFetch.mockRejectedValueOnce(new ApiError(403, "Sin permiso"));
+    await expect(getCurrentCashRegister(1)).rejects.toMatchObject({ status: 403 });
+    apiFetch.mockRejectedValueOnce(new ApiError(403, "Sin permiso"));
     await expect(getDailySummary(1)).resolves.toBeNull();
+  });
+
+  it("payOrder reenvía skip_cash_register_validation (Ventas debe usar false)", async () => {
+    apiFetch.mockResolvedValueOnce({ id: "ord-1", status: "PAID" });
+    const { payOrder } = await import("./orders");
+    await payOrder("ord-1", {
+      payment_method_id: "pm-1",
+      amount: "1000.00",
+      skip_cash_register_validation: false,
+    });
+    const [path, opts] = apiFetch.mock.calls[0]!;
+    expect(path).toBe("/sales/orders/ord-1/pay/");
+    expect(opts.body).toMatchObject({
+      payment_method_id: "pm-1",
+      amount: "1000.00",
+      skip_cash_register_validation: false,
+    });
   });
 });
 

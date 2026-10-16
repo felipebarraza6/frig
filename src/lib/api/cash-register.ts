@@ -37,14 +37,13 @@ export async function getCurrentCashRegister(
     const qs = stationId ? `?station_id=${encodeURIComponent(stationId)}` : "";
     return await apiFetch<CashRegister>(`/finance/cash-registers/current/${qs}`);
   } catch (err) {
-    // 404 = no hay caja abierta.
-    // 403 = usuario sin permiso para consultar caja en esta sucursal/estación.
-    // En ambos casos devolvemos null para no bloquear la operación del POS.
+    // 404 = no hay caja abierta → null (estado normal).
+    // 403 = sin permiso → rethrow para que la UI muestre error (no confundir con “sin caja”).
     if (
       err &&
       typeof err === "object" &&
       "status" in err &&
-      (err.status === 404 || err.status === 403)
+      err.status === 404
     ) {
       return null;
     }

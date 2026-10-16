@@ -72,6 +72,7 @@ import {
   useSessionStore,
   useIsOwner,
   useIsSuperAdmin,
+  useIsAdminLocal,
 } from "@/lib/store/session";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
 
@@ -136,6 +137,7 @@ export default function CashRegisterPage() {
   const user = useSessionStore((s) => s.user);
   const isOwner = useIsOwner();
   const isSuperAdmin = useIsSuperAdmin();
+  const isAdminLocal = useIsAdminLocal();
   const [historyStatus, setHistoryStatus] = useState<"" | "OPEN" | "CLOSED">("");
   const [historyDate, setHistoryDate] = useState("");
   const [historyPage, setHistoryPage] = useState(1);
@@ -145,7 +147,12 @@ export default function CashRegisterPage() {
   const [historyActionType, setHistoryActionType] = useState<"close" | "open" | null>(null);
   const [historyActionAmounts, setHistoryActionAmounts] = useState<Record<number, string>>({});
 
-  const { data: stations = [], isLoading: _loadingStations } = useQuery({
+  const {
+    data: stations = [],
+    isLoading: loadingStations,
+    isError: stationsError,
+    refetch: refetchStations,
+  } = useQuery({
     queryKey: ["cash-register-stations", branch?.branch_id],
     queryFn: fetchCashRegisterStations,
     enabled: !!branch,
@@ -192,7 +199,12 @@ export default function CashRegisterPage() {
     return stations.find((s) => s.id === Number(activeStationId)) ?? null;
   }, [stations, activeStationId]);
 
-  const { data: cashRegister, isLoading: loadingRegister } = useQuery({
+  const {
+    data: cashRegister,
+    isLoading: loadingRegister,
+    isError: registerForbiddenOrError,
+    refetch: refetchCurrentRegister,
+  } = useQuery({
     queryKey: ["cash-register", branch?.branch_id, "current", activeStationId],
     queryFn: () => getCurrentCashRegister(activeStationId),
     retry: false,
@@ -578,15 +590,9 @@ export default function CashRegisterPage() {
   const isOpen = cashRegister?.status === "OPEN";
   const openingAmount = toNum(cashRegister?.opening_amount ?? summary?.opening_amount);
 
-  const isRegisterController =
-    !cashRegister ||
-    !isOpen ||
-    isSuperAdmin ||
-    isOwner ||
-    cashRegister.opened_by === user?.id ||
-    cashRegister.opened_by == null;
-
-  const movementsLocked = !isOpen || !isRegisterController;
+  // Política: cualquier miembro de sucursal puede cash in/out con caja abierta.
+  // Cerrar / anular / histórico = OWNER (canManageMovements).
+  const movementsLocked = !isOpen;
 
   return (
     <div className="mx-auto flex min-h-full w-full min-w-0 max-w-7xl flex-col">
@@ -597,7 +603,21 @@ export default function CashRegisterPage() {
       />
       <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-6 sm:px-6">
         {/* Minimal Station Tab Pills (tags solitos) */}
-        {canChangeStation && stations.length > 0 && (
+        {canChangeStation && loadingStations && (
+          <div className="flex items-center gap-2 pb-1">
+            <Skeleton className="h-9 w-28 rounded-xl" />
+            <Skeleton className="h-9 w-28 rounded-xl" />
+          </div>
+        )}
+        {canChangeStation && stationsError && !loadingStations && (
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800">
+            <span>No se pudieron cargar las estaciones.</span>
+            <Button type="button" variant="outline" size="sm" className="h-7" onClick={() => refetchStations()}>
+              Reintentar
+            </Button>
+          </div>
+        )}
+        {canChangeStation && !loadingStations && !stationsError && stations.length > 0 && (
           <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
             {stations.map((s) => {
               const isSelected = Number(s.id) === activeStationId;
@@ -644,6 +664,21 @@ export default function CashRegisterPage() {
                 </button>
               );
             })}
+          </div>
+        )}
+
+        {registerForbiddenOrError && !loadingRegister && (
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800">
+            <span>No se pudo consultar la caja (permiso denegado o error de red).</span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7"
+              onClick={() => refetchCurrentRegister()}
+            >
+              Reintentar
+            </Button>
           </div>
         )}
 
@@ -778,29 +813,24 @@ export default function CashRegisterPage() {
                     <>
                       <Input
                         value={
-                          isRegisterController
-                            ? closeAmount
-                              ? formatCLP(parseFloat(toDecimal(closeAmount)))
-                              : ""
+                          closeAmount
+                            ? formatCLP(parseFloat(toDecimal(closeAmount)))
                             : ""
                         }
-                        onChange={(e) => {
-                          if (isRegisterController) setCloseAmount(numberValue(e.target.value));
-                        }}
+                        onChange={(e) => setCloseAmount(numberValue(e.target.value))}
                         placeholder="Monto contado"
-                        disabled={!isRegisterController}
                         className="tabular-nums sm:max-w-[180px]"
                       />
                       <Button
                         onClick={() => closeMutation.mutate(toDecimal(closeAmount))}
-                        disabled={!isRegisterController || !closeAmount || closeMutation.isPending}
+                        disabled={!closeAmount || closeMutation.isPending}
                         isLoading={closeMutation.isPending}
                         variant="outline"
                         className="shrink-0"
                       >
                         Cerrar caja
                       </Button>
-                      {expected !== null && closeAmount && isRegisterController && (
+                      {expected !== null && closeAmount && (
                         <p className="text-xs sm:ml-auto">
                           Diferencia:{" "}
                           <span
@@ -813,12 +843,6 @@ export default function CashRegisterPage() {
                           >
                             {formatCLP(Number(toDecimal(closeAmount)) - (expected ?? 0))}
                           </span>
-                        </p>
-                      )}
-                      {!isRegisterController && (
-                        <p className="flex items-center gap-2 text-xs text-amber-700 sm:ml-auto">
-                          <Lock className="h-4 w-4" />
-                          Caja abierta por <strong>{cashRegister?.opened_by_name}</strong>. Solo esa persona o un administrador pueden operarla.
                         </p>
                       )}
                     </>
@@ -955,9 +979,7 @@ export default function CashRegisterPage() {
                   {movementsLocked && (
                     <p className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
                       <Lock className="h-4 w-4" />
-                      {!isOpen
-                        ? "Abre la caja para registrar movimientos."
-                        : <>Caja abierta por <strong>{cashRegister?.opened_by_name}</strong>. Solo esa persona o un administrador pueden operarla.</>}
+                      Abre la caja para registrar movimientos.
                     </p>
                   )}
                 </>
@@ -1910,7 +1932,7 @@ export default function CashRegisterPage() {
 
             {/* Footer del Modal */}
             <div className="flex items-center justify-between border-t border-border bg-muted/20 px-5 py-3">
-              {(isOwner || isSuperAdmin || canViewHistory) ? (
+              {(isOwner || isSuperAdmin || isAdminLocal) ? (
                 <Link
                   href="/cash-register/stations"
                   onClick={() => setShowStationModal(false)}

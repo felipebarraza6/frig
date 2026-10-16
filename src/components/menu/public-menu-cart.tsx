@@ -103,10 +103,16 @@ export function PublicMenuCartBar({
       return;
     }
     if (cart.length === 0) return;
+    // El API público de Flow cobra un solo product_id. Hasta soporte multi-ítem,
+    // bloqueamos el pago parcial y ofrecemos WhatsApp para el carrito completo.
+    if (cart.length > 1) {
+      toast.warning(
+        "El pago online admite un producto a la vez. Deja un solo ítem en el carrito o envía el pedido por WhatsApp.",
+      );
+      return;
+    }
     setPaying(true);
     try {
-      // El API de Flow cobra de a un producto; pagamos el primero y
-      // el resto va en la nota del pedido por WhatsApp si hay más.
       const first = cart[0];
       const result = await payPublicCatalogProduct(slug, {
         product_id: first.product.id,
@@ -121,11 +127,6 @@ export function PublicMenuCartBar({
         (typeof result.redirect_url === "string" && result.redirect_url) ||
         null;
       if (url) {
-        if (cart.length > 1) {
-          toast.warning(
-            "Flow cobra un producto por vez. Se abrirá el pago del primero; el resto envíalo por WhatsApp.",
-          );
-        }
         window.location.assign(url);
         return;
       }
