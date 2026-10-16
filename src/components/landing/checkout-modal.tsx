@@ -89,9 +89,11 @@ export function CheckoutModal({
   const [state, setState] = useState<CheckoutState>(() => {
     if (typeof window === "undefined") return "form";
     const params = new URLSearchParams(window.location.search);
+    // localStorage (no sessionStorage): sobrevive al cierre de la pestaña origen
+    // cuando Flow vuelve a /checkout/result en otra pestaña.
     const pending =
       params.get("checkout_id") ??
-      window.sessionStorage.getItem(storageKey);
+      window.localStorage.getItem(storageKey);
     return pending ? "polling" : "form";
   });
   const [business, setBusiness] = useState(initialValues?.business_name ?? "");
@@ -115,7 +117,7 @@ export function CheckoutModal({
     const params = new URLSearchParams(window.location.search);
     const id =
       params.get("checkout_id") ??
-      window.sessionStorage.getItem(storageKey);
+      window.localStorage.getItem(storageKey);
     if (!id) return;
     let cancelled = false;
     let attempts = 0;
@@ -127,7 +129,7 @@ export function CheckoutModal({
         if (isUsablePaymentUrl(s.payment_url)) setPaymentUrl(s.payment_url);
         if (s.status === "PAID") {
           window.clearInterval(timer);
-          window.sessionStorage.removeItem(storageKey);
+          window.localStorage.removeItem(storageKey);
           onPaid?.();
           setState("done");
         } else if (s.status === "EXPIRED" || s.status === "FAILED") {
@@ -143,6 +145,7 @@ export function CheckoutModal({
         if (cancelled) return;
         if (attempts >= POLL_MAX_ATTEMPTS) {
           window.clearInterval(timer);
+          setError(NETWORK_ERROR);
           setState("form");
         }
       }
@@ -184,7 +187,7 @@ export function CheckoutModal({
 
       if (!isUsablePaymentUrl(res.payment_url) && res.status === "PAID") {
         closePopup(popup);
-        window.sessionStorage.removeItem(storageKey);
+        window.localStorage.removeItem(storageKey);
         onPaid?.();
         setState("done");
         return;
@@ -192,13 +195,13 @@ export function CheckoutModal({
 
       if (!isUsablePaymentUrl(res.payment_url)) {
         closePopup(popup);
-        window.sessionStorage.removeItem(storageKey);
+        window.localStorage.removeItem(storageKey);
         setError(PAYMENT_UNAVAILABLE);
         setState("form");
         return;
       }
 
-      window.sessionStorage.setItem(storageKey, res.checkout_id);
+      window.localStorage.setItem(storageKey, res.checkout_id);
       setPaymentUrl(res.payment_url);
       setState("polling");
       if (popup && !popup.closed) {
@@ -209,7 +212,7 @@ export function CheckoutModal({
       return;
     } catch (e) {
       closePopup(popup);
-      window.sessionStorage.removeItem(storageKey);
+      window.localStorage.removeItem(storageKey);
       setError(checkoutErrorMessage(e));
       setState("form");
     }

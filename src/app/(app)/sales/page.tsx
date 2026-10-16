@@ -1073,6 +1073,7 @@ export default function SalesPage() {
   const [debouncedClientQuery, setDebouncedClientQuery] = useState("");
   const [selectedClient, setSelectedClient] = useState<ClientOption | null>(null);
   const [showClientResults, setShowClientResults] = useState(false);
+  const accountClientSearchRef = useRef<HTMLDivElement>(null);
   const [selectedTableId, setSelectedTableId] = useState<string>("");
   const [creatingAccount, setCreatingAccount] = useState(false);
   const [createClientData, setCreateClientData] = useState<{
@@ -1100,6 +1101,27 @@ export default function SalesPage() {
     const timer = setTimeout(() => setDebouncedClientQuery(clientQuery), 300);
     return () => clearTimeout(timer);
   }, [clientQuery]);
+
+  useEffect(() => {
+    if (!showClientResults) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        accountClientSearchRef.current &&
+        !accountClientSearchRef.current.contains(e.target as Node)
+      ) {
+        setShowClientResults(false);
+      }
+    }
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setShowClientResults(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [showClientResults]);
 
   const { data: clientResultsQuery, isLoading: searchingCustomers } = useQuery({
     queryKey: ["customers", "search", debouncedClientQuery, branch?.branch_id],
@@ -2241,7 +2263,7 @@ export default function SalesPage() {
                   <label htmlFor="account-client" className="text-xs font-medium text-muted-foreground">
                     Cliente <span className="text-danger">*</span>
                   </label>
-                  <div className="relative">
+                  <div className="relative" ref={accountClientSearchRef}>
                     <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       id="account-client"

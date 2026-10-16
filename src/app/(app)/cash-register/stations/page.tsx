@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
@@ -24,7 +25,13 @@ import {
   type CashRegisterStation,
   type CashRegisterStationRequest,
 } from "@/lib/api/cash-register-stations";
-import { useCurrentBranch } from "@/lib/store/session";
+import {
+  useCurrentBranch,
+  useIsOwner,
+  useIsAdminLocal,
+  useIsSuperAdmin,
+  useSessionStore,
+} from "@/lib/store/session";
 
 interface StationFormState {
   name: string;
@@ -46,7 +53,13 @@ function stationToForm(station: CashRegisterStation): StationFormState {
 
 export default function CashRegisterStationsPage() {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const branch = useCurrentBranch();
+  const hasHydrated = useSessionStore((s) => s.hasHydrated);
+  const isOwner = useIsOwner();
+  const isAdminLocal = useIsAdminLocal();
+  const isSuperAdmin = useIsSuperAdmin();
+  const canManageStations = isOwner || isAdminLocal || isSuperAdmin;
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<CashRegisterStation | null>(null);
@@ -54,9 +67,17 @@ export default function CashRegisterStationsPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<CashRegisterStation | null>(null);
 
+  useEffect(() => {
+    if (!hasHydrated) return;
+    if (!canManageStations) {
+      router.replace("/cash-register");
+    }
+  }, [hasHydrated, canManageStations, router]);
+
   const { data: stations = [], isLoading, error } = useQuery({
     queryKey: ["cash-register-stations"],
     queryFn: fetchCashRegisterStations,
+    enabled: canManageStations,
   });
 
   const createMutation = useMutation({
@@ -143,6 +164,15 @@ export default function CashRegisterStationsPage() {
   const serverError =
     (createMutation.error instanceof Error ? createMutation.error.message : null) ||
     (updateMutation.error instanceof Error ? updateMutation.error.message : null);
+
+  if (!hasHydrated || !canManageStations) {
+    return (
+      <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col gap-4 p-6">
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-40 w-full rounded-xl" />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto flex min-h-full w-full min-w-0 max-w-7xl flex-col">

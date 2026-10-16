@@ -93,9 +93,11 @@ import {
   useIsWaiter,
   useSessionStore,
   useIsOwner,
-  useIsSuperAdmin,
   useIsAdminLocal,
   useCanViewCashRegisterHistory,
+  useCanManageCashMovements,
+  useCanRegisterCashMovements,
+  useCanOpenCashRegister,
   useIsModuleEnabledFromConfig,
 } from "@/lib/store/session";
 import { useBranchModules } from "@/lib/hooks/useBranchModules";
@@ -109,7 +111,13 @@ import { ComboPickerModal } from "@/components/pos/combo-picker-modal";
 import { PosConfigModal } from "@/components/pos/pos-config-modal";
 import { PosInventoryModal } from "@/components/pos/pos-inventory-modal";
 import { PosProfileButton } from "@/components/pos/pos-profile-button";
-import { TablesCanvas } from "@/components/tables/tables-canvas";
+import dynamic from "next/dynamic";
+
+const TablesCanvas = dynamic(
+  () =>
+    import("@/components/tables/tables-canvas").then((m) => m.TablesCanvas),
+  { ssr: false, loading: () => <Skeleton className="h-64 w-full rounded-xl" /> },
+);
 
 function numberValue(v: string): string {
   const cleaned = v.replace(/[^0-9]/g, "");
@@ -126,9 +134,11 @@ export default function PosPage() {
   const user = useSessionStore((s) => s.user);
   const realIsWaiter = useIsWaiter();
   const isOwner = useIsOwner();
-  const isSuperAdmin = useIsSuperAdmin();
   const isAdminLocal = useIsAdminLocal();
   const canConfigurePos = isOwner || isAdminLocal;
+  const canManageCashMovements = useCanManageCashMovements();
+  const canRegisterCashMovements = useCanRegisterCashMovements();
+  const canOpenCashRegister = useCanOpenCashRegister();
   const inventoryEnabled = useIsModuleEnabledFromConfig("inventory");
   const [configOpen, setConfigOpen] = useState(false);
   const [inventoryOpen, setInventoryOpen] = useState(false);
@@ -227,8 +237,30 @@ export default function PosPage() {
   const [accountDebouncedQuery, setAccountDebouncedQuery] = useState("");
   const [accountSelectedClient, setAccountSelectedClient] = useState<{ id: number; name: string; email?: string | null } | null>(null);
   const [accountShowResults, setAccountShowResults] = useState(false);
+  const accountClientSearchRef = useRef<HTMLDivElement>(null);
   const [accountCreateName, setAccountCreateName] = useState("");
   const [accountCreating, setAccountCreating] = useState(false);
+
+  useEffect(() => {
+    if (!accountShowResults) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        accountClientSearchRef.current &&
+        !accountClientSearchRef.current.contains(e.target as Node)
+      ) {
+        setAccountShowResults(false);
+      }
+    }
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setAccountShowResults(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [accountShowResults]);
 
   // Modo cuenta abierta: SALE creada desde "Abrir cuenta" (pending, sin pagos).
   // Modo orden explícita: ORDER. Se mantienen separados para no confundir casos.
@@ -502,6 +534,9 @@ export default function PosPage() {
 
   const closeCashRegisterMutation = useMutation({
     mutationFn: () => {
+      if (!canManageCashMovements) {
+        throw new Error("Solo el dueño puede cerrar la caja");
+      }
       if (!currentCashRegister) throw new Error("No hay caja abierta");
       const notes = cashRegisterCloseNotes.trim();
       return closeCashRegister(currentCashRegister.id, {
@@ -528,16 +563,11 @@ export default function PosPage() {
     refetchInterval: 30_000,
   });
 
-  const isRegisterController = useMemo(
-    () =>
-      !currentCashRegister ||
-      currentCashRegister.status !== "OPEN" ||
-      isSuperAdmin ||
-      isOwner ||
-      currentCashRegister.opened_by === user?.id ||
-      currentCashRegister.opened_by == null,
-    [currentCashRegister, isSuperAdmin, isOwner, user?.id],
-  );
+  // Política: cualquier miembro puede cash in/out; cerrar = OWNER/superadmin.
+  const movementsEnabled =
+    !!currentCashRegister &&
+    currentCashRegister.status === "OPEN" &&
+    canRegisterCashMovements;
 
   // El pago de órdenes de proveedor no se gestiona desde la caja: se hace
   // desde Órdenes → Proveedor del terminal (ver PayPendingItemModal).
@@ -548,6 +578,9 @@ export default function PosPage() {
       reason: string;
       purchase_order_id?: string | null;
     }) => {
+      if (!canRegisterCashMovements) {
+        throw new Error("No tienes permiso para registrar movimientos de caja");
+      }
       if (!currentCashRegister) throw new Error("No hay caja abierta");
       if (!branch?.branch_id) throw new Error("No hay sucursal seleccionada");
       if (!user?.id) throw new Error("No hay usuario identificado");
@@ -1999,7 +2032,7 @@ export default function PosPage() {
                 <label htmlFor="pos-account-client" className="text-xs font-medium text-muted-foreground">
                   Cliente <span className="text-danger">*</span>
                 </label>
-                <div className="relative">
+                <div className="relative" ref={accountClientSearchRef}>
                   <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                   {effectiveConfig.customer_search ? (
                     <>
@@ -2621,10 +2654,10 @@ export default function PosPage() {
               cashRegisterTab === "movements" &&
               effectiveConfig.cash_movements && (
               <div className="mt-4 flex flex-col gap-3 rounded-xl border border-border/60 bg-background p-4">
-                {!isRegisterController && (
+                {!canRegisterCashMovements && (
                   <p className="flex items-center gap-2 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
                     <Lock className="h-3.5 w-3.5" />
-                    Caja abierta por <strong>{currentCashRegister.opened_by_name}</strong>. Solo esa persona o un administrador pueden operarla.
+                    Debes pertenecer a esta sucursal para registrar movimientos.
                   </p>
                 )}
 
@@ -2636,7 +2669,7 @@ export default function PosPage() {
                     onClick={() => {
                       setMovementType("CASH_IN");
                     }}
-                    disabled={!isRegisterController}
+                    disabled={!movementsEnabled}
                     className="h-10 flex-1 text-xs sm:h-8"
                   >
                     <ArrowDownLeft className="mr-1 h-3.5 w-3.5" />
@@ -2650,7 +2683,7 @@ export default function PosPage() {
                       onClick={() => {
                         setMovementType("CASH_OUT");
                       }}
-                      disabled={!isRegisterController}
+                      disabled={!movementsEnabled}
                       className="h-10 flex-1 text-xs sm:h-8"
                     >
                       <ArrowUpRight className="mr-1 h-3.5 w-3.5" />
@@ -2664,14 +2697,14 @@ export default function PosPage() {
                     value={movementAmount ? formatCLP(parseFloat(toDecimal(movementAmount))) : ""}
                     onChange={(e) => setMovementAmount(numberValue(e.target.value))}
                     placeholder="Monto"
-                    disabled={!isRegisterController}
+                    disabled={!movementsEnabled}
                     className="h-10 text-sm tabular-nums sm:h-9 sm:text-xs"
                   />
                   <Input
                     value={movementReason}
                     onChange={(e) => setMovementReason(e.target.value)}
                     placeholder="Motivo"
-                    disabled={!isRegisterController}
+                    disabled={!movementsEnabled}
                     className="h-10 text-sm sm:h-9 sm:text-xs"
                   />
                   <Button
@@ -2685,7 +2718,7 @@ export default function PosPage() {
                       })
                     }
                     disabled={
-                      !isRegisterController ||
+                      !movementsEnabled ||
                       !movementAmount ||
                       !movementReason ||
                       movementMutation.isPending
@@ -2750,19 +2783,31 @@ export default function PosPage() {
                   Reintentar
                 </Button>
               ) : currentCashRegister ? (
-                <Button
-                  onClick={() => closeCashRegisterMutation.mutate()}
-                  isLoading={closeCashRegisterMutation.isPending}
-                >
-                  Cerrar caja
-                </Button>
-              ) : (
+                canManageCashMovements ? (
+                  <Button
+                    onClick={() => closeCashRegisterMutation.mutate()}
+                    isLoading={closeCashRegisterMutation.isPending}
+                  >
+                    Cerrar caja
+                  </Button>
+                ) : (
+                  <p className="flex items-center gap-2 self-center text-xs text-muted-foreground">
+                    <Lock className="h-3.5 w-3.5" />
+                    Solo el dueño puede cerrar la caja.
+                  </p>
+                )
+              ) : canOpenCashRegister ? (
                 <Button
                   onClick={() => openCashRegisterMutation.mutate()}
                   isLoading={openCashRegisterMutation.isPending}
                 >
                   Abrir caja
                 </Button>
+              ) : (
+                <p className="flex items-center gap-2 self-center text-xs text-muted-foreground">
+                  <Lock className="h-3.5 w-3.5" />
+                  Debes pertenecer a esta sucursal para abrir caja.
+                </p>
               )}
             </div>
           </div>

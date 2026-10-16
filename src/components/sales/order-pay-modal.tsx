@@ -79,7 +79,8 @@ export function OrderPayModal({
         amount: amountNum.toFixed(2),
         reference: reference.trim() || null,
         notes: notes.trim() || null,
-        skip_cash_register_validation: true,
+        // Alineado con POS: el cobro debe validar caja abierta / estación.
+        skip_cash_register_validation: false,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });

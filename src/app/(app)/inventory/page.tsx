@@ -35,9 +35,9 @@ type ProductInventorySummary = YggdraSchemas["ProductInventorySummary"];
 const MOVEMENT_TYPES = [
   { value: "IN", label: "Entrada" },
   { value: "OUT", label: "Salida" },
-  { value: "ADJUSTMENT", label: "Ajuste" },
+  { value: "ADJUSTMENT", label: "Ajuste (stock resultante)" },
   { value: "RETURN", label: "Devolución" },
-  { value: "TRANSFER", label: "Transferencia" },
+  // TRANSFER se hace desde Bodegas (origen/destino); no desde este form.
   { value: "LOSS", label: "Pérdida" },
   { value: "DAMAGE", label: "Daño" },
 ] as const;
@@ -208,7 +208,12 @@ export default function InventoryPage() {
     [search, movementType, productFilter, warehouseFilter, pageUrl],
   );
 
-  const { data: movementsPage, isLoading: loadingMovements } = useQuery({
+  const {
+    data: movementsPage,
+    isLoading: loadingMovements,
+    isError: movementsError,
+    refetch: refetchMovements,
+  } = useQuery({
     queryKey: ["inventory", "movements", filter],
     queryFn: () => fetchInventoryMovements(filter),
   });
@@ -549,6 +554,19 @@ export default function InventoryPage() {
                     <Skeleton className="ml-auto h-4 w-24" />
                   </div>
                 ))}
+              </div>
+            ) : movementsError ? (
+              <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">
+                <div>
+                  <ArrowRightLeft className="mx-auto h-10 w-10 text-muted-foreground" />
+                  <p className="mt-3 text-sm font-medium">No se pudieron cargar los movimientos</p>
+                  <p className="text-xs text-muted-foreground">
+                    Revisa tu conexión e inténtalo de nuevo.
+                  </p>
+                  <Button className="mt-4" size="sm" variant="outline" onClick={() => refetchMovements()}>
+                    Reintentar
+                  </Button>
+                </div>
               </div>
             ) : movements.length === 0 ? (
               <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">
@@ -1107,7 +1125,9 @@ function MovementModal({
                 </div>
               </div>
               <div className="flex flex-col gap-2">
-                <label className="text-sm font-medium">Cantidad</label>
+                <label className="text-sm font-medium">
+                  {form.movement_type === "ADJUSTMENT" ? "Stock resultante" : "Cantidad"}
+                </label>
                 <Input
                   type="number"
                   min="0"
@@ -1117,6 +1137,11 @@ function MovementModal({
                   onChange={(e) => updateField("quantity", e.target.value)}
                   required
                 />
+                {form.movement_type === "ADJUSTMENT" && (
+                  <p className="text-xs text-muted-foreground">
+                    El ajuste fija el stock del producto en este valor (no es un delta).
+                  </p>
+                )}
               </div>
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-medium">Notas</label>
