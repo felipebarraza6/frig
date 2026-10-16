@@ -337,7 +337,7 @@ export default function PurchaseOrdersPage() {
     }
   }, [search, supplier, supplierName, status, paymentStatus, startDate, endDate]);
 
-  const { data: page, isLoading } = useQuery({
+  const { data: page, isLoading, isError: ordersError, refetch: refetchOrders } = useQuery({
     queryKey: ["purchase-orders", { search: debouncedSearch, supplier, status, paymentStatus, startDate, endDate, pageUrl }],
     queryFn: () =>
       fetchPurchaseOrders({
@@ -1275,6 +1275,19 @@ export default function PurchaseOrdersPage() {
         {isLoading ? (
           <div className="flex-1 py-8">
             <TableSkeleton rows={5} columns={6} />
+          </div>
+        ) : ordersError ? (
+          <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">
+            <div>
+              <FileText className="mx-auto h-10 w-10 text-muted-foreground" />
+              <p className="mt-3 text-sm font-medium">No se pudieron cargar las órdenes</p>
+              <p className="text-xs text-muted-foreground">
+                Revisa tu conexión e inténtalo de nuevo.
+              </p>
+              <Button className="mt-4" size="sm" variant="outline" onClick={() => refetchOrders()}>
+                Reintentar
+              </Button>
+            </div>
           </div>
         ) : orders.length === 0 ? (
           <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-border p-8 text-center">

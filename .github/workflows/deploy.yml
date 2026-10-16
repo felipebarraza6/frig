@@ -49,18 +49,8 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
-      # Mismos gates que el CI de branches: si no pasa, no se despliega.
-      - name: Lint
-        run: npm run lint
-
-      # Genera .next/types (LayoutProps, rutas tipadas) sin build completo;
-      # localmente lo genera next dev, en CI hay que pedirlo explícito.
-      - name: Generar tipos de rutas
-        run: npx next typegen
-
-      - name: Type-check
-        run: npm run type-check
-
+      # Lint/type-check ya corren en CI de `dev` (ci.yml). Aquí solo build +
+      # export para no duplicar minutos de Actions en cada deploy.
       - name: Build estático
         run: npm run build
 
