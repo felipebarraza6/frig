@@ -298,7 +298,7 @@ export default function IoTPage() {
       <PageHeader
         title="Telemetría IoT"
         icon={<Radio className="h-5 w-5" />}
-        subtitle="Monitoreo de dispositivos, configuración de variables, ingesta de datos y exportación"
+        subtitle="Sensores del local: dispositivos, variables, lecturas y exportación (alertas y gráficos: próximamente)"
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Button
@@ -403,6 +403,11 @@ export default function IoTPage() {
       </div>
 
       <PageBody>
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-foreground">
+          <strong className="font-semibold">En desarrollo:</strong> alertas por umbral (email/SMS),
+          gráficos en tiempo real, edición de conectores y onboarding de hardware. Hoy puedes
+          administrar dispositivos, variables, lecturas manuales, sync y exportación.
+        </div>
         {/* Barra de pestañas y selección de dispositivo */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-border bg-muted/40 p-1">
@@ -511,7 +516,7 @@ export default function IoTPage() {
               <EmptyState
                 icon={Radio}
                 title="Sin dispositivos IoT registrados"
-                description="Agrega tu primer dispositivo y vincúlalo a un producto de tipo IOT o configúralo con una App Externa."
+                description="Agrega un sensor (cámara fría, refrigerador, horno, etc.) y vincula un producto tipo IOT o un conector externo."
                 action={
                   <Button
                     size="sm"
@@ -694,7 +699,7 @@ export default function IoTPage() {
                   Variables de {currentDevice?.name || "Dispositivo"}
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  Parámetros de medición física: caudal, nivel, temperatura, presión, totalizadores y factores de escala.
+                  Qué mide el sensor: temperatura, humedad, presión, flujo, nivel, etc. Los límites min/max se guardan; las alertas automáticas aún no están disponibles en Frig.
                 </p>
               </div>
               <Button
@@ -744,8 +749,8 @@ export default function IoTPage() {
                         <th className="px-4 py-3">Unidad</th>
                         <th className="px-4 py-3">ID en Proveedor</th>
                         <th className="px-4 py-3">Factor / Offset</th>
-                        <th className="px-4 py-3">Límites (Mín - Máx)</th>
-                        <th className="px-4 py-3">Totalizador</th>
+                        <th className="px-4 py-3">Límites (referencia)</th>
+                        <th className="px-4 py-3">Acumulativo</th>
                         <th className="px-4 py-3 text-right">Acciones</th>
                       </tr>
                     </thead>
@@ -885,7 +890,6 @@ export default function IoTPage() {
                         <th className="px-4 py-3">Valor Crudo</th>
                         <th className="px-4 py-3">Unidad</th>
                         <th className="px-4 py-3">Estado</th>
-                        <th className="px-4 py-3">Envío DGA</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/60">
@@ -917,15 +921,6 @@ export default function IoTPage() {
                               </span>
                             )}
                           </td>
-                          <td className="px-4 py-3">
-                            {r.send_dga ? (
-                              <span className="rounded-full bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 px-2 py-0.5 text-[10px] font-medium">
-                                DGA Habilitado
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground text-[11px]">No</span>
-                            )}
-                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -942,10 +937,10 @@ export default function IoTPage() {
             <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h3 className="text-sm font-semibold text-foreground">
-                  Conectores y Apps Externas ({providers.length})
+                  Conectores externos ({providers.length})
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  Configuración de gateways, brokers MQTT, APIs HTTP REST y plataformas como TDATA, TheThings.io o Tago.io.
+                  Gateways HTTP/MQTT para recibir mediciones. Editar o eliminar un conector aún no está disponible en la UI (solo alta).
                 </p>
               </div>
               <Button
@@ -953,19 +948,19 @@ export default function IoTPage() {
                 onClick={() => setProviderModalOpen(true)}
               >
                 <Plus className="mr-1.5 h-4 w-4" />
-                Nuevo Proveedor
+                Nuevo conector
               </Button>
             </div>
 
             {providers.length === 0 ? (
               <EmptyState
                 icon={Settings}
-                title="Sin proveedores configurados"
-                description="Agrega un conector de telemetría HTTP REST, MQTT o Custom para comenzar a recibir mediciones automáticas."
+                title="Sin conectores configurados"
+                description="Agrega un conector HTTP REST, MQTT o personalizado para recibir mediciones automáticas."
                 action={
                   <Button size="sm" onClick={() => setProviderModalOpen(true)}>
                     <Plus className="mr-1.5 h-4 w-4" />
-                    Crear Proveedor
+                    Crear conector
                   </Button>
                 }
               />
@@ -977,12 +972,15 @@ export default function IoTPage() {
                     className="flex flex-col justify-between rounded-2xl border border-border bg-card p-4"
                   >
                     <div className="flex flex-col gap-2">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-2">
                         <h4 className="text-sm font-semibold text-foreground">{p.name}</h4>
-                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-                          {p.protocol}
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          Solo lectura · editar próximamente
                         </span>
                       </div>
+                      <span className="w-fit rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                        {p.protocol}
+                      </span>
                       <p className="text-xs text-muted-foreground font-mono truncate">
                         {p.base_url || "Sin URL base configurada"}
                       </p>
@@ -1142,7 +1140,7 @@ function DeviceModal({
           <Field label="Nombre del Dispositivo" htmlFor="device-name">
             <Input
               id="device-name"
-              placeholder="Ej: Medidor de Caudal Pozo Principal"
+              placeholder="Ej: Sensor cámara fría 1"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
@@ -1351,7 +1349,7 @@ function VariableModal({
           <Field label="Nombre de la Variable" htmlFor="var-name">
             <Input
               id="var-name"
-              placeholder="Ej: Caudal de Extracción"
+              placeholder="Ej: Temperatura cámara"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
@@ -1383,7 +1381,7 @@ function VariableModal({
             <Field label="Unidad de Medida" htmlFor="var-unit">
               <Input
                 id="var-unit"
-                placeholder="lt/s, m³, °C"
+                placeholder="°C, %, PSI, L/min"
                 value={unit}
                 onChange={(e) => setUnit(e.target.value)}
               />
@@ -1421,22 +1419,22 @@ function VariableModal({
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Límite Mínimo Alerta" htmlFor="var-min">
+            <Field label="Límite mínimo (referencia)" htmlFor="var-min" hint="Sin notificaciones aún">
               <Input
                 id="var-min"
                 type="number"
                 step="any"
-                placeholder="Opcional"
+                placeholder="Ej: 2"
                 value={minValue}
                 onChange={(e) => setMinValue(e.target.value)}
               />
             </Field>
-            <Field label="Límite Máximo Alerta" htmlFor="var-max">
+            <Field label="Límite máximo (referencia)" htmlFor="var-max" hint="Sin notificaciones aún">
               <Input
                 id="var-max"
                 type="number"
                 step="any"
-                placeholder="Opcional"
+                placeholder="Ej: 8"
                 value={maxValue}
                 onChange={(e) => setMaxValue(e.target.value)}
               />
@@ -1487,7 +1485,7 @@ function ReadingModal({
   const [readingAt, setReadingAt] = useState(new Date().toISOString().slice(0, 16));
   const [rawValue, setRawValue] = useState("");
   const [processedValue, setProcessedValue] = useState("");
-  const [unit, setUnit] = useState(variables[0]?.unit ?? "lt/s");
+  const [unit, setUnit] = useState(variables[0]?.unit ?? "°C");
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -1598,7 +1596,7 @@ function ReadingModal({
             <Field label="Unidad" htmlFor="read-unit">
               <Input
                 id="read-unit"
-                placeholder="lt/s, m³, etc."
+                placeholder="°C, %, etc."
                 value={unit}
                 onChange={(e) => setUnit(e.target.value)}
               />
@@ -1717,7 +1715,7 @@ function ProviderModal({
           <Field label="Nombre del Proveedor / Conector" htmlFor="prov-name">
             <Input
               id="prov-name"
-              placeholder="Ej: Gateway LoRaWAN Central o API TDATA"
+              placeholder="Ej: Gateway cocina o API del sensor"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
@@ -1745,8 +1743,8 @@ function ProviderModal({
                 value={handlerName}
                 onChange={(e) => setHandlerName(e.target.value as "generic_json" | "tdata" | "thethings" | "tago")}
               >
-                <option value="generic_json">JSON Genérico</option>
-                <option value="tdata">TDATA (TwinDimension)</option>
+                <option value="generic_json">JSON genérico</option>
+                <option value="tdata">TDATA</option>
                 <option value="thethings">TheThings.io</option>
                 <option value="tago">Tago.io</option>
               </Select>

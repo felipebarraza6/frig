@@ -33,9 +33,10 @@ export const ROUTE_MODULE_MAP: Record<string, ModuleName | null> = {
   "/categories": "product_catalog",
   "/warehouses": "inventory",
   "/inventory": "inventory",
-  "/equipment": null,
+  "/equipment": "equipment",
   "/iot": "iot_telemetry",
-  "/reports/equipment": null,
+  "/reports/equipment": "equipment",
+  // /dash-fast redirige a /dashboard (ver page.tsx); no se lista en el menú.
   "/reports/crm": "customers",
   "/tables": "tables",
   "/tables/map": "tables",
@@ -202,12 +203,20 @@ export const FRIG_SETTINGS_MODULES: ModuleName[] = [
   "deliveries",
   "production",
   "inventory",
+  "equipment",
   "nutrition",
   "public_catalog",
   "invoices",
   "promotions",
   "iot_telemetry",
 ];
+
+/**
+ * Decisiones Fase 1 GTM (rutas huérfanas, 2026-10-17):
+ * - `/dash-fast` → redirect a `/dashboard` (demo 3D experimental; no menú).
+ * - `/finance` → ítem en Dinero (hub útil; módulo finance always-on).
+ * - `/banks` → ítem en Dinero junto a Billeteras (CRUD real; módulo bank_accounts).
+ */
 
 // ── Definición del menú de Frig ───────────────────────────────────────────────
 
@@ -253,7 +262,7 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
       { href: "/reports/revenues", label: "Ingresos", icon: "ArrowDownLeft", module: null, description: "Detalle de ingresos por categoría" },
       { href: "/reports/expenses", label: "Gastos", icon: "ArrowUpRight", module: null, description: "Detalle de gastos por categoría" },
       { href: "/reports/money", label: "Dinero", icon: "Wallet", module: null, description: "Flujo de caja completo: pagos, orígenes, ingresos y egresos" },
-      { href: "/reports/equipment", label: "Equipos", icon: "Thermometer", module: null, description: "Lecturas de máquinas y fuera de rango" },
+      { href: "/reports/equipment", label: "Equipos", icon: "Thermometer", module: "equipment", description: "Lecturas de máquinas y fuera de rango" },
       { href: "/reports/crm", label: "CRM", icon: "Users", module: "customers", description: "Prospectos, embudo, acciones y hallazgos comerciales" },
     ],
   },
@@ -301,7 +310,7 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
       { href: "/products/menus", label: "Menús y vitrinas", icon: "Store", module: "public_catalog", description: "Cartas digitales, QR y pantallas públicas" },
       { href: "/warehouses", label: "Bodegas", icon: "Warehouse", module: "inventory", description: "Bodegas y sus responsables" },
       { href: "/inventory", label: "Inventario", icon: "ClipboardList", module: "inventory", description: "Stock por bodega y movimientos" },
-      { href: "/equipment", label: "Equipos", icon: "Thermometer", module: null, description: "Máquinas, herramientas y mediciones" },
+      { href: "/equipment", label: "Equipos", icon: "Thermometer", module: "equipment", description: "Máquinas, herramientas y mediciones" },
       { href: "/iot", label: "Telemetría IoT", icon: "Radio", module: "iot_telemetry", description: "Dispositivos, variables, mediciones y exportación" },
     ],
   },
@@ -309,6 +318,7 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
     title: "Dinero",
     icon: "Landmark",
     items: [
+      { href: "/finance", label: "Resumen financiero", icon: "PiggyBank", module: "finance", description: "Hub de métricas, ingresos, egresos y accesos rápidos" },
       { href: "/payments", label: "Pagos", icon: "Banknote", module: "payment_methods", description: "Transacciones y métodos de pago" },
       { href: "/revenues", label: "Ingresos", icon: "ArrowDownLeft", module: "finance", description: "Registro de ingresos del negocio" },
       { href: "/expenses", label: "Egresos", icon: "ArrowUpRight", module: "finance", description: "Registro de egresos del negocio" },
@@ -317,6 +327,7 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
       { href: "/suppliers", label: "Proveedores", icon: "Truck", module: "suppliers", description: "Directorio de proveedores" },
       { href: "/purchase-orders", label: "Órdenes de compra", icon: "ShoppingCart", module: "suppliers", description: "Pedidos a proveedores y su recepción" },
       { href: "/bank-accounts", label: "Billeteras", icon: "Wallet", module: "bank_accounts", description: "Cuentas y saldos bancarios" },
+      { href: "/banks", label: "Bancos", icon: "Landmark", module: "bank_accounts", description: "Catálogo de bancos para billeteras" },
       { href: "/reconciliations", label: "Conciliaciones", icon: "ArrowLeftRight", module: "bank_accounts", description: "Cuadra movimientos con el banco" },
       { href: "/finance/settings", label: "Configuración", icon: "Settings", module: "finance", description: "Impuestos, SII, funciones de la app y folios CAF" },
     ],

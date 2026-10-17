@@ -383,13 +383,29 @@ export function useCanViewCashRegisterHistory(): boolean {
   return ["OWNER", "ADMIN_LOCAL", "MANAGER"].includes(currentRole ?? "");
 }
 
+/**
+ * True si el usuario puede anular movimientos y cerrar/reabrir caja:
+ * OWNER de la sucursal activa, o super admin / staff.
+ * Versión pura para tests y guards fuera de React.
+ */
+export function canManageCashMovements(
+  user: User | null,
+  currentBranchId: string | null | undefined,
+): boolean {
+  if (!user) return false;
+  if (isUserAdminOrSuperuser(user)) return true;
+  if (!currentBranchId) return false;
+  const assignment = user.branch_assignments?.find(
+    (a) => String(a.branch_id) === String(currentBranchId),
+  );
+  return normalizeRole(assignment?.role_code) === "OWNER";
+}
+
 /** True si el usuario puede anular movimientos y cerrar/reabrir caja (OWNER o super admin). */
 export function useCanManageCashMovements(): boolean {
   const user = useSessionStore((s) => s.user);
-  const currentRole = useCurrentBranchRole();
-  if (!user) return false;
-  if (isUserAdminOrSuperuser(user)) return true;
-  return currentRole === "OWNER";
+  const currentBranchId = useSessionStore((s) => s.currentBranchId);
+  return canManageCashMovements(user, currentBranchId);
 }
 
 /**
