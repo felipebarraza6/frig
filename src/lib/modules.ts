@@ -110,7 +110,7 @@ export function getCompositeSubmodules(moduleName: ModuleName): ModuleName[] {
 }
 
 /** Todos los submódulos conocidos, útil para evitar mostrarlos también como módulos independientes. */
-export const ALL_COMPOSITE_SUBMODULES: ModuleName[] = Object.values(COMPOSITE_SUBMODULES).flat();
+export const ALL_COMPOSITE_SUBMODULES: ModuleName[] = Object.values(COMPOSITE_SUBMODULES).flatMap((subs) => subs ?? []);
 
 /** Verifica si un submódulo específico está habilitado dentro de su compuesto. */
 export function isSubmoduleEnabled(

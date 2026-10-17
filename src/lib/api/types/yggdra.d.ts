@@ -4337,7 +4337,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Invitar un usuario a la sucursal por email. */
+        /** @description Invitar un usuario a la sucursal por email. Encola correo de fijar contraseña (usuario nuevo) o aviso de acceso (usuario existente). La respuesta incluye invitation_queued (aditivo). */
         post: operations["branches_invite_user_create"];
         delete?: never;
         options?: never;
@@ -4381,6 +4381,23 @@ export interface paths {
          *     Acepta user_id por: header HTTP_USER_ID, query params, o body (JSON/form).
          */
         delete: operations["branches_remove_user_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/branches/{id}/resend-invitation/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Reenviar invitación a un usuario pendiente de esta sucursal (sin contraseña usable). Mismos permisos que invite-user; aislado por sucursal. */
+        post: operations["branches_resend_invitation_create"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -14274,6 +14291,625 @@ export interface paths {
         patch: operations["finance_tax_types_partial_update"];
         trace?: never;
     };
+    "/api/forja/adherence-rules/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Listar reglas de adherencia
+         * @description ERPBase + viewer Forja. No confía en type_user global.
+         */
+        get: operations["forja_adherence_rules_list"];
+        put?: never;
+        /**
+         * Crear regla de adherencia
+         * @description ERPBase + viewer Forja. No confía en type_user global.
+         */
+        post: operations["forja_adherence_rules_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/forja/adherence-rules/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description ERPBase + viewer Forja. No confía en type_user global. */
+        get: operations["forja_adherence_rules_retrieve"];
+        /** @description ERPBase + viewer Forja. No confía en type_user global. */
+        put: operations["forja_adherence_rules_update"];
+        post?: never;
+        /** @description ERPBase + viewer Forja. No confía en type_user global. */
+        delete: operations["forja_adherence_rules_destroy"];
+        options?: never;
+        head?: never;
+        /** @description ERPBase + viewer Forja. No confía en type_user global. */
+        patch: operations["forja_adherence_rules_partial_update"];
+        trace?: never;
+    };
+    "/api/forja/adherence-rules/{id}/toggle/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Activar/desactivar regla de adherencia
+         * @description ERPBase + viewer Forja. No confía en type_user global.
+         */
+        post: operations["forja_adherence_rules_toggle_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/forja/adherence/weekly/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Adherencia semanal Forja */
+        get: operations["forja_adherence_weekly_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/forja/check-ins/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description ERPBase + viewer Forja. No confía en type_user global. */
+        get: operations["forja_check_ins_list"];
+        put?: never;
+        /** @description ERPBase + viewer Forja. No confía en type_user global. */
+        post: operations["forja_check_ins_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/forja/check-ins/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description ERPBase + viewer Forja. No confía en type_user global. */
+        get: operations["forja_check_ins_retrieve"];
+        /** @description ERPBase + viewer Forja. No confía en type_user global. */
+        put: operations["forja_check_ins_update"];
+        post?: never;
+        /** @description ERPBase + viewer Forja. No confía en type_user global. */
+        delete: operations["forja_check_ins_destroy"];
+        options?: never;
+        head?: never;
+        /** @description ERPBase + viewer Forja. No confía en type_user global. */
+        patch: operations["forja_check_ins_partial_update"];
+        trace?: never;
+    };
+    "/api/forja/meals/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description ERPBase + viewer Forja. No confía en type_user global. */
+        get: operations["forja_meals_list"];
+        put?: never;
+        /** @description ERPBase + viewer Forja. No confía en type_user global. */
+        post: operations["forja_meals_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/forja/meals/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description ERPBase + viewer Forja. No confía en type_user global. */
+        get: operations["forja_meals_retrieve"];
+        /** @description ERPBase + viewer Forja. No confía en type_user global. */
+        put: operations["forja_meals_update"];
+        post?: never;
+        /** @description ERPBase + viewer Forja. No confía en type_user global. */
+        delete: operations["forja_meals_destroy"];
+        options?: never;
+        head?: never;
+        /** @description ERPBase + viewer Forja. No confía en type_user global. */
+        patch: operations["forja_meals_partial_update"];
+        trace?: never;
+    };
+    "/api/forja/services/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Listar servicios Forja
+         * @description ERPBase + viewer Forja. No confía en type_user global.
+         */
+        get: operations["forja_services_list"];
+        put?: never;
+        /**
+         * Crear servicio Forja
+         * @description ERPBase + viewer Forja. No confía en type_user global.
+         */
+        post: operations["forja_services_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/forja/services/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Detalle servicio Forja
+         * @description ERPBase + viewer Forja. No confía en type_user global.
+         */
+        get: operations["forja_services_retrieve"];
+        /**
+         * Actualizar servicio Forja
+         * @description ERPBase + viewer Forja. No confía en type_user global.
+         */
+        put: operations["forja_services_update"];
+        post?: never;
+        /**
+         * Eliminar servicio Forja
+         * @description ERPBase + viewer Forja. No confía en type_user global.
+         */
+        delete: operations["forja_services_destroy"];
+        options?: never;
+        head?: never;
+        /**
+         * Parchear servicio Forja
+         * @description ERPBase + viewer Forja. No confía en type_user global.
+         */
+        patch: operations["forja_services_partial_update"];
+        trace?: never;
+    };
+    "/api/forja/students/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Listar alumnos Forja
+         * @description ERPBase + viewer Forja. No confía en type_user global.
+         */
+        get: operations["forja_students_list"];
+        put?: never;
+        /**
+         * Crear alumno Forja
+         * @description ERPBase + viewer Forja. No confía en type_user global.
+         */
+        post: operations["forja_students_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/forja/students/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Detalle alumno Forja
+         * @description ERPBase + viewer Forja. No confía en type_user global.
+         */
+        get: operations["forja_students_retrieve"];
+        /**
+         * Actualizar alumno Forja
+         * @description ERPBase + viewer Forja. No confía en type_user global.
+         */
+        put: operations["forja_students_update"];
+        post?: never;
+        /**
+         * Eliminar alumno Forja
+         * @description ERPBase + viewer Forja. No confía en type_user global.
+         */
+        delete: operations["forja_students_destroy"];
+        options?: never;
+        head?: never;
+        /**
+         * Parchear alumno Forja
+         * @description ERPBase + viewer Forja. No confía en type_user global.
+         */
+        patch: operations["forja_students_partial_update"];
+        trace?: never;
+    };
+    "/api/forja/students/{id}/adherence/weekly/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Adherencia semanal del alumno
+         * @description ERPBase + viewer Forja. No confía en type_user global.
+         */
+        get: operations["forja_students_adherence_weekly_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/forja/students/{id}/macros/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Actualizar macros del alumno
+         * @description ERPBase + viewer Forja. No confía en type_user global.
+         */
+        patch: operations["forja_students_macros_partial_update"];
+        trace?: never;
+    };
+    "/api/forja/students/{id}/status/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Actualizar estado del alumno
+         * @description ERPBase + viewer Forja. No confía en type_user global.
+         */
+        patch: operations["forja_students_status_partial_update"];
+        trace?: never;
+    };
+    "/api/forja/subscriptions/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description ERPBase + viewer Forja. No confía en type_user global. */
+        get: operations["forja_subscriptions_list"];
+        put?: never;
+        /** @description ERPBase + viewer Forja. No confía en type_user global. */
+        post: operations["forja_subscriptions_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/forja/subscriptions/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description ERPBase + viewer Forja. No confía en type_user global. */
+        get: operations["forja_subscriptions_retrieve"];
+        /** @description ERPBase + viewer Forja. No confía en type_user global. */
+        put: operations["forja_subscriptions_update"];
+        post?: never;
+        /** @description ERPBase + viewer Forja. No confía en type_user global. */
+        delete: operations["forja_subscriptions_destroy"];
+        options?: never;
+        head?: never;
+        /** @description ERPBase + viewer Forja. No confía en type_user global. */
+        patch: operations["forja_subscriptions_partial_update"];
+        trace?: never;
+    };
+    "/api/forja/threads/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description ERPBase + viewer Forja. No confía en type_user global. */
+        get: operations["forja_threads_list"];
+        put?: never;
+        /** @description ERPBase + viewer Forja. No confía en type_user global. */
+        post: operations["forja_threads_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/forja/threads/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description ERPBase + viewer Forja. No confía en type_user global. */
+        get: operations["forja_threads_retrieve"];
+        /** @description ERPBase + viewer Forja. No confía en type_user global. */
+        put: operations["forja_threads_update"];
+        post?: never;
+        /** @description ERPBase + viewer Forja. No confía en type_user global. */
+        delete: operations["forja_threads_destroy"];
+        options?: never;
+        head?: never;
+        /** @description ERPBase + viewer Forja. No confía en type_user global. */
+        patch: operations["forja_threads_partial_update"];
+        trace?: never;
+    };
+    "/api/forja/threads/{id}/events/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stream SSE de mensajes del hilo Forja
+         * @description SSE async (Daphne/ASGI) por hilo. Auth: ``?stream_token=`` o sesión.
+         */
+        get: operations["forja_threads_events_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/forja/threads/{id}/messages/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Listar/crear mensajes del hilo
+         * @description ERPBase + viewer Forja. No confía en type_user global.
+         */
+        get: operations["forja_threads_messages_retrieve"];
+        put?: never;
+        /**
+         * Listar/crear mensajes del hilo
+         * @description ERPBase + viewer Forja. No confía en type_user global.
+         */
+        post: operations["forja_threads_messages_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/forja/threads/{id}/stream-token/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Emitir stream_token SSE del hilo
+         * @description ERPBase + viewer Forja. No confía en type_user global.
+         */
+        post: operations["forja_threads_stream_token_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/forja/training-plan/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Listar planes de entrenamiento
+         * @description ERPBase + viewer Forja. No confía en type_user global.
+         */
+        get: operations["forja_training_plan_list"];
+        put?: never;
+        /**
+         * Crear plan de entrenamiento
+         * @description ERPBase + viewer Forja. No confía en type_user global.
+         */
+        post: operations["forja_training_plan_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/forja/training-plan/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Detalle plan de entrenamiento
+         * @description ERPBase + viewer Forja. No confía en type_user global.
+         */
+        get: operations["forja_training_plan_retrieve"];
+        /**
+         * Actualizar plan de entrenamiento
+         * @description ERPBase + viewer Forja. No confía en type_user global.
+         */
+        put: operations["forja_training_plan_update"];
+        post?: never;
+        /**
+         * Eliminar plan de entrenamiento
+         * @description ERPBase + viewer Forja. No confía en type_user global.
+         */
+        delete: operations["forja_training_plan_destroy"];
+        options?: never;
+        head?: never;
+        /**
+         * Parchear plan de entrenamiento
+         * @description ERPBase + viewer Forja. No confía en type_user global.
+         */
+        patch: operations["forja_training_plan_partial_update"];
+        trace?: never;
+    };
+    "/api/forja/water/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description ERPBase + viewer Forja. No confía en type_user global. */
+        get: operations["forja_water_list"];
+        put?: never;
+        /** @description ERPBase + viewer Forja. No confía en type_user global. */
+        post: operations["forja_water_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/forja/water/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description ERPBase + viewer Forja. No confía en type_user global. */
+        get: operations["forja_water_retrieve"];
+        /** @description ERPBase + viewer Forja. No confía en type_user global. */
+        put: operations["forja_water_update"];
+        post?: never;
+        /** @description ERPBase + viewer Forja. No confía en type_user global. */
+        delete: operations["forja_water_destroy"];
+        options?: never;
+        head?: never;
+        /** @description ERPBase + viewer Forja. No confía en type_user global. */
+        patch: operations["forja_water_partial_update"];
+        trace?: never;
+    };
+    "/api/forja/workout-logs/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Listar logs de entrenamiento
+         * @description ERPBase + viewer Forja. No confía en type_user global.
+         */
+        get: operations["forja_workout_logs_list"];
+        put?: never;
+        /**
+         * Crear log de entrenamiento
+         * @description ERPBase + viewer Forja. No confía en type_user global.
+         */
+        post: operations["forja_workout_logs_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/forja/workout-logs/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Detalle log de entrenamiento
+         * @description ERPBase + viewer Forja. No confía en type_user global.
+         */
+        get: operations["forja_workout_logs_retrieve"];
+        /**
+         * Actualizar log de entrenamiento
+         * @description ERPBase + viewer Forja. No confía en type_user global.
+         */
+        put: operations["forja_workout_logs_update"];
+        post?: never;
+        /**
+         * Eliminar log de entrenamiento
+         * @description ERPBase + viewer Forja. No confía en type_user global.
+         */
+        delete: operations["forja_workout_logs_destroy"];
+        options?: never;
+        head?: never;
+        /**
+         * Parchear log de entrenamiento
+         * @description ERPBase + viewer Forja. No confía en type_user global.
+         */
+        patch: operations["forja_workout_logs_partial_update"];
+        trace?: never;
+    };
     "/api/inventory/beneficiary-discounts/": {
         parameters: {
             query?: never;
@@ -18032,6 +18668,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/p90/panel/messages/inbox": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Bandeja de mensajes del equipo
+         * @description Bandeja del equipo: todos los hilos, del más reciente al más antiguo.
+         */
+        get: operations["p90_panel_messages_inbox_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/p90/panel/messages/me": {
         parameters: {
             query?: never;
@@ -20398,8 +21054,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * @description Generar y descargar PDF de etiqueta nutricional en formato 62mm x 100mm vertical.
-         *     GET /api/recipes/recipes/{id}/download-nutrition-label-pdf/
+         * Descargar PDF de etiqueta nutricional (RSA DS 977)
+         * @description Generador oficial backend. Frig debe descargar este PDF (no generar uno propio). `page_size=label` (default): 62×100 mm para etiquetadora; `a4` / `letter`: hoja con varias etiquetas. Respuesta 200: application/pdf. 409 si el cálculo está incompleto (nutrition_is_complete / nutrition_missing_details).
          */
         get: operations["recipes_recipes_download_nutrition_label_pdf_retrieve"];
         put?: never;
@@ -20434,8 +21090,28 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Obtener etiqueta nutricional formateada para la receta. */
+        /** @description Obtener etiqueta nutricional formateada (solo lectura; no escribe en BD). */
         get: operations["recipes_recipes_nutrition_label_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/recipes/recipes/{id}/preview-nutrition-label/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Previsualizar etiqueta nutricional (PNG o SVG)
+         * @description Preview listo para mostrar en Frig. `media=png` (default) o `media=svg`. Misma fuente de datos que el PDF oficial; Frig no debe redibujar. Nota: se usa `media` (no `format`) para no chocar con el negociador DRF. Respuesta 200: image/png o image/svg+xml. 409 si el cálculo está incompleto (nutrition_is_complete / nutrition_missing_details).
+         */
+        get: operations["recipes_recipes_preview_nutrition_label_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -20504,7 +21180,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Actualizar y recalcular valores nutricionales de la receta. */
+        /**
+         * @description Actualizar rendimiento declarado (opcional) y recalcular nutrición.
+         *
+         *     Delega al servicio real NutritionCalculator.update_recipe_nutrition
+         *     (corrige I6: ya no marca calculated sin persistir calculated_*).
+         */
         post: operations["recipes_recipes_update_nutrition_create"];
         delete?: never;
         options?: never;
@@ -21812,9 +22493,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * @description Registrar un pago para una orden de venta/pedido.
-         *
-         *     POST /api/sales/orders/{id}/pay/
+         * Registrar pago de orden
+         * @description Cobra un monto (parcial o total) sobre el saldo pendiente de la orden. Solo el dueño de la cuenta, OWNER/ADMIN_LOCAL o ADM/super pueden pagar. Si se envía cash_register_id, la caja debe estar OPEN.
          */
         post: operations["sales_orders_pay_create"];
         delete?: never;
@@ -30731,9 +31411,8 @@ export interface components {
              *     * `AGENT` - Agente
              *     * `SYSTEM` - Sistema
              *     * `TOOL` - Herramienta
-             * @enum {string}
              */
-            role: "USER" | "AGENT" | "SYSTEM" | "TOOL";
+            role: string;
             /** Contenido */
             content: string;
             /** Tokens */
@@ -30789,9 +31468,8 @@ export interface components {
              *     * `AGENT` - Agente
              *     * `SYSTEM` - Sistema
              *     * `TOOL` - Herramienta
-             * @enum {string}
              */
-            role: "USER" | "AGENT" | "SYSTEM" | "TOOL";
+            role: string;
             /** Contenido */
             content: string;
             /** Tokens */
@@ -33366,6 +34044,11 @@ export interface components {
              */
             profit_growth?: number;
         };
+        /** @description Respuesta aditiva de invite / resend (no breaking). */
+        BranchInvitationQueuedResponse: {
+            status: string;
+            invitation_queued: boolean;
+        };
         /**
          * @description Sucursal mínima para listados de alto volumen.
          *
@@ -33420,6 +34103,7 @@ export interface components {
              *     * `scheduling` - Agendamiento
              *     * `ai_agents` - Agentes IA
              *     * `coaching` - Coaching
+             *     * `forja` - Forja
              *     * `support` - Soporte
              *     * `workflows` - Workflows
              *     * `analytics` - Analítica
@@ -33458,9 +34142,8 @@ export interface components {
              *     * `waste_agreements` - Convenios de Recolección
              *     * `recipes` - Recetas
              *     * `ingredients` - Ingredientes
-             * @enum {string}
              */
-            readonly module_name: "dashboard" | "config" | "sales" | "finance" | "customers" | "clients" | "suppliers" | "inventory" | "employees" | "logistics" | "services" | "equipment" | "promotions" | "tables" | "scheduling" | "ai_agents" | "coaching" | "support" | "workflows" | "analytics" | "public_catalog" | "audit" | "production" | "iot_telemetry" | "water_management" | "nutrition" | "waste_management" | "pos" | "invoices" | "products" | "cash_register" | "payment_methods" | "bank_accounts" | "departments" | "positions" | "payroll" | "warehouse_management" | "stock_control" | "product_catalog" | "product_gallery" | "raw_materials" | "certificates" | "tariffs" | "measurements" | "measurement_points" | "deliveries" | "memberships" | "subscriptions" | "agreements" | "waste_collection_points" | "waste_tariffs" | "waste_certificates" | "waste_agreements" | "recipes" | "ingredients";
+            readonly module_name: string;
             readonly module_display_name: string;
             /**
              * Habilitado
@@ -35837,9 +36520,8 @@ export interface components {
              *     * `ADMIN_LOCAL` - ADMIN_LOCAL
              *     * `METER` - METER
              * @default ADMIN
-             * @enum {string}
              */
-            role: "ADMIN" | "MEDIDOR" | "CAJERO" | "ADMIN_LOCAL" | "METER";
+            role: string;
         };
         /** @description Serializer for Certificate. */
         Certificate: {
@@ -43756,6 +44438,681 @@ export interface components {
             branch_id?: number | null;
             login_slug?: string | null;
         };
+        ForjaAdherenceRule: {
+            readonly id: number;
+            name: string;
+            /**
+             * @description * `training` - Entrenamiento
+             *     * `water` - Agua
+             *     * `macros` - Macros
+             *     * `check_in` - Check-in
+             * @enum {string}
+             */
+            metric: "training" | "water" | "macros" | "check_in";
+            /** @description Peso relativo en el promedio de adherencia */
+            weight?: number;
+            enabled?: boolean;
+            /**
+             * Format: double
+             * @description Umbral opcional (ej. 0.85 = 85 % de la meta)
+             */
+            threshold?: number | null;
+            config?: unknown;
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+            /**
+             * Created at
+             * Format: date-time
+             * @description Fecha de creacion.
+             */
+            readonly created: string;
+            /**
+             * Modified at
+             * Format: date-time
+             * @description Fecha de modificacion.
+             */
+            readonly modified: string;
+        };
+        ForjaAdherenceRuleRequest: {
+            name: string;
+            /**
+             * @description * `training` - Entrenamiento
+             *     * `water` - Agua
+             *     * `macros` - Macros
+             *     * `check_in` - Check-in
+             * @enum {string}
+             */
+            metric: "training" | "water" | "macros" | "check_in";
+            /** @description Peso relativo en el promedio de adherencia */
+            weight?: number;
+            enabled?: boolean;
+            /**
+             * Format: double
+             * @description Umbral opcional (ej. 0.85 = 85 % de la meta)
+             */
+            threshold?: number | null;
+            config?: unknown;
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+        };
+        /**
+         * @description Restringe FKs ``student``/``service`` al alcance del viewer.
+         *
+         *     En update, ``student`` (y ``service`` si ``lock_service_on_update``) no
+         *     se pueden reasignar: si vienen en el payload se rechazan con 400.
+         */
+        ForjaCheckIn: {
+            readonly id: number;
+            student: number;
+            /** Format: date */
+            checked_on?: string;
+            /** Format: double */
+            weight_kg?: number | null;
+            mood?: number | null;
+            /** Format: double */
+            sleep_hours?: number | null;
+            notes?: string;
+            metrics?: unknown;
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+            /**
+             * Created at
+             * Format: date-time
+             * @description Fecha de creacion.
+             */
+            readonly created: string;
+            /**
+             * Modified at
+             * Format: date-time
+             * @description Fecha de modificacion.
+             */
+            readonly modified: string;
+        };
+        /**
+         * @description Restringe FKs ``student``/``service`` al alcance del viewer.
+         *
+         *     En update, ``student`` (y ``service`` si ``lock_service_on_update``) no
+         *     se pueden reasignar: si vienen en el payload se rechazan con 400.
+         */
+        ForjaCheckInRequest: {
+            student: number;
+            /** Format: date */
+            checked_on?: string;
+            /** Format: double */
+            weight_kg?: number | null;
+            mood?: number | null;
+            /** Format: double */
+            sleep_hours?: number | null;
+            notes?: string;
+            metrics?: unknown;
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+        };
+        ForjaExercise: {
+            readonly id: number;
+            name: string;
+            position?: number;
+            sets?: number;
+            reps?: string;
+            rest_seconds?: number;
+            tempo?: string;
+            /** Format: double */
+            load_kg?: number | null;
+            notes?: string;
+            /** Format: uri */
+            video_url?: string;
+        };
+        ForjaExerciseRequest: {
+            name: string;
+            position?: number;
+            sets?: number;
+            reps?: string;
+            rest_seconds?: number;
+            tempo?: string;
+            /** Format: double */
+            load_kg?: number | null;
+            notes?: string;
+            /** Format: uri */
+            video_url?: string;
+        };
+        /**
+         * @description Restringe FKs ``student``/``service`` al alcance del viewer.
+         *
+         *     En update, ``student`` (y ``service`` si ``lock_service_on_update``) no
+         *     se pueden reasignar: si vienen en el payload se rechazan con 400.
+         */
+        ForjaMealLog: {
+            readonly id: number;
+            student: number;
+            /** Format: date */
+            logged_on?: string;
+            /**
+             * @description * `breakfast` - Desayuno
+             *     * `lunch` - Almuerzo
+             *     * `dinner` - Cena
+             *     * `snack` - Snack
+             *     * `other` - Otro
+             * @enum {string}
+             */
+            meal_type?: "breakfast" | "lunch" | "dinner" | "snack" | "other";
+            description?: string;
+            calories?: number | null;
+            protein?: number | null;
+            carbs?: number | null;
+            fats?: number | null;
+            notes?: string;
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+            /**
+             * Created at
+             * Format: date-time
+             * @description Fecha de creacion.
+             */
+            readonly created: string;
+            /**
+             * Modified at
+             * Format: date-time
+             * @description Fecha de modificacion.
+             */
+            readonly modified: string;
+        };
+        /**
+         * @description Restringe FKs ``student``/``service`` al alcance del viewer.
+         *
+         *     En update, ``student`` (y ``service`` si ``lock_service_on_update``) no
+         *     se pueden reasignar: si vienen en el payload se rechazan con 400.
+         */
+        ForjaMealLogRequest: {
+            student: number;
+            /** Format: date */
+            logged_on?: string;
+            /**
+             * @description * `breakfast` - Desayuno
+             *     * `lunch` - Almuerzo
+             *     * `dinner` - Cena
+             *     * `snack` - Snack
+             *     * `other` - Otro
+             * @enum {string}
+             */
+            meal_type?: "breakfast" | "lunch" | "dinner" | "snack" | "other";
+            description?: string;
+            calories?: number | null;
+            protein?: number | null;
+            carbs?: number | null;
+            fats?: number | null;
+            notes?: string;
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+        };
+        ForjaService: {
+            readonly id: number;
+            name: string;
+            description?: string;
+            /** Format: double */
+            price?: number;
+            /**
+             * @description * `monthly` - Mensual
+             *     * `quarterly` - Trimestral
+             *     * `yearly` - Anual
+             *     * `one_time` - Único
+             * @enum {string}
+             */
+            billing_period?: "monthly" | "quarterly" | "yearly" | "one_time";
+            duration_weeks?: number | null;
+            includes_nutrition?: boolean;
+            includes_training?: boolean;
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+            /**
+             * Created at
+             * Format: date-time
+             * @description Fecha de creacion.
+             */
+            readonly created: string;
+            /**
+             * Modified at
+             * Format: date-time
+             * @description Fecha de modificacion.
+             */
+            readonly modified: string;
+        };
+        ForjaServiceRequest: {
+            name: string;
+            description?: string;
+            /** Format: double */
+            price?: number;
+            /**
+             * @description * `monthly` - Mensual
+             *     * `quarterly` - Trimestral
+             *     * `yearly` - Anual
+             *     * `one_time` - Único
+             * @enum {string}
+             */
+            billing_period?: "monthly" | "quarterly" | "yearly" | "one_time";
+            duration_weeks?: number | null;
+            includes_nutrition?: boolean;
+            includes_training?: boolean;
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+        };
+        /**
+         * @description Restringe FKs ``student``/``service`` al alcance del viewer.
+         *
+         *     En update, ``student`` (y ``service`` si ``lock_service_on_update``) no
+         *     se pueden reasignar: si vienen en el payload se rechazan con 400.
+         */
+        ForjaStudent: {
+            readonly id: number;
+            readonly user: number | null;
+            service?: number | null;
+            full_name: string;
+            /** Format: email */
+            email?: string;
+            phone?: string;
+            /**
+             * @description * `invited` - Invitado
+             *     * `active` - Activo
+             *     * `paused` - Pausado
+             *     * `finished` - Finalizado
+             *     * `cancelled` - Cancelado
+             * @enum {string}
+             */
+            status?: "invited" | "active" | "paused" | "finished" | "cancelled";
+            notes?: string;
+            /** Format: date */
+            start_date?: string | null;
+            calories_target?: number | null;
+            protein_target?: number | null;
+            carbs_target?: number | null;
+            fats_target?: number | null;
+            water_target_ml?: number | null;
+            sessions_per_week?: number | null;
+            /** Format: double */
+            height_cm?: number | null;
+            /** Format: double */
+            weight_kg?: number | null;
+            goal?: string;
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+            /**
+             * Created at
+             * Format: date-time
+             * @description Fecha de creacion.
+             */
+            readonly created: string;
+            /**
+             * Modified at
+             * Format: date-time
+             * @description Fecha de modificacion.
+             */
+            readonly modified: string;
+        };
+        /**
+         * @description Restringe FKs ``student``/``service`` al alcance del viewer.
+         *
+         *     En update, ``student`` (y ``service`` si ``lock_service_on_update``) no
+         *     se pueden reasignar: si vienen en el payload se rechazan con 400.
+         */
+        ForjaStudentRequest: {
+            service?: number | null;
+            full_name: string;
+            /** Format: email */
+            email?: string;
+            phone?: string;
+            /**
+             * @description * `invited` - Invitado
+             *     * `active` - Activo
+             *     * `paused` - Pausado
+             *     * `finished` - Finalizado
+             *     * `cancelled` - Cancelado
+             * @enum {string}
+             */
+            status?: "invited" | "active" | "paused" | "finished" | "cancelled";
+            notes?: string;
+            /** Format: date */
+            start_date?: string | null;
+            calories_target?: number | null;
+            protein_target?: number | null;
+            carbs_target?: number | null;
+            fats_target?: number | null;
+            water_target_ml?: number | null;
+            sessions_per_week?: number | null;
+            /** Format: double */
+            height_cm?: number | null;
+            /** Format: double */
+            weight_kg?: number | null;
+            goal?: string;
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+        };
+        /**
+         * @description Restringe FKs ``student``/``service`` al alcance del viewer.
+         *
+         *     En update, ``student`` (y ``service`` si ``lock_service_on_update``) no
+         *     se pueden reasignar: si vienen en el payload se rechazan con 400.
+         */
+        ForjaSubscription: {
+            readonly id: number;
+            student: number;
+            service: number;
+            /**
+             * @description * `active` - Activa
+             *     * `past_due` - Vencida
+             *     * `cancelled` - Cancelada
+             *     * `trial` - Prueba
+             * @enum {string}
+             */
+            status?: "active" | "past_due" | "cancelled" | "trial";
+            /** Format: date */
+            started_on?: string;
+            /** Format: date */
+            ends_on?: string | null;
+            /** Format: double */
+            amount?: number;
+            notes?: string;
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+            /**
+             * Created at
+             * Format: date-time
+             * @description Fecha de creacion.
+             */
+            readonly created: string;
+            /**
+             * Modified at
+             * Format: date-time
+             * @description Fecha de modificacion.
+             */
+            readonly modified: string;
+        };
+        /**
+         * @description Restringe FKs ``student``/``service`` al alcance del viewer.
+         *
+         *     En update, ``student`` (y ``service`` si ``lock_service_on_update``) no
+         *     se pueden reasignar: si vienen en el payload se rechazan con 400.
+         */
+        ForjaSubscriptionRequest: {
+            student: number;
+            service: number;
+            /**
+             * @description * `active` - Activa
+             *     * `past_due` - Vencida
+             *     * `cancelled` - Cancelada
+             *     * `trial` - Prueba
+             * @enum {string}
+             */
+            status?: "active" | "past_due" | "cancelled" | "trial";
+            /** Format: date */
+            started_on?: string;
+            /** Format: date */
+            ends_on?: string | null;
+            /** Format: double */
+            amount?: number;
+            notes?: string;
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+        };
+        /**
+         * @description Restringe FKs ``student``/``service`` al alcance del viewer.
+         *
+         *     En update, ``student`` (y ``service`` si ``lock_service_on_update``) no
+         *     se pueden reasignar: si vienen en el payload se rechazan con 400.
+         */
+        ForjaThread: {
+            readonly id: number;
+            student: number;
+            subject?: string;
+            /** Format: date-time */
+            readonly last_message_at: string | null;
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+            /**
+             * Created at
+             * Format: date-time
+             * @description Fecha de creacion.
+             */
+            readonly created: string;
+            /**
+             * Modified at
+             * Format: date-time
+             * @description Fecha de modificacion.
+             */
+            readonly modified: string;
+        };
+        /**
+         * @description Restringe FKs ``student``/``service`` al alcance del viewer.
+         *
+         *     En update, ``student`` (y ``service`` si ``lock_service_on_update``) no
+         *     se pueden reasignar: si vienen en el payload se rechazan con 400.
+         */
+        ForjaThreadRequest: {
+            student: number;
+            subject?: string;
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+        };
+        /**
+         * @description Restringe FKs ``student``/``service`` al alcance del viewer.
+         *
+         *     En update, ``student`` (y ``service`` si ``lock_service_on_update``) no
+         *     se pueden reasignar: si vienen en el payload se rechazan con 400.
+         */
+        ForjaTrainingPlan: {
+            readonly id: number;
+            student: number;
+            title: string;
+            notes?: string;
+            /** Format: date */
+            effective_from?: string;
+            /** Format: date */
+            effective_to?: string | null;
+            is_current?: boolean;
+            days?: components["schemas"]["ForjaWorkoutDay"][];
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+            /**
+             * Created at
+             * Format: date-time
+             * @description Fecha de creacion.
+             */
+            readonly created: string;
+            /**
+             * Modified at
+             * Format: date-time
+             * @description Fecha de modificacion.
+             */
+            readonly modified: string;
+        };
+        /**
+         * @description Restringe FKs ``student``/``service`` al alcance del viewer.
+         *
+         *     En update, ``student`` (y ``service`` si ``lock_service_on_update``) no
+         *     se pueden reasignar: si vienen en el payload se rechazan con 400.
+         */
+        ForjaTrainingPlanRequest: {
+            student: number;
+            title: string;
+            notes?: string;
+            /** Format: date */
+            effective_from?: string;
+            /** Format: date */
+            effective_to?: string | null;
+            is_current?: boolean;
+            days?: components["schemas"]["ForjaWorkoutDayRequest"][];
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+        };
+        /**
+         * @description Restringe FKs ``student``/``service`` al alcance del viewer.
+         *
+         *     En update, ``student`` (y ``service`` si ``lock_service_on_update``) no
+         *     se pueden reasignar: si vienen en el payload se rechazan con 400.
+         */
+        ForjaWaterLog: {
+            readonly id: number;
+            student: number;
+            /** Format: date */
+            logged_on?: string;
+            amount_ml?: number;
+            notes?: string;
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+            /**
+             * Created at
+             * Format: date-time
+             * @description Fecha de creacion.
+             */
+            readonly created: string;
+            /**
+             * Modified at
+             * Format: date-time
+             * @description Fecha de modificacion.
+             */
+            readonly modified: string;
+        };
+        /**
+         * @description Restringe FKs ``student``/``service`` al alcance del viewer.
+         *
+         *     En update, ``student`` (y ``service`` si ``lock_service_on_update``) no
+         *     se pueden reasignar: si vienen en el payload se rechazan con 400.
+         */
+        ForjaWaterLogRequest: {
+            student: number;
+            /** Format: date */
+            logged_on?: string;
+            amount_ml?: number;
+            notes?: string;
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+        };
+        ForjaWorkoutDay: {
+            readonly id: number;
+            name: string;
+            /** @description 0=lunes … 6=domingo; null = sin día fijo */
+            weekday?: number | null;
+            position?: number;
+            notes?: string;
+            exercises?: components["schemas"]["ForjaExercise"][];
+        };
+        ForjaWorkoutDayRequest: {
+            name: string;
+            /** @description 0=lunes … 6=domingo; null = sin día fijo */
+            weekday?: number | null;
+            position?: number;
+            notes?: string;
+            exercises?: components["schemas"]["ForjaExerciseRequest"][];
+        };
+        /**
+         * @description Restringe FKs ``student``/``service`` al alcance del viewer.
+         *
+         *     En update, ``student`` (y ``service`` si ``lock_service_on_update``) no
+         *     se pueden reasignar: si vienen en el payload se rechazan con 400.
+         */
+        ForjaWorkoutLog: {
+            readonly id: number;
+            student: number;
+            workout_day?: number | null;
+            /** Format: date */
+            performed_on?: string;
+            completed?: boolean;
+            duration_minutes?: number | null;
+            perceived_effort?: number | null;
+            notes?: string;
+            payload?: unknown;
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+            /**
+             * Created at
+             * Format: date-time
+             * @description Fecha de creacion.
+             */
+            readonly created: string;
+            /**
+             * Modified at
+             * Format: date-time
+             * @description Fecha de modificacion.
+             */
+            readonly modified: string;
+        };
+        /**
+         * @description Restringe FKs ``student``/``service`` al alcance del viewer.
+         *
+         *     En update, ``student`` (y ``service`` si ``lock_service_on_update``) no
+         *     se pueden reasignar: si vienen en el payload se rechazan con 400.
+         */
+        ForjaWorkoutLogRequest: {
+            student: number;
+            workout_day?: number | null;
+            /** Format: date */
+            performed_on?: string;
+            completed?: boolean;
+            duration_minutes?: number | null;
+            perceived_effort?: number | null;
+            notes?: string;
+            payload?: unknown;
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+        };
         /** @description Serializer para request de generación batch de boletas. */
         GenerateBoletaBatchRequest: {
             order_ids: number[];
@@ -48145,6 +49502,31 @@ export interface components {
                 [key: string]: unknown;
             }[];
         };
+        /** @description Request body tipado para POST /api/sales/orders/{id}/pay/. */
+        OrderPayRequest: {
+            /**
+             * Format: uuid
+             * @description ID del método de pago activo de la sucursal.
+             */
+            payment_method_id: string;
+            /**
+             * Format: double
+             * @description Monto a cobrar (parcial o total del saldo pendiente).
+             */
+            amount: number;
+            /** @description Sesión de caja OPEN de la sucursal. Si se envía, debe existir y estar abierta; si se omite, el pago no se imputa a caja. */
+            cash_register_id?: number | null;
+            /**
+             * @description Notas opcionales del pago.
+             * @default
+             */
+            notes: string;
+            /**
+             * @description Referencia externa (voucher, transferencia, etc.).
+             * @default
+             */
+            reference: string;
+        };
         /**
          * @description Serializer para productos de orden - OPTIMIZADO.
          *     Incluye todos los campos del detalle de productos.
@@ -50485,6 +51867,156 @@ export interface components {
              */
             previous?: string | null;
             results: components["schemas"]["FollowUpCategory"][];
+        };
+        PaginatedForjaAdherenceRuleList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["ForjaAdherenceRule"][];
+        };
+        PaginatedForjaCheckInList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["ForjaCheckIn"][];
+        };
+        PaginatedForjaMealLogList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["ForjaMealLog"][];
+        };
+        PaginatedForjaServiceList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["ForjaService"][];
+        };
+        PaginatedForjaStudentList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["ForjaStudent"][];
+        };
+        PaginatedForjaSubscriptionList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["ForjaSubscription"][];
+        };
+        PaginatedForjaThreadList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["ForjaThread"][];
+        };
+        PaginatedForjaTrainingPlanList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["ForjaTrainingPlan"][];
+        };
+        PaginatedForjaWaterLogList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["ForjaWaterLog"][];
+        };
+        PaginatedForjaWorkoutLogList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["ForjaWorkoutLog"][];
         };
         PaginatedGlobalAppConfigList: {
             /** @example 123 */
@@ -52887,9 +54419,8 @@ export interface components {
              *     * `AGENT` - Agente
              *     * `SYSTEM` - Sistema
              *     * `TOOL` - Herramienta
-             * @enum {string}
              */
-            role?: "USER" | "AGENT" | "SYSTEM" | "TOOL";
+            role?: string;
             /** Contenido */
             content?: string;
             /** Tokens */
@@ -57218,6 +58749,255 @@ export interface components {
              */
             is_active?: boolean;
         };
+        PatchedForjaAdherenceRuleRequest: {
+            name?: string;
+            /**
+             * @description * `training` - Entrenamiento
+             *     * `water` - Agua
+             *     * `macros` - Macros
+             *     * `check_in` - Check-in
+             * @enum {string}
+             */
+            metric?: "training" | "water" | "macros" | "check_in";
+            /** @description Peso relativo en el promedio de adherencia */
+            weight?: number;
+            enabled?: boolean;
+            /**
+             * Format: double
+             * @description Umbral opcional (ej. 0.85 = 85 % de la meta)
+             */
+            threshold?: number | null;
+            config?: unknown;
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+        };
+        /**
+         * @description Restringe FKs ``student``/``service`` al alcance del viewer.
+         *
+         *     En update, ``student`` (y ``service`` si ``lock_service_on_update``) no
+         *     se pueden reasignar: si vienen en el payload se rechazan con 400.
+         */
+        PatchedForjaCheckInRequest: {
+            student?: number;
+            /** Format: date */
+            checked_on?: string;
+            /** Format: double */
+            weight_kg?: number | null;
+            mood?: number | null;
+            /** Format: double */
+            sleep_hours?: number | null;
+            notes?: string;
+            metrics?: unknown;
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+        };
+        /**
+         * @description Restringe FKs ``student``/``service`` al alcance del viewer.
+         *
+         *     En update, ``student`` (y ``service`` si ``lock_service_on_update``) no
+         *     se pueden reasignar: si vienen en el payload se rechazan con 400.
+         */
+        PatchedForjaMealLogRequest: {
+            student?: number;
+            /** Format: date */
+            logged_on?: string;
+            /**
+             * @description * `breakfast` - Desayuno
+             *     * `lunch` - Almuerzo
+             *     * `dinner` - Cena
+             *     * `snack` - Snack
+             *     * `other` - Otro
+             * @enum {string}
+             */
+            meal_type?: "breakfast" | "lunch" | "dinner" | "snack" | "other";
+            description?: string;
+            calories?: number | null;
+            protein?: number | null;
+            carbs?: number | null;
+            fats?: number | null;
+            notes?: string;
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+        };
+        PatchedForjaServiceRequest: {
+            name?: string;
+            description?: string;
+            /** Format: double */
+            price?: number;
+            /**
+             * @description * `monthly` - Mensual
+             *     * `quarterly` - Trimestral
+             *     * `yearly` - Anual
+             *     * `one_time` - Único
+             * @enum {string}
+             */
+            billing_period?: "monthly" | "quarterly" | "yearly" | "one_time";
+            duration_weeks?: number | null;
+            includes_nutrition?: boolean;
+            includes_training?: boolean;
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+        };
+        /**
+         * @description Restringe FKs ``student``/``service`` al alcance del viewer.
+         *
+         *     En update, ``student`` (y ``service`` si ``lock_service_on_update``) no
+         *     se pueden reasignar: si vienen en el payload se rechazan con 400.
+         */
+        PatchedForjaStudentRequest: {
+            service?: number | null;
+            full_name?: string;
+            /** Format: email */
+            email?: string;
+            phone?: string;
+            /**
+             * @description * `invited` - Invitado
+             *     * `active` - Activo
+             *     * `paused` - Pausado
+             *     * `finished` - Finalizado
+             *     * `cancelled` - Cancelado
+             * @enum {string}
+             */
+            status?: "invited" | "active" | "paused" | "finished" | "cancelled";
+            notes?: string;
+            /** Format: date */
+            start_date?: string | null;
+            calories_target?: number | null;
+            protein_target?: number | null;
+            carbs_target?: number | null;
+            fats_target?: number | null;
+            water_target_ml?: number | null;
+            sessions_per_week?: number | null;
+            /** Format: double */
+            height_cm?: number | null;
+            /** Format: double */
+            weight_kg?: number | null;
+            goal?: string;
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+        };
+        /**
+         * @description Restringe FKs ``student``/``service`` al alcance del viewer.
+         *
+         *     En update, ``student`` (y ``service`` si ``lock_service_on_update``) no
+         *     se pueden reasignar: si vienen en el payload se rechazan con 400.
+         */
+        PatchedForjaSubscriptionRequest: {
+            student?: number;
+            service?: number;
+            /**
+             * @description * `active` - Activa
+             *     * `past_due` - Vencida
+             *     * `cancelled` - Cancelada
+             *     * `trial` - Prueba
+             * @enum {string}
+             */
+            status?: "active" | "past_due" | "cancelled" | "trial";
+            /** Format: date */
+            started_on?: string;
+            /** Format: date */
+            ends_on?: string | null;
+            /** Format: double */
+            amount?: number;
+            notes?: string;
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+        };
+        /**
+         * @description Restringe FKs ``student``/``service`` al alcance del viewer.
+         *
+         *     En update, ``student`` (y ``service`` si ``lock_service_on_update``) no
+         *     se pueden reasignar: si vienen en el payload se rechazan con 400.
+         */
+        PatchedForjaThreadRequest: {
+            student?: number;
+            subject?: string;
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+        };
+        /**
+         * @description Restringe FKs ``student``/``service`` al alcance del viewer.
+         *
+         *     En update, ``student`` (y ``service`` si ``lock_service_on_update``) no
+         *     se pueden reasignar: si vienen en el payload se rechazan con 400.
+         */
+        PatchedForjaTrainingPlanRequest: {
+            student?: number;
+            title?: string;
+            notes?: string;
+            /** Format: date */
+            effective_from?: string;
+            /** Format: date */
+            effective_to?: string | null;
+            is_current?: boolean;
+            days?: components["schemas"]["ForjaWorkoutDayRequest"][];
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+        };
+        /**
+         * @description Restringe FKs ``student``/``service`` al alcance del viewer.
+         *
+         *     En update, ``student`` (y ``service`` si ``lock_service_on_update``) no
+         *     se pueden reasignar: si vienen en el payload se rechazan con 400.
+         */
+        PatchedForjaWaterLogRequest: {
+            student?: number;
+            /** Format: date */
+            logged_on?: string;
+            amount_ml?: number;
+            notes?: string;
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+        };
+        /**
+         * @description Restringe FKs ``student``/``service`` al alcance del viewer.
+         *
+         *     En update, ``student`` (y ``service`` si ``lock_service_on_update``) no
+         *     se pueden reasignar: si vienen en el payload se rechazan con 400.
+         */
+        PatchedForjaWorkoutLogRequest: {
+            student?: number;
+            workout_day?: number | null;
+            /** Format: date */
+            performed_on?: string;
+            completed?: boolean;
+            duration_minutes?: number | null;
+            perceived_effort?: number | null;
+            notes?: string;
+            payload?: unknown;
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+        };
         PatchedGlobalAppConfigRequest: {
             /** Nombre de la Aplicación */
             app_name?: string;
@@ -59618,6 +61398,18 @@ export interface components {
              */
             sodium_mg?: number | null;
             /**
+             * Densidad (g/ml)
+             * Format: double
+             * @description Densidad opcional para convertir ml/l a gramos. Si no se informa, se asume 1 g/ml con advertencia.
+             */
+            density_g_per_ml?: number | null;
+            /**
+             * Gramos por Unidad
+             * Format: double
+             * @description Peso en gramos de una unidad del producto. Obligatorio cuando la receta usa la unidad 'unidad'.
+             */
+            grams_per_unit?: number | null;
+            /**
              * Estanque Asociado
              * @description Producto contenedor o estanque al que está asociado este residuo o material
              */
@@ -60434,7 +62226,7 @@ export interface components {
             /**
              * Rendimiento Total (gramos)
              * Format: double
-             * @description Peso total en gramos de la receta terminada
+             * @description Rendimiento declarado del producto terminado (con merma). Ingresado por el usuario; el calculador no lo sobrescribe.
              */
             total_yield_grams?: number | null;
             /**
@@ -61108,9 +62900,8 @@ export interface components {
              *     * `promotions` - Promociones
              *     * `logistics` - Logística
              *     * `water_management` - Gestión Hídrica
-             * @enum {string}
              */
-            module_name?: "finance" | "sales" | "inventory" | "measurements" | "clients" | "suppliers" | "services" | "config" | "dashboard" | "promotions" | "logistics" | "water_management";
+            module_name?: string;
             /** Habilitado */
             is_enabled?: boolean;
             /**
@@ -62245,9 +64036,8 @@ export interface components {
              *     * `backup` - Backups
              *     * `security` - Seguridad
              *     * `api` - Integraciones API
-             * @enum {string}
              */
-            module_name?: "global" | "sales" | "inventory" | "finance" | "customers" | "suppliers" | "measurements" | "water_management" | "nutrition" | "pos" | "employees" | "equipment" | "promotions" | "logistics" | "scheduling" | "tables" | "services" | "analytics" | "notifications" | "backup" | "security" | "api";
+            module_name?: string;
             /**
              * Nombre del Esquema
              * @description Identificador único del esquema
@@ -62313,9 +64103,8 @@ export interface components {
              *     * `backup` - Backups
              *     * `security` - Seguridad
              *     * `api` - Integraciones API
-             * @enum {string}
              */
-            module_name?: "global" | "sales" | "inventory" | "finance" | "customers" | "suppliers" | "measurements" | "water_management" | "nutrition" | "pos" | "employees" | "equipment" | "promotions" | "logistics" | "scheduling" | "tables" | "services" | "analytics" | "notifications" | "backup" | "security" | "api";
+            module_name?: string;
             /**
              * Clave de Configuración
              * @description Identificador único para esta configuración
@@ -64798,6 +66587,18 @@ export interface components {
              */
             sodium_mg?: number | null;
             /**
+             * Densidad (g/ml)
+             * Format: double
+             * @description Densidad opcional para convertir ml/l a gramos. Si no se informa, se asume 1 g/ml con advertencia.
+             */
+            density_g_per_ml?: number | null;
+            /**
+             * Gramos por Unidad
+             * Format: double
+             * @description Peso en gramos de una unidad del producto. Obligatorio cuando la receta usa la unidad 'unidad'.
+             */
+            grams_per_unit?: number | null;
+            /**
              * Estanque Asociado
              * @description Producto contenedor o estanque al que está asociado este residuo o material
              */
@@ -65503,6 +67304,18 @@ export interface components {
              * @description Miligramos de sodio por 100g
              */
             sodium_mg?: number | null;
+            /**
+             * Densidad (g/ml)
+             * Format: double
+             * @description Densidad opcional para convertir ml/l a gramos. Si no se informa, se asume 1 g/ml con advertencia.
+             */
+            density_g_per_ml?: number | null;
+            /**
+             * Gramos por Unidad
+             * Format: double
+             * @description Peso en gramos de una unidad del producto. Obligatorio cuando la receta usa la unidad 'unidad'.
+             */
+            grams_per_unit?: number | null;
         };
         /** @description Serializer para vincular productos con grupos de modificadores. */
         ProductModifierGroup: {
@@ -65843,6 +67656,18 @@ export interface components {
              * @description Miligramos de sodio por 100g
              */
             sodium_mg?: number | null;
+            /**
+             * Densidad (g/ml)
+             * Format: double
+             * @description Densidad opcional para convertir ml/l a gramos. Si no se informa, se asume 1 g/ml con advertencia.
+             */
+            density_g_per_ml?: number | null;
+            /**
+             * Gramos por Unidad
+             * Format: double
+             * @description Peso en gramos de una unidad del producto. Obligatorio cuando la receta usa la unidad 'unidad'.
+             */
+            grams_per_unit?: number | null;
             /**
              * Estanque Asociado
              * @description Producto contenedor o estanque al que está asociado este residuo o material
@@ -68479,14 +70304,35 @@ export interface components {
             /**
              * Rendimiento Total (gramos)
              * Format: double
-             * @description Peso total en gramos de la receta terminada
+             * @description Rendimiento declarado del producto terminado (con merma). Ingresado por el usuario; el calculador no lo sobrescribe.
              */
             total_yield_grams?: number | null;
+            /**
+             * Peso Crudo Calculado (gramos)
+             * Format: double
+             * @description Suma de pesos de ingredientes convertidos a gramos
+             */
+            readonly raw_weight_grams: number | null;
             /**
              * Tiene Cálculo Nutricional
              * @description Indica si esta receta tiene cálculo nutricional automático
              */
             readonly has_nutritional_calculation: boolean;
+            /**
+             * Cálculo Nutricional Completo
+             * @description False si faltan datos obligatorios en algún ingrediente
+             */
+            readonly nutrition_is_complete: boolean;
+            /**
+             * Detalle de Datos Nutricionales Faltantes
+             * @description Ingredientes y campos faltantes del último cálculo
+             */
+            readonly nutrition_missing_details: unknown;
+            /**
+             * Hash de Insumos Nutricionales
+             * @description SHA-256 de ingredientes/cantidades/datos para saber si el cálculo está vigente
+             */
+            readonly nutrition_inputs_hash: string | null;
             /**
              * Duración (días)
              * @description Vida útil del producto en días
@@ -68830,7 +70676,7 @@ export interface components {
             /**
              * Rendimiento Total (gramos)
              * Format: double
-             * @description Peso total en gramos de la receta terminada
+             * @description Rendimiento declarado del producto terminado (con merma). Ingresado por el usuario; el calculador no lo sobrescribe.
              */
             total_yield_grams?: number | null;
             /**
@@ -68963,6 +70809,12 @@ export interface components {
              * Format: double
              */
             cost_modifier?: number;
+        };
+        /** @description Body para reenviar invitación a un usuario pendiente de la sucursal. */
+        ResendBranchInvitationRequest: {
+            user_id?: number;
+            /** Format: email */
+            email?: string;
         };
         ResetPassword: {
             /** Format: email */
@@ -70707,9 +72559,8 @@ export interface components {
              *     * `promotions` - Promociones
              *     * `logistics` - Logística
              *     * `water_management` - Gestión Hídrica
-             * @enum {string}
              */
-            module_name: "finance" | "sales" | "inventory" | "measurements" | "clients" | "suppliers" | "services" | "config" | "dashboard" | "promotions" | "logistics" | "water_management";
+            module_name: string;
             readonly module_display: string;
             /** Habilitado */
             is_enabled?: boolean;
@@ -70751,9 +72602,8 @@ export interface components {
              *     * `promotions` - Promociones
              *     * `logistics` - Logística
              *     * `water_management` - Gestión Hídrica
-             * @enum {string}
              */
-            module_name: "finance" | "sales" | "inventory" | "measurements" | "clients" | "suppliers" | "services" | "config" | "dashboard" | "promotions" | "logistics" | "water_management";
+            module_name: string;
             /** Habilitado */
             is_enabled?: boolean;
             /**
@@ -74550,9 +76400,8 @@ export interface components {
              *     * `backup` - Backups
              *     * `security` - Seguridad
              *     * `api` - Integraciones API
-             * @enum {string}
              */
-            module_name: "global" | "sales" | "inventory" | "finance" | "customers" | "suppliers" | "measurements" | "water_management" | "nutrition" | "pos" | "employees" | "equipment" | "promotions" | "logistics" | "scheduling" | "tables" | "services" | "analytics" | "notifications" | "backup" | "security" | "api";
+            module_name: string;
             /**
              * Nombre del Esquema
              * @description Identificador único del esquema
@@ -74630,9 +76479,8 @@ export interface components {
              *     * `backup` - Backups
              *     * `security` - Seguridad
              *     * `api` - Integraciones API
-             * @enum {string}
              */
-            module_name: "global" | "sales" | "inventory" | "finance" | "customers" | "suppliers" | "measurements" | "water_management" | "nutrition" | "pos" | "employees" | "equipment" | "promotions" | "logistics" | "scheduling" | "tables" | "services" | "analytics" | "notifications" | "backup" | "security" | "api";
+            module_name: string;
             /**
              * Nombre del Esquema
              * @description Identificador único del esquema
@@ -74784,9 +76632,8 @@ export interface components {
              *     * `backup` - Backups
              *     * `security` - Seguridad
              *     * `api` - Integraciones API
-             * @enum {string}
              */
-            module_name: "global" | "sales" | "inventory" | "finance" | "customers" | "suppliers" | "measurements" | "water_management" | "nutrition" | "pos" | "employees" | "equipment" | "promotions" | "logistics" | "scheduling" | "tables" | "services" | "analytics" | "notifications" | "backup" | "security" | "api";
+            module_name: string;
             /**
              * Clave de Configuración
              * @description Identificador único para esta configuración
@@ -74894,9 +76741,8 @@ export interface components {
              *     * `backup` - Backups
              *     * `security` - Seguridad
              *     * `api` - Integraciones API
-             * @enum {string}
              */
-            module_name: "global" | "sales" | "inventory" | "finance" | "customers" | "suppliers" | "measurements" | "water_management" | "nutrition" | "pos" | "employees" | "equipment" | "promotions" | "logistics" | "scheduling" | "tables" | "services" | "analytics" | "notifications" | "backup" | "security" | "api";
+            module_name: string;
             /**
              * Clave de Configuración
              * @description Identificador único para esta configuración
@@ -74976,10 +76822,12 @@ export interface components {
              *     * `WASTE_MANAGER` - Gestor de Residuos
              *     * `APR` - APR - Gestión Hídrica
              *     * `PAYROLL_ADMIN` - Administrativo de Nómina
+             *     * `COACH` - Coach
+             *     * `FORJA_ADMIN` - Admin Forja
+             *     * `FORJA_ALUMNO` - Alumno Forja
              * @default EMPLOYEE
-             * @enum {string}
              */
-            role: "SUPERUSER" | "ADM" | "CL" | "OWNER" | "ADMIN_LOCAL" | "MANAGER" | "EMPLOYEE" | "CAJERO" | "METER" | "RECEIVER" | "DRIVER" | "WAITER" | "OPERATOR" | "VIEWER" | "NUTRITION_LABELER" | "WASTE_MANAGER" | "APR" | "PAYROLL_ADMIN";
+            role: string;
             /** @default true */
             is_active: boolean;
         };
@@ -75006,10 +76854,12 @@ export interface components {
              *     * `WASTE_MANAGER` - Gestor de Residuos
              *     * `APR` - APR - Gestión Hídrica
              *     * `PAYROLL_ADMIN` - Administrativo de Nómina
+             *     * `COACH` - Coach
+             *     * `FORJA_ADMIN` - Admin Forja
+             *     * `FORJA_ALUMNO` - Alumno Forja
              * @default EMPLOYEE
-             * @enum {string}
              */
-            role: "SUPERUSER" | "ADM" | "CL" | "OWNER" | "ADMIN_LOCAL" | "MANAGER" | "EMPLOYEE" | "CAJERO" | "METER" | "RECEIVER" | "DRIVER" | "WAITER" | "OPERATOR" | "VIEWER" | "NUTRITION_LABELER" | "WASTE_MANAGER" | "APR" | "PAYROLL_ADMIN";
+            role: string;
             /** @default true */
             is_active: boolean;
         };
@@ -75489,10 +77339,12 @@ export interface components {
              *     * `WASTE_MANAGER` - Gestor de Residuos
              *     * `APR` - APR - Gestión Hídrica
              *     * `PAYROLL_ADMIN` - Administrativo de Nómina
+             *     * `COACH` - Coach
+             *     * `FORJA_ADMIN` - Admin Forja
+             *     * `FORJA_ALUMNO` - Alumno Forja
              * @default VIEWER
-             * @enum {string}
              */
-            role: "SUPERUSER" | "ADM" | "CL" | "OWNER" | "ADMIN_LOCAL" | "MANAGER" | "EMPLOYEE" | "CAJERO" | "METER" | "RECEIVER" | "DRIVER" | "WAITER" | "OPERATOR" | "VIEWER" | "NUTRITION_LABELER" | "WASTE_MANAGER" | "APR" | "PAYROLL_ADMIN";
+            role: string;
             /** @default true */
             is_active: boolean;
         };
@@ -75528,10 +77380,12 @@ export interface components {
              *     * `WASTE_MANAGER` - Gestor de Residuos
              *     * `APR` - APR - Gestión Hídrica
              *     * `PAYROLL_ADMIN` - Administrativo de Nómina
+             *     * `COACH` - Coach
+             *     * `FORJA_ADMIN` - Admin Forja
+             *     * `FORJA_ALUMNO` - Alumno Forja
              * @default VIEWER
-             * @enum {string}
              */
-            role: "SUPERUSER" | "ADM" | "CL" | "OWNER" | "ADMIN_LOCAL" | "MANAGER" | "EMPLOYEE" | "CAJERO" | "METER" | "RECEIVER" | "DRIVER" | "WAITER" | "OPERATOR" | "VIEWER" | "NUTRITION_LABELER" | "WASTE_MANAGER" | "APR" | "PAYROLL_ADMIN";
+            role: string;
             /** @default true */
             is_active: boolean;
             profile_data?: {
@@ -76849,8 +78703,7 @@ export interface components {
         };
         /** @description Serializer interno para anular un movimiento de caja. */
         _CancelMovementRequest: {
-            /** Format: uuid */
-            movement_id: string;
+            movement_id: number;
             reason?: string;
         };
         /** @description Serializer interno para ingresos/retiros de caja. */
@@ -85389,6 +87242,37 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    branches_resend_invitation_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este Tienda. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": components["schemas"]["ResendBranchInvitationRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ResendBranchInvitationRequest"];
+                "application/json": components["schemas"]["ResendBranchInvitationRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BranchInvitationQueuedResponse"];
+                    "*/*": components["schemas"]["BranchInvitationQueuedResponse"];
+                };
             };
         };
     };
@@ -103805,6 +105689,1965 @@ export interface operations {
             };
         };
     };
+    forja_adherence_rules_list: {
+        parameters: {
+            query?: {
+                enabled?: boolean;
+                format?: "binary" | "json";
+                /**
+                 * @description * `training` - Entrenamiento
+                 *     * `water` - Agua
+                 *     * `macros` - Macros
+                 *     * `check_in` - Check-in
+                 */
+                metric?: "check_in" | "macros" | "training" | "water";
+                /** @description Qué campo usar para ordenar los resultados. */
+                ordering?: string;
+                /** @description Un número de página dentro del conjunto de resultados paginado. */
+                page?: number;
+                /** @description Número de resultados a devolver por página. */
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedForjaAdherenceRuleList"];
+                    "*/*": components["schemas"]["PaginatedForjaAdherenceRuleList"];
+                };
+            };
+        };
+    };
+    forja_adherence_rules_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForjaAdherenceRuleRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ForjaAdherenceRuleRequest"];
+                "multipart/form-data": components["schemas"]["ForjaAdherenceRuleRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaAdherenceRule"];
+                    "*/*": components["schemas"]["ForjaAdherenceRule"];
+                };
+            };
+        };
+    };
+    forja_adherence_rules_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este regla de adherencia Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaAdherenceRule"];
+                    "*/*": components["schemas"]["ForjaAdherenceRule"];
+                };
+            };
+        };
+    };
+    forja_adherence_rules_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este regla de adherencia Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForjaAdherenceRuleRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ForjaAdherenceRuleRequest"];
+                "multipart/form-data": components["schemas"]["ForjaAdherenceRuleRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaAdherenceRule"];
+                    "*/*": components["schemas"]["ForjaAdherenceRule"];
+                };
+            };
+        };
+    };
+    forja_adherence_rules_destroy: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este regla de adherencia Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    forja_adherence_rules_partial_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este regla de adherencia Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedForjaAdherenceRuleRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedForjaAdherenceRuleRequest"];
+                "multipart/form-data": components["schemas"]["PatchedForjaAdherenceRuleRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaAdherenceRule"];
+                    "*/*": components["schemas"]["ForjaAdherenceRule"];
+                };
+            };
+        };
+    };
+    forja_adherence_rules_toggle_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este regla de adherencia Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForjaAdherenceRuleRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ForjaAdherenceRuleRequest"];
+                "multipart/form-data": components["schemas"]["ForjaAdherenceRuleRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaAdherenceRule"];
+                    "*/*": components["schemas"]["ForjaAdherenceRule"];
+                };
+            };
+        };
+    };
+    forja_adherence_weekly_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    forja_check_ins_list: {
+        parameters: {
+            query?: {
+                checked_on?: string;
+                format?: "binary" | "json";
+                /** @description Qué campo usar para ordenar los resultados. */
+                ordering?: string;
+                /** @description Un número de página dentro del conjunto de resultados paginado. */
+                page?: number;
+                /** @description Número de resultados a devolver por página. */
+                page_size?: number;
+                student?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedForjaCheckInList"];
+                    "*/*": components["schemas"]["PaginatedForjaCheckInList"];
+                };
+            };
+        };
+    };
+    forja_check_ins_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForjaCheckInRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ForjaCheckInRequest"];
+                "multipart/form-data": components["schemas"]["ForjaCheckInRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaCheckIn"];
+                    "*/*": components["schemas"]["ForjaCheckIn"];
+                };
+            };
+        };
+    };
+    forja_check_ins_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este check-in Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaCheckIn"];
+                    "*/*": components["schemas"]["ForjaCheckIn"];
+                };
+            };
+        };
+    };
+    forja_check_ins_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este check-in Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForjaCheckInRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ForjaCheckInRequest"];
+                "multipart/form-data": components["schemas"]["ForjaCheckInRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaCheckIn"];
+                    "*/*": components["schemas"]["ForjaCheckIn"];
+                };
+            };
+        };
+    };
+    forja_check_ins_destroy: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este check-in Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    forja_check_ins_partial_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este check-in Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedForjaCheckInRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedForjaCheckInRequest"];
+                "multipart/form-data": components["schemas"]["PatchedForjaCheckInRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaCheckIn"];
+                    "*/*": components["schemas"]["ForjaCheckIn"];
+                };
+            };
+        };
+    };
+    forja_meals_list: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+                logged_on?: string;
+                /**
+                 * @description * `breakfast` - Desayuno
+                 *     * `lunch` - Almuerzo
+                 *     * `dinner` - Cena
+                 *     * `snack` - Snack
+                 *     * `other` - Otro
+                 */
+                meal_type?: "breakfast" | "dinner" | "lunch" | "other" | "snack";
+                /** @description Qué campo usar para ordenar los resultados. */
+                ordering?: string;
+                /** @description Un número de página dentro del conjunto de resultados paginado. */
+                page?: number;
+                /** @description Número de resultados a devolver por página. */
+                page_size?: number;
+                student?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedForjaMealLogList"];
+                    "*/*": components["schemas"]["PaginatedForjaMealLogList"];
+                };
+            };
+        };
+    };
+    forja_meals_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForjaMealLogRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ForjaMealLogRequest"];
+                "multipart/form-data": components["schemas"]["ForjaMealLogRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaMealLog"];
+                    "*/*": components["schemas"]["ForjaMealLog"];
+                };
+            };
+        };
+    };
+    forja_meals_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este comida Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaMealLog"];
+                    "*/*": components["schemas"]["ForjaMealLog"];
+                };
+            };
+        };
+    };
+    forja_meals_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este comida Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForjaMealLogRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ForjaMealLogRequest"];
+                "multipart/form-data": components["schemas"]["ForjaMealLogRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaMealLog"];
+                    "*/*": components["schemas"]["ForjaMealLog"];
+                };
+            };
+        };
+    };
+    forja_meals_destroy: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este comida Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    forja_meals_partial_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este comida Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedForjaMealLogRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedForjaMealLogRequest"];
+                "multipart/form-data": components["schemas"]["PatchedForjaMealLogRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaMealLog"];
+                    "*/*": components["schemas"]["ForjaMealLog"];
+                };
+            };
+        };
+    };
+    forja_services_list: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+                /** @description Qué campo usar para ordenar los resultados. */
+                ordering?: string;
+                /** @description Un número de página dentro del conjunto de resultados paginado. */
+                page?: number;
+                /** @description Número de resultados a devolver por página. */
+                page_size?: number;
+                /** @description Un término de búsqueda. */
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedForjaServiceList"];
+                    "*/*": components["schemas"]["PaginatedForjaServiceList"];
+                };
+            };
+        };
+    };
+    forja_services_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForjaServiceRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ForjaServiceRequest"];
+                "multipart/form-data": components["schemas"]["ForjaServiceRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaService"];
+                    "*/*": components["schemas"]["ForjaService"];
+                };
+            };
+        };
+    };
+    forja_services_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este servicio Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaService"];
+                    "*/*": components["schemas"]["ForjaService"];
+                };
+            };
+        };
+    };
+    forja_services_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este servicio Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForjaServiceRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ForjaServiceRequest"];
+                "multipart/form-data": components["schemas"]["ForjaServiceRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaService"];
+                    "*/*": components["schemas"]["ForjaService"];
+                };
+            };
+        };
+    };
+    forja_services_destroy: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este servicio Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    forja_services_partial_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este servicio Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedForjaServiceRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedForjaServiceRequest"];
+                "multipart/form-data": components["schemas"]["PatchedForjaServiceRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaService"];
+                    "*/*": components["schemas"]["ForjaService"];
+                };
+            };
+        };
+    };
+    forja_students_list: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+                /** @description Qué campo usar para ordenar los resultados. */
+                ordering?: string;
+                /** @description Un número de página dentro del conjunto de resultados paginado. */
+                page?: number;
+                /** @description Número de resultados a devolver por página. */
+                page_size?: number;
+                /** @description Un término de búsqueda. */
+                search?: string;
+                service?: number;
+                /**
+                 * @description * `invited` - Invitado
+                 *     * `active` - Activo
+                 *     * `paused` - Pausado
+                 *     * `finished` - Finalizado
+                 *     * `cancelled` - Cancelado
+                 */
+                status?: "active" | "cancelled" | "finished" | "invited" | "paused";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedForjaStudentList"];
+                    "*/*": components["schemas"]["PaginatedForjaStudentList"];
+                };
+            };
+        };
+    };
+    forja_students_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForjaStudentRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ForjaStudentRequest"];
+                "multipart/form-data": components["schemas"]["ForjaStudentRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaStudent"];
+                    "*/*": components["schemas"]["ForjaStudent"];
+                };
+            };
+        };
+    };
+    forja_students_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este alumno Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaStudent"];
+                    "*/*": components["schemas"]["ForjaStudent"];
+                };
+            };
+        };
+    };
+    forja_students_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este alumno Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForjaStudentRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ForjaStudentRequest"];
+                "multipart/form-data": components["schemas"]["ForjaStudentRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaStudent"];
+                    "*/*": components["schemas"]["ForjaStudent"];
+                };
+            };
+        };
+    };
+    forja_students_destroy: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este alumno Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    forja_students_partial_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este alumno Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedForjaStudentRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedForjaStudentRequest"];
+                "multipart/form-data": components["schemas"]["PatchedForjaStudentRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaStudent"];
+                    "*/*": components["schemas"]["ForjaStudent"];
+                };
+            };
+        };
+    };
+    forja_students_adherence_weekly_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este alumno Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaStudent"];
+                    "*/*": components["schemas"]["ForjaStudent"];
+                };
+            };
+        };
+    };
+    forja_students_macros_partial_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este alumno Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedForjaStudentRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedForjaStudentRequest"];
+                "multipart/form-data": components["schemas"]["PatchedForjaStudentRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaStudent"];
+                    "*/*": components["schemas"]["ForjaStudent"];
+                };
+            };
+        };
+    };
+    forja_students_status_partial_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este alumno Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedForjaStudentRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedForjaStudentRequest"];
+                "multipart/form-data": components["schemas"]["PatchedForjaStudentRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaStudent"];
+                    "*/*": components["schemas"]["ForjaStudent"];
+                };
+            };
+        };
+    };
+    forja_subscriptions_list: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+                /** @description Qué campo usar para ordenar los resultados. */
+                ordering?: string;
+                /** @description Un número de página dentro del conjunto de resultados paginado. */
+                page?: number;
+                /** @description Número de resultados a devolver por página. */
+                page_size?: number;
+                service?: number;
+                /**
+                 * @description * `active` - Activa
+                 *     * `past_due` - Vencida
+                 *     * `cancelled` - Cancelada
+                 *     * `trial` - Prueba
+                 */
+                status?: "active" | "cancelled" | "past_due" | "trial";
+                student?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedForjaSubscriptionList"];
+                    "*/*": components["schemas"]["PaginatedForjaSubscriptionList"];
+                };
+            };
+        };
+    };
+    forja_subscriptions_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForjaSubscriptionRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ForjaSubscriptionRequest"];
+                "multipart/form-data": components["schemas"]["ForjaSubscriptionRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaSubscription"];
+                    "*/*": components["schemas"]["ForjaSubscription"];
+                };
+            };
+        };
+    };
+    forja_subscriptions_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este suscripción Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaSubscription"];
+                    "*/*": components["schemas"]["ForjaSubscription"];
+                };
+            };
+        };
+    };
+    forja_subscriptions_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este suscripción Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForjaSubscriptionRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ForjaSubscriptionRequest"];
+                "multipart/form-data": components["schemas"]["ForjaSubscriptionRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaSubscription"];
+                    "*/*": components["schemas"]["ForjaSubscription"];
+                };
+            };
+        };
+    };
+    forja_subscriptions_destroy: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este suscripción Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    forja_subscriptions_partial_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este suscripción Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedForjaSubscriptionRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedForjaSubscriptionRequest"];
+                "multipart/form-data": components["schemas"]["PatchedForjaSubscriptionRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaSubscription"];
+                    "*/*": components["schemas"]["ForjaSubscription"];
+                };
+            };
+        };
+    };
+    forja_threads_list: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+                /** @description Qué campo usar para ordenar los resultados. */
+                ordering?: string;
+                /** @description Un número de página dentro del conjunto de resultados paginado. */
+                page?: number;
+                /** @description Número de resultados a devolver por página. */
+                page_size?: number;
+                student?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedForjaThreadList"];
+                    "*/*": components["schemas"]["PaginatedForjaThreadList"];
+                };
+            };
+        };
+    };
+    forja_threads_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForjaThreadRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ForjaThreadRequest"];
+                "multipart/form-data": components["schemas"]["ForjaThreadRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaThread"];
+                    "*/*": components["schemas"]["ForjaThread"];
+                };
+            };
+        };
+    };
+    forja_threads_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este hilo Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaThread"];
+                    "*/*": components["schemas"]["ForjaThread"];
+                };
+            };
+        };
+    };
+    forja_threads_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este hilo Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForjaThreadRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ForjaThreadRequest"];
+                "multipart/form-data": components["schemas"]["ForjaThreadRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaThread"];
+                    "*/*": components["schemas"]["ForjaThread"];
+                };
+            };
+        };
+    };
+    forja_threads_destroy: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este hilo Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    forja_threads_partial_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este hilo Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedForjaThreadRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedForjaThreadRequest"];
+                "multipart/form-data": components["schemas"]["PatchedForjaThreadRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaThread"];
+                    "*/*": components["schemas"]["ForjaThread"];
+                };
+            };
+        };
+    };
+    forja_threads_events_retrieve: {
+        parameters: {
+            query?: {
+                after_id?: number;
+                format?: "binary" | "json";
+                stream_token?: string;
+            };
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    forja_threads_messages_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este hilo Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaThread"];
+                    "*/*": components["schemas"]["ForjaThread"];
+                };
+            };
+        };
+    };
+    forja_threads_messages_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este hilo Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForjaThreadRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ForjaThreadRequest"];
+                "multipart/form-data": components["schemas"]["ForjaThreadRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaThread"];
+                    "*/*": components["schemas"]["ForjaThread"];
+                };
+            };
+        };
+    };
+    forja_threads_stream_token_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este hilo Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForjaThreadRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ForjaThreadRequest"];
+                "multipart/form-data": components["schemas"]["ForjaThreadRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaThread"];
+                    "*/*": components["schemas"]["ForjaThread"];
+                };
+            };
+        };
+    };
+    forja_training_plan_list: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+                is_current?: boolean;
+                /** @description Qué campo usar para ordenar los resultados. */
+                ordering?: string;
+                /** @description Un número de página dentro del conjunto de resultados paginado. */
+                page?: number;
+                /** @description Número de resultados a devolver por página. */
+                page_size?: number;
+                student?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedForjaTrainingPlanList"];
+                    "*/*": components["schemas"]["PaginatedForjaTrainingPlanList"];
+                };
+            };
+        };
+    };
+    forja_training_plan_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForjaTrainingPlanRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ForjaTrainingPlanRequest"];
+                "multipart/form-data": components["schemas"]["ForjaTrainingPlanRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaTrainingPlan"];
+                    "*/*": components["schemas"]["ForjaTrainingPlan"];
+                };
+            };
+        };
+    };
+    forja_training_plan_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este plan de entrenamiento Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaTrainingPlan"];
+                    "*/*": components["schemas"]["ForjaTrainingPlan"];
+                };
+            };
+        };
+    };
+    forja_training_plan_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este plan de entrenamiento Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForjaTrainingPlanRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ForjaTrainingPlanRequest"];
+                "multipart/form-data": components["schemas"]["ForjaTrainingPlanRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaTrainingPlan"];
+                    "*/*": components["schemas"]["ForjaTrainingPlan"];
+                };
+            };
+        };
+    };
+    forja_training_plan_destroy: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este plan de entrenamiento Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    forja_training_plan_partial_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este plan de entrenamiento Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedForjaTrainingPlanRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedForjaTrainingPlanRequest"];
+                "multipart/form-data": components["schemas"]["PatchedForjaTrainingPlanRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaTrainingPlan"];
+                    "*/*": components["schemas"]["ForjaTrainingPlan"];
+                };
+            };
+        };
+    };
+    forja_water_list: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+                logged_on?: string;
+                /** @description Qué campo usar para ordenar los resultados. */
+                ordering?: string;
+                /** @description Un número de página dentro del conjunto de resultados paginado. */
+                page?: number;
+                /** @description Número de resultados a devolver por página. */
+                page_size?: number;
+                student?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedForjaWaterLogList"];
+                    "*/*": components["schemas"]["PaginatedForjaWaterLogList"];
+                };
+            };
+        };
+    };
+    forja_water_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForjaWaterLogRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ForjaWaterLogRequest"];
+                "multipart/form-data": components["schemas"]["ForjaWaterLogRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaWaterLog"];
+                    "*/*": components["schemas"]["ForjaWaterLog"];
+                };
+            };
+        };
+    };
+    forja_water_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este agua Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaWaterLog"];
+                    "*/*": components["schemas"]["ForjaWaterLog"];
+                };
+            };
+        };
+    };
+    forja_water_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este agua Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForjaWaterLogRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ForjaWaterLogRequest"];
+                "multipart/form-data": components["schemas"]["ForjaWaterLogRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaWaterLog"];
+                    "*/*": components["schemas"]["ForjaWaterLog"];
+                };
+            };
+        };
+    };
+    forja_water_destroy: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este agua Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    forja_water_partial_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este agua Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedForjaWaterLogRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedForjaWaterLogRequest"];
+                "multipart/form-data": components["schemas"]["PatchedForjaWaterLogRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaWaterLog"];
+                    "*/*": components["schemas"]["ForjaWaterLog"];
+                };
+            };
+        };
+    };
+    forja_workout_logs_list: {
+        parameters: {
+            query?: {
+                completed?: boolean;
+                format?: "binary" | "json";
+                /** @description Qué campo usar para ordenar los resultados. */
+                ordering?: string;
+                /** @description Un número de página dentro del conjunto de resultados paginado. */
+                page?: number;
+                /** @description Número de resultados a devolver por página. */
+                page_size?: number;
+                performed_on?: string;
+                student?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedForjaWorkoutLogList"];
+                    "*/*": components["schemas"]["PaginatedForjaWorkoutLogList"];
+                };
+            };
+        };
+    };
+    forja_workout_logs_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForjaWorkoutLogRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ForjaWorkoutLogRequest"];
+                "multipart/form-data": components["schemas"]["ForjaWorkoutLogRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaWorkoutLog"];
+                    "*/*": components["schemas"]["ForjaWorkoutLog"];
+                };
+            };
+        };
+    };
+    forja_workout_logs_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este log de entrenamiento Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaWorkoutLog"];
+                    "*/*": components["schemas"]["ForjaWorkoutLog"];
+                };
+            };
+        };
+    };
+    forja_workout_logs_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este log de entrenamiento Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForjaWorkoutLogRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ForjaWorkoutLogRequest"];
+                "multipart/form-data": components["schemas"]["ForjaWorkoutLogRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaWorkoutLog"];
+                    "*/*": components["schemas"]["ForjaWorkoutLog"];
+                };
+            };
+        };
+    };
+    forja_workout_logs_destroy: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este log de entrenamiento Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    forja_workout_logs_partial_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este log de entrenamiento Forja. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedForjaWorkoutLogRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedForjaWorkoutLogRequest"];
+                "multipart/form-data": components["schemas"]["PatchedForjaWorkoutLogRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForjaWorkoutLog"];
+                    "*/*": components["schemas"]["ForjaWorkoutLog"];
+                };
+            };
+        };
+    };
     inventory_beneficiary_discounts_list: {
         parameters: {
             query?: {
@@ -112876,6 +116719,26 @@ export interface operations {
             };
         };
     };
+    p90_panel_messages_inbox_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     p90_panel_messages_me_retrieve: {
         parameters: {
             query?: {
@@ -117569,6 +121432,8 @@ export interface operations {
         parameters: {
             query?: {
                 format?: "binary" | "json";
+                /** @description Tamaño de página PDF. Default: label (62×100 mm). */
+                page_size?: "a4" | "label" | "letter";
             };
             header?: never;
             path: {
@@ -117587,6 +121452,13 @@ export interface operations {
                     "application/json": components["schemas"]["Recipe"];
                     "*/*": components["schemas"]["Recipe"];
                 };
+            };
+            /** @description Cálculo nutricional incompleto (nutrition_incomplete) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -117637,6 +121509,40 @@ export interface operations {
                     "application/json": components["schemas"]["Recipe"];
                     "*/*": components["schemas"]["Recipe"];
                 };
+            };
+        };
+    };
+    recipes_recipes_preview_nutrition_label_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+                /** @description Formato de preview. Default: png. */
+                media?: "png" | "svg";
+            };
+            header?: never;
+            path: {
+                /** @description Un Cadena UUID que identifique este Receta. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Recipe"];
+                    "*/*": components["schemas"]["Recipe"];
+                };
+            };
+            /** @description Cálculo nutricional incompleto (nutrition_incomplete) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -121162,9 +125068,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["OrderRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["OrderRequest"];
-                "multipart/form-data": components["schemas"]["OrderRequest"];
+                "application/json": components["schemas"]["OrderPayRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["OrderPayRequest"];
+                "multipart/form-data": components["schemas"]["OrderPayRequest"];
             };
         };
         responses: {
