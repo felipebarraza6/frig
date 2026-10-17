@@ -126,9 +126,45 @@ async function syncFromRemote() {
   throw lastError ?? new Error("No se pudo sincronizar el contrato con ninguna API");
 }
 
+/**
+ * Si no hay freeze local pero hay YGGDRA_INFRA_GITHUB_TOKEN, clona solo
+ * api/schema desde yggdra_infra (ref YGGDRA_INFRA_REF, default main).
+ */
+async function maybeFetchSchemaFromGithub() {
+  const token = process.env.YGGDRA_INFRA_GITHUB_TOKEN?.trim();
+  if (!token) return null;
+  const ref = process.env.YGGDRA_INFRA_REF?.trim() || "main";
+  const destDir = resolve(REPO_ROOT, "../yggdra_infra/api/schema");
+  mkdirSync(destDir, { recursive: true });
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    Accept: "application/vnd.github.raw",
+    "User-Agent": "frig-sync-contract",
+  };
+  for (const file of ["openapi.yaml", "meta.json"]) {
+    const url = `https://api.github.com/repos/felipebarraza6/yggdra_infra/contents/api/schema/${file}?ref=${encodeURIComponent(ref)}`;
+    console.log(`[sync-contract] Descargando ${file} @ ${ref}`);
+    const res = await fetch(url, { headers });
+    if (!res.ok) {
+      throw new Error(`GitHub ${file} @ ${ref} -> HTTP ${res.status}`);
+    }
+    writeFileSync(resolve(destDir, file), await res.text());
+  }
+  return resolve(destDir, "openapi.yaml");
+}
+
 async function main() {
   const schemaOverride = process.env.YGGDRA_SCHEMA_YML;
-  const localSchema = schemaOverride ? resolve(schemaOverride) : SIBLING_SCHEMA;
+  let localSchema = schemaOverride ? resolve(schemaOverride) : SIBLING_SCHEMA;
+
+  if (!existsSync(localSchema) && !schemaOverride) {
+    try {
+      const fetched = await maybeFetchSchemaFromGithub();
+      if (fetched) localSchema = fetched;
+    } catch (err) {
+      console.warn(`[sync-contract] No se pudo bajar schema de GitHub: ${err.message}`);
+    }
+  }
 
   if (existsSync(localSchema)) {
     console.log(`[sync-contract] Usando freeze local: ${localSchema}`);
