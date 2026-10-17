@@ -145,8 +145,11 @@ export async function deleteRecipeIngredient(id: number): Promise<void> {
   await apiFetch(`/recipes/ingredients/${id}/`, { method: "DELETE" });
 }
 
-export async function calculateRecipeNutrition(id: string): Promise<Recipe> {
-  return apiFetch<Recipe>(`/recipes/recipes/${id}/calculate_nutrition/`, {
+export async function calculateRecipeNutrition(
+  id: string,
+): Promise<import("./nutrition-label").CalculateNutritionResponse> {
+  // Action sin body tipado (schema main); enviamos objeto vacío por compat DRF.
+  return apiFetch(`/recipes/recipes/${id}/calculate_nutrition/`, {
     method: "POST",
     body: {},
   });
@@ -157,15 +160,20 @@ export type {
   NutritionLabelPreviewMedia,
   NutritionMissingDetail,
   RecipeNutritionCompleteness,
+  CalculateNutritionResponse,
 } from "./nutrition-label";
 
 export {
   NUTRITION_LABEL_PAGE_SIZES,
+  NUTRITION_INCOMPLETE,
   NUTRITION_LABEL_NOT_READY,
   downloadRecipeNutritionLabelPdf,
   previewRecipeNutritionLabel,
+  isNutritionIncomplete,
   isNutritionLabelNotReady,
+  missingIngredientsFromError,
   nutritionMissingDetailsFromError,
+  normalizeMissingIngredients,
   normalizeNutritionMissingDetails,
   missingDetailLabel,
   missingDetailFields,

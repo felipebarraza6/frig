@@ -1,17 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const apiFile = vi.fn();
+const apiFetch = vi.fn();
 
 vi.mock("./client", async () => {
   const actual = await vi.importActual<typeof import("./client")>("./client");
   return {
     ...actual,
     apiFile: (...args: unknown[]) => apiFile(...args),
+    apiFetch: (...args: unknown[]) => apiFetch(...args),
   };
 });
 
 beforeEach(() => {
   apiFile.mockReset();
+  apiFetch.mockReset();
   window.localStorage.clear();
   window.localStorage.setItem("frig.token", "test-token");
   window.localStorage.setItem("frig.branch_id", "7");
@@ -59,36 +62,38 @@ describe("previewRecipeNutritionLabel", () => {
   });
 });
 
-describe("409 nutrition_label_not_ready", () => {
-  it("detecta el código y normaliza nutrition_missing_details", async () => {
+describe("409 nutrition_incomplete", () => {
+  it("detecta code nutrition_incomplete y missing_ingredients", async () => {
     const { ApiError } = await import("./client");
     const {
-      isNutritionLabelNotReady,
-      nutritionMissingDetailsFromError,
+      isNutritionIncomplete,
+      missingIngredientsFromError,
       missingDetailLabel,
       missingDetailFields,
       missingDetailProductId,
       nutritionFieldLabel,
     } = await import("./nutrition-label");
 
-    const err = new ApiError(409, "Etiqueta no lista", {
-      code: "nutrition_label_not_ready",
-      nutrition_missing_details: [
+    const err = new ApiError(409, "Nutrición incompleta", {
+      code: "nutrition_incomplete",
+      missing_ingredients: [
         {
           product_id: 42,
           product_name: "Leche entera",
           missing_fields: ["density_g_per_ml", "energy_kcal"],
+          unit: "ml",
         },
         {
           ingredient_id: 7,
           ingredient_name: "Huevo",
           fields: ["grams_per_unit"],
+          unit: "unidad",
         },
       ],
     });
 
-    expect(isNutritionLabelNotReady(err)).toBe(true);
-    const rows = nutritionMissingDetailsFromError(err);
+    expect(isNutritionIncomplete(err)).toBe(true);
+    const rows = missingIngredientsFromError(err);
     expect(rows).toHaveLength(2);
     expect(missingDetailLabel(rows[0]!)).toBe("Leche entera");
     expect(missingDetailProductId(rows[0]!)).toBe(42);
@@ -100,36 +105,28 @@ describe("409 nutrition_label_not_ready", () => {
     expect(missingDetailFields(rows[1]!)).toEqual(["grams_per_unit"]);
   });
 
-  it("normaliza mapa product_id → campos", async () => {
-    const { normalizeNutritionMissingDetails } = await import("./nutrition-label");
-    const rows = normalizeNutritionMissingDetails({
-      "15": ["density_g_per_ml"],
-      "22": ["grams_per_unit", "sodium_mg"],
-    });
-    expect(rows).toHaveLength(2);
-    expect(rows.map((r) => r.product_id).sort()).toEqual([15, 22]);
-  });
-
-  it("no marca 409 genéricos sin código de etiqueta", async () => {
+  it("no trata el código viejo nutrition_label_not_ready como incompleto sin missing_ingredients", async () => {
     const { ApiError } = await import("./client");
-    const { isNutritionLabelNotReady } = await import("./nutrition-label");
-    expect(isNutritionLabelNotReady(new ApiError(409, "Otro conflicto", { code: "other" }))).toBe(
-      false,
-    );
-    expect(isNutritionLabelNotReady(new ApiError(400, "Bad", { code: "nutrition_label_not_ready" }))).toBe(
-      false,
-    );
+    const { isNutritionIncomplete } = await import("./nutrition-label");
+    expect(
+      isNutritionIncomplete(
+        new ApiError(409, "old", { code: "nutrition_label_not_ready" }),
+      ),
+    ).toBe(false);
   });
 
   it("propaga ApiError 409 desde download (blob)", async () => {
     const { ApiError } = await import("./client");
-    const { downloadRecipeNutritionLabelPdf, isNutritionLabelNotReady, nutritionMissingDetailsFromError } =
-      await import("./nutrition-label");
+    const {
+      downloadRecipeNutritionLabelPdf,
+      isNutritionIncomplete,
+      missingIngredientsFromError,
+    } = await import("./nutrition-label");
 
     apiFile.mockRejectedValueOnce(
       new ApiError(409, "not ready", {
-        code: "nutrition_label_not_ready",
-        nutrition_missing_details: [
+        code: "nutrition_incomplete",
+        missing_ingredients: [
           { product_id: 3, product_name: "Aceite", missing_fields: ["density_g_per_ml"] },
         ],
       }),
@@ -137,8 +134,28 @@ describe("409 nutrition_label_not_ready", () => {
 
     await expect(downloadRecipeNutritionLabelPdf("rec-x", "letter")).rejects.toSatisfy(
       (err: unknown) =>
-        isNutritionLabelNotReady(err) &&
-        nutritionMissingDetailsFromError(err)[0]?.product_id === 3,
+        isNutritionIncomplete(err) &&
+        missingIngredientsFromError(err)[0]?.product_id === 3,
+    );
+  });
+});
+
+describe("calculateRecipeNutrition", () => {
+  it("POST calculate_nutrition tipado como CalculateNutritionResponse", async () => {
+    apiFetch.mockResolvedValueOnce({
+      id: "rec-calc",
+      has_nutritional_calculation: true,
+      nutrition_is_complete: true,
+      calculated_energy_kcal: 120,
+      calculated_proteins_g: 5,
+    });
+    const { calculateRecipeNutrition } = await import("./recipes");
+    const result = await calculateRecipeNutrition("rec-calc");
+    expect(result.calculated_energy_kcal).toBe(120);
+    expect(result.nutrition_is_complete).toBe(true);
+    expect(apiFetch).toHaveBeenCalledWith(
+      "/recipes/recipes/rec-calc/calculate_nutrition/",
+      expect.objectContaining({ method: "POST", body: {} }),
     );
   });
 });

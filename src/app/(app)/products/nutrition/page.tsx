@@ -33,9 +33,9 @@ import {
   NUTRITION_LABEL_PAGE_SIZES,
   downloadRecipeNutritionLabelPdf,
   previewRecipeNutritionLabel,
-  isNutritionLabelNotReady,
-  nutritionMissingDetailsFromError,
-  normalizeNutritionMissingDetails,
+  isNutritionIncomplete,
+  missingIngredientsFromError,
+  normalizeMissingIngredients,
   missingDetailLabel,
   missingDetailFields,
   missingDetailProductId,
@@ -492,10 +492,10 @@ function NutritionLabelStudio({
       toast.success("Nutrición calculada desde la receta");
     },
     onError: (err: Error) => {
-      if (isNutritionLabelNotReady(err) && primaryRecipe?.id) {
+      if (isNutritionIncomplete(err) && primaryRecipe?.id) {
         setErrorMissing({
           recipeId: primaryRecipe.id,
-          details: nutritionMissingDetailsFromError(err),
+          details: missingIngredientsFromError(err),
         });
       }
       toast.error(err.message);
@@ -515,7 +515,7 @@ function NutritionLabelStudio({
 
   const recipeMissingDetails = useMemo(() => {
     if (!primaryRecipe || primaryRecipe.nutrition_is_complete !== false) return [];
-    return normalizeNutritionMissingDetails(primaryRecipe.nutrition_missing_details);
+    return normalizeMissingIngredients(primaryRecipe.missing_ingredients);
   }, [primaryRecipe]);
 
   const errorMissingDetails =
@@ -538,10 +538,10 @@ function NutritionLabelStudio({
         const file = await previewRecipeNutritionLabel(primaryRecipe!.id, "png");
         return URL.createObjectURL(file.blob);
       } catch (err) {
-        if (isNutritionLabelNotReady(err)) {
+        if (isNutritionIncomplete(err)) {
           setErrorMissing({
             recipeId: primaryRecipe!.id,
-            details: nutritionMissingDetailsFromError(err),
+            details: missingIngredientsFromError(err),
           });
         }
         throw err;
@@ -576,10 +576,10 @@ function NutritionLabelStudio({
         try {
           return await downloadRecipeNutritionLabelPdf(primaryRecipe.id, pageSize);
         } catch (err) {
-          if (isNutritionLabelNotReady(err)) {
+          if (isNutritionIncomplete(err)) {
             setErrorMissing({
               recipeId: primaryRecipe.id,
-              details: nutritionMissingDetailsFromError(err),
+              details: missingIngredientsFromError(err),
             });
           }
           throw err;
@@ -594,8 +594,8 @@ function NutritionLabelStudio({
         extension: "pdf",
         onSuccess: () => toast.success(`PDF descargado · ${pageSize}`),
         onError: (error) => {
-          if (isNutritionLabelNotReady(error)) {
-            toast.error("Etiqueta no lista: revisa los insumos incompletos.");
+          if (isNutritionIncomplete(error)) {
+            toast.error("Nutrición incompleta: revisa los insumos faltantes.");
             return;
           }
           toast.error(
@@ -639,7 +639,7 @@ function NutritionLabelStudio({
   const previewError =
     previewQuery.error instanceof Error ? previewQuery.error : null;
   const previewNotReady =
-    previewError != null && isNutritionLabelNotReady(previewError);
+    previewError != null && isNutritionIncomplete(previewError);
 
   return (
     <AnimatedOverlay
@@ -768,7 +768,7 @@ function NutritionLabelStudio({
                     details={
                       missingDetails.length > 0
                         ? missingDetails
-                        : nutritionMissingDetailsFromError(previewError)
+                        : missingIngredientsFromError(previewError)
                     }
                     onEditProduct={onEditIngredient}
                   />

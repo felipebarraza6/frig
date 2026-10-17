@@ -5,8 +5,8 @@
  * - GET /recipes/recipes/{id}/download-nutrition-label-pdf/?page_size=label|a4|letter
  * - GET /recipes/recipes/{id}/preview-nutrition-label/?media=png|svg
  *
- * 409 `nutrition_label_not_ready` incluye `nutrition_missing_details` con
- * ingredientes/campos faltantes para completar fichas de producto.
+ * 409 `nutrition_incomplete` (IncompleteNutritionError / assert_label_ready)
+ * incluye `missing_ingredients` con insumos/campos faltantes.
  */
 
 import { apiFile, ApiError, type ApiFileResult } from "./client";
@@ -26,7 +26,7 @@ export const NUTRITION_LABEL_PAGE_SIZES: {
   { id: "letter", label: "Letter", hint: "Carta US" },
 ];
 
-/** Detalle de ficha incompleta (shape flexible: el schema de main puede anidar listas). */
+/** Fila de `missing_ingredients` (IncompleteNutritionError). */
 export type NutritionMissingDetail = {
   product_id?: number | null;
   ingredient_id?: number | null;
@@ -41,12 +41,12 @@ export type NutritionMissingDetail = {
   message?: string | null;
 };
 
-export const NUTRITION_LABEL_NOT_READY = "nutrition_label_not_ready" as const;
+export const NUTRITION_INCOMPLETE = "nutrition_incomplete" as const;
 
-export type NutritionLabelNotReadyPayload = {
-  code: typeof NUTRITION_LABEL_NOT_READY;
+export type NutritionIncompletePayload = {
+  code: typeof NUTRITION_INCOMPLETE;
   detail?: unknown;
-  nutrition_missing_details?: unknown;
+  missing_ingredients?: unknown;
 };
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -105,7 +105,9 @@ function coerceMissingDetail(raw: unknown): NutritionMissingDetail | null {
     ingredient_name:
       (typeof rec.ingredient_name === "string" && rec.ingredient_name) || null,
     name: typeof rec.name === "string" ? rec.name : null,
-    missing_fields: asStringList(rec.missing_fields ?? rec.fields ?? rec.missing),
+    missing_fields: asStringList(
+      rec.missing_fields ?? rec.fields ?? rec.missing ?? rec.reasons,
+    ),
     fields: asStringList(rec.fields),
     reason:
       (typeof rec.reason === "string" && rec.reason) ||
@@ -118,10 +120,8 @@ function coerceMissingDetail(raw: unknown): NutritionMissingDetail | null {
   };
 }
 
-/** Normaliza `nutrition_missing_details` (lista u objeto) a filas UI. */
-export function normalizeNutritionMissingDetails(
-  raw: unknown,
-): NutritionMissingDetail[] {
+/** Normaliza `missing_ingredients` (lista u objeto) a filas UI. */
+export function normalizeMissingIngredients(raw: unknown): NutritionMissingDetail[] {
   if (raw == null) return [];
   if (Array.isArray(raw)) {
     return raw.map(coerceMissingDetail).filter((d): d is NutritionMissingDetail => d != null);
@@ -129,14 +129,16 @@ export function normalizeNutritionMissingDetails(
   const rec = asRecord(raw);
   if (!rec) return [];
 
-  // { ingredients: [...], products: [...], missing: [...] }
+  if ("missing_ingredients" in rec) {
+    return normalizeMissingIngredients(rec.missing_ingredients);
+  }
+
   const nested: NutritionMissingDetail[] = [];
   for (const key of ["ingredients", "products", "items", "details", "missing"]) {
-    if (key in rec) nested.push(...normalizeNutritionMissingDetails(rec[key]));
+    if (key in rec) nested.push(...normalizeMissingIngredients(rec[key]));
   }
   if (nested.length > 0) return nested;
 
-  // Mapa product_id → fields
   const fromMap: NutritionMissingDetail[] = [];
   for (const [key, value] of Object.entries(rec)) {
     if (Array.isArray(value) || typeof value === "string") {
@@ -159,29 +161,38 @@ export function normalizeNutritionMissingDetails(
   return fromMap;
 }
 
-export function isNutritionLabelNotReady(err: unknown): err is ApiError {
-  if (!(err instanceof ApiError) || err.status !== 409) return false;
+/** @deprecated Usar `normalizeMissingIngredients`. */
+export const normalizeNutritionMissingDetails = normalizeMissingIngredients;
+
+function incompletePayloadFrom(err: unknown): Record<string, unknown> | null {
+  if (!(err instanceof ApiError) || err.status !== 409) return null;
   const detail = asRecord(err.detail);
-  if (!detail) return false;
-  if (detail.code === NUTRITION_LABEL_NOT_READY) return true;
-  if ("nutrition_missing_details" in detail) return true;
+  if (!detail) return null;
+  if (detail.code === NUTRITION_INCOMPLETE || "missing_ingredients" in detail) {
+    return detail;
+  }
   const nested = asRecord(detail.detail);
-  return nested?.code === NUTRITION_LABEL_NOT_READY;
+  if (nested && (nested.code === NUTRITION_INCOMPLETE || "missing_ingredients" in nested)) {
+    return nested;
+  }
+  return null;
 }
 
-export function nutritionMissingDetailsFromError(err: unknown): NutritionMissingDetail[] {
-  if (!(err instanceof ApiError)) return [];
-  const detail = asRecord(err.detail);
-  if (!detail) return [];
-  if ("nutrition_missing_details" in detail) {
-    return normalizeNutritionMissingDetails(detail.nutrition_missing_details);
-  }
-  const nested = asRecord(detail.detail);
-  if (nested && "nutrition_missing_details" in nested) {
-    return normalizeNutritionMissingDetails(nested.nutrition_missing_details);
-  }
-  return [];
+export function isNutritionIncomplete(err: unknown): err is ApiError {
+  return incompletePayloadFrom(err) != null;
 }
+
+/** @deprecated Usar `isNutritionIncomplete`. */
+export const isNutritionLabelNotReady = isNutritionIncomplete;
+
+export function missingIngredientsFromError(err: unknown): NutritionMissingDetail[] {
+  const payload = incompletePayloadFrom(err);
+  if (!payload) return [];
+  return normalizeMissingIngredients(payload.missing_ingredients);
+}
+
+/** @deprecated Usar `missingIngredientsFromError`. */
+export const nutritionMissingDetailsFromError = missingIngredientsFromError;
 
 export function missingDetailLabel(row: NutritionMissingDetail): string {
   return (
@@ -222,6 +233,7 @@ export function nutritionFieldLabel(field: string): string {
     sodium_mg: "Sodio (mg)",
     is_nutritional_ingredient: "Información nutricional",
     measurement_unit: "Unidad de medida",
+    unit: "Unidad de medida",
   };
   return map[field] ?? field.replace(/_/g, " ");
 }
@@ -242,8 +254,33 @@ export function previewRecipeNutritionLabel(
   return apiFile(`/recipes/recipes/${id}/preview-nutrition-label/?${qs.toString()}`);
 }
 
-/** Campos de receta añadidos en yggdra_infra PR #131 (aún no en tipos de prod). */
+/** Campos de completitud en Recipe (yggdra main). */
 export type RecipeNutritionCompleteness = {
   nutrition_is_complete?: boolean;
-  nutrition_missing_details?: unknown;
+  missing_ingredients?: unknown;
 };
+
+/**
+ * Respuesta de `POST /recipes/recipes/{id}/calculate_nutrition/`.
+ * El schema expone los valores calculados (prefijo `calculated_*`) y flags de completitud.
+ */
+export type CalculateNutritionResponse = {
+  id?: string;
+  has_nutritional_calculation?: boolean;
+  nutrition_is_complete?: boolean;
+  missing_ingredients?: unknown;
+  calculated_energy_kcal?: number | null;
+  calculated_proteins_g?: number | null;
+  calculated_total_fats_g?: number | null;
+  calculated_saturated_fats_g?: number | null;
+  calculated_monounsaturated_fats_g?: number | null;
+  calculated_polyunsaturated_fats_g?: number | null;
+  calculated_trans_fats_g?: number | null;
+  calculated_cholesterol_mg?: number | null;
+  calculated_carbohydrates_g?: number | null;
+  calculated_total_sugars_g?: number | null;
+  calculated_sodium_mg?: number | null;
+  last_nutritional_calculation?: string | null;
+};
+
+export const NUTRITION_LABEL_NOT_READY = NUTRITION_INCOMPLETE;

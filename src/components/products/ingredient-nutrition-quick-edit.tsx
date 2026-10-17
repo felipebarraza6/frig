@@ -22,6 +22,8 @@ const QUICK_FIELDS = [
   { key: "carbohydrates_g", label: "Carb. g" },
   { key: "total_sugars_g", label: "Azúc. g" },
   { key: "sodium_mg", label: "Sodio mg" },
+  { key: "density_g_per_ml", label: "Dens. g/ml" },
+  { key: "grams_per_unit", label: "g/unidad" },
 ] as const;
 
 type QuickKey = (typeof QUICK_FIELDS)[number]["key"];
@@ -59,6 +61,8 @@ export function IngredientNutritionQuickEdit({
     carbohydrates_g: "",
     total_sugars_g: "",
     sodium_mg: "",
+    density_g_per_ml: "",
+    grams_per_unit: "",
   });
 
   const { data, isLoading, isFetching } = useQuery({
@@ -74,18 +78,24 @@ export function IngredientNutritionQuickEdit({
   if (data !== syncedData) {
     setSyncedData(data);
     if (data) {
+      const row = data as typeof data & {
+        density_g_per_ml?: number | null;
+        grams_per_unit?: number | null;
+      };
       setDraft({
-        energy_kcal: numStr(data.energy_kcal),
-        proteins_g: numStr(data.proteins_g),
-        total_fats_g: numStr(data.total_fats_g),
-        saturated_fats_g: numStr(data.saturated_fats_g),
-        monounsaturated_fats_g: numStr(data.monounsaturated_fats_g),
-        polyunsaturated_fats_g: numStr(data.polyunsaturated_fats_g),
-        trans_fats_g: numStr(data.trans_fats_g),
-        cholesterol_mg: numStr(data.cholesterol_mg),
-        carbohydrates_g: numStr(data.carbohydrates_g),
-        total_sugars_g: numStr(data.total_sugars_g),
-        sodium_mg: numStr(data.sodium_mg),
+        energy_kcal: numStr(row.energy_kcal),
+        proteins_g: numStr(row.proteins_g),
+        total_fats_g: numStr(row.total_fats_g),
+        saturated_fats_g: numStr(row.saturated_fats_g),
+        monounsaturated_fats_g: numStr(row.monounsaturated_fats_g),
+        polyunsaturated_fats_g: numStr(row.polyunsaturated_fats_g),
+        trans_fats_g: numStr(row.trans_fats_g),
+        cholesterol_mg: numStr(row.cholesterol_mg),
+        carbohydrates_g: numStr(row.carbohydrates_g),
+        total_sugars_g: numStr(row.total_sugars_g),
+        sodium_mg: numStr(row.sodium_mg),
+        density_g_per_ml: numStr(row.density_g_per_ml),
+        grams_per_unit: numStr(row.grams_per_unit),
       });
     }
   }
@@ -109,6 +119,8 @@ export function IngredientNutritionQuickEdit({
         carbohydrates_g: toNum(draft.carbohydrates_g),
         total_sugars_g: toNum(draft.total_sugars_g),
         sodium_mg: toNum(draft.sodium_mg),
+        density_g_per_ml: toNum(draft.density_g_per_ml),
+        grams_per_unit: toNum(draft.grams_per_unit),
       });
       queryClient.invalidateQueries({ queryKey: ["products", "detail", "nutrition-quick", productId] });
       queryClient.invalidateQueries({ queryKey: ["products", "detail", productId] });

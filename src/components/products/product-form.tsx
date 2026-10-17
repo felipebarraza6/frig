@@ -66,6 +66,21 @@ import {
   type RecipeIngredientPayload,
 } from "@/lib/api/recipes";
 import {
+  RECIPE_NUTRITION_UNITS,
+  DEFAULT_RECIPE_UNIT,
+  normalizeRecipeUnit,
+  isVolumeUnit,
+  isCountUnit,
+} from "@/lib/api/recipe-units";
+import {
+  isNutritionIncomplete,
+  missingIngredientsFromError,
+  normalizeMissingIngredients,
+  missingDetailLabel,
+  missingDetailFields,
+  nutritionFieldLabel,
+} from "@/lib/api/nutrition-label";
+import {
   fetchWarehouses,
   fetchProductWarehouses,
   addProductToWarehouse,
@@ -97,24 +112,8 @@ const RECIPE_TYPES = [
   { value: "ASSEMBLY", label: "Ensamblaje" },
 ] as const;
 
-/** Unidades de medida normalizadas. Evita que "Kg" y "kg" sean distintos. */
-const MEASUREMENT_UNITS = [
-  { value: "unidad", label: "Unidad" },
-  { value: "kg", label: "Kilogramo (kg)" },
-  { value: "g", label: "Gramo (g)" },
-  { value: "litro", label: "Litro" },
-  { value: "ml", label: "Mililitro (ml)" },
-  { value: "porcion", label: "Porción" },
-  { value: "docena", label: "Docena" },
-  { value: "metro", label: "Metro" },
-  { value: "cm", label: "Centímetro" },
-  { value: "m2", label: "Metro cuadrado (m²)" },
-  { value: "caja", label: "Caja" },
-  { value: "botella", label: "Botella" },
-  { value: "lata", label: "Lata" },
-  { value: "bolsa", label: "Bolsa" },
-  { value: "otro", label: "Otro…" },
-] as const;
+/** Unidades del calculador nutricional Yggdra (enum estricto; sin UN/porción). */
+const MEASUREMENT_UNITS = RECIPE_NUTRITION_UNITS;
 
 type IngredientProduct = YggdraSchemas["ProductList"];
 
@@ -266,7 +265,9 @@ function buildInitialForm(product?: YggdraProductDetail, defaultProductType?: st
     wholesalePrice: numToStr(product?.wholesale_price),
     stock: product?.quantity !== undefined ? String(product.quantity) : "",
     minimumStock: product?.minimum_stock !== undefined ? String(product.minimum_stock) : "",
-    measurementUnit: product?.measurement_unit ?? "",
+    measurementUnit:
+      normalizeRecipeUnit(product?.measurement_unit) ??
+      (product?.measurement_unit ? "" : DEFAULT_RECIPE_UNIT),
     category:
       product?.category && typeof product.category === "object"
         ? String(product.category.id)
@@ -794,10 +795,12 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
   const isSellable = !isRawMaterial;
   /** Receta existente que quedaría huérfana si se guarda con otro tipo. */
   const orphanRecipe = Boolean(recipe.id) && !isCompound;
-  /** True si la unidad de medida no está en el catálogo normalizado. */
-  const isCustomUnit = form.measurementUnit
-    ? !MEASUREMENT_UNITS.some((u) => u.value === form.measurementUnit)
-    : false;
+  /** Unidad legacy (p. ej. UN/porcion) que hay que remapelear al enum del backend. */
+  const unitNeedsRemap = Boolean(
+    form.measurementUnit && normalizeRecipeUnit(form.measurementUnit) === null,
+  );
+  const normalizedMeasurementUnit =
+    normalizeRecipeUnit(form.measurementUnit) ?? form.measurementUnit;
 
   const [activeTab, setActiveTab] = useState<FormTab>(initialTab ?? "basic");
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -946,7 +949,7 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
           ingredient_name: ing.ingredient_name,
           ingredient_code: ing.ingredient_code ?? null,
           quantity: String(ing.quantity),
-          unit: ing.unit,
+          unit: normalizeRecipeUnit(ing.unit) ?? ing.unit ?? DEFAULT_RECIPE_UNIT,
           is_optional: ing.is_optional,
           preparation_notes: ing.preparation_notes ?? "",
         })),
@@ -977,6 +980,19 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
     setError(null);
     try {
       const result = await calculateRecipeNutrition(recipe.id);
+      if (result.nutrition_is_complete === false) {
+        const list = normalizeMissingIngredients(result.missing_ingredients);
+        const lines = list.map((row) => {
+          const fields = missingDetailFields(row);
+          return `${missingDetailLabel(row)}${fields.length ? ` (${fields.map(nutritionFieldLabel).join(", ")})` : ""}`;
+        });
+        setError(
+          lines.length
+            ? `Nutrición incompleta: ${lines.join("; ")}`
+            : "Nutrición incompleta: faltan datos en insumos.",
+        );
+        return;
+      }
       setForm((prev) => ({
         ...prev,
         isNutritionalIngredient: true,
@@ -992,7 +1008,22 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
         sodiumMg: numToStr(result.calculated_sodium_mg),
       }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al calcular nutrición");
+      if (isNutritionIncomplete(err)) {
+        const list = missingIngredientsFromError(err);
+        const lines = list.map((row) => {
+          const fields = missingDetailFields(row);
+          return `${missingDetailLabel(row)}${fields.length ? ` (${fields.map(nutritionFieldLabel).join(", ")})` : ""}`;
+        });
+        setError(
+          lines.length
+            ? `Nutrición incompleta: ${lines.join("; ")}`
+            : err instanceof Error
+              ? err.message
+              : "Nutrición incompleta",
+        );
+      } else {
+        setError(err instanceof Error ? err.message : "Error al calcular nutrición");
+      }
     } finally {
       setCalculatingNutrition(false);
     }
@@ -1015,7 +1046,8 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
         ingredient_name: product.name,
         ingredient_code: product.code ?? null,
         quantity: "",
-        unit: product.measurement_unit ?? "",
+        unit:
+          normalizeRecipeUnit(product.measurement_unit) ?? DEFAULT_RECIPE_UNIT,
         is_optional: false,
         preparation_notes: "",
       },
@@ -1164,7 +1196,8 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
           is_preferred: true,
           branch: Number(branchId),
           create_inventory_product: false,
-          measurement_unit: form.measurementUnit || "UN",
+          measurement_unit:
+            normalizeRecipeUnit(form.measurementUnit) || DEFAULT_RECIPE_UNIT,
         });
         preferredId = created.id;
       }
@@ -1211,7 +1244,7 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
           recipe: recipeId,
           ingredient: ing.ingredient,
           quantity: ing.quantity || "0",
-          unit: ing.unit || "unidad",
+          unit: normalizeRecipeUnit(ing.unit) || DEFAULT_RECIPE_UNIT,
           is_optional: ing.is_optional,
           preparation_notes: ing.preparation_notes || null,
         };
@@ -1285,6 +1318,30 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
         setError("Todas las materias primas deben tener una cantidad mayor a 0.");
         return;
       }
+      const badUnit = ingredients.find((i) => !normalizeRecipeUnit(i.unit));
+      if (badUnit) {
+        setError(
+          "Cada materia prima debe usar una unidad válida (g, kg, mg, ml, l, litro(s), cc, unidad).",
+        );
+        return;
+      }
+    }
+
+    if (!isCompound && form.measurementUnit && !normalizeRecipeUnit(form.measurementUnit)) {
+      setError("Elige una unidad válida del listado (sin UN ni porción).");
+      return;
+    }
+
+    const productUnit = normalizeRecipeUnit(form.measurementUnit);
+    if (form.isNutritionalIngredient || isRawMaterial) {
+      if (isCountUnit(productUnit) && !form.gramsPerUnit) {
+        setError("Indica gramos por unidad (tab Nutrición) cuando la unidad es «unidad».");
+        return;
+      }
+      if (isVolumeUnit(productUnit) && !form.densityGPerMl) {
+        setError("Indica densidad g/ml (tab Nutrición) cuando la unidad es de volumen.");
+        return;
+      }
     }
 
     setLoading(true);
@@ -1305,7 +1362,7 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
           effectiveProduct?.id && !isCompound ? (form.stock ? Number(form.stock) : undefined) : undefined,
         minimum_stock:
           effectiveProduct?.id && !isCompound ? (form.minimumStock ? Number(form.minimumStock) : undefined) : undefined,
-        measurement_unit: form.measurementUnit || null,
+        measurement_unit: productUnit || form.measurementUnit || null,
         category: form.category ? Number(form.category) : null,
         // Los compuestos siempre trackean inventario vía receta; el backend lo
         // fuerza en la creación, así que solo lo enviamos para no compuestos.
@@ -1523,15 +1580,25 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
                 </Field>
 
                 {!isCompound && (
-                  <Field label="Unidad" htmlFor="product-unit">
+                  <Field
+                    label="Unidad"
+                    htmlFor="product-unit"
+                    hint={
+                      unitNeedsRemap
+                        ? `Unidad «${form.measurementUnit}» no válida para nutrición. Elige una del listado.`
+                        : isCountUnit(normalizedMeasurementUnit)
+                          ? "Con «unidad» debes indicar gramos por unidad en Nutrición."
+                          : isVolumeUnit(normalizedMeasurementUnit)
+                            ? "Con ml/l/cc debes indicar densidad (g/ml) en Nutrición."
+                            : undefined
+                    }
+                    error={unitNeedsRemap ? "Unidad no admitida por el backend" : undefined}
+                  >
                     <IconFieldShell icon={Ruler}>
                       <Select
                         id="product-unit"
-                        value={isCustomUnit ? "otro" : form.measurementUnit}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          updateField("measurementUnit", value === "otro" ? "" : value);
-                        }}
+                        value={normalizedMeasurementUnit || ""}
+                        onChange={(e) => updateField("measurementUnit", e.target.value)}
                         className="h-9 rounded-xl border-0 bg-primary/[0.06] shadow-[inset_0_1px_0_var(--glass-highlight)] ring-1 ring-border/40"
                       >
                         <option value="">Selecciona</option>
@@ -1540,14 +1607,6 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
                         ))}
                       </Select>
                     </IconFieldShell>
-                    {isCustomUnit && (
-                      <Input
-                        value={form.measurementUnit}
-                        onChange={(e) => updateField("measurementUnit", e.target.value.toLowerCase().trim())}
-                        placeholder="Escribe la unidad (ej: galón)"
-                        className="mt-1.5 h-9 rounded-xl border-0 bg-primary/[0.06] ring-1 ring-border/40"
-                      />
-                    )}
                   </Field>
                 )}
 
@@ -2144,12 +2203,21 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
                             />
                           </div>
                           <div className="col-span-4 sm:col-span-3">
-                            <Input
-                              value={ing.unit}
-                              onChange={(e) => updateIngredient(ing.localId, { unit: e.target.value })}
-                              placeholder="Unidad"
+                            <Select
+                              value={normalizeRecipeUnit(ing.unit) ?? ""}
+                              onChange={(e) =>
+                                updateIngredient(ing.localId, { unit: e.target.value })
+                              }
                               className="h-8"
-                            />
+                              aria-label={`Unidad de ${ingName}`}
+                            >
+                              <option value="">Unidad…</option>
+                              {MEASUREMENT_UNITS.map((u) => (
+                                <option key={u.value} value={u.value}>
+                                  {u.label}
+                                </option>
+                              ))}
+                            </Select>
                           </div>
                           <div className="col-span-3 sm:col-span-2">
                             <Input
