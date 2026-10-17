@@ -9,14 +9,15 @@ export type DeviceType =
   | "LEVEL"
   | "CUSTOM";
 
+/** Labels orientados a local / producción (no vertical agua/DGA). */
 export const DEVICE_TYPE_LABELS: Record<DeviceType, string> = {
-  WELL: "Pozo",
-  SURFACE: "Captación superficial",
-  WEATHER: "Estación meteorológica",
-  TANK: "Estanque / Tanque",
+  WELL: "Sensor de pozo / soterrado",
+  SURFACE: "Sensor de superficie",
+  WEATHER: "Estación ambiental",
+  TANK: "Tanque / cámara",
   FLOW: "Medidor de flujo",
   LEVEL: "Medidor de nivel",
-  CUSTOM: "Personalizado",
+  CUSTOM: "Equipo / sensor (personalizado)",
 };
 
 export type VariableType =
@@ -36,27 +37,27 @@ export type VariableType =
   | "CUSTOM";
 
 export const VARIABLE_TYPE_LABELS: Record<VariableType, string> = {
-  FLOW: "Caudal",
+  FLOW: "Flujo",
   LEVEL: "Nivel",
-  TOTAL: "Totalizado",
-  FLOW_AVG: "Caudal promedio",
+  TOTAL: "Acumulado",
+  FLOW_AVG: "Flujo promedio",
   TEMPERATURE: "Temperatura",
   PRESSURE: "Presión",
   HUMIDITY: "Humedad",
   RAIN: "Precipitación",
   WIND_SPEED: "Velocidad viento",
   WIND_DIRECTION: "Dirección viento",
-  SOLAR_RADIATION: "Radiación solar",
+  SOLAR_RADIATION: "Radiación",
   BATTERY: "Batería",
   SIGNAL: "Señal",
   CUSTOM: "Personalizado",
 };
 
 export const COMMON_VARIABLE_UNITS: Record<VariableType, string> = {
-  FLOW: "lt/s",
+  FLOW: "L/min",
   LEVEL: "m",
-  TOTAL: "m³",
-  FLOW_AVG: "lt/s",
+  TOTAL: "unidades",
+  FLOW_AVG: "L/min",
   TEMPERATURE: "°C",
   PRESSURE: "PSI",
   HUMIDITY: "%",
