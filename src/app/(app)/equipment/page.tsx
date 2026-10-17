@@ -87,7 +87,7 @@ export default function EquipmentPage() {
       <PageHeader
         title="Equipos"
         icon={<Thermometer className="h-5 w-5" />}
-        subtitle="Máquinas y herramientas: lecturas de temperatura, presión, horas, voltaje, flujo"
+        subtitle="Cámaras, hornos, refrigeradores y herramientas: bitácora de mediciones (mantenimiento programado: próximamente)"
         actions={
           <Button size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="mr-1.5 h-4 w-4" />Nuevo equipo
