@@ -648,7 +648,7 @@ export const HELP_GUIDES: HelpGuide[] = [
         heading: "Studio",
         body: [
           "Selecciona producto compuesto o insumo y revisa el cálculo nutricional.",
-          "Genera vista previa / PDF desde el cliente cuando el backend no entrega PDF nativo.",
+          "Descarga y vista previa oficiales del backend (page_size label|a4|letter).",
         ],
       },
     ],
