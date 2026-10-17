@@ -1,5 +1,4 @@
-import { apiFetch, apiFile, API_BASE } from "./client";
-import type { ApiFileResult } from "./client";
+import { apiFetch, API_BASE } from "./client";
 import { getBranchId } from "@/lib/api/session-storage";
 import type { YggdraSchemas } from "@/lib/api/types";
 
@@ -153,35 +152,29 @@ export async function calculateRecipeNutrition(id: string): Promise<Recipe> {
   });
 }
 
-export interface NutritionLabelDownloadOptions {
-  /** `simple` | `branded` / `logo` — el back puede ignorarlos hasta documentarlos. */
-  mode?: "simple" | "branded" | "logo";
-  /** Preset de tamaño, p.ej. `62x100`. */
-  size?: string;
-  /** `per_100g` | `per_serving`. */
-  per?: "per_100g" | "per_serving";
-  includeLogo?: boolean;
-}
+export type {
+  NutritionLabelPageSize,
+  NutritionLabelPreviewMedia,
+  NutritionMissingDetail,
+  RecipeNutritionCompleteness,
+} from "./nutrition-label";
 
-/**
- * Descarga el PDF de etiqueta nutricional con autenticación (la ruta relativa
- * abierta con window.open pega contra Next.js y sin token → 404).
- * Query params se envían best-effort; el schema OpenAPI aún no los documenta.
- */
-export function downloadRecipeNutritionLabel(
-  id: string,
-  opts: NutritionLabelDownloadOptions = {},
-): Promise<ApiFileResult> {
-  const qs = new URLSearchParams();
-  if (opts.mode) qs.set("mode", opts.mode === "branded" ? "logo" : opts.mode);
-  if (opts.size) qs.set("size", opts.size);
-  if (opts.per) qs.set("per", opts.per === "per_serving" ? "serving" : "100g");
-  if (opts.includeLogo || opts.mode === "branded" || opts.mode === "logo") {
-    qs.set("with_logo", "true");
-  }
-  const q = qs.toString();
-  return apiFile(`/recipes/recipes/${id}/download-nutrition-label-pdf/${q ? `?${q}` : ""}`);
-}
+export {
+  NUTRITION_LABEL_PAGE_SIZES,
+  NUTRITION_LABEL_NOT_READY,
+  downloadRecipeNutritionLabelPdf,
+  previewRecipeNutritionLabel,
+  isNutritionLabelNotReady,
+  nutritionMissingDetailsFromError,
+  normalizeNutritionMissingDetails,
+  missingDetailLabel,
+  missingDetailFields,
+  missingDetailProductId,
+  nutritionFieldLabel,
+} from "./nutrition-label";
+
+/** Alias del PDF oficial (`page_size=label|a4|letter`). */
+export { downloadRecipeNutritionLabelPdf as downloadRecipeNutritionLabel } from "./nutrition-label";
 
 export async function fetchRecipeNutritionLabel(id: string): Promise<Record<string, unknown>> {
   return apiFetch<Record<string, unknown>>(`/recipes/recipes/${id}/nutrition_label/`);

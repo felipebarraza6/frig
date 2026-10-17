@@ -14,6 +14,8 @@ import {
   Printer,
   Wheat,
   ShoppingCart,
+  AlertTriangle,
+  ExternalLink,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -28,28 +30,27 @@ import {
 import {
   fetchRecipesByProduct,
   calculateRecipeNutrition,
-
-  fetchRecipeNutritionLabel,
+  NUTRITION_LABEL_PAGE_SIZES,
+  downloadRecipeNutritionLabelPdf,
+  previewRecipeNutritionLabel,
+  isNutritionLabelNotReady,
+  nutritionMissingDetailsFromError,
+  normalizeNutritionMissingDetails,
+  missingDetailLabel,
+  missingDetailFields,
+  missingDetailProductId,
+  nutritionFieldLabel,
+  type NutritionLabelPageSize,
+  type NutritionMissingDetail,
+  type RecipeNutritionCompleteness,
 } from "@/lib/api/recipes";
 import { ProductForm } from "@/components/products/product-form";
-import {
-  NutritionLabelPreview,
-  NUTRITION_LABEL_SIZES,
-  type NutritionLabelExtras,
-  type NutritionLabelMode,
-  type NutritionLabelPortion,
-  type NutritionValues,
-} from "@/components/products/nutrition-label-preview";
 import { useDownloadFile } from "@/lib/hooks/useDownloadFile";
-import {
-  buildNutritionLabelPdfBlob,
-  countFilledNutrients,
-} from "@/lib/nutrition-label-pdf";
-import { cn, downloadBlob, formatCLP } from "@/lib/utils";
-import { mediaUrl } from "@/lib/api/client";
+import { cn, formatCLP } from "@/lib/utils";
+import { ApiError } from "@/lib/api/client";
 import type { YggdraProduct } from "@/lib/api/types";
 import { useToast } from "@/lib/store/toast";
-import { useIsNutritionEnabled, useSessionStore, useCurrentBranch } from "@/lib/store/session";
+import { useIsNutritionEnabled } from "@/lib/store/session";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 
 type ProductDetail = YggdraProduct & {
@@ -67,25 +68,10 @@ type ProductDetail = YggdraProduct & {
   sodium_mg?: string | number | null;
 };
 
-interface NutritionLabelData {
-  compliance?: {
-    is_compliant?: boolean;
-    compliance_score?: number;
-    warnings?: string[];
-    errors?: string[];
-  };
-  nutrition_per_100g?: Record<string, number>;
-  nutrition_per_serving?: Record<string, number>;
-  serving_size_grams?: number;
-  product_name?: string;
-  ingredients_text?: string;
-  allergen_warning?: string;
-  branch_info?: {
-    business_name?: string;
-    full_text?: string;
-  };
-  [key: string]: unknown;
-}
+type RecipeWithNutrition = NonNullable<
+  Awaited<ReturnType<typeof fetchRecipesByProduct>>[number]
+> &
+  RecipeNutritionCompleteness;
 
 function isRecipeBased(product: ProductDetail): boolean {
   return product.product_type === "RECIPE_BASED";
@@ -164,53 +150,6 @@ function NutritionLabelThumb({
   );
 }
 
-function s(v: string | number | null | undefined): string {
-  return v == null || v === "" ? "" : String(v);
-}
-
-function valuesFromProduct(product: ProductDetail): NutritionValues {
-  return {
-    energyKcal: s(product.energy_kcal),
-    proteinsG: s(product.proteins_g),
-    totalFatsG: s(product.total_fats_g),
-    saturatedFatsG: s(product.saturated_fats_g),
-    monounsaturatedFatsG: s(product.monounsaturated_fats_g),
-    polyunsaturatedFatsG: s(product.polyunsaturated_fats_g),
-    transFatsG: s(product.trans_fats_g),
-    cholesterolMg: s(product.cholesterol_mg),
-    carbohydratesG: s(product.carbohydrates_g),
-    totalSugarsG: s(product.total_sugars_g),
-    sodiumMg: s(product.sodium_mg),
-  };
-}
-
-function valuesFromLabelApi(
-  block: Record<string, number> | undefined,
-): NutritionValues | null {
-  if (!block) return null;
-  return {
-    energyKcal: s(block.energia_kcal),
-    proteinsG: s(block.proteinas_g),
-    totalFatsG: s(block.grasas_totales_g),
-    saturatedFatsG: s(block.grasas_saturadas_g),
-    monounsaturatedFatsG: s(block.grasas_monoinsaturadas_g),
-    polyunsaturatedFatsG: s(block.grasas_poliinsaturadas_g),
-    transFatsG: s(block.grasas_trans_g),
-    cholesterolMg: s(block.colesterol_mg),
-    carbohydratesG: s(block.hidratos_carbono_g),
-    totalSugarsG: s(block.azucares_totales_g),
-    sodiumMg: s(block.sodio_mg),
-  };
-}
-
-function hasMeaningfulNutrition(values: NutritionValues | null | undefined): boolean {
-  if (!values) return false;
-  return Object.values(values).some((v) => {
-    const n = Number(v);
-    return v !== "" && !Number.isNaN(n) && n !== 0;
-  });
-}
-
 function Chip({
   active,
   onClick,
@@ -233,6 +172,69 @@ function Chip({
     >
       {children}
     </button>
+  );
+}
+
+function NutritionMissingPanel({
+  details,
+  onEditProduct,
+}: {
+  details: NutritionMissingDetail[];
+  onEditProduct: (productId: number) => void;
+}) {
+  if (details.length === 0) return null;
+
+  return (
+    <div className="rounded-xl border border-warning/40 bg-warning/10 p-3 text-xs">
+      <div className="mb-2 flex items-start gap-2">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+        <div>
+          <p className="font-semibold text-foreground">Etiqueta no lista</p>
+          <p className="mt-0.5 text-muted-foreground">
+            Completa las fichas de estos insumos (tab Nutrición) y vuelve a
+            calcular.
+          </p>
+        </div>
+      </div>
+      <ul className="space-y-2">
+        {details.map((row, idx) => {
+          const productId = missingDetailProductId(row);
+          const fields = missingDetailFields(row);
+          const label = missingDetailLabel(row);
+          return (
+            <li
+              key={`${productId ?? label}-${idx}`}
+              className="rounded-lg bg-background/70 px-2.5 py-2 ring-1 ring-border/50"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-foreground">{label}</p>
+                  {fields.length > 0 ? (
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Falta: {fields.map(nutritionFieldLabel).join(", ")}
+                    </p>
+                  ) : row.reason || row.message ? (
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      {row.reason || row.message}
+                    </p>
+                  ) : null}
+                </div>
+                {productId != null ? (
+                  <button
+                    type="button"
+                    onClick={() => onEditProduct(productId)}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary hover:bg-primary/15"
+                  >
+                    Completar
+                    <ExternalLink className="h-3 w-3" />
+                  </button>
+                ) : null}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }
 
@@ -291,7 +293,7 @@ export default function ProductNutritionPage() {
       <PageHeader
         title="Etiquetado nutricional"
         icon={<Apple className="h-5 w-5" />}
-        subtitle="Compuestos, venta directa o materias primas · ver, imprimir y descargar etiqueta"
+        subtitle="PDF y vista previa oficiales del backend · tamaño etiqueta / A4 / Letter"
       />
 
       <div className="relative flex flex-1 flex-col gap-4 p-4 sm:p-6">
@@ -408,6 +410,10 @@ export default function ProductNutritionPage() {
             setEditingId(selectedId);
             setSelectedId(null);
           }}
+          onEditIngredient={(ingredientProductId) => {
+            setSelectedId(null);
+            setEditingId(ingredientProductId);
+          }}
         />
       )}
 
@@ -432,33 +438,24 @@ function NutritionLabelStudio({
   listProduct,
   onClose,
   onEdit,
+  onEditIngredient,
 }: {
   productId: number;
   listProduct: ProductDetail | null;
   onClose: () => void;
   onEdit: () => void;
+  onEditIngredient: (productId: number) => void;
 }) {
   const toast = useToast();
   const queryClient = useQueryClient();
-  const branch = useCurrentBranch();
-  const branchTheme = useSessionStore((s) => s.theme ?? s.organizationTheme);
-  const { isLoading: downloadingNutritionPdf } = useDownloadFile();
+  const { download, isLoading: downloadingNutritionPdf } = useDownloadFile();
 
-  const [labelMode, setLabelMode] = useState<NutritionLabelMode>("simple");
-  const [labelPortion, setLabelPortion] = useState<NutritionLabelPortion>("per_100g");
-  const [labelSizeId, setLabelSizeId] = useState(NUTRITION_LABEL_SIZES[0].id);
-  const [servingGramsInput, setServingGramsInput] = useState("100");
-  const [buildingPdf, setBuildingPdf] = useState(false);
-
-  const labelSize =
-    NUTRITION_LABEL_SIZES.find((sz) => sz.id === labelSizeId) ?? NUTRITION_LABEL_SIZES[0];
-  const servingGrams = Math.max(1, Number(servingGramsInput) || 100);
-  const branchLogoUrl = mediaUrl(branchTheme?.logo ?? null);
-  const branchDisplayName =
-    branch?.branch_name ||
-    branch?.business_name ||
-    branchTheme?.app_name ||
-    "Sucursal";
+  const [pageSize, setPageSize] = useState<NutritionLabelPageSize>("label");
+  /** 409 de preview/download; se ignora si cambia la receta. */
+  const [errorMissing, setErrorMissing] = useState<{
+    recipeId: string;
+    details: NutritionMissingDetail[];
+  } | null>(null);
 
   const { data: detail, isLoading: loadingDetail } = useQuery({
     queryKey: ["products", "detail", productId],
@@ -468,8 +465,6 @@ function NutritionLabelStudio({
   const product = detail ?? listProduct;
   const isCompound = product ? isRecipeBased(product) : false;
 
-  // Siempre buscar receta por productId (+ nombre): no depender solo de product_type
-  // del listado (a veces llega sin tipo y el PDF quedaba siempre deshabilitado).
   const {
     data: recipes = [],
     isLoading: loadingRecipes,
@@ -484,27 +479,29 @@ function NutritionLabelStudio({
     staleTime: 30_000,
   });
 
-  const primaryRecipe = recipes[0] ?? null;
-
-  const { data: labelData } = useQuery<NutritionLabelData>({
-    queryKey: ["recipe", "nutrition-label", primaryRecipe?.id],
-    queryFn: () => fetchRecipeNutritionLabel(primaryRecipe!.id) as Promise<NutritionLabelData>,
-    enabled: Boolean(primaryRecipe?.id),
-  });
+  const primaryRecipe = (recipes[0] ?? null) as RecipeWithNutrition | null;
 
   const calculate = useMutation({
     mutationFn: calculateRecipeNutrition,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["recipes", "by-product", productId] });
       queryClient.invalidateQueries({ queryKey: ["recipes", "by-product", "nutrition-label", productId] });
-      queryClient.invalidateQueries({ queryKey: ["recipe", "nutrition-label"] });
+      queryClient.invalidateQueries({ queryKey: ["recipe", "nutrition-preview"] });
       queryClient.invalidateQueries({ queryKey: ["products", "detail", productId] });
+      setErrorMissing(null);
       toast.success("Nutrición calculada desde la receta");
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => {
+      if (isNutritionLabelNotReady(err) && primaryRecipe?.id) {
+        setErrorMissing({
+          recipeId: primaryRecipe.id,
+          details: nutritionMissingDetailsFromError(err),
+        });
+      }
+      toast.error(err.message);
+    },
   });
 
-  // Auto-calcular una vez si hay receta sin cálculo (para llenar la etiqueta con data real).
   const autoCalcTried = useRef<string | null>(null);
   useEffect(() => {
     const recipeId = primaryRecipe?.id;
@@ -516,57 +513,104 @@ function NutritionLabelStudio({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al resolver receta
   }, [primaryRecipe?.id, primaryRecipe?.has_nutritional_calculation]);
 
-  const per100Api = valuesFromLabelApi(labelData?.nutrition_per_100g);
-  const perServingApi = valuesFromLabelApi(labelData?.nutrition_per_serving);
-  const productVals = product ? valuesFromProduct(product) : null;
+  const recipeMissingDetails = useMemo(() => {
+    if (!primaryRecipe || primaryRecipe.nutrition_is_complete !== false) return [];
+    return normalizeNutritionMissingDetails(primaryRecipe.nutrition_missing_details);
+  }, [primaryRecipe]);
 
-  // Fuente de verdad: nutrition_label del back; producto solo si no hay receta/cálculo.
-  let previewValues: NutritionValues | null = null;
-  let valuesAlreadyForPortion = false;
-  if (labelPortion === "per_serving") {
-    if (hasMeaningfulNutrition(perServingApi)) {
-      previewValues = perServingApi;
-      valuesAlreadyForPortion = true;
-    } else if (hasMeaningfulNutrition(per100Api)) {
-      previewValues = per100Api;
-    } else {
-      previewValues = productVals;
+  const errorMissingDetails =
+    errorMissing && primaryRecipe && errorMissing.recipeId === primaryRecipe.id
+      ? errorMissing.details
+      : [];
+
+  const missingDetails =
+    errorMissingDetails.length > 0 ? errorMissingDetails : recipeMissingDetails;
+
+  const recipesPending = Boolean(product?.name) && (!recipesFetched || loadingRecipes);
+  const canUseOfficial = Boolean(primaryRecipe?.id);
+  const nutritionBlocked =
+    missingDetails.length > 0 || primaryRecipe?.nutrition_is_complete === false;
+
+  const previewQuery = useQuery({
+    queryKey: ["recipe", "nutrition-preview", primaryRecipe?.id, "png"],
+    queryFn: async () => {
+      try {
+        const file = await previewRecipeNutritionLabel(primaryRecipe!.id, "png");
+        return URL.createObjectURL(file.blob);
+      } catch (err) {
+        if (isNutritionLabelNotReady(err)) {
+          setErrorMissing({
+            recipeId: primaryRecipe!.id,
+            details: nutritionMissingDetailsFromError(err),
+          });
+        }
+        throw err;
+      }
+    },
+    enabled: Boolean(primaryRecipe?.id) && !nutritionBlocked,
+    staleTime: 60_000,
+    retry: false,
+  });
+
+  const previewUrl = previewQuery.data ?? null;
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
+  function handleDownload() {
+    if (!primaryRecipe?.id) {
+      toast.error(
+        "Necesitas una receta asociada para descargar el PDF oficial. Edita el producto compuesto y guarda la receta.",
+      );
+      return;
     }
-  } else if (hasMeaningfulNutrition(per100Api)) {
-    previewValues = per100Api;
-  } else {
-    previewValues = productVals;
+    if (nutritionBlocked) {
+      toast.error("Completa los datos faltantes de los insumos antes de descargar.");
+      return;
+    }
+
+    void download(
+      async () => {
+        try {
+          return await downloadRecipeNutritionLabelPdf(primaryRecipe.id, pageSize);
+        } catch (err) {
+          if (isNutritionLabelNotReady(err)) {
+            setErrorMissing({
+              recipeId: primaryRecipe.id,
+              details: nutritionMissingDetailsFromError(err),
+            });
+          }
+          throw err;
+        }
+      },
+      {
+        filename: `etiqueta-nutricional_${(product?.name ?? "receta")
+          .replace(/[^a-z0-9]+/gi, "_")
+          .replace(/_+/g, "_")
+          .replace(/^_|_$/g, "")
+          .toLowerCase()}_${pageSize}.pdf`,
+        extension: "pdf",
+        onSuccess: () => toast.success(`PDF descargado · ${pageSize}`),
+        onError: (error) => {
+          if (isNutritionLabelNotReady(error)) {
+            toast.error("Etiqueta no lista: revisa los insumos incompletos.");
+            return;
+          }
+          toast.error(
+            error instanceof ApiError
+              ? error.message
+              : error.message || "No se pudo descargar el PDF",
+          );
+        },
+      },
+    );
   }
 
-  const labelExtras: NutritionLabelExtras = {
-    ingredientsText: labelData?.ingredients_text || null,
-    allergenWarning: labelData?.allergen_warning || null,
-    branchText: labelData?.branch_info?.full_text || null,
-  };
-
-  const hasOfficialPdf = Boolean(primaryRecipe?.id);
-  const recipesPending = Boolean(product?.name) && (!recipesFetched || loadingRecipes);
-  const hasPreview = hasMeaningfulNutrition(previewValues);
-  /** PDF oficial (receta) o etiqueta del producto (materia prima / sin receta). */
-  const canExport = hasOfficialPdf || hasPreview;
-
-  const apiServing = labelData?.serving_size_grams;
-  const effectiveServing =
-    labelPortion === "per_serving" && apiServing && apiServing > 0
-      ? apiServing
-      : servingGrams;
-
-  const displayProductName =
-    (typeof labelData?.product_name === "string" && labelData.product_name) ||
-    product?.name ||
-    undefined;
-  const displayBranchName =
-    labelData?.branch_info?.business_name || branchDisplayName;
-
-  function openLabelPrintWindow(opts?: { suggestSaveAsPdf?: boolean }) {
-    const node = document.getElementById("nutrition-studio-print-root");
-    if (!node) {
-      toast.error("No hay etiqueta para imprimir. Carga o edita los datos nutricionales.");
+  function handlePrintPreview() {
+    if (!previewUrl) {
+      toast.error("Sin vista previa para imprimir.");
       return;
     }
     const win = window.open("", "_blank", "noopener,noreferrer,width=520,height=780");
@@ -580,80 +624,22 @@ function NutritionLabelStudio({
     win.document.write(
       `<!doctype html><html><head><title>${title.replace(/[<>&"]/g, "")}</title>
       <style>
-        @page { size: ${labelSize.widthMm}mm ${labelSize.heightMm}mm; margin: 0; }
+        @page { margin: 0; }
         html, body { margin: 0; background: #fff; }
-        body { display: grid; place-items: center; min-height: 100vh; font-family: system-ui, sans-serif; }
-        * { -webkit-print-color-adjust: exact; print-color-adjust: exact; box-sizing: border-box; }
-      </style></head><body>${node.innerHTML}</body></html>`,
+        body { display: grid; place-items: center; min-height: 100vh; }
+        img { max-width: 100%; height: auto; }
+        * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      </style></head><body><img src="${previewUrl}" alt="Etiqueta nutricional" /></body></html>`,
     );
     win.document.close();
     win.focus();
-    window.setTimeout(() => {
-      win.print();
-      if (opts?.suggestSaveAsPdf) {
-        toast.success("En el diálogo elige «Guardar como PDF» si quieres el archivo");
-      }
-    }, 280);
+    window.setTimeout(() => win.print(), 280);
   }
 
-  async function handleDownload() {
-    if (!product) return;
-    if (!hasPreview || !previewValues) {
-      toast.error("Este producto no tiene datos nutricionales. Edítalos primero.");
-      return;
-    }
-    const filled = countFilledNutrients(previewValues);
-    if (filled < 3) {
-      toast.error(
-        `Nutrición incompleta (${filled} valores). Edita el producto y completa kcal, proteínas, grasas, carbohidratos, etc. antes de descargar.`,
-      );
-      return;
-    }
-    // El PDF de Yggdra es un stub (~3 KB) que ignora modo/tamaño/porción.
-    // Generamos el archivo desde la misma data de la vista previa.
-    setBuildingPdf(true);
-    try {
-      const blob = await buildNutritionLabelPdfBlob({
-        values: previewValues,
-        mode: labelMode,
-        portion: labelPortion,
-        size: labelSize,
-        servingGrams: effectiveServing,
-        valuesAlreadyForPortion,
-        productName: displayProductName,
-        branchName: displayBranchName,
-        extras: labelMode === "branded" ? labelExtras : undefined,
-      });
-      const filename = `etiqueta-nutricional_${product.name
-        .replace(/[^a-z0-9]+/gi, "_")
-        .replace(/_+/g, "_")
-        .replace(/^_|_$/g, "")
-        .toLowerCase()}_${labelMode}_${labelSize.id}_${labelPortion}.pdf`;
-      downloadBlob(blob, filename);
-      if (filled < 8) {
-        toast.success(`PDF descargado · atención: solo ${filled} nutrientes con valor (completa el resto en Editar)`);
-      } else {
-        toast.success(
-          labelMode === "branded"
-            ? "PDF descargado · etiqueta con logo / datos de sucursal"
-            : "PDF descargado · etiqueta simple",
-        );
-      }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "No se pudo generar el PDF");
-      openLabelPrintWindow({ suggestSaveAsPdf: true });
-    } finally {
-      setBuildingPdf(false);
-    }
-  }
-
-  function handlePrintPreview() {
-    if (!hasPreview) {
-      toast.error("Sin datos nutricionales para imprimir.");
-      return;
-    }
-    openLabelPrintWindow();
-  }
+  const previewError =
+    previewQuery.error instanceof Error ? previewQuery.error : null;
+  const previewNotReady =
+    previewError != null && isNutritionLabelNotReady(previewError);
 
   return (
     <AnimatedOverlay
@@ -679,7 +665,7 @@ function NutritionLabelStudio({
                 ? ` · Receta: ${primaryRecipe.name}`
                 : recipesPending
                   ? " · buscando receta…"
-                  : " · etiqueta desde datos del producto"}
+                  : " · sin receta (PDF oficial requiere receta)"}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-0.5">
@@ -704,80 +690,36 @@ function NutritionLabelStudio({
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
               <div className="min-w-0 flex-1 space-y-3">
                 <div className="rounded-2xl bg-primary/[0.04] p-3 ring-1 ring-border/40 shadow-[inset_0_1px_0_var(--glass-highlight)]">
-                  <div className="space-y-2.5">
-                    <div>
-                      <p className="mb-1 text-[11px] font-medium text-muted-foreground">Modo</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        <Chip active={labelMode === "simple"} onClick={() => setLabelMode("simple")}>
-                          Etiqueta simple
-                        </Chip>
-                        <Chip active={labelMode === "branded"} onClick={() => setLabelMode("branded")}>
-                          Con logo
-                        </Chip>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="mb-1 text-[11px] font-medium text-muted-foreground">Tamaño</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {NUTRITION_LABEL_SIZES.map((sz) => (
-                          <Chip
-                            key={sz.id}
-                            active={labelSizeId === sz.id}
-                            onClick={() => setLabelSizeId(sz.id)}
-                          >
-                            {sz.label}
-                          </Chip>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <p className="mb-1 text-[11px] font-medium text-muted-foreground">Porción</p>
-                      <div className="flex flex-wrap items-center gap-1.5">
+                  <div>
+                    <p className="mb-1 text-[11px] font-medium text-muted-foreground">
+                      Tamaño del PDF
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {NUTRITION_LABEL_PAGE_SIZES.map((sz) => (
                         <Chip
-                          active={labelPortion === "per_100g"}
-                          onClick={() => setLabelPortion("per_100g")}
+                          key={sz.id}
+                          active={pageSize === sz.id}
+                          onClick={() => setPageSize(sz.id)}
                         >
-                          100 g
+                          {sz.label}
                         </Chip>
-                        <Chip
-                          active={labelPortion === "per_serving"}
-                          onClick={() => setLabelPortion("per_serving")}
-                        >
-                          Porción
-                        </Chip>
-                        {labelPortion === "per_serving" && (
-                          <div className="flex items-center gap-1">
-                            <Input
-                              type="number"
-                              min="1"
-                              step="1"
-                              value={
-                                apiServing && apiServing > 0
-                                  ? String(Math.round(apiServing * 100) / 100)
-                                  : servingGramsInput
-                              }
-                              onChange={(e) => setServingGramsInput(e.target.value)}
-                              disabled={Boolean(apiServing && apiServing > 0)}
-                              className="h-7 w-20 rounded-full border-0 bg-background/70 text-xs ring-1 ring-border/40"
-                              aria-label="Gramos por porción"
-                            />
-                            <span className="text-[11px] text-muted-foreground">g</span>
-                          </div>
-                        )}
-                      </div>
+                      ))}
                     </div>
+                    <p className="mt-1.5 text-[11px] text-muted-foreground">
+                      {NUTRITION_LABEL_PAGE_SIZES.find((s) => s.id === pageSize)?.hint}
+                    </p>
                   </div>
 
                   <div className="mt-3 flex flex-wrap gap-2 border-t border-border/40 pt-2.5">
                     <Button
                       type="button"
                       size="sm"
-                      disabled={!canExport}
-                      isLoading={buildingPdf || downloadingNutritionPdf}
-                      onClick={() => void handleDownload()}
-                      title="PDF con el mismo contenido que la vista previa (modo, tamaño y porción)"
+                      disabled={!canUseOfficial || nutritionBlocked}
+                      isLoading={downloadingNutritionPdf}
+                      onClick={handleDownload}
+                      title="Descarga el PDF oficial del backend"
                     >
-                      {!buildingPdf && !downloadingNutritionPdf && (
+                      {!downloadingNutritionPdf && (
                         <FileDown className="mr-1.5 h-3.5 w-3.5" />
                       )}
                       Descargar PDF
@@ -786,7 +728,7 @@ function NutritionLabelStudio({
                       type="button"
                       size="sm"
                       variant="outline"
-                      disabled={!hasPreview}
+                      disabled={!previewUrl}
                       onClick={handlePrintPreview}
                     >
                       <Printer className="mr-1.5 h-3.5 w-3.5" />
@@ -806,54 +748,31 @@ function NutritionLabelStudio({
                     )}
                   </div>
 
-                  {!hasPreview && !loadingDetail && (
+                  {primaryRecipe?.nutrition_is_complete === true && (
+                    <p className="mt-2 text-[11px] text-success">
+                      Nutrición completa · lista para etiquetar
+                    </p>
+                  )}
+                  {!canUseOfficial && !recipesPending && (
                     <p className="mt-2 text-[11px] text-warning">
-                      Sin valores nutricionales. Usa «Editar datos» y completa kcal, proteínas,
-                      grasas, carbohidratos, sodio, etc.
+                      El generador oficial requiere una receta.{" "}
+                      {isCompound
+                        ? "Guarda ingredientes en el tab Receta."
+                        : "Los productos sin receta no emiten PDF oficial."}
                     </p>
-                  )}
-                  {hasPreview && previewValues && countFilledNutrients(previewValues) < 8 && (
-                    <p className="mt-2 text-[11px] text-warning">
-                      Solo {countFilledNutrients(previewValues)} nutrientes con valor. La etiqueta
-                      saldrá casi vacía hasta que completes la ficha del producto.
-                    </p>
-                  )}
-                  {hasPreview && previewValues && countFilledNutrients(previewValues) >= 8 && (
-                    <p className="mt-2 text-[11px] text-muted-foreground">
-                      PDF = vista previa · {labelMode === "branded" ? "con logo" : "simple"} ·{" "}
-                      {labelSize.label} ·{" "}
-                      {labelPortion === "per_serving" ? `porción ${effectiveServing} g` : "100 g"}
-                    </p>
-                  )}
-
-                  {primaryRecipe && labelData?.compliance && (
-                    <div className="mt-2 space-y-1 text-[11px]">
-                      <p
-                        className={cn(
-                          "font-semibold",
-                          labelData.compliance.is_compliant ? "text-success" : "text-warning",
-                        )}
-                      >
-                        {labelData.compliance.is_compliant ? "Cumple MINSAL" : "Revisar MINSAL"}
-                        {typeof labelData.compliance.compliance_score === "number"
-                          ? ` · ${Math.round(labelData.compliance.compliance_score)}%`
-                          : ""}
-                      </p>
-                      {Array.isArray(labelData.compliance.errors) &&
-                        labelData.compliance.errors.slice(0, 2).map((e, i) => (
-                          <p key={`e-${i}`} className="text-danger">
-                            {e}
-                          </p>
-                        ))}
-                      {Array.isArray(labelData.compliance.warnings) &&
-                        labelData.compliance.warnings.slice(0, 1).map((w, i) => (
-                          <p key={`w-${i}`} className="text-muted-foreground">
-                            {w}
-                          </p>
-                        ))}
-                    </div>
                   )}
                 </div>
+
+                {(missingDetails.length > 0 || previewNotReady) && (
+                  <NutritionMissingPanel
+                    details={
+                      missingDetails.length > 0
+                        ? missingDetails
+                        : nutritionMissingDetailsFromError(previewError)
+                    }
+                    onEditProduct={onEditIngredient}
+                  />
+                )}
 
                 {isCompound && !primaryRecipe && !recipesPending && (
                   <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -864,26 +783,29 @@ function NutritionLabelStudio({
               </div>
 
               <div className="mx-auto shrink-0 sm:mx-0">
-                {hasPreview && previewValues ? (
-                  <div id="nutrition-studio-print-root" className="origin-top scale-[0.92]">
-                    <NutritionLabelPreview
-                      mode={labelMode}
-                      portion={labelPortion}
-                      size={labelSize}
-                      servingGrams={effectiveServing}
-                      valuesAlreadyForPortion={valuesAlreadyForPortion}
-                      productName={displayProductName}
-                      branchName={displayBranchName}
-                      logoUrl={labelMode === "branded" ? branchLogoUrl : null}
-                      extras={labelMode === "branded" ? labelExtras : undefined}
-                      values={previewValues}
+                {previewUrl ? (
+                  <div
+                    id="nutrition-studio-print-root"
+                    className="overflow-hidden rounded-sm border-2 border-black bg-white shadow-md"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element -- blob autenticado */}
+                    <img
+                      src={previewUrl}
+                      alt={`Vista previa etiqueta ${product?.name ?? ""}`}
+                      className="block max-h-[min(58vh,420px)] w-auto max-w-[11rem] object-contain sm:max-w-[13rem]"
                     />
                   </div>
                 ) : (
                   <div className="grid h-40 w-40 place-items-center rounded-xl border border-dashed border-border text-center text-[11px] text-muted-foreground">
-                    {calculate.isPending
-                      ? "Calculando nutrición…"
-                      : "Sin datos para previsualizar"}
+                    {previewQuery.isFetching || calculate.isPending
+                      ? "Cargando vista previa…"
+                      : nutritionBlocked
+                        ? "Completa insumos para previsualizar"
+                        : !canUseOfficial
+                          ? "Sin receta para previsualizar"
+                          : previewError
+                            ? "No se pudo cargar la vista previa"
+                            : "Sin datos para previsualizar"}
                   </div>
                 )}
               </div>

@@ -156,6 +156,10 @@ interface YggdraProductDetail extends Omit<YggdraProduct, "category" | "branch" 
   carbohydrates_g?: number | null;
   total_sugars_g?: number | null;
   sodium_mg?: number | null;
+  /** Densidad g/ml para insumos medidos en ml. */
+  density_g_per_ml?: number | null;
+  /** Gramos por unidad cuando la unidad es “unidad/pieza”. */
+  grams_per_unit?: number | null;
 }
 
 export type FormTab = "basic" | "pricing" | "recipe" | "warehouses" | "nutrition" | "modifiers";
@@ -287,6 +291,8 @@ function buildInitialForm(product?: YggdraProductDetail, defaultProductType?: st
     carbohydratesG: numToStr(product?.carbohydrates_g),
     totalSugarsG: numToStr(product?.total_sugars_g),
     sodiumMg: numToStr(product?.sodium_mg),
+    densityGPerMl: numToStr(product?.density_g_per_ml),
+    gramsPerUnit: numToStr(product?.grams_per_unit),
   };
 }
 
@@ -550,6 +556,8 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
     carbohydratesG: string;
     totalSugarsG: string;
     sodiumMg: string;
+    densityGPerMl: string;
+    gramsPerUnit: string;
   }>(buildInitialForm(product, defaultType));
 
   // Al abrir en edición el producto se carga asíncronamente (productId); al
@@ -1319,6 +1327,8 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
         carbohydrates_g: form.carbohydratesG ? Number(form.carbohydratesG) : null,
         total_sugars_g: form.totalSugarsG ? Number(form.totalSugarsG) : null,
         sodium_mg: form.sodiumMg ? Number(form.sodiumMg) : null,
+        density_g_per_ml: form.densityGPerMl ? Number(form.densityGPerMl) : null,
+        grams_per_unit: form.gramsPerUnit ? Number(form.gramsPerUnit) : null,
       };
       const savedProduct = await onSubmit(payload, effectiveProduct?.id);
 
@@ -2246,6 +2256,48 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
                     ))}
                   </div>
                 )}
+              </FormSection>
+
+              <FormSection title="Conversión de unidades" tint="success">
+                <p className="mb-3 text-xs text-muted-foreground">
+                  Necesarios para calcular la etiqueta cuando la receta usa ml o
+                  unidades (piezas). Déjalos vacíos si el insumo siempre se pesa
+                  en gramos.
+                </p>
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                  <Field
+                    label="Densidad (g/ml)"
+                    htmlFor="nutrition-densityGPerMl"
+                    hint="Para líquidos medidos en ml (p. ej. leche ≈ 1,03)."
+                  >
+                    <Input
+                      id="nutrition-densityGPerMl"
+                      type="number"
+                      step="0.001"
+                      min="0"
+                      value={form.densityGPerMl}
+                      onChange={(e) => updateField("densityGPerMl", e.target.value)}
+                      placeholder="ej. 1.03"
+                      className="h-9 rounded-xl border-0 bg-success/[0.06] shadow-[inset_0_1px_0_var(--glass-highlight)] ring-1 ring-success/15"
+                    />
+                  </Field>
+                  <Field
+                    label="Gramos por unidad"
+                    htmlFor="nutrition-gramsPerUnit"
+                    hint="Peso de una unidad/pieza (huevo, pan, etc.)."
+                  >
+                    <Input
+                      id="nutrition-gramsPerUnit"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={form.gramsPerUnit}
+                      onChange={(e) => updateField("gramsPerUnit", e.target.value)}
+                      placeholder="ej. 60"
+                      className="h-9 rounded-xl border-0 bg-success/[0.06] shadow-[inset_0_1px_0_var(--glass-highlight)] ring-1 ring-success/15"
+                    />
+                  </Field>
+                </div>
               </FormSection>
 
               {form.isNutritionalIngredient && (

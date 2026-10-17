@@ -39,6 +39,8 @@ export type ProductPayload = Partial<
     | "carbohydrates_g"
     | "total_sugars_g"
     | "sodium_mg"
+    | "density_g_per_ml"
+    | "grams_per_unit"
   >
 > & { category?: number | null };
 
