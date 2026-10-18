@@ -53,6 +53,8 @@ import {
   createTelemetryReading,
   fetchTelemetryProviders,
   createTelemetryProvider,
+  updateTelemetryProvider,
+  deleteTelemetryProvider,
   DEVICE_TYPE_LABELS,
   VARIABLE_TYPE_LABELS,
   COMMON_VARIABLE_UNITS,
@@ -86,6 +88,7 @@ export default function IoTPage() {
 
   const [readingModalOpen, setReadingModalOpen] = useState(false);
   const [providerModalOpen, setProviderModalOpen] = useState(false);
+  const [editingProvider, setEditingProvider] = useState<TelemetryProvider | null>(null);
 
   // Queries
   const {
@@ -189,6 +192,17 @@ export default function IoTPage() {
     },
     onError: (err: Error) => {
       toast.error(err.message || "Error al eliminar variable");
+    },
+  });
+
+  const deleteProviderMutation = useMutation({
+    mutationFn: deleteTelemetryProvider,
+    onSuccess: () => {
+      toast.success("Conector eliminado");
+      queryClient.invalidateQueries({ queryKey: ["iot-providers"] });
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "Error al eliminar conector");
     },
   });
 
@@ -940,12 +954,15 @@ export default function IoTPage() {
                   Conectores externos ({providers.length})
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  Gateways HTTP/MQTT para recibir mediciones. Editar o eliminar un conector aún no está disponible en la UI (solo alta).
+                  Gateways HTTP/MQTT para recibir mediciones. Puedes crear, editar y eliminar conectores.
                 </p>
               </div>
               <Button
                 size="sm"
-                onClick={() => setProviderModalOpen(true)}
+                onClick={() => {
+                  setEditingProvider(null);
+                  setProviderModalOpen(true);
+                }}
               >
                 <Plus className="mr-1.5 h-4 w-4" />
                 Nuevo conector
@@ -958,7 +975,13 @@ export default function IoTPage() {
                 title="Sin conectores configurados"
                 description="Agrega un conector HTTP REST, MQTT o personalizado para recibir mediciones automáticas."
                 action={
-                  <Button size="sm" onClick={() => setProviderModalOpen(true)}>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setEditingProvider(null);
+                      setProviderModalOpen(true);
+                    }}
+                  >
                     <Plus className="mr-1.5 h-4 w-4" />
                     Crear conector
                   </Button>
@@ -974,9 +997,34 @@ export default function IoTPage() {
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center justify-between gap-2">
                         <h4 className="text-sm font-semibold text-foreground">{p.name}</h4>
-                        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                          Solo lectura · editar próximamente
-                        </span>
+                        <div className="flex items-center gap-0.5">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                            title="Editar conector"
+                            onClick={() => {
+                              setEditingProvider(p);
+                              setProviderModalOpen(true);
+                            }}
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 text-danger hover:bg-danger/10"
+                            title="Eliminar conector"
+                            disabled={deleteProviderMutation.isPending}
+                            onClick={() => {
+                              if (confirm(`¿Eliminar el conector «${p.name}»?`)) {
+                                deleteProviderMutation.mutate(p.id);
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </div>
                       <span className="w-fit rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
                         {p.protocol}
@@ -1045,9 +1093,14 @@ export default function IoTPage() {
       {/* MODAL CREAR PROVEEDOR */}
       {providerModalOpen && (
         <ProviderModal
-          onClose={() => setProviderModalOpen(false)}
+          provider={editingProvider}
+          onClose={() => {
+            setProviderModalOpen(false);
+            setEditingProvider(null);
+          }}
           onSuccess={() => {
             setProviderModalOpen(false);
+            setEditingProvider(null);
             queryClient.invalidateQueries({ queryKey: ["iot-providers"] });
           }}
         />
@@ -1656,36 +1709,50 @@ function ReadingModal({
 // ── COMPONENTE MODAL PROVEEDOR ───────────────────────────────────────────────
 
 function ProviderModal({
+  provider,
   onClose,
   onSuccess,
 }: {
+  provider: TelemetryProvider | null;
   onClose: () => void;
   onSuccess: () => void;
 }) {
   const toast = useToast();
-  const [name, setName] = useState("");
-  const [protocol, setProtocol] = useState<"HTTP_REST" | "HTTP_GET" | "MQTT" | "WEBSOCKET" | "CUSTOM">("HTTP_REST");
-  const [baseUrl, setBaseUrl] = useState("");
-  const [handlerName, setHandlerName] = useState<"generic_json" | "tdata" | "thethings" | "tago">("generic_json");
-  const [authType, setAuthType] = useState<"NONE" | "BASIC" | "BEARER" | "API_KEY_HEADER" | "QUERY_PARAM">("BEARER");
+  const isEdit = Boolean(provider);
+  const [name, setName] = useState(provider?.name ?? "");
+  const [protocol, setProtocol] = useState<"HTTP_REST" | "HTTP_GET" | "MQTT" | "WEBSOCKET" | "CUSTOM">(
+    provider?.protocol ?? "HTTP_REST",
+  );
+  const [baseUrl, setBaseUrl] = useState(provider?.base_url ?? "");
+  const [handlerName, setHandlerName] = useState<"generic_json" | "tdata" | "thethings" | "tago">(
+    provider?.handler_name ?? "generic_json",
+  );
+  const [authType, setAuthType] = useState<"NONE" | "BASIC" | "BEARER" | "API_KEY_HEADER" | "QUERY_PARAM">(
+    provider?.auth_type ?? "BEARER",
+  );
   const [authToken, setAuthToken] = useState("");
 
   const mutation = useMutation({
-    mutationFn: () =>
-      createTelemetryProvider({
+    mutationFn: () => {
+      const payload = {
         name,
         protocol,
         base_url: baseUrl,
         handler_name: handlerName,
         auth_type: authType,
-        auth_token: authToken || undefined,
-      }),
+        ...(authToken ? { auth_token: authToken } : {}),
+      };
+      if (provider) {
+        return updateTelemetryProvider(provider.id, payload);
+      }
+      return createTelemetryProvider(payload);
+    },
     onSuccess: () => {
-      toast.success("Proveedor de telemetría configurado");
+      toast.success(isEdit ? "Conector actualizado" : "Proveedor de telemetría configurado");
       onSuccess();
     },
     onError: (err: Error) => {
-      toast.error(err.message || "Error al crear proveedor");
+      toast.error(err.message || (isEdit ? "Error al actualizar conector" : "Error al crear proveedor"));
     },
   });
 
@@ -1694,7 +1761,7 @@ function ProviderModal({
       <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
         <div className="flex items-center justify-between pb-4 border-b border-border">
           <h2 className="text-base font-semibold text-foreground">
-            Configurar Conector de Telemetría
+            {isEdit ? "Editar conector de telemetría" : "Configurar conector de telemetría"}
           </h2>
           <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={onClose}>
             <X className="h-4 w-4" />
@@ -1779,7 +1846,7 @@ function ProviderModal({
               <Input
                 id="prov-token"
                 type="password"
-                placeholder="Token o API Key"
+                placeholder={isEdit ? "Dejar vacío para no cambiar" : "Token o API Key"}
                 value={authToken}
                 onChange={(e) => setAuthToken(e.target.value)}
               />
@@ -1791,7 +1858,7 @@ function ProviderModal({
               Cancelar
             </Button>
             <Button type="submit" size="sm" disabled={mutation.isPending}>
-              {mutation.isPending ? "Guardando…" : "Crear Conector"}
+              {mutation.isPending ? "Guardando…" : isEdit ? "Guardar cambios" : "Crear conector"}
             </Button>
           </div>
         </form>
