@@ -8,7 +8,8 @@ import { toggleBranchModule, type ModuleName } from "@/lib/api/branch-modules";
 import { activateBranch } from "@/lib/branch-session";
 import { getModuleMetadata } from "@/lib/hooks/useModuleCatalog";
 import { useToast, useToastStore } from "@/lib/store/toast";
-import { FRIG_ALWAYS_ON_MODULES } from "@/lib/modules";
+import { FRIG_ALWAYS_ON_MODULES, isModuleOfferedForActivation } from "@/lib/modules";
+import { useBranchPlanModules } from "@/lib/hooks/useBranchPlanModules";
 import {
   useIsAdminLocal,
   useIsOperationalFloorRole,
@@ -43,9 +44,12 @@ export function ForbiddenListener() {
   const isOwner = useIsOwner();
   const isAdminLocal = useIsAdminLocal();
   const isSuperAdmin = useIsSuperAdmin();
-  // OWNER / ADMIN_LOCAL / superadmin pueden activar módulos desde el toast.
+  // OWNER / ADMIN_LOCAL / superadmin pueden activar módulos desde el toast,
+  // pero solo si el plan de la sucursal incluye el módulo (o es demo / legacy).
   const canManageModules = isOwner || isAdminLocal || isSuperAdmin;
   const currentBranchId = useSessionStore((s) => s.currentBranchId);
+  const sessionModules = useSessionStore((s) => s.modules);
+  const { planModules, bypassPlanLimits, isReady: planReady } = useBranchPlanModules();
   const addToast = useToastStore((s) => s.addToast);
   const queryClient = useQueryClient();
   // Un aviso por módulo y sucursal mientras dure la sesión en la app: varias
@@ -94,12 +98,30 @@ export function ForbiddenListener() {
         noticedModulesRef.current.add(noticeKey);
         const label = getModuleMetadata(disabledModule, {}).label;
         const branchId = Number(currentBranchId);
+        const enabledSet = new Set(
+          Object.entries(sessionModules)
+            .filter(([, state]) => state?.is_enabled)
+            .map(([name]) => name),
+        );
+        // No ofrecer «Activar» si el plan no incluye el módulo (salvo demo).
+        const offeredByPlan =
+          !planReady ||
+          isModuleOfferedForActivation(disabledModule, {
+            planModules,
+            enabledModules: enabledSet,
+            bypassPlanLimits,
+          });
         const canEnableHere =
-          canManageModules && Number.isFinite(branchId) && branchId > 0;
+          canManageModules &&
+          offeredByPlan &&
+          Number.isFinite(branchId) &&
+          branchId > 0;
         addToast({
           message: canEnableHere
             ? `El módulo «${label}» no está habilitado en esta sucursal.`
-            : `El módulo «${label}» no está habilitado. Pide al dueño de la sucursal que lo active.`,
+            : offeredByPlan
+              ? `El módulo «${label}» no está habilitado. Pide al dueño de la sucursal que lo active.`
+              : `El módulo «${label}» no está incluido en el plan de esta sucursal.`,
           variant: "warning",
           duration: 8000,
           ...(canEnableHere
@@ -165,6 +187,10 @@ export function ForbiddenListener() {
     alwaysOnRegex,
     canManageModules,
     currentBranchId,
+    sessionModules,
+    planModules,
+    bypassPlanLimits,
+    planReady,
     addToast,
     queryClient,
   ]);

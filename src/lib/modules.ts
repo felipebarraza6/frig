@@ -212,6 +212,107 @@ export const FRIG_SETTINGS_MODULES: ModuleName[] = [
 ];
 
 /**
+ * Sucursales demo no aplican límites de plan: todos los módulos de settings
+ * siguen visibles y toggleables (el backend tampoco restringe el toggle ahí).
+ *
+ * Señales existentes en Branch / commercial_plan — sin inventar endpoints.
+ * Si el backend expone un flag canónico (`is_demo` / `bypass_plan_limits`) en
+ * capabilities o subscriptions, conviene migrar a ese campo (follow-up).
+ */
+export function branchBypassesPlanModuleLimits(
+  branch:
+    | {
+        plan_name?: string | null;
+        commercial_plan?: {
+          plan_id?: string | null;
+          display_name?: string | null;
+        } | null;
+        login_slug?: string | null;
+      }
+    | null
+    | undefined,
+): boolean {
+  if (!branch) return false;
+  const planId = branch.commercial_plan?.plan_id?.trim().toLowerCase() ?? "";
+  if (planId === "demo") return true;
+  for (const name of [branch.plan_name, branch.commercial_plan?.display_name]) {
+    if (name && /\bdemo\b/i.test(name)) return true;
+  }
+  const slug = branch.login_slug?.trim().toLowerCase() ?? "";
+  if (slug === "demo" || slug.endsWith("-demo")) return true;
+  return false;
+}
+
+/**
+ * Normaliza la lista de módulos del plan (`BranchCurrentPlan.modules` u
+ * equivalentes). Devuelve `null` si el valor no es una lista usable.
+ */
+export function normalizePlanModuleList(raw: unknown): string[] | null {
+  if (!Array.isArray(raw)) return null;
+  const out: string[] = [];
+  for (const item of raw) {
+    if (typeof item === "string" && item.trim()) {
+      out.push(item.trim());
+      continue;
+    }
+    if (item && typeof item === "object") {
+      const rec = item as Record<string, unknown>;
+      const key =
+        (typeof rec.key === "string" && rec.key) ||
+        (typeof rec.name === "string" && rec.name) ||
+        (typeof rec.module_name === "string" && rec.module_name) ||
+        null;
+      if (key?.trim()) out.push(key.trim());
+    }
+  }
+  return out;
+}
+
+/**
+ * Módulos de `/settings/modules` (y prompts de activación) visibles según plan.
+ *
+ * - Demo / bypass: todos los de `settingsModules`.
+ * - Incluidos en el plan: visibles aunque estén apagados (se pueden instalar).
+ * - Legacy activos fuera del plan: visibles para poder desinstalarlos.
+ * - Fuera del plan y apagados: ocultos (no se ofrecen como instalables).
+ * - `planModules === null` (dato aún desconocido): no se filtra (evita flash vacío).
+ */
+export function filterSettingsModulesForPlan(
+  settingsModules: readonly ModuleName[],
+  options: {
+    planModules: ReadonlySet<string> | null;
+    enabledModules: ReadonlySet<string>;
+    bypassPlanLimits?: boolean;
+  },
+): ModuleName[] {
+  const { planModules, enabledModules, bypassPlanLimits = false } = options;
+  if (bypassPlanLimits || planModules === null) {
+    return [...settingsModules];
+  }
+  return settingsModules.filter(
+    (name) => planModules.has(name) || enabledModules.has(name),
+  );
+}
+
+/**
+ * True si la UI puede ofrecer activar el módulo (settings, toast 403, upsell).
+ * Módulos legacy ya activos siempre pasan (para poder apagarlos).
+ */
+export function isModuleOfferedForActivation(
+  moduleName: string,
+  options: {
+    planModules: ReadonlySet<string> | null;
+    enabledModules?: ReadonlySet<string>;
+    bypassPlanLimits?: boolean;
+  },
+): boolean {
+  if (options.bypassPlanLimits) return true;
+  if (options.enabledModules?.has(moduleName)) return true;
+  if (options.planModules === null) return true;
+  return options.planModules.has(moduleName);
+}
+
+/**
  * Decisiones Fase 1 GTM (rutas huérfanas, 2026-10-17):
  * - `/dash-fast` → redirect a `/dashboard` (demo 3D experimental; no menú).
  * - `/finance` → ítem en Dinero (hub útil; módulo finance always-on).

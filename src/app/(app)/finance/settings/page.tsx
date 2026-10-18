@@ -39,7 +39,9 @@ import {
 } from "@/lib/api/tax-folios";
 import { fetchBranches, updateBranchSiiConfig } from "@/lib/api/branches";
 import { useToast } from "@/lib/store/toast";
-import { useIsModuleEnabledFromConfig, useCurrentBranch } from "@/lib/store/session";
+import { useIsModuleEnabledFromConfig, useCurrentBranch, useSessionStore } from "@/lib/store/session";
+import { useBranchPlanModules } from "@/lib/hooks/useBranchPlanModules";
+import { isModuleOfferedForActivation } from "@/lib/modules";
 import {
   fetchBranchFinanceConfigs,
   fetchBranchFinanceConfigByBranch,
@@ -957,6 +959,19 @@ export function SiiSection({
 }) {
   const sessionInvoices = useIsModuleEnabledFromConfig("invoices");
   const isInvoicesEnabled = invoicesEnabled ?? sessionInvoices;
+  const sessionModules = useSessionStore((s) => s.modules);
+  const { planModules, bypassPlanLimits, isReady: planReady } = useBranchPlanModules();
+  const canOfferInvoicesActivation =
+    !planReady ||
+    isModuleOfferedForActivation("invoices", {
+      planModules,
+      enabledModules: new Set(
+        Object.entries(sessionModules)
+          .filter(([, state]) => state?.is_enabled)
+          .map(([name]) => name),
+      ),
+      bypassPlanLimits,
+    });
   const toast = useToast();
   const queryClient = useQueryClient();
   const [providerInstallation, setProviderInstallation] = useState<string | null>(
@@ -1194,7 +1209,7 @@ export function SiiSection({
         title="Facturación SII"
         description="Instalación de esta sucursal: app, funciones, resolución y CAF"
         action={
-          !isInvoicesEnabled ? (
+          !isInvoicesEnabled && canOfferInvoicesActivation ? (
             <Link href="/settings/modules" className="text-sm font-medium text-primary hover:underline">
               Activar módulo
             </Link>

@@ -20,7 +20,12 @@ import type { YggdraSchemas } from "@/lib/api/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/page-header";
 import { cn } from "@/lib/utils";
-import { FRIG_ALWAYS_ON_MODULES, FRIG_SETTINGS_MODULES } from "@/lib/modules";
+import {
+  FRIG_ALWAYS_ON_MODULES,
+  FRIG_SETTINGS_MODULES,
+  filterSettingsModulesForPlan,
+} from "@/lib/modules";
+import { useBranchPlanModules } from "@/lib/hooks/useBranchPlanModules";
 
 type ModuleConfig = YggdraSchemas["BranchModuleConfiguration"];
 
@@ -71,6 +76,12 @@ export default function BranchModulesPage() {
     enabled: !!branchId,
     retry: 1,
   });
+  const {
+    planModules,
+    bypassPlanLimits,
+    isLoading: planLoading,
+    isReady: planReady,
+  } = useBranchPlanModules();
 
   const [optimisticState, setOptimisticState] = useState<Partial<Record<ModuleName, boolean>>>({});
   const [selectedKey, setSelectedKey] = useState<ModuleName | null>(null);
@@ -91,8 +102,38 @@ export default function BranchModulesPage() {
     return state;
   }, [configs, sessionModules, optimisticState]);
 
-  const activeCount = useMemo(() => MODULES.filter((m) => effectiveEnabled[m.key]).length, [effectiveEnabled]);
-  const selectedDef = useMemo(() => MODULES.find((m) => m.key === selectedKey), [selectedKey]);
+  const enabledModuleSet = useMemo(() => {
+    const set = new Set<string>();
+    for (const [name, on] of Object.entries(effectiveEnabled)) {
+      if (on) set.add(name);
+    }
+    return set;
+  }, [effectiveEnabled]);
+
+  /**
+   * Solo módulos del plan (o legacy ya activos). En demo no se filtra.
+   * Esperamos entitlements antes de pintar para no flash-ear IoT y luego ocultarlo.
+   */
+  const visibleModules = useMemo(() => {
+    const allowedKeys = new Set(
+      filterSettingsModulesForPlan(FRIG_SETTINGS_MODULES, {
+        planModules: planReady ? planModules : null,
+        enabledModules: enabledModuleSet,
+        bypassPlanLimits,
+      }),
+    );
+    return MODULES.filter((m) => allowedKeys.has(m.key));
+  }, [planReady, planModules, enabledModuleSet, bypassPlanLimits]);
+
+  const activeCount = useMemo(
+    () => visibleModules.filter((m) => effectiveEnabled[m.key]).length,
+    [visibleModules, effectiveEnabled],
+  );
+  const selectedDef = useMemo(
+    () => visibleModules.find((m) => m.key === selectedKey) ?? null,
+    [visibleModules, selectedKey],
+  );
+  const listLoading = isLoading || (!bypassPlanLimits && planLoading && !planReady);
 
   const toggle = useMutation({
     mutationFn: toggleBranchModule,
@@ -127,16 +168,23 @@ export default function BranchModulesPage() {
         icon={<Sparkles className="h-5 w-5" />}
         actions={
           <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-muted-foreground">{activeCount}/{MODULES.length}</span>
+            <span className="text-xs font-medium text-muted-foreground">
+              {activeCount}/{visibleModules.length || MODULES.length}
+            </span>
             <div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted">
-              <motion.div className="h-full rounded-full bg-primary" animate={{ width: `${(activeCount / MODULES.length) * 100}%` }} />
+              <motion.div
+                className="h-full rounded-full bg-primary"
+                animate={{
+                  width: `${(activeCount / Math.max(visibleModules.length || MODULES.length, 1)) * 100}%`,
+                }}
+              />
             </div>
           </div>
         }
       />
 
       <div className="flex flex-1 flex-col p-4 sm:p-6">
-        {isLoading ? (
+        {listLoading ? (
           <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
             {Array.from({ length: 10 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />)}
           </div>
@@ -151,7 +199,7 @@ export default function BranchModulesPage() {
               </p>
             )}
             <div className="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {MODULES.map((m) => {
+              {visibleModules.map((m) => {
                 const active = effectiveEnabled[m.key];
                 const Icon = m.icon;
                 const selected = selectedKey === m.key;
@@ -234,7 +282,7 @@ export default function BranchModulesPage() {
                           {selectedDef.requires.map((r) => {
                             const rm = MODULES.find((x) => x.key === r);
                             const rActive = effectiveEnabled[r];
-                            return <span key={r} className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-medium", rActive ? "bg-success/15 text-success" : "bg-muted text-muted-foreground")}>{rm?.shortLabel}</span>;
+                            return <span key={r} className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-medium", rActive ? "bg-success/15 text-success" : "bg-muted text-muted-foreground")}>{rm?.shortLabel ?? r}</span>;
                           })}
                         </div>
                       )}
@@ -244,7 +292,7 @@ export default function BranchModulesPage() {
                           <span className="text-muted-foreground">Desbloquea:</span>
                           {selectedDef.enables.map((e) => {
                             const em = MODULES.find((x) => x.key === e);
-                            return <span key={e} className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">{em?.shortLabel}</span>;
+                            return <span key={e} className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">{em?.shortLabel ?? e}</span>;
                           })}
                         </div>
                       )}
