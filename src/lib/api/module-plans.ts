@@ -109,27 +109,103 @@ export interface BranchSubscriptionHistoryItem {
   created?: string;
 }
 
+/**
+ * Plan actual de GET /branches/{id}/subscriptions/ (`BranchCurrentPlan` en el
+ * contrato). `modules` es la lista de keys incluidas en el plan.
+ */
+export interface BranchCurrentPlanInfo {
+  id: number;
+  name: string;
+  modules: string[];
+  product_types: string[];
+  max_branches?: number;
+  submodule_config?: Record<string, unknown>;
+}
+
 /** Respuesta real de GET /branches/{id}/subscriptions/ (no es un listado DRF). */
+export interface BranchSubscriptionsResponse {
+  branch_id?: number;
+  branch_name?: string;
+  current_plan: BranchCurrentPlanInfo | null;
+  subscriptions: BranchSubscriptionHistoryItem[];
+}
+
 interface BranchSubscriptionsPayload {
   branch_id?: number;
   branch_name?: string;
-  current_plan?: { id?: number; name?: string } | null;
+  current_plan?: {
+    id?: number;
+    name?: string;
+    modules?: unknown;
+    product_types?: unknown;
+    max_branches?: number;
+    submodule_config?: Record<string, unknown>;
+  } | null;
   subscriptions?: BranchSubscriptionHistoryItem[];
   results?: BranchSubscriptionHistoryItem[];
+}
+
+function normalizeCurrentPlan(
+  raw: BranchSubscriptionsPayload["current_plan"],
+): BranchCurrentPlanInfo | null {
+  if (!raw || typeof raw !== "object") return null;
+  const id = typeof raw.id === "number" ? raw.id : Number(raw.id);
+  if (!Number.isFinite(id)) return null;
+  const name = typeof raw.name === "string" ? raw.name : "";
+  const modules = Array.isArray(raw.modules)
+    ? raw.modules.filter((m): m is string => typeof m === "string" && !!m.trim())
+    : [];
+  const product_types = Array.isArray(raw.product_types)
+    ? raw.product_types.filter((t): t is string => typeof t === "string" && !!t.trim())
+    : [];
+  return {
+    id,
+    name,
+    modules,
+    product_types,
+    max_branches: raw.max_branches,
+    submodule_config: raw.submodule_config,
+  };
+}
+
+/**
+ * GET /api/branches/{id}/subscriptions/
+ *
+ * Incluye `current_plan.modules` (entitlements del plan activo) además del
+ * historial. Fuente canónica para filtrar módulos instalables en la UI.
+ */
+export async function fetchBranchSubscriptions(
+  branchId: number | string,
+): Promise<BranchSubscriptionsResponse> {
+  const data = await apiFetch<BranchSubscriptionsPayload | BranchSubscriptionHistoryItem[]>(
+    `/branches/${branchId}/subscriptions/`,
+  );
+  if (Array.isArray(data)) {
+    return {
+      current_plan: null,
+      subscriptions: data.map((item) => ({
+        ...item,
+        plan: item.plan ?? item.plan_id,
+      })),
+    };
+  }
+  const list = data.subscriptions ?? data.results ?? [];
+  return {
+    branch_id: data.branch_id,
+    branch_name: data.branch_name,
+    current_plan: normalizeCurrentPlan(data.current_plan),
+    subscriptions: list.map((item) => ({
+      ...item,
+      plan: item.plan ?? item.plan_id,
+    })),
+  };
 }
 
 export async function fetchBranchSubscriptionHistory(
   branchId: number | string,
 ): Promise<BranchSubscriptionHistoryItem[]> {
-  const data = await apiFetch<BranchSubscriptionsPayload | BranchSubscriptionHistoryItem[]>(
-    `/branches/${branchId}/subscriptions/`,
-  );
-  if (Array.isArray(data)) return data;
-  const list = data.subscriptions ?? data.results ?? [];
-  return list.map((item) => ({
-    ...item,
-    plan: item.plan ?? item.plan_id,
-  }));
+  const data = await fetchBranchSubscriptions(branchId);
+  return data.subscriptions;
 }
 
 export async function fetchBranchCapabilities(branchId: number | string): Promise<Record<string, unknown>> {
