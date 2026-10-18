@@ -425,6 +425,22 @@ export async function createTelemetryProvider(payload: Partial<TelemetryProvider
   });
 }
 
+export async function updateTelemetryProvider(
+  id: string | number,
+  payload: Partial<TelemetryProvider>,
+): Promise<TelemetryProvider> {
+  return apiFetch<TelemetryProvider>(`/iot-telemetry/providers/${id}/`, {
+    method: "PATCH",
+    body: payload,
+  });
+}
+
+export async function deleteTelemetryProvider(id: string | number): Promise<void> {
+  return apiFetch<void>(`/iot-telemetry/providers/${id}/`, {
+    method: "DELETE",
+  });
+}
+
 export async function fetchTelemetryProjects(branchId?: number): Promise<TelemetryProject[]> {
   const qs = new URLSearchParams();
   if (branchId) qs.set("branch", String(branchId));
