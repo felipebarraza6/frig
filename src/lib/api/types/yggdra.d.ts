@@ -22494,7 +22494,7 @@ export interface paths {
         put?: never;
         /**
          * Registrar pago de orden
-         * @description Cobra un monto (parcial o total) sobre el saldo pendiente de la orden. Solo el dueño de la cuenta, OWNER/ADMIN_LOCAL o ADM/super pueden pagar. Si se envía cash_register_id, la caja debe estar OPEN.
+         * @description Cobra un monto (parcial o total) sobre el saldo pendiente de la orden. Solo el dueño de la cuenta, OWNER/ADMIN_LOCAL o ADM/super pueden pagar. Si se omite cash_register_id, se asigna la caja OPEN de la sucursal. Sin caja abierta el cobro se rechaza (400 cash_register_closed). Errores de validación (referencia, stock, FinanceValidationError) responden 400.
          */
         post: operations["sales_orders_pay_create"];
         delete?: never;
@@ -49514,18 +49514,18 @@ export interface components {
              * @description Monto a cobrar (parcial o total del saldo pendiente).
              */
             amount: number;
-            /** @description Sesión de caja OPEN de la sucursal. Si se envía, debe existir y estar abierta; si se omite, el pago no se imputa a caja. */
+            /** @description Sesión de caja OPEN de la sucursal. Si se omite, se asigna la caja OPEN de la sucursal. Si no hay caja abierta, el cobro se rechaza con 400 code=cash_register_closed. */
             cash_register_id?: number | null;
             /**
-             * @description Notas opcionales del pago.
+             * @description Notas opcionales del pago. null se normaliza a cadena vacía.
              * @default
              */
-            notes: string;
+            notes: string | null;
             /**
-             * @description Referencia externa (voucher, transferencia, etc.).
+             * @description Referencia externa (voucher, transferencia, etc.). null se normaliza a cadena vacía. Obligatoria solo si el método tiene requires_reference=true.
              * @default
              */
-            reference: string;
+            reference: string | null;
         };
         /**
          * @description Serializer para productos de orden - OPTIMIZADO.

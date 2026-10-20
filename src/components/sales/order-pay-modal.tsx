@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +11,12 @@ import { formatCLP } from "@/lib/utils";
 import { useToast } from "@/lib/store/toast";
 import { payOrder } from "@/lib/api/orders";
 import { fetchPaymentMethods } from "@/lib/api/payments";
+import { getCurrentCashRegister } from "@/lib/api/cash-register";
+import {
+  buildPayOrderPayload,
+  canConfirmOrderPay,
+  CASH_REGISTER_CLOSED_MESSAGE,
+} from "@/lib/api/order-pay";
 
 function toNum(value: unknown): number {
   const n = typeof value === "number" ? value : Number.parseFloat(String(value ?? "0"));
@@ -42,6 +49,14 @@ export function OrderPayModal({
     enabled: open,
   });
 
+  const { data: currentCashRegister, isLoading: loadingCashRegister } = useQuery({
+    queryKey: ["cash-register", "current", "order-pay"],
+    queryFn: () => getCurrentCashRegister(),
+    staleTime: 15_000,
+    enabled: open,
+  });
+  const hasOpenCashRegister = Boolean(currentCashRegister?.id);
+
   const activeMethods = useMemo(() => methods.filter((m) => m.is_active !== false), [methods]);
 
   const [amount, setAmount] = useState("");
@@ -66,24 +81,30 @@ export function OrderPayModal({
 
   const selected = activeMethods.find((m) => m.id === methodId);
   const amountNum = toNum(amount);
-  const canSubmit =
-    amountNum > 0 &&
-    amountNum <= remaining + 0.009 &&
-    Boolean(methodId) &&
-    (!selected?.requires_reference || reference.trim().length > 0);
+  const canSubmit = canConfirmOrderPay({
+    amount: amountNum,
+    remaining,
+    methodId,
+    requiresReference: Boolean(selected?.requires_reference),
+    reference,
+    hasOpenCashRegister,
+  });
 
   const pay = useMutation({
     mutationFn: () =>
-      payOrder(orderId, {
-        payment_method_id: methodId,
-        amount: amountNum.toFixed(2),
-        reference: reference.trim() || null,
-        notes: notes.trim() || null,
-        // Alineado con POS: el cobro debe validar caja abierta / estación.
-        skip_cash_register_validation: false,
-      }),
+      payOrder(
+        orderId,
+        buildPayOrderPayload({
+          payment_method_id: methodId,
+          amount: amountNum.toFixed(2),
+          reference,
+          notes,
+          cash_register_id: currentCashRegister?.id ?? null,
+        }),
+      ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-register"] });
       toast.success(`Pago de ${formatCLP(amountNum)} registrado`);
       onClose();
     },
@@ -100,6 +121,17 @@ export function OrderPayModal({
       containerClassName="z-[80]"
     >
       <ModalBody className="flex flex-col gap-4">
+        {!loadingCashRegister && !hasOpenCashRegister && (
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-800">
+            <p className="font-medium">{CASH_REGISTER_CLOSED_MESSAGE}</p>
+            <Link
+              href="/cash-register"
+              className="mt-1 inline-block text-xs font-medium underline underline-offset-2"
+            >
+              Abrir caja
+            </Link>
+          </div>
+        )}
         <div className="rounded-xl border border-border bg-muted/30 px-3 py-2.5 text-sm">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Total</span>
@@ -205,7 +237,7 @@ export function OrderPayModal({
         <Button
           type="button"
           onClick={() => pay.mutate()}
-          disabled={!canSubmit}
+          disabled={!canSubmit || loadingCashRegister}
           isLoading={pay.isPending}
         >
           Confirmar pago

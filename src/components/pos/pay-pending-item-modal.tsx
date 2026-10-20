@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ModalBody, ModalFooter } from "@/components/ui/modal";
 import { fetchOrders, fetchOrder, payOrder, deliverOrder } from "@/lib/api/orders";
+import { buildPayOrderPayload, CASH_REGISTER_CLOSED_MESSAGE } from "@/lib/api/order-pay";
 import { fetchPurchaseOrders, payPurchaseOrder, type PurchaseOrderList } from "@/lib/api/suppliers";
 import { searchCustomers } from "@/lib/api/customers";
 import { fetchQuotations, convertQuotationToOrder } from "@/lib/api/quotations";
@@ -616,12 +617,16 @@ export default function PayPendingItemModal({
       const remaining = toNum(o.total_amount) - toNum(o.paid_amount);
       if (remaining <= 0) continue;
       try {
-        await payOrder(o.id, {
-          payment_method_id: paymentMethodId,
-          amount: toDecimal(remaining.toString()),
-          cash_register_id: cashRegisterId,
-          notes: notes || `Pago ${o.order_number ?? o.id.slice(0, 8)}`,
-        });
+        await payOrder(
+          o.id,
+          buildPayOrderPayload({
+            payment_method_id: paymentMethodId,
+            amount: toDecimal(remaining.toString()),
+            cash_register_id: cashRegisterId,
+            notes: notes || `Pago ${o.order_number ?? o.id.slice(0, 8)}`,
+            reference: "",
+          }),
+        );
         success++;
       } catch {
         failed++;
@@ -1387,6 +1392,17 @@ export default function PayPendingItemModal({
     >
       <ModalBody>
         <div className="flex flex-col gap-4">
+          {!cashRegisterId && (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-800">
+              <p className="font-medium">{CASH_REGISTER_CLOSED_MESSAGE}</p>
+              <a
+                href="/cash-register"
+                className="mt-1 inline-block text-xs font-medium underline underline-offset-2"
+              >
+                Abrir caja
+              </a>
+            </div>
+          )}
           {isCollect && (
             <div className="flex flex-col gap-2">
               <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
