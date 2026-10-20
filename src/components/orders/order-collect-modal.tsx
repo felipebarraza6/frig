@@ -7,6 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { formatCLP, paymentTypeLabel } from "@/lib/utils";
+import {
+  cashRegisterChargeLabel,
+  cashRegisterStaleMessage,
+  isBlockingStaleCashRegister,
+  usableOpenCashRegister,
+  CASH_REGISTER_CLOSED_MESSAGE,
+} from "@/lib/api/order-pay";
+import Link from "next/link";
 import { createPayment } from "@/lib/api/payments";
 import { freeTable } from "@/lib/api/tables";
 import { fetchBranchFinanceConfigByBranch } from "@/lib/api/branch-finance-config";
@@ -60,6 +68,10 @@ export default function OrderCollectModal({
 
   const firstMethod = paymentMethods?.[0];
   const total = Number(order.total_amount ?? 0);
+  const isStaleCashRegister = isBlockingStaleCashRegister(currentCashRegister);
+  const chargeableRegister = usableOpenCashRegister(currentCashRegister);
+  const chargeLabel = cashRegisterChargeLabel(chargeableRegister);
+  const staleMessage = cashRegisterStaleMessage(currentCashRegister);
 
   const taxRate = useMemo(() => {
     const raw = financeConfig?.default_tax_rate;
@@ -116,7 +128,11 @@ export default function OrderCollectModal({
       setCollectError(`Faltan ${formatCLP(remaining)} para completar el pago.`);
       return;
     }
-    if (!currentCashRegister) {
+    if (isStaleCashRegister) {
+      setCollectError(staleMessage);
+      return;
+    }
+    if (!chargeableRegister) {
       setCollectError("Debes abrir una caja antes de registrar el pago.");
       return;
     }
@@ -128,7 +144,7 @@ export default function OrderCollectModal({
           order_id: order.id,
           amount: Number(payment.amount),
           status: "COMPLETED",
-          cash_register_id: currentCashRegister.id,
+          cash_register_id: chargeableRegister.id,
           skip_cash_register_validation: false,
         });
       }
@@ -160,6 +176,33 @@ export default function OrderCollectModal({
     >
       <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
         <ModalBody className="flex flex-col gap-4">
+          {isStaleCashRegister && (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-800">
+              <p className="font-medium">{staleMessage}</p>
+              <Link
+                href="/cash-register"
+                className="mt-1 inline-block text-xs font-medium underline underline-offset-2"
+              >
+                Ir a caja
+              </Link>
+            </div>
+          )}
+          {!chargeableRegister && !isStaleCashRegister && (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-800">
+              <p className="font-medium">{CASH_REGISTER_CLOSED_MESSAGE}</p>
+              <Link
+                href="/cash-register"
+                className="mt-1 inline-block text-xs font-medium underline underline-offset-2"
+              >
+                Abrir caja
+              </Link>
+            </div>
+          )}
+          {chargeLabel && (
+            <p className="text-xs text-muted-foreground">
+              Se cobrará en <span className="font-medium text-foreground">{chargeLabel}</span>
+            </p>
+          )}
           <div className="rounded-lg border border-border p-3 text-sm">
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-muted-foreground">Total a cobrar</span>
@@ -253,7 +296,7 @@ export default function OrderCollectModal({
           <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>
             Cancelar
           </Button>
-          <Button type="submit" isLoading={isPending}>
+          <Button type="submit" isLoading={isPending} disabled={!chargeableRegister || isStaleCashRegister}>
             Registrar pago
           </Button>
         </ModalFooter>

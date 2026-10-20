@@ -88,4 +88,31 @@ describe("apiFetch", () => {
     expect(assign).not.toHaveBeenCalled();
     expect(dispatch).toHaveBeenCalled();
   });
+
+  it("muestra el mensaje real del API sin prefijo notes: ni Error 500", async () => {
+    window.localStorage.setItem("frig.token", "tok-1");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(JSON.stringify({ notes: ["Este campo no puede ser nulo."] }), {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+    const { apiFetch, formatErrorDetail } = await import("./client");
+    await expect(apiFetch("/sales/orders/1/pay/")).rejects.toMatchObject({
+      status: 400,
+      message: "Este campo no puede ser nulo.",
+    });
+    expect(formatErrorDetail({ error: "Error procesando el pago: Falta referencia." })).toBe(
+      "Falta referencia.",
+    );
+    expect(
+      formatErrorDetail({
+        detail: "Debes abrir la caja antes de cobrar",
+        code: "cash_register_closed",
+      }),
+    ).toBe("Debes abrir la caja antes de cobrar");
+  });
 });

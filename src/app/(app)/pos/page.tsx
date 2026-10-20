@@ -35,6 +35,7 @@ import {
   getCurrentCashRegister,
   getDailySummary,
   openCashRegister,
+  stationScopedOpenRegister,
 } from "@/lib/api/cash-register";
 import {
   fetchCashRegisterStations,
@@ -169,7 +170,7 @@ export default function PosZenPage() {
       const isLoading =
         cashRegisters[idx]?.isLoading || dailySummaries[idx]?.isLoading;
       map.set(station.id, {
-        isOpen: register?.status === "OPEN",
+        isOpen: Boolean(stationScopedOpenRegister(register, station.id)),
         totalSales: summary?.total_sales ?? 0,
         cashSales: summary?.cash_sales ?? 0,
         totalOrders: summary?.total_orders ?? 0,
@@ -215,8 +216,11 @@ export default function PosZenPage() {
     const win = isStandalonePwa() ? null : window.open("", "_blank");
 
     try {
-      const register = await getCurrentCashRegister(station.id);
-      if (register?.status === "OPEN") {
+      const register = stationScopedOpenRegister(
+        await getCurrentCashRegister(station.id),
+        station.id,
+      );
+      if (register) {
         queryClient.setQueryData(
           ["cash-register", "current", station.id],
           register,

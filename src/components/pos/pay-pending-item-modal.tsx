@@ -27,6 +27,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ModalBody, ModalFooter } from "@/components/ui/modal";
 import { fetchOrders, fetchOrder, payOrder, deliverOrder } from "@/lib/api/orders";
+import {
+  buildPayOrderPayload,
+  cashRegisterChargeLabel,
+  CASH_REGISTER_CLOSED_MESSAGE,
+  CASH_REGISTER_STALE_MESSAGE,
+} from "@/lib/api/order-pay";
 import { fetchPurchaseOrders, payPurchaseOrder, type PurchaseOrderList } from "@/lib/api/suppliers";
 import { searchCustomers } from "@/lib/api/customers";
 import { fetchQuotations, convertQuotationToOrder } from "@/lib/api/quotations";
@@ -273,6 +279,9 @@ interface PayPendingItemModalProps {
   type: POSQuickActionType;
   onClose: () => void;
   cashRegisterId: number | string | null;
+  cashRegisterName?: string | null;
+  cashRegisterStale?: boolean;
+  cashRegisterStaleMessage?: string | null;
   paymentMethods: PaymentMethod[];
   onContinueOrder?: (order: Order) => void;
   onCancelOrder?: (order: Order) => void;
@@ -307,6 +316,9 @@ export default function PayPendingItemModal({
   type,
   onClose,
   cashRegisterId,
+  cashRegisterName,
+  cashRegisterStale = false,
+  cashRegisterStaleMessage,
   paymentMethods,
   onContinueOrder,
   onCancelOrder,
@@ -318,6 +330,12 @@ export default function PayPendingItemModal({
   const [selectedClient, setSelectedClient] = useState<Customer | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [viewDetailId, setViewDetailId] = useState<string | null>(null);
+  const chargeableRegisterId = cashRegisterStale ? null : cashRegisterId;
+  const staleMessage = cashRegisterStaleMessage || CASH_REGISTER_STALE_MESSAGE;
+  const chargeLabel = cashRegisterChargeLabel({
+    id: chargeableRegisterId ?? undefined,
+    station_name: cashRegisterName,
+  });
   const activeMethods = useMemo(
     () => paymentMethods.filter((m) => m.is_active && m.is_pos_enabled !== false),
     [paymentMethods],
@@ -481,7 +499,7 @@ export default function PayPendingItemModal({
       return payPurchaseOrder(String(po.id), {
         amount: toDecimal(payAmount),
         payment_method_id: payMethodId,
-        cash_register_id: cashRegisterId,
+        cash_register_id: chargeableRegisterId,
         notes: `Pago ${po.order_number}`,
       });
     },
@@ -605,7 +623,11 @@ export default function PayPendingItemModal({
       toast.error("Selecciona un método de pago");
       return;
     }
-    if (!cashRegisterId) {
+    if (cashRegisterStale) {
+      toast.error(staleMessage);
+      return;
+    }
+    if (!chargeableRegisterId) {
       toast.error("No hay caja abierta");
       return;
     }
@@ -616,12 +638,16 @@ export default function PayPendingItemModal({
       const remaining = toNum(o.total_amount) - toNum(o.paid_amount);
       if (remaining <= 0) continue;
       try {
-        await payOrder(o.id, {
-          payment_method_id: paymentMethodId,
-          amount: toDecimal(remaining.toString()),
-          cash_register_id: cashRegisterId,
-          notes: notes || `Pago ${o.order_number ?? o.id.slice(0, 8)}`,
-        });
+        await payOrder(
+          o.id,
+          buildPayOrderPayload({
+            payment_method_id: paymentMethodId,
+            amount: toDecimal(remaining.toString()),
+            cash_register_id: chargeableRegisterId,
+            notes: notes || `Pago ${o.order_number ?? o.id.slice(0, 8)}`,
+            reference: "",
+          }),
+        );
         success++;
       } catch {
         failed++;
@@ -739,7 +765,10 @@ export default function PayPendingItemModal({
                       className="h-8 flex-1 text-xs"
                     />
                   </div>
-                  {!cashRegisterId && (
+                  {cashRegisterStale && (
+                    <p className="text-xs text-amber-600">{staleMessage}</p>
+                  )}
+                  {!chargeableRegisterId && !cashRegisterStale && (
                     <p className="text-xs text-amber-600">
                       No hay caja abierta: el pago queda registrado sin egreso en caja.
                     </p>
@@ -757,7 +786,7 @@ export default function PayPendingItemModal({
                       size="sm"
                       onClick={() => paySupplierOrder.mutate(po)}
                       isLoading={paySupplierOrder.isPending}
-                      disabled={!payAmount || !payMethodId}
+                      disabled={!payAmount || !payMethodId || cashRegisterStale}
                       className="h-7 text-xs"
                     >
                       Confirmar pago
@@ -1387,6 +1416,34 @@ export default function PayPendingItemModal({
     >
       <ModalBody>
         <div className="flex flex-col gap-4">
+          {cashRegisterStale && (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-800">
+              <p className="font-medium">{staleMessage}</p>
+              <a
+                href="/cash-register"
+                className="mt-1 inline-block text-xs font-medium underline underline-offset-2"
+              >
+                Ir a caja
+              </a>
+            </div>
+          )}
+          {!chargeableRegisterId && !cashRegisterStale && (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-800">
+              <p className="font-medium">{CASH_REGISTER_CLOSED_MESSAGE}</p>
+              <a
+                href="/cash-register"
+                className="mt-1 inline-block text-xs font-medium underline underline-offset-2"
+              >
+                Abrir caja
+              </a>
+            </div>
+          )}
+          {chargeableRegisterId && chargeLabel && (
+              <p className="text-xs text-muted-foreground">
+                Se cobrará en{" "}
+                <span className="font-medium text-foreground">{chargeLabel}</span>
+              </p>
+            )}
           {isCollect && (
             <div className="flex flex-col gap-2">
               <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
