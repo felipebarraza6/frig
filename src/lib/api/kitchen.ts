@@ -62,3 +62,7 @@ export async function deliverKitchenTicket(id: number): Promise<KitchenTicket> {
 export async function cancelKitchenTicket(id: number): Promise<KitchenTicket> {
   return apiFetch<KitchenTicket>(`/sales/kitchen-tickets/${id}/cancel/`, { method: "POST" });
 }
+
+export async function revertKitchenTicket(id: number): Promise<KitchenTicket> {
+  return apiFetch<KitchenTicket>(`/sales/kitchen-tickets/${id}/revert/`, { method: "POST" });
+}

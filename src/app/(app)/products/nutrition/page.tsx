@@ -34,6 +34,7 @@ import {
   downloadRecipeNutritionLabelPdf,
   previewRecipeNutritionLabel,
   isNutritionIncomplete,
+  nutritionCalculateToastMessage,
   missingIngredientsFromError,
   normalizeMissingIngredients,
   missingDetailLabel,
@@ -498,7 +499,8 @@ function NutritionLabelStudio({
           details: missingIngredientsFromError(err),
         });
       }
-      toast.error(err.message);
+      const toastMessage = nutritionCalculateToastMessage(err);
+      if (toastMessage) toast.error(toastMessage);
     },
   });
 

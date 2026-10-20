@@ -72,6 +72,7 @@ describe("409 nutrition_incomplete", () => {
       missingDetailFields,
       missingDetailProductId,
       nutritionFieldLabel,
+      nutritionCalculateToastMessage,
     } = await import("./nutrition-label");
 
     const err = new ApiError(409, "Nutrición incompleta", {
@@ -93,6 +94,7 @@ describe("409 nutrition_incomplete", () => {
     });
 
     expect(isNutritionIncomplete(err)).toBe(true);
+    expect(nutritionCalculateToastMessage(err)).toBeNull();
     const rows = missingIngredientsFromError(err);
     expect(rows).toHaveLength(2);
     expect(missingDetailLabel(rows[0]!)).toBe("Leche entera");

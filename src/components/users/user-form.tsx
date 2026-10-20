@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { isValidRUT } from "@/lib/validation";
+import { formatRUT, isValidRUT } from "@/lib/validation";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
@@ -125,7 +125,7 @@ export function UserForm({ user, onClose, onSuccess }: UserFormProps) {
   });
 
   const update = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (normalizedDni: string) => {
       if (!user) throw new Error("No hay usuario para editar");
       const payload: {
         first_name?: string;
@@ -137,7 +137,7 @@ export function UserForm({ user, onClose, onSuccess }: UserFormProps) {
         first_name: firstName,
         last_name: lastName,
         email,
-        dni,
+        dni: normalizedDni,
       };
       if (password) payload.password = password;
       await updateUser(Number(user.id), payload);
@@ -154,13 +154,16 @@ export function UserForm({ user, onClose, onSuccess }: UserFormProps) {
     e.preventDefault();
     setError(null);
 
-    if (dni && !isValidRUT(dni)) {
+    const normalizedDni = dni.trim() ? formatRUT(dni.trim()) : dni;
+    if (normalizedDni !== dni) setDni(normalizedDni);
+
+    if (normalizedDni && !isValidRUT(normalizedDni)) {
       setError("El RUT ingresado no es válido.");
       return;
     }
 
     if (isEditing) {
-      update.mutate();
+      update.mutate(normalizedDni);
       return;
     }
 
@@ -173,7 +176,7 @@ export function UserForm({ user, onClose, onSuccess }: UserFormProps) {
         email,
         first_name: firstName,
         last_name: lastName,
-        dni,
+        dni: normalizedDni,
         password,
         is_multi_branch: canGrantMultiBranch ? isMultiBranch : false,
       },
@@ -258,7 +261,10 @@ export function UserForm({ user, onClose, onSuccess }: UserFormProps) {
                   id="dni"
                   value={dni}
                   onChange={(e) => setDni(e.target.value)}
-                  placeholder="12.345.678-9"
+                  onBlur={() => {
+                    if (dni.trim()) setDni(formatRUT(dni.trim()));
+                  }}
+                  placeholder="12.345.678-5"
                   required
                 />
               </div>

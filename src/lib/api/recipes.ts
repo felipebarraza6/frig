@@ -170,6 +170,7 @@ export {
   downloadRecipeNutritionLabelPdf,
   previewRecipeNutritionLabel,
   isNutritionIncomplete,
+  nutritionCalculateToastMessage,
   isNutritionLabelNotReady,
   missingIngredientsFromError,
   nutritionMissingDetailsFromError,
