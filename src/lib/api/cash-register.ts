@@ -2,7 +2,12 @@ import { apiFetch, apiFile, type ApiFileResult } from "./client";
 import type { YggdraSchemas } from "@/lib/api/types";
 import type { Paginated } from "@/lib/types";
 
-export type CashRegister = YggdraSchemas["CashRegister"];
+export type CashRegister = YggdraSchemas["CashRegister"] & {
+  stale?: boolean;
+  blocking?: boolean;
+  code?: string;
+  detail?: string;
+};
 export type CashRegisterOpenRequest = YggdraSchemas["CashRegisterOpenRequest"];
 export type CashRegisterCloseRequest = YggdraSchemas["CashRegisterCloseRequest"];
 export type CashRegisterSummary = YggdraSchemas["CashRegisterSummary"] & {

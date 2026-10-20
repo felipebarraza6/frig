@@ -3,7 +3,10 @@ import {
   buildPayOrderPayload,
   canConfirmOrderPay,
   cashRegisterChargeLabel,
+  cashRegisterStaleMessage,
+  isBlockingStaleCashRegister,
   normalizePayText,
+  usableOpenCashRegister,
 } from "./order-pay";
 
 describe("buildPayOrderPayload", () => {
@@ -99,6 +102,18 @@ describe("canConfirmOrderPay", () => {
     ).toBe(true);
   });
 
+  it("bloquea el cobro si la caja es stale", () => {
+    expect(
+      canConfirmOrderPay({
+        amount: 1000,
+        remaining: 1000,
+        methodId: "pm-1",
+        hasOpenCashRegister: true,
+        isStaleCashRegister: true,
+      }),
+    ).toBe(false);
+  });
+
   it("exige referencia cuando el método lo pide", () => {
     expect(
       canConfirmOrderPay({
@@ -120,6 +135,33 @@ describe("canConfirmOrderPay", () => {
         hasOpenCashRegister: true,
       }),
     ).toBe(true);
+  });
+});
+
+describe("isBlockingStaleCashRegister", () => {
+  it("detecta blocking, code stale o stale", () => {
+    expect(isBlockingStaleCashRegister({ id: 1, blocking: true })).toBe(true);
+    expect(isBlockingStaleCashRegister({ id: 1, code: "cash_register_stale" })).toBe(true);
+    expect(isBlockingStaleCashRegister({ id: 1, stale: true })).toBe(true);
+    expect(isBlockingStaleCashRegister({ id: 1, stale: false })).toBe(false);
+  });
+});
+
+describe("usableOpenCashRegister", () => {
+  it("no usa una caja stale para cobrar", () => {
+    expect(usableOpenCashRegister({ id: 9, status: "OPEN", stale: true, blocking: true })).toBeNull();
+    expect(usableOpenCashRegister({ id: 9, status: "OPEN", stale: false })?.id).toBe(9);
+  });
+});
+
+describe("cashRegisterStaleMessage", () => {
+  it("usa detail del API o arma el aviso con el nombre", () => {
+    expect(
+      cashRegisterStaleMessage({
+        detail: "Hay una caja abierta de un día anterior (Caja Principal). Ciérrala y abre la de hoy antes de cobrar",
+      }),
+    ).toContain("Caja Principal");
+    expect(cashRegisterStaleMessage({ station_name: "Caja 2" })).toContain("Caja 2");
   });
 });
 

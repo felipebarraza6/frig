@@ -12064,7 +12064,7 @@ export interface paths {
         };
         /**
          * Obtener caja actual
-         * @description Caja OPEN que usaría pay() si se omite cash_register_id. Regla: 1) OPEN de la estación (station_id o asignada al usuario); 2) OPEN PRINCIPAL; 3) si hay varias OPEN sin principal, la más reciente; 4) ninguna → 404. station_id es opcional. Una fecha explícita distinta de hoy sigue filtrando por estación+fecha.
+         * @description Caja OPEN de hoy que usaría pay() si se omite cash_register_id. Regla: 1) OPEN de hoy de la estación (station_id o asignada al usuario); 2) OPEN PRINCIPAL de hoy; 3) si hay varias OPEN de hoy sin principal, la más reciente. Nunca elige una caja de un día anterior. Si solo hay OPEN antiguas, responde 200 con esa caja, stale=true, blocking=true y code=cash_register_stale. Sin ninguna OPEN → 404. station_id es opcional. Una fecha explícita distinta de hoy sigue filtrando por estación+fecha (stale=true, blocking=false).
          */
         get: operations["finance_cash_registers_current_retrieve"];
         put?: never;
@@ -23043,7 +23043,7 @@ export interface paths {
         put?: never;
         /**
          * Registrar pago de orden
-         * @description Cobra un monto (parcial o total) sobre el saldo pendiente de la orden. Solo el dueño de la cuenta, OWNER/ADMIN_LOCAL o ADM/super pueden pagar. Si se omite cash_register_id, se asigna la misma caja OPEN que GET /finance/cash-registers/current/ (estación del usuario, si no PRINCIPAL, si no la OPEN más reciente). Sin caja abierta el cobro se rechaza (400 cash_register_closed). Errores de validación (referencia, stock, FinanceValidationError) responden 400.
+         * @description Cobra un monto (parcial o total) sobre el saldo pendiente de la orden. Solo el dueño de la cuenta, OWNER/ADMIN_LOCAL o ADM/super pueden pagar. Si se omite cash_register_id, se asigna la misma caja OPEN de hoy que GET /finance/cash-registers/current/ (estación del usuario, si no PRINCIPAL, si no la OPEN de hoy más reciente). Nunca se elige una caja de un día anterior. Sin caja abierta el cobro se rechaza (400 cash_register_closed). Si solo hay cajas abiertas de días anteriores, 400 cash_register_stale. Un cash_register_id explícito de una caja antigua también es 400 stale. Errores de validación (referencia, stock, FinanceValidationError) responden 400.
          */
         post: operations["sales_orders_pay_create"];
         delete?: never;
@@ -50146,7 +50146,7 @@ export interface components {
              * @description Monto a cobrar (parcial o total del saldo pendiente).
              */
             amount: number;
-            /** @description Sesión de caja OPEN de la sucursal. Si se omite, se elige con la misma regla que GET /finance/cash-registers/current/ (estación del usuario, PRINCIPAL, o la OPEN más reciente). Si se envía, debe estar OPEN y ser de la sucursal. Sin caja abierta el cobro se rechaza con 400 code=cash_register_closed. */
+            /** @description Sesión de caja OPEN de hoy de la sucursal. Si se omite, se elige con la misma regla que GET /finance/cash-registers/current/ (estación del usuario, PRINCIPAL, o la OPEN de hoy más reciente). Nunca se elige una caja de un día anterior. Si se envía, debe estar OPEN, ser de la sucursal y ser de hoy; una caja antigua responde 400 code=cash_register_stale. Sin caja abierta el cobro se rechaza con 400 code=cash_register_closed. */
             cash_register_id?: number | null;
             /**
              * @description Notas opcionales del pago. null se normaliza a cadena vacía.

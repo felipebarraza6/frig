@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import type { POSQuickActionType } from "@/lib/api/branches";
 import { fetchPaymentMethods, type YggdraPaymentMethod } from "@/lib/api/payments";
 import { getCurrentCashRegister } from "@/lib/api/cash-register";
+import { cashRegisterStaleMessage, isBlockingStaleCashRegister } from "@/lib/api/order-pay";
 import { fetchOrders } from "@/lib/api/orders";
 import { cn } from "@/lib/utils";
 import type { YggdraSchemas } from "@/lib/api/types";
@@ -221,6 +222,8 @@ export default function PosQuickActions({
             onClose={() => setActiveType(null)}
             cashRegisterId={cashRegister?.id ?? null}
             cashRegisterName={cashRegister?.station_name ?? cashRegister?.station_code ?? null}
+            cashRegisterStale={isBlockingStaleCashRegister(cashRegister)}
+            cashRegisterStaleMessage={cashRegisterStaleMessage(cashRegister)}
             paymentMethods={posPaymentMethods as PaymentMethodItem[]}
             onContinueOrder={onContinueOrder}
             onCancelOrder={onCancelOrder}
@@ -269,6 +272,8 @@ export default function PosQuickActions({
           onClose={() => setActiveType(null)}
           cashRegisterId={cashRegister?.id ?? null}
           cashRegisterName={cashRegister?.station_name ?? cashRegister?.station_code ?? null}
+          cashRegisterStale={isBlockingStaleCashRegister(cashRegister)}
+          cashRegisterStaleMessage={cashRegisterStaleMessage(cashRegister)}
           paymentMethods={posPaymentMethods as PaymentMethodItem[]}
           onContinueOrder={onContinueOrder}
           onCancelOrder={onCancelOrder}

@@ -43,7 +43,12 @@ import { createOrder, editOrder, fetchOrder, cartToOrderItems, type EditOrderIte
 import { fetchPaymentMethods, createPayment } from "@/lib/api/payments";
 import { searchCustomers, createCustomer, type CustomerPayload } from "@/lib/api/customers";
 import { getCurrentCashRegister } from "@/lib/api/cash-register";
-import { cashRegisterChargeLabel } from "@/lib/api/order-pay";
+import {
+  cashRegisterChargeLabel,
+  cashRegisterStaleMessage,
+  isBlockingStaleCashRegister,
+  usableOpenCashRegister,
+} from "@/lib/api/order-pay";
 import { fetchBranchFinanceConfigByBranch } from "@/lib/api/branch-finance-config";
 import { occupyTable, freeTable } from "@/lib/api/tables";
 import { useCurrentBranch, useIsWaiter } from "@/lib/store/session";
@@ -455,7 +460,10 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
   );
   const change = cashReceivedTotal > cashPaidTotal ? cashReceivedTotal - cashPaidTotal : 0;
 
-  const cashRegisterMissing = payments.length > 0 && !currentCashRegister;
+  const isStaleCashRegister = isBlockingStaleCashRegister(currentCashRegister);
+  const chargeableRegister = usableOpenCashRegister(currentCashRegister);
+  const cashRegisterMissing = payments.length > 0 && !chargeableRegister;
+  const staleMessage = cashRegisterStaleMessage(currentCashRegister);
 
   const posPaymentMethods = useMemo(
     () => paymentMethods?.filter((m) => m.is_active && m.is_pos_enabled !== false) ?? [],
@@ -552,7 +560,11 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
   }
 
   async function processExistingOrderPayments(orderId: string) {
-    if (!currentCashRegister) {
+    if (isStaleCashRegister) {
+      toast.error(staleMessage);
+      return;
+    }
+    if (!chargeableRegister) {
       toast.error("Debes abrir una caja antes de cobrar.");
       return;
     }
@@ -573,7 +585,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
           order_id: orderId,
           amount: Number(Number(payment.amount).toFixed(2)),
           status: "COMPLETED",
-          cash_register_id: currentCashRegister.id,
+          cash_register_id: chargeableRegister.id,
           skip_cash_register_validation: false,
         });
       }
@@ -701,7 +713,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
             order_id: order.id,
             amount: Number(Number(payment.amount).toFixed(2)),
             status: "COMPLETED",
-            cash_register_id: currentCashRegister ? currentCashRegister.id : null,
+            cash_register_id: chargeableRegister ? chargeableRegister.id : null,
             skip_cash_register_validation: false,
           });
         }
@@ -836,6 +848,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
     : items.length > 0 &&
       !saving &&
       !cashRegisterMissing &&
+      !isStaleCashRegister &&
       (payments.length === 0 || paidAmount >= total) &&
       (!willBeOrder || selectedClient != null);
 
@@ -1612,16 +1625,25 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
       </div>
 
       <div className="flex shrink-0 flex-col gap-2 border-t border-border/60 bg-background p-4">
-        {((!existingOrderId && cashRegisterMissing) || (canPayExistingOrder && !currentCashRegister)) && (
+        {isStaleCashRegister && (
+          <div className="rounded-lg bg-amber-500/10 px-3 py-1.5 text-xs text-amber-700">
+            <p>{staleMessage}</p>
+            <a href="/cash-register" className="mt-1 inline-block font-medium underline underline-offset-2">
+              Ir a caja
+            </a>
+          </div>
+        )}
+        {((!existingOrderId && cashRegisterMissing) || (canPayExistingOrder && !chargeableRegister)) &&
+          !isStaleCashRegister && (
           <p className="rounded-lg bg-amber-500/10 px-3 py-1.5 text-xs text-amber-700">
             Debes abrir una caja antes de cobrar.
           </p>
         )}
-        {currentCashRegister && cashRegisterChargeLabel(currentCashRegister) && (
+        {chargeableRegister && cashRegisterChargeLabel(chargeableRegister) && (
           <p className="text-xs text-muted-foreground">
             Se cobrará en{" "}
             <span className="font-medium text-foreground">
-              {cashRegisterChargeLabel(currentCashRegister)}
+              {cashRegisterChargeLabel(chargeableRegister)}
             </span>
           </p>
         )}
@@ -1677,7 +1699,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
             {payments.length > 0 ? (
               <Button
                 size="lg"
-                disabled={saving}
+                disabled={saving || isStaleCashRegister || (payments.length > 0 && !chargeableRegister)}
                 isLoading={saving}
                 onClick={() => handleSaveExistingOrder(true)}
                 className="h-12 text-sm font-semibold"

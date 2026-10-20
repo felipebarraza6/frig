@@ -16,6 +16,9 @@ import {
   buildPayOrderPayload,
   canConfirmOrderPay,
   cashRegisterChargeLabel,
+  cashRegisterStaleMessage,
+  isBlockingStaleCashRegister,
+  usableOpenCashRegister,
   CASH_REGISTER_CLOSED_MESSAGE,
 } from "@/lib/api/order-pay";
 import { useCurrentBranchStation } from "@/lib/store/session";
@@ -59,8 +62,11 @@ export function OrderPayModal({
     staleTime: 15_000,
     enabled: open,
   });
-  const hasOpenCashRegister = Boolean(currentCashRegister?.id);
-  const chargeLabel = cashRegisterChargeLabel(currentCashRegister);
+  const isStaleCashRegister = isBlockingStaleCashRegister(currentCashRegister);
+  const chargeableRegister = usableOpenCashRegister(currentCashRegister);
+  const hasOpenCashRegister = Boolean(chargeableRegister?.id);
+  const chargeLabel = cashRegisterChargeLabel(chargeableRegister);
+  const staleMessage = cashRegisterStaleMessage(currentCashRegister);
 
   const activeMethods = useMemo(() => methods.filter((m) => m.is_active !== false), [methods]);
 
@@ -93,6 +99,7 @@ export function OrderPayModal({
     requiresReference: Boolean(selected?.requires_reference),
     reference,
     hasOpenCashRegister,
+    isStaleCashRegister,
   });
 
   const pay = useMutation({
@@ -104,7 +111,7 @@ export function OrderPayModal({
           amount: amountNum.toFixed(2),
           reference,
           notes,
-          cash_register_id: currentCashRegister?.id ?? null,
+          cash_register_id: chargeableRegister?.id ?? null,
         }),
       ),
     onSuccess: () => {
@@ -126,7 +133,18 @@ export function OrderPayModal({
       containerClassName="z-[80]"
     >
       <ModalBody className="flex flex-col gap-4">
-        {!loadingCashRegister && !hasOpenCashRegister && (
+        {!loadingCashRegister && isStaleCashRegister && (
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-800">
+            <p className="font-medium">{staleMessage}</p>
+            <Link
+              href="/cash-register"
+              className="mt-1 inline-block text-xs font-medium underline underline-offset-2"
+            >
+              Ir a caja
+            </Link>
+          </div>
+        )}
+        {!loadingCashRegister && !hasOpenCashRegister && !isStaleCashRegister && (
           <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-800">
             <p className="font-medium">{CASH_REGISTER_CLOSED_MESSAGE}</p>
             <Link
