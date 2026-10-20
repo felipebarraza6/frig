@@ -22425,6 +22425,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sales/kitchen-tickets/{id}/revert/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retroceder un estado
+         * @description Retrocede un paso: Entregado → Listo → En preparación → Pendiente.
+         */
+        post: operations["sales_kitchen_tickets_revert_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sales/kitchen-tickets/{id}/start/": {
         parameters: {
             query?: never;
@@ -64974,10 +64994,6 @@ export interface components {
              */
             email?: string;
             password?: string;
-            /**
-             * RUT
-             * @description Formato: 12.345.678-9
-             */
             dni?: string;
             /**
              * Producto Asignado
@@ -65006,10 +65022,6 @@ export interface components {
              * @description Requerido. 150 carácteres como máximo. Únicamente letras, dígitos y @/./+/-/_
              */
             username?: string;
-            /**
-             * RUT
-             * @description Formato: 12.345.678-9
-             */
             dni?: string;
         };
         /** @description Warehouse Product serializer. */
@@ -77984,10 +77996,6 @@ export interface components {
              * Format: date-time
              */
             readonly last_login: string | null;
-            /**
-             * RUT
-             * @description Formato: 12.345.678-9
-             */
             dni: string;
             /**
              * Tipo de Usuario
@@ -78042,10 +78050,6 @@ export interface components {
              */
             email: string;
             password?: string;
-            /**
-             * RUT
-             * @description Formato: 12.345.678-9
-             */
             dni: string;
             /**
              * Producto Asignado
@@ -78074,10 +78078,6 @@ export interface components {
              * @description Requerido. 150 carácteres como máximo. Únicamente letras, dígitos y @/./+/-/_
              */
             username?: string;
-            /**
-             * RUT
-             * @description Formato: 12.345.678-9
-             */
             dni?: string;
         };
         UserResponse: {
@@ -125075,6 +125075,37 @@ export interface operations {
         };
     };
     sales_kitchen_tickets_ready_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este Comanda. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KitchenTicketRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["KitchenTicketRequest"];
+                "multipart/form-data": components["schemas"]["KitchenTicketRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KitchenTicket"];
+                    "*/*": components["schemas"]["KitchenTicket"];
+                };
+            };
+        };
+    };
+    sales_kitchen_tickets_revert_create: {
         parameters: {
             query?: {
                 format?: "binary" | "json";

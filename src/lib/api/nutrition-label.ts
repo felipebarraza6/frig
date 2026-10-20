@@ -182,6 +182,13 @@ export function isNutritionIncomplete(err: unknown): err is ApiError {
   return incompletePayloadFrom(err) != null;
 }
 
+/** Mensaje de toast para calcular nutrición. Null = solo aviso inline. */
+export function nutritionCalculateToastMessage(err: unknown): string | null {
+  if (isNutritionIncomplete(err)) return null;
+  if (err instanceof Error && err.message) return err.message;
+  return "No se pudo calcular la nutrición";
+}
+
 /** @deprecated Usar `isNutritionIncomplete`. */
 export const isNutritionLabelNotReady = isNutritionIncomplete;
 

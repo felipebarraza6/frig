@@ -114,5 +114,8 @@ describe("apiFetch", () => {
         code: "cash_register_closed",
       }),
     ).toBe("Debes abrir la caja antes de cobrar");
+    expect(
+      formatErrorDetail({ dni: ["Dígito verificador incorrecto"] }),
+    ).toBe("Dígito verificador incorrecto");
   });
 });

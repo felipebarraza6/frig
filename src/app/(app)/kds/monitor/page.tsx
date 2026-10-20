@@ -10,6 +10,8 @@ import { useCurrentBranch } from "@/lib/store/session";
 import { useProductName } from "@/lib/product-name";
 import { branchName } from "@/lib/types";
 import { fetchKitchenTickets, type KitchenTicket } from "@/lib/api/kitchen";
+import { KdsTicketActions } from "@/components/kds/kds-ticket-actions";
+import { useKitchenTicketMutations } from "@/lib/hooks/useKitchenTicketMutations";
 import { fetchKitchenStations } from "@/lib/api/kitchen-stations";
 import {
   kitchenTicketCode,
@@ -81,10 +83,12 @@ function MonitorTicketCard({
   ticket,
   color,
   featured,
+  mutations,
 }: {
   ticket: KitchenTicket;
   color: string;
   featured?: boolean;
+  mutations: ReturnType<typeof useKitchenTicketMutations>;
 }) {
   const meta = kitchenTicketMeta(ticket);
   const live =
@@ -140,6 +144,9 @@ function MonitorTicketCard({
           </li>
         ))}
       </ul>
+      <div className="mt-3">
+        <KdsTicketActions ticket={ticket} mutations={mutations} compact />
+      </div>
     </article>
   );
 }
@@ -168,6 +175,7 @@ function KdsMonitorInner() {
     return Number.isFinite(n) && n > 0 ? n : null;
   }, [searchParams]);
 
+  const ticketMutations = useKitchenTicketMutations();
   const { colors } = useKdsStatusColors(stationId);
   const [now, setNow] = useState(() => new Date());
   const [clockConfig, setClockConfig] = useState<ClockConfig>(DEFAULT_CLOCK);
@@ -411,6 +419,9 @@ function KdsMonitorInner() {
               {currentTicket.notes && (
                 <p className="mt-2 text-sm text-warning">{currentTicket.notes}</p>
               )}
+              <div className="mt-3">
+                <KdsTicketActions ticket={currentTicket} mutations={ticketMutations} />
+              </div>
             </div>
             <ul className="grid gap-1 sm:grid-cols-2 lg:min-w-[20rem]">
               {currentTicket.items.map((item) => (
@@ -465,6 +476,7 @@ function KdsMonitorInner() {
                       ticket={ticket}
                       color={color}
                       featured={currentTicket?.id === ticket.id}
+                      mutations={ticketMutations}
                     />
                   ))
                 )}
