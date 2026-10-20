@@ -37,6 +37,7 @@ import { fetchOrder, fetchOrders } from "@/lib/api/orders";
 import {
   getCurrentCashRegister,
   getLastClosedCashRegister,
+  stationScopedOpenRegister,
 } from "@/lib/api/cash-register";
 import {
   searchProductsForSale,
@@ -1011,7 +1012,7 @@ function CashPanel({ stationId }: { stationId?: number | null }) {
   const lastClosed = useQuery({
     queryKey: ["cash-register", "last-closed", stationId ?? "any"],
     queryFn: () => getLastClosedCashRegister(stationId),
-    enabled: current.data === null,
+    enabled: stationScopedOpenRegister(current.data, stationId) === null,
     staleTime: 60_000,
   });
 
@@ -1024,7 +1025,7 @@ function CashPanel({ stationId }: { stationId?: number | null }) {
     );
   }
 
-  const reg = current.data;
+  const reg = stationScopedOpenRegister(current.data, stationId);
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-3">

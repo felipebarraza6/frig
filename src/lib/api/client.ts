@@ -245,8 +245,13 @@ export async function apiFetch<T>(path: string, opts: ApiOptions = {}): Promise<
   }
 }
 
-function formatErrorDetail(detail: unknown): string {
-  if (typeof detail === "string") return detail;
+const ERROR_MESSAGE_KEYS = new Set(["detail", "non_field_errors", "error"]);
+const UNPREFIXED_ERROR_FIELDS = new Set(["notes", "reference"]);
+
+export function formatErrorDetail(detail: unknown): string {
+  if (typeof detail === "string") {
+    return detail.replace(/^Error procesando el pago:\s*/i, "");
+  }
   if (Array.isArray(detail) && detail.length > 0) {
     const first = detail[0];
     if (typeof first === "string") return first;
@@ -268,7 +273,7 @@ function formatErrorDetail(detail: unknown): string {
       const [field, value] = entry;
       const message = formatErrorDetail(value);
       if (!message) return "";
-      if (field === "detail" || field === "non_field_errors" || field === "error") {
+      if (ERROR_MESSAGE_KEYS.has(field) || UNPREFIXED_ERROR_FIELDS.has(field)) {
         return message;
       }
       return `${field}: ${message}`;

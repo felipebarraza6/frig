@@ -28,7 +28,7 @@ import {
   type TableStatus,
 } from "@/lib/api/tables";
 import { mediaUrl } from "@/lib/api/client";
-import { useCurrentBranch, useSessionStore } from "@/lib/store/session";
+import { useCurrentBranch, useCurrentBranchStation, useSessionStore } from "@/lib/store/session";
 import { branchName } from "@/lib/types";
 import { fetchKitchenTickets } from "@/lib/api/kitchen";
 import { fetchKitchenStations } from "@/lib/api/kitchen-stations";
@@ -236,6 +236,7 @@ export function TablesCanvas({
   const { primary: brandPrimary, isDark } = useSalonTheme();
   const theme = useSessionStore((s) => s.theme);
   const branch = useCurrentBranch();
+  const assignedStation = useCurrentBranchStation();
   const venueName = theme?.app_name || (branch ? branchName(branch) : "Local");
   const logoUrl = mediaUrl(theme?.logo ?? null);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
@@ -437,8 +438,8 @@ export function TablesCanvas({
   });
   const deliveredToday = useDeliveredToday(salonCaps.deliveries);
   const { data: cashRegister } = useQuery({
-    queryKey: ["cash-register", "current"],
-    queryFn: () => getCurrentCashRegister(),
+    queryKey: ["cash-register", "current", assignedStation?.station_id],
+    queryFn: () => getCurrentCashRegister(assignedStation?.station_id),
     refetchInterval: 30_000,
     enabled: salonCaps.cash,
   });
