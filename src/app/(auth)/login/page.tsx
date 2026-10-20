@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSessionStore, normalizeDashboardRoute } from "@/lib/store/session";
 import { loginComplete, forgotPassword, setInitialPassword } from "@/lib/api/auth";
-import { fetchMagicLogin } from "@/lib/api/checkout";
+import { fetchLandingConfig, fetchMagicLogin } from "@/lib/api/checkout";
 import { fetchFrontendConfig } from "@/lib/api/frontend-config";
 import {
   fetchBranchTheme,
@@ -27,7 +27,12 @@ import { LANDING_USE_CASES } from "@/content/landing";
 import type { LandingUseCase } from "@/content/landing";
 import type { LoginCompleteResponse } from "@/lib/types";
 import { rememberLoginSlug } from "@/lib/login-slug";
-import { Clock, KeyRound } from "lucide-react";
+import {
+  findDemoCredentials,
+  type DemoUseCaseCredentials,
+} from "@/lib/demo-login";
+import { useApp } from "@/lib/app-context";
+import { Clock, Copy, KeyRound } from "lucide-react";
 
 
 function getHomeRouteForUser(
@@ -121,6 +126,7 @@ function DimensionExit({
 
 export default function LoginPage() {
   const router = useRouter();
+  const { checkoutGroup } = useApp();
   const setSession = useSessionStore((s) => s.setSession);
   const setOwnedOrganizations = useSessionStore((s) => s.setOwnedOrganizations);
   const setFrontendConfig = useSessionStore((s) => s.setFrontendConfig);
@@ -176,12 +182,41 @@ export default function LoginPage() {
   // (by-host) o según ?branch=<slug>. Sin branding (p. ej. localhost) se
   // mantiene la marca FRIG por defecto.
   const [brandTheme, setBrandTheme] = useState<BranchThemeConfig | null>(null);
-  // Demo activa según ?branch=<slug>: aviso de sesión corta, sin publicar claves.
+  // Demo activa según ?branch=<slug> (catálogo local: nombre/color del banner).
   const [demoCase] = useState<LandingUseCase | null>(() => {
     if (typeof window === "undefined") return null;
     const slug = new URLSearchParams(window.location.search).get("branch");
     return LANDING_USE_CASES.find((u) => u.slug === slug) ?? null;
   });
+  // Credenciales públicas desde landing-config (demo_user / demo_password).
+  // Emparejamos por slug para no mostrar claves de otra demo al cambiar.
+  const demoSlug = demoCase?.slug ?? null;
+  const [demoCredsLoaded, setDemoCredsLoaded] = useState<{
+    slug: string;
+    creds: DemoUseCaseCredentials | null;
+  } | null>(null);
+  const demoCredentials =
+    demoCredsLoaded?.slug === demoSlug ? demoCredsLoaded.creds : null;
+  const demoCredentialsReady = demoCredsLoaded?.slug === demoSlug;
+  const [copied, setCopied] = useState<"user" | "password" | null>(null);
+
+  async function copyCredential(kind: "user" | "password", value: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(kind);
+      setTimeout(() => setCopied(null), 1500);
+    } catch {
+      // clipboard no disponible: el texto igual es seleccionable
+    }
+  }
+
+  function useDemoCredentials() {
+    if (!demoCredentials) return;
+    setEmail(demoCredentials.demoUser);
+    setPassword(demoCredentials.demoPassword);
+    setError(null);
+  }
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -211,6 +246,29 @@ export default function LoginPage() {
       cancelled = true;
     };
   }, []);
+
+  // Credenciales demo: GET /public/landing-config/ (no public-login-theme).
+  useEffect(() => {
+    if (!demoSlug) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const config = await fetchLandingConfig(checkoutGroup);
+        if (cancelled) return;
+        setDemoCredsLoaded({
+          slug: demoSlug,
+          creds: findDemoCredentials(config.content?.use_cases, demoSlug),
+        });
+      } catch {
+        if (!cancelled) {
+          setDemoCredsLoaded({ slug: demoSlug, creds: null });
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [checkoutGroup, demoSlug]);
 
   // Pulso de energía al intentar ingresar: la fogata responde.
   const [pulse, setPulse] = useState(false);
@@ -466,12 +524,65 @@ export default function LoginPage() {
             >
               <p className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
                 <KeyRound className="h-3.5 w-3.5" style={{ color: demoCase.brandColor }} />
-                Demo — {demoCase.name}
+                Acceso demo — {demoCase.name}
               </p>
-              <p className="mt-2 flex items-start gap-1.5 text-xs leading-relaxed text-muted-foreground">
-                <Clock className="mt-0.5 h-3 w-3 shrink-0" />
-                Ingresa con las credenciales que te entregaron. La sesión demo dura 1 hora.
-              </p>
+              {demoCredentials ? (
+                <>
+                  <div className="mt-2 flex flex-col gap-1.5">
+                    {(
+                      [
+                        {
+                          kind: "user" as const,
+                          label: "Usuario",
+                          value: demoCredentials.demoUser,
+                        },
+                        {
+                          kind: "password" as const,
+                          label: "Clave",
+                          value: demoCredentials.demoPassword,
+                        },
+                      ]
+                    ).map((item) => (
+                      <button
+                        key={item.kind}
+                        type="button"
+                        onClick={() => copyCredential(item.kind, item.value)}
+                        title="Clic para copiar"
+                        className="flex cursor-pointer items-center justify-between gap-2 rounded border border-border bg-background/80 px-2 py-1.5 text-left font-sans text-xs transition-colors hover:border-foreground/40"
+                      >
+                        <span className="truncate">
+                          <span className="text-muted-foreground">{item.label}: </span>
+                          <span className="font-medium">{item.value}</span>
+                        </span>
+                        {copied === item.kind ? (
+                          <span className="shrink-0 text-[10px] text-[#c67d52]">¡Copiado!</span>
+                        ) : (
+                          <Copy className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={useDemoCredentials}
+                    className="mt-2 w-full cursor-pointer rounded border border-dashed px-2 py-1.5 text-xs font-medium transition-colors hover:bg-foreground/5"
+                    style={{ borderColor: demoCase.brandColor, color: demoCase.brandColor }}
+                  >
+                    Usar estas credenciales
+                  </button>
+                  <p className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <Clock className="h-3 w-3" />
+                    La sesión demo dura 1 hora. Juega, prueba y revienta el sistema.
+                  </p>
+                </>
+              ) : (
+                <p className="mt-2 flex items-start gap-1.5 text-xs leading-relaxed text-muted-foreground">
+                  <Clock className="mt-0.5 h-3 w-3 shrink-0" />
+                  {demoCredentialsReady
+                    ? "Ingresa con las credenciales que te entregaron. La sesión demo dura 1 hora."
+                    : "Cargando credenciales de la demo… La sesión dura 1 hora."}
+                </p>
+              )}
             </div>
           )}
 
