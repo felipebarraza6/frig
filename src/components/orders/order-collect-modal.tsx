@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { formatCLP, paymentTypeLabel } from "@/lib/utils";
+import { cashRegisterChargeLabel } from "@/lib/api/order-pay";
 import { createPayment } from "@/lib/api/payments";
 import { freeTable } from "@/lib/api/tables";
 import { fetchBranchFinanceConfigByBranch } from "@/lib/api/branch-finance-config";
@@ -60,6 +61,7 @@ export default function OrderCollectModal({
 
   const firstMethod = paymentMethods?.[0];
   const total = Number(order.total_amount ?? 0);
+  const chargeLabel = cashRegisterChargeLabel(currentCashRegister);
 
   const taxRate = useMemo(() => {
     const raw = financeConfig?.default_tax_rate;
@@ -160,6 +162,11 @@ export default function OrderCollectModal({
     >
       <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
         <ModalBody className="flex flex-col gap-4">
+          {chargeLabel && (
+            <p className="text-xs text-muted-foreground">
+              Se cobrará en <span className="font-medium text-foreground">{chargeLabel}</span>
+            </p>
+          )}
           <div className="rounded-lg border border-border p-3 text-sm">
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-muted-foreground">Total a cobrar</span>

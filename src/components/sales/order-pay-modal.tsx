@@ -15,8 +15,10 @@ import { getCurrentCashRegister } from "@/lib/api/cash-register";
 import {
   buildPayOrderPayload,
   canConfirmOrderPay,
+  cashRegisterChargeLabel,
   CASH_REGISTER_CLOSED_MESSAGE,
 } from "@/lib/api/order-pay";
+import { useCurrentBranchStation } from "@/lib/store/session";
 
 function toNum(value: unknown): number {
   const n = typeof value === "number" ? value : Number.parseFloat(String(value ?? "0"));
@@ -49,13 +51,16 @@ export function OrderPayModal({
     enabled: open,
   });
 
+  const assignedStation = useCurrentBranchStation();
+  const stationId = assignedStation?.station_id ?? null;
   const { data: currentCashRegister, isLoading: loadingCashRegister } = useQuery({
-    queryKey: ["cash-register", "current", "order-pay"],
-    queryFn: () => getCurrentCashRegister(),
+    queryKey: ["cash-register", "current", "order-pay", stationId],
+    queryFn: () => getCurrentCashRegister(stationId),
     staleTime: 15_000,
     enabled: open,
   });
   const hasOpenCashRegister = Boolean(currentCashRegister?.id);
+  const chargeLabel = cashRegisterChargeLabel(currentCashRegister);
 
   const activeMethods = useMemo(() => methods.filter((m) => m.is_active !== false), [methods]);
 
@@ -131,6 +136,11 @@ export function OrderPayModal({
               Abrir caja
             </Link>
           </div>
+        )}
+        {hasOpenCashRegister && chargeLabel && (
+          <p className="text-xs text-muted-foreground">
+            Se cobrará en <span className="font-medium text-foreground">{chargeLabel}</span>
+          </p>
         )}
         <div className="rounded-xl border border-border bg-muted/30 px-3 py-2.5 text-sm">
           <div className="flex items-center justify-between">

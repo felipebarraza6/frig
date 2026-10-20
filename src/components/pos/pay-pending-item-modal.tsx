@@ -27,7 +27,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ModalBody, ModalFooter } from "@/components/ui/modal";
 import { fetchOrders, fetchOrder, payOrder, deliverOrder } from "@/lib/api/orders";
-import { buildPayOrderPayload, CASH_REGISTER_CLOSED_MESSAGE } from "@/lib/api/order-pay";
+import {
+  buildPayOrderPayload,
+  cashRegisterChargeLabel,
+  CASH_REGISTER_CLOSED_MESSAGE,
+} from "@/lib/api/order-pay";
 import { fetchPurchaseOrders, payPurchaseOrder, type PurchaseOrderList } from "@/lib/api/suppliers";
 import { searchCustomers } from "@/lib/api/customers";
 import { fetchQuotations, convertQuotationToOrder } from "@/lib/api/quotations";
@@ -274,6 +278,7 @@ interface PayPendingItemModalProps {
   type: POSQuickActionType;
   onClose: () => void;
   cashRegisterId: number | string | null;
+  cashRegisterName?: string | null;
   paymentMethods: PaymentMethod[];
   onContinueOrder?: (order: Order) => void;
   onCancelOrder?: (order: Order) => void;
@@ -308,6 +313,7 @@ export default function PayPendingItemModal({
   type,
   onClose,
   cashRegisterId,
+  cashRegisterName,
   paymentMethods,
   onContinueOrder,
   onCancelOrder,
@@ -319,6 +325,10 @@ export default function PayPendingItemModal({
   const [selectedClient, setSelectedClient] = useState<Customer | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [viewDetailId, setViewDetailId] = useState<string | null>(null);
+  const chargeLabel = cashRegisterChargeLabel({
+    id: cashRegisterId ?? undefined,
+    station_name: cashRegisterName,
+  });
   const activeMethods = useMemo(
     () => paymentMethods.filter((m) => m.is_active && m.is_pos_enabled !== false),
     [paymentMethods],
@@ -1403,6 +1413,12 @@ export default function PayPendingItemModal({
               </a>
             </div>
           )}
+          {cashRegisterId && chargeLabel && (
+              <p className="text-xs text-muted-foreground">
+                Se cobrará en{" "}
+                <span className="font-medium text-foreground">{chargeLabel}</span>
+              </p>
+            )}
           {isCollect && (
             <div className="flex flex-col gap-2">
               <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">

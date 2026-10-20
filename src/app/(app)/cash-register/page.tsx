@@ -41,6 +41,7 @@ import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import { PageHeader } from "@/components/page-header";
 import {
   getCurrentCashRegister,
+  stationScopedOpenRegister,
   getLastClosedCashRegister,
   openCashRegister,
   closeCashRegister,
@@ -200,7 +201,7 @@ export default function CashRegisterPage() {
   }, [stations, activeStationId]);
 
   const {
-    data: cashRegister,
+    data: currentRegister,
     isLoading: loadingRegister,
     isError: registerForbiddenOrError,
     refetch: refetchCurrentRegister,
@@ -212,6 +213,7 @@ export default function CashRegisterPage() {
     refetchInterval: 30_000,
     staleTime: 10_000,
   });
+  const cashRegister = stationScopedOpenRegister(currentRegister, activeStationId);
 
   const { data: lastClosedRegister } = useQuery({
     queryKey: ["cash-register", branch?.branch_id, "last-closed", activeStationId],

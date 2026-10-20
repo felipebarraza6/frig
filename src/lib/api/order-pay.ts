@@ -27,6 +27,18 @@ export function buildPayOrderPayload(input: {
   return payload;
 }
 
+export function cashRegisterChargeLabel(register: {
+  station_name?: string | null;
+  station_code?: string | null;
+  id?: number | string;
+} | null | undefined): string | null {
+  if (!register) return null;
+  const name = String(register.station_name || register.station_code || "").trim();
+  if (name) return name;
+  if (register.id != null && register.id !== "") return `Caja ${register.id}`;
+  return null;
+}
+
 export function canConfirmOrderPay(input: {
   amount: number;
   remaining: number;

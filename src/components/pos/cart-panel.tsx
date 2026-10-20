@@ -43,6 +43,7 @@ import { createOrder, editOrder, fetchOrder, cartToOrderItems, type EditOrderIte
 import { fetchPaymentMethods, createPayment } from "@/lib/api/payments";
 import { searchCustomers, createCustomer, type CustomerPayload } from "@/lib/api/customers";
 import { getCurrentCashRegister } from "@/lib/api/cash-register";
+import { cashRegisterChargeLabel } from "@/lib/api/order-pay";
 import { fetchBranchFinanceConfigByBranch } from "@/lib/api/branch-finance-config";
 import { occupyTable, freeTable } from "@/lib/api/tables";
 import { useCurrentBranch, useIsWaiter } from "@/lib/store/session";
@@ -1614,6 +1615,14 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
         {((!existingOrderId && cashRegisterMissing) || (canPayExistingOrder && !currentCashRegister)) && (
           <p className="rounded-lg bg-amber-500/10 px-3 py-1.5 text-xs text-amber-700">
             Debes abrir una caja antes de cobrar.
+          </p>
+        )}
+        {currentCashRegister && cashRegisterChargeLabel(currentCashRegister) && (
+          <p className="text-xs text-muted-foreground">
+            Se cobrará en{" "}
+            <span className="font-medium text-foreground">
+              {cashRegisterChargeLabel(currentCashRegister)}
+            </span>
           </p>
         )}
         {hasPendingPayment && (

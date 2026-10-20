@@ -220,6 +220,7 @@ export default function PosQuickActions({
             type={activeAction.type}
             onClose={() => setActiveType(null)}
             cashRegisterId={cashRegister?.id ?? null}
+            cashRegisterName={cashRegister?.station_name ?? cashRegister?.station_code ?? null}
             paymentMethods={posPaymentMethods as PaymentMethodItem[]}
             onContinueOrder={onContinueOrder}
             onCancelOrder={onCancelOrder}
@@ -267,6 +268,7 @@ export default function PosQuickActions({
           type={activeAction.type}
           onClose={() => setActiveType(null)}
           cashRegisterId={cashRegister?.id ?? null}
+          cashRegisterName={cashRegister?.station_name ?? cashRegister?.station_code ?? null}
           paymentMethods={posPaymentMethods as PaymentMethodItem[]}
           onContinueOrder={onContinueOrder}
           onCancelOrder={onCancelOrder}

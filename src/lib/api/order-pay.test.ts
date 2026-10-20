@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildPayOrderPayload,
   canConfirmOrderPay,
+  cashRegisterChargeLabel,
   normalizePayText,
 } from "./order-pay";
 
@@ -33,6 +34,45 @@ describe("buildPayOrderPayload", () => {
     });
     expect(body.notes).toBe("hola");
     expect(body).not.toHaveProperty("cash_register_id");
+  });
+
+  it("envía el cash_register_id que devolvió current/", () => {
+    const body = buildPayOrderPayload({
+      payment_method_id: "pm-1",
+      amount: "10.00",
+      cash_register_id: 42,
+    });
+    expect(body.cash_register_id).toBe(42);
+  });
+});
+
+describe("stationScopedOpenRegister", () => {
+  it("rechaza un fallback de otra estación", async () => {
+    const { stationScopedOpenRegister } = await import("./cash-register");
+    expect(
+      stationScopedOpenRegister(
+        { id: 9, status: "OPEN", station: 1 } as never,
+        2,
+      ),
+    ).toBeNull();
+    expect(
+      stationScopedOpenRegister(
+        { id: 9, status: "OPEN", station: 2 } as never,
+        2,
+      )?.id,
+    ).toBe(9);
+  });
+});
+
+describe("cashRegisterChargeLabel", () => {
+  it("usa el nombre de la estación", () => {
+    expect(
+      cashRegisterChargeLabel({ id: 1, station_name: "Caja 2", station_code: "CAJA2" }),
+    ).toBe("Caja 2");
+  });
+
+  it("cae al código si no hay nombre", () => {
+    expect(cashRegisterChargeLabel({ id: 1, station_code: "PRINCIPAL" })).toBe("PRINCIPAL");
   });
 });
 

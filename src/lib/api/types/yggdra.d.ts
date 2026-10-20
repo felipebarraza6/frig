@@ -12064,7 +12064,7 @@ export interface paths {
         };
         /**
          * Obtener caja actual
-         * @description Caja OPEN. Requiere branch_id; station_id o station_code (default PRINCIPAL).
+         * @description Caja OPEN que usaría pay() si se omite cash_register_id. Regla: 1) OPEN de la estación (station_id o asignada al usuario); 2) OPEN PRINCIPAL; 3) si hay varias OPEN sin principal, la más reciente; 4) ninguna → 404. station_id es opcional. Una fecha explícita distinta de hoy sigue filtrando por estación+fecha.
          */
         get: operations["finance_cash_registers_current_retrieve"];
         put?: never;
@@ -14910,6 +14910,331 @@ export interface paths {
         patch: operations["forja_workout_logs_partial_update"];
         trace?: never;
     };
+    "/api/ik/batch/stats/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Endpoint dinamico 'compat-batch-stats' (batch/stats/) */
+        post: operations["ik_batch_stats_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ik/batch/telemetry/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Endpoint dinamico 'compat-batch-telemetry' (batch/telemetry/) */
+        post: operations["ik_batch_telemetry_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ik/compliance/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Endpoint dinamico 'compat-compliance' (compliance/) */
+        get: operations["ik_compliance_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ik/compliance/{point_id}/flow_history/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Endpoint dinamico 'compat-compliance-flow-history' (compliance/<int:point_id>/flow_history/) */
+        get: operations["ik_compliance_flow_history_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ik/compliance/{point_id}/near_limit/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Endpoint dinamico 'compat-compliance-near-limit' (compliance/<int:point_id>/near_limit/) */
+        get: operations["ik_compliance_near_limit_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ik/control_center/system_events/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Endpoint dinamico 'compat-system-events' (control_center/system_events/) */
+        get: operations["ik_control_center_system_events_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ik/control_center/system_events/{point_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Endpoint dinamico 'compat-system-events-point' (control_center/system_events/<int:point_id>/) */
+        get: operations["ik_control_center_system_events_retrieve_2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ik/dashboard_stats/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Endpoint dinamico 'compat-dashboard' (dashboard_stats/) */
+        get: operations["ik_dashboard_stats_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ik/login/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Endpoint dinamico 'compat-login' (login/) */
+        post: operations["ik_login_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ik/my_points/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Endpoint dinamico 'compat-my-points' (my_points/) */
+        get: operations["ik_my_points_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ik/point/{point_id}/calendar/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Endpoint dinamico 'compat-point-calendar' (point/<int:point_id>/calendar/) */
+        get: operations["ik_point_calendar_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ik/point/{point_id}/config/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Endpoint dinamico 'compat-point-config' (point/<int:point_id>/config/) */
+        get: operations["ik_point_config_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** @description Endpoint dinamico 'compat-point-config' (point/<int:point_id>/config/) */
+        patch: operations["ik_point_config_partial_update"];
+        trace?: never;
+    };
+    "/api/ik/point/{point_id}/gaps/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Endpoint dinamico 'compat-point-gaps' (point/<int:point_id>/gaps/) */
+        get: operations["ik_point_gaps_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ik/point/{point_id}/records/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Endpoint dinamico 'compat-point-records' (point/<int:point_id>/records/) */
+        get: operations["ik_point_records_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ik/point/{point_id}/summary/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Endpoint dinamico 'compat-point-summary' (point/<int:point_id>/summary/) */
+        get: operations["ik_point_summary_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ik/point/{point_id}/variables/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Endpoint dinamico 'compat-point-variables' (point/<int:point_id>/variables/) */
+        get: operations["ik_point_variables_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ik/points/{point_id}/config/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Endpoint dinamico 'compat-point-config-plural' (points/<int:point_id>/config/) */
+        get: operations["ik_points_config_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** @description Endpoint dinamico 'compat-point-config-plural' (points/<int:point_id>/config/) */
+        patch: operations["ik_points_config_partial_update"];
+        trace?: never;
+    };
+    "/api/ik/points_summary/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Endpoint dinamico 'compat-points-summary' (points_summary/) */
+        get: operations["ik_points_summary_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ik/system-events/summary/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Endpoint dinamico 'compat-system-events-summary' (system-events/summary/) */
+        get: operations["ik_system_events_summary_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/inventory/beneficiary-discounts/": {
         parameters: {
             query?: never;
@@ -17556,6 +17881,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/iot-telemetry/alert-triggers/summary/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resumen de disparos de alerta
+         * @description Conteos de disparos abiertos/reconocidos por severidad (solo lectura).
+         */
+        get: operations["iot_telemetry_alert_triggers_summary_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/iot-telemetry/compliance-configs/": {
         parameters: {
             query?: never;
@@ -17592,6 +17937,26 @@ export interface paths {
         head?: never;
         /** @description ViewSet para configuracion de cumplimiento. */
         patch: operations["iot_telemetry_compliance_configs_partial_update"];
+        trace?: never;
+    };
+    "/api/iot-telemetry/compliance-configs/status/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Estado de cumplimiento (solo lectura)
+         * @description Estado agregado de cumplimiento. No dispara envíos externos.
+         */
+        get: operations["iot_telemetry_compliance_configs_status_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/iot-telemetry/device-configs/": {
@@ -17670,6 +18035,26 @@ export interface paths {
         patch: operations["iot_telemetry_devices_partial_update"];
         trace?: never;
     };
+    "/api/iot-telemetry/devices/{id}/calendar/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Calendario diario de lecturas del dispositivo
+         * @description Resumen diario de lecturas para un dispositivo.
+         */
+        get: operations["iot_telemetry_devices_calendar_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/iot-telemetry/devices/{id}/status/": {
         parameters: {
             query?: never;
@@ -17721,6 +18106,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/iot-telemetry/devices/overview/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Overview de dispositivos (KPIs)
+         * @description KPIs agregados de la sucursal (solo lectura).
+         */
+        get: operations["iot_telemetry_devices_overview_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/iot-telemetry/events/": {
         parameters: {
             query?: never;
@@ -17757,6 +18162,64 @@ export interface paths {
         head?: never;
         /** @description ViewSet para eventos del sistema IoT. */
         patch: operations["iot_telemetry_events_partial_update"];
+        trace?: never;
+    };
+    "/api/iot-telemetry/events/summary/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resumen de eventos IoT
+         * @description Agregados por severidad/tipo/dispositivo (solo lectura).
+         */
+        get: operations["iot_telemetry_events_summary_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/iot-telemetry/mqtt-brokers/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Gestion de brokers MQTT de telemetria (config dinamica). */
+        get: operations["iot_telemetry_mqtt_brokers_list"];
+        put?: never;
+        /** @description Gestion de brokers MQTT de telemetria (config dinamica). */
+        post: operations["iot_telemetry_mqtt_brokers_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/iot-telemetry/mqtt-brokers/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Gestion de brokers MQTT de telemetria (config dinamica). */
+        get: operations["iot_telemetry_mqtt_brokers_retrieve"];
+        /** @description Gestion de brokers MQTT de telemetria (config dinamica). */
+        put: operations["iot_telemetry_mqtt_brokers_update"];
+        post?: never;
+        /** @description Gestion de brokers MQTT de telemetria (config dinamica). */
+        delete: operations["iot_telemetry_mqtt_brokers_destroy"];
+        options?: never;
+        head?: never;
+        /** @description Gestion de brokers MQTT de telemetria (config dinamica). */
+        patch: operations["iot_telemetry_mqtt_brokers_partial_update"];
         trace?: never;
     };
     "/api/iot-telemetry/projects/": {
@@ -17882,8 +18345,51 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Crear multiples lecturas en una sola llamada. */
+        /**
+         * Crear lecturas en lote
+         * @description Crear multiples lecturas en una sola llamada.
+         */
         post: operations["iot_telemetry_readings_bulk_create_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/iot-telemetry/readings/daily/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Rollup diario de lecturas
+         * @description Agregación diaria multi-dispositivo (solo lectura).
+         */
+        get: operations["iot_telemetry_readings_daily_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/iot-telemetry/readings/latest-batch/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Última lectura por dispositivo (batch)
+         * @description Última lectura de varios dispositivos de la sucursal activa.
+         */
+        post: operations["iot_telemetry_readings_latest_batch_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -17897,7 +18403,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Obtener estadisticas de lecturas. */
+        /**
+         * Estadísticas de lecturas
+         * @description Obtener estadisticas de lecturas.
+         */
         get: operations["iot_telemetry_readings_stats_retrieve"];
         put?: never;
         post?: never;
@@ -18668,6 +19177,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/p90/panel/messages/broadcast/{broadcast_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Borrar envío masivo por broadcast_id (lógico)
+         * @description Admin puede borrar cualquier envío. Nutricionista solo si es autora de todos los avisos y mensajes del broadcast. Envíos legacy sin autor: solo admin. Coach y alumno reciben 403.
+         */
+        delete: operations["p90_panel_messages_broadcast_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/p90/panel/messages/inbox": {
         parameters: {
             query?: never;
@@ -18845,6 +19374,26 @@ export interface paths {
          */
         post: operations["p90_panel_participants_messages_create"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/p90/panel/participants/{client_id}/messages/{message_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Borrar mensaje del hilo (lógico)
+         * @description Admin puede borrar cualquier mensaje. Nutricionista solo los que escribió. Coach y alumno reciben 403.
+         */
+        delete: operations["p90_panel_participants_messages_destroy"];
         options?: never;
         head?: never;
         patch?: never;
@@ -22494,7 +23043,7 @@ export interface paths {
         put?: never;
         /**
          * Registrar pago de orden
-         * @description Cobra un monto (parcial o total) sobre el saldo pendiente de la orden. Solo el dueño de la cuenta, OWNER/ADMIN_LOCAL o ADM/super pueden pagar. Si se omite cash_register_id, se asigna la caja OPEN de la sucursal. Sin caja abierta el cobro se rechaza (400 cash_register_closed). Errores de validación (referencia, stock, FinanceValidationError) responden 400.
+         * @description Cobra un monto (parcial o total) sobre el saldo pendiente de la orden. Solo el dueño de la cuenta, OWNER/ADMIN_LOCAL o ADM/super pueden pagar. Si se omite cash_register_id, se asigna la misma caja OPEN que GET /finance/cash-registers/current/ (estación del usuario, si no PRINCIPAL, si no la OPEN más reciente). Sin caja abierta el cobro se rechaza (400 cash_register_closed). Errores de validación (referencia, stock, FinanceValidationError) responden 400.
          */
         post: operations["sales_orders_pay_create"];
         delete?: never;
@@ -29245,6 +29794,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/water/billing-runs/{id}/void/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description POST: anula una corrida impaga y sin boleta, y libera el período. */
+        post: operations["water_billing_runs_void_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/water/meters/": {
         parameters: {
             query?: never;
@@ -33197,9 +33763,8 @@ export interface components {
              *     * `INSPECTION` - Inspección
              *     * `SHIFT` - Turno
              *     * `OTHER` - Otro
-             * @enum {string}
              */
-            event_type?: "APPOINTMENT" | "MAINTENANCE" | "MEETING" | "DELIVERY" | "TRAINING" | "INSPECTION" | "SHIFT" | "OTHER";
+            event_type?: string;
             readonly event_type_display: string;
             /** Creado por */
             created_by?: number | null;
@@ -33296,9 +33861,8 @@ export interface components {
              *     * `INSPECTION` - Inspección
              *     * `SHIFT` - Turno
              *     * `OTHER` - Otro
-             * @enum {string}
              */
-            event_type?: "APPOINTMENT" | "MAINTENANCE" | "MEETING" | "DELIVERY" | "TRAINING" | "INSPECTION" | "SHIFT" | "OTHER";
+            event_type?: string;
             readonly event_type_display: string;
             /** Título */
             title: string;
@@ -33400,9 +33964,8 @@ export interface components {
              *     * `INSPECTION` - Inspección
              *     * `SHIFT` - Turno
              *     * `OTHER` - Otro
-             * @enum {string}
              */
-            event_type?: "APPOINTMENT" | "MAINTENANCE" | "MEETING" | "DELIVERY" | "TRAINING" | "INSPECTION" | "SHIFT" | "OTHER";
+            event_type?: string;
             /** Creado por */
             created_by?: number | null;
             /**
@@ -48670,6 +49233,75 @@ export interface components {
             /** Activo */
             is_active?: boolean;
         };
+        MqttBrokerConfig: {
+            readonly id: number;
+            /** Nombre */
+            name: string;
+            /**
+             * Host del broker
+             * @description Hostname o IP (sin esquema ni puerto)
+             */
+            host: string;
+            /** Puerto */
+            port?: number;
+            /** Usar TLS */
+            use_tls?: boolean;
+            /** Usuario */
+            username?: string;
+            /** @description Si queda vacio se genera uno automatico */
+            client_id?: string;
+            /**
+             * Template de suscripcion
+             * @description Patron MQTT a suscribir. Placeholders: {branch}, {device_token}. Ej: yggdra/{device_token}/+ o sucursal/{branch}/#
+             */
+            topic_template?: string;
+            readonly subscribe_topic: string;
+            is_active?: boolean;
+            /**
+             * Ultima conexion
+             * Format: date-time
+             */
+            readonly last_connected_at: string | null;
+            /** Ultimo error */
+            readonly last_error: string | null;
+            /**
+             * Created at
+             * Format: date-time
+             * @description Fecha de creacion.
+             */
+            readonly created: string;
+            /**
+             * Modified at
+             * Format: date-time
+             * @description Fecha de modificacion.
+             */
+            readonly modified: string;
+        };
+        MqttBrokerConfigRequest: {
+            /** Nombre */
+            name: string;
+            /**
+             * Host del broker
+             * @description Hostname o IP (sin esquema ni puerto)
+             */
+            host: string;
+            /** Puerto */
+            port?: number;
+            /** Usar TLS */
+            use_tls?: boolean;
+            /** Usuario */
+            username?: string;
+            /** Password (cifrada) */
+            password?: string;
+            /** @description Si queda vacio se genera uno automatico */
+            client_id?: string;
+            /**
+             * Template de suscripcion
+             * @description Patron MQTT a suscribir. Placeholders: {branch}, {device_token}. Ej: yggdra/{device_token}/+ o sucursal/{branch}/#
+             */
+            topic_template?: string;
+            is_active?: boolean;
+        };
         /** @description Serializer para certificados nutricionales. */
         NutritionalCertificate: {
             readonly id: number;
@@ -49514,7 +50146,7 @@ export interface components {
              * @description Monto a cobrar (parcial o total del saldo pendiente).
              */
             amount: number;
-            /** @description Sesión de caja OPEN de la sucursal. Si se omite, se asigna la caja OPEN de la sucursal. Si no hay caja abierta, el cobro se rechaza con 400 code=cash_register_closed. */
+            /** @description Sesión de caja OPEN de la sucursal. Si se omite, se elige con la misma regla que GET /finance/cash-registers/current/ (estación del usuario, PRINCIPAL, o la OPEN más reciente). Si se envía, debe estar OPEN y ser de la sucursal. Sin caja abierta el cobro se rechaza con 400 code=cash_register_closed. */
             cash_register_id?: number | null;
             /**
              * @description Notas opcionales del pago. null se normaliza a cadena vacía.
@@ -52363,6 +52995,21 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["ModuleConfiguration"][];
         };
+        PaginatedMqttBrokerConfigList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["MqttBrokerConfig"][];
+        };
         PaginatedNutritionalCertificateList: {
             /** @example 123 */
             count: number;
@@ -55004,9 +55651,8 @@ export interface components {
              *     * `INSPECTION` - Inspección
              *     * `SHIFT` - Turno
              *     * `OTHER` - Otro
-             * @enum {string}
              */
-            event_type?: "APPOINTMENT" | "MAINTENANCE" | "MEETING" | "DELIVERY" | "TRAINING" | "INSPECTION" | "SHIFT" | "OTHER";
+            event_type?: string;
             /** Creado por */
             created_by?: number | null;
             /**
@@ -60040,6 +60686,31 @@ export interface components {
             /** Activo */
             is_active?: boolean;
         };
+        PatchedMqttBrokerConfigRequest: {
+            /** Nombre */
+            name?: string;
+            /**
+             * Host del broker
+             * @description Hostname o IP (sin esquema ni puerto)
+             */
+            host?: string;
+            /** Puerto */
+            port?: number;
+            /** Usar TLS */
+            use_tls?: boolean;
+            /** Usuario */
+            username?: string;
+            /** Password (cifrada) */
+            password?: string;
+            /** @description Si queda vacio se genera uno automatico */
+            client_id?: string;
+            /**
+             * Template de suscripcion
+             * @description Patron MQTT a suscribir. Placeholders: {branch}, {device_token}. Ej: yggdra/{device_token}/+ o sucursal/{branch}/#
+             */
+            topic_template?: string;
+            is_active?: boolean;
+        };
         /** @description Serializer para certificados nutricionales. */
         PatchedNutritionalCertificateRequest: {
             /**
@@ -61410,6 +62081,31 @@ export interface components {
              */
             grams_per_unit?: number | null;
             /**
+             * Contiene (alérgenos)
+             * @description Códigos RSA art. 107 presentes en el producto. null = sin declarar; [] = declarado sin alérgenos.
+             */
+            contains_allergens?: unknown;
+            /**
+             * Puede contener (alérgenos)
+             * @description Códigos RSA art. 107 por posible contaminación cruzada. null = sin declarar; [] = declarado sin trazas.
+             */
+            may_contain_allergens?: unknown;
+            /**
+             * Azúcares añadidos
+             * @description True si se adicionaron azúcares, miel o jarabes.
+             */
+            has_added_sugars?: boolean;
+            /**
+             * Grasas saturadas añadidas
+             * @description True si se adicionaron grasas saturadas.
+             */
+            has_added_saturated_fats?: boolean;
+            /**
+             * Sodio añadido
+             * @description True si se adicionó sodio (sal u otros).
+             */
+            has_added_sodium?: boolean;
+            /**
              * Estanque Asociado
              * @description Producto contenedor o estanque al que está asociado este residuo o material
              */
@@ -62244,6 +62940,26 @@ export interface components {
              * @description Instrucciones adicionales (ej: Mantener congelado, Refrigerar una vez abierto)
              */
             shelf_life_conditions?: string;
+            /**
+             * Resolución Sanitaria
+             * @description Nº de resolución sanitaria del producto o establecimiento
+             */
+            sanitary_resolution?: string;
+            /**
+             * Porción declarada
+             * Format: double
+             * @description Tamaño de porción declarado en la etiqueta (g o ml)
+             */
+            declared_portion_quantity?: number | null;
+            /**
+             * Unidad de porción declarada
+             * @description g o ml según contenido neto sólido/líquido
+             *
+             *     * `g` - g
+             *     * `ml` - ml
+             * @enum {string}
+             */
+            declared_portion_unit?: "g" | "ml" | "";
         };
         /** @description Serializer para pasos de recetas. */
         PatchedRecipeStepRequest: {
@@ -63467,9 +64183,9 @@ export interface components {
              *     * `API_ERROR` - Error de API externa
              *     * `CONFIG_CHANGE` - Cambio de configuracion
              *     * `FIRMWARE_UPDATE` - Actualizacion de firmware
-             * @enum {string}
+             *     * `ALERT` - Alerta de regla IoT
              */
-            event_type?: "COUNTER_RESET" | "DISCONNECTION" | "RECONNECTION" | "MEASUREMENT_ERROR" | "MASSIVE_JUMP_BLOCKED" | "TOKEN_REFRESH" | "API_ERROR" | "CONFIG_CHANGE" | "FIRMWARE_UPDATE";
+            event_type?: string;
             /** Dispositivo */
             device?: number | null;
             /** Titulo */
@@ -66599,6 +67315,31 @@ export interface components {
              */
             grams_per_unit?: number | null;
             /**
+             * Contiene (alérgenos)
+             * @description Códigos RSA art. 107 presentes en el producto. null = sin declarar; [] = declarado sin alérgenos.
+             */
+            contains_allergens?: unknown;
+            /**
+             * Puede contener (alérgenos)
+             * @description Códigos RSA art. 107 por posible contaminación cruzada. null = sin declarar; [] = declarado sin trazas.
+             */
+            may_contain_allergens?: unknown;
+            /**
+             * Azúcares añadidos
+             * @description True si se adicionaron azúcares, miel o jarabes.
+             */
+            has_added_sugars?: boolean;
+            /**
+             * Grasas saturadas añadidas
+             * @description True si se adicionaron grasas saturadas.
+             */
+            has_added_saturated_fats?: boolean;
+            /**
+             * Sodio añadido
+             * @description True si se adicionó sodio (sal u otros).
+             */
+            has_added_sodium?: boolean;
+            /**
              * Estanque Asociado
              * @description Producto contenedor o estanque al que está asociado este residuo o material
              */
@@ -67316,6 +68057,31 @@ export interface components {
              * @description Peso en gramos de una unidad del producto. Obligatorio cuando la receta usa la unidad 'unidad'.
              */
             grams_per_unit?: number | null;
+            /**
+             * Contiene (alérgenos)
+             * @description Códigos RSA art. 107 presentes en el producto. null = sin declarar; [] = declarado sin alérgenos.
+             */
+            contains_allergens?: unknown;
+            /**
+             * Puede contener (alérgenos)
+             * @description Códigos RSA art. 107 por posible contaminación cruzada. null = sin declarar; [] = declarado sin trazas.
+             */
+            may_contain_allergens?: unknown;
+            /**
+             * Azúcares añadidos
+             * @description True si se adicionaron azúcares, miel o jarabes.
+             */
+            has_added_sugars?: boolean;
+            /**
+             * Grasas saturadas añadidas
+             * @description True si se adicionaron grasas saturadas.
+             */
+            has_added_saturated_fats?: boolean;
+            /**
+             * Sodio añadido
+             * @description True si se adicionó sodio (sal u otros).
+             */
+            has_added_sodium?: boolean;
         };
         /** @description Serializer para vincular productos con grupos de modificadores. */
         ProductModifierGroup: {
@@ -67668,6 +68434,31 @@ export interface components {
              * @description Peso en gramos de una unidad del producto. Obligatorio cuando la receta usa la unidad 'unidad'.
              */
             grams_per_unit?: number | null;
+            /**
+             * Contiene (alérgenos)
+             * @description Códigos RSA art. 107 presentes en el producto. null = sin declarar; [] = declarado sin alérgenos.
+             */
+            contains_allergens?: unknown;
+            /**
+             * Puede contener (alérgenos)
+             * @description Códigos RSA art. 107 por posible contaminación cruzada. null = sin declarar; [] = declarado sin trazas.
+             */
+            may_contain_allergens?: unknown;
+            /**
+             * Azúcares añadidos
+             * @description True si se adicionaron azúcares, miel o jarabes.
+             */
+            has_added_sugars?: boolean;
+            /**
+             * Grasas saturadas añadidas
+             * @description True si se adicionaron grasas saturadas.
+             */
+            has_added_saturated_fats?: boolean;
+            /**
+             * Sodio añadido
+             * @description True si se adicionó sodio (sal u otros).
+             */
+            has_added_sodium?: boolean;
             /**
              * Estanque Asociado
              * @description Producto contenedor o estanque al que está asociado este residuo o material
@@ -70349,6 +71140,26 @@ export interface components {
              */
             shelf_life_conditions?: string;
             /**
+             * Resolución Sanitaria
+             * @description Nº de resolución sanitaria del producto o establecimiento
+             */
+            sanitary_resolution?: string;
+            /**
+             * Porción declarada
+             * Format: double
+             * @description Tamaño de porción declarado en la etiqueta (g o ml)
+             */
+            declared_portion_quantity?: number | null;
+            /**
+             * Unidad de porción declarada
+             * @description g o ml según contenido neto sólido/líquido
+             *
+             *     * `g` - g
+             *     * `ml` - ml
+             * @enum {string}
+             */
+            declared_portion_unit?: "g" | "ml" | "";
+            /**
              * Última Actualización Nutricional
              * Format: date-time
              * @description Fecha y hora del último cálculo nutricional
@@ -70694,6 +71505,26 @@ export interface components {
              * @description Instrucciones adicionales (ej: Mantener congelado, Refrigerar una vez abierto)
              */
             shelf_life_conditions?: string;
+            /**
+             * Resolución Sanitaria
+             * @description Nº de resolución sanitaria del producto o establecimiento
+             */
+            sanitary_resolution?: string;
+            /**
+             * Porción declarada
+             * Format: double
+             * @description Tamaño de porción declarado en la etiqueta (g o ml)
+             */
+            declared_portion_quantity?: number | null;
+            /**
+             * Unidad de porción declarada
+             * @description g o ml según contenido neto sólido/líquido
+             *
+             *     * `g` - g
+             *     * `ml` - ml
+             * @enum {string}
+             */
+            declared_portion_unit?: "g" | "ml" | "";
         };
         /** @description Serializer para pasos de recetas. */
         RecipeStep: {
@@ -71483,6 +72314,25 @@ export interface components {
             module: string;
             warnings?: string[];
             error?: string;
+        };
+        /** @description Ítem de mensajería alumno ↔ staff (incluye autoría y permiso de borrado). */
+        StudentMessageItem: {
+            id: number;
+            author_id: number | null;
+            author_role: string;
+            author_role_label: string;
+            author_name: string;
+            recipient_role?: string | null;
+            body: string;
+            created: string | null;
+            read_at?: string | null;
+            broadcast_id?: string | null;
+            can_delete: boolean;
+        };
+        StudentMessageThread: {
+            thread_id: number;
+            client_id: number;
+            items: components["schemas"]["StudentMessageItem"][];
         };
         /** @description Cuota de un pago de suscripción. */
         SubscriptionInstallment: {
@@ -74543,9 +75393,9 @@ export interface components {
              *     * `API_ERROR` - Error de API externa
              *     * `CONFIG_CHANGE` - Cambio de configuracion
              *     * `FIRMWARE_UPDATE` - Actualizacion de firmware
-             * @enum {string}
+             *     * `ALERT` - Alerta de regla IoT
              */
-            event_type: "COUNTER_RESET" | "DISCONNECTION" | "RECONNECTION" | "MEASUREMENT_ERROR" | "MASSIVE_JUMP_BLOCKED" | "TOKEN_REFRESH" | "API_ERROR" | "CONFIG_CHANGE" | "FIRMWARE_UPDATE";
+            event_type: string;
             readonly event_type_display: string;
             /** Dispositivo */
             device?: number | null;
@@ -74597,9 +75447,9 @@ export interface components {
              *     * `API_ERROR` - Error de API externa
              *     * `CONFIG_CHANGE` - Cambio de configuracion
              *     * `FIRMWARE_UPDATE` - Actualizacion de firmware
-             * @enum {string}
+             *     * `ALERT` - Alerta de regla IoT
              */
-            event_type: "COUNTER_RESET" | "DISCONNECTION" | "RECONNECTION" | "MEASUREMENT_ERROR" | "MASSIVE_JUMP_BLOCKED" | "TOKEN_REFRESH" | "API_ERROR" | "CONFIG_CHANGE" | "FIRMWARE_UPDATE";
+            event_type: string;
             readonly event_type_display: string;
             readonly device_name: string;
             /** Titulo */
@@ -74633,9 +75483,9 @@ export interface components {
              *     * `API_ERROR` - Error de API externa
              *     * `CONFIG_CHANGE` - Cambio de configuracion
              *     * `FIRMWARE_UPDATE` - Actualizacion de firmware
-             * @enum {string}
+             *     * `ALERT` - Alerta de regla IoT
              */
-            event_type: "COUNTER_RESET" | "DISCONNECTION" | "RECONNECTION" | "MEASUREMENT_ERROR" | "MASSIVE_JUMP_BLOCKED" | "TOKEN_REFRESH" | "API_ERROR" | "CONFIG_CHANGE" | "FIRMWARE_UPDATE";
+            event_type: string;
             /** Dispositivo */
             device?: number | null;
             /** Titulo */
@@ -101410,6 +102260,8 @@ export interface operations {
         parameters: {
             query?: {
                 format?: "binary" | "json";
+                /** @description Estación de caja. Si se omite, se usa la asignada al usuario (si existe). */
+                station_id?: number;
             };
             header?: never;
             path?: never;
@@ -107645,6 +108497,450 @@ export interface operations {
                     "application/json": components["schemas"]["ForjaWorkoutLog"];
                     "*/*": components["schemas"]["ForjaWorkoutLog"];
                 };
+            };
+        };
+    };
+    ik_batch_stats_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ik_batch_telemetry_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ik_compliance_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ik_compliance_flow_history_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                point_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ik_compliance_near_limit_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                point_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ik_control_center_system_events_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ik_control_center_system_events_retrieve_2: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                point_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ik_dashboard_stats_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ik_login_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ik_my_points_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ik_point_calendar_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                point_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ik_point_config_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                point_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ik_point_config_partial_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                point_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ik_point_gaps_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                point_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ik_point_records_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                point_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ik_point_summary_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                point_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ik_point_variables_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                point_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ik_points_config_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                point_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ik_points_config_partial_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                point_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ik_points_summary_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ik_system_events_summary_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -113905,6 +115201,32 @@ export interface operations {
             };
         };
     };
+    iot_telemetry_alert_triggers_summary_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                    "*/*": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
     iot_telemetry_compliance_configs_list: {
         parameters: {
             query?: {
@@ -114068,6 +115390,35 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ComplianceConfig"];
                     "*/*": components["schemas"]["ComplianceConfig"];
+                };
+            };
+        };
+    };
+    iot_telemetry_compliance_configs_status_retrieve: {
+        parameters: {
+            query?: {
+                /** @description Si true (default), solo configs con send_dga activo */
+                active_only?: boolean;
+                format?: "binary" | "json";
+                project_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                    "*/*": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };
@@ -114419,6 +115770,39 @@ export interface operations {
             };
         };
     };
+    iot_telemetry_devices_calendar_retrieve: {
+        parameters: {
+            query?: {
+                /** @description Ventana en días (1-31, default 7) */
+                days?: number;
+                /** @description Fecha fin YYYY-MM-DD (default hoy) */
+                end_date?: string;
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este Dispositivo IoT. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                    "*/*": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
     iot_telemetry_devices_status_retrieve: {
         parameters: {
             query?: {
@@ -114497,6 +115881,34 @@ export interface operations {
             };
         };
     };
+    iot_telemetry_devices_overview_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+                /** @description Filtrar por proyecto */
+                project_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                    "*/*": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
     iot_telemetry_events_list: {
         parameters: {
             query?: {
@@ -114513,8 +115925,9 @@ export interface operations {
                  *     * `API_ERROR` - Error de API externa
                  *     * `CONFIG_CHANGE` - Cambio de configuracion
                  *     * `FIRMWARE_UPDATE` - Actualizacion de firmware
+                 *     * `ALERT` - Alerta de regla IoT
                  */
-                event_type?: "API_ERROR" | "CONFIG_CHANGE" | "COUNTER_RESET" | "DISCONNECTION" | "FIRMWARE_UPDATE" | "MASSIVE_JUMP_BLOCKED" | "MEASUREMENT_ERROR" | "RECONNECTION" | "TOKEN_REFRESH";
+                event_type?: "ALERT" | "API_ERROR" | "CONFIG_CHANGE" | "COUNTER_RESET" | "DISCONNECTION" | "FIRMWARE_UPDATE" | "MASSIVE_JUMP_BLOCKED" | "MEASUREMENT_ERROR" | "RECONNECTION" | "TOKEN_REFRESH";
                 /** @description Múltiples valores separados por comas. */
                 event_type__in?: string[];
                 format?: "binary" | "json";
@@ -114686,6 +116099,205 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["TelemetryEvent"];
                     "*/*": components["schemas"]["TelemetryEvent"];
+                };
+            };
+        };
+    };
+    iot_telemetry_events_summary_retrieve: {
+        parameters: {
+            query?: {
+                /** @description Ventana en días (1-90, default 7) */
+                days?: number;
+                device?: string;
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                    "*/*": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    iot_telemetry_mqtt_brokers_list: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+                host?: string;
+                is_active?: boolean;
+                /** @description Qué campo usar para ordenar los resultados. */
+                ordering?: string;
+                /** @description Un número de página dentro del conjunto de resultados paginado. */
+                page?: number;
+                /** @description Número de resultados a devolver por página. */
+                page_size?: number;
+                /** @description Un término de búsqueda. */
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedMqttBrokerConfigList"];
+                    "*/*": components["schemas"]["PaginatedMqttBrokerConfigList"];
+                };
+            };
+        };
+    };
+    iot_telemetry_mqtt_brokers_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MqttBrokerConfigRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["MqttBrokerConfigRequest"];
+                "multipart/form-data": components["schemas"]["MqttBrokerConfigRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MqttBrokerConfig"];
+                    "*/*": components["schemas"]["MqttBrokerConfig"];
+                };
+            };
+        };
+    };
+    iot_telemetry_mqtt_brokers_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este Broker MQTT. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MqttBrokerConfig"];
+                    "*/*": components["schemas"]["MqttBrokerConfig"];
+                };
+            };
+        };
+    };
+    iot_telemetry_mqtt_brokers_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este Broker MQTT. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MqttBrokerConfigRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["MqttBrokerConfigRequest"];
+                "multipart/form-data": components["schemas"]["MqttBrokerConfigRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MqttBrokerConfig"];
+                    "*/*": components["schemas"]["MqttBrokerConfig"];
+                };
+            };
+        };
+    };
+    iot_telemetry_mqtt_brokers_destroy: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este Broker MQTT. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    iot_telemetry_mqtt_brokers_partial_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este Broker MQTT. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedMqttBrokerConfigRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedMqttBrokerConfigRequest"];
+                "multipart/form-data": components["schemas"]["PatchedMqttBrokerConfigRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MqttBrokerConfig"];
+                    "*/*": components["schemas"]["MqttBrokerConfig"];
                 };
             };
         };
@@ -115238,6 +116850,69 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["TelemetryReading"];
                     "*/*": components["schemas"]["TelemetryReading"];
+                };
+            };
+        };
+    };
+    iot_telemetry_readings_daily_retrieve: {
+        parameters: {
+            query?: {
+                device?: string;
+                end_date?: string;
+                format?: "binary" | "json";
+                project_id?: string;
+                start_date?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                    "*/*": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    iot_telemetry_readings_latest_batch_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    device_ids: number[];
+                    hours?: number;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                    "*/*": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };
@@ -116719,6 +118394,28 @@ export interface operations {
             };
         };
     };
+    p90_panel_messages_broadcast_destroy: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                broadcast_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     p90_panel_messages_inbox_retrieve: {
         parameters: {
             query?: {
@@ -116750,12 +118447,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description No response body */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["StudentMessageThread"];
+                    "*/*": components["schemas"]["StudentMessageThread"];
+                };
             };
         };
     };
@@ -116998,12 +118697,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description No response body */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["StudentMessageThread"];
+                    "*/*": components["schemas"]["StudentMessageThread"];
+                };
             };
         };
     };
@@ -117022,6 +118723,29 @@ export interface operations {
         responses: {
             /** @description No response body */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    p90_panel_participants_messages_destroy: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                client_id: number;
+                message_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -137060,6 +138784,28 @@ export interface operations {
             header?: never;
             path: {
                 id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    water_billing_runs_void_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                id: number;
             };
             cookie?: never;
         };
