@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { KdsTicketActions } from "@/components/kds/kds-ticket-actions";
 import {
   ChefHat,
   ClipboardList,
@@ -14,7 +15,6 @@ import {
   Trash2,
   Utensils,
   X,
-  XCircle,
 } from "lucide-react";
 import { KdsOpsPanel, type KdsOpsTab } from "@/components/kds/kds-ops-panel";
 import { Button } from "@/components/ui/button";
@@ -22,14 +22,8 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
-import {
-  cancelKitchenTicket,
-  deliverKitchenTicket,
-  fetchKitchenTickets,
-  readyKitchenTicket,
-  startKitchenTicket,
-  type KitchenTicket,
-} from "@/lib/api/kitchen";
+import { fetchKitchenTickets, type KitchenTicket } from "@/lib/api/kitchen";
+import { useKitchenTicketMutations } from "@/lib/hooks/useKitchenTicketMutations";
 import {
   createKitchenStation,
   deleteKitchenStation,
@@ -90,7 +84,6 @@ export function KdsBoard({
 }: KdsBoardProps) {
   const isMonitor = mode === "monitor";
   const branch = useCurrentBranch();
-  const queryClient = useQueryClient();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -136,37 +129,7 @@ export function KdsBoard({
     enabled: !!branch,
   });
 
-  const toast = useToast();
-
-  const invalidateTickets = () => {
-    queryClient.invalidateQueries({ queryKey: ["kitchen-tickets"] });
-    // El POS muestra estado de órdenes/cuentas: sin esto dependía 100%
-    // del WebSocket y con el socket caído quedaba stale hasta el polling.
-    queryClient.invalidateQueries({ queryKey: ["orders"] });
-  };
-
-  const mutationOptions = {
-    onSuccess: invalidateTickets,
-    onError: (error: Error) => {
-      toast.error(error.message || "Error al actualizar la comanda");
-    },
-  };
-  const startMutation = useMutation({
-    mutationFn: startKitchenTicket,
-    ...mutationOptions,
-  });
-  const readyMutation = useMutation({
-    mutationFn: readyKitchenTicket,
-    ...mutationOptions,
-  });
-  const deliverMutation = useMutation({
-    mutationFn: deliverKitchenTicket,
-    ...mutationOptions,
-  });
-  const cancelMutation = useMutation({
-    mutationFn: cancelKitchenTicket,
-    ...mutationOptions,
-  });
+  const ticketMutations = useKitchenTicketMutations();
 
   const selectedStation = useMemo(
     () => stations.find((s) => s.id === selectedStationId) || null,
@@ -353,10 +316,7 @@ export function KdsBoard({
                       selectedStationId={selectedStationId}
                       statusColor={color}
                       isMonitor={isMonitor}
-                      startMutation={startMutation}
-                      readyMutation={readyMutation}
-                      deliverMutation={deliverMutation}
-                      cancelMutation={cancelMutation}
+                      mutations={ticketMutations}
                     />
                   ))
                 )}
@@ -392,19 +352,13 @@ function TicketCard({
   selectedStationId,
   statusColor,
   isMonitor,
-  startMutation,
-  readyMutation,
-  deliverMutation,
-  cancelMutation,
+  mutations,
 }: {
   ticket: KitchenTicket;
   selectedStationId: number | null;
   statusColor: string;
   isMonitor?: boolean;
-  startMutation: ReturnType<typeof useMutation<KitchenTicket, Error, number>>;
-  readyMutation: ReturnType<typeof useMutation<KitchenTicket, Error, number>>;
-  deliverMutation: ReturnType<typeof useMutation<KitchenTicket, Error, number>>;
-  cancelMutation: ReturnType<typeof useMutation<KitchenTicket, Error, number>>;
+  mutations: ReturnType<typeof useKitchenTicketMutations>;
 }) {
   const items = visibleItems(ticket.items, selectedStationId);
   const meta = kitchenTicketMeta(ticket);
@@ -412,11 +366,6 @@ function TicketCard({
     ticket.status === "PENDING" || ticket.status === "PREPARING";
   const now = useNow(1000, live);
   const timing = ticketTimingSummary(ticket, now);
-  const isPending =
-    startMutation.isPending ||
-    readyMutation.isPending ||
-    deliverMutation.isPending ||
-    cancelMutation.isPending;
 
   return (
     <article
@@ -473,53 +422,11 @@ function TicketCard({
         ))}
       </ul>
 
-      {!isMonitor && (
-        <div className="flex flex-wrap gap-2">
-          {ticket.status === "PENDING" && (
-            <Button
-              className="min-h-11 flex-1 text-base"
-              onClick={() => startMutation.mutate(ticket.id)}
-              disabled={isPending}
-              isLoading={startMutation.isPending}
-            >
-              Preparar
-            </Button>
-          )}
-          {ticket.status === "PREPARING" && (
-            <Button
-              className="min-h-11 flex-1 text-base"
-              onClick={() => readyMutation.mutate(ticket.id)}
-              disabled={isPending}
-              isLoading={readyMutation.isPending}
-            >
-              Listo
-            </Button>
-          )}
-          {ticket.status === "READY" && (
-            <Button
-              className="min-h-11 flex-1 text-base"
-              onClick={() => deliverMutation.mutate(ticket.id)}
-              disabled={isPending}
-              isLoading={deliverMutation.isPending}
-            >
-              Entregar
-            </Button>
-          )}
-          {ticket.status !== "DELIVERED" && ticket.status !== "CANCELLED" && (
-            <Button
-              size="icon"
-              variant="outline"
-              className="min-h-11 min-w-11 text-danger hover:bg-danger/10"
-              onClick={() => cancelMutation.mutate(ticket.id)}
-              disabled={isPending}
-              isLoading={cancelMutation.isPending}
-              title="Cancelar comanda"
-            >
-              <XCircle className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
-      )}
+      <KdsTicketActions
+        ticket={ticket}
+        mutations={mutations}
+        showCancel={!isMonitor}
+      />
     </article>
   );
 }
