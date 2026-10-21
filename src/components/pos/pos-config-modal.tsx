@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Settings2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
@@ -127,7 +127,7 @@ export function PosConfigModal({
   const { enabledModules, isLoading: modulesLoading } = useBranchModules();
   const queryClient = useQueryClient();
   const toast = useToast();
-  const [deliveryFee, setDeliveryFee] = useState("");
+  const [deliveryFeeDraft, setDeliveryFeeDraft] = useState<string | null>(null);
 
   const { data: branchPosConfig } = useQuery({
     queryKey: ["branch-pos-config"],
@@ -135,10 +135,9 @@ export function PosConfigModal({
     staleTime: 60_000,
   });
 
-  useEffect(() => {
-    const fee = Number(branchPosConfig?.default_delivery_fee ?? 0);
-    setDeliveryFee(fee > 0 ? String(Math.round(fee)) : "0");
-  }, [branchPosConfig]);
+  const remoteDeliveryFee = Number(branchPosConfig?.default_delivery_fee ?? 0);
+  const deliveryFee =
+    deliveryFeeDraft ?? (remoteDeliveryFee > 0 ? String(Math.round(remoteDeliveryFee)) : "0");
 
   const saveDeliveryFee = useMutation({
     mutationFn: async () => {
@@ -148,6 +147,7 @@ export function PosConfigModal({
       });
     },
     onSuccess: () => {
+      setDeliveryFeeDraft(null);
       queryClient.invalidateQueries({ queryKey: ["branch-pos-config"] });
       toast.success("Costo de despacho de la sucursal guardado.");
     },
@@ -279,7 +279,7 @@ export function PosConfigModal({
                 min="0"
                 step="1"
                 value={deliveryFee}
-                onChange={(e) => setDeliveryFee(e.target.value)}
+                onChange={(e) => setDeliveryFeeDraft(e.target.value)}
                 className="h-9 w-32"
               />
               <Button
