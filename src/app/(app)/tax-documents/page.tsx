@@ -832,6 +832,11 @@ function FromOrderModal({
       return;
     }
     const useRut = (docType === "39" || docType === "41") && !rut.trim() ? BOLETA_RUT : rut.trim();
+    const needsNamedClient = docType === "33" || docType === "34";
+    if (needsNamedClient && (!name.trim() || !rut.trim())) {
+      toast.error("La factura requiere un cliente con RUT.");
+      return;
+    }
     if (!isValidRUT(useRut)) {
       toast.error("El RUT del cliente no es válido.");
       return;

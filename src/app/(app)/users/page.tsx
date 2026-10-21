@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, KeyRound, Power, Users, Pencil, Copy, Check, Eye, EyeOff, TriangleAlert } from "lucide-react";
+import { Plus, Search, KeyRound, Power, Users, Pencil, Copy, Check, Eye, EyeOff, TriangleAlert, Mail } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
@@ -16,6 +16,7 @@ import {
   fetchUsers,
   toggleBranchAssignmentStatus,
   generatePassword,
+  resendBranchInvitation,
   type UsersFilter,
 } from "@/lib/api/users";
 import { UserForm } from "@/components/users/user-form";
@@ -96,6 +97,21 @@ export default function UsersPage() {
       setCopied(false);
       queryClient.invalidateQueries({ queryKey: ["users"] });
     },
+  });
+
+  const resendInvite = useMutation({
+    mutationFn: (userId: number) => {
+      if (!currentBranch) throw new Error("Selecciona una sucursal.");
+      return resendBranchInvitation(currentBranch.branch_id, userId);
+    },
+    onSuccess: (data) => {
+      toast.success(
+        data.invitation_queued
+          ? "Invitación reenviada (correo encolado)."
+          : data.status || "Invitación reenviada.",
+      );
+    },
+    onError: (err: Error) => toast.error(err.message || "No se pudo reenviar la invitación."),
   });
 
   if (!canManage) {
@@ -230,6 +246,17 @@ export default function UsersPage() {
                               <Pencil className="mr-1.5 h-3.5 w-3.5" />
                               Editar
                             </Button>
+                            {u.has_usable_password === false && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => resendInvite.mutate(Number(u.id))}
+                                disabled={resendInvite.isPending || !currentBranch}
+                              >
+                                <Mail className="mr-1.5 h-3.5 w-3.5" />
+                                Reenviar invitación
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="sm"
@@ -284,6 +311,20 @@ export default function UsersPage() {
                           <Pencil className="h-3.5 w-3.5" />
                           <span className="sr-only">Editar</span>
                         </Button>
+                        {u.has_usable_password === false && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            title="Reenviar invitación"
+                            aria-label="Reenviar invitación"
+                            onClick={() => resendInvite.mutate(Number(u.id))}
+                            disabled={resendInvite.isPending || !currentBranch}
+                          >
+                            <Mail className="h-3.5 w-3.5" />
+                            <span className="sr-only">Reenviar invitación</span>
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="sm"

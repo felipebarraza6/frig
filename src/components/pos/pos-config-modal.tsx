@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Settings2 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import {
   usePosConfig,
@@ -13,6 +14,8 @@ import {
 } from "@/lib/store/pos-config";
 import { useBranchModules } from "@/lib/hooks/useBranchModules";
 import { fetchCashRegisterStations } from "@/lib/api/cash-register-stations";
+import { fetchBranchPosConfig, updateBranchPosConfig } from "@/lib/api/branches";
+import { useToast } from "@/lib/store/toast";
 import { cn } from "@/lib/utils";
 
 interface PosConfigModalProps {
@@ -122,6 +125,34 @@ export function PosConfigModal({
 }: PosConfigModalProps) {
   const { config, setConfig, resetConfig, isSaving } = usePosConfig(stationId ?? undefined);
   const { enabledModules, isLoading: modulesLoading } = useBranchModules();
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const [deliveryFeeDraft, setDeliveryFeeDraft] = useState<string | null>(null);
+
+  const { data: branchPosConfig } = useQuery({
+    queryKey: ["branch-pos-config"],
+    queryFn: fetchBranchPosConfig,
+    staleTime: 60_000,
+  });
+
+  const remoteDeliveryFee = Number(branchPosConfig?.default_delivery_fee ?? 0);
+  const deliveryFee =
+    deliveryFeeDraft ?? (remoteDeliveryFee > 0 ? String(Math.round(remoteDeliveryFee)) : "0");
+
+  const saveDeliveryFee = useMutation({
+    mutationFn: async () => {
+      if (!branchPosConfig?.id) throw new Error("No hay configuración POS de sucursal.");
+      return updateBranchPosConfig(branchPosConfig.id, {
+        default_delivery_fee: deliveryFee || "0",
+      });
+    },
+    onSuccess: () => {
+      setDeliveryFeeDraft(null);
+      queryClient.invalidateQueries({ queryKey: ["branch-pos-config"] });
+      toast.success("Costo de despacho de la sucursal guardado.");
+    },
+    onError: (err: Error) => toast.error(err.message || "No se pudo guardar el costo de despacho."),
+  });
 
   const { data: stations = [] } = useQuery({
     queryKey: ["cash-register-stations", "pos-config-modal"],
@@ -233,6 +264,37 @@ export function PosConfigModal({
             </div>
           </div>
         ))}
+        <div>
+          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Despacho
+          </h3>
+          <div className="flex flex-col gap-2 rounded-xl border border-border/60 bg-muted/20 p-3">
+            <p className="text-sm font-medium text-foreground">Costo de despacho por defecto</p>
+            <p className="text-xs text-muted-foreground">
+              Se aplica a ventas y pedidos con dirección de entrega. Editable en el carrito antes de cobrar. 0 en local y retiro.
+            </p>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min="0"
+                step="1"
+                value={deliveryFee}
+                onChange={(e) => setDeliveryFeeDraft(e.target.value)}
+                className="h-9 w-32"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => saveDeliveryFee.mutate()}
+                disabled={!branchPosConfig?.id || saveDeliveryFee.isPending}
+                isLoading={saveDeliveryFee.isPending}
+              >
+                Guardar
+              </Button>
+            </div>
+          </div>
+        </div>
       </ModalBody>
       <ModalFooter>
         <span className="mr-auto text-xs text-muted-foreground">

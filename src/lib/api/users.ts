@@ -40,20 +40,38 @@ export async function fetchBranchUsers(branchId?: string): Promise<BranchUser[]>
   return res.results;
 }
 
-/** POST /api/accounts/users/create_and_assign/ */
-export async function createAndAssignUser(payload: UserPayload): Promise<{
+export interface CreateAndAssignResponse {
   user: UserResponse;
   message: string;
+  invitation_queued?: boolean;
+  needs_password_setup?: boolean;
+  assigned_existing?: boolean;
   branch_assignment?: {
     branch_id: number;
     branch_name: string;
     role_code: string;
     is_active: boolean;
   };
-}> {
+}
+
+/** POST /api/accounts/users/create_and_assign/ */
+export async function createAndAssignUser(
+  payload: UserPayload,
+): Promise<CreateAndAssignResponse> {
   return apiFetch("/accounts/users/create_and_assign/", {
     method: "POST",
     body: payload,
+  });
+}
+
+/** POST /api/branches/{id}/resend-invitation/ */
+export async function resendBranchInvitation(
+  branchId: string | number,
+  userId: number,
+): Promise<{ status: string; invitation_queued?: boolean }> {
+  return apiFetch(`/branches/${branchId}/resend-invitation/`, {
+    method: "POST",
+    body: { user_id: userId },
   });
 }
 

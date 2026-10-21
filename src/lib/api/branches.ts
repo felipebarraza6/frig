@@ -96,6 +96,30 @@ export async function fetchBranchUsers(id: ID): Promise<BranchUser[]> {
   return Array.isArray(data) ? data : (data.results ?? []);
 }
 
+export type BranchPosConfig = {
+  id: number;
+  branch?: number;
+  default_delivery_fee?: string | number | null;
+};
+
+/** GET /api/branches/pos-config/ — config POS de la sucursal activa. */
+export async function fetchBranchPosConfig(): Promise<BranchPosConfig | null> {
+  const data = await apiFetch<{ results?: BranchPosConfig[] }>("/branches/pos-config/");
+  const first = data.results?.[0];
+  return first ?? null;
+}
+
+/** PATCH /api/branches/pos-config/{id}/ */
+export async function updateBranchPosConfig(
+  id: number,
+  payload: Partial<Pick<BranchPosConfig, "default_delivery_fee">>,
+): Promise<BranchPosConfig> {
+  return apiFetch(`/branches/pos-config/${id}/`, {
+    method: "PATCH",
+    body: payload,
+  });
+}
+
 /** POST /api/branches/{id}/invite-user/ — invitar usuario por email. */
 export async function inviteBranchUser(
   id: ID,

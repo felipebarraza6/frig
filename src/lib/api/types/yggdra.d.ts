@@ -35002,6 +35002,17 @@ export interface components {
              */
             quick_actions?: unknown;
             /**
+             * Generar comanda automáticamente
+             * @description Crea un KitchenTicket automáticamente al crear una orden de venta/pedido
+             */
+            auto_kitchen_ticket?: boolean;
+            /**
+             * Costo de despacho por defecto
+             * Format: double
+             * @description Cargo de despacho por defecto para órdenes con dirección de entrega. 0 = sin cargo.
+             */
+            default_delivery_fee?: number;
+            /**
              * Created at
              * Format: date-time
              * @description Fecha de creacion.
@@ -35053,6 +35064,17 @@ export interface components {
              * @description Lista de acciones rápidas del POS (id, type, label, icon, color, enabled).
              */
             quick_actions?: unknown;
+            /**
+             * Generar comanda automáticamente
+             * @description Crea un KitchenTicket automáticamente al crear una orden de venta/pedido
+             */
+            auto_kitchen_ticket?: boolean;
+            /**
+             * Costo de despacho por defecto
+             * Format: double
+             * @description Cargo de despacho por defecto para órdenes con dirección de entrega. 0 = sin cargo.
+             */
+            default_delivery_fee?: number;
         };
         /** @description Serializer for branch product type configuration. */
         BranchProductTypeConfig: {
@@ -49951,6 +49973,8 @@ export interface components {
             delivery_address?: string | null;
             /** Format: date-time */
             delivery_date?: string | null;
+            /** Format: double */
+            delivery_cost?: number | null;
             /**
              * Format: double
              * @description Latitude of the order location
@@ -50149,6 +50173,8 @@ export interface components {
             delivery_address?: string | null;
             /** Format: date-time */
             delivery_date?: string | null;
+            /** Format: double */
+            delivery_cost?: number | null;
             /** @description Lista de ítems. Si tiene 'id' se actualiza; si no, se crea. */
             items?: {
                 [key: string]: unknown;
@@ -50628,6 +50654,8 @@ export interface components {
             delivery_address?: string | null;
             /** Format: date-time */
             delivery_date?: string | null;
+            /** Format: double */
+            delivery_cost?: number | null;
             /**
              * Format: double
              * @description Latitude of the order location
@@ -56073,6 +56101,17 @@ export interface components {
              * @description Lista de acciones rápidas del POS (id, type, label, icon, color, enabled).
              */
             quick_actions?: unknown;
+            /**
+             * Generar comanda automáticamente
+             * @description Crea un KitchenTicket automáticamente al crear una orden de venta/pedido
+             */
+            auto_kitchen_ticket?: boolean;
+            /**
+             * Costo de despacho por defecto
+             * Format: double
+             * @description Cargo de despacho por defecto para órdenes con dirección de entrega. 0 = sin cargo.
+             */
+            default_delivery_fee?: number;
         };
         /** @description Serializer for branch product type configuration. */
         PatchedBranchProductTypeConfigRequest: {
@@ -61066,6 +61105,8 @@ export interface components {
             delivery_address?: string | null;
             /** Format: date-time */
             delivery_date?: string | null;
+            /** Format: double */
+            delivery_cost?: number | null;
             /**
              * Format: double
              * @description Latitude of the order location
@@ -78130,6 +78171,7 @@ export interface components {
              * @description Indica si el usuario puede acceder y cambiar entre múltiples sucursales desde el frontend.
              */
             is_multi_branch?: boolean;
+            readonly has_usable_password: boolean;
             /**
              * Último inicio de sesión
              * Format: date-time
