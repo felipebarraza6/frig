@@ -242,6 +242,7 @@ export interface UserUpdatePayload {
   email?: string;
   dni?: string;
   password?: string;
+  is_active?: boolean;
 }
 
 /** Respuesta de `POST /api/accounts/users/login_complete/`. */

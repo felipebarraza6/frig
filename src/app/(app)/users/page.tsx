@@ -14,7 +14,7 @@ import { branchName } from "@/lib/types";
 import { getRoleLabel } from "@/lib/roles";
 import {
   fetchUsers,
-  toggleBranchAssignmentStatus,
+  updateUser,
   generatePassword,
   resendBranchInvitation,
   type UsersFilter,
@@ -80,11 +80,12 @@ export default function UsersPage() {
 
   const users = page?.results ?? [];
 
-  const toggleAssignment = useMutation({
-    mutationFn: (assignmentId: number) => toggleBranchAssignmentStatus(assignmentId),
-    onSuccess: () => {
+  const toggleActive = useMutation({
+    mutationFn: ({ id, isActive }: { id: number; isActive: boolean }) =>
+      updateUser(id, { is_active: isActive }),
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
-      toast.success("Estado del usuario actualizado.");
+      toast.success(data.is_active ? "Usuario activado." : "Usuario desactivado.");
     },
     onError: (err: Error) => toast.error(err.message || "No se pudo cambiar el estado del usuario."),
   });
@@ -222,18 +223,25 @@ export default function UsersPage() {
                         <td className="px-4 py-3 text-center">
                           <button
                             onClick={() => {
-                              if (access?.id) toggleAssignment.mutate(Number(access.id));
+                              toggleActive.mutate({
+                                id: Number(u.id),
+                                isActive: u.is_active === false,
+                              });
                             }}
-                            disabled={!access?.id || toggleAssignment.isPending}
-                            aria-label={`${access?.is_active ? "Desactivar" : "Activar"} ${userDisplayName(u)}`}
+                            disabled={
+                              toggleActive.isPending
+                              || Number(u.id) === Number(user?.id)
+                              || Boolean(u.is_superuser)
+                            }
+                            aria-label={`${u.is_active === false ? "Activar" : "Desactivar"} ${userDisplayName(u)}`}
                             className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
-                              access?.is_active
-                                ? "bg-success/10 text-success hover:bg-success/20"
-                                : "bg-danger/10 text-danger hover:bg-danger/20"
+                              u.is_active === false
+                                ? "bg-danger/10 text-danger hover:bg-danger/20"
+                                : "bg-success/10 text-success hover:bg-success/20"
                             }`}
                           >
                             <Power className="h-3 w-3" />
-                            {access?.is_active ? "Activo" : "Inactivo"}
+                            {u.is_active === false ? "Inactivo" : "Activo"}
                           </button>
                         </td>
                         <td className="px-4 py-3 text-right">
@@ -288,16 +296,29 @@ export default function UsersPage() {
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-medium">{userDisplayName(u)}</p>
                         <p className="text-xs text-muted-foreground">{u.email}</p>
-                        <span
+                        <button
+                          type="button"
+                          onClick={() => {
+                            toggleActive.mutate({
+                              id: Number(u.id),
+                              isActive: u.is_active === false,
+                            });
+                          }}
+                          disabled={
+                            toggleActive.isPending
+                            || Number(u.id) === Number(user?.id)
+                            || Boolean(u.is_superuser)
+                          }
+                          aria-label={`${u.is_active === false ? "Activar" : "Desactivar"} ${userDisplayName(u)}`}
                           className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                            access?.is_active
-                              ? "bg-success/10 text-success"
-                              : "bg-danger/10 text-danger"
+                            u.is_active === false
+                              ? "bg-danger/10 text-danger"
+                              : "bg-success/10 text-success"
                           }`}
                         >
                           <Power className="h-3 w-3" />
-                          {access?.is_active ? "Activo" : "Inactivo"}
-                        </span>
+                          {u.is_active === false ? "Inactivo" : "Activo"}
+                        </button>
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
                         <Button

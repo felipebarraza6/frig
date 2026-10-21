@@ -90,6 +90,7 @@ type Order = YggdraSchemas["Order"] & {
   delivery_address?: string | null;
   delivery_date?: string | null;
   delivery_cost?: string | number | null;
+  delivery_zone?: string | null;
   installments?: PaymentInstallment[];
   payments?: PaymentBrief[];
   products?: OrderProduct[];
@@ -2044,7 +2045,11 @@ export default function SalesPage() {
                   )}
                   {Number(detail.delivery_cost ?? 0) > 0 && (
                     <p className="mt-1 text-sm">
-                      <span className="text-muted-foreground">Despacho:</span>{" "}
+                      <span className="text-muted-foreground">
+                        {detail.delivery_zone?.trim()
+                          ? `Despacho (${detail.delivery_zone.trim()}):`
+                          : "Despacho:"}
+                      </span>{" "}
                       {formatCLP(detail.delivery_cost ?? "0")}
                     </p>
                   )}
