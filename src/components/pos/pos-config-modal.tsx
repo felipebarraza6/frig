@@ -14,7 +14,11 @@ import {
 } from "@/lib/store/pos-config";
 import { useBranchModules } from "@/lib/hooks/useBranchModules";
 import { fetchCashRegisterStations } from "@/lib/api/cash-register-stations";
-import { fetchBranchPosConfig, updateBranchPosConfig } from "@/lib/api/branches";
+import {
+  ensureBranchPosConfig,
+  fetchBranchPosConfig,
+  updateBranchPosConfig,
+} from "@/lib/api/branches";
 import { useToast } from "@/lib/store/toast";
 import { cn } from "@/lib/utils";
 
@@ -141,8 +145,10 @@ export function PosConfigModal({
 
   const saveDeliveryFee = useMutation({
     mutationFn: async () => {
-      if (!branchPosConfig?.id) throw new Error("No hay configuración POS de sucursal.");
-      return updateBranchPosConfig(branchPosConfig.id, {
+      const cfg = branchPosConfig?.id
+        ? branchPosConfig
+        : await ensureBranchPosConfig();
+      return updateBranchPosConfig(cfg.id, {
         default_delivery_fee: deliveryFee || "0",
       });
     },
@@ -287,7 +293,7 @@ export function PosConfigModal({
                 variant="outline"
                 size="sm"
                 onClick={() => saveDeliveryFee.mutate()}
-                disabled={!branchPosConfig?.id || saveDeliveryFee.isPending}
+                disabled={saveDeliveryFee.isPending}
                 isLoading={saveDeliveryFee.isPending}
               >
                 Guardar
