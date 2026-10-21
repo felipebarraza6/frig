@@ -120,5 +120,10 @@ describe("apiFetch", () => {
     expect(
       formatErrorDetail({ email: ["Este correo ya está registrado."] }),
     ).toBe("Este correo ya está registrado.");
+    expect(
+      formatErrorDetail({
+        name: ["Ya existe una zona activa con ese nombre"],
+      }),
+    ).toBe("Ya existe una zona activa con ese nombre");
   });
 });
