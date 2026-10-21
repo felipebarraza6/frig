@@ -42,6 +42,7 @@ import { useToast } from "@/lib/store/toast";
 import { createOrder, editOrder, fetchOrder, cartToOrderItems, type EditOrderItemInput } from "@/lib/api/orders";
 import { ApiError } from "@/lib/api/client";
 import { fetchBranchPosConfig } from "@/lib/api/branches";
+import { fetchDeliveryZones } from "@/lib/api/delivery-zones";
 import { fetchPaymentMethods, createPayment } from "@/lib/api/payments";
 import { searchCustomers, createCustomer, type CustomerPayload } from "@/lib/api/customers";
 import { getCurrentCashRegister } from "@/lib/api/cash-register";
@@ -70,6 +71,8 @@ type Order = YggdraSchemas["Order"] & {
   delivery_address?: string | null;
   delivery_date?: string | null;
   delivery_cost?: string | number | null;
+  delivery_zone?: string | null;
+  delivery_zone_id?: number | null;
 };
 type OrderProduct = YggdraSchemas["OrderProduct"];
 
@@ -134,6 +137,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryDate, setDeliveryDate] = useState("");
   const [deliveryCost, setDeliveryCost] = useState("");
+  const [deliveryZoneId, setDeliveryZoneId] = useState<number | null>(null);
   const [removedOrderProductIds, setRemovedOrderProductIds] = useState<number[]>([]);
   const [emptyTimerFired, setEmptyTimerFired] = useState(false);
   // ID de la orden cuyos datos ya fueron volcados al estado local. Permite
@@ -245,6 +249,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
     setDeliveryDate(toDateTimeLocal(existingOrder.delivery_date));
     const existingFee = Number(existingOrder.delivery_cost ?? 0);
     setDeliveryCost(existingFee > 0 ? String(Math.round(existingFee)) : "");
+    setDeliveryZoneId(existingOrder.delivery_zone_id ?? null);
   }, [existingOrder, setItems]);
 
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -282,6 +287,13 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
   const { data: branchPosConfig } = useQuery({
     queryKey: ["branch-pos-config", branchId],
     queryFn: fetchBranchPosConfig,
+    enabled: Boolean(branchId),
+    staleTime: 60_000,
+  });
+
+  const { data: deliveryZones = [] } = useQuery({
+    queryKey: ["delivery-zones", "active", branchId],
+    queryFn: () => fetchDeliveryZones({ isActive: true }),
     enabled: Boolean(branchId),
     staleTime: 60_000,
   });
@@ -510,6 +522,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
     setDeliveryAddress("");
     setDeliveryDate("");
     setDeliveryCost("");
+    setDeliveryZoneId(null);
   }
 
   function applyDefaultDeliveryFee() {
@@ -545,6 +558,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
         delivery_address: deliveryMode === "delivery" ? deliveryAddress || null : null,
         delivery_date: deliveryMode === "delivery" && deliveryDate ? new Date(deliveryDate).toISOString() : null,
         delivery_cost: deliveryMode === "delivery" ? deliveryCost || "0" : "0",
+        delivery_zone_id: deliveryMode === "delivery" ? deliveryZoneId : null,
         items: [...activeItems, ...removedItems],
       });
 
@@ -671,6 +685,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
         delivery_address: deliveryMode === "delivery" ? deliveryAddress || null : null,
         delivery_date: deliveryMode === "delivery" && deliveryDate ? new Date(deliveryDate).toISOString() : null,
         delivery_cost: deliveryMode === "delivery" ? deliveryCost || "0" : "0",
+        delivery_zone_id: deliveryMode === "delivery" ? deliveryZoneId : null,
       });
 
       if (orderType === "ORDER" && selectedTable) {
@@ -1419,6 +1434,37 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                           className="h-8 pl-8 text-xs"
                         />
                       </div>
+                      {deliveryZones.length > 0 && (
+                        <div className="flex flex-col gap-0.5">
+                          <label className="text-[10px] text-muted-foreground">Zona de despacho</label>
+                          <select
+                            value={deliveryZoneId ?? ""}
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              if (!raw) {
+                                setDeliveryZoneId(null);
+                                applyDefaultDeliveryFee();
+                                return;
+                              }
+                              const id = Number(raw);
+                              setDeliveryZoneId(id);
+                              const zone = deliveryZones.find((z) => z.id === id);
+                              if (zone) {
+                                const fee = Number(zone.price ?? 0);
+                                setDeliveryCost(fee > 0 ? String(Math.round(fee)) : "0");
+                              }
+                            }}
+                            className="h-8 rounded-md border border-border bg-background px-2 text-xs"
+                          >
+                            <option value="">Default de sucursal</option>
+                            {deliveryZones.map((zone) => (
+                              <option key={zone.id} value={zone.id}>
+                                {zone.name} · {formatCLP(zone.price)}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
                       <div className="flex flex-col gap-0.5">
                         <label className="text-[10px] text-muted-foreground">Costo de despacho</label>
                         <Input
@@ -1720,7 +1766,11 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
           )}
           {deliveryCostAmount > 0 && (
             <div className="flex items-center justify-between text-muted-foreground">
-              <span>Despacho</span>
+              <span>
+                {deliveryZones.find((z) => z.id === deliveryZoneId)?.name
+                  ? `Despacho (${deliveryZones.find((z) => z.id === deliveryZoneId)?.name})`
+                  : "Despacho"}
+              </span>
               <span className="tabular-nums">{formatCLP(deliveryCostAmount)}</span>
             </div>
           )}
