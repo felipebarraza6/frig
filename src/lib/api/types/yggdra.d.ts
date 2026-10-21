@@ -78159,7 +78159,7 @@ export interface components {
              * Activo
              * @description Indica si el usuario debe ser tratado como activo. Desmarque esta opción en lugar de borrar la cuenta.
              */
-            is_active?: boolean;
+            is_active: boolean;
             /**
              * Es staff
              * @description Indica si el usuario puede entrar en este sitio de administración.
