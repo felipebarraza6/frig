@@ -5568,7 +5568,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description ViewSet para gestionar la configuración POS por sucursal. */
+        /** @description Garantiza el singleton POS de la sucursal activa (default de despacho). */
         get: operations["branches_pos_config_list"];
         put?: never;
         /** @description ViewSet para gestionar la configuración POS por sucursal. */
@@ -34967,7 +34967,7 @@ export interface components {
              * Sucursal
              * @description Sucursal a la que pertenece esta configuración POS
              */
-            branch: number;
+            readonly branch: number;
             readonly branch_name: string;
             /**
              * Mostrar Precios
@@ -35027,11 +35027,6 @@ export interface components {
         };
         /** @description Serializador para BranchPOSConfig */
         BranchPOSConfigRequest: {
-            /**
-             * Sucursal
-             * @description Sucursal a la que pertenece esta configuración POS
-             */
-            branch: number;
             /**
              * Mostrar Precios
              * @description Mostrar precios en la lista de productos del POS
@@ -56064,11 +56059,6 @@ export interface components {
         };
         /** @description Serializador para BranchPOSConfig */
         PatchedBranchPOSConfigRequest: {
-            /**
-             * Sucursal
-             * @description Sucursal a la que pertenece esta configuración POS
-             */
-            branch?: number;
             /**
              * Mostrar Precios
              * @description Mostrar precios en la lista de productos del POS
@@ -90149,7 +90139,7 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody: {
+        requestBody?: {
             content: {
                 "application/json": components["schemas"]["BranchPOSConfigRequest"];
                 "application/x-www-form-urlencoded": components["schemas"]["BranchPOSConfigRequest"];
@@ -90205,7 +90195,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
+        requestBody?: {
             content: {
                 "application/json": components["schemas"]["BranchPOSConfigRequest"];
                 "application/x-www-form-urlencoded": components["schemas"]["BranchPOSConfigRequest"];

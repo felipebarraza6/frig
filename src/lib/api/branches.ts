@@ -104,9 +104,21 @@ export type BranchPosConfig = {
 
 /** GET /api/branches/pos-config/ — config POS de la sucursal activa. */
 export async function fetchBranchPosConfig(): Promise<BranchPosConfig | null> {
-  const data = await apiFetch<{ results?: BranchPosConfig[] }>("/branches/pos-config/");
-  const first = data.results?.[0];
+  const data = await apiFetch<{ results?: BranchPosConfig[] } | BranchPosConfig[]>(
+    "/branches/pos-config/",
+  );
+  const first = Array.isArray(data) ? data[0] : data.results?.[0];
   return first ?? null;
+}
+
+/** Crea el singleton si GET no devolvió fila (sucursales sin BranchPOSConfig). */
+export async function ensureBranchPosConfig(): Promise<BranchPosConfig> {
+  const existing = await fetchBranchPosConfig();
+  if (existing?.id) return existing;
+  return apiFetch<BranchPosConfig>("/branches/pos-config/", {
+    method: "POST",
+    body: {},
+  });
 }
 
 /** PATCH /api/branches/pos-config/{id}/ */
