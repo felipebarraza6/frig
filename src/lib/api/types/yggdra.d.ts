@@ -22870,6 +22870,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sales/orders/{id}/assign-driver/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Asigna un repartidor a la orden. No modifica delivery_cost ni el total del cliente. Persiste driver_fee (calculado o explícito). */
+        post: operations["sales_orders_assign_driver_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sales/orders/{id}/cancel/": {
         parameters: {
             query?: never;
@@ -32544,6 +32561,12 @@ export interface components {
             deactivated_modules: string[];
             synced_product_types: string[];
             message: string;
+        };
+        /** @description Asignar repartidor a una orden de delivery. */
+        AssignDriverRequest: {
+            driver_user_id: number;
+            /** Format: double */
+            driver_fee?: number | null;
         };
         AuditLog: {
             readonly id: number;
@@ -49976,6 +49999,8 @@ export interface components {
             readonly owner: number;
             readonly branch: components["schemas"]["OrderBranchBrief"];
             readonly client: components["schemas"]["OrderClientBrief"];
+            delivered_by_id?: number | null;
+            readonly delivered_by_name: string | null;
             /** @description Table assigned to the order (optional) */
             table?: number | null;
             /**
@@ -50074,6 +50099,8 @@ export interface components {
             delivery_date?: string | null;
             /** Format: double */
             delivery_cost?: number | null;
+            /** Format: double */
+            driver_fee?: number | null;
             readonly delivery_zone: string;
             delivery_zone_id?: number | null;
             /**
@@ -50758,6 +50785,8 @@ export interface components {
             delivery_date?: string | null;
             /** Format: double */
             delivery_cost?: number | null;
+            /** Format: double */
+            driver_fee?: number | null;
             delivery_zone_id?: number | null;
             /**
              * Format: double
@@ -61244,6 +61273,8 @@ export interface components {
             delivery_date?: string | null;
             /** Format: double */
             delivery_cost?: number | null;
+            /** Format: double */
+            driver_fee?: number | null;
             delivery_zone_id?: number | null;
             /**
              * Format: double
@@ -126677,6 +126708,37 @@ export interface operations {
                     /** @description Ítems a agregar (mismo formato que al crear orden) */
                     items: Record<string, never>[];
                 };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Order"];
+                    "*/*": components["schemas"]["Order"];
+                };
+            };
+        };
+    };
+    sales_orders_assign_driver_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un Cadena UUID que identifique este Order. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignDriverRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["AssignDriverRequest"];
+                "multipart/form-data": components["schemas"]["AssignDriverRequest"];
             };
         };
         responses: {

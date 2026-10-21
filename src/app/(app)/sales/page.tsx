@@ -43,6 +43,7 @@ import {
 import dynamic from "next/dynamic";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
 import { OrderProductLines } from "@/components/sales/order-return-panel";
+import { AssignDriverControl } from "@/components/sales/assign-driver-control";
 import { fetchDiscountUsages } from "@/lib/api/discounts";
 import { useToast } from "@/lib/store/toast";
 import type { YggdraSchemas } from "@/lib/api/types";
@@ -91,6 +92,9 @@ type Order = YggdraSchemas["Order"] & {
   delivery_date?: string | null;
   delivery_cost?: string | number | null;
   delivery_zone?: string | null;
+  driver_fee?: string | number | null;
+  delivered_by_id?: number | null;
+  delivered_by_name?: string | null;
   installments?: PaymentInstallment[];
   payments?: PaymentBrief[];
   products?: OrderProduct[];
@@ -2053,6 +2057,10 @@ export default function SalesPage() {
                       {formatCLP(detail.delivery_cost ?? "0")}
                     </p>
                   )}
+                  <AssignDriverControl
+                    order={detail}
+                    onAssigned={(updated) => setDetail({ ...detail, ...updated })}
+                  />
                 </div>
               )}
 
