@@ -65173,6 +65173,11 @@ export interface components {
              */
             email?: string;
             password?: string;
+            /**
+             * Activo
+             * @description Indica si el usuario debe ser tratado como activo. Desmarque esta opción en lugar de borrar la cuenta.
+             */
+            is_active?: boolean;
             dni?: string;
             /**
              * Producto Asignado
@@ -78154,7 +78159,7 @@ export interface components {
              * Activo
              * @description Indica si el usuario debe ser tratado como activo. Desmarque esta opción en lugar de borrar la cuenta.
              */
-            readonly is_active: boolean;
+            is_active?: boolean;
             /**
              * Es staff
              * @description Indica si el usuario puede entrar en este sitio de administración.
@@ -78229,6 +78234,11 @@ export interface components {
              */
             email: string;
             password?: string;
+            /**
+             * Activo
+             * @description Indica si el usuario debe ser tratado como activo. Desmarque esta opción en lugar de borrar la cuenta.
+             */
+            is_active?: boolean;
             dni: string;
             /**
              * Producto Asignado
