@@ -4683,6 +4683,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/branches/delivery-zones/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Zonas de tarifa POS por sucursal (permisos del módulo branches). */
+        get: operations["branches_delivery_zones_list"];
+        put?: never;
+        /** @description Zonas de tarifa POS por sucursal (permisos del módulo branches). */
+        post: operations["branches_delivery_zones_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/branches/delivery-zones/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Zonas de tarifa POS por sucursal (permisos del módulo branches). */
+        get: operations["branches_delivery_zones_retrieve"];
+        /** @description Zonas de tarifa POS por sucursal (permisos del módulo branches). */
+        put: operations["branches_delivery_zones_update"];
+        post?: never;
+        /** @description Zonas de tarifa POS por sucursal (permisos del módulo branches). */
+        delete: operations["branches_delivery_zones_destroy"];
+        options?: never;
+        head?: never;
+        /** @description Zonas de tarifa POS por sucursal (permisos del módulo branches). */
+        patch: operations["branches_delivery_zones_partial_update"];
+        trace?: never;
+    };
     "/api/branches/extra-field-values/": {
         parameters: {
             query?: never;
@@ -33513,6 +33551,72 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** @description CRUD de zonas de despacho de la sucursal activa. */
+        BranchDeliveryZone: {
+            readonly id: number;
+            /**
+             * Sucursal
+             * @description Sucursal a la que pertenece esta zona de despacho
+             */
+            readonly branch: number;
+            /**
+             * Nombre
+             * @description Nombre visible (p.ej. comuna o barrio).
+             */
+            name: string;
+            /**
+             * Precio
+             * Format: double
+             * @description Cargo de despacho de esta zona. Editable en el carrito antes de cobrar.
+             */
+            price: number;
+            /**
+             * Orden
+             * @description Menor = primero en el selector del POS.
+             */
+            sort_order?: number;
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+            /**
+             * Created at
+             * Format: date-time
+             * @description Fecha de creacion.
+             */
+            readonly created: string;
+            /**
+             * Modified at
+             * Format: date-time
+             * @description Fecha de modificacion.
+             */
+            readonly modified: string;
+        };
+        /** @description CRUD de zonas de despacho de la sucursal activa. */
+        BranchDeliveryZoneRequest: {
+            /**
+             * Nombre
+             * @description Nombre visible (p.ej. comuna o barrio).
+             */
+            name: string;
+            /**
+             * Precio
+             * Format: double
+             * @description Cargo de despacho de esta zona. Editable en el carrito antes de cobrar.
+             */
+            price: number;
+            /**
+             * Orden
+             * @description Menor = primero en el selector del POS.
+             */
+            sort_order?: number;
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+        };
         /** @description Serializador detallado para Branch */
         BranchDetail: {
             readonly id: number;
@@ -49970,6 +50074,8 @@ export interface components {
             delivery_date?: string | null;
             /** Format: double */
             delivery_cost?: number | null;
+            readonly delivery_zone: string;
+            delivery_zone_id?: number | null;
             /**
              * Format: double
              * @description Latitude of the order location
@@ -50170,6 +50276,7 @@ export interface components {
             delivery_date?: string | null;
             /** Format: double */
             delivery_cost?: number | null;
+            delivery_zone_id?: number | null;
             /** @description Lista de ítems. Si tiene 'id' se actualiza; si no, se crea. */
             items?: {
                 [key: string]: unknown;
@@ -50651,6 +50758,7 @@ export interface components {
             delivery_date?: string | null;
             /** Format: double */
             delivery_cost?: number | null;
+            delivery_zone_id?: number | null;
             /**
              * Format: double
              * @description Latitude of the order location
@@ -51357,6 +51465,21 @@ export interface components {
              */
             previous?: string | null;
             results: components["schemas"]["BranchCurrencyConfig"][];
+        };
+        PaginatedBranchDeliveryZoneList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["BranchDeliveryZone"][];
         };
         PaginatedBranchEventLogListList: {
             /** @example 123 */
@@ -55532,6 +55655,30 @@ export interface components {
              * @enum {string}
              */
             rounding_method?: "STANDARD" | "UP" | "DOWN";
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+        };
+        /** @description CRUD de zonas de despacho de la sucursal activa. */
+        PatchedBranchDeliveryZoneRequest: {
+            /**
+             * Nombre
+             * @description Nombre visible (p.ej. comuna o barrio).
+             */
+            name?: string;
+            /**
+             * Precio
+             * Format: double
+             * @description Cargo de despacho de esta zona. Editable en el carrito antes de cobrar.
+             */
+            price?: number;
+            /**
+             * Orden
+             * @description Menor = primero en el selector del POS.
+             */
+            sort_order?: number;
             /**
              * Activo
              * @description Indica si el registro está activo. Use esto en lugar de eliminar.
@@ -61097,6 +61244,7 @@ export interface components {
             delivery_date?: string | null;
             /** Format: double */
             delivery_cost?: number | null;
+            delivery_zone_id?: number | null;
             /**
              * Format: double
              * @description Latitude of the order location
@@ -65025,6 +65173,11 @@ export interface components {
              */
             email?: string;
             password?: string;
+            /**
+             * Activo
+             * @description Indica si el usuario debe ser tratado como activo. Desmarque esta opción en lugar de borrar la cuenta.
+             */
+            is_active?: boolean;
             dni?: string;
             /**
              * Producto Asignado
@@ -78006,7 +78159,7 @@ export interface components {
              * Activo
              * @description Indica si el usuario debe ser tratado como activo. Desmarque esta opción en lugar de borrar la cuenta.
              */
-            readonly is_active: boolean;
+            is_active: boolean;
             /**
              * Es staff
              * @description Indica si el usuario puede entrar en este sitio de administración.
@@ -78081,6 +78234,11 @@ export interface components {
              */
             email: string;
             password?: string;
+            /**
+             * Activo
+             * @description Indica si el usuario debe ser tratado como activo. Desmarque esta opción en lugar de borrar la cuenta.
+             */
+            is_active?: boolean;
             dni: string;
             /**
              * Producto Asignado
@@ -88580,6 +88738,170 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Branch"];
                     "*/*": components["schemas"]["Branch"];
+                };
+            };
+        };
+    };
+    branches_delivery_zones_list: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+                /** @description Un número de página dentro del conjunto de resultados paginado. */
+                page?: number;
+                /** @description Número de resultados a devolver por página. */
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedBranchDeliveryZoneList"];
+                    "*/*": components["schemas"]["PaginatedBranchDeliveryZoneList"];
+                };
+            };
+        };
+    };
+    branches_delivery_zones_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BranchDeliveryZoneRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["BranchDeliveryZoneRequest"];
+                "multipart/form-data": components["schemas"]["BranchDeliveryZoneRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BranchDeliveryZone"];
+                    "*/*": components["schemas"]["BranchDeliveryZone"];
+                };
+            };
+        };
+    };
+    branches_delivery_zones_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este Zona de despacho. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BranchDeliveryZone"];
+                    "*/*": components["schemas"]["BranchDeliveryZone"];
+                };
+            };
+        };
+    };
+    branches_delivery_zones_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este Zona de despacho. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BranchDeliveryZoneRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["BranchDeliveryZoneRequest"];
+                "multipart/form-data": components["schemas"]["BranchDeliveryZoneRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BranchDeliveryZone"];
+                    "*/*": components["schemas"]["BranchDeliveryZone"];
+                };
+            };
+        };
+    };
+    branches_delivery_zones_destroy: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este Zona de despacho. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    branches_delivery_zones_partial_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este Zona de despacho. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedBranchDeliveryZoneRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedBranchDeliveryZoneRequest"];
+                "multipart/form-data": components["schemas"]["PatchedBranchDeliveryZoneRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BranchDeliveryZone"];
+                    "*/*": components["schemas"]["BranchDeliveryZone"];
                 };
             };
         };

@@ -68,7 +68,9 @@ function buildSimpleTicket(order: Order, items: CartItem[] | undefined, branchNa
   lines.push("");
   const deliveryCost = Number((order as { delivery_cost?: string | number | null }).delivery_cost ?? 0);
   if (deliveryCost > 0) {
-    lines.push(`Despacho: ${formatCLP(deliveryCost)}`);
+    const zoneName = (order as { delivery_zone?: string | null }).delivery_zone;
+    const label = zoneName?.trim() ? `Despacho (${zoneName.trim()})` : "Despacho";
+    lines.push(`${label}: ${formatCLP(deliveryCost)}`);
   }
   const total = Number(order.total_amount ?? 0);
   if (total > 0) {
@@ -248,7 +250,11 @@ export function PostSaleModal({ order, items, branchName, onClose }: PostSaleMod
               <div className="my-2 border-t border-dashed border-border" />
               {Number((order as { delivery_cost?: string | number | null }).delivery_cost ?? 0) > 0 && (
                 <div className="flex items-baseline justify-between text-xs text-muted-foreground">
-                  <span>Despacho</span>
+                  <span>
+                    {(order as { delivery_zone?: string | null }).delivery_zone?.trim()
+                      ? `Despacho (${(order as { delivery_zone?: string | null }).delivery_zone?.trim()})`
+                      : "Despacho"}
+                  </span>
                   <span className="tabular-nums">
                     {formatCLP(Number((order as { delivery_cost?: string | number | null }).delivery_cost))}
                   </span>

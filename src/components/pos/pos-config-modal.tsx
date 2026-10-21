@@ -19,8 +19,15 @@ import {
   fetchBranchPosConfig,
   updateBranchPosConfig,
 } from "@/lib/api/branches";
+import {
+  createDeliveryZone,
+  deleteDeliveryZone,
+  fetchDeliveryZones,
+  updateDeliveryZone,
+  type BranchDeliveryZone,
+} from "@/lib/api/delivery-zones";
 import { useToast } from "@/lib/store/toast";
-import { cn } from "@/lib/utils";
+import { cn, formatCLP } from "@/lib/utils";
 
 interface PosConfigModalProps {
   open: boolean;
@@ -132,11 +139,21 @@ export function PosConfigModal({
   const queryClient = useQueryClient();
   const toast = useToast();
   const [deliveryFeeDraft, setDeliveryFeeDraft] = useState<string | null>(null);
+  const [zoneName, setZoneName] = useState("");
+  const [zonePrice, setZonePrice] = useState("");
 
   const { data: branchPosConfig } = useQuery({
     queryKey: ["branch-pos-config"],
     queryFn: fetchBranchPosConfig,
     staleTime: 60_000,
+    enabled: open,
+  });
+
+  const { data: deliveryZones = [] } = useQuery({
+    queryKey: ["delivery-zones", "config"],
+    queryFn: () => fetchDeliveryZones(),
+    staleTime: 30_000,
+    enabled: open,
   });
 
   const remoteDeliveryFee = Number(branchPosConfig?.default_delivery_fee ?? 0);
@@ -158,6 +175,39 @@ export function PosConfigModal({
       toast.success("Costo de despacho de la sucursal guardado.");
     },
     onError: (err: Error) => toast.error(err.message || "No se pudo guardar el costo de despacho."),
+  });
+
+  const saveZone = useMutation({
+    mutationFn: async () => {
+      const name = zoneName.trim();
+      if (!name) throw new Error("Indica el nombre de la zona.");
+      return createDeliveryZone({ name, price: zonePrice || "0" });
+    },
+    onSuccess: () => {
+      setZoneName("");
+      setZonePrice("");
+      queryClient.invalidateQueries({ queryKey: ["delivery-zones"] });
+      toast.success("Zona de despacho creada.");
+    },
+    onError: (err: Error) => toast.error(err.message || "No se pudo crear la zona."),
+  });
+
+  const toggleZone = useMutation({
+    mutationFn: (zone: BranchDeliveryZone) =>
+      updateDeliveryZone(zone.id, { is_active: !zone.is_active }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["delivery-zones"] });
+    },
+    onError: (err: Error) => toast.error(err.message || "No se pudo actualizar la zona."),
+  });
+
+  const removeZone = useMutation({
+    mutationFn: (id: number) => deleteDeliveryZone(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["delivery-zones"] });
+      toast.success("Zona desactivada.");
+    },
+    onError: (err: Error) => toast.error(err.message || "No se pudo desactivar la zona."),
   });
 
   const { data: stations = [] } = useQuery({
@@ -298,6 +348,77 @@ export function PosConfigModal({
               >
                 Guardar
               </Button>
+            </div>
+            <div className="mt-4 border-t border-border/50 pt-3">
+              <p className="text-sm font-medium text-foreground">Zonas</p>
+              <p className="text-xs text-muted-foreground">
+                Precio por comuna o barrio. En el carrito Delivery se elige una zona y se puede editar el monto antes de cobrar. Si no hay zona, se usa el default.
+              </p>
+              <div className="mt-2 flex flex-col gap-2">
+                {deliveryZones.map((zone) => (
+                  <div
+                    key={zone.id}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-border/50 px-2 py-1.5 text-xs"
+                  >
+                    <div className="min-w-0">
+                      <p className={cn("font-medium", zone.is_active === false && "text-muted-foreground line-through")}>
+                        {zone.name}
+                      </p>
+                      <p className="text-muted-foreground">{formatCLP(zone.price)}</p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleZone.mutate(zone)}
+                        disabled={toggleZone.isPending}
+                      >
+                        {zone.is_active === false ? "Activar" : "Pausar"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeZone.mutate(zone.id)}
+                        disabled={removeZone.isPending}
+                      >
+                        Quitar
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                {deliveryZones.length === 0 && (
+                  <p className="text-xs text-muted-foreground">Todavía no hay zonas. El carrito usará el default.</p>
+                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input
+                    value={zoneName}
+                    onChange={(e) => setZoneName(e.target.value)}
+                    placeholder="Nombre (p.ej. Las Condes)"
+                    className="h-8 min-w-[10rem] flex-1 text-xs"
+                  />
+                  <Input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={zonePrice}
+                    onChange={(e) => setZonePrice(e.target.value)}
+                    placeholder="Precio"
+                    className="h-8 w-24 text-xs"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => saveZone.mutate()}
+                    disabled={saveZone.isPending}
+                    isLoading={saveZone.isPending}
+                  >
+                    Agregar
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
