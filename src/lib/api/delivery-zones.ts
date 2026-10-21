@@ -1,4 +1,10 @@
-import { apiFetch } from "@/lib/api/client";
+import { ApiError, apiFetch } from "@/lib/api/client";
+
+export function formatDeliveryZoneError(err: unknown, fallback: string): string {
+  if (err instanceof ApiError && err.message.trim()) return err.message.trim();
+  if (err instanceof Error && err.message.trim()) return err.message.trim();
+  return fallback;
+}
 
 export function deliveryLineLabel(zoneName?: string | null): string {
   const name = (zoneName ?? "").trim();

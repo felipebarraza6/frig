@@ -23,6 +23,7 @@ import {
   createDeliveryZone,
   deleteDeliveryZone,
   fetchDeliveryZones,
+  formatDeliveryZoneError,
   updateDeliveryZone,
   type BranchDeliveryZone,
 } from "@/lib/api/delivery-zones";
@@ -141,6 +142,7 @@ export function PosConfigModal({
   const [deliveryFeeDraft, setDeliveryFeeDraft] = useState<string | null>(null);
   const [zoneName, setZoneName] = useState("");
   const [zonePrice, setZonePrice] = useState("");
+  const [zoneError, setZoneError] = useState<string | null>(null);
 
   const { data: branchPosConfig } = useQuery({
     queryKey: ["branch-pos-config"],
@@ -186,28 +188,46 @@ export function PosConfigModal({
     onSuccess: () => {
       setZoneName("");
       setZonePrice("");
+      setZoneError(null);
       queryClient.invalidateQueries({ queryKey: ["delivery-zones"] });
       toast.success("Zona de despacho creada.");
     },
-    onError: (err: Error) => toast.error(err.message || "No se pudo crear la zona."),
+    onError: (err: Error) => {
+      const message = formatDeliveryZoneError(err, "No se pudo crear la zona.");
+      setZoneError(message);
+      queryClient.invalidateQueries({ queryKey: ["delivery-zones"] });
+      toast.error(message);
+    },
   });
 
   const toggleZone = useMutation({
     mutationFn: (zone: BranchDeliveryZone) =>
       updateDeliveryZone(zone.id, { is_active: !zone.is_active }),
     onSuccess: () => {
+      setZoneError(null);
       queryClient.invalidateQueries({ queryKey: ["delivery-zones"] });
     },
-    onError: (err: Error) => toast.error(err.message || "No se pudo actualizar la zona."),
+    onError: (err: Error) => {
+      const message = formatDeliveryZoneError(err, "No se pudo actualizar la zona.");
+      setZoneError(message);
+      queryClient.invalidateQueries({ queryKey: ["delivery-zones"] });
+      toast.error(message);
+    },
   });
 
   const removeZone = useMutation({
     mutationFn: (id: number) => deleteDeliveryZone(id),
     onSuccess: () => {
+      setZoneError(null);
       queryClient.invalidateQueries({ queryKey: ["delivery-zones"] });
       toast.success("Zona desactivada.");
     },
-    onError: (err: Error) => toast.error(err.message || "No se pudo desactivar la zona."),
+    onError: (err: Error) => {
+      const message = formatDeliveryZoneError(err, "No se pudo desactivar la zona.");
+      setZoneError(message);
+      queryClient.invalidateQueries({ queryKey: ["delivery-zones"] });
+      toast.error(message);
+    },
   });
 
   const { data: stations = [] } = useQuery({
@@ -391,10 +411,18 @@ export function PosConfigModal({
                 {deliveryZones.length === 0 && (
                   <p className="text-xs text-muted-foreground">Todavía no hay zonas. El carrito usará el default.</p>
                 )}
+                {zoneError && (
+                  <p className="text-xs font-medium text-destructive" role="alert">
+                    {zoneError}
+                  </p>
+                )}
                 <div className="flex flex-wrap items-center gap-2">
                   <Input
                     value={zoneName}
-                    onChange={(e) => setZoneName(e.target.value)}
+                    onChange={(e) => {
+                      setZoneName(e.target.value);
+                      if (zoneError) setZoneError(null);
+                    }}
                     placeholder="Nombre (p.ej. Las Condes)"
                     className="h-8 min-w-[10rem] flex-1 text-xs"
                   />
