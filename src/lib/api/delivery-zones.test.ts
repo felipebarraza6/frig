@@ -45,4 +45,18 @@ describe("delivery-zones api", () => {
       { method: "POST", body: { name: "Providencia", price: "1800" } },
     ]);
   });
+
+  it("expone el mensaje real del API al crear/editar/borrar zona", async () => {
+    const { ApiError } = await import("./client");
+    const { formatDeliveryZoneError } = await import("./delivery-zones");
+    const err = new ApiError(400, "Ya existe una zona activa con ese nombre", {
+      name: ["Ya existe una zona activa con ese nombre"],
+    });
+    expect(formatDeliveryZoneError(err, "No se pudo crear la zona.")).toBe(
+      "Ya existe una zona activa con ese nombre",
+    );
+    expect(formatDeliveryZoneError(new Error("IntegrityError"), "fallback")).toBe(
+      "IntegrityError",
+    );
+  });
 });

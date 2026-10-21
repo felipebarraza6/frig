@@ -246,7 +246,13 @@ export async function apiFetch<T>(path: string, opts: ApiOptions = {}): Promise<
 }
 
 const ERROR_MESSAGE_KEYS = new Set(["detail", "non_field_errors", "error"]);
-const UNPREFIXED_ERROR_FIELDS = new Set(["notes", "reference", "dni", "email"]);
+const UNPREFIXED_ERROR_FIELDS = new Set([
+  "notes",
+  "reference",
+  "dni",
+  "email",
+  "name",
+]);
 
 export function formatErrorDetail(detail: unknown): string {
   if (typeof detail === "string") {
