@@ -50,6 +50,7 @@ export interface CreateOrderInput {
   order_type?: "SALE" | "ORDER" | "AGREEMENT";
   delivery_address?: string | null;
   delivery_date?: string | null;
+  delivery_cost?: string | number | null;
 }
 
 export interface EditOrderInput {
@@ -58,6 +59,7 @@ export interface EditOrderInput {
   observation?: string | null;
   delivery_address?: string | null;
   delivery_date?: string | null;
+  delivery_cost?: string | number | null;
   items?: EditOrderItemInput[];
 }
 
@@ -282,6 +284,7 @@ export async function createOrder(input: CreateOrderInput): Promise<YggdraOrder>
       items: input.items,
       delivery_address: input.delivery_address ?? null,
       delivery_date: input.delivery_date ?? null,
+      delivery_cost: input.delivery_cost ?? null,
     },
   });
   return data;
@@ -340,6 +343,7 @@ export async function editOrder(
       observation: input.observation ?? null,
       delivery_address: input.delivery_address ?? null,
       delivery_date: input.delivery_date ?? null,
+      delivery_cost: input.delivery_cost ?? null,
       items: input.items ?? [],
     },
   });

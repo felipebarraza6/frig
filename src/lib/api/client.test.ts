@@ -117,5 +117,8 @@ describe("apiFetch", () => {
     expect(
       formatErrorDetail({ dni: ["Dígito verificador incorrecto"] }),
     ).toBe("Dígito verificador incorrecto");
+    expect(
+      formatErrorDetail({ email: ["Este correo ya está registrado."] }),
+    ).toBe("Este correo ya está registrado.");
   });
 });

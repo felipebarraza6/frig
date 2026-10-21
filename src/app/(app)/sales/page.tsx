@@ -89,6 +89,7 @@ type Order = YggdraSchemas["Order"] & {
   delivery_status?: string | null;
   delivery_address?: string | null;
   delivery_date?: string | null;
+  delivery_cost?: string | number | null;
   installments?: PaymentInstallment[];
   payments?: PaymentBrief[];
   products?: OrderProduct[];
@@ -2021,7 +2022,7 @@ export default function SalesPage() {
 
 
               {/* Datos de entrega (solo pedidos) */}
-              {detail.order_type === "ORDER" && (detail.delivery_address || detail.delivery_date) && (
+              {(detail.delivery_address || detail.delivery_date || Number(detail.delivery_cost ?? 0) > 0) && (
                 <div className="mt-5 rounded-xl border border-primary/20 bg-primary/5 p-3">
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">Entrega</p>
                   {detail.delivery_address && (
@@ -2039,6 +2040,12 @@ export default function SalesPage() {
                         minute: "2-digit",
                         hour12: false,
                       })}
+                    </p>
+                  )}
+                  {Number(detail.delivery_cost ?? 0) > 0 && (
+                    <p className="mt-1 text-sm">
+                      <span className="text-muted-foreground">Despacho:</span>{" "}
+                      {formatCLP(detail.delivery_cost ?? "0")}
                     </p>
                   )}
                 </div>

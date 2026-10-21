@@ -168,11 +168,20 @@ function incompletePayloadFrom(err: unknown): Record<string, unknown> | null {
   if (!(err instanceof ApiError) || err.status !== 409) return null;
   const detail = asRecord(err.detail);
   if (!detail) return null;
-  if (detail.code === NUTRITION_INCOMPLETE || "missing_ingredients" in detail) {
+  if (
+    detail.code === NUTRITION_INCOMPLETE ||
+    "missing_ingredients" in detail ||
+    detail.nutrition_is_complete === false
+  ) {
     return detail;
   }
   const nested = asRecord(detail.detail);
-  if (nested && (nested.code === NUTRITION_INCOMPLETE || "missing_ingredients" in nested)) {
+  if (
+    nested &&
+    (nested.code === NUTRITION_INCOMPLETE ||
+      "missing_ingredients" in nested ||
+      nested.nutrition_is_complete === false)
+  ) {
     return nested;
   }
   return null;

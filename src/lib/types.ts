@@ -174,6 +174,7 @@ export interface UserResponse {
   /** Dueño de alguna organización (reseller). Marca canónica del backend. */
   is_organization_owner?: boolean;
   is_multi_branch?: boolean;
+  has_usable_password?: boolean;
   last_login?: string;
   created?: string;
   branch_access?: BranchAssignment;
@@ -232,6 +233,7 @@ export interface UserPayload {
     role: string;
     is_active?: boolean;
   } | null;
+  assign_existing?: boolean;
 }
 
 export interface UserUpdatePayload {

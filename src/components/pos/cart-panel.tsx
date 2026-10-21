@@ -40,6 +40,8 @@ import {
 import { formatCLP, paymentTypeLabel, cn } from "@/lib/utils";
 import { useToast } from "@/lib/store/toast";
 import { createOrder, editOrder, fetchOrder, cartToOrderItems, type EditOrderItemInput } from "@/lib/api/orders";
+import { ApiError } from "@/lib/api/client";
+import { fetchBranchPosConfig } from "@/lib/api/branches";
 import { fetchPaymentMethods, createPayment } from "@/lib/api/payments";
 import { searchCustomers, createCustomer, type CustomerPayload } from "@/lib/api/customers";
 import { getCurrentCashRegister } from "@/lib/api/cash-register";
@@ -67,6 +69,7 @@ type Order = YggdraSchemas["Order"] & {
   paid_amount?: string | number | null;
   delivery_address?: string | null;
   delivery_date?: string | null;
+  delivery_cost?: string | number | null;
 };
 type OrderProduct = YggdraSchemas["OrderProduct"];
 
@@ -130,6 +133,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
   const [deliveryMode, setDeliveryMode] = useState<"pickup" | "delivery">("pickup");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryDate, setDeliveryDate] = useState("");
+  const [deliveryCost, setDeliveryCost] = useState("");
   const [removedOrderProductIds, setRemovedOrderProductIds] = useState<number[]>([]);
   const [emptyTimerFired, setEmptyTimerFired] = useState(false);
   // ID de la orden cuyos datos ya fueron volcados al estado local. Permite
@@ -239,6 +243,8 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
     setDeliveryMode(hasDelivery ? "delivery" : "pickup");
     setDeliveryAddress(existingOrder.delivery_address ?? "");
     setDeliveryDate(toDateTimeLocal(existingOrder.delivery_date));
+    const existingFee = Number(existingOrder.delivery_cost ?? 0);
+    setDeliveryCost(existingFee > 0 ? String(Math.round(existingFee)) : "");
   }, [existingOrder, setItems]);
 
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -269,6 +275,13 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
   const { data: financeConfig } = useQuery({
     queryKey: ["branch-finance-config", branchId],
     queryFn: () => fetchBranchFinanceConfigByBranch(Number(branchId)),
+    enabled: Boolean(branchId),
+    staleTime: 60_000,
+  });
+
+  const { data: branchPosConfig } = useQuery({
+    queryKey: ["branch-pos-config", branchId],
+    queryFn: fetchBranchPosConfig,
     enabled: Boolean(branchId),
     staleTime: 60_000,
   });
@@ -372,7 +385,9 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
   const codeDiscount = calculateCodeDiscount(validatedDiscount, items, cartSub - lineDiscounts);
   const newItemsTotal = Math.max(0, cartSub - lineDiscounts - codeDiscount);
   const subtotal = cartSub;
-  const total = Math.max(0, newItemsTotal - existingOrderPaid);
+  const deliveryCostAmount =
+    deliveryMode === "delivery" ? Math.max(0, parseFloat(deliveryCost) || 0) : 0;
+  const total = Math.max(0, newItemsTotal + deliveryCostAmount - existingOrderPaid);
 
   const orderBaseForAvailable = Math.max(0, cartSub - lineDiscounts);
   const availableDiscountsQuery = useQuery({
@@ -494,6 +509,12 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
     setDeliveryMode("pickup");
     setDeliveryAddress("");
     setDeliveryDate("");
+    setDeliveryCost("");
+  }
+
+  function applyDefaultDeliveryFee() {
+    const fee = Number(branchPosConfig?.default_delivery_fee ?? 0);
+    setDeliveryCost(fee > 0 ? String(Math.round(fee)) : "");
   }
 
   async function handleSaveExistingOrder(redirectToPay: boolean) {
@@ -523,6 +544,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
         table_id: selectedTable?.id ?? null,
         delivery_address: deliveryMode === "delivery" ? deliveryAddress || null : null,
         delivery_date: deliveryMode === "delivery" && deliveryDate ? new Date(deliveryDate).toISOString() : null,
+        delivery_cost: deliveryMode === "delivery" ? deliveryCost || "0" : "0",
         items: [...activeItems, ...removedItems],
       });
 
@@ -641,11 +663,6 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
       } else {
         orderType = isWaiter ? "ORDER" : "SALE";
       }
-      if ((orderType === "ORDER" || payments.length === 0) && !selectedClient) {
-        toast.error("Debes seleccionar un cliente para guardar la orden / cuenta.");
-        setSaving(false);
-        return;
-      }
       const order = await createOrder({
         items: cartToOrderItems(items),
         client_id: selectedClient?.id ?? null,
@@ -653,6 +670,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
         order_type: orderType,
         delivery_address: deliveryMode === "delivery" ? deliveryAddress || null : null,
         delivery_date: deliveryMode === "delivery" && deliveryDate ? new Date(deliveryDate).toISOString() : null,
+        delivery_cost: deliveryMode === "delivery" ? deliveryCost || "0" : "0",
       });
 
       if (orderType === "ORDER" && selectedTable) {
@@ -784,6 +802,16 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
       resetDelivery();
       onOrderRegistered?.(orderType === "AGREEMENT" ? "SALE" : orderType);
     } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        const detail = err.detail as { code?: string; existing_order_id?: string } | undefined;
+        if (detail?.code === "table_has_open_order") {
+          toast.error(
+            "Esta mesa ya tiene una orden abierta. Ábrela desde el mapa para actualizarla.",
+          );
+          setSaving(false);
+          return;
+        }
+      }
       toast.error(err instanceof Error ? err.message : "Error al registrar la venta");
     } finally {
       setSaving(false);
@@ -849,8 +877,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
       !saving &&
       !cashRegisterMissing &&
       !isStaleCashRegister &&
-      (payments.length === 0 || paidAmount >= total) &&
-      (!willBeOrder || selectedClient != null);
+      (payments.length === 0 || paidAmount >= total);
 
   const hasPendingPayment = payments.length > 0 && paidAmount < total;
 
@@ -1335,7 +1362,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
               )}
 
               {/* Tipo de entrega — oculto si el módulo deliveries está desactivado */}
-              {(posConfig.delivery || posConfig.pickup) && (willBeOrder || (existingOrderId && existingOrder?.order_type !== "SALE")) && (
+              {(posConfig.delivery || posConfig.pickup) && (
                 <div className="flex flex-col gap-2 rounded-lg border border-border/60 bg-muted/20 p-3">
                   <div className="flex items-center gap-2">
                     {posConfig.pickup && (
@@ -1356,7 +1383,10 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                     {posConfig.delivery && (
                     <button
                       type="button"
-                      onClick={() => setDeliveryMode("delivery")}
+                      onClick={() => {
+                        setDeliveryMode("delivery");
+                        if (!deliveryCost) applyDefaultDeliveryFee();
+                      }}
                       className={cn(
                         "flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 text-[11px] font-medium transition-colors",
                         deliveryMode === "delivery"
@@ -1387,6 +1417,18 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                           onChange={(e) => setDeliveryDate(e.target.value)}
                           placeholder="Fecha y hora de entrega"
                           className="h-8 pl-8 text-xs"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-0.5">
+                        <label className="text-[10px] text-muted-foreground">Costo de despacho</label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={deliveryCost}
+                          onChange={(e) => setDeliveryCost(e.target.value)}
+                          placeholder="0"
+                          className="h-8 text-xs"
                         />
                       </div>
                     </div>
@@ -1507,7 +1549,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                       onClick={addPayment}
                       className="text-[11px] font-medium text-primary hover:underline"
                     >
-                      + Agregar
+                      Agregar pago
                     </button>
                   </div>
 
@@ -1676,6 +1718,12 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
               <span className="tabular-nums">-{formatCLP(codeDiscount)}</span>
             </div>
           )}
+          {deliveryCostAmount > 0 && (
+            <div className="flex items-center justify-between text-muted-foreground">
+              <span>Despacho</span>
+              <span className="tabular-nums">{formatCLP(deliveryCostAmount)}</span>
+            </div>
+          )}
           {showTaxBreakdown && (
             <div className="flex flex-col gap-1 border-t border-border/60 pt-2 text-muted-foreground">
               <div className="flex items-center justify-between">
@@ -1714,7 +1762,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                 onClick={() => handleSaveExistingOrder(false)}
                 className="h-12 text-sm font-semibold"
               >
-                {saving ? "Guardando…" : "Guardar orden"}
+                {saving ? "Guardando…" : "Actualizar orden"}
               </Button>
             )}
           </div>

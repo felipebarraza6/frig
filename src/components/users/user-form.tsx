@@ -12,7 +12,9 @@ import { useSessionStore, useCurrentBranch, useIsModuleEnabledFromConfig } from 
 import { branchName } from "@/lib/types";
 import { ROLE_LABELS } from "@/lib/roles";
 import { createAndAssignUser, updateUser, changeAssignmentRole } from "@/lib/api/users";
-import type { Branch, UserResponse } from "@/lib/types";
+import { ApiError } from "@/lib/api/client";
+import { useToast } from "@/lib/store/toast";
+import type { Branch, UserPayload, UserResponse } from "@/lib/types";
 
 interface UserFormProps {
   user?: UserResponse;
@@ -106,6 +108,10 @@ export function UserForm({ user, onClose, onSuccess }: UserFormProps) {
   const [email, setEmail] = useState(user?.email ?? "");
   const [dni, setDni] = useState(user?.dni ?? "");
   const [password, setPassword] = useState("");
+  const [setPasswordNow, setSetPasswordNow] = useState(false);
+  const [assignExisting, setAssignExisting] = useState(false);
+  const [queuedInvite, setQueuedInvite] = useState(false);
+  const toast = useToast();
   const [branchId, setBranchId] = useState<string>(
     currentAssignment?.branch_id ? String(currentAssignment.branch_id) : currentBranch ? String(currentBranch.branch_id) : "",
   );
@@ -120,8 +126,37 @@ export function UserForm({ user, onClose, onSuccess }: UserFormProps) {
 
   const create = useMutation({
     mutationFn: createAndAssignUser,
-    onSuccess: () => onSuccess(),
-    onError: (err: Error) => setError(err.message || "No se pudo crear el usuario."),
+    onSuccess: (data) => {
+      if (data.invitation_queued) {
+        setQueuedInvite(true);
+        toast.success(
+          data.needs_password_setup
+            ? "Invitación encolada. El usuario definirá su clave desde el correo."
+            : "Correo de acceso encolado.",
+        );
+      } else if (data.assigned_existing) {
+        toast.success("Usuario existente asignado a esta sucursal.");
+      }
+      onSuccess();
+    },
+    onError: (err: Error) => {
+      if (err instanceof ApiError && err.status === 409) {
+        const detail = err.detail as { code?: string; already_in_branch?: boolean } | undefined;
+        if (detail?.code === "email_already_registered") {
+          setAssignExisting(true);
+          setError(
+            err.message ||
+              "Este correo ya está registrado. Confirma para asignarlo a esta sucursal.",
+          );
+          return;
+        }
+        if (detail?.code === "already_in_branch") {
+          setError("Este usuario ya pertenece a esta sucursal.");
+          return;
+        }
+      }
+      setError(err.message || "No se pudo crear el usuario.");
+    },
   });
 
   const update = useMutation({
@@ -171,13 +206,16 @@ export function UserForm({ user, onClose, onSuccess }: UserFormProps) {
       setError("Selecciona una sucursal.");
       return;
     }
-    create.mutate({
+    if (setPasswordNow && password.length < 8) {
+      setError("La contraseña debe tener al menos 8 caracteres.");
+      return;
+    }
+    const payload: UserPayload = {
       user_data: {
         email,
         first_name: firstName,
         last_name: lastName,
         dni: normalizedDni,
-        password,
         is_multi_branch: canGrantMultiBranch ? isMultiBranch : false,
       },
       branch_assignment: {
@@ -185,7 +223,14 @@ export function UserForm({ user, onClose, onSuccess }: UserFormProps) {
         role: effectiveRole,
         is_active: true,
       },
-    });
+    };
+    if (setPasswordNow && password) {
+      payload.user_data.password = password;
+    }
+    if (assignExisting) {
+      payload.assign_existing = true;
+    }
+    create.mutate(payload);
   };
 
   const isPending = create.isPending || update.isPending;
@@ -269,19 +314,43 @@ export function UserForm({ user, onClose, onSuccess }: UserFormProps) {
                 />
               </div>
 
-              <div className="flex flex-col gap-1.5 sm:col-span-2">
-                <label htmlFor="password" className="text-sm font-medium">
-                  Contraseña {isEditing && "(solo si cambia)"}
-                </label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required={!isEditing}
-                  minLength={8}
-                />
-              </div>
+              {isEditing ? (
+                <div className="flex flex-col gap-1.5 sm:col-span-2">
+                  <label htmlFor="password" className="text-sm font-medium">
+                    Contraseña (solo si cambia)
+                  </label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    minLength={8}
+                  />
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2 sm:col-span-2">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={setPasswordNow}
+                      onChange={(e) => setSetPasswordNow(e.target.checked)}
+                      className="h-4 w-4 rounded border-input"
+                    />
+                    Crear con clave ahora (si no, se invita por correo)
+                  </label>
+                  {setPasswordNow && (
+                    <Input
+                      id="password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      minLength={8}
+                      required
+                      placeholder="Mínimo 8 caracteres"
+                    />
+                  )}
+                </div>
+              )}
 
               <div className="flex flex-col gap-1.5 sm:col-span-2">
                 <label htmlFor="branch" className="text-sm font-medium">
@@ -349,6 +418,16 @@ export function UserForm({ user, onClose, onSuccess }: UserFormProps) {
                   {error}
                 </p>
               )}
+              {assignExisting && !isEditing && (
+                <p className="rounded-lg bg-primary/10 px-3 py-2 text-sm sm:col-span-2">
+                  Este correo ya existe. Pulsa «Asignar a esta sucursal» para darle acceso aquí.
+                </p>
+              )}
+              {queuedInvite && (
+                <p className="rounded-lg bg-success/10 px-3 py-2 text-sm text-success sm:col-span-2">
+                  Invitación encolada. Si el correo no llega, reenvíala desde el listado.
+                </p>
+              )}
             </div>
           </div>
 
@@ -357,7 +436,13 @@ export function UserForm({ user, onClose, onSuccess }: UserFormProps) {
               Cancelar
             </Button>
             <Button type="submit" isLoading={isPending}>
-              Guardar
+              {isEditing
+                ? "Guardar"
+                : assignExisting
+                  ? "Asignar a esta sucursal"
+                  : setPasswordNow
+                    ? "Crear usuario"
+                    : "Invitar por correo"}
             </Button>
           </div>
         </form>
