@@ -11,6 +11,7 @@ export const ROLE_LABELS: Record<string, string> = {
   MESERO: "Mesero",
   REPARTIDOR: "Repartidor",
   COURIER: "Repartidor",
+  DRIVER: "Repartidor",
   COCINERO: "Cocinero",
   COOK: "Cocinero",
 };
@@ -20,6 +21,18 @@ export function getRoleLabel(code?: string | null): string | undefined {
   // El backend puede devolver el código en minúsculas (ej: "admin_local").
   const normalized = code.toUpperCase();
   return ROLE_LABELS[normalized] ?? ROLE_LABELS[code] ?? code;
+}
+
+const DRIVER_CODES = new Set(["DRIVER", "REPARTIDOR", "COURIER"]);
+
+export function isDriverRole(code?: string | null): boolean {
+  return Boolean(code && DRIVER_CODES.has(code.toUpperCase()));
+}
+
+/** Código que envía el formulario FRIG (Repartidor). */
+export function formDriverRoleCode(code?: string | null): string | undefined {
+  if (!code) return code ?? undefined;
+  return isDriverRole(code) ? "REPARTIDOR" : code;
 }
 
 /**
@@ -36,7 +49,7 @@ const FRIG_ROLE_CATALOG: { codes: string[]; label: string; module: string | null
   { codes: ["CAJERO"], label: "Cajero", module: "pos" },
   { codes: ["WAITER", "MESERO"], label: "Mesero", module: "tables" },
   { codes: ["COCINERO", "COOK"], label: "Cocinero", module: "production" },
-  { codes: ["REPARTIDOR", "COURIER"], label: "Repartidor", module: "deliveries" },
+  { codes: ["REPARTIDOR", "COURIER", "DRIVER"], label: "Repartidor", module: "deliveries" },
 ];
 
 export interface FrigRoleOption {

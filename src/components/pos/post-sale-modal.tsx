@@ -9,8 +9,16 @@ import { formatCLP } from "@/lib/utils";
 import { useToast } from "@/lib/store/toast";
 import type { CartItem } from "@/lib/store/cart";
 import type { YggdraSchemas } from "@/lib/api/types";
+import { AssignDriverControl } from "@/components/sales/assign-driver-control";
 
-type Order = YggdraSchemas["Order"] & { order_number?: string | null };
+type Order = YggdraSchemas["Order"] & {
+  order_number?: string | null;
+  delivery_address?: string | null;
+  delivery_cost?: string | number | null;
+  driver_fee?: string | number | null;
+  delivered_by_id?: number | null;
+  delivered_by_name?: string | null;
+};
 
 interface PostSaleModalProps {
   order: Order;
@@ -94,6 +102,7 @@ function downloadBlob(content: string, filename: string, type: string) {
 }
 
 export function PostSaleModal({ order, items, branchName, onClose }: PostSaleModalProps) {
+  const [currentOrder, setCurrentOrder] = useState<Order>(order);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [downloadingTxt, setDownloadingTxt] = useState(false);
   const [printingTicket, setPrintingTicket] = useState(false);
@@ -248,24 +257,36 @@ export function PostSaleModal({ order, items, branchName, onClose }: PostSaleMod
                 ))}
               </ul>
               <div className="my-2 border-t border-dashed border-border" />
-              {Number((order as { delivery_cost?: string | number | null }).delivery_cost ?? 0) > 0 && (
+              {Number((currentOrder as { delivery_cost?: string | number | null }).delivery_cost ?? 0) > 0 && (
                 <div className="flex items-baseline justify-between text-xs text-muted-foreground">
                   <span>
-                    {(order as { delivery_zone?: string | null }).delivery_zone?.trim()
-                      ? `Despacho (${(order as { delivery_zone?: string | null }).delivery_zone?.trim()})`
+                    {(currentOrder as { delivery_zone?: string | null }).delivery_zone?.trim()
+                      ? `Despacho (${(currentOrder as { delivery_zone?: string | null }).delivery_zone?.trim()})`
                       : "Despacho"}
                   </span>
                   <span className="tabular-nums">
-                    {formatCLP(Number((order as { delivery_cost?: string | number | null }).delivery_cost))}
+                    {formatCLP(Number((currentOrder as { delivery_cost?: string | number | null }).delivery_cost))}
                   </span>
+                </div>
+              )}
+              {Number(currentOrder.driver_fee ?? 0) > 0 && (
+                <div className="flex items-baseline justify-between text-xs text-muted-foreground">
+                  <span>Tarifa conductor</span>
+                  <span className="tabular-nums">{formatCLP(Number(currentOrder.driver_fee))}</span>
                 </div>
               )}
               <div className="flex items-baseline justify-between">
                 <span className="text-xs font-semibold">Total</span>
                 <span className="text-sm font-bold tabular-nums text-primary">
-                  {formatCLP(Number(order.total_amount ?? previewTotal))}
+                  {formatCLP(Number(currentOrder.total_amount ?? previewTotal))}
                 </span>
               </div>
+              <AssignDriverControl
+                order={currentOrder}
+                onAssigned={(updated) =>
+                  setCurrentOrder((prev) => ({ ...prev, ...updated }))
+                }
+              />
             </div>
           )}
         </div>
