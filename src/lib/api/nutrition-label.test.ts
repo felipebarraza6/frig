@@ -95,6 +95,10 @@ describe("409 nutrition_incomplete", () => {
 
     expect(isNutritionIncomplete(err)).toBe(true);
     expect(nutritionCalculateToastMessage(err)).toBeNull();
+
+    const alias = new ApiError(409, "incompleto", { nutrition_is_complete: false });
+    expect(isNutritionIncomplete(alias)).toBe(true);
+    expect(nutritionCalculateToastMessage(alias)).toBeNull();
     const rows = missingIngredientsFromError(err);
     expect(rows).toHaveLength(2);
     expect(missingDetailLabel(rows[0]!)).toBe("Leche entera");
