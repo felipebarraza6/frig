@@ -10,7 +10,7 @@ import { Select } from "@/components/ui/select";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import { useSessionStore, useCurrentBranch, useIsModuleEnabledFromConfig } from "@/lib/store/session";
 import { branchName } from "@/lib/types";
-import { ROLE_LABELS } from "@/lib/roles";
+import { ROLE_LABELS, formDriverRoleCode, isDriverRole } from "@/lib/roles";
 import { createAndAssignUser, updateUser, changeAssignmentRole } from "@/lib/api/users";
 import { ApiError } from "@/lib/api/client";
 import { useToast } from "@/lib/store/toast";
@@ -73,13 +73,15 @@ export function UserForm({ user, onClose, onSuccess }: UserFormProps) {
     }
     // Al editar, el rol actual se mantiene aunque su módulo esté apagado: si
     // no, el select caería a otro rol y se cambiaría silenciosamente al guardar.
-    if (
-      isEditing &&
-      currentAssignment?.role_code &&
-      !roles.some((r) => r.code === currentAssignment.role_code)
-    ) {
+    if (isEditing && currentAssignment?.role_code) {
       const code = currentAssignment.role_code;
-      roles = [...roles, { code, label: ROLE_LABELS[code] ?? code, module: null }];
+      const already = roles.some(
+        (r) => r.code === code || (isDriverRole(code) && r.code === "REPARTIDOR"),
+      );
+      if (!already) {
+        const formCode = formDriverRoleCode(code) ?? code;
+        roles = [...roles, { code: formCode, label: ROLE_LABELS[formCode] ?? ROLE_LABELS[code] ?? code, module: null }];
+      }
     }
     return roles;
   }, [
@@ -101,7 +103,10 @@ export function UserForm({ user, onClose, onSuccess }: UserFormProps) {
         currentUser?.branch_assignments?.some((a) => a.role_code === "OWNER"),
       ));
 
-  const initialRole = currentAssignment?.role_code ?? availableRoles[0]?.code ?? "EMPLOYEE";
+  const initialRole =
+    formDriverRoleCode(currentAssignment?.role_code) ??
+    availableRoles[0]?.code ??
+    "EMPLOYEE";
 
   const [firstName, setFirstName] = useState(user?.first_name ?? "");
   const [lastName, setLastName] = useState(user?.last_name ?? "");
@@ -177,7 +182,10 @@ export function UserForm({ user, onClose, onSuccess }: UserFormProps) {
       if (password) payload.password = password;
       await updateUser(Number(user.id), payload);
 
-      if (currentAssignment?.id && effectiveRole !== currentAssignment.role_code) {
+      if (
+        currentAssignment?.id &&
+        formDriverRoleCode(effectiveRole) !== formDriverRoleCode(currentAssignment.role_code)
+      ) {
         await changeAssignmentRole(Number(currentAssignment.id), effectiveRole);
       }
     },
