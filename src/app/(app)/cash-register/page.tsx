@@ -42,6 +42,9 @@ import { PageHeader } from "@/components/page-header";
 import {
   getCurrentCashRegister,
   stationScopedOpenRegister,
+  staleOpenCount,
+  staleOpenRegistersFromCurrent,
+  isTodayOpenRegister,
   getLastClosedCashRegister,
   openCashRegister,
   closeCashRegister,
@@ -147,6 +150,7 @@ export default function CashRegisterPage() {
   const [historyActionRegisterId, setHistoryActionRegisterId] = useState<number | null>(null);
   const [historyActionType, setHistoryActionType] = useState<"close" | "open" | null>(null);
   const [historyActionAmounts, setHistoryActionAmounts] = useState<Record<number, string>>({});
+  const [staleCloseAmounts, setStaleCloseAmounts] = useState<Record<number, string>>({});
 
   const {
     data: stations = [],
@@ -213,7 +217,11 @@ export default function CashRegisterPage() {
     refetchInterval: 30_000,
     staleTime: 10_000,
   });
-  const cashRegister = stationScopedOpenRegister(currentRegister, activeStationId);
+  const scopedRegister = stationScopedOpenRegister(currentRegister, activeStationId);
+  const staleOpenRegisters = staleOpenRegistersFromCurrent(currentRegister);
+  const cashRegister = isTodayOpenRegister(scopedRegister, todayLocal())
+    ? scopedRegister
+    : null;
 
   const { data: lastClosedRegister } = useQuery({
     queryKey: ["cash-register", branch?.branch_id, "last-closed", activeStationId],
@@ -293,6 +301,7 @@ export default function CashRegisterPage() {
     mutationFn: openCashRegister,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cash-register"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-registers"] });
       setOpenAmount("");
     },
     onError: (err: Error) => {
@@ -305,6 +314,7 @@ export default function CashRegisterPage() {
       closeCashRegister(cashRegister!.id, { closing_amount: Number(amount) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cash-register"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-registers"] });
       setCloseAmount("");
     },
     onError: (err: Error) => {
@@ -317,9 +327,27 @@ export default function CashRegisterPage() {
       closeCashRegister(id, { closing_amount: Number(amount) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cash-register"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-registers"] });
       setHistoryActionRegisterId(null);
       setHistoryActionType(null);
       setHistoryActionAmounts({});
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "No se pudo cerrar la caja");
+    },
+  });
+
+  const closeStaleMutation = useMutation({
+    mutationFn: ({ id, amount }: { id: number; amount: string }) =>
+      closeCashRegister(id, { closing_amount: Number(amount) }),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["cash-register"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-registers"] });
+      setStaleCloseAmounts((prev) => {
+        const next = { ...prev };
+        delete next[variables.id];
+        return next;
+      });
     },
     onError: (err: Error) => {
       toast.error(err.message || "No se pudo cerrar la caja");
@@ -809,6 +837,74 @@ export default function CashRegisterPage() {
               </div>
 
               {/* Inline open/close action */}
+              {staleOpenRegisters.length > 0 && (
+                <div
+                  className="flex flex-col gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3"
+                  role="alert"
+                >
+                  <p className="flex items-center gap-2 text-sm font-semibold text-amber-900">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    Tienes {staleOpenCount(currentRegister) || staleOpenRegisters.length}{" "}
+                    cajas de días anteriores abiertas
+                  </p>
+                  <ul className="flex flex-col gap-2">
+                    {staleOpenRegisters.map((reg) => {
+                      const amount = staleCloseAmounts[reg.id] ?? "";
+                      return (
+                        <li
+                          key={reg.id}
+                          className="flex flex-col gap-2 rounded-xl border border-amber-500/20 bg-background/70 p-2 sm:flex-row sm:items-center"
+                        >
+                          <div className="min-w-0 flex-1 text-xs text-amber-950">
+                            <span className="font-medium">
+                              {reg.date
+                                ? new Date(`${reg.date}T12:00:00`).toLocaleDateString("es-CL")
+                                : "Sin fecha"}
+                            </span>
+                            {reg.station_name ? ` · ${reg.station_name}` : ""}
+                            {" · Esperado "}
+                            <span className="tabular-nums font-medium">
+                              {formatCLP(toNum(reg.expected_amount))}
+                            </span>
+                          </div>
+                          {canManageMovements && (
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                              <Input
+                                value={amount ? formatCLP(parseFloat(toDecimal(amount))) : ""}
+                                onChange={(e) =>
+                                  setStaleCloseAmounts((prev) => ({
+                                    ...prev,
+                                    [reg.id]: numberValue(e.target.value),
+                                  }))
+                                }
+                                placeholder="Monto contado"
+                                className="tabular-nums sm:max-w-[160px]"
+                              />
+                              <Button
+                                onClick={() =>
+                                  closeStaleMutation.mutate({
+                                    id: reg.id,
+                                    amount: toDecimal(amount),
+                                  })
+                                }
+                                disabled={!amount || closeStaleMutation.isPending}
+                                isLoading={
+                                  closeStaleMutation.isPending &&
+                                  closeStaleMutation.variables?.id === reg.id
+                                }
+                                variant="outline"
+                                className="shrink-0"
+                              >
+                                Cerrar
+                              </Button>
+                            </div>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
               {isOpen ? (
                 canManageMovements && (
                   <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card shadow-xs p-3 sm:flex-row sm:items-center">
@@ -850,7 +946,7 @@ export default function CashRegisterPage() {
                     </>
                   </div>
                 )
-              ) : (
+              ) : staleOpenRegisters.length === 0 ? (
                 <div className="flex flex-col gap-3">
                   {lastClosedRegister && (
                     <div className="flex items-center gap-2 rounded-lg bg-background px-3 py-2 text-xs text-muted-foreground">
@@ -899,7 +995,7 @@ export default function CashRegisterPage() {
                     )}
                   </div>
                 </div>
-              )}
+              ) : null}
             </div>
 
             {/* Movements panel */}
