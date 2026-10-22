@@ -793,6 +793,7 @@ export function ProductsClient() {
       {creating && (
         <ProductForm
           key="create"
+          initialProductType={productTypes.length === 1 ? productTypes[0] : undefined}
           onClose={() => setCreating(false)}
           onSubmit={onSubmit}
         />

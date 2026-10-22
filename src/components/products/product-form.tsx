@@ -167,6 +167,8 @@ interface ProductFormProps {
   product?: YggdraProductDetail;
   productId?: number;
   initialTab?: FormTab;
+  /** Tipo inicial en altas nuevas (p. ej. RAW_MATERIAL al crear desde Materias primas). */
+  initialProductType?: string;
   onClose: () => void;
   onSubmit: (payload: ProductPayload, id?: number) => Promise<YggdraProduct>;
   extraActions?: {
@@ -501,7 +503,15 @@ function ProductFormSkeleton() {
   );
 }
 
-export function ProductForm({ product, productId, initialTab, onClose, onSubmit, extraActions }: ProductFormProps) {
+export function ProductForm({
+  product,
+  productId,
+  initialTab,
+  initialProductType,
+  onClose,
+  onSubmit,
+  extraActions,
+}: ProductFormProps) {
   const queryClient = useQueryClient();
   const { data: loadedProduct, isLoading: loadingProduct } = useQuery<YggdraProductDetail>({
     queryKey: ["products", "detail", productId],
@@ -510,7 +520,20 @@ export function ProductForm({ product, productId, initialTab, onClose, onSubmit,
   });
   const effectiveProduct = product ?? loadedProduct;
 
-  const { options: productTypeOptions, defaultType, isLoading: loadingProductTypes } = useBranchProductTypes();
+  const {
+    options: productTypeOptions,
+    defaultType: branchDefaultType,
+    isLoading: loadingProductTypes,
+  } = useBranchProductTypes();
+  // En altas nuevas el tipo pedido por la pantalla (Materias primas) manda,
+  // siempre que la sucursal lo tenga habilitado.
+  const defaultType =
+    !productId &&
+    !product &&
+    initialProductType &&
+    productTypeOptions.some((o) => o.value === initialProductType)
+      ? initialProductType
+      : branchDefaultType;
   const nutritionEnabled = useIsNutritionEnabled();
   // Recetas (submódulo de nutrition / usado por production): sin módulo, la
   // API de recetas responde 403.

@@ -138,11 +138,14 @@ export async function closeCashRegister(
 
 export async function getDailySummary(
   stationId?: number | string | null,
-  options?: { ignoreCashRegister?: boolean },
+  options?: { ignoreCashRegister?: boolean; cashRegisterId?: number | string | null },
 ): Promise<CashRegisterSummary | null> {
   try {
     const qs = new URLSearchParams();
-    if (stationId) qs.set("station_id", String(stationId));
+    // Con cashRegisterId el backend usa la fecha de ESA caja y solo sus pagos
+    // (cajas de días anteriores no muestran los totales de hoy).
+    if (options?.cashRegisterId) qs.set("cash_register_id", String(options.cashRegisterId));
+    else if (stationId) qs.set("station_id", String(stationId));
     if (options?.ignoreCashRegister) qs.set("ignore_cash_register", "true");
     const q = qs.toString();
     return await apiFetch<CashRegisterSummary>(
