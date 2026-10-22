@@ -144,6 +144,9 @@ describe("isBlockingStaleCashRegister", () => {
     expect(isBlockingStaleCashRegister({ id: 1, code: "cash_register_stale" })).toBe(true);
     expect(isBlockingStaleCashRegister({ id: 1, stale: true })).toBe(true);
     expect(isBlockingStaleCashRegister({ id: 1, stale: false })).toBe(false);
+    expect(isBlockingStaleCashRegister({ id: 1, stale: false, stale_open_count: 2 })).toBe(
+      true,
+    );
   });
 });
 

@@ -12102,7 +12102,7 @@ export interface paths {
         };
         /**
          * Obtener caja actual
-         * @description Caja OPEN de hoy que usaría pay() si se omite cash_register_id. Regla: 1) OPEN de hoy de la estación (station_id o asignada al usuario); 2) OPEN PRINCIPAL de hoy; 3) si hay varias OPEN de hoy sin principal, la más reciente. Nunca elige una caja de un día anterior. Si solo hay OPEN antiguas, responde 200 con esa caja, stale=true, blocking=true y code=cash_register_stale. Sin ninguna OPEN → 404. station_id es opcional. Una fecha explícita distinta de hoy sigue filtrando por estación+fecha (stale=true, blocking=false).
+         * @description Caja OPEN de hoy que usaría pay() si se omite cash_register_id. Regla: 1) OPEN de hoy de la estación (station_id o asignada al usuario); 2) OPEN PRINCIPAL de hoy; 3) si hay varias OPEN de hoy sin principal, la más reciente. Nunca elige una caja de un día anterior. Si solo hay OPEN antiguas, responde 200 con esa caja, stale=true, blocking=true y code=cash_register_stale. Sin ninguna OPEN → 404. station_id es opcional. Una fecha explícita distinta de hoy sigue filtrando por estación+fecha (stale=true, blocking=false). Incluye stale_open_registers (id, date, station_name, opening_amount, expected_amount, opened_by) y stale_open_count con todas las OPEN de la estación con fecha < hoy, también cuando hay caja de hoy.
          */
         get: operations["finance_cash_registers_current_retrieve"];
         put?: never;
@@ -36977,6 +36977,91 @@ export interface components {
             /** Format: double */
             closing_amount: number;
             notes?: string;
+        };
+        /** @description Caja current/ con flags stale y lista de OPEN antiguas de la estación. */
+        CashRegisterCurrent: {
+            readonly id: number;
+            /**
+             * Sucursal
+             * @description Sucursal a la que pertenece este registro
+             */
+            branch: number;
+            readonly branch_name: string;
+            /**
+             * Estación
+             * @description Terminal de caja. Null solo en registros legacy pre-migración.
+             */
+            station?: number | null;
+            readonly station_code: string;
+            readonly station_name: string;
+            /**
+             * Fecha
+             * Format: date
+             * @description Fecha del registro de caja
+             */
+            date?: string;
+            /**
+             * Monto Apertura
+             * Format: double
+             * @description Efectivo al abrir la caja
+             */
+            opening_amount?: number;
+            /**
+             * Monto Cierre
+             * Format: double
+             * @description Efectivo contado al cerrar
+             */
+            closing_amount?: number | null;
+            /**
+             * Monto Esperado
+             * Format: double
+             * @description Monto esperado según ventas (apertura + ventas en efectivo)
+             */
+            readonly expected_amount: number | null;
+            /**
+             * Diferencia
+             * Format: double
+             * @description Diferencia entre cierre y esperado
+             */
+            readonly difference: number | null;
+            /** Abierto por */
+            opened_by?: number | null;
+            readonly opened_by_name: string;
+            /** Cerrado por */
+            readonly closed_by: number | null;
+            readonly closed_by_name: string;
+            /**
+             * Estado
+             * @description * `OPEN` - Abierta
+             *     * `CLOSED` - Cerrada
+             * @default OPEN
+             * @enum {string}
+             */
+            readonly status: "OPEN" | "CLOSED";
+            readonly status_display: string;
+            /**
+             * Notas
+             * @description Observaciones del cierre
+             */
+            notes?: string | null;
+            /**
+             * Created at
+             * Format: date-time
+             * @description Fecha de creacion.
+             */
+            readonly created: string;
+            /**
+             * Modified at
+             * Format: date-time
+             * @description Fecha de modificacion.
+             */
+            readonly modified: string;
+            stale?: boolean;
+            blocking?: boolean;
+            code?: string | null;
+            detail?: string | null;
+            stale_open_registers?: components["schemas"]["StaleOpenRegister"][];
+            stale_open_count?: number;
         };
         /** @description Serializer para movimientos manuales de caja. */
         CashRegisterMovement: {
@@ -72542,6 +72627,18 @@ export interface components {
             warnings?: string[];
             error?: string;
         };
+        /** @description Caja OPEN de un día anterior, para current/. */
+        StaleOpenRegister: {
+            id: number;
+            /** Format: date */
+            date: string;
+            station_name: string | null;
+            /** Format: double */
+            opening_amount: number;
+            /** Format: double */
+            expected_amount: number | null;
+            opened_by: number | null;
+        };
         /** @description Ítem de mensajería alumno ↔ staff (incluye autoría y permiso de borrado). */
         StudentMessageItem: {
             id: number;
@@ -102659,8 +102756,8 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CashRegister"];
-                    "*/*": components["schemas"]["CashRegister"];
+                    "application/json": components["schemas"]["CashRegisterCurrent"];
+                    "*/*": components["schemas"]["CashRegisterCurrent"];
                 };
             };
         };

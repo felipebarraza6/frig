@@ -2,11 +2,22 @@ import { apiFetch, apiFile, type ApiFileResult } from "./client";
 import type { YggdraSchemas } from "@/lib/api/types";
 import type { Paginated } from "@/lib/types";
 
+export type StaleOpenRegister = {
+  id: number;
+  date: string;
+  station_name?: string | null;
+  opening_amount?: string | number | null;
+  expected_amount?: string | number | null;
+  opened_by?: number | null;
+};
+
 export type CashRegister = YggdraSchemas["CashRegister"] & {
   stale?: boolean;
   blocking?: boolean;
   code?: string;
   detail?: string;
+  stale_open_registers?: StaleOpenRegister[];
+  stale_open_count?: number;
 };
 export type CashRegisterOpenRequest = YggdraSchemas["CashRegisterOpenRequest"];
 export type CashRegisterCloseRequest = YggdraSchemas["CashRegisterCloseRequest"];
@@ -34,6 +45,31 @@ export type CashMovementPayload = {
   notes?: string;
   purchase_order_id?: string | null;
 };
+
+export function staleOpenRegistersFromCurrent(
+  register: CashRegister | null | undefined,
+): StaleOpenRegister[] {
+  const listed = register?.stale_open_registers;
+  if (Array.isArray(listed)) return listed;
+  return [];
+}
+
+export function staleOpenCount(register: CashRegister | null | undefined): number {
+  if (typeof register?.stale_open_count === "number") {
+    return register.stale_open_count;
+  }
+  return staleOpenRegistersFromCurrent(register).length;
+}
+
+export function isTodayOpenRegister(
+  register: CashRegister | null | undefined,
+  today: string,
+): boolean {
+  if (!register || register.status !== "OPEN") return false;
+  if (register.stale === true) return false;
+  if (register.date && String(register.date) !== today) return false;
+  return true;
+}
 
 /** True if `current/` returned the OPEN session of this station (not a fallback). */
 export function stationScopedOpenRegister(
