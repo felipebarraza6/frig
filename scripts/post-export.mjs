@@ -5,7 +5,8 @@
 //   1. Las URLs legacy de bodega (/warehouses/<id>) se reescriben a la vista
 //      estática /warehouses/view.html (resuelve el id desde la querystring).
 //      Otras rutas dinámicas (/menu/<slug>, /menu/<slug>/totem,
-//      /kds/station/<id> → /kds/station.html?id=, /reset-password/<token>)
+//      /kds/station/<id> → /kds/station.html?id=, /reset-password/<token>,
+//      /survey/<slug> salvo /survey/view y /survey/fill)
 //      se reescriben a la instancia estática. Las páginas "use client"
 //      resuelven el parámetro real desde la URL/query.
 //   2. Cualquier otra URL sin extensión se resuelve a su "<ruta>.html" si existe
@@ -24,6 +25,9 @@ const dynamicRewrites = [
   ["^warehouses/\\d+/?$", "/warehouses/view.html"],
   ["^kds/station/(\\d+)/?$", "/kds/station.html?id=$1"],
   ["^reset-password/[^/]+/?$", "/reset-password/__.html"],
+  // Link público de levantamiento: /survey/<slug>. Excluye las páginas
+  // estáticas reales /survey/view y /survey/fill (las resuelve la regla 2).
+  ["^survey/(?!(?:view|fill)/?$)[^/]+/?$", "/survey/__.html"],
   // Legacy: el salón 3D se renombró de /salon-test → /salon-demo
   ["^salon-test/?$", "/salon-demo.html"],
 ];
