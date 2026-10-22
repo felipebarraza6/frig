@@ -15,6 +15,8 @@ export type CashRegisterChargeState = {
   blocking?: boolean;
   code?: string | null;
   detail?: string | null;
+  stale_open_count?: number | null;
+  stale_open_registers?: Array<{ id?: number | string | null }> | null;
 } | null | undefined;
 
 export function isBlockingStaleCashRegister(
@@ -24,7 +26,10 @@ export function isBlockingStaleCashRegister(
   return (
     register.blocking === true ||
     register.code === "cash_register_stale" ||
-    register.stale === true
+    register.stale === true ||
+    (typeof register.stale_open_count === "number" && register.stale_open_count > 0) ||
+    (Array.isArray(register.stale_open_registers) &&
+      register.stale_open_registers.length > 0)
   );
 }
 
