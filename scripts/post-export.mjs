@@ -5,7 +5,8 @@
 //   1. Las URLs legacy de bodega (/warehouses/<id>) se reescriben a la vista
 //      estática /warehouses/view.html (resuelve el id desde la querystring).
 //      Otras rutas dinámicas (/menu/<slug>, /menu/<slug>/totem,
-//      /kds/station/<id> → /kds/station.html?id=, /reset-password/<token>,
+//      /kds/station/<id> → /kds/monitor.html?station_id=, /reset-password/<token>,
+//      /checkout/pay-installment/<id> (link del correo de cuotas),
 //      /survey/<slug> salvo /survey/view y /survey/fill)
 //      se reescriben a la instancia estática. Las páginas "use client"
 //      resuelven el parámetro real desde la URL/query.
@@ -23,7 +24,9 @@ const dynamicRewrites = [
   ["^menu/[^/]+/?$", "/menu/__.html"],
   ["^login/[^/]+/?$", "/login/__.html"],
   ["^warehouses/\\d+/?$", "/warehouses/view.html"],
-  ["^kds/station/(\\d+)/?$", "/kds/station.html?id=$1"],
+  ["^kds/station/(\\d+)/?$", "/kds/monitor.html?station_id=$1"],
+  // Link del correo recordatorio de cuotas (plan_checkout/tasks.py).
+  ["^checkout/pay-installment/[^/]+/?$", "/checkout/pay-installment.html"],
   ["^reset-password/[^/]+/?$", "/reset-password/__.html"],
   // Link público de levantamiento: /survey/<slug>. Excluye las páginas
   // estáticas reales /survey/view y /survey/fill (las resuelve la regla 2).
