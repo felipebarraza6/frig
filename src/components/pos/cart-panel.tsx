@@ -1366,14 +1366,24 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
               ) : showClientSection ? (
                 renderClientField({ showCloseButton: true })
               ) : (
-                <button
-                  type="button"
-                  onClick={() => setShowClientSection(true)}
-                  className="inline-flex items-center gap-1.5 text-[11px] font-medium text-primary hover:underline"
-                >
-                  <User className="h-3 w-3" />
-                  Crear o elegir cliente
-                </button>
+                <div className="flex items-center justify-between gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2">
+                  <span
+                    className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground"
+                    data-testid="pos-consumidor-final"
+                  >
+                    <User className="h-3.5 w-3.5 text-primary" />
+                    Consumidor final
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 shrink-0 text-xs"
+                    onClick={() => setShowClientSection(true)}
+                  >
+                    Elegir cliente
+                  </Button>
+                </div>
               )}
 
               {/* Tipo de entrega — oculto si el módulo deliveries está desactivado */}
@@ -1590,14 +1600,25 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
                       <Banknote className="h-3 w-3" />
                       Pagos
                     </label>
-                    <button
-                      type="button"
-                      onClick={addPayment}
-                      className="text-[11px] font-medium text-primary hover:underline"
-                    >
-                      Agregar pago
-                    </button>
+                    {payments.length > 0 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={addPayment}
+                      >
+                        <Plus className="mr-1 h-3 w-3" />
+                        Otro pago
+                      </Button>
+                    )}
                   </div>
+                  {payments.length === 0 && (
+                    <Button type="button" onClick={addPayment} className="w-full">
+                      <Plus className="mr-1.5 h-4 w-4" />
+                      Agregar pago
+                    </Button>
+                  )}
 
                   {payments.length > 0 && (
                     <div className="flex flex-col gap-2">

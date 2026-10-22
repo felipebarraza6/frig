@@ -525,8 +525,9 @@ export default function PosPage() {
   });
 
   const { data: dailySummary, isLoading: dailySummaryLoading } = useQuery({
-    queryKey: ["cash-register", "daily-summary", activeStationId],
-    queryFn: () => getDailySummary(activeStationId),
+    queryKey: ["cash-register", "daily-summary", activeStationId, currentCashRegister?.id ?? null],
+    queryFn: () =>
+      getDailySummary(activeStationId, { cashRegisterId: currentCashRegister?.id ?? null }),
     enabled: !!currentCashRegister && !!activeStationId && canViewHistory,
     staleTime: 30_000,
     refetchInterval: 30_000,

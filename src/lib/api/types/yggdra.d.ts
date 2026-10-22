@@ -102765,6 +102765,8 @@ export interface operations {
     finance_cash_registers_daily_summary_retrieve: {
         parameters: {
             query?: {
+                /** @description Resumen de una caja específica (usa su fecha y solo sus pagos). */
+                cash_register_id?: number;
                 format?: "binary" | "json";
             };
             header?: never;

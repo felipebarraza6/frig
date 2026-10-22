@@ -1,5 +1,6 @@
 "use client";
 
+import { openedLabel } from "@/lib/cash-register-labels";
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -418,11 +419,7 @@ export default function PosZenPage() {
                       <div className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
                         <Clock className="h-3.5 w-3.5" />
                         <span>
-                          Abierta hoy a las{" "}
-                          {new Date(register.created).toLocaleTimeString("es-CL", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
+                          {openedLabel(register.date, register.created, today)}
                         </span>
                       </div>
                     ) : (
@@ -667,3 +664,4 @@ export default function PosZenPage() {
     </div>
   );
 }
+
