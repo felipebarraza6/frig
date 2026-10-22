@@ -139276,6 +139276,8 @@ export interface operations {
                 page?: number;
                 /** @description Número de resultados a devolver por página. */
                 page_size?: number;
+                /** @description Un término de búsqueda. */
+                search?: string;
                 sector?: string;
                 /**
                  * @description * `ACTIVE` - Activo
