@@ -53,9 +53,15 @@ export function resolveProductTypeOptions(args: {
     }
   }
 
+  // Equipo / Herramienta solo si el backend los habilita para la sucursal:
+  // ofrecerlos sin estar habilitados termina en "El tipo de producto 'TOOL'
+  // no está habilitado para esta sucursal" al guardar.
   if (args.equipmentOn) {
-    merged.set("EQUIPMENT", { value: "EQUIPMENT", label: PRODUCT_TYPE_LABELS.EQUIPMENT });
-    merged.set("TOOL", { value: "TOOL", label: PRODUCT_TYPE_LABELS.TOOL });
+    for (const value of ["EQUIPMENT", "TOOL"] as const) {
+      if (enabled.has(value)) {
+        merged.set(value, { value, label: PRODUCT_TYPE_LABELS[value] });
+      }
+    }
   }
   if (args.iotOn || enabled.has("IOT")) {
     merged.set("IOT", { value: "IOT", label: PRODUCT_TYPE_LABELS.IOT });

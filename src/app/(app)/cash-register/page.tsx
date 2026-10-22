@@ -232,8 +232,15 @@ export default function CashRegisterPage() {
   });
 
   const { data: summary, isLoading: loadingSummary } = useQuery({
-    queryKey: ["cash-register", branch?.branch_id, "daily-summary", activeStationId],
-    queryFn: () => getDailySummary(activeStationId),
+    queryKey: [
+      "cash-register",
+      branch?.branch_id,
+      "daily-summary",
+      activeStationId,
+      cashRegister?.id ?? null,
+    ],
+    queryFn: () =>
+      getDailySummary(activeStationId, { cashRegisterId: cashRegister?.id ?? null }),
     enabled: !!branch && !!activeStationId,
     refetchInterval: 30_000,
     staleTime: 10_000,
@@ -862,10 +869,10 @@ export default function CashRegisterPage() {
                                 : "Sin fecha"}
                             </span>
                             {reg.station_name ? ` · ${reg.station_name}` : ""}
-                            {" · Esperado "}
-                            <span className="tabular-nums font-medium">
-                              {formatCLP(toNum(reg.expected_amount))}
-                            </span>
+                            <StaleRegisterBreakdown
+                              registerId={reg.id}
+                              fallbackExpected={toNum(reg.expected_amount)}
+                            />
                           </div>
                           {canManageMovements && (
                             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -2203,5 +2210,40 @@ function TabButton({
       <Icon className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
       <span className="hidden sm:inline">{label}</span>
     </button>
+  );
+}
+
+/** Desglose de una caja de día anterior: apertura + efectivo + ingresos − retiros. */
+function StaleRegisterBreakdown({
+  registerId,
+  fallbackExpected,
+}: {
+  registerId: number;
+  fallbackExpected: number;
+}) {
+  const { data } = useQuery({
+    queryKey: ["cash-register", "register-summary", registerId],
+    queryFn: () => getDailySummary(null, { cashRegisterId: registerId }),
+    staleTime: 15_000,
+  });
+  if (!data) {
+    return (
+      <>
+        {" · Esperado "}
+        <span className="tabular-nums font-medium">{formatCLP(fallbackExpected)}</span>
+      </>
+    );
+  }
+  const expected =
+    data.expected_amount != null ? toNum(data.expected_amount) : fallbackExpected;
+  return (
+    <span className="block tabular-nums">
+      Apertura {formatCLP(toNum(data.opening_amount))} · Ventas{" "}
+      {formatCLP(toNum(data.total_sales))} · Efectivo {formatCLP(toNum(data.cash_sales))}
+      {toNum(data.cash_in) > 0 ? ` · Ingresos ${formatCLP(toNum(data.cash_in))}` : ""}
+      {toNum(data.cash_out) > 0 ? ` · Retiros ${formatCLP(toNum(data.cash_out))}` : ""}
+      {" · Esperado "}
+      <span className="font-medium">{formatCLP(expected)}</span>
+    </span>
   );
 }

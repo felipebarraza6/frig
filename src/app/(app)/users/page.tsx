@@ -29,6 +29,57 @@ function userDisplayName(u: UserResponse): string {
   return u.email;
 }
 
+type AccessInfo = {
+  branch_id?: number | string | null;
+  access_email_status?: string | null;
+  access_email_sent_at?: string | null;
+};
+
+function accessInfo(u: UserResponse): AccessInfo | null {
+  return (u.branch_access as unknown as AccessInfo | null | undefined) ?? null;
+}
+
+function accessBranchId(u: UserResponse): number | string | null {
+  return accessInfo(u)?.branch_id ?? null;
+}
+
+/** Reenviar mientras el usuario no haya usado su acceso (sin clave o sin login). */
+function canResendAccess(u: UserResponse): boolean {
+  return u.has_usable_password === false || !u.last_login;
+}
+
+const ACCESS_EMAIL_LABELS: Record<string, { label: string; tone: string }> = {
+  QUEUED: { label: "Correo de acceso en cola", tone: "text-muted-foreground" },
+  SENT: { label: "Correo de acceso enviado", tone: "text-muted-foreground" },
+  DELIVERED: { label: "Correo de acceso entregado", tone: "text-success" },
+  DELAYED: { label: "Correo de acceso retrasado", tone: "text-amber-600" },
+  BOUNCED: { label: "Correo rebotó: revisa la dirección", tone: "text-danger" },
+  COMPLAINED: { label: "Correo marcado como spam", tone: "text-danger" },
+  FAILED: { label: "No se pudo enviar el correo", tone: "text-danger" },
+  SKIPPED: { label: "Correo no enviado", tone: "text-amber-600" },
+};
+
+function AccessEmailStatus({ user: u }: { user: UserResponse }) {
+  if (u.last_login) return null;
+  const info = accessInfo(u);
+  const meta = info?.access_email_status ? ACCESS_EMAIL_LABELS[info.access_email_status] : null;
+  if (!meta) return null;
+  const when = info?.access_email_sent_at
+    ? new Date(info.access_email_sent_at).toLocaleString("es-CL", {
+        day: "2-digit",
+        month: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : null;
+  return (
+    <p className={`text-[11px] ${meta.tone}`} data-testid="access-email-status">
+      {meta.label}
+      {when ? ` · ${when}` : ""}
+    </p>
+  );
+}
+
 export default function UsersPage() {
   const queryClient = useQueryClient();
   const user = useSessionStore((s) => s.user);
@@ -101,18 +152,20 @@ export default function UsersPage() {
   });
 
   const resendInvite = useMutation({
-    mutationFn: (userId: number) => {
-      if (!currentBranch) throw new Error("Selecciona una sucursal.");
-      return resendBranchInvitation(currentBranch.branch_id, userId);
+    mutationFn: ({ userId, branchId }: { userId: number; branchId?: number | string | null }) => {
+      const target = branchId ?? currentBranch?.branch_id;
+      if (!target) throw new Error("Selecciona una sucursal.");
+      return resendBranchInvitation(target, userId);
     },
     onSuccess: (data) => {
       toast.success(
         data.invitation_queued
-          ? "Invitación reenviada (correo encolado)."
-          : data.status || "Invitación reenviada.",
+          ? "Acceso reenviado: el correo va en camino. Pide revisar spam/promociones."
+          : data.status || "Acceso reenviado.",
       );
+      queryClient.invalidateQueries({ queryKey: ["users"] });
     },
-    onError: (err: Error) => toast.error(err.message || "No se pudo reenviar la invitación."),
+    onError: (err: Error) => toast.error(err.message || "No se pudo reenviar el acceso."),
   });
 
   if (!canManage) {
@@ -212,6 +265,8 @@ export default function UsersPage() {
                           <div className="min-w-0">
                             <p className="truncate font-medium">{userDisplayName(u)}</p>
                             <p className="text-xs text-muted-foreground">{u.email}</p>
+                        <AccessEmailStatus user={u} />
+                            <AccessEmailStatus user={u} />
                           </div>
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">
@@ -254,15 +309,20 @@ export default function UsersPage() {
                               <Pencil className="mr-1.5 h-3.5 w-3.5" />
                               Editar
                             </Button>
-                            {u.has_usable_password === false && (
+                            {canResendAccess(u) && (
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => resendInvite.mutate(Number(u.id))}
+                                onClick={() =>
+                              resendInvite.mutate({
+                                userId: Number(u.id),
+                                branchId: accessBranchId(u),
+                              })
+                            }
                                 disabled={resendInvite.isPending || !currentBranch}
                               >
                                 <Mail className="mr-1.5 h-3.5 w-3.5" />
-                                Reenviar invitación
+                                Reenviar acceso
                               </Button>
                             )}
                             <Button
@@ -332,18 +392,23 @@ export default function UsersPage() {
                           <Pencil className="h-3.5 w-3.5" />
                           <span className="sr-only">Editar</span>
                         </Button>
-                        {u.has_usable_password === false && (
+                        {canResendAccess(u) && (
                           <Button
                             variant="ghost"
                             size="sm"
                             className="h-8 w-8 p-0"
-                            title="Reenviar invitación"
-                            aria-label="Reenviar invitación"
-                            onClick={() => resendInvite.mutate(Number(u.id))}
+                            title="Reenviar acceso"
+                            aria-label="Reenviar acceso"
+                            onClick={() =>
+                              resendInvite.mutate({
+                                userId: Number(u.id),
+                                branchId: accessBranchId(u),
+                              })
+                            }
                             disabled={resendInvite.isPending || !currentBranch}
                           >
                             <Mail className="h-3.5 w-3.5" />
-                            <span className="sr-only">Reenviar invitación</span>
+                            <span className="sr-only">Reenviar acceso</span>
                           </Button>
                         )}
                         <Button
