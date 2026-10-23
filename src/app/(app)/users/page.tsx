@@ -265,7 +265,6 @@ export default function UsersPage() {
                           <div className="min-w-0">
                             <p className="truncate font-medium">{userDisplayName(u)}</p>
                             <p className="text-xs text-muted-foreground">{u.email}</p>
-                        <AccessEmailStatus user={u} />
                             <AccessEmailStatus user={u} />
                           </div>
                         </td>

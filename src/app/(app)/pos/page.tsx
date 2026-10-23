@@ -45,6 +45,7 @@ import {
 } from "@/lib/api/cash-register-stations";
 import type { CashRegisterStation } from "@/lib/api/cash-register-stations";
 import { StationFormModal } from "@/components/pos/station-form-modal";
+import { StaleOrdersBanner } from "@/components/pos/stale-orders-banner";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -293,6 +294,8 @@ export default function PosZenPage() {
             </div>
           )}
         </div>
+
+        <StaleOrdersBanner />
 
         {stationsLoading ? (
           <div className="flex flex-wrap justify-center gap-6">
