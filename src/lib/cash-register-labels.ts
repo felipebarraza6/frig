@@ -15,3 +15,13 @@ export function openedLabel(
   const [y, m, d] = registerDate.split("-");
   return `Abierta el ${d}-${m}-${y} a las ${time} (día anterior)`;
 }
+
+/**
+ * Fecha de caja ("YYYY-MM-DD", sin hora) como "DD-MM-YYYY". No pasa por
+ * `new Date()`: esa cadena se interpreta en UTC y en Chile muestra un día menos.
+ */
+export function formatRegisterDate(registerDate: string): string {
+  const [y, m, d] = registerDate.slice(0, 10).split("-");
+  if (!y || !m || !d) return registerDate;
+  return `${d}-${m}-${y}`;
+}
