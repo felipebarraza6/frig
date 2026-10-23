@@ -79,6 +79,7 @@ import {
   useIsAdminLocal,
 } from "@/lib/store/session";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
+import { formatRegisterDate } from "@/lib/cash-register-labels";
 
 function numberValue(v: string): string {
   const cleaned = v.replace(/[^0-9]/g, "");
@@ -964,7 +965,7 @@ export default function CashRegisterPage() {
                           {formatCLP(lastClosedRegister.closing_amount ?? 0)}
                         </strong>{" "}
                         {lastClosedRegister.date && (
-                          <>el {new Date(lastClosedRegister.date).toLocaleDateString("es-CL")}</>
+                          <>el {formatRegisterDate(lastClosedRegister.date)}</>
                         )}
                         {lastClosedRegister.closed_by_name && (
                           <> por {lastClosedRegister.closed_by_name}</>
