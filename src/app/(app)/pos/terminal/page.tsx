@@ -58,6 +58,7 @@ import {
   fetchPublicMenuBySlug,
 } from "@/lib/api/public-catalog";
 import { fetchCashRegisterStations } from "@/lib/api/cash-register-stations";
+import { CASH_KEYS } from "@/lib/api/keys";
 import { fetchOrders, fetchOrder, cancelOrder, deliverOrder, createOrder, downloadOrderTicketPdf } from "@/lib/api/orders";
 import { searchCustomers, createCustomer } from "@/lib/api/customers";
 
@@ -79,6 +80,7 @@ import { formatCLP, cn } from "@/lib/utils";
 import { useToast } from "@/lib/store/toast";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { useLiveRefetchInterval } from "@/lib/hooks/useLiveRefetchInterval";
 
 type Order = YggdraSchemas["Order"] & {
   order_number?: string | null;
@@ -174,9 +176,10 @@ export default function PosPage() {
   const openAccountParam = searchParams.get("open_account") === "1";
   const isWaiterSimulation = queryView === "waiter";
   const isWaiter = realIsWaiter || isWaiterSimulation;
+  const live30s = useLiveRefetchInterval(30_000);
 
   const { data: stations = [] } = useQuery({
-    queryKey: ["cash-register-stations", "pos-terminal"],
+    queryKey: CASH_KEYS.stations,
     queryFn: fetchCashRegisterStations,
     staleTime: 60_000,
   });
@@ -446,7 +449,7 @@ export default function PosPage() {
         order_type: ["SALE", "ORDER"],
       }),
     staleTime: 15_000,
-    refetchInterval: 30_000,
+    refetchInterval: live30s,
   });
 
   const { data: pendingDeliveriesPage, isLoading: loadingPendingDeliveries } = useQuery({
@@ -459,7 +462,7 @@ export default function PosPage() {
         order_type: ["SALE", "ORDER"],
       }),
     staleTime: 15_000,
-    refetchInterval: 30_000,
+    refetchInterval: live30s,
   });
 
   useEffect(() => {
@@ -489,11 +492,11 @@ export default function PosPage() {
     error: cashRegisterError,
     refetch: refetchCashRegister,
   } = useQuery({
-    queryKey: ["cash-register", "current", activeStationId],
+    queryKey: CASH_KEYS.current(activeStationId),
     queryFn: () => getCurrentCashRegister(activeStationId),
     staleTime: 30_000,
     retry: false,
-    refetchInterval: 30_000,
+    refetchInterval: live30s,
   });
 
   const openCashRegisterMutation = useMutation({
@@ -530,7 +533,7 @@ export default function PosPage() {
       getDailySummary(activeStationId, { cashRegisterId: currentCashRegister?.id ?? null }),
     enabled: !!currentCashRegister && !!activeStationId && canViewHistory,
     staleTime: 30_000,
-    refetchInterval: 30_000,
+    refetchInterval: live30s,
   });
 
   const closeCashRegisterMutation = useMutation({
@@ -561,7 +564,7 @@ export default function PosPage() {
     queryFn: () => getMovements(currentCashRegister!.id),
     enabled: !!currentCashRegister,
     staleTime: 15_000,
-    refetchInterval: 30_000,
+    refetchInterval: live30s,
   });
 
   // Política: cualquier miembro puede cash in/out; cerrar = OWNER/superadmin.

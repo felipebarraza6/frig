@@ -207,25 +207,17 @@ export async function fetchSupplierProducts(supplierId: string): Promise<Supplie
 /**
  * Vínculos proveedor↔producto para un producto de inventario.
  *
- * Yggdra lista `GET /suppliers/supplier-products/` sin filtro `product` en el
- * schema (`?product=` se ignora). Filtramos en cliente por FK `product`.
- * Opcionalmente acota con `search` (nombre) para menos páginas.
+ * `GET /suppliers/supplier-products/?product=<id>` filtra por FK. El backend
+ * ordena `-is_preferred, supplier__name`, así el preferido llega primero.
  */
 export async function fetchSupplierProductsByProduct(
   productId: number,
-  opts?: { productName?: string },
 ): Promise<SupplierProduct[]> {
-  const qs = new URLSearchParams({ page_size: "100" });
-  const name = opts?.productName?.trim();
-  if (name) qs.set("search", name);
-
-  const page = await fetchAllSupplierProducts(`/suppliers/supplier-products/?${qs.toString()}`);
-  const matched = page.filter((sp) => Number(sp.product) === Number(productId));
-  if (matched.length > 0 || !name) return matched;
-
-  // Search por nombre puede no coincidir (código distinto); fallback sin search.
-  const all = await fetchAllSupplierProducts("/suppliers/supplier-products/?page_size=100");
-  return all.filter((sp) => Number(sp.product) === Number(productId));
+  const qs = new URLSearchParams({
+    product: String(productId),
+    page_size: "100",
+  });
+  return fetchAllSupplierProducts(`/suppliers/supplier-products/?${qs.toString()}`);
 }
 
 /** Proveedor preferido del producto (`is_preferred`); si hay uno solo, ese; si hay varios sin preferido, null. */

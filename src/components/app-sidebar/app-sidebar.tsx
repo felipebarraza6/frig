@@ -32,6 +32,7 @@ import {
 import { useIsSuperAdmin } from "@/lib/store/session";
 import { useCanManageCustomers } from "@/lib/store/session";
 import { useFrigMenu } from "@/lib/hooks/useFrigMenu";
+import { useLiveRefetchInterval } from "@/lib/hooks/useLiveRefetchInterval";
 import { useSubscriptionLock } from "@/lib/hooks/useSubscriptionLock";
 import { HeroPlexus } from "@/components/landing/hero-plexus";
 import { useNavFavorites } from "@/lib/store/nav-favorites";
@@ -171,10 +172,14 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
   const frontendConfigBranchId = useSessionStore((s) => s.frontendConfigBranchId);
   const modulesReady = !!branch?.id && String(branch.id) === frontendConfigBranchId;
 
+  const kitchenLive = useLiveRefetchInterval(
+    15_000,
+    !!branch && isProductionEnabled && modulesReady,
+  );
   const { data: kitchenTickets = [] } = useQuery({
     queryKey: ["kitchen-tickets", "READY"],
     queryFn: () => fetchKitchenTickets("READY"),
-    refetchInterval: 15_000,
+    refetchInterval: kitchenLive,
     enabled: !!branch && isProductionEnabled && modulesReady,
   });
 

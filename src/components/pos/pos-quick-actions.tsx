@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 
 import { useQuery } from "@tanstack/react-query";
+import { useLiveRefetchInterval } from "@/lib/hooks/useLiveRefetchInterval";
 import {
   Receipt,
   ClipboardList,
@@ -12,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import type { POSQuickActionType } from "@/lib/api/branches";
 import { fetchPaymentMethods, type YggdraPaymentMethod } from "@/lib/api/payments";
 import { getCurrentCashRegister } from "@/lib/api/cash-register";
+import { CASH_KEYS } from "@/lib/api/keys";
 import { cashRegisterStaleMessage, isBlockingStaleCashRegister } from "@/lib/api/order-pay";
 import { fetchOrders } from "@/lib/api/orders";
 import { cn } from "@/lib/utils";
@@ -79,6 +81,8 @@ export default function PosQuickActions({
 }: PosQuickActionsProps) {
   const [activeType, setActiveType] = useState<string | null>(null);
   const showActions = showAccounts || showCollect;
+  const accountsLive = useLiveRefetchInterval(30_000, showAccounts);
+  const collectLive = useLiveRefetchInterval(30_000, showCollect);
 
   const { data: paymentMethods = [] } = useQuery({
     queryKey: ["payment-methods"],
@@ -92,7 +96,7 @@ export default function PosQuickActions({
   );
 
   const { data: cashRegister } = useQuery({
-    queryKey: ["cash-register", "current", stationId],
+    queryKey: CASH_KEYS.current(stationId),
     queryFn: () => getCurrentCashRegister(stationId),
     staleTime: 30_000,
     retry: false,
@@ -105,7 +109,7 @@ export default function PosQuickActions({
       return data.count ?? (data.results?.length ?? 0);
     },
     staleTime: 30_000,
-    refetchInterval: 30_000,
+    refetchInterval: accountsLive,
     enabled: showAccounts,
   });
 
@@ -133,7 +137,7 @@ export default function PosQuickActions({
       return filtered.length;
     },
     staleTime: 30_000,
-    refetchInterval: 30_000,
+    refetchInterval: accountsLive,
     enabled: showAccounts,
   });
 
@@ -152,7 +156,7 @@ export default function PosQuickActions({
       return ids.size;
     },
     staleTime: 30_000,
-    refetchInterval: 30_000,
+    refetchInterval: collectLive,
     enabled: showCollect,
   });
 

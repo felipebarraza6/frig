@@ -105,6 +105,8 @@ type ApiOptions = {
   signal?: AbortSignal;
   /** Tiempo máximo de espera en milisegundos (por defecto 30.000 ms). */
   timeoutMs?: number;
+  /** Se llama con la respuesta cruda antes de parsear cuerpo o error. */
+  onResponse?: (res: Response) => void;
 };
 
 function createRequestSignal(
@@ -150,6 +152,7 @@ export async function apiFetch<T>(path: string, opts: ApiOptions = {}): Promise<
     credentials = "include",
     signal,
     timeoutMs,
+    onResponse,
   } = opts;
 
   const finalHeaders: Record<string, string> = {
@@ -197,6 +200,12 @@ export async function apiFetch<T>(path: string, opts: ApiOptions = {}): Promise<
       credentials,
       signal: requestSignal,
     });
+
+    onResponse?.(res);
+
+    if (res.status === 304) {
+      throw new ApiError(304, "Not Modified");
+    }
 
     if (res.status === 401 && auth === "required") {
       let notice = "";

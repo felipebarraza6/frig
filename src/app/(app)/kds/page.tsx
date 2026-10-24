@@ -13,6 +13,7 @@ import {
   Utensils,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useLiveRefetchInterval } from "@/lib/hooks/useLiveRefetchInterval";
 import { useCurrentBranch } from "@/lib/store/session";
 import { branchName } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -233,10 +234,11 @@ export default function KdsNavigationPage() {
     enabled: !!branchId,
   });
 
+  const live10s = useLiveRefetchInterval(10_000, !!branch);
   const { data: tickets = [] } = useQuery({
     queryKey: ["kitchen-tickets"],
     queryFn: () => fetchKitchenTickets(),
-    refetchInterval: 10_000,
+    refetchInterval: live10s,
     enabled: !!branch,
   });
 

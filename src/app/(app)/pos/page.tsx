@@ -38,6 +38,7 @@ import {
   openCashRegister,
   stationScopedOpenRegister,
 } from "@/lib/api/cash-register";
+import { CASH_KEYS } from "@/lib/api/keys";
 import {
   fetchCashRegisterStations,
   updateCashRegisterStation,
@@ -103,7 +104,7 @@ export default function PosZenPage() {
     isLoading: stationsLoading,
     error: stationsError,
   } = useQuery({
-    queryKey: ["cash-register-stations", "pos-landing"],
+    queryKey: CASH_KEYS.stations,
     queryFn: fetchCashRegisterStations,
     staleTime: 60_000,
   });
@@ -153,7 +154,7 @@ export default function PosZenPage() {
 
   const cashRegisters = useQueries({
     queries: stationIds.map((id) => ({
-      queryKey: ["cash-register", "current", id],
+      queryKey: CASH_KEYS.current(id),
       queryFn: () => getCurrentCashRegister(id),
       enabled: !!id,
       staleTime: 30_000,

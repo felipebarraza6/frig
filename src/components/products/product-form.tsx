@@ -616,10 +616,7 @@ export function ProductForm({
 
   const { data: productWarehouses = [], isLoading: loadingProductWarehouses } = useQuery({
     queryKey: ["warehouse-products", "product", "v2", effectiveProduct?.id],
-    queryFn: () =>
-      fetchProductWarehouses(effectiveProduct!.id, {
-        productName: effectiveProduct?.name,
-      }),
+    queryFn: () => fetchProductWarehouses(effectiveProduct!.id),
     enabled: !!effectiveProduct?.id && inventoryEnabled,
     staleTime: 0,
   });
@@ -660,10 +657,7 @@ export function ProductForm({
 
   const supplierLinkQuery = useQuery({
     queryKey: ["supplier-products", "by-product", "v2", effectiveProduct?.id],
-    queryFn: () =>
-      fetchSupplierProductsByProduct(effectiveProduct!.id, {
-        productName: effectiveProduct?.name,
-      }),
+    queryFn: () => fetchSupplierProductsByProduct(effectiveProduct!.id),
     enabled: !!effectiveProduct?.id,
     staleTime: 0,
   });

@@ -42,3 +42,26 @@ export const CRM_KEYS = {
     root: () => [...CRM_KEYS.all, "follow-up-categories"] as const,
   },
 } as const;
+
+/**
+ * Caja y estaciones. La sucursal no va en la key: cada sucursal tiene su
+ * propio QueryClient. Una misma estación comparte caché entre terminal,
+ * carrito, hub, salón y modal de cobro.
+ */
+export const CASH_KEYS = {
+  all: ["cash-register"] as const,
+  stations: ["cash-register-stations"] as const,
+  openList: ["cash-registers", "open-list"] as const,
+  current: (stationId?: string | number | null) =>
+    ["cash-register", "current", stationId ?? null] as const,
+  dailySummary: (stationId?: string | number | null, registerId?: string | number | null) =>
+    ["cash-register", "daily-summary", stationId ?? null, registerId ?? null] as const,
+} as const;
+
+/** Tickets de cocina. El scope `pos`/`order` invalida el prefijo y refresca todas las vistas. */
+export const KITCHEN_KEYS = {
+  all: ["kitchen-tickets"] as const,
+  list: (stationId?: string | number | null) =>
+    ["kitchen-tickets", stationId ?? "all"] as const,
+  ready: ["kitchen-tickets", "READY"] as const,
+} as const;

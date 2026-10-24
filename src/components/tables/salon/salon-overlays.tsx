@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useLiveRefetchInterval } from "@/lib/hooks/useLiveRefetchInterval";
 import { LazyMotion, domAnimation, m, AnimatePresence } from "framer-motion";
 import {
   Banknote,
@@ -327,10 +328,11 @@ function KitchenPanel({ stationId }: { stationId?: number | null }) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [openId, setOpenId] = useState<number | null>(null);
+  const live10s = useLiveRefetchInterval(10_000);
   const { data: tickets = [], isLoading } = useQuery({
     queryKey: ["kitchen-tickets", "salon-overlay", stationId ?? "all"],
     queryFn: () => fetchKitchenTickets(undefined, stationId),
-    refetchInterval: 10_000,
+    refetchInterval: live10s,
   });
 
   const invalidate = () => {
@@ -931,10 +933,11 @@ function isToday(iso: string | null | undefined) {
 
 /** Tickets de cocina entregados hoy (compartido con la ventanilla 3D). */
 export function useDeliveredToday(enabled = true) {
+  const live15s = useLiveRefetchInterval(15_000, enabled);
   const { data: delivered = [] } = useQuery({
     queryKey: ["kitchen-tickets", "delivered-today"],
     queryFn: () => fetchKitchenTickets("DELIVERED"),
-    refetchInterval: 15_000,
+    refetchInterval: live15s,
     staleTime: 10_000,
     enabled,
   });
@@ -1103,6 +1106,7 @@ function OrdersPanel({
 }) {
   const pathname = usePathname();
   const returnTo = encodeURIComponent(pathname || "/tables/map");
+  const live15s = useLiveRefetchInterval(15_000);
   const { data, isLoading } = useQuery({
     queryKey: ["orders", "salon-open"],
     queryFn: () =>
@@ -1111,7 +1115,7 @@ function OrdersPanel({
         ordering: "-date",
         page_size: 30,
       }),
-    refetchInterval: 15_000,
+    refetchInterval: live15s,
   });
 
   const orders = useMemo(

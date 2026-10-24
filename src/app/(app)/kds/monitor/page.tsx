@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { useLiveRefetchInterval } from "@/lib/hooks/useLiveRefetchInterval";
 import { ChefHat, Clock, ClipboardList, Settings2, Utensils, X } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
@@ -213,10 +214,11 @@ function KdsMonitorInner() {
   });
   const station = stations.find((s) => s.id === stationId) ?? null;
 
+  const live5s = useLiveRefetchInterval(5_000, !!branch);
   const { data: ticketsRaw = [] } = useQuery({
     queryKey: ["kitchen-tickets", stationId],
     queryFn: () => fetchKitchenTickets(undefined, stationId),
-    refetchInterval: 5_000,
+    refetchInterval: live5s,
     enabled: !!branch,
   });
 
