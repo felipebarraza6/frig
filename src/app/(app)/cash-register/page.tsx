@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLiveRefetchInterval } from "@/lib/hooks/useLiveRefetchInterval";
 import Link from "next/link";
 import {
   Plus,
@@ -39,6 +40,7 @@ import { Select } from "@/components/ui/select";
 import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import { PageHeader } from "@/components/page-header";
+import { CASH_KEYS } from "@/lib/api/keys";
 import {
   getCurrentCashRegister,
   stationScopedOpenRegister,
@@ -138,6 +140,7 @@ export default function CashRegisterPage() {
   const canManageMovements = useCanManageCashMovements();
   const canRegisterMovements = useCanRegisterCashMovements();
   const canOpenRegister = useCanOpenCashRegister();
+  const live30s = useLiveRefetchInterval(30_000);
   const cashierStationOnly = useCashierStationOnly();
   const user = useSessionStore((s) => s.user);
   const isOwner = useIsOwner();
@@ -159,18 +162,18 @@ export default function CashRegisterPage() {
     isError: stationsError,
     refetch: refetchStations,
   } = useQuery({
-    queryKey: ["cash-register-stations", branch?.branch_id],
+    queryKey: CASH_KEYS.stations,
     queryFn: fetchCashRegisterStations,
     enabled: !!branch,
     staleTime: 60_000,
   });
 
   const { data: openRegistersPage } = useQuery({
-    queryKey: ["cash-registers", "open-list", branch?.branch_id],
+    queryKey: CASH_KEYS.openList,
     queryFn: () => getCashRegisters({ status: "OPEN" }),
     enabled: !!branch,
     staleTime: 15_000,
-    refetchInterval: 30_000,
+    refetchInterval: live30s,
   });
 
   const openRegisterByStationId = useMemo(() => {
@@ -211,11 +214,11 @@ export default function CashRegisterPage() {
     isError: registerForbiddenOrError,
     refetch: refetchCurrentRegister,
   } = useQuery({
-    queryKey: ["cash-register", branch?.branch_id, "current", activeStationId],
+    queryKey: CASH_KEYS.current(activeStationId),
     queryFn: () => getCurrentCashRegister(activeStationId),
     retry: false,
     enabled: !!branch && !!activeStationId,
-    refetchInterval: 30_000,
+    refetchInterval: live30s,
     staleTime: 10_000,
   });
   const scopedRegister = stationScopedOpenRegister(currentRegister, activeStationId);
@@ -243,7 +246,7 @@ export default function CashRegisterPage() {
     queryFn: () =>
       getDailySummary(activeStationId, { cashRegisterId: cashRegister?.id ?? null }),
     enabled: !!branch && !!activeStationId,
-    refetchInterval: 30_000,
+    refetchInterval: live30s,
     staleTime: 10_000,
   });
 
@@ -274,7 +277,7 @@ export default function CashRegisterPage() {
     queryKey: ["cash-register", branch?.branch_id, movementsCashRegisterId, "movements"],
     queryFn: () => getMovements(movementsCashRegisterId!),
     enabled: tab === "movements" && !!movementsCashRegisterId,
-    refetchInterval: 30_000,
+    refetchInterval: live30s,
     staleTime: 10_000,
   });
 

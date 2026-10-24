@@ -41,6 +41,23 @@ describe("apiFetch", () => {
     expect(headers["X-Branch-ID"]).toBe("42");
   });
 
+  it("un 304 es ApiError y no se parsea como fallo de servidor", async () => {
+    window.localStorage.setItem("frig.token", "tok-1");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(null, { status: 304, headers: { ETag: '"abc"' } })),
+    );
+    const { apiFetch, ApiError } = await import("./client");
+    const seen: number[] = [];
+    await expect(
+      apiFetch("/shared/frontend-config/", {
+        onResponse: (res) => seen.push(res.status),
+      }),
+    ).rejects.toMatchObject({ status: 304 });
+    expect(seen).toEqual([304]);
+    await expect(apiFetch("/shared/frontend-config/")).rejects.toBeInstanceOf(ApiError);
+  });
+
   it("en 401 limpia sesión y redirige a /login/<slug>", async () => {
     window.localStorage.setItem("frig.token", "tok-1");
     window.localStorage.setItem("frig.branch_id", "42");

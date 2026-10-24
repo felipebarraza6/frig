@@ -1,7 +1,8 @@
 import { useCurrentBranch, useSessionStore } from "@/lib/store/session";
 import { mediaUrl } from "@/lib/api/client";
 
-export const FRIG_SYMBOL = "/brand/frig-symbol.png";
+export const FRIG_SYMBOL =
+  `${(process.env.NEXT_PUBLIC_BASE_PATH || "").replace(/\/$/, "")}/brand/frig-symbol.png`;
 
 /** Localhost / IP: el producto es FRIG (desarrollo y demos locales). */
 export function isLocalFrigHost(): boolean {

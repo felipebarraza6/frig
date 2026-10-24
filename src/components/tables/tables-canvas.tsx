@@ -18,6 +18,8 @@ import { useElapsedTime } from "@/lib/hooks/useElapsedTime";
 import { fetchOrder, fetchOrders } from "@/lib/api/orders";
 import { fetchLowStock, fetchOutOfStock } from "@/lib/api/inventory";
 import { getCashRegisters, getCurrentCashRegister } from "@/lib/api/cash-register";
+import { CASH_KEYS, KITCHEN_KEYS } from "@/lib/api/keys";
+import { useLiveRefetchInterval } from "@/lib/hooks/useLiveRefetchInterval";
 import { fetchCashRegisterStations } from "@/lib/api/cash-register-stations";
 import {
   bulkUpdateTableStatus,
@@ -405,10 +407,13 @@ export function TablesCanvas({
     staleTime: 60_000,
     enabled: salonCaps.kitchen,
   });
+  const kitchenLive = useLiveRefetchInterval(12_000, salonCaps.kitchen);
+  const cashLive = useLiveRefetchInterval(30_000, salonCaps.cash);
+  const ordersLive = useLiveRefetchInterval(20_000, salonCaps.orders);
   const { data: kitchenTickets = [] } = useQuery({
-    queryKey: ["kitchen-tickets", "map-feed"],
+    queryKey: KITCHEN_KEYS.list(),
     queryFn: () => fetchKitchenTickets(),
-    refetchInterval: 12_000,
+    refetchInterval: kitchenLive,
     staleTime: 8_000,
     enabled: salonCaps.kitchen,
   });
@@ -438,21 +443,21 @@ export function TablesCanvas({
   });
   const deliveredToday = useDeliveredToday(salonCaps.deliveries);
   const { data: cashRegister } = useQuery({
-    queryKey: ["cash-register", "current", assignedStation?.station_id],
+    queryKey: CASH_KEYS.current(assignedStation?.station_id),
     queryFn: () => getCurrentCashRegister(assignedStation?.station_id),
-    refetchInterval: 30_000,
+    refetchInterval: cashLive,
     enabled: salonCaps.cash,
   });
   const { data: posStations = [] } = useQuery({
-    queryKey: ["cash-register-stations"],
+    queryKey: CASH_KEYS.stations,
     queryFn: fetchCashRegisterStations,
     staleTime: 60_000,
     enabled: salonCaps.cash,
   });
   const { data: openRegistersPage } = useQuery({
-    queryKey: ["cash-registers", "open-list"],
+    queryKey: CASH_KEYS.openList,
     queryFn: () => getCashRegisters({ status: "OPEN", page_size: 50 }),
-    refetchInterval: 30_000,
+    refetchInterval: cashLive,
     enabled: salonCaps.cash,
   });
   const posItems = useMemo(() => {
@@ -472,7 +477,7 @@ export function TablesCanvas({
     queryKey: ["orders", "salon-open-count"],
     queryFn: () =>
       fetchOrders({ payment_status: ["PENDING", "PARTIAL"], page_size: 1 }),
-    refetchInterval: 20_000,
+    refetchInterval: ordersLive,
     enabled: salonCaps.orders,
   });
   const openOrdersCount = salonCaps.orders ? (openOrdersPage?.count ?? 0) : 0;

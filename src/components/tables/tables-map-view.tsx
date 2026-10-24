@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLiveRefetchInterval } from "@/lib/hooks/useLiveRefetchInterval";
 import { createTable, fetchTables, updateTable } from "@/lib/api/tables";
 import { TablesCanvas } from "@/components/tables/tables-canvas";
 import { TableOrderPanel } from "@/components/tables/table-order-panel";
@@ -34,10 +35,11 @@ export function TablesMapView({ immersive = false }: { immersive?: boolean }) {
   const [organizing, setOrganizing] = useState(false);
   const autoSavedRef = useRef(false);
 
+  const tablesLive = useLiveRefetchInterval(15_000);
   const { data: page, isLoading, error } = useQuery({
     queryKey: ["tables", "map"],
     queryFn: () => fetchTables({ page_size: 200 }),
-    refetchInterval: 15_000,
+    refetchInterval: tablesLive,
   });
 
   const tables = useMemo(() => page?.results ?? [], [page]);

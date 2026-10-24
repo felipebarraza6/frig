@@ -14,6 +14,7 @@ import {
 } from "@/lib/store/pos-config";
 import { useBranchModules } from "@/lib/hooks/useBranchModules";
 import { fetchCashRegisterStations } from "@/lib/api/cash-register-stations";
+import { CASH_KEYS } from "@/lib/api/keys";
 import {
   ensureBranchPosConfig,
   fetchBranchPosConfig,
@@ -231,7 +232,7 @@ export function PosConfigModal({
   });
 
   const { data: stations = [] } = useQuery({
-    queryKey: ["cash-register-stations", "pos-config-modal"],
+    queryKey: CASH_KEYS.stations,
     queryFn: fetchCashRegisterStations,
     staleTime: 60_000,
   });

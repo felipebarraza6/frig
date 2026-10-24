@@ -24,6 +24,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import { fetchKitchenTickets, type KitchenTicket } from "@/lib/api/kitchen";
 import { useKitchenTicketMutations } from "@/lib/hooks/useKitchenTicketMutations";
+import { useLiveRefetchInterval } from "@/lib/hooks/useLiveRefetchInterval";
 import {
   createKitchenStation,
   deleteKitchenStation,
@@ -122,10 +123,11 @@ export function KdsBoard({
     enabled: !!branchId,
   });
 
+  const live10s = useLiveRefetchInterval(10_000, !!branch);
   const { data: tickets = [], isLoading } = useQuery({
     queryKey: ["kitchen-tickets", selectedStationId],
     queryFn: () => fetchKitchenTickets(undefined, selectedStationId),
-    refetchInterval: 10_000,
+    refetchInterval: live10s,
     enabled: !!branch,
   });
 

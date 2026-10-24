@@ -142,23 +142,17 @@ export async function fetchWarehouseProducts(
 /**
  * Vínculos producto↔bodega para un producto.
  *
- * El listado `GET /inventory/warehouse-products/` no expone filtro `product` en
- * schema (`?product=` se ignora). Pagina y filtra en cliente por FK `product`.
+ * `GET /inventory/warehouse-products/?product=<id>` filtra por FK en el servidor.
+ * El schema exportado todavía no declara el parámetro; el viewset sí lo aplica.
  */
 export async function fetchProductWarehouses(
   productId: number,
-  opts?: { productName?: string },
 ): Promise<WarehouseProduct[]> {
-  const qs = new URLSearchParams({ page_size: "100" });
-  const name = opts?.productName?.trim();
-  if (name) qs.set("search", name);
-
-  const page = await fetchAllWarehouseProducts(`/inventory/warehouse-products/?${qs.toString()}`);
-  const matched = page.filter((wp) => Number(wp.product) === Number(productId));
-  if (matched.length > 0 || !name) return matched;
-
-  const all = await fetchAllWarehouseProducts("/inventory/warehouse-products/?page_size=100");
-  return all.filter((wp) => Number(wp.product) === Number(productId));
+  const qs = new URLSearchParams({
+    product: String(productId),
+    page_size: "100",
+  });
+  return fetchAllWarehouseProducts(`/inventory/warehouse-products/?${qs.toString()}`);
 }
 
 async function fetchAllWarehouseProducts(url: string): Promise<WarehouseProduct[]> {

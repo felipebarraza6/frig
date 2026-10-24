@@ -13,6 +13,7 @@ import {
   ChefHat,
   CreditCard,
   FileText,
+  Kanban,
   LayoutDashboard,
   LayoutGrid,
   Leaf,
@@ -48,6 +49,9 @@ import {
   LANDING_PLANS,
   LANDING_INTEGRATION_UF,
   LANDING_PRICING_NOTE,
+  LANDING_PROOF,
+  LANDING_STAGING,
+  LANDING_STAGING_URL,
   LANDING_USE_CASES,
   LANDING_VALUE_PROP,
   DEMO_CONTACTS,
@@ -65,6 +69,7 @@ import {
 } from "@/lib/api/checkout";
 import { applyThemeConfig } from "@/lib/api/branches";
 import { mediaUrl } from "@/lib/api/client";
+import { publicAsset } from "@/lib/public-asset";
 import { ScrollReveal } from "@/components/landing/scroll-reveal";
 import { HeroPlexus } from "@/components/landing/hero-plexus";
 import { FrigWordmarkMatrix } from "@/components/landing/frig-wordmark-matrix";
@@ -123,9 +128,10 @@ const COPPER = "#c67d52";
 const _COPPER_HOVER = "#d68c5f";
 
 const NAV_LINKS = [
+  { href: "#simulador", label: "Producto" },
   { href: "#producto", label: "Módulos" },
   { href: "#precios", label: "Planes" },
-  { href: "#demos", label: "Casos de uso" },
+  { href: "#demos", label: "Demos" },
 ];
 
 /** Quita anclas de secciones retiradas (p. ej. Novedades del CMS). */
@@ -155,7 +161,7 @@ function resolveLandingBrand(theme: { app_name?: string; logo?: string | null; p
   const app = theme?.app_name?.trim() ?? "";
   const isFrig = !app || app.toLowerCase().includes("frig");
   if (isFrig) {
-    return { isFrig: true, name: "FRIG", logo: "/brand/frig-symbol.png", accent: COPPER };
+    return { isFrig: true, name: "FRIG", logo: publicAsset("/brand/frig-symbol.png"), accent: COPPER };
   }
   return {
     isFrig: false,
@@ -285,14 +291,14 @@ function Nav({
 
           <div className="hidden sm:block h-5 w-px bg-white/10" aria-hidden />
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {brand.isFrig && (
             <a
               href={GITHUB_URL}
               target="_blank"
               rel="noopener noreferrer"
               aria-label="GitHub de Frig"
-              className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-zinc-400 transition-colors hover:border-white/25 hover:text-white"
+              className="hidden sm:flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-zinc-400 transition-colors hover:border-white/25 hover:text-white"
             >
               <GithubIcon className="h-5 w-5" />
             </a>
@@ -300,21 +306,30 @@ function Nav({
             {savedUser ? (
               <Link
                 href="/dashboard"
-                className="inline-flex items-center gap-2 rounded-lg border border-white/15 px-4 py-2 text-sm font-medium text-white transition-colors hover:border-white/30 hover:bg-white/5"
+                className="btn-copper inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white"
               >
-                <LayoutDashboard className="h-4 w-4 text-zinc-400" />
+                <LayoutDashboard className="h-4 w-4" />
                 Ir al panel
               </Link>
             ) : (
-              <Link
-                href="/login"
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 rounded-lg border border-white/15 px-4 py-2 text-sm font-medium text-white transition-colors hover:border-white/30 hover:bg-white/5"
-              >
-                <LogIn className="h-4 w-4 text-zinc-400" />
-                Login
-              </Link>
+              <>
+                <Link
+                  href="/login"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 rounded-lg border border-white/15 px-4 py-2 text-sm font-medium text-white transition-colors hover:border-white/30 hover:bg-white/5"
+                >
+                  <LogIn className="h-4 w-4 text-zinc-400" />
+                  Login
+                </Link>
+                <a
+                  href="#precios"
+                  className="btn-copper hidden items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white sm:inline-flex"
+                >
+                  Suscribirse
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </a>
+              </>
             )}
           </div>
         </div>
@@ -424,6 +439,8 @@ function Hero({
   // Contenido dinámico: el endpoint manda; el copy local es solo fallback.
   const headline = hero?.headline || LANDING_VALUE_PROP.headline;
   const narrative = hero?.subhead || LANDING_VALUE_PROP.subhead;
+  const points =
+    hero?.points && hero.points.length > 0 ? hero.points : LANDING_VALUE_PROP.points;
 
   // Sin fundido ligado al scroll: la capa compositada de opacity+transform
   // producía una costura de 1px en el borde del hero con escala de Windows
@@ -434,109 +451,230 @@ function Hero({
       {/* Sin atmósfera local: la capa cósmica global (nebulosas, plexus,
           brasas, glow del cursor) da toda la energía sin costuras. */}
 
-      <div
-        className="relative mx-auto flex min-h-[calc(100dvh-5rem)] max-w-6xl flex-col items-center justify-center px-4 py-12 sm:px-6"
-      >
-        <div className="flex flex-col items-center text-center gap-5">
-          {savedUser && (
-            <div className="flex items-center gap-3 rounded-full border border-white/10 bg-white/[0.04] py-1.5 pl-1.5 pr-4">
-              <span
-                className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-white"
-                style={{ backgroundColor: brand.accent }}
-              >
-                {sessionDisplayName(savedUser).charAt(0).toUpperCase()}
-              </span>
-              <span className="text-sm text-zinc-300">
-                {sessionDisplayName(savedUser)}
-              </span>
-              <button
-                type="button"
-                disabled={entering}
-                onClick={onReenter}
-                className={cn(
-                  "text-sm font-medium disabled:opacity-60",
-                  !entering && "hover:text-white",
-                )}
-                style={{ color: brand.accent }}
-              >
-                {entering ? "Cargando tu panel…" : "Reingresar →"}
-              </button>
-            </div>
-          )}
-
-          {/* Wordmark como matriz de datos: cuadritos que titilan y hacen
-              glitch, mismo lenguaje que los nodos del fondo. Autónomo. */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.86, y: 18 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: "easeOut" }}
-            className="relative"
-          >
-            {brand.isFrig ? (
-              <FrigWordmarkMatrix className="h-16 w-auto sm:h-24" />
-            ) : (
-              <BrandMark
-                brand={brand}
-                className="h-16 w-auto max-h-24 object-contain sm:h-24"
-              />
+      <div className="relative mx-auto flex min-h-[calc(100dvh-5rem)] max-w-6xl flex-col justify-center px-4 py-16 sm:px-6 sm:py-20">
+        <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:gap-16">
+          <div className="flex flex-col items-start text-left">
+            {savedUser && (
+              <div className="mb-6 flex items-center gap-3 rounded-full border border-white/10 bg-white/[0.04] py-1.5 pl-1.5 pr-4">
+                <span
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-white"
+                  style={{ backgroundColor: brand.accent }}
+                >
+                  {sessionDisplayName(savedUser).charAt(0).toUpperCase()}
+                </span>
+                <span className="text-sm text-zinc-300">
+                  {sessionDisplayName(savedUser)}
+                </span>
+                <button
+                  type="button"
+                  disabled={entering}
+                  onClick={onReenter}
+                  className={cn(
+                    "text-sm font-medium disabled:opacity-60",
+                    !entering && "hover:text-white",
+                  )}
+                  style={{ color: brand.accent }}
+                >
+                  {entering ? "Cargando tu panel…" : "Reingresar →"}
+                </button>
+              </div>
             )}
-          </motion.div>
 
-          <motion.h1
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.55, delay: 0.22, ease: "easeOut" }}
-            className="font-display max-w-3xl text-4xl font-semibold leading-[1.1] tracking-tight text-white sm:text-6xl"
-          >
-            {headline}
-          </motion.h1>
+            <motion.p
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, ease: "easeOut" }}
+              className="flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.22em]"
+              style={{ color: brand.accent }}
+            >
+              <span
+                className="inline-block h-2 w-2 rotate-45"
+                style={{ backgroundColor: brand.accent }}
+                aria-hidden
+              />
+              {hero?.badge || "POS + cocina + caja, en el navegador"}
+            </motion.p>
 
-          <motion.p
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.55, delay: 0.3, ease: "easeOut" }}
-            className="max-w-2xl text-base leading-relaxed text-zinc-300 sm:text-lg"
-          >
-            {narrative}
-          </motion.p>
+            <motion.h1
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, delay: 0.08, ease: "easeOut" }}
+              className="font-display mt-5 max-w-xl text-[2.6rem] font-semibold leading-[1.02] tracking-tight text-white sm:text-6xl lg:text-[4.25rem]"
+            >
+              {headline}
+            </motion.h1>
 
-          {hero?.points && hero.points.length > 0 && (
+            <motion.p
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, delay: 0.16, ease: "easeOut" }}
+              className="mt-5 max-w-lg text-base leading-relaxed text-zinc-300 sm:text-lg"
+            >
+              {narrative}
+            </motion.p>
+
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.55, delay: 0.38, ease: "easeOut" }}
-              className="grid max-w-2xl grid-cols-1 gap-x-8 gap-y-2.5 text-sm text-zinc-300 sm:grid-cols-2"
+              transition={{ duration: 0.55, delay: 0.24, ease: "easeOut" }}
+              className="mt-7 flex flex-wrap items-center gap-3"
             >
-              {hero.points.map((point) => (
-                <span key={point} className="flex items-center justify-center gap-2.5 sm:justify-start">
-                  <Check className="h-4 w-4 shrink-0" style={{ color: brand.accent }} />
-                  <span className="text-left">{point}</span>
-                </span>
-              ))}
+              <a
+                href={ctas?.primary?.href ?? "#precios"}
+                className="btn-copper inline-flex items-center gap-2 rounded-lg px-6 py-3 text-base font-semibold text-white"
+              >
+                {ctas?.primary?.label ?? "Ver planes"}
+                <ArrowRight className="h-4 w-4" />
+              </a>
+              <a
+                href={ctas?.secondary?.href ?? "#simulador"}
+                className="rounded-lg border border-white/15 px-6 py-3 text-base font-semibold text-white transition-colors hover:bg-white/5"
+              >
+                {ctas?.secondary?.label ?? "Probar el producto"}
+              </a>
             </motion.div>
-          )}
+
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, delay: 0.28, ease: "easeOut" }}
+              className="mt-6"
+            >
+              {LANDING_STAGING_URL ? (
+                <a
+                  href={LANDING_STAGING_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-zinc-300 transition-colors hover:border-white/25 hover:text-white"
+                >
+                  <span
+                    className="h-1.5 w-1.5 rounded-full"
+                    style={{ backgroundColor: brand.accent }}
+                    aria-hidden
+                  />
+                  Versión de staging para revisar
+                  <ArrowRight className="h-3 w-3" />
+                </a>
+              ) : (
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-zinc-300">
+                  <span
+                    className="h-1.5 w-1.5 rounded-full"
+                    style={{ backgroundColor: brand.accent }}
+                    aria-hidden
+                  />
+                  Versión de staging para revisar
+                </span>
+              )}
+            </motion.div>
+
+            <motion.ul
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, delay: 0.36, ease: "easeOut" }}
+              className="mt-6 grid max-w-lg grid-cols-1 gap-x-6 gap-y-2.5 text-sm text-zinc-300 sm:grid-cols-2"
+            >
+              {points.map((point) => (
+                <li key={point} className="flex items-start gap-2.5">
+                  <Check className="mt-0.5 h-4 w-4 shrink-0" style={{ color: brand.accent }} />
+                  <span>{point}</span>
+                </li>
+              ))}
+            </motion.ul>
+          </div>
 
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
+            initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.55, delay: 0.46, ease: "easeOut" }}
-            className="flex flex-wrap items-center justify-center gap-4 pt-1"
+            transition={{ duration: 0.7, delay: 0.12, ease: "easeOut" }}
+            className="relative mx-auto w-full max-w-md lg:max-w-none"
           >
-            <a
-              href={ctas?.primary?.href ?? "#precios"}
-              className="btn-copper inline-flex items-center gap-2 rounded-lg px-7 py-3 text-base font-semibold text-white"
-            >
-              {ctas?.primary?.label ?? "Suscripción"}
-              <ArrowRight className="h-4 w-4" />
-            </a>
-            <a
-              href={ctas?.secondary?.href ?? "#simulador"}
-              className="rounded-lg border border-white/15 px-7 py-3 text-base font-semibold text-white transition-colors hover:bg-white/5"
-            >
-              {ctas?.secondary?.label ?? "Ver cómo funciona"}
-            </a>
+            <div
+              aria-hidden
+              className="absolute -inset-8 rounded-full opacity-70 blur-3xl"
+              style={{
+                background: `radial-gradient(circle, ${brand.accent}33 0%, transparent 68%)`,
+              }}
+            />
+            <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#101010]/80 p-5 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-sm sm:p-6">
+              <div className="flex items-center justify-between gap-3">
+                <span className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                  <span className="relative flex h-2 w-2">
+                    <span
+                      className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60"
+                      style={{ backgroundColor: brand.accent }}
+                    />
+                    <span
+                      className="relative inline-flex h-2 w-2 rounded-full"
+                      style={{ backgroundColor: brand.accent }}
+                    />
+                  </span>
+                  Turno en vivo
+                </span>
+                <span className="text-[11px] font-medium text-zinc-500">Hoy · 19:42</span>
+              </div>
+
+              <div className="mt-5 grid grid-cols-3 gap-2">
+                {[
+                  ["$186.400", "caja"],
+                  ["12", "mesas"],
+                  ["4", "en cocina"],
+                ].map(([value, label]) => (
+                  <div key={label} className="rounded-xl border border-white/8 bg-white/[0.03] px-2.5 py-3">
+                    <p className="font-display text-lg font-semibold tabular-nums text-white sm:text-xl">{value}</p>
+                    <p className="mt-0.5 text-[11px] uppercase tracking-wider text-zinc-500">{label}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-3 space-y-2">
+                {[
+                  { table: "Mesa 4", item: "Lomo a lo pobre ×2", state: "En plancha", tone: brand.accent },
+                  { table: "Barra", item: "Negroni + tabla", state: "Lista", tone: "#9db68f" },
+                  { table: "Retiro", item: "Combo familiar", state: "Por cobrar", tone: "#e8c07a" },
+                ].map((row) => (
+                  <div
+                    key={row.table}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-white/8 bg-black/30 px-3 py-2.5"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-white">{row.table}</p>
+                      <p className="truncate text-xs text-zinc-500">{row.item}</p>
+                    </div>
+                    <span
+                      className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
+                      style={{ color: row.tone, borderColor: `${row.tone}55` }}
+                    >
+                      {row.state}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 flex items-center justify-between border-t border-white/8 pt-4">
+                {brand.isFrig ? (
+                  <FrigWordmarkMatrix className="h-7 w-auto opacity-90" />
+                ) : (
+                  <BrandMark brand={brand} className="h-7 w-auto max-h-7 object-contain" glow={false} />
+                )}
+                <span className="text-xs text-zinc-500">Sin instaladores</span>
+              </div>
+            </div>
           </motion.div>
         </div>
+
+        <motion.dl
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
+          className="mt-12 grid grid-cols-3 gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/10 sm:mt-16"
+        >
+          {LANDING_PROOF.map((item) => (
+            <div key={item.label} className="bg-[#0c0c0c]/90 px-3 py-4 text-center sm:px-6 sm:py-5">
+              <dt className="font-display text-2xl font-semibold text-white sm:text-3xl">{item.value}</dt>
+              <dd className="mt-1 text-[11px] leading-snug text-zinc-500 sm:text-sm">{item.label}</dd>
+            </div>
+          ))}
+        </motion.dl>
       </div>
     </section>
   );
@@ -664,9 +802,23 @@ function SimuladorSection() {
   return (
     <section
       id="simulador"
-      className="relative z-10 pt-10 pb-28 sm:pt-14 sm:pb-44"
+      className="relative z-10 pt-6 pb-20 sm:pt-8 sm:pb-28"
     >
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <div className="mb-6 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
+          <div className="max-w-xl">
+            <p className="flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.22em] text-[#c67d52]">
+              <span className="inline-block h-2 w-2 rotate-45 bg-[#c67d52]" aria-hidden />
+              Producto
+            </p>
+            <h2 className="font-display mt-3 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+              Recorre el turno como si ya fuera tuyo
+            </h2>
+          </div>
+          <p className="max-w-sm text-sm leading-relaxed text-zinc-500">
+            Cambia de rol y abre caja, cocina, mesas o informes. Es el mismo sistema, no un mock de marketing.
+          </p>
+        </div>
         <ProductInteractivePreview />
       </div>
     </section>
@@ -903,6 +1055,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   "chart-column": ChartColumn,
   leaf: Leaf,
   monitor: Monitor,
+  kanban: Kanban,
 };
 
 function Features({ items }: { items?: LandingFeatureItem[] }) {
@@ -924,8 +1077,27 @@ function Features({ items }: { items?: LandingFeatureItem[] }) {
     return merged;
   }, [items]);
   return (
-    <section id="producto" className="relative z-10 pt-10 pb-28 sm:pt-14 sm:pb-44">
+    <section id="producto" className="relative z-10 pt-10 pb-28 sm:pt-14 sm:pb-36">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <div className="mb-8 flex flex-col gap-4 sm:mb-10 sm:flex-row sm:items-end sm:justify-between">
+          <div className="max-w-xl">
+            <p className="flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.22em] text-[#c67d52]">
+              <span className="inline-block h-2 w-2 rotate-45 bg-[#c67d52]" aria-hidden />
+              Módulos
+            </p>
+            <h2 className="font-display mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+              Todo el local, sin menús de más
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-zinc-400 sm:text-base">
+              Cada plan incluye el sistema completo. Enciendes lo que tu operación usa y el resto no estorba.
+            </p>
+          </div>
+          <p className="shrink-0 text-sm text-zinc-500">
+            <span className="font-display text-2xl font-semibold text-white">{feats.length}</span>{" "}
+            módulos listos
+          </p>
+        </div>
+
         {/* Tabla flexible: columnas en desktop, filas apiladas en móvil.
             Fondo sólido: las líneas de energía quedan fuera de la tabla. */}
         <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#101010]">
@@ -1147,6 +1319,7 @@ export function LandingSite() {
           brand={brand}
         />
         <SimuladorSection />
+        <Features items={content?.features} />
         <PricingSection
           plans={plans}
           integrationUf={integrationUf}
@@ -1156,7 +1329,89 @@ export function LandingSite() {
           onPickPlan={setPlan}
         />
         <UseCases items={content?.use_cases} brand={brand} />
-        <Features items={content?.features} />
+        <section className="relative z-10 pb-20 sm:pb-28">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <ScrollReveal>
+            <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#101010] px-6 py-10 sm:px-10 sm:py-12">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full blur-3xl"
+                style={{ background: `${brand.accent}2e` }}
+              />
+              <div className="relative flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+                <div className="max-w-xl">
+                  <p
+                    className="flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.22em]"
+                    style={{ color: brand.accent }}
+                  >
+                    <span
+                      className="inline-block h-2 w-2 rotate-45"
+                      style={{ backgroundColor: brand.accent }}
+                      aria-hidden
+                    />
+                    Empieza hoy
+                  </p>
+                  <h2 className="font-display mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+                    Prueba un local real, o arma el tuyo.
+                  </h2>
+                  <p className="mt-3 text-sm leading-relaxed text-zinc-400 sm:text-base">
+                    Entra a una demo sin registro, o elige un plan y deja la operación corriendo esta semana.
+                    {pricingNote ? ` ${pricingNote}` : ""}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <a
+                    href="#precios"
+                    className="btn-copper inline-flex items-center gap-2 rounded-lg px-6 py-3 text-sm font-semibold text-white"
+                  >
+                    Ver planes
+                    <ArrowRight className="h-4 w-4" />
+                  </a>
+                  <a
+                    href="#demos"
+                    className="rounded-lg border border-white/15 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/5"
+                  >
+                    Abrir una demo
+                  </a>
+                  <a
+                    href={`mailto:${contactEmail}?subject=${encodeURIComponent(demoSubject)}`}
+                    className="inline-flex items-center px-2 py-3 text-sm font-medium text-zinc-400 transition-colors hover:text-white"
+                  >
+                    Escribir a {contactEmail}
+                  </a>
+                </div>
+              </div>
+
+              <div className="relative mt-8 flex flex-col gap-3 border-t border-white/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
+                <div className="max-w-xl">
+                  <p className="text-sm font-semibold text-white">{LANDING_STAGING.title}</p>
+                  <p className="mt-1 text-sm leading-relaxed text-zinc-500">{LANDING_STAGING.body}</p>
+                </div>
+                {LANDING_STAGING_URL ? (
+                  <a
+                    href={LANDING_STAGING_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-white/15 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/5"
+                  >
+                    Abrir staging
+                    <ArrowRight className="h-4 w-4" />
+                  </a>
+                ) : (
+                  <span className="inline-flex shrink-0 items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                    <span
+                      className="h-1.5 w-1.5 rounded-full"
+                      style={{ backgroundColor: brand.accent }}
+                      aria-hidden
+                    />
+                    Ambiente de revisión
+                  </span>
+                )}
+              </div>
+            </div>
+          </ScrollReveal>
+        </div>
+        </section>
       </main>
       <Footer
         contactEmail={contactEmail}

@@ -40,18 +40,27 @@ function makeQueryClient() {
 }
 
 export function Providers({ children }: { children: ReactNode }) {
-  const [queryClient] = useState(makeQueryClient);
   const userId = useSessionStore((s) => s.user?.id);
   const branchId = useSessionStore((s) => s.currentBranchId);
   // Clave por usuario+sucursal: tablets compartidas no mezclan caches.
   const storageKey = queryPersistStorageKey(userId, branchId);
+  // Cliente nuevo por sucursal. El remount del provider no vacía el anterior:
+  // pedidos y caja no llevan branch en la query key.
+  const [scope, setScope] = useState(() => ({
+    key: storageKey,
+    client: makeQueryClient(),
+  }));
+  if (scope.key !== storageKey) {
+    setScope({ key: storageKey, client: makeQueryClient() });
+  }
+  const client = scope.key === storageKey ? scope.client : makeQueryClient();
   const persister = useMemo(() => createQueryPersister(storageKey), [storageKey]);
 
   return (
     <PersistQueryClientProvider
       // Remount al cambiar usuario/sucursal para hidratar el blob correcto.
       key={storageKey}
-      client={queryClient}
+      client={client}
       persistOptions={{
         persister,
         maxAge: QUERY_PERSIST_MAX_AGE,
@@ -62,7 +71,7 @@ export function Providers({ children }: { children: ReactNode }) {
         },
       }}
       onSuccess={() => {
-        queryClient.resumePausedMutations().catch(() => {});
+        client.resumePausedMutations().catch(() => {});
       }}
     >
       <LazyMotion features={loadFeatures} strict={false}>

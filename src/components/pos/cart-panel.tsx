@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLiveRefetchInterval } from "@/lib/hooks/useLiveRefetchInterval";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ShoppingCart,
@@ -46,6 +47,7 @@ import { fetchDeliveryZones } from "@/lib/api/delivery-zones";
 import { fetchPaymentMethods, createPayment } from "@/lib/api/payments";
 import { searchCustomers, createCustomer, type CustomerPayload } from "@/lib/api/customers";
 import { getCurrentCashRegister } from "@/lib/api/cash-register";
+import { CASH_KEYS } from "@/lib/api/keys";
 import {
   cashRegisterChargeLabel,
   cashRegisterStaleMessage,
@@ -269,12 +271,13 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
     staleTime: 60_000,
   });
 
+  const live30s = useLiveRefetchInterval(30_000);
   const { data: currentCashRegister } = useQuery({
-    queryKey: ["cash-register", "current", stationId],
+    queryKey: CASH_KEYS.current(stationId),
     queryFn: () => getCurrentCashRegister(stationId),
     staleTime: 30_000,
     retry: false,
-    refetchInterval: 30_000,
+    refetchInterval: live30s,
   });
 
   const { data: financeConfig } = useQuery({

@@ -3,9 +3,9 @@ import { LandingSite } from "@/components/landing/landing-site";
 import { StandaloneRedirect } from "@/components/standalone-redirect";
 
 export const metadata: Metadata = {
-  title: "FRIG — Gestión comercial y gastronómica desde 1 UF mensual",
+  title: "FRIG — El restaurante, en una sola pantalla",
   description:
-    "Punto de venta, mesas, cocina en vivo, inventario, finanzas y menú QR en una sola app. Todos los módulos incluidos en todos los planes. Demos por rubro con tu marca.",
+    "Cobra, cocina y controla caja, stock y sucursales desde el navegador. POS, mesas, KDS, inventario y facturación incluidos. Incluye versión de staging para revisar antes de producción.",
 };
 
 export default function HomePage() {

@@ -12,6 +12,7 @@ import { useToast } from "@/lib/store/toast";
 import { payOrder } from "@/lib/api/orders";
 import { fetchPaymentMethods } from "@/lib/api/payments";
 import { getCurrentCashRegister } from "@/lib/api/cash-register";
+import { CASH_KEYS } from "@/lib/api/keys";
 import {
   buildPayOrderPayload,
   canConfirmOrderPay,
@@ -57,7 +58,7 @@ export function OrderPayModal({
   const assignedStation = useCurrentBranchStation();
   const stationId = assignedStation?.station_id ?? null;
   const { data: currentCashRegister, isLoading: loadingCashRegister } = useQuery({
-    queryKey: ["cash-register", "current", "order-pay", stationId],
+    queryKey: CASH_KEYS.current(stationId),
     queryFn: () => getCurrentCashRegister(stationId),
     staleTime: 15_000,
     enabled: open,

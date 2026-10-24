@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { publicAsset } from "@/lib/public-asset";
 
 /**
  * Wordmark Frig como matriz de datos: la letra se dibuja sólida (cuadritos
@@ -17,7 +18,7 @@ export function FrigWordmarkMatrix({ className }: { className?: string }) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const SRC = "/brand/frig-wordmark.png";
+    const SRC = publicAsset("/brand/frig-wordmark.png");
     const COLS = 170;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 

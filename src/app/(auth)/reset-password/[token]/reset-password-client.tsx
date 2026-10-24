@@ -119,7 +119,7 @@ export default function ResetPasswordPage() {
             ) : (
               <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/brand/frig-symbol.png" alt="Frig" className="h-9 w-9" />
+                <img src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/brand/frig-symbol.png`} alt="Frig" className="h-9 w-9" />
               </div>
             )}
             <div>
@@ -221,7 +221,7 @@ export default function ResetPasswordPage() {
               </p>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/brand/frig-symbol.png"
+                src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/brand/frig-symbol.png`}
                 alt=""
                 aria-hidden
                 className="h-4 w-auto opacity-60"

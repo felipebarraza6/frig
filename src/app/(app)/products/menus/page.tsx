@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { CASH_KEYS } from "@/lib/api/keys";
 import {
   Plus,
   Search,
@@ -258,7 +259,7 @@ export default function MenusPage() {
   const { options: categoryOptions = [] } = useCategoryOptions();
 
   const { data: stations = [] } = useQuery({
-    queryKey: ["cash-register-stations", "list"],
+    queryKey: CASH_KEYS.stations,
     queryFn: fetchCashRegisterStations,
   });
 

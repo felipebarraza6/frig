@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { API_BASE } from "@/lib/api/client";
+import { setRealtimeConnection } from "@/lib/realtime/connection";
 
 export type BranchEventScope =
   | "pos"
@@ -23,7 +24,14 @@ export type WebSocketStatus = "connecting" | "open" | "closed" | "error";
 
 const RECONNECT_DELAY_MS = 3000;
 const MAX_RECONNECT_DELAY_MS = 30000;
-const DEFAULT_SCOPES: BranchEventScope[] = ["pos", "cash_register", "dashboard", "modules", "crm"];
+const DEFAULT_SCOPES: BranchEventScope[] = [
+  "pos",
+  "order",
+  "cash_register",
+  "dashboard",
+  "modules",
+  "crm",
+];
 
 function getWsBaseUrl(): string {
   return API_BASE
@@ -98,6 +106,7 @@ export function useBranchWebSocket(
 
     cleanup();
     setStatus("connecting");
+    setRealtimeConnection("connecting");
 
     const url = `${getWsBaseUrl()}/ws/branch/${branchId}/?token=${encodeURIComponent(
       token
@@ -108,6 +117,7 @@ export function useBranchWebSocket(
     socket.onopen = () => {
       reconnectAttemptsRef.current = 0;
       setStatus("open");
+      setRealtimeConnection("open");
       socket.send(JSON.stringify({ type: "subscribe", scopes }));
     };
 
@@ -130,10 +140,12 @@ export function useBranchWebSocket(
 
     socket.onerror = () => {
       setStatus("error");
+      setRealtimeConnection("error");
     };
 
     socket.onclose = () => {
       setStatus("closed");
+      setRealtimeConnection("closed");
       scheduleReconnect();
     };
   }, [branchId, token, enabled, scopes, cleanup, scheduleReconnect]);
@@ -149,6 +161,7 @@ export function useBranchWebSocket(
     return () => {
       clearTimeout(timeoutId);
       cleanup();
+      setRealtimeConnection("closed");
     };
   }, [connect, cleanup]);
 
