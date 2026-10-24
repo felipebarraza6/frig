@@ -16,21 +16,24 @@ const BUILD =
 const STATIC_CACHE = "frig-static-" + BUILD;
 const PAGES_CACHE = "frig-pages-" + BUILD;
 
+// Scope del SW: "/" en producción FTP, "/<repo>/" en GitHub Pages.
+const SCOPE = new URL("./", self.registration.scope).pathname;
+
 const APP_SHELL = [
-  "/",
-  "/login",
-  "/dashboard",
-  "/pos",
-  "/sales",
-  "/profile",
-  "/cash-register",
-  "/customers",
-  "/survey/view",
-  "/manifest.webmanifest",
-  "/icons/icon-192x192.png",
-  "/icons/icon-512x512.png",
-  "/icons/icon-512x512-maskable.png",
-];
+  "",
+  "login",
+  "dashboard",
+  "pos",
+  "sales",
+  "profile",
+  "cash-register",
+  "customers",
+  "survey/view",
+  "manifest.webmanifest",
+  "icons/icon-192x192.png",
+  "icons/icon-512x512.png",
+  "icons/icon-512x512-maskable.png",
+].map((path) => SCOPE + path);
 
 const STATIC_RE = /\/_next\/static\//;
 const SAME_ORIGIN = new RegExp("^" + self.location.origin);

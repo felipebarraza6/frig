@@ -29,8 +29,12 @@ export function ServiceWorkerRegister() {
       });
     });
 
-    const swUrl = `/sw.js?v=${encodeURIComponent(APP_BUILD)}`;
-    navigator.serviceWorker.register(swUrl).catch(() => {
+    // En GitHub Pages el SW vive bajo /<repo>/; en FTP de producción, en /.
+    const base = (process.env.NEXT_PUBLIC_BASE_PATH || "").replace(/\/$/, "");
+    const swUrl = `${base}/sw.js?v=${encodeURIComponent(APP_BUILD)}`;
+    navigator.serviceWorker
+      .register(swUrl, { scope: `${base || ""}/` })
+      .catch(() => {
       /* sin SW la app sigue funcionando igual */
     });
   }, []);

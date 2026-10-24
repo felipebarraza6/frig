@@ -28,13 +28,42 @@ export interface LandingFeature {
 export interface LandingValueProp {
   headline: string;
   subhead: string;
+  points: string[];
 }
 
 export const LANDING_VALUE_PROP: LandingValueProp = {
-  headline: "Tu negocio completo, en una sola pantalla",
+  headline: "El restaurante, en una sola pantalla",
   subhead:
-    "POS, salón digital 3D, cocina, bodegas, CRM comercial, informes y facturación en un solo sistema. Todo incluido en todos los planes.",
+    "Cobra, cocina y controla caja, stock y sucursales sin instalar nada. Abres una pestaña y el turno ya puede empezar.",
+  points: [
+    "Todos los módulos, en todos los planes",
+    "Caja, mesas y cocina en el mismo turno",
+    "Tu marca, sin instaladores ni cajas",
+    "Demos reales, listas para probar",
+  ],
 };
+
+/** Pruebas cortas del hero. No son métricas inventadas: son hechos del producto. */
+export const LANDING_PROOF = [
+  { value: "0", label: "instaladores" },
+  { value: "1", label: "sistema por local" },
+  { value: "UF", label: "precio, no por módulo" },
+] as const;
+
+/**
+ * Ambiente de revisión, aparte de producción.
+ * El workflow de staging inyecta NEXT_PUBLIC_STAGING_URL. En local (y en el
+ * build FTP de producción) cae al GitHub Pages del repo.
+ */
+export const LANDING_STAGING_URL =
+  process.env.NEXT_PUBLIC_STAGING_URL?.trim() ||
+  "https://felipebarraza6.github.io/frig/";
+
+export const LANDING_STAGING = {
+  kicker: "Staging para revisar",
+  title: "Hay una versión de staging para revisar bien",
+  body: "Antes de pasar a producción, el mismo sistema corre en un ambiente aparte: módulos, flujos y marca se prueban ahí, sin tocar el local en vivo.",
+} as const;
 
 /**
  * Funcionalidades reales de FRIG (alineadas a los módulos de la app).
