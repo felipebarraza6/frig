@@ -103,7 +103,7 @@ export default function ForgotPasswordPage() {
               <>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src="/brand/frig-wordmark.png"
+                  src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/brand/frig-wordmark.png`}
                   alt="Frig"
                   className="frig-flame h-10 w-auto"
                 />
@@ -191,7 +191,7 @@ export default function ForgotPasswordPage() {
               </p>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/brand/frig-symbol.png"
+                src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/brand/frig-symbol.png`}
                 alt=""
                 aria-hidden
                 className="h-4 w-auto opacity-60"

@@ -102,7 +102,7 @@ export function BrandLogo({
     if (useFrigMark) {
       return (
         <LogoFrame
-          src="/brand/frig-symbol.png"
+          src={mediaUrl("/brand/frig-symbol.png") ?? "/brand/frig-symbol.png"}
           alt={alt || "Logo"}
           className={className}
           containerClassName={containerClassName}

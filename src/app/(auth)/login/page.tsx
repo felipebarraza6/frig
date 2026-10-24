@@ -96,7 +96,7 @@ function DimensionExit({
               <>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src="/brand/frig-symbol.png"
+                  src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/brand/frig-symbol.png`}
                   alt=""
                   className="h-16 w-auto"
                   style={{ filter: "drop-shadow(0 0 16px rgba(238,158,112,0.5))" }}
@@ -105,7 +105,7 @@ function DimensionExit({
             )}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/brand/frig-wordmark.png"
+              src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/brand/frig-wordmark.png`}
               alt="Frig"
               className="frig-dimension-loop relative h-16 w-auto sm:h-24"
             />
@@ -772,7 +772,7 @@ export default function LoginPage() {
               </p>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/brand/frig-symbol.png"
+                src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/brand/frig-symbol.png`}
                 alt=""
                 aria-hidden
                 className="h-4 w-auto opacity-60"

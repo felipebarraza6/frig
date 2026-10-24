@@ -69,6 +69,7 @@ import {
 } from "@/lib/api/checkout";
 import { applyThemeConfig } from "@/lib/api/branches";
 import { mediaUrl } from "@/lib/api/client";
+import { publicAsset } from "@/lib/public-asset";
 import { ScrollReveal } from "@/components/landing/scroll-reveal";
 import { HeroPlexus } from "@/components/landing/hero-plexus";
 import { FrigWordmarkMatrix } from "@/components/landing/frig-wordmark-matrix";
@@ -160,7 +161,7 @@ function resolveLandingBrand(theme: { app_name?: string; logo?: string | null; p
   const app = theme?.app_name?.trim() ?? "";
   const isFrig = !app || app.toLowerCase().includes("frig");
   if (isFrig) {
-    return { isFrig: true, name: "FRIG", logo: "/brand/frig-symbol.png", accent: COPPER };
+    return { isFrig: true, name: "FRIG", logo: publicAsset("/brand/frig-symbol.png"), accent: COPPER };
   }
   return {
     isFrig: false,
