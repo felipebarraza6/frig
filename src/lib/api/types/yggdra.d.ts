@@ -4,6 +4,29 @@
  */
 
 export interface paths {
+    "/api/accounts/csrf/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description GET /api/accounts/csrf/
+         *
+         *     Público. Fija la cookie CSRF y devuelve el token enmascarado para que
+         *     muninn.yggdra.cl y el staging en GitHub Pages lo envíen en ``X-CSRFToken``
+         *     junto con ``credentials: include``.
+         */
+        get: operations["accounts_csrf_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/accounts/user-extra-field-values/": {
         parameters: {
             query?: never;
@@ -1190,6 +1213,57 @@ export interface paths {
         get: operations["ai_agents_application_connections_credential_fields_retrieve"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai-agents/billing/agents/{agent_id}/subscribe/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Suscripción mensual de un agente (0,5 UF) con Flow */
+        post: operations["ai_agents_billing_agents_subscribe_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai-agents/billing/balance/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Saldo de runas de la organización */
+        get: operations["ai_agents_billing_balance_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai-agents/billing/runas/checkout/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Compra de un pack de runas con Flow */
+        post: operations["ai_agents_billing_runas_checkout_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -17158,6 +17232,26 @@ export interface paths {
         patch: operations["inventory_products_partial_update"];
         trace?: never;
     };
+    "/api/inventory/products/{id}/download-nutrition-label-pdf/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * PDF de etiqueta nutricional del producto
+         * @description Descarga el PDF de la receta con cálculo nutricional del producto. Query: page_size=label|a4|letter.
+         */
+        get: operations["inventory_products_download_nutrition_label_pdf_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/inventory/products/{id}/equipment-assignments/": {
         parameters: {
             query?: never;
@@ -17594,12 +17688,23 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Actualizar cantidad de un producto en bodega con trazabilidad. */
+        /**
+         * @description Actualizar cantidad de un producto en bodega con trazabilidad.
+         *
+         *     quantity es obligatorio: ausente responde 400, no vacía el recinto.
+         *     POST se conserva; PATCH queda disponible para el contrato nuevo.
+         */
         post: operations["inventory_warehouse_products_update_quantity_create"];
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * @description Actualizar cantidad de un producto en bodega con trazabilidad.
+         *
+         *     quantity es obligatorio: ausente responde 400, no vacía el recinto.
+         *     POST se conserva; PATCH queda disponible para el contrato nuevo.
+         */
+        patch: operations["inventory_warehouse_products_update_quantity_partial_update"];
         trace?: never;
     };
     "/api/inventory/warehouses/": {
@@ -17665,7 +17770,7 @@ export interface paths {
             cookie?: never;
         };
         /** @description Obtener productos de una bodega específica. */
-        get: operations["inventory_warehouses_products_retrieve"];
+        get: operations["inventory_warehouses_products_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -17762,7 +17867,7 @@ export interface paths {
             cookie?: never;
         };
         /** @description Obtener tipos de bodega disponibles. */
-        get: operations["inventory_warehouses_types_retrieve"];
+        get: operations["inventory_warehouses_types_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -18085,6 +18190,92 @@ export interface paths {
          * @description Resumen diario de lecturas para un dispositivo.
          */
         get: operations["iot_telemetry_devices_calendar_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/iot-telemetry/devices/{id}/documents/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Archivos apuntando a este equipo. El portal sube el suyo. */
+        get: operations["iot_telemetry_devices_documents_retrieve"];
+        put?: never;
+        /** @description Archivos apuntando a este equipo. El portal sube el suyo. */
+        post: operations["iot_telemetry_devices_documents_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/iot-telemetry/devices/{id}/documents/{document_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** @description El portal borra un archivo que subió. La sucursal borra el del equipo. */
+        delete: operations["iot_telemetry_devices_documents_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/iot-telemetry/devices/{id}/logger_sheet/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Ficha PDF del logger con cumplimiento y últimas variables. */
+        post: operations["iot_telemetry_devices_logger_sheet_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/iot-telemetry/devices/{id}/operation_sheet/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description PDF de la operación: tickets, visitas, documentos, compras y tareas. */
+        post: operations["iot_telemetry_devices_operation_sheet_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/iot-telemetry/devices/{id}/operations/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Tickets, visitas, documentos, compras y tareas ya enlazados al equipo. */
+        get: operations["iot_telemetry_devices_operations_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -18448,6 +18639,95 @@ export interface paths {
         get: operations["iot_telemetry_readings_stats_retrieve"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/iot-telemetry/reports/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description La sucursal guarda el informe. `data` lo muestra y `download` lo baja. */
+        get: operations["iot_telemetry_reports_list"];
+        put?: never;
+        /** @description La sucursal guarda el informe. `data` lo muestra y `download` lo baja. */
+        post: operations["iot_telemetry_reports_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/iot-telemetry/reports/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description La sucursal guarda el informe. `data` lo muestra y `download` lo baja. */
+        get: operations["iot_telemetry_reports_retrieve"];
+        /** @description La sucursal guarda el informe. `data` lo muestra y `download` lo baja. */
+        put: operations["iot_telemetry_reports_update"];
+        post?: never;
+        /** @description La sucursal guarda el informe. `data` lo muestra y `download` lo baja. */
+        delete: operations["iot_telemetry_reports_destroy"];
+        options?: never;
+        head?: never;
+        /** @description La sucursal guarda el informe. `data` lo muestra y `download` lo baja. */
+        patch: operations["iot_telemetry_reports_partial_update"];
+        trace?: never;
+    };
+    "/api/iot-telemetry/reports/{id}/data/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description La sucursal guarda el informe. `data` lo muestra y `download` lo baja. */
+        get: operations["iot_telemetry_reports_data_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/iot-telemetry/reports/{id}/download/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description La sucursal guarda el informe. `data` lo muestra y `download` lo baja. */
+        get: operations["iot_telemetry_reports_download_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/iot-telemetry/reports/{id}/sheet/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description PDF del informe con las filas del mismo corte que data y download. */
+        post: operations["iot_telemetry_reports_sheet_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -21315,6 +21595,46 @@ export interface paths {
         get: operations["public_landing_config_retrieve"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/muninn/signup/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Alta gratis de Muninn
+         * @description Crea organización, sucursal y OWNER. No cobra y no inicia sesión.
+         */
+        post: operations["public_muninn_signup_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/muninn/verify/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Verificación de correo Muninn
+         * @description Canjea el magic link. Si viene contraseña, la define y verifica el correo.
+         */
+        post: operations["public_muninn_verify_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -25982,6 +26302,61 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/shared/notice-rules/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description La sucursal arma varios avisos para el mismo evento o para otro elemento. */
+        get: operations["shared_notice_rules_list"];
+        put?: never;
+        /** @description La sucursal arma varios avisos para el mismo evento o para otro elemento. */
+        post: operations["shared_notice_rules_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/shared/notice-rules/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description La sucursal arma varios avisos para el mismo evento o para otro elemento. */
+        get: operations["shared_notice_rules_retrieve"];
+        /** @description La sucursal arma varios avisos para el mismo evento o para otro elemento. */
+        put: operations["shared_notice_rules_update"];
+        post?: never;
+        /** @description La sucursal arma varios avisos para el mismo evento o para otro elemento. */
+        delete: operations["shared_notice_rules_destroy"];
+        options?: never;
+        head?: never;
+        /** @description La sucursal arma varios avisos para el mismo evento o para otro elemento. */
+        patch: operations["shared_notice_rules_partial_update"];
+        trace?: never;
+    };
+    "/api/shared/notice-rules/events/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Catálogo de eventos que ya emite el sistema. */
+        get: operations["shared_notice_rules_events_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/shared/notifications/": {
         parameters: {
             query?: never;
@@ -26020,6 +26395,23 @@ export interface paths {
         patch: operations["shared_notifications_partial_update"];
         trace?: never;
     };
+    "/api/shared/notifications/deliver/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description La sucursal avisa lo que quiera por bandeja, socket y push. */
+        post: operations["shared_notifications_deliver_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/shared/notifications/my_notifications/": {
         parameters: {
             query?: never;
@@ -26032,6 +26424,56 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/shared/push/public-key/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["shared_push_public_key_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/shared/push/subscriptions/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cada usuario registra y lista solo sus navegadores. */
+        get: operations["shared_push_subscriptions_retrieve"];
+        put?: never;
+        /** @description Cada usuario registra y lista solo sus navegadores. */
+        post: operations["shared_push_subscriptions_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/shared/push/subscriptions/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["shared_push_subscriptions_destroy"];
         options?: never;
         head?: never;
         patch?: never;
@@ -28135,6 +28577,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/support/tickets/desk/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cola del agente: míos, sin asignar y vencidos
+         * @description Tickets de soporte.
+         *
+         *     Self-service (cualquier BranchUser activo):
+         *     - list / retrieve / create / submit de tickets propios (requester=user)
+         *     - no exige permiso de escritura en ``config``
+         *
+         *     Gestión (escritura en ``config``):
+         *     - ver/editar todos los tickets de la sucursal
+         *     - assign / close / cancel / stats / etc.
+         */
+        get: operations["support_tickets_desk_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/support/tickets/my_tickets/": {
         parameters: {
             query?: never;
@@ -28163,6 +28633,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/support/tickets/portal_request/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Solicitud de soporte del portal
+         * @description El cliente abre un ticket y el escritorio lo recibe en la sucursal.
+         */
+        post: operations["support_tickets_portal_request_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/support/tickets/public_create/": {
         parameters: {
             query?: never;
@@ -28177,6 +28667,34 @@ export interface paths {
          * @description Antes era AllowAny y auto-provisionaba catálogo Frig. Ya no: exige autenticación y membresía activa en la sucursal, y solo usa categorías/SLA ya existentes (no crea ni reactiva config). El front Frig no consume este endpoint; preferir /submit/ o POST /.
          */
         post: operations["support_tickets_public_create_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/support/tickets/ranking/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ranking de tickets resueltos por agente
+         * @description Tickets de soporte.
+         *
+         *     Self-service (cualquier BranchUser activo):
+         *     - list / retrieve / create / submit de tickets propios (requester=user)
+         *     - no exige permiso de escritura en ``config``
+         *
+         *     Gestión (escritura en ``config``):
+         *     - ver/editar todos los tickets de la sucursal
+         *     - assign / close / cancel / stats / etc.
+         */
+        get: operations["support_tickets_ranking_retrieve"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -28885,6 +29403,55 @@ export interface paths {
          *             # No es necesario definir permission_classes
          */
         post: operations["support_work_orders_complete_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/support/work-orders/{id}/confirm/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirmar la visita programada
+         * @description Mixin base para todos los ViewSets de negocio del ERP.
+         *
+         *     Combina automaticamente:
+         *     - Filtrado por sucursal (UniversalFilterMixin)
+         *     - Ocultar registros soft-deleted en listados (UniversalFilterMixin)
+         *     - Soft delete en destroy (SoftDeleteMixin)
+         *     - Permisos estandar (IsAuthenticated + ActiveSubscriptionRequired + ModuleEnabledRequired + ModuleRolePermission)
+         *
+         *     Uso:
+         *         class MyViewSet(ERPBaseViewSet, viewsets.ModelViewSet):
+         *             queryset = MyModel.objects.all()
+         *             serializer_class = MySerializer
+         *             # No es necesario definir permission_classes
+         */
+        post: operations["support_work_orders_confirm_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/support/work-orders/{id}/sheet/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Genera la ficha PDF de la visita y la guarda como documento. */
+        post: operations["support_work_orders_sheet_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -31053,10 +31620,11 @@ export interface components {
             /**
              * @description * `ACTIVE` - Activo
              *     * `INACTIVE` - Inactivo
+             *     * `PAUSED` - Pausado
              *     * `TRAINING` - Entrenando
              * @enum {string}
              */
-            status?: "ACTIVE" | "INACTIVE" | "TRAINING";
+            status?: "ACTIVE" | "INACTIVE" | "PAUSED" | "TRAINING";
             /**
              * Activo
              * @description Determina si el agente esta disponible para uso
@@ -31202,10 +31770,11 @@ export interface components {
             /**
              * @description * `ACTIVE` - Activo
              *     * `INACTIVE` - Inactivo
+             *     * `PAUSED` - Pausado
              *     * `TRAINING` - Entrenando
              * @enum {string}
              */
-            status?: "ACTIVE" | "INACTIVE" | "TRAINING";
+            status?: "ACTIVE" | "INACTIVE" | "PAUSED" | "TRAINING";
             /**
              * Activo
              * @description Determina si el agente esta disponible para uso
@@ -31326,10 +31895,11 @@ export interface components {
             /**
              * @description * `ACTIVE` - Activo
              *     * `INACTIVE` - Inactivo
+             *     * `PAUSED` - Pausado
              *     * `TRAINING` - Entrenando
              * @enum {string}
              */
-            status?: "ACTIVE" | "INACTIVE" | "TRAINING";
+            status?: "ACTIVE" | "INACTIVE" | "PAUSED" | "TRAINING";
             /**
              * Activo
              * @description Determina si el agente esta disponible para uso
@@ -33485,8 +34055,9 @@ export interface components {
             /**
              * Rut
              * @description RUT de la empresa (formato: 12.345.678-9). Único entre sucursales independientes; bajo Organization puede reutilizar el RUT del holding o quedar vacío.
+             * @default
              */
-            dni?: string;
+            dni: string;
             /**
              * Correo Electrónico
              * Format: email
@@ -33774,8 +34345,9 @@ export interface components {
             /**
              * Rut
              * @description RUT de la empresa (formato: 12.345.678-9). Único entre sucursales independientes; bajo Organization puede reutilizar el RUT del holding o quedar vacío.
+             * @default
              */
-            dni?: string;
+            dni: string;
             /**
              * Correo Electrónico
              * Format: email
@@ -33885,8 +34457,9 @@ export interface components {
             /**
              * Rut
              * @description RUT de la empresa (formato: 12.345.678-9). Único entre sucursales independientes; bajo Organization puede reutilizar el RUT del holding o quedar vacío.
+             * @default
              */
-            dni?: string;
+            dni: string;
             /**
              * Correo Electrónico
              * Format: email
@@ -35437,8 +36010,9 @@ export interface components {
             /**
              * Rut
              * @description RUT de la empresa (formato: 12.345.678-9). Único entre sucursales independientes; bajo Organization puede reutilizar el RUT del holding o quedar vacío.
+             * @default
              */
-            dni?: string;
+            dni: string;
             /**
              * Correo Electrónico
              * Format: email
@@ -36159,6 +36733,17 @@ export interface components {
              * @description Permite al usuario cambiar entre sucursales. Roles CAJERO, METER, WAITER quedan restringidos a una sucursal.
              */
             can_access_other_branches?: boolean;
+        };
+        /** @description Serializer para resumen de bodegas de una sucursal. */
+        BranchWarehouseSummary: {
+            total_warehouses: number;
+            total_products: number;
+            total_quantity: number;
+            /** Format: double */
+            total_value: number;
+            /** Format: double */
+            total_sale_value: number;
+            warehouses: components["schemas"]["WarehouseMetrics"][];
         };
         /** @description Serializer para calendarios. */
         Calendar: {
@@ -39808,8 +40393,13 @@ export interface components {
             date_start_compliance?: string | null;
             /** Nombre informante */
             informant_name?: string;
-            /** RUT informante */
+            /**
+             * RUT informante
+             * @description Vacío usa el RUT informante constante de la instalación.
+             */
             informant_rut?: string;
+            /** @description Vacío usa el RUT empresa constante de la instalación DGA. */
+            rut_empresa?: string;
             /**
              * App externa
              * Format: uuid
@@ -39887,8 +40477,13 @@ export interface components {
             date_start_compliance?: string | null;
             /** Nombre informante */
             informant_name?: string;
-            /** RUT informante */
+            /**
+             * RUT informante
+             * @description Vacío usa el RUT informante constante de la instalación.
+             */
             informant_rut?: string;
+            /** @description Vacío usa el RUT empresa constante de la instalación DGA. */
+            rut_empresa?: string;
             /**
              * Clave DGA
              * @description Clave del informante ante el organismo. No es la credencial del conector.
@@ -46207,6 +46802,8 @@ export interface components {
             /** Format: email */
             readonly target_user_email: string;
             readonly target_user_name: string;
+            /** Datos */
+            data?: unknown;
             /** Activa */
             is_active?: boolean;
             /**
@@ -46263,6 +46860,8 @@ export interface components {
             target_role?: string | null;
             /** Usuario Objetivo */
             target_user?: number | null;
+            /** Datos */
+            data?: unknown;
             /** Activa */
             is_active?: boolean;
             /**
@@ -46656,6 +47255,10 @@ export interface components {
              * Format: uuid
              */
             related_booking?: string | null;
+            /** Tipo de entidad */
+            content_type?: number | null;
+            /** ID de entidad */
+            object_id?: string | null;
             /** Notas */
             notes?: string | null;
             /**
@@ -46761,6 +47364,10 @@ export interface components {
              * Format: uuid
              */
             related_booking?: string | null;
+            /** Tipo de entidad */
+            content_type?: number | null;
+            /** ID de entidad */
+            object_id?: string | null;
             /** Notas */
             notes?: string | null;
             /**
@@ -46841,6 +47448,10 @@ export interface components {
              * Format: uuid
              */
             related_booking?: string | null;
+            /** Tipo de entidad */
+            content_type?: number | null;
+            /** ID de entidad */
+            object_id?: string | null;
             /** Notas */
             notes?: string | null;
             /**
@@ -46945,6 +47556,10 @@ export interface components {
              * Format: uuid
              */
             related_booking?: string | null;
+            /** Tipo de entidad */
+            content_type?: number | null;
+            /** ID de entidad */
+            object_id?: string | null;
             /** Notas */
             notes?: string | null;
             /**
@@ -47566,6 +48181,7 @@ export interface components {
             readonly status_display: string;
             /** Notas */
             notes?: string;
+            readonly modifiers: components["schemas"]["KitchenTicketItemModifier"][];
             /**
              * Created at
              * Format: date-time
@@ -47578,6 +48194,15 @@ export interface components {
              * @description Fecha de modificacion.
              */
             readonly modified: string;
+        };
+        /** @description Extra de un ítem de comanda (read-only). */
+        KitchenTicketItemModifier: {
+            id: number;
+            option_name: string;
+            group_name: string;
+            /** Format: double */
+            surcharge_applied: number;
+            notes: string | null;
         };
         /** @description Serializer para items de comanda. */
         KitchenTicketItemRequest: {
@@ -48019,6 +48644,11 @@ export interface components {
             branch?: number | null;
             branches?: number[];
         };
+        /** @description Par value/label para catálogos (tipos de bodega). */
+        LabelValue: {
+            value: string;
+            label: string;
+        };
         Lead: {
             /** Format: uuid */
             readonly id: string;
@@ -48033,6 +48663,13 @@ export interface components {
             phone?: string;
             /** Empresa */
             company?: string;
+            /** @description RUT chileno normalizado (12345678-9). Único por sucursal. */
+            rut?: string | null;
+            /**
+             * Datos extra
+             * @description Atributos filtrables del registro APR: region, provincia, comuna, anio_puesta_en_marcha, n_arranques, beneficiarios, clasificacion_art_106, registro_operadores, tipo_asentamiento, art_52_bis, lat, lon, correo_2, tipo_correo.
+             */
+            extra_data?: unknown;
             /**
              * Fuente
              * Format: uuid
@@ -48102,6 +48739,13 @@ export interface components {
             phone?: string;
             /** Empresa */
             company?: string;
+            /** @description RUT chileno normalizado (12345678-9). Único por sucursal. */
+            rut?: string | null;
+            /**
+             * Datos extra
+             * @description Atributos filtrables del registro APR: region, provincia, comuna, anio_puesta_en_marcha, n_arranques, beneficiarios, clasificacion_art_106, registro_operadores, tipo_asentamiento, art_52_bis, lat, lon, correo_2, tipo_correo.
+             */
+            extra_data?: unknown;
             /**
              * Estado
              * @description * `NEW` - Nuevo
@@ -48156,6 +48800,13 @@ export interface components {
             phone?: string;
             /** Empresa */
             company?: string;
+            /** @description RUT chileno normalizado (12345678-9). Único por sucursal. */
+            rut?: string | null;
+            /**
+             * Datos extra
+             * @description Atributos filtrables del registro APR: region, provincia, comuna, anio_puesta_en_marcha, n_arranques, beneficiarios, clasificacion_art_106, registro_operadores, tipo_asentamiento, art_52_bis, lat, lon, correo_2, tipo_correo.
+             */
+            extra_data?: unknown;
             /**
              * Fuente
              * Format: uuid
@@ -49670,6 +50321,95 @@ export interface components {
             topic_template?: string;
             is_active?: boolean;
         };
+        MuninnSignupRequest: {
+            /** Format: email */
+            email: string;
+            organization_name: string;
+            contact_name: string;
+        };
+        MuninnVerifyRequest: {
+            token: string;
+            password?: string;
+        };
+        NoticeRule: {
+            readonly id: number;
+            /** Nombre */
+            name: string;
+            /** Evento */
+            event_name: string;
+            /**
+             * Título
+             * @description Placeholders como {order_number}, {name}, {status}, {client}.
+             */
+            title_template: string;
+            /** Mensaje */
+            message_template?: string;
+            /**
+             * Destino
+             * @description * `BRANCH` - Sucursal
+             *     * `CLIENT` - Cliente del elemento
+             *     * `ROLE` - Rol de la sucursal
+             * @enum {string}
+             */
+            audience?: "BRANCH" | "CLIENT" | "ROLE";
+            /** Rol */
+            role_code?: string;
+            /**
+             * Estado
+             * @description Si se llena, el aviso sale solo cuando el elemento trae ese estado.
+             */
+            status_filter?: string;
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+            /**
+             * Created at
+             * Format: date-time
+             * @description Fecha de creacion.
+             */
+            readonly created: string;
+            /**
+             * Modified at
+             * Format: date-time
+             * @description Fecha de modificacion.
+             */
+            readonly modified: string;
+        };
+        NoticeRuleRequest: {
+            /** Nombre */
+            name: string;
+            /** Evento */
+            event_name: string;
+            /**
+             * Título
+             * @description Placeholders como {order_number}, {name}, {status}, {client}.
+             */
+            title_template: string;
+            /** Mensaje */
+            message_template?: string;
+            /**
+             * Destino
+             * @description * `BRANCH` - Sucursal
+             *     * `CLIENT` - Cliente del elemento
+             *     * `ROLE` - Rol de la sucursal
+             * @enum {string}
+             */
+            audience?: "BRANCH" | "CLIENT" | "ROLE";
+            /** Rol */
+            role_code?: string;
+            /**
+             * Estado
+             * @description Si se llena, el aviso sale solo cuando el elemento trae ese estado.
+             */
+            status_filter?: string;
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+        };
         /** @description Serializer para certificados nutricionales. */
         NutritionalCertificate: {
             readonly id: number;
@@ -50497,6 +51237,10 @@ export interface components {
         /**
          * @description Serializer para edición rápida de una orden abierta.
          *     Permite cambiar cliente/mesa/observación, datos de entrega y modificar ítems.
+         *
+         *     Cada ítem puede incluir ``modifiers`` (lista de
+         *     ``{modifier_option, notes}``). En ítems existentes, si la clave está
+         *     presente se reemplaza el set; si no está, no se tocan los extras.
          */
         OrderEditRequest: {
             client_id?: number | null;
@@ -50539,8 +51283,13 @@ export interface components {
             reference: string | null;
         };
         /**
-         * @description Serializer para productos de orden - OPTIMIZADO.
-         *     Incluye todos los campos del detalle de productos.
+         * @description Serializer de lectura para productos de orden.
+         *
+         *     Modelo de precios (compatible con legacy):
+         *     - ``unit_price``: incluye extras = base + suma de surcharges por unidad.
+         *     - ``total_price``: ``quantity × unit_price`` (GeneratedField; ya con extra).
+         *     - ``modifiers_total``: recargo por unidad (suma de ``surcharge_applied``).
+         *     - Precio base = ``unit_price - modifiers_total``.
          */
         OrderProduct: {
             readonly id: number;
@@ -50740,7 +51489,13 @@ export interface components {
              */
             notes?: string | null;
         };
-        /** @description Serializer de escritura para modificadores en productos de orden. */
+        /**
+         * @description Escritura de modificadores en productos de orden.
+         *
+         *     ``surcharge_applied`` se toma siempre de ``ModifierOption.surcharge``
+         *     (se ignora el valor del cliente). Tras crear/actualizar se recalcula
+         *     ``OrderProduct.unit_price = base + extras`` y los totales/Revenue.
+         */
         OrderProductModifierWrite: {
             readonly id: number;
             /** Producto de Orden */
@@ -50759,7 +51514,13 @@ export interface components {
              */
             notes?: string | null;
         };
-        /** @description Serializer de escritura para modificadores en productos de orden. */
+        /**
+         * @description Escritura de modificadores en productos de orden.
+         *
+         *     ``surcharge_applied`` se toma siempre de ``ModifierOption.surcharge``
+         *     (se ignora el valor del cliente). Tras crear/actualizar se recalcula
+         *     ``OrderProduct.unit_price = base + extras`` y los totales/Revenue.
+         */
         OrderProductModifierWriteRequest: {
             /** Producto de Orden */
             order_product: number;
@@ -50778,8 +51539,13 @@ export interface components {
             notes?: string | null;
         };
         /**
-         * @description Serializer para productos de orden - OPTIMIZADO.
-         *     Incluye todos los campos del detalle de productos.
+         * @description Serializer de lectura para productos de orden.
+         *
+         *     Modelo de precios (compatible con legacy):
+         *     - ``unit_price``: incluye extras = base + suma de surcharges por unidad.
+         *     - ``total_price``: ``quantity × unit_price`` (GeneratedField; ya con extra).
+         *     - ``modifiers_total``: recargo por unidad (suma de ``surcharge_applied``).
+         *     - Precio base = ``unit_price - modifiers_total``.
          */
         OrderProductRequest: {
             /** Format: uuid */
@@ -53229,6 +53995,21 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["LLMModel"][];
         };
+        PaginatedLabelValueList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["LabelValue"][];
+        };
         PaginatedLeadListList: {
             /** @example 123 */
             count: number;
@@ -53408,6 +54189,21 @@ export interface components {
              */
             previous?: string | null;
             results: components["schemas"]["MqttBrokerConfig"][];
+        };
+        PaginatedNoticeRuleList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["NoticeRule"][];
         };
         PaginatedNutritionalCertificateList: {
             /** @example 123 */
@@ -54519,6 +55315,21 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["TelemetryReading"][];
         };
+        PaginatedTelemetryReportList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["TelemetryReport"][];
+        };
         PaginatedTelemetryVariableList: {
             /** @example 123 */
             count: number;
@@ -55195,10 +56006,11 @@ export interface components {
             /**
              * @description * `ACTIVE` - Activo
              *     * `INACTIVE` - Inactivo
+             *     * `PAUSED` - Pausado
              *     * `TRAINING` - Entrenando
              * @enum {string}
              */
-            status?: "ACTIVE" | "INACTIVE" | "TRAINING";
+            status?: "ACTIVE" | "INACTIVE" | "PAUSED" | "TRAINING";
             /**
              * Activo
              * @description Determina si el agente esta disponible para uso
@@ -55932,8 +56744,9 @@ export interface components {
             /**
              * Rut
              * @description RUT de la empresa (formato: 12.345.678-9). Único entre sucursales independientes; bajo Organization puede reutilizar el RUT del holding o quedar vacío.
+             * @default
              */
-            dni?: string;
+            dni: string;
             /**
              * Correo Electrónico
              * Format: email
@@ -56542,8 +57355,9 @@ export interface components {
             /**
              * Rut
              * @description RUT de la empresa (formato: 12.345.678-9). Único entre sucursales independientes; bajo Organization puede reutilizar el RUT del holding o quedar vacío.
+             * @default
              */
-            dni?: string;
+            dni: string;
             /**
              * Correo Electrónico
              * Format: email
@@ -57983,8 +58797,13 @@ export interface components {
             date_start_compliance?: string | null;
             /** Nombre informante */
             informant_name?: string;
-            /** RUT informante */
+            /**
+             * RUT informante
+             * @description Vacío usa el RUT informante constante de la instalación.
+             */
             informant_rut?: string;
+            /** @description Vacío usa el RUT empresa constante de la instalación DGA. */
+            rut_empresa?: string;
             /**
              * Clave DGA
              * @description Clave del informante ante el organismo. No es la credencial del conector.
@@ -60140,6 +60959,8 @@ export interface components {
             target_role?: string | null;
             /** Usuario Objetivo */
             target_user?: number | null;
+            /** Datos */
+            data?: unknown;
             /** Activa */
             is_active?: boolean;
             /**
@@ -60332,6 +61153,10 @@ export interface components {
              * Format: uuid
              */
             related_booking?: string | null;
+            /** Tipo de entidad */
+            content_type?: number | null;
+            /** ID de entidad */
+            object_id?: string | null;
             /** Notas */
             notes?: string | null;
             /**
@@ -60664,6 +61489,13 @@ export interface components {
             phone?: string;
             /** Empresa */
             company?: string;
+            /** @description RUT chileno normalizado (12345678-9). Único por sucursal. */
+            rut?: string | null;
+            /**
+             * Datos extra
+             * @description Atributos filtrables del registro APR: region, provincia, comuna, anio_puesta_en_marcha, n_arranques, beneficiarios, clasificacion_art_106, registro_operadores, tipo_asentamiento, art_52_bis, lat, lon, correo_2, tipo_correo.
+             */
+            extra_data?: unknown;
             /**
              * Fuente
              * Format: uuid
@@ -61140,6 +61972,39 @@ export interface components {
             topic_template?: string;
             is_active?: boolean;
         };
+        PatchedNoticeRuleRequest: {
+            /** Nombre */
+            name?: string;
+            /** Evento */
+            event_name?: string;
+            /**
+             * Título
+             * @description Placeholders como {order_number}, {name}, {status}, {client}.
+             */
+            title_template?: string;
+            /** Mensaje */
+            message_template?: string;
+            /**
+             * Destino
+             * @description * `BRANCH` - Sucursal
+             *     * `CLIENT` - Cliente del elemento
+             *     * `ROLE` - Rol de la sucursal
+             * @enum {string}
+             */
+            audience?: "BRANCH" | "CLIENT" | "ROLE";
+            /** Rol */
+            role_code?: string;
+            /**
+             * Estado
+             * @description Si se llena, el aviso sale solo cuando el elemento trae ese estado.
+             */
+            status_filter?: string;
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            is_active?: boolean;
+        };
         /** @description Serializer para certificados nutricionales. */
         PatchedNutritionalCertificateRequest: {
             /**
@@ -61320,7 +62185,13 @@ export interface components {
              */
             is_active?: boolean;
         };
-        /** @description Serializer de escritura para modificadores en productos de orden. */
+        /**
+         * @description Escritura de modificadores en productos de orden.
+         *
+         *     ``surcharge_applied`` se toma siempre de ``ModifierOption.surcharge``
+         *     (se ignora el valor del cliente). Tras crear/actualizar se recalcula
+         *     ``OrderProduct.unit_price = base + extras`` y los totales/Revenue.
+         */
         PatchedOrderProductModifierWriteRequest: {
             /** Producto de Orden */
             order_product?: number;
@@ -63111,6 +63982,10 @@ export interface components {
             notes?: string | null;
             /** Notas del Proveedor */
             supplier_notes?: string | null;
+            /** Tipo de entidad */
+            content_type?: number | null;
+            /** ID de entidad */
+            object_id?: string | null;
         };
         /** @description Serializer para suscripciones push web. */
         PatchedPushSubscriptionRequest: {
@@ -64773,6 +65648,58 @@ export interface components {
             dga_response?: string | null;
             /** Comprobante DGA */
             dga_voucher?: string | null;
+            /** Enviar a SMA */
+            send_sma?: boolean;
+        };
+        /**
+         * @description Hace que ``branch`` sea un campo opcional y escribible por
+         *     PrimaryKeyRelatedField. Esto permite que los payloads puedan incluir
+         *     ``branch`` (UUID de sucursal) mientras que la vista se encarga de
+         *     asignar la sucursal por defecto cuando no se envía.
+         *
+         *     Hereda de ``serializers.Serializer`` para que DRF registre ``branch``
+         *     como campo declarado en las subclases ``ModelSerializer``.
+         *
+         *     Uso:
+         *         class MySerializer(BranchWritableMixin, serializers.ModelSerializer):
+         *             class Meta:
+         *                 model = MyModel
+         *                 fields = [..., "branch"]
+         */
+        PatchedTelemetryReportRequest: {
+            /** @description UUID de la sucursal. Solo editable por super administradores. */
+            branch?: number | null;
+            /** Nombre */
+            name?: string;
+            /** Descripción */
+            description?: string | null;
+            /**
+             * Corte
+             * @description * `SERIES` - Serie
+             *     * `LAST` - Última lectura
+             *     * `DAY` - Cierre del día
+             *     * `MONTH` - Cierre del mes
+             * @enum {string}
+             */
+            behavior?: "SERIES" | "LAST" | "DAY" | "MONTH";
+            /**
+             * Visualización
+             * @description * `line` - Línea
+             *     * `bar` - Barras
+             *     * `area` - Área
+             *     * `table` - Tabla
+             * @enum {string}
+             */
+            chart_type?: "line" | "bar" | "area" | "table";
+            /**
+             * Proyecto
+             * @description Si se indica, el informe incluye los equipos activos de ese proyecto.
+             */
+            project?: number | null;
+            devices?: number[];
+            variables?: number[];
+            /** Activo */
+            is_active?: boolean;
         };
         /** @description Serializer para TelemetryVariable. */
         PatchedTelemetryVariableRequest: {
@@ -65016,9 +65943,11 @@ export interface components {
              * Origen
              * @description * `INTERNAL` - Interno
              *     * `WEB_FORM` - Formulario Web
+             *     * `PORTAL` - Portal del cliente
+             *     * `CHAT` - Chat
              * @enum {string}
              */
-            source?: "INTERNAL" | "WEB_FORM";
+            source?: "INTERNAL" | "WEB_FORM" | "PORTAL" | "CHAT";
             /** Tipo de Entidad */
             content_type?: number | null;
             /** ID de Entidad */
@@ -65035,6 +65964,11 @@ export interface components {
             satisfaction_score?: number | null;
             /** Comentario de Satisfacción */
             satisfaction_comment?: string;
+            /**
+             * Format: date-time
+             * @description Si el tipo requiere visita, abre la orden de trabajo en esta fecha.
+             */
+            scheduled_date?: string | null;
             /**
              * Activo
              * @description Indica si el registro está activo. Use esto en lugar de eliminar.
@@ -65106,7 +66040,7 @@ export interface components {
             description?: string;
             /**
              * Requiere visita técnica
-             * @description Si es True, los tickets de este tipo generan una orden de trabajo
+             * @description Si es True y el alta del ticket trae scheduled_date, se abre la orden de trabajo en esa fecha
              */
             requires_visit?: boolean;
             /**
@@ -65532,6 +66466,13 @@ export interface components {
              */
             is_default?: boolean;
             branch_id?: number;
+        };
+        /** @description Ajuste de stock. quantity ausente es 400, no un vaciado a 0. */
+        PatchedWarehouseUpdateQuantityRequest: {
+            /** Format: double */
+            quantity?: number;
+            /** @default  */
+            notes: string;
         };
         PatchedWebhookEndpointRequest: {
             /** Nombre */
@@ -70237,7 +71178,8 @@ export interface components {
         };
         /** @description Serializer para mensajes entrantes desde el widget web. */
         PublicChatMessageRequest: {
-            user_id: string;
+            user_id?: string;
+            visitor_token?: string;
             user_name?: string;
             message: string;
             /** Format: email */
@@ -70248,10 +71190,7 @@ export interface components {
             success: boolean;
             response: string | null;
             session_id: string | null;
-            /** debug */
-            _debug?: {
-                [key: string]: unknown;
-            } | null;
+            visitor_token?: string;
         };
         /**
          * @description Registro público de cliente final de una sucursal.
@@ -70650,6 +71589,10 @@ export interface components {
             notes?: string | null;
             /** Notas del Proveedor */
             supplier_notes?: string | null;
+            /** Tipo de entidad */
+            content_type?: number | null;
+            /** ID de entidad */
+            object_id?: string | null;
             readonly items: components["schemas"]["PurchaseOrderItem"][];
             readonly supplier_type_display: string | null;
             /**
@@ -70716,6 +71659,10 @@ export interface components {
             notes?: string | null;
             /** Notas del Proveedor */
             supplier_notes?: string | null;
+            /** Tipo de entidad */
+            content_type?: number | null;
+            /** ID de entidad */
+            object_id?: string | null;
             items: components["schemas"]["PurchaseOrderItem"][];
         };
         /** @description Serializer para crear órdenes de compra. */
@@ -70769,6 +71716,10 @@ export interface components {
             notes?: string | null;
             /** Notas del Proveedor */
             supplier_notes?: string | null;
+            /** Tipo de entidad */
+            content_type?: number | null;
+            /** ID de entidad */
+            object_id?: string | null;
             items: components["schemas"]["PurchaseOrderItemRequest"][];
         };
         /** @description Serializer para items de órdenes de compra. */
@@ -71042,6 +71993,10 @@ export interface components {
             notes?: string | null;
             /** Notas del Proveedor */
             supplier_notes?: string | null;
+            /** Tipo de entidad */
+            content_type?: number | null;
+            /** ID de entidad */
+            object_id?: string | null;
         };
         /** @description Serializer para suscripciones push web. */
         PushSubscription: {
@@ -72426,6 +73381,10 @@ export interface components {
              * @enum {string}
              */
             frequency?: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL" | "ONE_TIME";
+        };
+        RunaPackRequest: {
+            amount_clp: number;
+            branch_id?: number;
         };
         /**
          * @description Hace que ``branch`` sea un campo opcional y escribible por
@@ -75673,6 +76632,7 @@ export interface components {
             readonly config: components["schemas"]["DeviceConfig"];
             readonly compliance_config: components["schemas"]["ComplianceConfig"];
             readonly variables: string;
+            readonly latest: unknown[];
             readonly latest_readings: string;
             /**
              * Metadatos
@@ -75734,6 +76694,7 @@ export interface components {
             last_reading_at?: string | null;
             readonly minutes_offline: string;
             readonly variables_count: string;
+            readonly latest: unknown[];
             /**
              * Latitud
              * Format: double
@@ -76214,6 +77175,17 @@ export interface components {
             dga_response?: string | null;
             /** Comprobante DGA */
             dga_voucher?: string | null;
+            /** Enviar a SMA */
+            send_sma?: boolean;
+            /**
+             * Fecha envio SMA
+             * Format: date-time
+             */
+            readonly sma_sent_at: string | null;
+            /** Respuesta SMA */
+            readonly sma_response: string | null;
+            /** Comprobante SMA */
+            readonly sma_voucher: string | null;
             /**
              * Created at
              * Format: date-time
@@ -76267,6 +77239,121 @@ export interface components {
             dga_response?: string | null;
             /** Comprobante DGA */
             dga_voucher?: string | null;
+            /** Enviar a SMA */
+            send_sma?: boolean;
+        };
+        /**
+         * @description Hace que ``branch`` sea un campo opcional y escribible por
+         *     PrimaryKeyRelatedField. Esto permite que los payloads puedan incluir
+         *     ``branch`` (UUID de sucursal) mientras que la vista se encarga de
+         *     asignar la sucursal por defecto cuando no se envía.
+         *
+         *     Hereda de ``serializers.Serializer`` para que DRF registre ``branch``
+         *     como campo declarado en las subclases ``ModelSerializer``.
+         *
+         *     Uso:
+         *         class MySerializer(BranchWritableMixin, serializers.ModelSerializer):
+         *             class Meta:
+         *                 model = MyModel
+         *                 fields = [..., "branch"]
+         */
+        TelemetryReport: {
+            readonly id: number;
+            /** @description UUID de la sucursal. Solo editable por super administradores. */
+            branch?: number | null;
+            /** Nombre */
+            name: string;
+            /** Descripción */
+            description?: string | null;
+            /**
+             * Corte
+             * @description * `SERIES` - Serie
+             *     * `LAST` - Última lectura
+             *     * `DAY` - Cierre del día
+             *     * `MONTH` - Cierre del mes
+             * @enum {string}
+             */
+            behavior?: "SERIES" | "LAST" | "DAY" | "MONTH";
+            /**
+             * Visualización
+             * @description * `line` - Línea
+             *     * `bar` - Barras
+             *     * `area` - Área
+             *     * `table` - Tabla
+             * @enum {string}
+             */
+            chart_type?: "line" | "bar" | "area" | "table";
+            /**
+             * Proyecto
+             * @description Si se indica, el informe incluye los equipos activos de ese proyecto.
+             */
+            project?: number | null;
+            devices?: number[];
+            variables?: number[];
+            /** Activo */
+            is_active?: boolean;
+            /**
+             * Created at
+             * Format: date-time
+             * @description Fecha de creacion.
+             */
+            readonly created: string;
+            /**
+             * Modified at
+             * Format: date-time
+             * @description Fecha de modificacion.
+             */
+            readonly modified: string;
+        };
+        /**
+         * @description Hace que ``branch`` sea un campo opcional y escribible por
+         *     PrimaryKeyRelatedField. Esto permite que los payloads puedan incluir
+         *     ``branch`` (UUID de sucursal) mientras que la vista se encarga de
+         *     asignar la sucursal por defecto cuando no se envía.
+         *
+         *     Hereda de ``serializers.Serializer`` para que DRF registre ``branch``
+         *     como campo declarado en las subclases ``ModelSerializer``.
+         *
+         *     Uso:
+         *         class MySerializer(BranchWritableMixin, serializers.ModelSerializer):
+         *             class Meta:
+         *                 model = MyModel
+         *                 fields = [..., "branch"]
+         */
+        TelemetryReportRequest: {
+            /** @description UUID de la sucursal. Solo editable por super administradores. */
+            branch?: number | null;
+            /** Nombre */
+            name: string;
+            /** Descripción */
+            description?: string | null;
+            /**
+             * Corte
+             * @description * `SERIES` - Serie
+             *     * `LAST` - Última lectura
+             *     * `DAY` - Cierre del día
+             *     * `MONTH` - Cierre del mes
+             * @enum {string}
+             */
+            behavior?: "SERIES" | "LAST" | "DAY" | "MONTH";
+            /**
+             * Visualización
+             * @description * `line` - Línea
+             *     * `bar` - Barras
+             *     * `area` - Área
+             *     * `table` - Tabla
+             * @enum {string}
+             */
+            chart_type?: "line" | "bar" | "area" | "table";
+            /**
+             * Proyecto
+             * @description Si se indica, el informe incluye los equipos activos de ese proyecto.
+             */
+            project?: number | null;
+            devices?: number[];
+            variables?: number[];
+            /** Activo */
+            is_active?: boolean;
         };
         /** @description Serializer para TelemetryVariable. */
         TelemetryVariable: {
@@ -76741,9 +77828,11 @@ export interface components {
              * Origen
              * @description * `INTERNAL` - Interno
              *     * `WEB_FORM` - Formulario Web
+             *     * `PORTAL` - Portal del cliente
+             *     * `CHAT` - Chat
              * @enum {string}
              */
-            source?: "INTERNAL" | "WEB_FORM";
+            source?: "INTERNAL" | "WEB_FORM" | "PORTAL" | "CHAT";
             /** Tipo de Entidad */
             content_type?: number | null;
             /** ID de Entidad */
@@ -76869,9 +77958,11 @@ export interface components {
              * Origen
              * @description * `INTERNAL` - Interno
              *     * `WEB_FORM` - Formulario Web
+             *     * `PORTAL` - Portal del cliente
+             *     * `CHAT` - Chat
              * @enum {string}
              */
-            source?: "INTERNAL" | "WEB_FORM";
+            source?: "INTERNAL" | "WEB_FORM" | "PORTAL" | "CHAT";
             /** Tipo de Entidad */
             content_type?: number | null;
             /** ID de Entidad */
@@ -76888,6 +77979,11 @@ export interface components {
             satisfaction_score?: number | null;
             /** Comentario de Satisfacción */
             satisfaction_comment?: string;
+            /**
+             * Format: date-time
+             * @description Si el tipo requiere visita, abre la orden de trabajo en esta fecha.
+             */
+            scheduled_date?: string | null;
             /**
              * Activo
              * @description Indica si el registro está activo. Use esto en lugar de eliminar.
@@ -76996,9 +78092,11 @@ export interface components {
              * Origen
              * @description * `INTERNAL` - Interno
              *     * `WEB_FORM` - Formulario Web
+             *     * `PORTAL` - Portal del cliente
+             *     * `CHAT` - Chat
              * @enum {string}
              */
-            source?: "INTERNAL" | "WEB_FORM";
+            source?: "INTERNAL" | "WEB_FORM" | "PORTAL" | "CHAT";
             /** Tipo de Entidad */
             content_type?: number | null;
             /** ID de Entidad */
@@ -77204,9 +78302,11 @@ export interface components {
              * Origen
              * @description * `INTERNAL` - Interno
              *     * `WEB_FORM` - Formulario Web
+             *     * `PORTAL` - Portal del cliente
+             *     * `CHAT` - Chat
              * @enum {string}
              */
-            source?: "INTERNAL" | "WEB_FORM";
+            source?: "INTERNAL" | "WEB_FORM" | "PORTAL" | "CHAT";
             /**
              * Primera Respuesta
              * Format: date-time
@@ -77329,9 +78429,11 @@ export interface components {
              * Origen
              * @description * `INTERNAL` - Interno
              *     * `WEB_FORM` - Formulario Web
+             *     * `PORTAL` - Portal del cliente
+             *     * `CHAT` - Chat
              * @enum {string}
              */
-            source?: "INTERNAL" | "WEB_FORM";
+            source?: "INTERNAL" | "WEB_FORM" | "PORTAL" | "CHAT";
             /**
              * Primera Respuesta
              * Format: date-time
@@ -77472,7 +78574,7 @@ export interface components {
             description?: string;
             /**
              * Requiere visita técnica
-             * @description Si es True, los tickets de este tipo generan una orden de trabajo
+             * @description Si es True y el alta del ticket trae scheduled_date, se abre la orden de trabajo en esa fecha
              */
             requires_visit?: boolean;
             /**
@@ -77531,7 +78633,7 @@ export interface components {
             description?: string;
             /**
              * Requiere visita técnica
-             * @description Si es True, los tickets de este tipo generan una orden de trabajo
+             * @description Si es True y el alta del ticket trae scheduled_date, se abre la orden de trabajo en esa fecha
              */
             requires_visit?: boolean;
             /**
@@ -78751,10 +79853,24 @@ export interface components {
              */
             readonly modified: string;
         };
+        /** @description Serializer para métricas de bodegas. */
+        WarehouseMetrics: {
+            warehouse: components["schemas"]["Warehouse"];
+            total_products: number;
+            total_quantity: number;
+            /** Format: double */
+            total_value: number;
+            /** Format: double */
+            total_sale_value: number;
+            low_stock_products: number;
+            out_of_stock_products: number;
+            /** Format: double */
+            utilization_percentage: number;
+        };
         /** @description Warehouse Product serializer. */
         WarehouseProduct: {
             readonly id: number;
-            readonly warehouse: components["schemas"]["Warehouse"];
+            readonly warehouse: string;
             /** Producto */
             product?: number;
             readonly product_name: string;
@@ -78763,6 +79879,11 @@ export interface components {
             readonly product_measurement_unit: string;
             /** Format: double */
             readonly product_cost: number;
+            /** Format: double */
+            readonly product_sale_price: number;
+            readonly total_sale_value: string;
+            readonly product_type: string;
+            readonly tracks_inventory: boolean;
             /**
              * Cantidad Actual
              * Format: double
@@ -78905,6 +80026,29 @@ export interface components {
              */
             is_default?: boolean;
             branch_id: number;
+        };
+        /** @description Serializer para transferencias entre bodegas. */
+        WarehouseTransferRequest: {
+            source_warehouse_id: number;
+            target_warehouse_id: number;
+            /** @description Lista de productos con product_id y quantity */
+            products: {
+                [key: string]: unknown;
+            }[];
+        };
+        /** @description Respuesta real de la transferencia, no el body de entrada. */
+        WarehouseTransferResponse: {
+            message: string;
+            transferred_products: {
+                [key: string]: unknown;
+            }[];
+        };
+        /** @description Ajuste de stock. quantity ausente es 400, no un vaciado a 0. */
+        WarehouseUpdateQuantityRequest: {
+            /** Format: double */
+            quantity: number;
+            /** @default  */
+            notes: string;
         };
         WebhookEndpoint: {
             /** Format: uuid */
@@ -79236,6 +80380,22 @@ export interface components {
              * @enum {string}
              */
             status?: "SCHEDULED" | "IN_ROUTE" | "ON_SITE" | "COMPLETED" | "CANCELLED";
+            /**
+             * Visita confirmada el
+             * Format: date-time
+             */
+            confirmed_at?: string | null;
+            /** Visita confirmada por */
+            confirmed_by?: number | null;
+            /**
+             * Visita cancelada el
+             * Format: date-time
+             */
+            cancelled_at?: string | null;
+            /** Visita cancelada por */
+            cancelled_by?: number | null;
+            /** Motivo de cancelación */
+            cancel_reason?: string;
             /** Dirección */
             location_address?: string;
             /**
@@ -79383,6 +80543,22 @@ export interface components {
              * @enum {string}
              */
             status?: "SCHEDULED" | "IN_ROUTE" | "ON_SITE" | "COMPLETED" | "CANCELLED";
+            /**
+             * Visita confirmada el
+             * Format: date-time
+             */
+            confirmed_at?: string | null;
+            /** Visita confirmada por */
+            confirmed_by?: number | null;
+            /**
+             * Visita cancelada el
+             * Format: date-time
+             */
+            cancelled_at?: string | null;
+            /** Visita cancelada por */
+            cancelled_by?: number | null;
+            /** Motivo de cancelación */
+            cancel_reason?: string;
             /** Dirección */
             location_address?: string;
             /** Duración Estimada (min) */
@@ -79435,6 +80611,22 @@ export interface components {
              * @enum {string}
              */
             status?: "SCHEDULED" | "IN_ROUTE" | "ON_SITE" | "COMPLETED" | "CANCELLED";
+            /**
+             * Visita confirmada el
+             * Format: date-time
+             */
+            confirmed_at?: string | null;
+            /** Visita confirmada por */
+            confirmed_by?: number | null;
+            /**
+             * Visita cancelada el
+             * Format: date-time
+             */
+            cancelled_at?: string | null;
+            /** Visita cancelada por */
+            cancelled_by?: number | null;
+            /** Motivo de cancelación */
+            cancel_reason?: string;
             /** Dirección */
             location_address?: string;
             /** Duración Estimada (min) */
@@ -80011,6 +81203,26 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    accounts_csrf_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     accounts_user_extra_field_values_list: {
         parameters: {
             query?: {
@@ -82365,6 +83577,74 @@ export interface operations {
                     "application/json": components["schemas"]["ApplicationUserConnection"];
                     "*/*": components["schemas"]["ApplicationUserConnection"];
                 };
+            };
+        };
+    };
+    ai_agents_billing_agents_subscribe_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                agent_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ai_agents_billing_balance_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ai_agents_billing_runas_checkout_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunaPackRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["RunaPackRequest"];
+                "multipart/form-data": components["schemas"]["RunaPackRequest"];
+            };
+        };
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -92569,14 +93849,19 @@ export interface operations {
         parameters: {
             query?: {
                 assigned_to?: number;
+                comuna?: string;
                 format?: "binary" | "json";
                 is_active?: boolean;
+                n_arranques_max?: number;
+                n_arranques_min?: number;
                 /** @description Qué campo usar para ordenar los resultados. */
                 ordering?: string;
                 /** @description Un número de página dentro del conjunto de resultados paginado. */
                 page?: number;
                 /** @description Número de resultados a devolver por página. */
                 page_size?: number;
+                region?: string;
+                rut?: string;
                 /** @description Un término de búsqueda. */
                 search?: string;
                 source?: string;
@@ -113736,6 +115021,32 @@ export interface operations {
             };
         };
     };
+    inventory_products_download_nutrition_label_pdf_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+                page_size?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este Producto. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Product"];
+                    "*/*": components["schemas"]["Product"];
+                };
+            };
+        };
+    };
     inventory_products_equipment_assignments_retrieve: {
         parameters: {
             query?: {
@@ -114650,6 +115961,7 @@ export interface operations {
                 page?: number;
                 /** @description Número de resultados a devolver por página. */
                 page_size?: number;
+                product?: number;
                 /** @description Un término de búsqueda. */
                 search?: string;
                 warehouse?: number;
@@ -114833,9 +116145,40 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["WarehouseProductRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["WarehouseProductRequest"];
-                "multipart/form-data": components["schemas"]["WarehouseProductRequest"];
+                "application/json": components["schemas"]["WarehouseUpdateQuantityRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["WarehouseUpdateQuantityRequest"];
+                "multipart/form-data": components["schemas"]["WarehouseUpdateQuantityRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WarehouseProduct"];
+                    "*/*": components["schemas"]["WarehouseProduct"];
+                };
+            };
+        };
+    };
+    inventory_warehouse_products_update_quantity_partial_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este Producto en Bodega. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedWarehouseUpdateQuantityRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedWarehouseUpdateQuantityRequest"];
+                "multipart/form-data": components["schemas"]["PatchedWarehouseUpdateQuantityRequest"];
             };
         };
         responses: {
@@ -115049,16 +116392,40 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Warehouse"];
-                    "*/*": components["schemas"]["Warehouse"];
+                    "application/json": components["schemas"]["WarehouseMetrics"];
+                    "*/*": components["schemas"]["WarehouseMetrics"];
                 };
             };
         };
     };
-    inventory_warehouses_products_retrieve: {
+    inventory_warehouses_products_list: {
         parameters: {
             query?: {
+                branch?: number;
+                expand?: string;
                 format?: "binary" | "json";
+                is_default?: boolean;
+                location?: string;
+                needs_reorder?: boolean;
+                ordering?: string;
+                /** @description Un número de página dentro del conjunto de resultados paginado. */
+                page?: number;
+                /** @description Número de resultados a devolver por página. */
+                page_size?: number;
+                /** @description sale filtra is_for_sale; otro valor filtra el enum. */
+                product_type?: string;
+                /** @description Un término de búsqueda. */
+                search?: string;
+                /**
+                 * @description Tipo de bodega según el tipo de productos que almacena
+                 *
+                 *     * `GENERAL` - Bodega General
+                 *     * `TOOLS` - Bodega de Herramientas
+                 *     * `RAW_MATERIAL` - Materias Primas
+                 *     * `WASTE` - Gestión de Residuos
+                 *     * `CUSTOM` - Personalizada
+                 */
+                warehouse_type?: "CUSTOM" | "GENERAL" | "RAW_MATERIAL" | "TOOLS" | "WASTE";
             };
             header?: never;
             path: {
@@ -115074,8 +116441,8 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Warehouse"];
-                    "*/*": components["schemas"]["Warehouse"];
+                    "application/json": components["schemas"]["PaginatedWarehouseProductList"];
+                    "*/*": components["schemas"]["PaginatedWarehouseProductList"];
                 };
             };
         };
@@ -115096,8 +116463,8 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Warehouse"];
-                    "*/*": components["schemas"]["Warehouse"];
+                    "application/json": components["schemas"]["BranchWarehouseSummary"];
+                    "*/*": components["schemas"]["BranchWarehouseSummary"];
                 };
             };
         };
@@ -115157,9 +116524,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["WarehouseRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["WarehouseRequest"];
-                "multipart/form-data": components["schemas"]["WarehouseRequest"];
+                "application/json": components["schemas"]["WarehouseTransferRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["WarehouseTransferRequest"];
+                "multipart/form-data": components["schemas"]["WarehouseTransferRequest"];
             };
         };
         responses: {
@@ -115168,16 +116535,36 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Warehouse"];
-                    "*/*": components["schemas"]["Warehouse"];
+                    "application/json": components["schemas"]["WarehouseTransferResponse"];
+                    "*/*": components["schemas"]["WarehouseTransferResponse"];
                 };
             };
         };
     };
-    inventory_warehouses_types_retrieve: {
+    inventory_warehouses_types_list: {
         parameters: {
             query?: {
+                branch?: number;
                 format?: "binary" | "json";
+                is_default?: boolean;
+                /** @description Qué campo usar para ordenar los resultados. */
+                ordering?: string;
+                /** @description Un número de página dentro del conjunto de resultados paginado. */
+                page?: number;
+                /** @description Número de resultados a devolver por página. */
+                page_size?: number;
+                /** @description Un término de búsqueda. */
+                search?: string;
+                /**
+                 * @description Tipo de bodega según el tipo de productos que almacena
+                 *
+                 *     * `GENERAL` - Bodega General
+                 *     * `TOOLS` - Bodega de Herramientas
+                 *     * `RAW_MATERIAL` - Materias Primas
+                 *     * `WASTE` - Gestión de Residuos
+                 *     * `CUSTOM` - Personalizada
+                 */
+                warehouse_type?: "CUSTOM" | "GENERAL" | "RAW_MATERIAL" | "TOOLS" | "WASTE";
             };
             header?: never;
             path?: never;
@@ -115190,8 +116577,8 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Warehouse"];
-                    "*/*": components["schemas"]["Warehouse"];
+                    "application/json": components["schemas"]["PaginatedLabelValueList"];
+                    "*/*": components["schemas"]["PaginatedLabelValueList"];
                 };
             };
         };
@@ -116406,6 +117793,173 @@ export interface operations {
             };
         };
     };
+    iot_telemetry_devices_documents_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este Dispositivo IoT. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelemetryDevice"];
+                    "*/*": components["schemas"]["TelemetryDevice"];
+                };
+            };
+        };
+    };
+    iot_telemetry_devices_documents_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este Dispositivo IoT. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TelemetryDeviceRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["TelemetryDeviceRequest"];
+                "multipart/form-data": components["schemas"]["TelemetryDeviceRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelemetryDevice"];
+                    "*/*": components["schemas"]["TelemetryDevice"];
+                };
+            };
+        };
+    };
+    iot_telemetry_devices_documents_destroy: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                document_id: string;
+                /** @description Un valor de entero único que identifique este Dispositivo IoT. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    iot_telemetry_devices_logger_sheet_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este Dispositivo IoT. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TelemetryDeviceRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["TelemetryDeviceRequest"];
+                "multipart/form-data": components["schemas"]["TelemetryDeviceRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelemetryDevice"];
+                    "*/*": components["schemas"]["TelemetryDevice"];
+                };
+            };
+        };
+    };
+    iot_telemetry_devices_operation_sheet_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este Dispositivo IoT. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TelemetryDeviceRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["TelemetryDeviceRequest"];
+                "multipart/form-data": components["schemas"]["TelemetryDeviceRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelemetryDevice"];
+                    "*/*": components["schemas"]["TelemetryDevice"];
+                };
+            };
+        };
+    };
+    iot_telemetry_devices_operations_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este Dispositivo IoT. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelemetryDevice"];
+                    "*/*": components["schemas"]["TelemetryDevice"];
+                };
+            };
+        };
+    };
     iot_telemetry_devices_status_retrieve: {
         parameters: {
             query?: {
@@ -117538,6 +119092,265 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["TelemetryReading"];
                     "*/*": components["schemas"]["TelemetryReading"];
+                };
+            };
+        };
+    };
+    iot_telemetry_reports_list: {
+        parameters: {
+            query?: {
+                /**
+                 * @description * `SERIES` - Serie
+                 *     * `LAST` - Última lectura
+                 *     * `DAY` - Cierre del día
+                 *     * `MONTH` - Cierre del mes
+                 */
+                behavior?: "DAY" | "LAST" | "MONTH" | "SERIES";
+                branch?: number;
+                format?: "binary" | "json";
+                is_active?: boolean;
+                /** @description Qué campo usar para ordenar los resultados. */
+                ordering?: string;
+                /** @description Un número de página dentro del conjunto de resultados paginado. */
+                page?: number;
+                /** @description Número de resultados a devolver por página. */
+                page_size?: number;
+                project?: number;
+                /** @description Un término de búsqueda. */
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedTelemetryReportList"];
+                    "*/*": components["schemas"]["PaginatedTelemetryReportList"];
+                };
+            };
+        };
+    };
+    iot_telemetry_reports_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TelemetryReportRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["TelemetryReportRequest"];
+                "multipart/form-data": components["schemas"]["TelemetryReportRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelemetryReport"];
+                    "*/*": components["schemas"]["TelemetryReport"];
+                };
+            };
+        };
+    };
+    iot_telemetry_reports_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este Informe de telemetría. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelemetryReport"];
+                    "*/*": components["schemas"]["TelemetryReport"];
+                };
+            };
+        };
+    };
+    iot_telemetry_reports_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este Informe de telemetría. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TelemetryReportRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["TelemetryReportRequest"];
+                "multipart/form-data": components["schemas"]["TelemetryReportRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelemetryReport"];
+                    "*/*": components["schemas"]["TelemetryReport"];
+                };
+            };
+        };
+    };
+    iot_telemetry_reports_destroy: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este Informe de telemetría. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    iot_telemetry_reports_partial_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este Informe de telemetría. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedTelemetryReportRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedTelemetryReportRequest"];
+                "multipart/form-data": components["schemas"]["PatchedTelemetryReportRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelemetryReport"];
+                    "*/*": components["schemas"]["TelemetryReport"];
+                };
+            };
+        };
+    };
+    iot_telemetry_reports_data_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este Informe de telemetría. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelemetryReport"];
+                    "*/*": components["schemas"]["TelemetryReport"];
+                };
+            };
+        };
+    };
+    iot_telemetry_reports_download_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este Informe de telemetría. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelemetryReport"];
+                    "*/*": components["schemas"]["TelemetryReport"];
+                };
+            };
+        };
+    };
+    iot_telemetry_reports_sheet_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este Informe de telemetría. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TelemetryReportRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["TelemetryReportRequest"];
+                "multipart/form-data": components["schemas"]["TelemetryReportRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelemetryReport"];
+                    "*/*": components["schemas"]["TelemetryReport"];
                 };
             };
         };
@@ -122990,6 +124803,58 @@ export interface operations {
             };
             /** @description No response body */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    public_muninn_signup_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MuninnSignupRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["MuninnSignupRequest"];
+                "multipart/form-data": components["schemas"]["MuninnSignupRequest"];
+            };
+        };
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    public_muninn_verify_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MuninnVerifyRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["MuninnVerifyRequest"];
+                "multipart/form-data": components["schemas"]["MuninnVerifyRequest"];
+            };
+        };
+        responses: {
+            /** @description No response body */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -133213,6 +135078,200 @@ export interface operations {
             };
         };
     };
+    shared_notice_rules_list: {
+        parameters: {
+            query?: {
+                /**
+                 * @description * `BRANCH` - Sucursal
+                 *     * `CLIENT` - Cliente del elemento
+                 *     * `ROLE` - Rol de la sucursal
+                 */
+                audience?: "BRANCH" | "CLIENT" | "ROLE";
+                event_name?: string;
+                format?: "binary" | "json";
+                is_active?: boolean;
+                /** @description Un número de página dentro del conjunto de resultados paginado. */
+                page?: number;
+                /** @description Número de resultados a devolver por página. */
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedNoticeRuleList"];
+                    "*/*": components["schemas"]["PaginatedNoticeRuleList"];
+                };
+            };
+        };
+    };
+    shared_notice_rules_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NoticeRuleRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["NoticeRuleRequest"];
+                "multipart/form-data": components["schemas"]["NoticeRuleRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NoticeRule"];
+                    "*/*": components["schemas"]["NoticeRule"];
+                };
+            };
+        };
+    };
+    shared_notice_rules_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este Aviso por evento. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NoticeRule"];
+                    "*/*": components["schemas"]["NoticeRule"];
+                };
+            };
+        };
+    };
+    shared_notice_rules_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este Aviso por evento. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NoticeRuleRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["NoticeRuleRequest"];
+                "multipart/form-data": components["schemas"]["NoticeRuleRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NoticeRule"];
+                    "*/*": components["schemas"]["NoticeRule"];
+                };
+            };
+        };
+    };
+    shared_notice_rules_destroy: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este Aviso por evento. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    shared_notice_rules_partial_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un valor de entero único que identifique este Aviso por evento. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedNoticeRuleRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedNoticeRuleRequest"];
+                "multipart/form-data": components["schemas"]["PatchedNoticeRuleRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NoticeRule"];
+                    "*/*": components["schemas"]["NoticeRule"];
+                };
+            };
+        };
+    };
+    shared_notice_rules_events_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NoticeRule"];
+                    "*/*": components["schemas"]["NoticeRule"];
+                };
+            };
+        };
+    };
     shared_notifications_list: {
         parameters: {
             query?: {
@@ -133377,6 +135436,34 @@ export interface operations {
             };
         };
     };
+    shared_notifications_deliver_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GlobalNotificationRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["GlobalNotificationRequest"];
+                "multipart/form-data": components["schemas"]["GlobalNotificationRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GlobalNotification"];
+                    "*/*": components["schemas"]["GlobalNotification"];
+                };
+            };
+        };
+    };
     shared_notifications_my_notifications_retrieve: {
         parameters: {
             query?: {
@@ -133396,6 +135483,88 @@ export interface operations {
                     "application/json": components["schemas"]["GlobalNotification"];
                     "*/*": components["schemas"]["GlobalNotification"];
                 };
+            };
+        };
+    };
+    shared_push_public_key_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    shared_push_subscriptions_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    shared_push_subscriptions_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    shared_push_subscriptions_destroy: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -134737,6 +136906,7 @@ export interface operations {
                 page?: number;
                 /** @description Número de resultados a devolver por página. */
                 page_size?: number;
+                product?: number;
                 product__code?: string;
                 product__code__icontains?: string;
                 product__code__istartswith?: string;
@@ -136572,8 +138742,10 @@ export interface operations {
                 /**
                  * @description * `INTERNAL` - Interno
                  *     * `WEB_FORM` - Formulario Web
+                 *     * `PORTAL` - Portal del cliente
+                 *     * `CHAT` - Chat
                  */
-                source?: "INTERNAL" | "WEB_FORM";
+                source?: "CHAT" | "INTERNAL" | "PORTAL" | "WEB_FORM";
                 /**
                  * @description * `OPEN` - Abierto
                  *     * `IN_PROGRESS` - En Progreso
@@ -136835,6 +139007,28 @@ export interface operations {
             };
         };
     };
+    support_tickets_desk_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketList"];
+                    "*/*": components["schemas"]["TicketList"];
+                };
+            };
+        };
+    };
     support_tickets_my_tickets_retrieve: {
         parameters: {
             query?: {
@@ -136845,6 +139039,34 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketList"];
+                    "*/*": components["schemas"]["TicketList"];
+                };
+            };
+        };
+    };
+    support_tickets_portal_request_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TicketListRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["TicketListRequest"];
+                "multipart/form-data": components["schemas"]["TicketListRequest"];
+            };
+        };
         responses: {
             200: {
                 headers: {
@@ -136873,6 +139095,28 @@ export interface operations {
                 "multipart/form-data": components["schemas"]["TicketListRequest"];
             };
         };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketList"];
+                    "*/*": components["schemas"]["TicketList"];
+                };
+            };
+        };
+    };
+    support_tickets_ranking_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             200: {
                 headers: {
@@ -137733,6 +139977,68 @@ export interface operations {
         };
     };
     support_work_orders_complete_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un Cadena UUID que identifique este Orden de Trabajo. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkOrderListRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["WorkOrderListRequest"];
+                "multipart/form-data": components["schemas"]["WorkOrderListRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkOrderList"];
+                    "*/*": components["schemas"]["WorkOrderList"];
+                };
+            };
+        };
+    };
+    support_work_orders_confirm_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                /** @description Un Cadena UUID que identifique este Orden de Trabajo. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkOrderListRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["WorkOrderListRequest"];
+                "multipart/form-data": components["schemas"]["WorkOrderListRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkOrderList"];
+                    "*/*": components["schemas"]["WorkOrderList"];
+                };
+            };
+        };
+    };
+    support_work_orders_sheet_create: {
         parameters: {
             query?: {
                 format?: "binary" | "json";
