@@ -36,11 +36,17 @@ import {
   cartItemDiscount,
   cartItemSubtotal,
   type CartItem,
-  type CartItemModifier,
 } from "@/lib/store/cart";
 import { formatCLP, paymentTypeLabel, cn } from "@/lib/utils";
 import { useToast } from "@/lib/store/toast";
-import { createOrder, editOrder, fetchOrder, cartToOrderItems, type EditOrderItemInput } from "@/lib/api/orders";
+import {
+  createOrder,
+  editOrder,
+  fetchOrder,
+  cartToOrderItems,
+  cartToEditOrderItems,
+  orderProductsToCartItems,
+} from "@/lib/api/orders";
 import { ApiError } from "@/lib/api/client";
 import { fetchBranchPosConfig } from "@/lib/api/branches";
 import { fetchDeliveryZones } from "@/lib/api/delivery-zones";
@@ -65,7 +71,7 @@ import {
   type ValidatedDiscount,
   type PromotionDiscountList,
 } from "@/lib/api/discounts";
-import type { YggdraSchemas, PosProduct } from "@/lib/api/types";
+import type { YggdraSchemas } from "@/lib/api/types";
 type Customer = YggdraSchemas["Client"];
 type Order = YggdraSchemas["Order"] & {
   order_number?: string | null;
@@ -76,8 +82,6 @@ type Order = YggdraSchemas["Order"] & {
   delivery_zone?: string | null;
   delivery_zone_id?: number | null;
 };
-type OrderProduct = YggdraSchemas["OrderProduct"];
-
 function useDebounce(value: string, delay = 300) {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {
@@ -188,33 +192,6 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
     if (Number.isNaN(d.getTime())) return "";
     const pad = (n: number) => String(n).padStart(2, "0");
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  }
-
-  function orderProductsToCartItems(orderProducts?: readonly OrderProduct[] | null): CartItem[] {
-    if (!orderProducts) return [];
-    return orderProducts.map((op) => {
-      const product: PosProduct = {
-        id: op.product,
-        name: op.product_name,
-        code: op.product_code ?? null,
-        price: typeof op.unit_price === "number" ? op.unit_price : parseFloat(op.unit_price ?? "0"),
-      };
-      const modifiers: CartItemModifier[] = (op.modifiers ?? []).map((m) => ({
-        modifierOptionId: m.modifier_option,
-        name: m.modifier_option_name,
-        groupName: m.modifier_group_name,
-        surcharge: Number(m.surcharge_applied ?? 0),
-      }));
-      return {
-        id: `existing-${op.id}`,
-        orderProductId: op.id,
-        product,
-        quantity: op.quantity ?? 1,
-        modifiers,
-        discountPercentage: Number(op.discount_percentage ?? 0),
-        notes: op.notes ?? undefined,
-      };
-    });
   }
 
   // Al salir del modo edición (nueva venta), liberar la referencia para que
@@ -541,20 +518,6 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
     }
     setSaving(true);
     try {
-      const activeItems: EditOrderItemInput[] = items.map((item) => ({
-        id: item.orderProductId,
-        product: item.product.id,
-        quantity: item.quantity,
-        unit_price: item.product.price.toFixed(2),
-        discount_percentage: item.discountPercentage,
-        notes: item.notes || null,
-        is_active: true,
-      }));
-      const removedItems: EditOrderItemInput[] = removedOrderProductIds.map((id) => ({
-        id,
-        is_active: false,
-      }));
-
       const order = await editOrder(existingOrderId, {
         client_id: selectedClient?.id ?? null,
         table_id: selectedTable?.id ?? null,
@@ -562,7 +525,7 @@ export default function CartPanel({ stationId, selectedTable, existingOrderId, e
         delivery_date: deliveryMode === "delivery" && deliveryDate ? new Date(deliveryDate).toISOString() : null,
         delivery_cost: deliveryMode === "delivery" ? deliveryCost || "0" : "0",
         delivery_zone_id: deliveryMode === "delivery" ? deliveryZoneId : null,
-        items: [...activeItems, ...removedItems],
+        items: cartToEditOrderItems(items, removedOrderProductIds),
       });
 
       queryClient.invalidateQueries({ queryKey: ["tables"] });

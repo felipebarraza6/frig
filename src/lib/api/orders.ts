@@ -65,6 +65,12 @@ export interface EditOrderInput {
   items?: EditOrderItemInput[];
 }
 
+/** Modifiers en edición: reemplaza el set del ítem; si se omite la clave, no se tocan. */
+export interface EditOrderItemModifierInput {
+  modifier_option: number;
+  notes?: string | null;
+}
+
 export interface EditOrderItemInput {
   id?: string | number;
   product?: number;
@@ -74,6 +80,8 @@ export interface EditOrderItemInput {
   discount_percentage?: number;
   notes?: string | null;
   is_active?: boolean;
+  /** Reemplaza modifiers del ítem existente; omitir la clave para no tocarlos. */
+  modifiers?: EditOrderItemModifierInput[];
 }
 
 export interface InstallmentInput {
@@ -403,6 +411,78 @@ export function cartToOrderItems(items: CartItem[]): OrderItemInput[] {
       notes: null,
     })),
   }));
+}
+
+/**
+ * Payload de edición: unit_price es el precio BASE (sin extras).
+ * Los modifiers se envían aparte; el backend calcula el recargo desde la opción.
+ */
+export function cartToEditOrderItems(
+  items: CartItem[],
+  removedOrderProductIds: ReadonlyArray<string | number> = [],
+): EditOrderItemInput[] {
+  const active: EditOrderItemInput[] = items.map((item) => ({
+    id: item.orderProductId,
+    product: item.product.id,
+    quantity: item.quantity,
+    unit_price: item.product.price.toFixed(2),
+    discount_percentage: item.discountPercentage,
+    notes: item.notes || null,
+    is_active: true,
+    modifiers: item.modifiers.map((m) => ({
+      modifier_option: m.modifierOptionId,
+      notes: null,
+    })),
+  }));
+  const removed: EditOrderItemInput[] = removedOrderProductIds.map((id) => ({
+    id,
+    is_active: false,
+  }));
+  return [...active, ...removed];
+}
+
+type OrderProductLike = YggdraSchemas["OrderProduct"];
+
+/**
+ * Reabrir pedido.
+ * En lectura, `unit_price` INCLUYE extras (base + recargos).
+ * `modifiers_total` es el recargo por unidad → base = unit_price - modifiers_total.
+ * El carrito guarda precio base + modifiers aparte (sin doble conteo).
+ * Al crear/editar se envía de nuevo el unit_price BASE.
+ */
+export function orderProductsToCartItems(
+  orderProducts?: readonly OrderProductLike[] | null,
+): CartItem[] {
+  if (!orderProducts) return [];
+  return orderProducts.map((op) => {
+    const unitPrice =
+      typeof op.unit_price === "number"
+        ? op.unit_price
+        : parseFloat(String(op.unit_price ?? "0"));
+    const modifiersTotal = Number(op.modifiers_total ?? 0);
+    const basePrice = Math.round(unitPrice - (Number.isFinite(modifiersTotal) ? modifiersTotal : 0));
+    const product = {
+      id: op.product,
+      name: op.product_name,
+      code: op.product_code ?? null,
+      price: basePrice,
+    };
+    const modifiers = (op.modifiers ?? []).map((m) => ({
+      modifierOptionId: m.modifier_option,
+      name: m.modifier_option_name,
+      groupName: m.modifier_group_name,
+      surcharge: Number(m.surcharge_applied ?? 0),
+    }));
+    return {
+      id: `existing-${op.id}`,
+      orderProductId: op.id,
+      product,
+      quantity: op.quantity ?? 1,
+      modifiers,
+      discountPercentage: Number(op.discount_percentage ?? 0),
+      notes: op.notes ?? undefined,
+    };
+  });
 }
 
 export async function downloadOrderThermalPdf(id: string): Promise<ApiFileResult> {

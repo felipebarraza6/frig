@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { KdsTicketActions } from "@/components/kds/kds-ticket-actions";
+import { KdsItemExtras } from "@/components/kds/kds-item-extras";
 import {
   ChefHat,
   ClipboardList,
@@ -416,6 +417,7 @@ function TicketCard({
                   {item.station_name}
                 </span>
               )}
+              <KdsItemExtras modifiers={item.modifiers} notes={item.notes} />
             </div>
             <span className="shrink-0 text-lg font-bold tabular-nums">
               ×{item.quantity ?? 0}

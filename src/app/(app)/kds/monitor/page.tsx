@@ -12,6 +12,7 @@ import { useProductName } from "@/lib/product-name";
 import { branchName } from "@/lib/types";
 import { fetchKitchenTickets, type KitchenTicket } from "@/lib/api/kitchen";
 import { KdsTicketActions } from "@/components/kds/kds-ticket-actions";
+import { KdsItemExtras } from "@/components/kds/kds-item-extras";
 import { useKitchenTicketMutations } from "@/lib/hooks/useKitchenTicketMutations";
 import { fetchKitchenStations } from "@/lib/api/kitchen-stations";
 import {
@@ -138,7 +139,10 @@ function MonitorTicketCard({
             key={item.id}
             className="flex items-baseline justify-between gap-3 text-sm"
           >
-            <span className="font-medium leading-snug">{item.product_name}</span>
+            <div className="min-w-0">
+              <span className="font-medium leading-snug">{item.product_name}</span>
+              <KdsItemExtras modifiers={item.modifiers} notes={item.notes} />
+            </div>
             <span className="shrink-0 text-lg font-bold tabular-nums opacity-90">
               ×{item.quantity ?? 0}
             </span>
@@ -431,7 +435,10 @@ function KdsMonitorInner() {
                   key={item.id}
                   className="flex items-baseline justify-between gap-4 rounded-lg border border-border bg-card px-3 py-2 text-sm"
                 >
-                  <span className="font-medium">{item.product_name}</span>
+                  <div className="min-w-0">
+                    <span className="font-medium">{item.product_name}</span>
+                    <KdsItemExtras modifiers={item.modifiers} notes={item.notes} />
+                  </div>
                   <span className="text-lg font-bold tabular-nums">
                     ×{item.quantity ?? 0}
                   </span>

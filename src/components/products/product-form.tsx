@@ -188,7 +188,11 @@ function numToStr(value: number | null | undefined): string {
   return value == null ? "" : String(value);
 }
 
-type WarehouseProduct = YggdraSchemas["WarehouseProduct"];
+// El backend expone `warehouse` como SerializerMethodField (objeto en runtime),
+// pero el schema lo tipa como string; se fija el tipo real aquí.
+type WarehouseProduct = Omit<YggdraSchemas["WarehouseProduct"], "warehouse"> & {
+  readonly warehouse: YggdraSchemas["Warehouse"];
+};
 
 function groupProductWarehousesByWarehouse(items: WarehouseProduct[]): WarehouseProduct[] {
   const groups = new Map<string, WarehouseProduct[]>();
@@ -622,7 +626,7 @@ export function ProductForm({
   });
 
   const groupedProductWarehouses = useMemo(
-    () => groupProductWarehousesByWarehouse(productWarehouses),
+    () => groupProductWarehousesByWarehouse(productWarehouses as unknown as WarehouseProduct[]),
     [productWarehouses],
   );
 

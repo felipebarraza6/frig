@@ -1,9 +1,23 @@
 import { apiFetch } from "./client";
 import type { YggdraSchemas } from "@/lib/api/types";
 
+/**
+ * Extras del ítem de comanda (contrato backend paralelo; aún no en yggdra.d.ts).
+ * Read-only; `notes` del ítem incluye las notas del producto.
+ */
+export type KitchenTicketItemModifier = {
+  id: number;
+  option_name: string;
+  group_name: string | null;
+  surcharge_applied: string;
+  notes: string | null;
+};
+
 export type KitchenTicketItem = YggdraSchemas["KitchenTicketItem"] & {
   station?: number | null;
   station_name?: string | null;
+  /** Extras seleccionados; el backend los envía read-only. */
+  modifiers?: KitchenTicketItemModifier[];
 };
 /** Extras opcionales si el backend enriquece el serializer (order_number, mesa, cliente). */
 export type KitchenTicket = Omit<YggdraSchemas["KitchenTicket"], "items"> & {
