@@ -1,0 +1,26 @@
+name: Feature
+description: Pedido de capacidad nueva o ajuste de producto
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Pedido de este cliente (`frig`). Si hace falta un endpoint o un cambio de contrato, abre además un issue en [yggdra_infra](https://github.com/felipebarraza6/yggdra_infra/issues/new/choose) con la etiqueta `front:frig`.
+  - type: textarea
+    id: problema
+    attributes:
+      label: Qué problema resuelve
+    validations:
+      required: true
+  - type: textarea
+    id: propuesta
+    attributes:
+      label: Qué te gustaría que pasara
+    validations:
+      required: true
+  - type: textarea
+    id: alcance
+    attributes:
+      label: Alcance
+      description: Pantallas, roles o módulos. Marca si depende de la API.
