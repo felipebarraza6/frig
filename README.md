@@ -1,156 +1,97 @@
-<div align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="public/brand/frig-wordmark.png">
-    <img src="public/brand/frig-wordmark-on-light.png" alt="frig" width="420">
-  </picture>
-  <p align="center">
-    <strong>El sistema operativo gastronómico que vive en la web.</strong><br/>
-    Punto de venta, cocina, mesas, inventario y finanzas — en una sola plataforma multi-sucursal y white-label.
-  </p>
-  <p align="center">
-    <a href="https://frig.yggdra.cl"><strong>🌐 frig.yggdra.cl</strong></a> ·
-    <a href="#-libertad-total-se-acopla-a-tu-operación-no-al-revés">Flexibilidad</a> ·
-    <a href="#-capacidades">Capacidades</a> ·
-    <a href="#-rendimiento">Rendimiento</a> ·
-    <a href="#-multicanal-y-multi-dispositivo">Multicanal</a> ·
-    <a href="#-tecnología">Tecnología</a> ·
-    <a href="#-desarrollo">Desarrollo</a>
-  </p>
-  <p align="center">
-    <img src="https://img.shields.io/badge/deploy-producci%C3%B3n-success" alt="Deploy" />
-    <img src="https://img.shields.io/badge/Next.js-16-black" alt="Next.js 16" />
-    <img src="https://img.shields.io/badge/React-19-blue" alt="React 19" />
-    <img src="https://img.shields.io/badge/build-est%C3%A1tico_(CDN_ready)-orange" alt="Static" />
-  </p>
-</div>
+# Frig
 
----
+## Qué es
 
-FRIG es el ERP gastronómico que corre 100% en el navegador: sin instaladores, sin servidores locales, sin licencias por caja. Abres una pestaña en cualquier dispositivo y tienes un punto de venta listo para operar. Cada sucursal opera con su propia marca (white-label), sus propios módulos activados a la carta y su propio equipo, mientras el dueño controla todo desde una sola cuenta.
+Frig es el punto de venta gastronómico de Ginnung: caja, cocina, mesas, inventario, recetas y finanzas, multi-sucursal y white-label. Corre en el navegador y habla con la API Yggdra. No tiene backend propio.
 
-> **Pruébalo en vivo → [frig.yggdra.cl](https://frig.yggdra.cl)**
+## A quién sirve
 
-## 🧩 Libertad total: se acopla a tu operación, no al revés
+Locales de comida y grupos con varias sucursales que venden en mostrador, mesa o delivery, y el equipo que administra catálogo, caja y compras. Sitios actuales del mismo build: [frig.yggdra.cl](https://frig.yggdra.cl), intranet.macanuobowl.cl y mani.agenciapatagoniachile.com.
 
-FRIG no te impone un flujo de trabajo — se adapta al tuyo. Da igual si eres un local de comida rápida con una caja y fila afuera, un café con mesas y delivery, o un grupo con varias cocinas y central de compras:
+## Stack
 
-- **Activa solo lo que necesitas:** cada módulo (POS, mesas, cocina, inventario, finanzas, facturación…) se enciende o apaga por sucursal. Nada de funciones que estorban ni licencias por cosas que no usas.
-- **Tu proceso manda:** vende en mostrador, en mesa, para llevar o combinado; controla stock por receta o por unidad; factura o no. FRIG sigue tu operación, no un manual.
-- **Crece sin migrar:** empieza con una caja y suma sucursales, bodegas, proveedores y finanzas en la misma cuenta, al ritmo de tu negocio.
-- **Tu marca, tu sistema:** white-label por sucursal — para tu equipo y tus clientes se siente como software propio.
-- **Abierto por naturaleza:** corre en cualquier dispositivo con navegador y se integra a tu proceso existente sin hardware especializado.
+Next.js 16 (App Router, export estático), React 19, TypeScript, Tailwind CSS 4, TanStack Query, Zustand, Framer Motion. El CI instala con npm y `package-lock.json` (Node 24). También hay `bun.lock` en el repo; el pipeline no lo usa.
 
-## ✨ Capacidades
+## Cómo correr en local
 
-### 🛒 Venta (POS)
-- **Punto de venta táctil** con búsqueda instantánea, carrito dinámico y checkout en segundos.
-- **Caja y cierre de turno** con múltiples métodos de pago: efectivo, tarjeta, transferencia y billeteras.
-- **Cotizaciones y ventas** con histórico completo por sucursal.
-- **Promociones y clientes**: fidelización, descuentos y perfiles de compra.
-
-### 🔥 Cocina y salón
-- **Pantalla de cocina (KDS)** y flujo de producción de pedidos.
-- **Gestión de mesas y mapa de mesas** interactivo para servicio en salón.
-
-### 📦 Catálogo e inventario
-- **Productos, combos, modificadores y categorías** con fotos, códigos y precios por sucursal.
-- **Recetas**: el stock de un plato se calcula automáticamente desde sus ingredientes — el POS siempre muestra disponibilidad real.
-- **Bodegas, inventario y movimientos** con alertas de stock bajo y quiebre, exportables a Excel/PDF.
-- **Proveedores y órdenes de compra** con recepción de mercadería.
-
-### 💰 Finanzas
-- **Ingresos, egresos y gastos fijos** con configuración tributaria (boletas, facturas, SII en Chile).
-- **Billeteras y conciliaciones bancarias**: cuadra los movimientos del negocio contra el banco.
-
-### 🥗 Menú digital y nutrición
-- **Menús digitales públicos** con el branding de cada sucursal.
-- **Etiquetado e informes nutricionales** por producto — listo para normativa de etiquetado.
-
-### 🏢 Gestión multi-sucursal
-- **Organización, usuarios y roles por sucursal** (propietario, administrador, cajero, cocina…) con permisos granulares.
-- **Módulos activables a la carta** por sucursal: cada local enciende solo lo que usa.
-- **Super admin**: gestión de organizaciones y planes por organización, con white-label total — cada sitio desplegado (frig.yggdra.cl, intranet.macanuobowl.cl, mani.agenciapatagoniachile.com) es la misma app con la marca de su cliente.
-
-## ⚡ Rendimiento
-
-La velocidad no es un detalle: es la diferencia entre cobrar una mesa o perderla.
-
-- **Build 100% estático (SSG)**: la app completa se exporta a HTML/JS y se sirve desde hosting con CDN. Sin cold starts, sin servidores que caer en la hora punta.
-- **Interacciones a 60 fps** con transiciones fluidas (Framer Motion), pensadas para tablets de gama baja en un salón con WiFi mediocre.
-- **Caché de datos inteligente** (TanStack Query): el catálogo y el stock se sienten instantáneos; las mutaciones invalidan solo lo necesario.
-- **Estado local persistente** (Zustand + localStorage): sesión, sucursal activa y preferencias sobreviven a recargas y cortes de red.
-- **CI/CD con gates de calidad**: lint + type-check + build en cada PR, y deploy atómico a producción con la misma batería de verificaciones.
-
-## 📱 Multicanal y multi-dispositivo
-
-Un mismo sistema, todos los formatos de trabajo:
-
-- **Tablet y touch**: el POS está diseñado táctil primero — botones grandes, gestos, cero teclado.
-- **Escritorio**: la gestión administrativa (finanzas, inventario, catálogo) aprovecha pantallas grandes con tablas y filtros completos.
-- **Móvil**: consulta de métricas y operaciones clave desde el bolsillo.
-- **Cliente final**: menú digital público con la marca de la sucursal, sin app que instalar.
-- **Multi-tenant por diseño**: cada request viaja con el contexto de sucursal (`X-Branch-ID`), así que una misma URL sirve negocios completamente distintos.
-
-## 🛠 Tecnología
-
-| Capa | Herramienta |
-|------|-------------|
-| **Frontend** | Next.js 16 (App Router, output estático), React 19, TypeScript estricto |
-| **Estilos** | Tailwind CSS v4 + theming white-label por CSS custom properties |
-| **Animación** | Framer Motion (transiciones a 60 fps) |
-| **Estado** | Zustand (persistencia en `localStorage`) + TanStack Query (server state) |
-| **Iconografía** | Lucide |
-| **Backend** | API Yggdra (Django REST Framework), multi-tenant |
-| **CI/CD** | GitHub Actions → deploy FTP a 3 hostings de producción |
-
-## 💻 Desarrollo
-
-### Estructura de carpetas
-```
-frig/
-├── src/app/         # Rutas y páginas (App Router)
-├── src/components/  # UI compartida (ui/), POS, branches, landing, etc.
-├── src/lib/         # Cliente de API Yggdra, hooks, stores y utilidades
-├── src/content/     # Copys y contenido estático
-├── docs/            # Auditorías y documentación profunda
-└── public/          # Assets estáticos
-```
-
-### Levantando el proyecto
-
-**Requisitos previos:**
-- Node.js 20+ (se recomienda `nvm`)
-- La API Yggdra corriendo localmente en `:8000` (repo `yggdra_infra`)
+Requisito: Node 20 o superior y la API Ginnung en el puerto 8000 si vas a pegarle en local.
 
 ```bash
-npm install
-npm run dev        # http://localhost:3000
+npm ci
+npm run dev
 ```
 
-### Comandos
+La app queda en http://localhost:3000. Sin `NEXT_PUBLIC_YGGDRA_API_BASE`, el cliente de desarrollo apunta a `http://localhost:8000/api`.
 
-```bash
-npm run lint         # ESLint
-npm run type-check   # TypeScript estricto
-npm run build        # Build de producción (export estático)
-```
 
-### CI/CD
+## Variables de entorno
 
-- **CI** (`.github/workflows/ci.yml`): lint + type-check + build en cada push a branches y PRs. No despliega.
-- **Deploy** (`.github/workflows/deploy.yml`): al pushear `master`, los mismos gates y luego FTP atómico a los tres hostings de producción.
+Solo nombres. Copia el ejemplo a un archivo local y completa los valores ahí. No los commitees ni los pegues en un issue.
 
-## 🔐 Detalles de arquitectura
+| Nombre | Uso |
+|--------|-----|
+| `NEXT_PUBLIC_YGGDRA_API_BASE` | Base de la API, con `/api` |
+| `NEXT_PUBLIC_APP_BUILD` | Identificador de build que muestra la app |
+| `NEXT_PUBLIC_BASE_PATH` | Prefijo del export. Staging lo fija en `/frig` |
+| `NEXT_PUBLIC_STAGING_URL` | URL pública del staging, para la landing |
+| `YGGDRA_SCHEMA_YML` | Freeze local para `npm run sync-contract` |
+| `YGGDRA_SCHEMA_URL` | URL alternativa del schema, solo el script de sync |
+| `YGGDRA_INFRA_GITHUB_TOKEN` | Token opcional del script de sync para leer el repo de la API. No lo documentes con valor |
+| `YGGDRA_INFRA_REF` | Ref del freeze en GitHub, solo el script de sync |
 
-- **Autenticación stateless**: token y sesión persistidos en `localStorage` (`frig.token`, `frig.session`).
-- **Contexto de sucursal obligatorio**: cada request incluye el header `X-Branch-ID`, garantizando segregación total de datos entre tenants.
-- **Theming white-label**: colores, logo y mensajes se resuelven por sucursal y se inyectan como variables CSS al arrancar — sin rebuilds por cliente.
-- **Rutas dinámicas en hosting estático**: el build genera `.htaccess` (scripts/post-export.mjs) para servir la app correctamente en Apache.
+No hay `.env.example` en la rama por defecto. En CI y en el deploy de producción el workflow inyecta `NEXT_PUBLIC_YGGDRA_API_BASE` apuntando a `https://api.yggdra.cl/api`.
 
----
 
-<div align="center">
-  <sub><strong>FRIG</strong> — operar un restaurante debería ser tan simple como atender una mesa.</sub>
-  <br/>
-  <sub><a href="https://frig.yggdra.cl">frig.yggdra.cl</a></sub>
-</div>
+## Scripts
+
+| Comando | Qué hace |
+|---------|----------|
+| `npm run dev` | Next en desarrollo |
+| `npm run build` | Export estático |
+| `npm run lint` | ESLint |
+| `npm run type-check` | `tsc --noEmit` |
+| `npm test` | Vitest |
+| `npm run test:watch` | Vitest en watch |
+| `npm run sync-contract` | Regenera `src/lib/api/types/yggdra.d.ts` y `src/lib/api/contract-sha.ts` |
+| `npm run audit:api` | Cruza el cliente con el OpenAPI |
+
+`scripts/post-export.mjs` escribe el `.htaccess` del hosting Apache después del export. Lo llama el build de deploy, no hace falta correrlo a mano para desarrollar.
+
+
+## Deploy (como está hoy)
+
+| Evento | Workflow | Destino |
+|--------|----------|---------|
+| Push a `dev` | `staging.yml` | GitHub Pages del repo |
+| Push a `production`, o dispatch | `deploy.yml` | FTP a frig.yggdra.cl, intranet.macanuobowl.cl y mani.agenciapatagoniachile.com |
+| Push a `dev` y PRs | `ci.yml` | Lint, tipos, tests y build. No publica |
+| CI o deploy en rojo | `ci-failure-issue.yml` | Abre o comenta un issue |
+
+`docs/CONSUMERS.yaml` en la API registra el deploy como FTP desde la rama `production`. Los secretos y variables de FTP viven en GitHub Actions. Este documento no lista sus valores. El README anterior mencionaba la rama `master`; el workflow que está en el repo escucha `production`.
+
+
+Este PR de documentación no cambia workflows, secretos ni el destino del deploy.
+
+## Relación con la API Ginnung
+
+Auth con `Authorization: Token` y sucursal en `X-Branch-ID`. El token de sesión del navegador queda en `localStorage`.
+
+Módulos que usa el inventario de consumidores: accounts, branches, recipes, inventory, sales, finance, customers, suppliers, plan-checkout, tables, promotions, shared, public-catalog, public, external-apps, analytics.
+
+`npm run sync-contract` lee el freeze local (`YGGDRA_SCHEMA_YML` o `../yggdra_infra/api/schema/openapi.yaml`) o, si no está, intenta la API. Si el schema no se puede bajar, el script puede actualizar solo el sha.
+
+Id de consumidor y etiqueta de issues de backend: `front:frig`.
+
+
+El chequeo reutilizable está en [docs/CONTRACT_CHECK.md](https://github.com/felipebarraza6/yggdra_infra/blob/main/docs/CONTRACT_CHECK.md) y en `.github/workflows/contract-check.yml` de `yggdra_infra`. Corre en el runner del VPS, compara el `schema_sha256` de `https://api.yggdra.cl/api/schema/contract/` con el sha commiteado en el front, regenera tipos desde el freeze de `api/schema/openapi.yaml` y exige `tsc --noEmit`.
+
+En la rama por defecto de este repo **no hay** un workflow `contract.yml` que llame ese chequeo. El inventario `docs/CONSUMERS.yaml` del backend describe el estilo de consumo de cada app.
+
+## Enlaces
+
+- Arquitectura: [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md)
+- Mapa de API del cliente: [docs/api-map.md](docs/api-map.md)
+- API Ginnung: https://github.com/felipebarraza6/yggdra_infra
+- Chequeo de contrato: https://github.com/felipebarraza6/yggdra_infra/blob/main/docs/CONTRACT_CHECK.md
+- Consumidores: https://github.com/felipebarraza6/yggdra_infra/blob/main/docs/CONSUMERS.md
+- Producción: https://frig.yggdra.cl
