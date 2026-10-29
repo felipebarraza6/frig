@@ -1,0 +1,23 @@
+name: Contract
+
+# Push a las ramas de este repo y ejecucion manual.
+# Sin pull_request: el workflow reutilizable corre en el runner del VPS
+# (self-hosted, yggdra-prod). Un PR desde un fork no debe dispararlo.
+
+on:
+  push:
+    branches:
+      - "**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    uses: felipebarraza6/yggdra_infra/.github/workflows/contract-check.yml@main
+    with:
+      contract_sha_path: src/lib/api/contract-sha.ts
+      types_path: src/lib/api/types/yggdra.d.ts
+      sync_cmd: npm run sync-contract
+      node_version: "24"
