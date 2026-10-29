@@ -31,6 +31,7 @@ import { useBranchRecipeMaps } from "@/lib/hooks/useBranchRecipeMaps";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { statusBadge } from "@/lib/status-styles";
 import { formatCLP, orderStatusLabel, cn } from "@/lib/utils";
+import { KdsItemExtras } from "@/components/kds/kds-item-extras";
 
 export type KdsOpsTab = "inventory" | "orders" | "products";
 
@@ -396,14 +397,13 @@ function OrdersPane() {
                                 key={it.id}
                                 className="flex justify-between gap-2 text-sm"
                               >
-                                <span>
-                                  {it.product_name}
-                                  {it.notes ? (
-                                    <span className="ml-1 text-xs text-warning">
-                                      ({it.notes})
-                                    </span>
-                                  ) : null}
-                                </span>
+                                <div className="min-w-0">
+                                  <span>{it.product_name}</span>
+                                  <KdsItemExtras
+                                    modifiers={it.modifiers}
+                                    notes={it.notes}
+                                  />
+                                </div>
                                 <span className="font-semibold tabular-nums text-muted-foreground">
                                   ×{it.quantity ?? 0}
                                 </span>
