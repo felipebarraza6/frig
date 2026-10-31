@@ -21324,6 +21324,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/{group_slug}-checkout/{checkout_id}/resend-access/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reenviar enlace de acceso del checkout
+         * @description Reenvía el enlace de acceso (magic-link) de un checkout pagado.
+         *
+         *     POST /api/public/<grupo>-checkout/{checkout_id}/resend-access/
+         *
+         *     Pensado para el botón «Reenviar enlace» de nxrd_apr en «Revisa tu correo».
+         *     Siempre responde 200 con un mensaje genérico (no enumera registros).
+         */
+        post: operations["public__checkout_resend_access_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/{group_slug}-client-branches/": {
         parameters: {
             query?: never;
@@ -28012,6 +28037,78 @@ export interface paths {
          *             # No es necesario definir permission_classes
          */
         patch: operations["support_escalations_partial_update"];
+        trace?: never;
+    };
+    "/api/support/github-integration/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ver la integración GitHub de la sucursal
+         * @description Singleton de configuración GitHub de la sucursal activa.
+         */
+        get: operations["support_github_integration_retrieve"];
+        /**
+         * Crear o reemplazar la integración GitHub
+         * @description Singleton de configuración GitHub de la sucursal activa.
+         */
+        put: operations["support_github_integration_update"];
+        post?: never;
+        /**
+         * Desactivar la integración GitHub
+         * @description Singleton de configuración GitHub de la sucursal activa.
+         */
+        delete: operations["support_github_integration_destroy"];
+        options?: never;
+        head?: never;
+        /**
+         * Actualizar la integración GitHub
+         * @description Singleton de configuración GitHub de la sucursal activa.
+         */
+        patch: operations["support_github_integration_partial_update"];
+        trace?: never;
+    };
+    "/api/support/github-integration/test/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Probar acceso al repositorio de GitHub
+         * @description Comprueba acceso de lectura al repo sin crear issues.
+         */
+        post: operations["support_github_integration_test_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/support/github/webhook/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Webhook de issues de GitHub
+         * @description Recibe eventos de GitHub. Público, autenticado solo por firma HMAC.
+         */
+        post: operations["support_github_webhook_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/support/sla-policies/": {
@@ -64775,6 +64872,42 @@ export interface components {
              */
             is_active?: boolean;
         };
+        PatchedSupportGitHubIntegrationRequest: {
+            /** Activa */
+            enabled?: boolean;
+            /** Dueño del repo */
+            repo_owner?: string;
+            /** Nombre del repo */
+            repo_name?: string;
+            /**
+             * Front
+             * @description Id del front consumidor (docs/CONSUMERS.yaml). Va en la issue.
+             */
+            front_slug?: string;
+            /**
+             * Tipo de autenticación
+             * @description * `pat` - Personal access token
+             *     * `github_app` - GitHub App
+             * @enum {string}
+             */
+            auth_type?: "pat" | "github_app";
+            token?: string;
+            /**
+             * Categorías de software
+             * @description Códigos de TicketCategory que abren una issue. Default: incidencia. duda nunca abre issue.
+             */
+            software_category_codes?: unknown;
+            /**
+             * Etiquetas
+             * @description Etiquetas fijas al crear la issue. Se agrega la de prioridad.
+             */
+            labels?: unknown;
+            /**
+             * Mapeo de estados
+             * @description Sobreescribe el mapeo por defecto evento GitHub → estado del ticket.
+             */
+            status_mapping?: unknown;
+        };
         PatchedSurveyRequest: {
             /** Título */
             title?: string;
@@ -67987,6 +68120,10 @@ export interface components {
             /** @default 1 */
             installments_count: number;
             website?: string;
+        };
+        /** @description Respuesta genérica del reenvío de enlace de acceso (no enumera). */
+        PlanCheckoutResendAccessResponse: {
+            message: string;
         };
         PlanCheckoutResponse: {
             /** Format: uuid */
@@ -74347,6 +74484,104 @@ export interface components {
              * @description Indica si el registro está activo. Use esto en lugar de eliminar.
              */
             is_active?: boolean;
+        };
+        SupportGitHubIntegration: {
+            /** Format: uuid */
+            readonly id: string;
+            /**
+             * Sucursal
+             * @description Sucursal a la que pertenece este registro
+             */
+            readonly branch: number;
+            /** Activa */
+            enabled?: boolean;
+            /** Dueño del repo */
+            repo_owner: string;
+            /** Nombre del repo */
+            repo_name: string;
+            /**
+             * Front
+             * @description Id del front consumidor (docs/CONSUMERS.yaml). Va en la issue.
+             */
+            front_slug?: string;
+            /**
+             * Tipo de autenticación
+             * @description * `pat` - Personal access token
+             *     * `github_app` - GitHub App
+             * @enum {string}
+             */
+            auth_type?: "pat" | "github_app";
+            readonly has_token: string;
+            readonly webhook_secret: string;
+            readonly has_webhook_secret: string;
+            /**
+             * Categorías de software
+             * @description Códigos de TicketCategory que abren una issue. Default: incidencia. duda nunca abre issue.
+             */
+            software_category_codes?: unknown;
+            /**
+             * Etiquetas
+             * @description Etiquetas fijas al crear la issue. Se agrega la de prioridad.
+             */
+            labels?: unknown;
+            /**
+             * Mapeo de estados
+             * @description Sobreescribe el mapeo por defecto evento GitHub → estado del ticket.
+             */
+            status_mapping?: unknown;
+            /**
+             * Activo
+             * @description Indica si el registro está activo. Use esto en lugar de eliminar.
+             */
+            readonly is_active: boolean;
+            /**
+             * Created at
+             * Format: date-time
+             * @description Fecha de creacion.
+             */
+            readonly created: string;
+            /**
+             * Modified at
+             * Format: date-time
+             * @description Fecha de modificacion.
+             */
+            readonly modified: string;
+        };
+        SupportGitHubIntegrationRequest: {
+            /** Activa */
+            enabled?: boolean;
+            /** Dueño del repo */
+            repo_owner: string;
+            /** Nombre del repo */
+            repo_name: string;
+            /**
+             * Front
+             * @description Id del front consumidor (docs/CONSUMERS.yaml). Va en la issue.
+             */
+            front_slug?: string;
+            /**
+             * Tipo de autenticación
+             * @description * `pat` - Personal access token
+             *     * `github_app` - GitHub App
+             * @enum {string}
+             */
+            auth_type?: "pat" | "github_app";
+            token?: string;
+            /**
+             * Categorías de software
+             * @description Códigos de TicketCategory que abren una issue. Default: incidencia. duda nunca abre issue.
+             */
+            software_category_codes?: unknown;
+            /**
+             * Etiquetas
+             * @description Etiquetas fijas al crear la issue. Se agrega la de prioridad.
+             */
+            labels?: unknown;
+            /**
+             * Mapeo de estados
+             * @description Sobreescribe el mapeo por defecto evento GitHub → estado del ticket.
+             */
+            status_mapping?: unknown;
         };
         Survey: {
             /** Format: uuid */
@@ -124410,6 +124645,38 @@ export interface operations {
             };
         };
     };
+    public__checkout_resend_access_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path: {
+                checkout_id: string;
+                group_slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanCheckoutResendAccessResponse"];
+                    "*/*": components["schemas"]["PlanCheckoutResendAccessResponse"];
+                };
+            };
+            /** @description No response body */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     public__client_branches_retrieve: {
         parameters: {
             query?: {
@@ -138199,6 +138466,221 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["TicketEscalation"];
                     "*/*": components["schemas"]["TicketEscalation"];
+                };
+            };
+        };
+    };
+    support_github_integration_retrieve: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportGitHubIntegration"];
+                    "*/*": components["schemas"]["SupportGitHubIntegration"];
+                };
+            };
+        };
+    };
+    support_github_integration_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupportGitHubIntegrationRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SupportGitHubIntegrationRequest"];
+                "multipart/form-data": components["schemas"]["SupportGitHubIntegrationRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportGitHubIntegration"];
+                    "*/*": components["schemas"]["SupportGitHubIntegration"];
+                };
+            };
+        };
+    };
+    support_github_integration_destroy: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    support_github_integration_partial_update: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedSupportGitHubIntegrationRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedSupportGitHubIntegrationRequest"];
+                "multipart/form-data": components["schemas"]["PatchedSupportGitHubIntegrationRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportGitHubIntegration"];
+                    "*/*": components["schemas"]["SupportGitHubIntegration"];
+                };
+            };
+        };
+    };
+    support_github_integration_test_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                    "*/*": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                    "*/*": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                    "*/*": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    support_github_webhook_create: {
+        parameters: {
+            query?: {
+                format?: "binary" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                    "*/*": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                    "*/*": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                    "*/*": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                    "*/*": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };
