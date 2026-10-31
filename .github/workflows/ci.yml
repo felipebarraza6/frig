@@ -1,5 +1,4 @@
-# CI de FRIG web: solo en pull_request y en push a dev (evita doble corrida
-# en cada PR y no gasta minutos en ramas de feature). NO despliega —
+# CI de FRIG web: pull_request y push a dev, main y staging. NO despliega —
 # el deploy a producción es exclusivo de production (ver deploy.yml).
 #
 # Gates: lint + type-check + vitest + build estático (con la API de producción
@@ -9,7 +8,7 @@ name: CI
 
 on:
   push:
-    branches: [dev]
+    branches: [dev, main, staging]
   pull_request:
     # PRs solo-docs no gastan minutos de Actions (validaciones/auditorías).
     paths-ignore:

@@ -1,0 +1,40 @@
+name: Bug
+description: Algo de este repo no funciona como debería
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Bug de este cliente (`frig`). Si el fallo está en la API y este repo solo lo muestra, abre el issue en [yggdra_infra](https://github.com/felipebarraza6/yggdra_infra/issues/new/choose) y pide la etiqueta `front:frig`.
+  - type: textarea
+    id: que
+    attributes:
+      label: Qué pasa
+      description: Qué ves y en qué pantalla o endpoint.
+    validations:
+      required: true
+  - type: textarea
+    id: esperado
+    attributes:
+      label: Qué esperabas
+    validations:
+      required: true
+  - type: textarea
+    id: pasos
+    attributes:
+      label: Pasos para reproducirlo
+      description: Ruta, rol y datos mínimos. Sin contraseñas, tokens ni valores de entorno.
+    validations:
+      required: true
+  - type: input
+    id: sucursal
+    attributes:
+      label: Sucursal
+      description: Id numérico si lo conoces. En yggdra_infra escribe también la línea Sucursal seguida del id.
+      placeholder: "123"
+  - type: textarea
+    id: extra
+    attributes:
+      label: Contexto
+      description: Rama, commit o navegador. Sin secretos.

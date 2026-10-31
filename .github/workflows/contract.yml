@@ -1,0 +1,30 @@
+name: Contract
+
+# Solo el sha, en un runner de GitHub.
+# El chequeo completo (npm ci, sync, tsc) corre en yggdra_infra
+# (.github/workflows/contract-fronts.yml), porque el runner del VPS
+# está registrado solo en ese repo y este repo no puede llamar un
+# workflow reutilizable privado.
+
+on:
+  push:
+    branches:
+      - "**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sha:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Comparar schema_sha256 de prod
+        env:
+          CONTRACT_SHA_PATH: src/lib/api/contract-sha.ts
+        run: bash .github/scripts/check-contract-sha.sh
