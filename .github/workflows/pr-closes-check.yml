@@ -1,0 +1,8 @@
+# Exige "Closes #N" en la descripción del PR.
+name: pr-closes-check
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+jobs:
+  closes:
+    uses: felipebarraza6/yggdra_infra/.github/workflows/pr-closes-check.yml@main

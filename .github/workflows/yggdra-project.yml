@@ -1,0 +1,13 @@
+# Sincroniza issues/PRs de este repo con el Project "Yggdra · Operación" (#11).
+# Requiere el secret PROJECT_TOKEN (ver yggdra_infra docs/automation/PROJECT_AUTOMATION.md).
+name: yggdra-project
+on:
+  issues:
+    types: [opened, reopened, closed, labeled, unlabeled]
+  pull_request_target:
+    types: [opened, reopened, ready_for_review, review_requested, closed]
+jobs:
+  sync:
+    uses: felipebarraza6/yggdra_infra/.github/workflows/project-sync.yml@main
+    secrets:
+      PROJECT_TOKEN: ${{ secrets.PROJECT_TOKEN }}
