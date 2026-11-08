@@ -49,7 +49,9 @@ export function useCategories(enabled = true) {
   return useQuery({
     queryKey: CATEGORY_KEYS.all,
     queryFn: async () => {
-      const data = await apiFetch<YggdraPaginatedCategory>("/inventory/categories/");
+      const data = await apiFetch<YggdraPaginatedCategory>(
+        "/inventory/categories/?is_active=true&page_size=200",
+      );
       return data.results as YggdraCategory[];
     },
     staleTime: 60_000,

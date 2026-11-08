@@ -11,6 +11,7 @@ export type UpdateCategoryPayload = Partial<YggdraCategoryInput> & { branch_id?:
 export interface CategoriesFilter {
   search?: string;
   page_size?: number;
+  is_active?: boolean;
   next?: string | null;
   previous?: string | null;
 }
@@ -25,6 +26,7 @@ export async function fetchCategories(filter: CategoriesFilter = {}): Promise<Yg
   const qs = new URLSearchParams();
   if (filter.search) qs.set("name__icontains", filter.search);
   if (filter.page_size) qs.set("page_size", String(filter.page_size));
+  if (filter.is_active !== undefined) qs.set("is_active", filter.is_active ? "true" : "false");
   const q = qs.toString();
   return apiFetch<YggdraPaginated>(`/inventory/categories/${q ? `?${q}` : ""}`);
 }

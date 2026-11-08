@@ -60,6 +60,7 @@ export default function CategoriesPage() {
   const filter = useMemo<CategoriesFilter>(
     () => ({
       search: search || undefined,
+      is_active: true,
       ...pageUrl,
     }),
     [search, pageUrl],
@@ -101,6 +102,16 @@ export default function CategoriesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
       setConfirmDelete(null);
+    },
+    onError: (err) => {
+      const count = Number(confirmDelete?.product_count ?? 0);
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : count > 0
+            ? "No se puede eliminar: tiene productos asociados."
+            : "No se pudo eliminar la categoría.",
+      );
     },
   });
 
@@ -448,7 +459,10 @@ export default function CategoriesPage() {
           <div className="w-full rounded-t-xl border-x border-t border-border bg-background p-4 shadow-lg md:max-w-md md:rounded-xl md:border md:p-6">
             <h2 className="text-base font-semibold">¿Eliminar categoría?</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Se desactivará <span className="font-medium text-foreground">{confirmDelete.name}</span>. Los productos asociados no se eliminan.
+              <span className="font-medium text-foreground">{confirmDelete.name}</span> deja de verse en categorías y en el POS.
+              {Number(confirmDelete.product_count ?? 0) > 0
+                ? " Los productos asociados se mantienen."
+                : ""}
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <Button variant="outline" onClick={() => setConfirmDelete(null)} disabled={remove.isPending}>
