@@ -1,8 +1,8 @@
 import { apiFetch } from "./client";
+import { fetchAllPages } from "./pagination";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 export type Bank = YggdraSchemas["Bank"];
-type PaginatedBankList = YggdraSchemas["PaginatedBankList"];
 
 export interface BankRequest {
   name: string;
@@ -13,8 +13,7 @@ export interface BankRequest {
 }
 
 export async function fetchBanks(): Promise<Bank[]> {
-  const data = await apiFetch<PaginatedBankList>("/finance/banks/");
-  return data.results ?? [];
+  return fetchAllPages<Bank>("/finance/banks/");
 }
 
 export async function fetchBank(id: string): Promise<Bank> {

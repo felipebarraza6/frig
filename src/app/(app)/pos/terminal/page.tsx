@@ -59,7 +59,7 @@ import {
 } from "@/lib/api/public-catalog";
 import { fetchCashRegisterStations } from "@/lib/api/cash-register-stations";
 import { CASH_KEYS } from "@/lib/api/keys";
-import { fetchOrders, fetchOrder, cancelOrder, deliverOrder, createOrder, downloadOrderTicketPdf } from "@/lib/api/orders";
+import { fetchAllOrderResults, fetchOrder, cancelOrder, deliverOrder, createOrder, downloadOrderTicketPdf } from "@/lib/api/orders";
 import { searchCustomers, createCustomer } from "@/lib/api/customers";
 
 import { useDownloadFile } from "@/lib/hooks/useDownloadFile";
@@ -443,11 +443,11 @@ export default function PosPage() {
   const { data: openAccountsPage, isLoading: loadingOpenAccounts } = useQuery({
     queryKey: ["orders", "open-accounts", "pos-terminal"],
     queryFn: () =>
-      fetchOrders({
+      fetchAllOrderResults({
         // Incluir tanto cuentas abiertas (SALE pending) como órdenes pendientes.
         payment_status: ["PENDING", "PARTIAL"],
         order_type: ["SALE", "ORDER"],
-      }),
+      }).then((results) => ({ results, count: results.length, next: null, previous: null })),
     staleTime: 15_000,
     refetchInterval: live30s,
   });
@@ -455,12 +455,10 @@ export default function PosPage() {
   const { data: pendingDeliveriesPage, isLoading: loadingPendingDeliveries } = useQuery({
     queryKey: ["orders", "pending-deliveries", "pos-terminal"],
     queryFn: () =>
-      fetchOrders({
-        // Órdenes/ventas aún no entregadas: permanecen en PENDING/IN_PROGRESS
-        // hasta que el cajero/mark registrar la entrega vía deliver/.
+      fetchAllOrderResults({
         status: ["PENDING", "IN_PROGRESS"],
         order_type: ["SALE", "ORDER"],
-      }),
+      }).then((results) => ({ results, count: results.length, next: null, previous: null })),
     staleTime: 15_000,
     refetchInterval: live30s,
   });
