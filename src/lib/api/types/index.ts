@@ -1,4 +1,5 @@
 import type { components } from "./yggdra";
+import { mediaUrl } from "@/lib/api/client";
 
 export type YggdraSchemas = components["schemas"];
 // ProductList se genera sin stock_available, pero el backend lo anota
@@ -65,6 +66,6 @@ export function toPosProduct(p: YggdraProduct): PosProduct {
     // tracks_inventory ahora viene en el listado, pero el type generado aún no
     // lo declara; default true = comportamiento actual si el backend no lo envía.
     tracks_inventory: (p as { tracks_inventory?: boolean }).tracks_inventory ?? true,
-    image: imageUrl,
+    image: mediaUrl(imageUrl),
   };
 }
