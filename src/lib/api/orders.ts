@@ -1,4 +1,5 @@
 import { apiFetch, apiFile, ApiError, type ApiFileResult } from "@/lib/api/client";
+import { assertOnlineSale } from "@/lib/net/online";
 import type { YggdraSchemas } from "@/lib/api/types";
 import type { CartItem } from "@/lib/store/cart";
 import {
@@ -194,6 +195,7 @@ export interface PayOrderPayload {
 }
 
 export async function payOrder(id: string, payload: PayOrderPayload): Promise<YggdraOrder> {
+  assertOnlineSale();
   return apiFetch<YggdraOrder>(`/sales/orders/${id}/pay/`, {
     method: "POST",
     body: payload,
@@ -298,6 +300,7 @@ export async function returnOrderProducts(
  * (X-Branch-ID + token). La fecha se envía en hora local ISO.
  */
 export async function createOrder(input: CreateOrderInput): Promise<YggdraOrder> {
+  assertOnlineSale();
   const data = await apiFetch<YggdraOrder>("/sales/orders/", {
     method: "POST",
     body: {

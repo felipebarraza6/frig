@@ -33,6 +33,7 @@ import { HeroPlexus } from "@/components/landing/hero-plexus";
 import { enabledModuleSet, firstEnabledAllowedPath } from "@/lib/modules";
 import { SUPERADMIN_ALLOWED_PATHS as SUPERADMIN_MENU_PATHS } from "@/lib/hooks/useFrigMenu";
 import { useToastStore } from "@/lib/store/toast";
+import { useOnline } from "@/lib/hooks/use-online";
 import { ApiError } from "@/lib/api/client";
 import { loginPath } from "@/lib/login-slug";
 import { TrialBanner } from "@/components/trial-banner";
@@ -78,6 +79,7 @@ function isAllowed(pathname: string, allowedPaths: string[]): boolean {
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const online = useOnline();
   const router = useRouter();
   const shouldHideSidebar = HIDDEN_SIDEBAR_PATHS.includes(pathname);
   const hasHydrated = useSessionStore((s) => s.hasHydrated);
@@ -333,6 +335,14 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       <ProductIdentity />
       <ForbiddenListener />
       <div className="relative flex min-h-full">
+        {!online && (
+          <div
+            role="status"
+            className="fixed inset-x-0 top-0 z-50 bg-warning px-4 py-2 text-center text-sm font-medium text-warning-foreground"
+          >
+            Sin conexión. El cobro y el envío a cocina están bloqueados hasta que vuelva la red.
+          </div>
+        )}
         {/* Misma muralla de datos en todos los módulos (Ayuda incluida).
             z-0 sobre el body, debajo del contenido; main es transparente. */}
         {showChrome && !NO_COSMOS_PATHS.some((p) => pathname.startsWith(p)) && (
