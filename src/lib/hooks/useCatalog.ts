@@ -50,7 +50,7 @@ export function useCategories(enabled = true) {
   return useQuery({
     queryKey: CATEGORY_KEYS.all,
     queryFn: async () => {
-      return fetchAllPages<YggdraCategory>("/inventory/categories/");
+      return fetchAllPages<YggdraCategory>("/inventory/categories/?is_active=true");
     },
     staleTime: 60_000,
     enabled,
