@@ -1,10 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { Map as MapIcon, LayoutGrid, Users, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { YggdraSchemas } from "@/lib/api/types";
-import { TablesCanvas } from "@/components/tables/tables-canvas";
+import { Skeleton } from "@/components/ui/skeleton";
+
+// three.js vive en tables-canvas. La grilla del POS no debe bajar ese chunk:
+// el mapa lo pide solo cuando el mesero cambia a vista mapa.
+const TablesCanvas = dynamic(
+  () => import("@/components/tables/tables-canvas").then((m) => m.TablesCanvas),
+  { ssr: false, loading: () => <Skeleton className="h-full w-full" /> },
+);
 import {
   TableShapeIcon,
   tableShapeLabel,

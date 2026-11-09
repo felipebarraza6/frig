@@ -314,9 +314,13 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
       >
         {/* Muralla de datos: textura viva sobre el fondo de marca.
             El contenido del nav pinta encima (relative z-10). */}
-        <div aria-hidden className="pointer-events-none absolute inset-0 opacity-25">
-          <HeroPlexus className="h-full w-full" />
-        </div>
+        {!["/sales", "/cash-register"].some(
+          (path) => pathname === path || pathname.startsWith(`${path}/`),
+        ) && (
+          <div aria-hidden className="pointer-events-none absolute inset-0 opacity-25">
+            <HeroPlexus className="h-full w-full" />
+          </div>
+        )}
         <div className="relative z-10 flex shrink-0 items-center gap-2 px-3 py-2">
           <BrandLogo
             src={brandLogo}
