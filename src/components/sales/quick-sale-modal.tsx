@@ -36,6 +36,7 @@ import {
 } from "@/lib/api/orders";
 import { fetchPaymentMethods, createPayment, type YggdraPaymentMethod } from "@/lib/api/payments";
 import { getCashRegisters, type CashRegister } from "@/lib/api/cash-register";
+import { cashPaymentWithoutRegister } from "@/lib/sales/cash-sale-guard";
 import { fetchTaxTypes, type TaxType } from "@/lib/api/tax-types";
 import { searchCustomers, createCustomer } from "@/lib/api/customers";
 import { occupyTable, fetchTables } from "@/lib/api/tables";
@@ -547,6 +548,13 @@ export default function QuickSaleModal({
       setError(`Faltan ${formatCLP(Math.round(grandTotal) - paidTotal)} para completar el cobro.`);
       return;
     }
+    if (
+      chargeNow &&
+      cashPaymentWithoutRegister(payments, activeMethods, Boolean(selectedRegister))
+    ) {
+      setError("El efectivo exige una caja abierta. Abre la caja o elige otro medio de pago.");
+      return;
+    }
 
     setSaving(true);
     try {
@@ -635,7 +643,7 @@ export default function QuickSaleModal({
             amount: Number(amount.toFixed(2)),
             status: "COMPLETED",
             cash_register_id: selectedRegister ? selectedRegister.id : null,
-            skip_cash_register_validation: !selectedRegister,
+            skip_cash_register_validation: false,
             reference: payment.reference.trim() || null,
             notes: payment.notes.trim() || null,
           });
