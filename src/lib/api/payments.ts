@@ -1,4 +1,5 @@
 import { apiFetch, apiFile, type ApiFileResult } from "./client";
+import { assertOnlineSale } from "@/lib/net/online";
 import { fetchAllPages } from "./pagination";
 import type { YggdraSchemas } from "@/lib/api/types";
 import { appendMulti } from "@/lib/api/query-params";
@@ -89,6 +90,7 @@ export async function createPayment(
   payload: Omit<YggdraPaymentCreate, "skip_cash_register_validation"> &
     Partial<Pick<YggdraPaymentCreate, "skip_cash_register_validation">>,
 ): Promise<YggdraPayment> {
+  assertOnlineSale();
   return apiFetch<YggdraPayment>("/finance/payments/", {
     method: "POST",
     body: { ...payload, skip_cash_register_validation: payload.skip_cash_register_validation ?? false },

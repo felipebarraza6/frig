@@ -7,6 +7,7 @@ import { LazyMotion, MotionConfig } from "framer-motion";
 import { ApiError } from "@/lib/api/client";
 import { AppProvider } from "@/lib/app-context";
 import { useSessionStore } from "@/lib/store/session";
+import { isOnline } from "@/lib/net/online";
 import {
   createQueryPersister,
   queryPersistStorageKey,
@@ -71,6 +72,7 @@ export function Providers({ children }: { children: ReactNode }) {
         },
       }}
       onSuccess={() => {
+        if (!isOnline()) return;
         client.resumePausedMutations().catch(() => {});
       }}
     >

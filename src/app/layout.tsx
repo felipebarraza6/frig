@@ -52,11 +52,9 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  // App-like: sin zoom de doble tap ni zoom por foco en inputs en iOS.
+  // Zoom libre (WCAG 1.4.4). El teclado del POS redimensiona el viewport.
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   viewportFit: "cover",
   // Evita que el viewport "salte" al abrir el teclado en inputs del POS:
   // el contenido se redimensiona en vez de hacer pan/overlay.

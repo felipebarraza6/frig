@@ -166,11 +166,11 @@ export async function fetchBranchAvailableUsers(branchId: ID): Promise<BranchUse
 export async function assignBranchUser(
   branchId: ID,
   userId: ID,
-  roleDefinition: ID,
+  role: string,
 ): Promise<BranchUser> {
   return apiFetch<BranchUser>(`/branches/${branchId}/users/assign/`, {
     method: "POST",
-    body: { user_id: userId, role_definition: roleDefinition },
+    body: { user_id: userId, role },
   });
 }
 
@@ -198,11 +198,11 @@ export async function toggleBranchUserStatus(
 export async function updateBranchUserRole(
   branchId: ID,
   userId: ID,
-  roleDefinition: ID,
+  role: string,
 ): Promise<unknown> {
   return apiFetch<unknown>(`/branches/${branchId}/update-user-role/`, {
     method: "PUT",
-    body: { user_id: userId, role_definition: roleDefinition },
+    body: { user_id: userId, role },
   });
 }
 
@@ -213,7 +213,7 @@ export async function transferBranchOwnership(
 ): Promise<unknown> {
   return apiFetch<unknown>(`/branches/${branchId}/transfer-ownership/`, {
     method: "POST",
-    body: { user_id: userId },
+    body: { new_owner_id: userId },
   });
 }
 
