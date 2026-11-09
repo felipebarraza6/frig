@@ -40,6 +40,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import { useCategoryOptions } from "@/lib/hooks/useCategoryOptions";
 import { fetchProduct, searchProductsByType } from "@/lib/api/products";
+import {
+  ProductGalleryField,
+  type ProductGalleryFieldHandle,
+} from "@/components/products/product-gallery-field";
 import type { ProductPayload } from "@/lib/api/products";
 import type { YggdraProduct } from "@/lib/api/types";
 import {
@@ -517,6 +521,7 @@ export function ProductForm({
   extraActions,
 }: ProductFormProps) {
   const queryClient = useQueryClient();
+  const galleryRef = useRef<ProductGalleryFieldHandle>(null);
   const { data: loadedProduct, isLoading: loadingProduct } = useQuery<YggdraProductDetail>({
     queryKey: ["products", "detail", productId],
     queryFn: () => fetchProduct(productId!) as Promise<YggdraProductDetail>,
@@ -1410,6 +1415,7 @@ export function ProductForm({
       };
       const savedProduct = await onSubmit(payload, effectiveProduct?.id);
 
+      await galleryRef.current?.flushPending(savedProduct.id);
       await saveSupplierRelation(savedProduct.id);
 
       if (isCompound) {
@@ -1698,6 +1704,8 @@ export function ProductForm({
                     )}
                   </Field>
                 )}
+
+                <ProductGalleryField ref={galleryRef} productId={effectiveProduct?.id} />
 
                 <Field label="Descripción" htmlFor="product-description" className="sm:col-span-2">
                   <textarea
