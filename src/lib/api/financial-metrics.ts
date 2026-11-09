@@ -1,4 +1,5 @@
 import { apiFetch } from "./client";
+import { expensesToFrequencyTotals, revenuesToDailyTotals } from "./finance-charts";
 
 export interface FinancialMetricsSummary {
   total_revenue?: string | number;
@@ -58,7 +59,8 @@ export async function fetchRevenuesByDateRange(
   if (startDate) qs.set("start_date", startDate);
   if (endDate) qs.set("end_date", endDate);
   const q = qs.toString();
-  return apiFetch<RevenueByDateRange>(`/finance/revenues/by_date_range/${q ? `?${q}` : ""}`);
+  const data = await apiFetch<unknown>(`/finance/revenues/by_date_range/${q ? `?${q}` : ""}`);
+  return { results: revenuesToDailyTotals(data) };
 }
 
 export async function fetchExpensesByFrequency(
@@ -67,9 +69,10 @@ export async function fetchExpensesByFrequency(
   const qs = new URLSearchParams();
   if (branchId) qs.set("branch", String(branchId));
   const q = qs.toString();
-  return apiFetch<ExpensesByFrequency>(
+  const data = await apiFetch<unknown>(
     `/finance/fixed-expenses/by_frequency/${q ? `?${q}` : ""}`,
   );
+  return { results: expensesToFrequencyTotals(data) };
 }
 
 function parseAmount(value: unknown): number {
