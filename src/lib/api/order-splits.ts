@@ -1,4 +1,5 @@
 import { apiFetch } from "./client";
+import { assertOnlineSale } from "@/lib/net/online";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 export type OrderSplit = YggdraSchemas["OrderSplit"];
@@ -19,6 +20,7 @@ export async function createOrderSplit(payload: OrderSplitRequest): Promise<Orde
 }
 
 export async function payOrderSplit(id: number, payload?: { payment_method?: string | null; payment_method_id?: string | null }): Promise<OrderSplit> {
+  assertOnlineSale();
   return apiFetch<OrderSplit>(`/sales/order-splits/${id}/pay/`, {
     method: "POST",
     body: { payment_method: payload?.payment_method ?? payload?.payment_method_id ?? null },
