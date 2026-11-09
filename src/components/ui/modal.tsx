@@ -60,6 +60,8 @@ interface ModalProps {
   overlayClassName?: string;
   /** Clase del contenedor fixed (p. ej. z-[80] para apilar sobre otros overlays). */
   containerClassName?: string;
+  /** Nombre accesible cuando no hay título visible. */
+  ariaLabel?: string;
   initialFocusRef?: React.RefObject<HTMLElement>;
   children: ReactNode;
 }
@@ -90,6 +92,7 @@ export function Modal({
   className,
   overlayClassName,
   containerClassName,
+  ariaLabel,
   initialFocusRef,
   children,
 }: ModalProps) {
@@ -199,6 +202,7 @@ export function Modal({
               ref={panelRef}
               role="dialog"
               aria-modal="true"
+              aria-label={title ? undefined : ariaLabel}
               aria-labelledby={title ? titleId : undefined}
               aria-describedby={description ? descriptionId : undefined}
               tabIndex={-1}
