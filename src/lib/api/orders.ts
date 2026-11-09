@@ -150,11 +150,21 @@ function buildOrdersQueryString(filter: OrdersFilter): string {
   return qs.toString();
 }
 
-/**
- * Crear una orden de venta (SALE) con sus líneas en un solo POST.
- * El backend asigna branch/owner automáticamente desde el request
- * (X-Branch-ID + token). La fecha se envía en hora local ISO.
- */
+/** Recorre `next` para no quedarse en la primera página (default 10). */
+export async function fetchAllOrderResults(filter: OrdersFilter = {}): Promise<YggdraOrder[]> {
+  const first = await fetchOrders({ ...filter, page_size: filter.page_size ?? 200 });
+  const all = [...(first.results ?? [])];
+  const seen = new Set<string>();
+  let next = first.next ?? null;
+  while (next && !seen.has(next)) {
+    seen.add(next);
+    const page = await fetchOrders({ next });
+    all.push(...(page.results ?? []));
+    next = page.next ?? null;
+  }
+  return all;
+}
+
 export async function fetchOrders(filter: OrdersFilter = {}): Promise<PaginatedOrder> {  if (filter.next) {
     return apiFetch<PaginatedOrder>(filter.next);
   }
@@ -282,6 +292,11 @@ export async function returnOrderProducts(
   });
 }
 
+/**
+ * Crear una orden de venta (SALE) con sus líneas en un solo POST.
+ * El backend asigna branch/owner automáticamente desde el request
+ * (X-Branch-ID + token). La fecha se envía en hora local ISO.
+ */
 export async function createOrder(input: CreateOrderInput): Promise<YggdraOrder> {
   const data = await apiFetch<YggdraOrder>("/sales/orders/", {
     method: "POST",

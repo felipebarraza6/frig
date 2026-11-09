@@ -61,8 +61,8 @@ export async function fetchCombos(): Promise<ComboList[]> {
 }
 
 export async function fetchAllCombos(): Promise<ComboList[]> {
-  const data = await apiFetch<PaginatedComboList>("/inventory/combos/");
-  return data.results;
+  const { fetchAllPages } = await import("./pagination");
+  return fetchAllPages<ComboList>("/inventory/combos/");
 }
 
 export async function fetchCombosPage(

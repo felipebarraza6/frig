@@ -1,4 +1,5 @@
 import { apiFetch } from "./client";
+import { fetchAllPages } from "./pagination";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 /**
@@ -27,10 +28,6 @@ export type KitchenTicket = Omit<YggdraSchemas["KitchenTicket"], "items"> & {
   table_number?: string | number | null;
   client_name?: string | null;
 };
-type PaginatedKitchenTicket = YggdraSchemas["PaginatedKitchenTicketList"] & {
-  results: KitchenTicket[];
-};
-
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -57,8 +54,7 @@ export async function fetchKitchenTickets(
   if (stationId) search.set("station_id", String(stationId));
   if (branch !== undefined && branch !== null && branch !== "") search.set("branch", String(branch));
   const params = search.toString() ? `?${search.toString()}` : "";
-  const data = await apiFetch<PaginatedKitchenTicket>(`/sales/kitchen-tickets/${params}`);
-  return data.results;
+  return fetchAllPages<KitchenTicket>(`/sales/kitchen-tickets/${params}`);
 }
 
 export async function startKitchenTicket(id: number): Promise<KitchenTicket> {
