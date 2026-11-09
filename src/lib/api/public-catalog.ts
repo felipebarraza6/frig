@@ -1,4 +1,4 @@
-import { apiFetch, API_BASE, API_ORIGIN } from "./client";
+import { apiFetch, API_ORIGIN } from "./client";
 
 export type MenuMode = "VITRINA" | "ORDENAR" | "PAGAR";
 export type StationType = "POS" | "PANTALLA" | "QR" | "GENERAL";
@@ -266,30 +266,14 @@ export async function syncCatalogLogoFromUrl(
   const formData = new FormData();
   formData.append("logo", blob, `branch-logo.${ext}`);
 
-  const token = typeof window !== "undefined" ? window.localStorage.getItem("frig.token") : null;
-  const branchId =
-    typeof window !== "undefined" ? window.localStorage.getItem("frig.branch_id") : null;
-  const headers: Record<string, string> = { Accept: "application/json" };
-  if (token) headers.Authorization = `Token ${token}`;
-  if (branchId) headers["X-Branch-ID"] = branchId;
-
-  const res = await fetch(`${API_BASE}/public-catalog/catalogs/${catalogId}/`, {
-    method: "PATCH",
-    headers,
-    body: formData,
-    credentials: "include",
-  });
-  const text = await res.text();
-  let data: unknown = null;
-  if (text) {
-    try {
-      data = JSON.parse(text);
-    } catch {
-      /* ignore */
-    }
+  try {
+    return await apiFetch<PublicCatalog>(`/public-catalog/catalogs/${catalogId}/`, {
+      method: "PATCH",
+      body: formData,
+    });
+  } catch {
+    return null;
   }
-  if (!res.ok) return null;
-  return data as PublicCatalog;
 }
 
 export async function fetchPublicMenuBySlug(slug: string): Promise<PublicMenuResponse> {

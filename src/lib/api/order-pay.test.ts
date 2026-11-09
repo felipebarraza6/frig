@@ -25,8 +25,11 @@ describe("buildPayOrderPayload", () => {
       notes: "",
       reference: "",
       cash_register_id: 9,
-      skip_cash_register_validation: false,
     });
+    expect(buildPayOrderPayload({
+      payment_method_id: "pm-1",
+      amount: "1000.00",
+    })).not.toHaveProperty("skip_cash_register_validation");
   });
 
   it("omite cash_register_id si no hay caja", () => {

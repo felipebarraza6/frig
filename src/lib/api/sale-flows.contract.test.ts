@@ -169,21 +169,20 @@ describe("contrato: caja abrir/cerrar", () => {
     await expect(getDailySummary(1)).resolves.toBeNull();
   });
 
-  it("payOrder reenvía skip_cash_register_validation (Ventas debe usar false)", async () => {
+  it("payOrder no manda skip_cash_register_validation (no está en OrderPay)", async () => {
     apiFetch.mockResolvedValueOnce({ id: "ord-1", status: "PAID" });
     const { payOrder } = await import("./orders");
     await payOrder("ord-1", {
       payment_method_id: "pm-1",
       amount: "1000.00",
-      skip_cash_register_validation: false,
     });
     const [path, opts] = apiFetch.mock.calls[0]!;
     expect(path).toBe("/sales/orders/ord-1/pay/");
     expect(opts.body).toMatchObject({
       payment_method_id: "pm-1",
       amount: "1000.00",
-      skip_cash_register_validation: false,
     });
+    expect(opts.body).not.toHaveProperty("skip_cash_register_validation");
   });
 });
 
