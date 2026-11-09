@@ -47,10 +47,16 @@ const FRONTEND_CONFIG_RETRY_MS = 30_000;
  * experiencia es densa y la animación en los huecos del layout estorba.
  */
 /**
- * Rutas sin capa cósmica (HeroPlexus): terminales densas donde la animación
- * estorba. Caja sí la mantiene — forma parte de la atmósfera del módulo.
+ * Rutas sin capa cósmica (HeroPlexus): terminales, ventas y caja. El rAF
+ * del fondo no corre en pantallas de trabajo.
  */
-const NO_COSMOS_PATHS = ["/pos/terminal", "/kds/terminal", "/kds/monitor"];
+const NO_COSMOS_PATHS = [
+  "/pos/terminal",
+  "/kds/terminal",
+  "/kds/monitor",
+  "/sales",
+  "/cash-register",
+];
 
 /**
  * Rutas permitidas para el super admin (menú + rutas neutrales como profile/dashboard).
