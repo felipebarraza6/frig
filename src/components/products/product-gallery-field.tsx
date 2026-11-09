@@ -18,6 +18,7 @@ import {
   galleryImageSrc,
   replaceProductImage,
   setPrimaryProductImage,
+  uploadPendingProductImages,
   uploadProductImage,
   validateProductImageFile,
 } from "@/lib/api/product-gallery";
@@ -35,12 +36,14 @@ interface PendingImage {
 
 interface ProductGalleryFieldProps {
   productId?: number;
+  /** El formulario conserva los archivos si esta pestaña se desmonta antes de crear. */
+  onPendingFilesChange?: (files: File[]) => void;
 }
 
 export const ProductGalleryField = forwardRef<
   ProductGalleryFieldHandle,
   ProductGalleryFieldProps
->(function ProductGalleryField({ productId }, ref) {
+>(function ProductGalleryField({ productId, onPendingFilesChange }, ref) {
   const canEdit = useCanManageInventory();
   const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -58,7 +61,8 @@ export const ProductGalleryField = forwardRef<
   const pendingRef = useRef(pending);
   useEffect(() => {
     pendingRef.current = pending;
-  }, [pending]);
+    onPendingFilesChange?.(pending.map((item) => item.file));
+  }, [pending, onPendingFilesChange]);
   useEffect(() => {
     return () => {
       for (const item of pendingRef.current) URL.revokeObjectURL(item.preview);
@@ -89,16 +93,14 @@ export const ProductGalleryField = forwardRef<
 
   useImperativeHandle(ref, () => ({
     async flushPending(nextProductId: number) {
-      if (!canEdit || pending.length === 0) return;
+      const queue = pendingRef.current;
+      if (!canEdit || queue.length === 0) return;
       await run(async () => {
-        for (let i = 0; i < pending.length; i++) {
-          await uploadProductImage({
-            productId: nextProductId,
-            file: pending[i].file,
-            isPrimary: i === 0,
-            altText: pending[i].file.name,
-          });
-        }
+        await uploadPendingProductImages(
+          nextProductId,
+          queue.map((item) => item.file),
+        );
+        for (const item of queue) URL.revokeObjectURL(item.preview);
         setPending([]);
       });
     },

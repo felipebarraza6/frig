@@ -34,6 +34,29 @@ describe("validateProductImageFile", () => {
   });
 });
 
+describe("uploadPendingProductImages", () => {
+  beforeEach(() => {
+    apiFetch.mockReset();
+  });
+
+  it("sube la cola al producto recién creado y marca la primera como principal", async () => {
+    apiFetch.mockResolvedValue({ id: 1, product: 42, image: "/media/a.png", is_primary: true });
+    const { uploadPendingProductImages } = await import("./product-gallery");
+    await uploadPendingProductImages(42, [
+      file("principal.png", "image/png"),
+      file("extra.webp", "image/webp"),
+    ]);
+    expect(apiFetch).toHaveBeenCalledTimes(2);
+    const first = apiFetch.mock.calls[0][1].body as FormData;
+    const second = apiFetch.mock.calls[1][1].body as FormData;
+    expect(apiFetch.mock.calls[0][0]).toBe("/inventory/gallery/");
+    expect(first.get("product")).toBe("42");
+    expect(first.get("is_primary")).toBe("true");
+    expect(second.get("product")).toBe("42");
+    expect(second.get("is_primary")).toBe("false");
+  });
+});
+
 describe("uploadProductImage", () => {
   beforeEach(() => {
     apiFetch.mockReset();
