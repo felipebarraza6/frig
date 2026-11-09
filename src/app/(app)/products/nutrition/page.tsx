@@ -529,6 +529,8 @@ function NutritionLabelStudio({
     errorMissingDetails.length > 0 ? errorMissingDetails : recipeMissingDetails;
 
   const recipesPending = Boolean(product?.name) && (!recipesFetched || loadingRecipes);
+  const hasManualNutrition =
+    product?.energy_kcal != null && String(product.energy_kcal).trim() !== "";
   const canUseOfficial = Boolean(primaryRecipe?.id);
   const nutritionBlocked =
     missingDetails.length > 0 || primaryRecipe?.nutrition_is_complete === false;
@@ -667,7 +669,9 @@ function NutritionLabelStudio({
                 ? ` · Receta: ${primaryRecipe.name}`
                 : recipesPending
                   ? " · buscando receta…"
-                  : " · sin receta (PDF oficial requiere receta)"}
+                  : hasManualNutrition
+                    ? " · datos nutricionales cargados"
+                    : " · sin receta (PDF oficial requiere receta)"}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-0.5">
@@ -757,10 +761,11 @@ function NutritionLabelStudio({
                   )}
                   {!canUseOfficial && !recipesPending && (
                     <p className="mt-2 text-[11px] text-warning">
-                      El generador oficial requiere una receta.{" "}
-                      {isCompound
-                        ? "Guarda ingredientes en el tab Receta."
-                        : "Los productos sin receta no emiten PDF oficial."}
+                      {hasManualNutrition
+                        ? "Los datos nutricionales del producto están guardados. El PDF oficial pide una receta."
+                        : isCompound
+                          ? "El generador oficial requiere una receta. Guarda ingredientes en el tab Receta."
+                          : "Los productos sin receta no emiten PDF oficial."}
                     </p>
                   )}
                 </div>

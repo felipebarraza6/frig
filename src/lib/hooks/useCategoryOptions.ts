@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchCategories } from "@/lib/api/categories";
+import { fetchActiveCategories } from "@/lib/api/categories";
 
 export interface CategoryOption {
   id: number;
@@ -26,13 +26,13 @@ export function useCategoryOptions() {
     refetch,
   } = useQuery({
     queryKey: ["categories", "options"],
-    queryFn: () => fetchCategories({ page_size: 100 }),
+    queryFn: () => fetchActiveCategories(),
     staleTime: 60_000,
     retry: 1,
   });
 
   const options = useMemo<CategoryOption[]>(() => {
-    return (page?.results ?? []).map((c) => ({
+    return (page ?? []).map((c) => ({
       id: Number(c.id),
       name: c.name ?? "Sin nombre",
     }));

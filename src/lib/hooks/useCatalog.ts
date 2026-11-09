@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api/client";
+import { fetchAllPages } from "@/lib/api/pagination";
 import { toPosProduct, type PosProduct, type YggdraCategory } from "@/lib/api/types";
-import type { YggdraPaginatedCategory, YggdraPaginatedProduct } from "@/lib/api/types";
+import type { YggdraPaginatedProduct } from "@/lib/api/types";
 import { fetchProductModifierGroups, type ProductModifierGroup } from "@/lib/api/modifier-groups";
 import { useCurrentBranch } from "@/lib/store/session";
 import {
@@ -49,10 +50,7 @@ export function useCategories(enabled = true) {
   return useQuery({
     queryKey: CATEGORY_KEYS.all,
     queryFn: async () => {
-      const data = await apiFetch<YggdraPaginatedCategory>(
-        "/inventory/categories/?is_active=true&page_size=200",
-      );
-      return data.results as YggdraCategory[];
+      return fetchAllPages<YggdraCategory>("/inventory/categories/?is_active=true");
     },
     staleTime: 60_000,
     enabled,

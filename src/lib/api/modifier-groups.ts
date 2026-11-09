@@ -1,4 +1,5 @@
 import { apiFetch } from "./client";
+import { fetchAllPages } from "./pagination";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 export type ModifierGroup = YggdraSchemas["ModifierGroup"];
@@ -13,8 +14,6 @@ export type ProductModifierGroupWrite = YggdraSchemas["ProductModifierGroupWrite
 export type ProductModifierGroupWriteRequest = YggdraSchemas["ProductModifierGroupWriteRequest"];
 
 type PaginatedModifierGroupList = YggdraSchemas["PaginatedModifierGroupListList"];
-type PaginatedModifierOption = YggdraSchemas["PaginatedModifierOptionList"];
-type PaginatedProductModifierGroup = YggdraSchemas["PaginatedProductModifierGroupList"];
 
 export async function fetchModifierGroups(): Promise<ModifierGroupList[]> {
   const groups: ModifierGroupList[] = [];
@@ -58,8 +57,7 @@ export async function deleteModifierGroup(id: number): Promise<void> {
 
 export async function fetchModifierOptions(groupId?: number): Promise<ModifierOption[]> {
   const params = groupId !== undefined ? `?group=${groupId}` : "";
-  const data = await apiFetch<PaginatedModifierOption>(`/inventory/modifier-options/${params}`);
-  return data.results;
+  return fetchAllPages<ModifierOption>(`/inventory/modifier-options/${params}`);
 }
 
 export async function createModifierOption(
@@ -89,19 +87,17 @@ export async function fetchProductModifierGroups(
   productId?: number,
 ): Promise<ProductModifierGroup[]> {
   const params = productId !== undefined ? `?product=${productId}` : "";
-  const data = await apiFetch<PaginatedProductModifierGroup>(
+  return fetchAllPages<ProductModifierGroup>(
     `/inventory/product-modifier-groups/${params}`,
   );
-  return data.results;
 }
 
 export async function fetchProductModifierGroupsByGroup(
   groupId: number,
 ): Promise<ProductModifierGroup[]> {
-  const data = await apiFetch<PaginatedProductModifierGroup>(
-    `/inventory/product-modifier-groups/?modifier_group=${groupId}&page_size=500`,
+  return fetchAllPages<ProductModifierGroup>(
+    `/inventory/product-modifier-groups/?modifier_group=${groupId}`,
   );
-  return data.results;
 }
 
 export async function assignModifierGroupToProduct(

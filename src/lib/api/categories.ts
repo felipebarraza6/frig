@@ -42,6 +42,23 @@ function isValidCategory(item: unknown): item is YggdraCategory {
 }
 
 /** Lista simple de categorías para selects (sin paginación). */
+/** Todas las categorías activas, no solo la primera página. */
+export async function fetchActiveCategories(): Promise<YggdraCategory[]> {
+  const all: YggdraCategory[] = [];
+  const seen = new Set<string>();
+  let next: string | null = null;
+  for (let i = 0; i < 50; i++) {
+    const page: YggdraPaginated = next
+      ? await fetchCategories({ next })
+      : await fetchCategories({ page_size: 200, is_active: true });
+    all.push(...(page.results ?? []));
+    next = page.next ?? null;
+    if (!next || seen.has(next)) break;
+    seen.add(next);
+  }
+  return all;
+}
+
 export async function fetchCategoryList(): Promise<YggdraCategory[]> {
   const data = await apiFetch<unknown>("/inventory/categories/simple-list/");
   if (Array.isArray(data)) return data.filter(isValidCategory);
