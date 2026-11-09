@@ -69,6 +69,18 @@ export function primaryImageByProduct(
   return urls;
 }
 
+/** Sube las vistas previas locales tras crear el producto. La primera queda como principal. */
+export async function uploadPendingProductImages(productId: number, files: File[]): Promise<void> {
+  for (let i = 0; i < files.length; i++) {
+    await uploadProductImage({
+      productId,
+      file: files[i],
+      isPrimary: i === 0,
+      altText: files[i].name,
+    });
+  }
+}
+
 export async function uploadProductImage(input: {
   productId: number;
   file: File;

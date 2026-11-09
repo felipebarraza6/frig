@@ -113,7 +113,7 @@ function ProductCardRaw({ product, recipe, ingredients, onClick, onKeyDown }: Pr
       className={cn(
         "group flex cursor-pointer flex-col overflow-hidden rounded-2xl border bg-background p-3 transition-all",
         "shadow-none hover:-translate-y-0.5 hover:border-primary/25 hover:bg-primary/[0.02] hover:shadow-sm",
-        "aria-disabled:cursor-not-allowed aria-disabled:opacity-55 aria-disabled:hover:translate-y-0 aria-disabled:hover:border-border/60 aria-disabled:hover:shadow-none aria-disabled:hover:bg-background",
+        "aria-disabled:cursor-not-allowed aria-disabled:hover:translate-y-0 aria-disabled:hover:border-border/60 aria-disabled:hover:shadow-none aria-disabled:hover:bg-background",
         disabled ? "border-border/40" : "border-border/50",
       )}
     >
@@ -122,6 +122,7 @@ function ProductCardRaw({ product, recipe, ingredients, onClick, onKeyDown }: Pr
       <div
         className={cn(
           "mt-3 flex flex-1 flex-col justify-center items-center gap-2.5 text-center",
+          disabled && "opacity-55",
         )}
       >
         <div className="flex flex-col items-center gap-1.5">
