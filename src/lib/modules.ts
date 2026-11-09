@@ -384,6 +384,7 @@ export const FRIG_MENU_DEF: FrigMenuGroup[] = [
       { href: "/tables", label: "Mesas", icon: "Table", module: "tables", description: "Estado y cuentas de las mesas" },
       { href: "/tables/map", label: "Virtual", icon: "Cuboid", module: "tables", description: "Vista virtual del salón para asignar mesas" },
       { href: "/kds", label: "KDS", icon: "Monitor", module: "production", badge: "kitchenReady", description: "Navegación de pantallas KDS y estaciones de cocina" },
+      { href: "/sales?view=despacho", label: "Despacho", icon: "Truck", module: "deliveries", description: "Pedidos por entregar, retiro y delivery" },
     ],
   },
   {

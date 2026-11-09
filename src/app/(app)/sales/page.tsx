@@ -958,6 +958,7 @@ export default function SalesPage() {
   const [orderType, setOrderType] = useState<string[]>(() => loadStringArray("frig.sales.orderType"));
   const [quickFilter, setQuickFilter] = useState<QuickFilter>(() => {
     if (typeof window === "undefined") return "ALL";
+    if (new URLSearchParams(window.location.search).get("view") === "despacho") return "POR_DELIVER";
     return (window.localStorage.getItem("frig.sales.quickFilter") as QuickFilter) || "ALL";
   });
   const [advancedOpen, setAdvancedOpen] = useState(false);
