@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 import { motion } from "framer-motion";
-import { AlertTriangle, List } from "lucide-react";
+import { AlertTriangle, ImageIcon, List } from "lucide-react";
 import type { PosProduct, YggdraSchemas } from "@/lib/api/types";
 import { formatCLP, cn } from "@/lib/utils";
 import { useIsModuleEnabledFromConfig } from "@/lib/store/session";
@@ -74,16 +74,22 @@ function StockBadge({ product }: { product: PosProduct }) {
 }
 
 function ProductImage({ product }: { product: PosProduct }) {
-  if (!product.image) return null;
   return (
     <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-muted">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={product.image}
-        alt={product.name}
-        loading="lazy"
-        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-      />
+      {product.image ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={product.image}
+          alt={product.name}
+          loading="lazy"
+          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+        />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+          <ImageIcon className="h-8 w-8" aria-hidden />
+          <span className="sr-only">Sin imagen</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -95,8 +101,6 @@ function ProductCardRaw({ product, recipe, ingredients, onClick, onKeyDown }: Pr
   // Los que no controlan inventario nunca quedan bloqueados por cantidad.
   const disabled =
     inventoryEnabled && product.tracks_inventory !== false && (product.quantity ?? 0) === 0;
-  const hasImage = Boolean(product.image);
-
   return (
     <motion.div
       role="button"
@@ -117,8 +121,7 @@ function ProductCardRaw({ product, recipe, ingredients, onClick, onKeyDown }: Pr
 
       <div
         className={cn(
-          "flex flex-1 flex-col justify-center items-center gap-2.5 text-center",
-          hasImage && "mt-3",
+          "mt-3 flex flex-1 flex-col justify-center items-center gap-2.5 text-center",
         )}
       >
         <div className="flex flex-col items-center gap-1.5">
