@@ -12,6 +12,7 @@ import {
 import { ChevronDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DropdownPortal } from "./dropdown-portal";
+import { findSelectOption } from "@/lib/ui/select-value";
 
 export type SelectOption = { value: string; label: string };
 
@@ -46,11 +47,11 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
         )
         .map((c) => ({ value: String(c.props.value ?? ""), label: String(c.props.children ?? "") }));
 
+    const selected = findSelectOption(opts, value);
     const selectedIndex = Math.max(
       0,
-      opts.findIndex((o) => o.value === value),
+      opts.findIndex((o) => o.value === (selected?.value ?? "")),
     );
-    const selected = opts[selectedIndex];
 
     const selectOption = useCallback(
       (index: number) => {
@@ -213,14 +214,14 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
                 type="button"
                 role="option"
                 tabIndex={-1}
-                aria-selected={o.value === value}
+                aria-selected={o.value === (selected?.value ?? "")}
                 onClick={() => selectOption(i)}
                 className={cn(
                   "flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors",
-                  o.value === value
+                  o.value === (selected?.value ?? "")
                     ? "bg-primary/10 text-primary font-medium"
                     : "text-foreground hover:bg-muted",
-                  i === activeIndex && o.value !== value && "bg-muted",
+                  i === activeIndex && o.value !== (selected?.value ?? "") && "bg-muted",
                 )}
               >
                 <span
@@ -236,7 +237,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
                     })()}
                   <span className="truncate">{o.label}</span>
                 </span>
-                {o.value === value && <Check className="h-3.5 w-3.5 shrink-0" />}
+                {o.value === (selected?.value ?? "") && <Check className="h-3.5 w-3.5 shrink-0" />}
               </button>
             ))}
           </div>
