@@ -1,5 +1,7 @@
-# CI de FRIG web: pull_request y push a dev, main y staging. NO despliega —
-# el deploy a producción es exclusivo de production (ver deploy.yml).
+# CI de FRIG web: pull_request y push a dev, main, staging y production.
+# NO despliega — el FTP es exclusivo de deploy.yml. production está en este
+# disparador para que el mismo SHA también deje un check CI; el FTP igual
+# corre lint, type-check y tests en deploy.yml antes de subir.
 #
 # Gates: lint + type-check + vitest + build estático (con la API de producción
 # inyectada en build time, igual que el deploy).
@@ -8,7 +10,7 @@ name: CI
 
 on:
   push:
-    branches: [dev, main, staging]
+    branches: [dev, main, staging, production]
   pull_request:
     # PRs solo-docs no gastan minutos de Actions (validaciones/auditorías).
     paths-ignore:
