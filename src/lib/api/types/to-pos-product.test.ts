@@ -9,7 +9,7 @@ describe("toPosProduct", () => {
       name: "Torta",
       quantity: 1,
       primary_image: "/media/torta.jpg",
-    } as YggdraProduct);
+    } as unknown as YggdraProduct);
     expect(product.image).toMatch(/\/media\/torta\.jpg$/);
     expect(product.image?.startsWith("/media/")).toBe(false);
   });
