@@ -1,4 +1,4 @@
-import { getToken } from "@/lib/api/session-storage";
+import { hasSession } from "@/lib/api/session-storage";
 import { fetchRecipe, fetchRecipesForProductIds } from "@/lib/api/recipes";
 import type { PublicMenuProduct } from "@/lib/api/public-catalog";
 
@@ -54,7 +54,7 @@ export async function enrichProductsWithIngredientLines(
     };
   });
 
-  if (!getToken()) return withApiFields;
+  if (!hasSession()) return withApiFields;
 
   const needRecipe = withApiFields
     .filter((p) => !(p.ingredient_names && p.ingredient_names.length > 0))

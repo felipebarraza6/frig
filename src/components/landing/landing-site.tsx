@@ -42,7 +42,7 @@ function GithubIcon({ className }: { className?: string }) {
 import { useQuery } from "@tanstack/react-query";
 import { useApp } from "@/lib/app-context";
 import { useSessionStore, normalizeDashboardRoute } from "@/lib/store/session";
-import { getToken } from "@/lib/api/session-storage";
+import { hasSession } from "@/lib/api/session-storage";
 import type { User } from "@/lib/types";
 import {
   LANDING_FEATURES,
@@ -1244,7 +1244,7 @@ export function LandingSite() {
   const sessionUser = useSessionStore((s) => s.user);
   const dashboard = useSessionStore((s) => s.dashboard);
   const [entering, setEntering] = useState(false);
-  const savedUser = hasHydrated && sessionUser && getToken() ? sessionUser : null;
+  const savedUser = hasHydrated && sessionUser && hasSession() ? sessionUser : null;
   const homeRoute = normalizeDashboardRoute(dashboard) ?? "/dashboard";
 
   function handleReenter() {

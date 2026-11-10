@@ -144,3 +144,95 @@ describe("apiFetch", () => {
     ).toBe("Ya existe una zona activa con ese nombre");
   });
 });
+
+describe("apiFetch con sesión por cookie (frig.yggdra.cl)", () => {
+  const json = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { "Content-Type": "application/json" },
+    });
+
+  beforeEach(() => {
+    vi.resetModules();
+    window.localStorage.clear();
+    vi.stubEnv("NEXT_PUBLIC_YGGDRA_API_BASE", "https://api.yggdra.cl/api");
+    vi.stubGlobal("location", {
+      protocol: "https:",
+      hostname: "frig.yggdra.cl",
+      origin: "https://frig.yggdra.cl",
+      assign: vi.fn(),
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("no manda Authorization y el GET no pide CSRF", async () => {
+    window.localStorage.setItem("frig.cookie_session", "1");
+    vi.stubGlobal("fetch", vi.fn(async () => json({ ok: true })));
+    const { apiFetch } = await import("./client");
+    await apiFetch("/accounts/users/me/");
+    expect(fetch).toHaveBeenCalledOnce();
+    const [url, init] = vi.mocked(fetch).mock.calls[0]!;
+    expect(url).toBe("https://api.yggdra.cl/api/accounts/users/me/");
+    const headers = init?.headers as Record<string, string>;
+    expect(headers.Authorization).toBeUndefined();
+    expect(headers["X-CSRFToken"]).toBeUndefined();
+    expect(init?.credentials).toBe("include");
+  });
+
+  it("el POST lleva X-CSRFToken de /accounts/csrf/", async () => {
+    window.localStorage.setItem("frig.cookie_session", "1");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        url.endsWith("/accounts/csrf/") ? json({ csrfToken: "csrf-1" }) : json({ ok: true }),
+      ),
+    );
+    const { apiFetch } = await import("./client");
+    await apiFetch("/sales/orders/", { method: "POST", body: {} });
+    const post = vi.mocked(fetch).mock.calls.find(([u]) => String(u).endsWith("/sales/orders/"));
+    const headers = post?.[1]?.headers as Record<string, string>;
+    expect(headers["X-CSRFToken"]).toBe("csrf-1");
+    expect(headers.Authorization).toBeUndefined();
+  });
+
+  it("borra el token viejo de localStorage y conserva la sesión", async () => {
+    window.localStorage.setItem("frig.token", "tok-legacy");
+    vi.stubGlobal("fetch", vi.fn(async () => json({ ok: true })));
+    const { apiFetch } = await import("./client");
+    await apiFetch("/accounts/users/me/");
+    expect(window.localStorage.getItem("frig.token")).toBeNull();
+    expect(window.localStorage.getItem("frig.cookie_session")).toBe("1");
+    const headers = vi.mocked(fetch).mock.calls[0]![1]?.headers as Record<string, string>;
+    expect(headers.Authorization).toBeUndefined();
+  });
+
+  it("con CSRF vencido pide otro token y reintenta una vez", async () => {
+    window.localStorage.setItem("frig.cookie_session", "1");
+    let csrfCalls = 0;
+    let postCalls = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.endsWith("/accounts/csrf/")) {
+          csrfCalls += 1;
+          return json({ csrfToken: `csrf-${csrfCalls}` });
+        }
+        postCalls += 1;
+        return postCalls === 1
+          ? json({ detail: "CSRF Failed: CSRF token incorrect." }, 403)
+          : json({ ok: true });
+      }),
+    );
+    const { apiFetch } = await import("./client");
+    await expect(apiFetch("/accounts/users/logout/", { method: "POST" })).resolves.toEqual({
+      ok: true,
+    });
+    expect(csrfCalls).toBe(2);
+    expect(postCalls).toBe(2);
+  });
+});

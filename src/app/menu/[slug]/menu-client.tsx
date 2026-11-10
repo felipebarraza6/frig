@@ -13,7 +13,7 @@ import {
 } from "@/lib/api/public-catalog";
 import { enrichProductsWithIngredientLines } from "@/lib/api/public-menu-ingredients";
 import { fetchBranchTheme } from "@/lib/api/branches";
-import { getToken } from "@/lib/api/session-storage";
+import { hasSession } from "@/lib/api/session-storage";
 import { useSessionStore } from "@/lib/store/session";
 import { BrandLogo } from "@/components/brand-logo";
 import {
@@ -119,7 +119,7 @@ export default function PublicMenuPage({ slug: slugProp }: { slug?: string } = {
   const { data: branchTheme } = useQuery({
     queryKey: ["branch-theme", catalog?.branch],
     queryFn: () => fetchBranchTheme(String(catalog!.branch)),
-    enabled: Boolean(catalog?.branch) && Boolean(getToken()),
+    enabled: Boolean(catalog?.branch) && hasSession(),
     staleTime: 5 * 60_000,
   });
 
