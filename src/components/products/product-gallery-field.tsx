@@ -59,13 +59,26 @@ export const ProductGalleryField = forwardRef<
   });
 
   const pendingRef = useRef(pending);
+  // Un montaje nuevo (AnimatePresence desmonta la pestaña Datos) no debe
+  // avisar [] y borrar los archivos que el formulario ya guardó.
+  const skipInitialEmptySync = useRef(true);
   useEffect(() => {
     pendingRef.current = pending;
+    if (skipInitialEmptySync.current) {
+      skipInitialEmptySync.current = false;
+      if (pending.length === 0) return;
+    }
     onPendingFilesChange?.(pending.map((item) => item.file));
   }, [pending, onPendingFilesChange]);
+  const onPendingFilesChangeRef = useRef(onPendingFilesChange);
+  useEffect(() => {
+    onPendingFilesChangeRef.current = onPendingFilesChange;
+  }, [onPendingFilesChange]);
   useEffect(() => {
     return () => {
       for (const item of pendingRef.current) URL.revokeObjectURL(item.preview);
+      // El File sigue vivo en el formulario; solo se revoca la vista previa.
+      onPendingFilesChangeRef.current?.(pendingRef.current.map((item) => item.file));
     };
   }, []);
 
@@ -94,13 +107,17 @@ export const ProductGalleryField = forwardRef<
   useImperativeHandle(ref, () => ({
     async flushPending(nextProductId: number) {
       const queue = pendingRef.current;
-      if (!canEdit || queue.length === 0) return;
+      // canEdit se lee en el render. Si el handle queda viejo (pestaña que
+      // sale) no hay que negarse a subir archivos que el usuario ya eligió.
+      if (queue.length === 0) return;
       await run(async () => {
         await uploadPendingProductImages(
           nextProductId,
           queue.map((item) => item.file),
         );
         for (const item of queue) URL.revokeObjectURL(item.preview);
+        pendingRef.current = [];
+        onPendingFilesChange?.([]);
         setPending([]);
       });
     },
@@ -158,7 +175,10 @@ export const ProductGalleryField = forwardRef<
       return;
     }
 
-    setPending((current) => [...current, ...next]);
+    const merged = [...pendingRef.current, ...next];
+    pendingRef.current = merged;
+    onPendingFilesChange?.(merged.map((item) => item.file));
+    setPending(merged);
   }
 
   const saved = galleryQuery.data ?? [];
