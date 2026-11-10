@@ -43,6 +43,8 @@ import { logoutLocal } from "@/lib/logout-local";
 import { loginRedirectUrl } from "@/lib/login-slug";
 import { fetchKitchenTickets } from "@/lib/api/kitchen";
 import { BrandLogo } from "@/components/brand-logo";
+import { SponsorBadge } from "@/components/sponsor-badge";
+import { resolveActiveLoginSlug } from "@/lib/sponsors";
 import { useProductBrand } from "@/lib/product-name";
 import { BranchSwitcher } from "@/components/branch-switcher";
 import { CommandPalette, type CommandPaletteItem } from "@/components/command-palette/command-palette";
@@ -526,6 +528,11 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
                 </div>
               )}
             </Link>
+            <SponsorBadge
+              slug={resolveActiveLoginSlug(branch)}
+              compact={!effectivelyExpanded}
+              className="mt-1 px-1 text-white/55"
+            />
           </div>
         </div>
       </aside>

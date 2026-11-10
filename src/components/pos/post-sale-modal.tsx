@@ -10,6 +10,9 @@ import { useToast } from "@/lib/store/toast";
 import type { CartItem } from "@/lib/store/cart";
 import type { YggdraSchemas } from "@/lib/api/types";
 import { AssignDriverControl } from "@/components/sales/assign-driver-control";
+import { SponsorBadge } from "@/components/sponsor-badge";
+import { resolveActiveLoginSlug, sponsorTicketLine } from "@/lib/sponsors";
+import { useCurrentBranch } from "@/lib/store/session";
 
 type Order = YggdraSchemas["Order"] & {
   order_number?: string | null;
@@ -34,7 +37,12 @@ type TicketLineItem = {
   notes?: string | null;
 };
 
-function buildSimpleTicket(order: Order, items: CartItem[] | undefined, branchName?: string): string {
+function buildSimpleTicket(
+  order: Order,
+  items: CartItem[] | undefined,
+  branchName?: string,
+  sponsorLine?: string | null,
+): string {
   const now = new Date().toLocaleString("es-CL", {
     dateStyle: "short",
     timeStyle: "short",
@@ -86,6 +94,9 @@ function buildSimpleTicket(order: Order, items: CartItem[] | undefined, branchNa
   }
   lines.push("================");
   lines.push("Gracias por su compra");
+  if (sponsorLine) {
+    lines.push(sponsorLine);
+  }
   return lines.join("\n");
 }
 
@@ -102,6 +113,9 @@ function downloadBlob(content: string, filename: string, type: string) {
 }
 
 export function PostSaleModal({ order, items, branchName, onClose }: PostSaleModalProps) {
+  const branch = useCurrentBranch();
+  const sponsorSlug = resolveActiveLoginSlug(branch);
+  const sponsorLine = sponsorTicketLine(sponsorSlug);
   const [currentOrder, setCurrentOrder] = useState<Order>(order);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [downloadingTxt, setDownloadingTxt] = useState(false);
@@ -166,7 +180,7 @@ export function PostSaleModal({ order, items, branchName, onClose }: PostSaleMod
   function handleDownloadTicket() {
     setDownloadingTxt(true);
     try {
-      const content = buildSimpleTicket(order, items, branchName);
+      const content = buildSimpleTicket(order, items, branchName, sponsorLine);
       const filename = `ticket_${order.order_number || order.id.slice(0, 8)}.txt`;
       downloadBlob(content, filename, "text/plain;charset=utf-8");
     } finally {
@@ -178,7 +192,7 @@ export function PostSaleModal({ order, items, branchName, onClose }: PostSaleMod
   function handlePrintTicket() {
     setPrintingTicket(true);
     try {
-      const content = buildSimpleTicket(order, items, branchName);
+      const content = buildSimpleTicket(order, items, branchName, sponsorLine);
       const printWindow = window.open("", "_blank", "width=320,height=600");
       if (!printWindow) {
         toast.error("No se pudo abrir la ventana de impresión");
@@ -281,6 +295,9 @@ export function PostSaleModal({ order, items, branchName, onClose }: PostSaleMod
                   {formatCLP(Number(currentOrder.total_amount ?? previewTotal))}
                 </span>
               </div>
+              {sponsorSlug && (
+                <SponsorBadge slug={sponsorSlug} className="mt-2" />
+              )}
               <AssignDriverControl
                 order={currentOrder}
                 onAssigned={(updated) =>

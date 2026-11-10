@@ -41,6 +41,8 @@ import { logout } from "@/lib/api/auth";
 import { logoutLocal } from "@/lib/logout-local";
 import { loginRedirectUrl } from "@/lib/login-slug";
 import { BrandLogo } from "@/components/brand-logo";
+import { SponsorBadge } from "@/components/sponsor-badge";
+import { resolveActiveLoginSlug } from "@/lib/sponsors";
 import { useProductBrand } from "@/lib/product-name";
 
 interface MobileMenuSheetProps {
@@ -468,6 +470,10 @@ export function MobileMenuSheet({ open, onClose }: MobileMenuSheetProps) {
                   Cerrar sesión
                 </button>
               </div>
+              <SponsorBadge
+                slug={resolveActiveLoginSlug(branch)}
+                className="mt-3"
+              />
             </div>
           </motion.div>
         </div>
