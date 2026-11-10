@@ -27,6 +27,7 @@ import { LANDING_USE_CASES } from "@/content/landing";
 import type { LandingUseCase } from "@/content/landing";
 import type { LoginCompleteResponse } from "@/lib/types";
 import { rememberLoginSlug } from "@/lib/login-slug";
+import { SponsorBadge } from "@/components/sponsor-badge";
 import {
   findDemoCredentials,
   type DemoUseCaseCredentials,
@@ -183,10 +184,13 @@ export default function LoginPage() {
   // mantiene la marca FRIG por defecto.
   const [brandTheme, setBrandTheme] = useState<BranchThemeConfig | null>(null);
   // Demo activa según ?branch=<slug> (catálogo local: nombre/color del banner).
-  const [demoCase] = useState<LandingUseCase | null>(() => {
+  const [loginSlug] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
-    const slug = new URLSearchParams(window.location.search).get("branch");
-    return LANDING_USE_CASES.find((u) => u.slug === slug) ?? null;
+    return new URLSearchParams(window.location.search).get("branch");
+  });
+  const [demoCase] = useState<LandingUseCase | null>(() => {
+    if (!loginSlug) return null;
+    return LANDING_USE_CASES.find((u) => u.slug === loginSlug) ?? null;
   });
   // Credenciales públicas desde landing-config (demo_user / demo_password).
   // Emparejamos por slug para no mostrar claves de otra demo al cambiar.
@@ -755,6 +759,8 @@ export default function LoginPage() {
               </div>
             </form>
           )}
+
+          <SponsorBadge slug={loginSlug} className="mt-6" />
 
           {/* Atribución: el login del tenant reconoce la tecnología detrás. */}
           {brandTheme ? (
