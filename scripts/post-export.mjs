@@ -19,6 +19,29 @@ import { dirname, join } from "node:path";
 
 const outDir = join(dirname(fileURLToPath(import.meta.url)), "..", "out");
 
+const apiOrigin = new URL(
+  process.env.NEXT_PUBLIC_YGGDRA_API_BASE || "https://api.yggdra.cl/api",
+).origin;
+const wsOrigin = apiOrigin.replace(/^http/, "ws");
+
+// 'unsafe-inline' en script-src: el export estático de Next inyecta scripts
+// inline sin nonce. blob: y cdn.jsdelivr.net: troika (texto del salón 3D)
+// levanta workers desde blob: y baja fuentes de unicode-font-resolver.
+const csp = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' blob:",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' data:",
+  `connect-src 'self' ${apiOrigin} ${wsOrigin} https://cdn.jsdelivr.net`,
+  "worker-src 'self' blob:",
+  "frame-src 'self'",
+  "frame-ancestors 'self'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "object-src 'none'",
+].join("; ");
+
 const dynamicRewrites = [
   ["^menu/[^/]+/totem/?$", "/menu/__/totem.html"],
   ["^menu/[^/]+/?$", "/menu/__.html"],
@@ -58,6 +81,8 @@ RewriteRule ^(.+?)/?$ /$1.html [L]
   Header set Referrer-Policy "strict-origin-when-cross-origin"
   Header set X-Frame-Options "SAMEORIGIN"
   Header set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+  Header set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+  Header set Content-Security-Policy "${csp}"
 </IfModule>
 `;
 

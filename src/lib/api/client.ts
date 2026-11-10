@@ -2,28 +2,19 @@
  * Cliente HTTP minimalista contra la API Yggdra.
  *
  * Convenciones de Yggdra (ver docs/api-map.md):
- * - Auth: header `Authorization: Token <key>` (DRF Token)
+ * - Auth: cookie HttpOnly `auth_token` + `X-CSRFToken` en el mismo sitio que la
+ *   API; `Authorization: Token <key>` en otros dominios (ver auth-mode.ts)
  * - Sucursal: header `X-Branch-ID`
  * - Multi-tenant automático en backend (via middleware + BranchModelApi)
  * - Soft-delete: `is_active=True` por defecto, `?show_inactive=true` para ver más
  */
-
-/**
- * Sin la env definida, `next build` (NODE_ENV=production) apunta a la API real
- * y solo `next dev` cae en el backend local. Así un build de producción
- * hecho a mano no publica una app que habla con localhost.
- */
 import { getEffectiveBranchId } from "./branch-scope";
+import { API_BASE, API_ORIGIN } from "./base";
+import { getCsrfToken, isCsrfFailure, resetCsrfToken, UNSAFE_METHODS } from "./csrf";
+import { clearStoredSession, getToken, hasSession, usesCookieSession } from "./session-storage";
 import { loginRedirectUrl } from "@/lib/login-slug";
 
-export const API_BASE =
-  process.env.NEXT_PUBLIC_YGGDRA_API_BASE ??
-  (process.env.NODE_ENV === "production"
-    ? "https://api.yggdra.cl/api"
-    : "http://localhost:8000/api");
-
-/** Origen del backend sin el prefijo /api (archivos servidos fuera de la API). */
-export const API_ORIGIN = API_BASE.replace(/\/api\/?$/, "");
+export { API_BASE, API_ORIGIN };
 
 /**
  * Resuelve una URL de archivo del backend (p. ej. logos en /media/…): las
@@ -61,12 +52,6 @@ export class ApiError extends Error {
   }
 }
 
-/** Token de sesión (persistido en localStorage por el store de auth). */
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return window.localStorage.getItem("frig.token");
-}
-
 function getBranchId(): string | null {
   if (typeof window === "undefined") return null;
   return window.localStorage.getItem("frig.branch_id");
@@ -81,7 +66,7 @@ function redirectToLogin(): void {
   // Limpiar la sesión persistida: si no, el localStorage queda con token y
   // datos de sucursal stale hasta que un nuevo login los sobrescriba.
   // Conservamos frig.login_slug para redirigir a /login/<slug> (marca).
-  window.localStorage.removeItem("frig.token");
+  clearStoredSession();
   window.localStorage.removeItem("frig.branch_id");
   window.localStorage.removeItem("frig.session");
   window.localStorage.removeItem("frig.demo_expires_at");
@@ -107,7 +92,25 @@ type ApiOptions = {
   timeoutMs?: number;
   /** Se llama con la respuesta cruda antes de parsear cuerpo o error. */
   onResponse?: (res: Response) => void;
+  /** Interno: el reintento tras un token CSRF vencido se hace una sola vez. */
+  csrfRetried?: boolean;
 };
+
+async function applyAuthHeaders(
+  headers: Record<string, string>,
+  method: string,
+  auth: ApiOptions["auth"],
+  credentials: RequestCredentials,
+): Promise<void> {
+  const token = getToken();
+  if (token && auth !== "none") {
+    headers["Authorization"] = `Token ${token}`;
+  }
+  if (usesCookieSession() && credentials !== "omit" && UNSAFE_METHODS.has(method.toUpperCase())) {
+    const csrf = await getCsrfToken();
+    if (csrf) headers["X-CSRFToken"] = csrf;
+  }
+}
 
 function createRequestSignal(
   timeoutMs = 30_000,
@@ -153,6 +156,7 @@ export async function apiFetch<T>(path: string, opts: ApiOptions = {}): Promise<
     signal,
     timeoutMs,
     onResponse,
+    csrfRetried = false,
   } = opts;
 
   const finalHeaders: Record<string, string> = {
@@ -166,14 +170,11 @@ export async function apiFetch<T>(path: string, opts: ApiOptions = {}): Promise<
     finalHeaders["Content-Type"] = "application/json";
   }
 
-  const token = getToken();
-  if (auth === "required" && !token) {
+  if (auth === "required" && !hasSession()) {
     redirectToLogin();
     throw new ApiError(401, "No autenticado");
   }
-  if (token && auth !== "none") {
-    finalHeaders["Authorization"] = `Token ${token}`;
-  }
+  await applyAuthHeaders(finalHeaders, method, auth, credentials);
 
   const branchId = resolveBranchHeader();
   if (branch === "auto" && branchId) {
@@ -234,6 +235,10 @@ export async function apiFetch<T>(path: string, opts: ApiOptions = {}): Promise<
 
     if (!res.ok) {
       const detail = data;
+      if (!csrfRetried && usesCookieSession() && isCsrfFailure(res.status, detail)) {
+        resetCsrfToken();
+        return apiFetch<T>(path, { ...opts, csrfRetried: true });
+      }
       const message = formatErrorDetail(detail) || `Error ${res.status}`;
       const error = new ApiError(res.status, message, detail);
       if (res.status === 403 && typeof window !== "undefined") {
@@ -365,14 +370,11 @@ export async function apiFile(
     finalHeaders["Content-Type"] = "application/json";
   }
 
-  const token = getToken();
-  if (auth === "required" && !token) {
+  if (auth === "required" && !hasSession()) {
     redirectToLogin();
     throw new ApiError(401, "No autenticado");
   }
-  if (token && auth !== "none") {
-    finalHeaders["Authorization"] = `Token ${token}`;
-  }
+  await applyAuthHeaders(finalHeaders, method, auth, "include");
 
   const branchId = resolveBranchHeader();
   if (branch === "auto" && branchId) {

@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { useSessionStore } from "@/lib/store/session";
 import { applyThemeConfig, fetchBranchTheme } from "@/lib/api/branches";
-import { getToken } from "@/lib/api/session-storage";
+import { hasSession } from "@/lib/api/session-storage";
 import { setFaviconHref } from "@/lib/frig-identity";
 import { FRIG_SYMBOL, isLocalFrigHost } from "@/lib/product-name";
 import type { BranchThemeConfig } from "@/lib/types";
@@ -118,7 +118,7 @@ export function ThemeApplier() {
     }
 
     // Sin sesión o sin sucursal activa: tema por defecto.
-    if (!currentBranchId || !getToken()) {
+    if (!currentBranchId || !hasSession()) {
       attemptedBranchIdRef.current = null;
       return;
     }

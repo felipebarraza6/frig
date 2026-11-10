@@ -75,7 +75,6 @@ export function buildPayOrderPayload(input: {
     amount: input.amount,
     notes: normalizePayText(input.notes),
     reference: normalizePayText(input.reference),
-    skip_cash_register_validation: false,
   };
   if (input.cash_register_id != null && input.cash_register_id !== "") {
     payload.cash_register_id = input.cash_register_id;

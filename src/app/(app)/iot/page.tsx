@@ -19,9 +19,9 @@ import {
   FileText,
   Code,
   Gauge,
-  Activity,
   Edit2,
   Trash2,
+  BellRing,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { PageShell, PageBody } from "@/components/page-shell";
@@ -55,6 +55,8 @@ import {
   createTelemetryProvider,
   updateTelemetryProvider,
   deleteTelemetryProvider,
+  fetchAlertRules,
+  fetchAlertTriggers,
   DEVICE_TYPE_LABELS,
   VARIABLE_TYPE_LABELS,
   COMMON_VARIABLE_UNITS,
@@ -65,8 +67,10 @@ import {
   type TelemetryProvider,
 } from "@/lib/api/iot";
 import { cn } from "@/lib/utils";
+import { IotAlertsPanel } from "@/components/iot/iot-alerts-panel";
+import { IotReadingsChart } from "@/components/iot/iot-readings-chart";
 
-type TabId = "devices" | "variables" | "readings" | "providers";
+type TabId = "devices" | "variables" | "readings" | "alerts" | "providers";
 
 export default function IoTPage() {
   const toast = useToast();
@@ -139,11 +143,22 @@ export default function IoTPage() {
     enabled: Boolean(effectiveDeviceId),
   });
 
+  const { data: alertRules = [] } = useQuery({
+    queryKey: ["iot-alert-rules", effectiveDeviceId],
+    queryFn: () => fetchAlertRules(effectiveDeviceId),
+    enabled: Boolean(effectiveDeviceId),
+  });
+
+  const { data: activeAlerts = [] } = useQuery({
+    queryKey: ["iot-alert-triggers", "active", branchId],
+    queryFn: () => fetchAlertTriggers({ is_acknowledged: false, page_size: 100 }),
+    refetchInterval: 60_000,
+  });
+
   // KPI metrics
   const totalDevices = devices.length;
   const onlineDevices = devices.filter((d) => d.is_online).length;
   const offlineDevices = totalDevices - onlineDevices;
-  const totalReadings = readings.length;
 
   // Selected device object
   const currentDevice = devices.find((d) => d.id === effectiveDeviceId);
@@ -312,7 +327,7 @@ export default function IoTPage() {
       <PageHeader
         title="Telemetría IoT"
         icon={<Radio className="h-5 w-5" />}
-        subtitle="Sensores del local: dispositivos, variables, lecturas y exportación (alertas y gráficos: próximamente)"
+        subtitle="Sensores del local: dispositivos, variables, lecturas con gráficos, alertas por umbral y exportación"
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Button
@@ -409,18 +424,18 @@ export default function IoTPage() {
           tone={offlineDevices > 0 ? "danger" : "muted"}
         />
         <StatCard
-          icon={Activity}
-          label="Lecturas Registradas"
-          value={String(totalReadings)}
-          tone="muted"
+          icon={BellRing}
+          label="Alertas activas"
+          value={String(activeAlerts.length)}
+          tone={activeAlerts.length > 0 ? "danger" : "muted"}
+          onClick={() => setActiveTab("alerts")}
         />
       </div>
 
       <PageBody>
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-foreground">
-          <strong className="font-semibold">En desarrollo:</strong> alertas por umbral (email/SMS),
-          gráficos en tiempo real, edición de conectores y onboarding de hardware. Hoy puedes
-          administrar dispositivos, variables, lecturas manuales, sync y exportación.
+          <strong className="font-semibold">Aún no disponible:</strong> aviso de alertas por correo o
+          SMS y onboarding guiado de hardware. Las alertas por umbral se ven en la pestaña Alertas.
         </div>
         {/* Barra de pestañas y selección de dispositivo */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -463,6 +478,19 @@ export default function IoTPage() {
             >
               <Database className="h-3.5 w-3.5" />
               <span>Lecturas & Datos</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("alerts")}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-200",
+                activeTab === "alerts"
+                  ? "bg-primary/15 text-primary shadow-[inset_0_1px_0_var(--glass-highlight)] ring-1 ring-primary/25"
+                  : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
+              )}
+            >
+              <BellRing className="h-3.5 w-3.5" />
+              <span>Alertas{activeAlerts.length > 0 ? ` (${activeAlerts.length})` : ""}</span>
             </button>
             <button
               type="button"
@@ -893,6 +921,8 @@ export default function IoTPage() {
                 }
               />
             ) : (
+              <>
+              <IotReadingsChart variables={variables} readings={readings} rules={alertRules} />
               <div className="overflow-hidden rounded-2xl border border-border bg-card">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
@@ -941,9 +971,21 @@ export default function IoTPage() {
                   </table>
                 </div>
               </div>
+              </>
             )}
           </div>
         )}
+
+        {activeTab === "alerts" &&
+          (effectiveDeviceId ? (
+            <IotAlertsPanel deviceId={effectiveDeviceId} variables={variables} rules={alertRules} />
+          ) : (
+            <EmptyState
+              icon={BellRing}
+              title="Sin dispositivos"
+              description="Crea un dispositivo y sus variables para configurar alertas por umbral."
+            />
+          ))}
 
         {/* 4. PROVEEDORES & APPS EXTERNAS */}
         {activeTab === "providers" && (

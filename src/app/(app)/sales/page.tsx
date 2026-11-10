@@ -26,6 +26,7 @@ import {
   type PaymentInstallment,
 } from "@/lib/api/orders";
 import { fetchTables } from "@/lib/api/tables";
+import { dayBefore } from "@/lib/stale-orders";
 import { generateTaxDocumentFromOrder } from "@/lib/api/tax-documents";
 import { CashierTableTiles } from "@/components/tables/cashier-table-tiles";
 import { searchCustomers, createCustomer } from "@/lib/api/customers";
@@ -962,13 +963,14 @@ export default function SalesPage() {
     return (window.localStorage.getItem("frig.sales.quickFilter") as QuickFilter) || "ALL";
   });
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  // sessionStorage: un rango elegido hace días no debe esconder las órdenes de hoy.
   const [startDate, setStartDate] = useState(() => {
     if (typeof window === "undefined") return monthStartStr();
-    return window.localStorage.getItem("frig.sales.startDate") || monthStartStr();
+    return window.sessionStorage.getItem("frig.sales.startDate") ?? monthStartStr();
   });
   const [endDate, setEndDate] = useState(() => {
     if (typeof window === "undefined") return monthEndStr();
-    return window.localStorage.getItem("frig.sales.endDate") || monthEndStr();
+    return window.sessionStorage.getItem("frig.sales.endDate") ?? monthEndStr();
   });
   const [clientFilterId, setClientFilterId] = useState<string>(() => {
     if (typeof window === "undefined") return "";
@@ -1006,10 +1008,10 @@ export default function SalesPage() {
     window.localStorage.setItem("frig.sales.quickFilter", quickFilter);
   }, [quickFilter]);
   useEffect(() => {
-    window.localStorage.setItem("frig.sales.startDate", startDate);
+    window.sessionStorage.setItem("frig.sales.startDate", startDate);
   }, [startDate]);
   useEffect(() => {
-    window.localStorage.setItem("frig.sales.endDate", endDate);
+    window.sessionStorage.setItem("frig.sales.endDate", endDate);
   }, [endDate]);
   useEffect(() => {
     window.localStorage.setItem("frig.sales.clientFilterId", clientFilterId);
@@ -1194,6 +1196,15 @@ export default function SalesPage() {
     queryKey: ["orders", filter],
     queryFn: () => fetchOrders(filter),
   });
+
+  const olderOpenEnd = dayBefore(startDate);
+  const { data: olderOpenPage } = useQuery({
+    queryKey: ["orders", "older-open", olderOpenEnd],
+    queryFn: () => fetchOrders({ status: "PENDING", end_date: olderOpenEnd!, page_size: 1 }),
+    enabled: Boolean(olderOpenEnd),
+    staleTime: 60_000,
+  });
+  const olderOpenCount = olderOpenEnd ? (olderOpenPage?.count ?? 0) : 0;
 
   const { data: tablesPage } = useQuery({
     queryKey: ["tables", "sales"],
@@ -1520,6 +1531,23 @@ export default function SalesPage() {
       </div>
 
       <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
+        {olderOpenCount > 0 && (
+          <div
+            role="status"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm"
+          >
+            <span>
+              {olderOpenCount === 1
+                ? "Hay 1 orden sin cerrar antes del "
+                : `Hay ${olderOpenCount} órdenes sin cerrar antes del `}
+              {startDate}. No aparecen con el rango de fechas actual.
+            </span>
+            <Button variant="outline" size="sm" onClick={() => updateDateRange("", endDate)}>
+              Ver todas
+            </Button>
+          </div>
+        )}
+
         {/* Filtros en una línea */}
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <div className="relative min-w-0 flex-1 basis-[12rem]">

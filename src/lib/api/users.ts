@@ -1,6 +1,5 @@
 import { apiFetch } from "./client";
 import type {
-  BranchUser,
   Paginated,
   UserPayload,
   UserResponse,
@@ -29,15 +28,6 @@ export async function fetchUsers(filter: UsersFilter = {}): Promise<Paginated<Us
   if (filter.is_active !== undefined) params.set("is_active", String(filter.is_active));
   const query = params.toString();
   return apiFetch<Paginated<UserResponse>>(`/accounts/users/${query ? `?${query}` : ""}`);
-}
-
-/** GET /api/branches/users/ — asignaciones usuario↔sucursal. */
-export async function fetchBranchUsers(branchId?: string): Promise<BranchUser[]> {
-  const params = new URLSearchParams();
-  if (branchId) params.set("branch", branchId);
-  const query = params.toString();
-  const res = await apiFetch<Paginated<BranchUser>>(`/branches/users/${query ? `?${query}` : ""}`);
-  return res.results;
 }
 
 export interface CreateAndAssignResponse {

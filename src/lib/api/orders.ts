@@ -190,8 +190,6 @@ export interface PayOrderPayload {
   cash_register_id?: number | string | null;
   notes?: string | null;
   reference?: string | null;
-  /** Registro de pago desde Ventas, sin exigir caja POS abierta. */
-  skip_cash_register_validation?: boolean;
 }
 
 export async function payOrder(id: string, payload: PayOrderPayload): Promise<YggdraOrder> {
@@ -280,8 +278,14 @@ export async function fetchOrder(id: string): Promise<YggdraOrder> {
   return apiFetch<YggdraOrder>(`/sales/orders/${id}/`);
 }
 
-export async function cancelOrder(id: string): Promise<YggdraOrder> {
-  return apiFetch<YggdraOrder>(`/sales/orders/${id}/cancel/`, { method: "POST" });
+export interface CancelOrderResult {
+  message?: string;
+  order: YggdraOrder;
+  payments_cancelled?: number;
+}
+
+export async function cancelOrder(id: string): Promise<CancelOrderResult> {
+  return apiFetch<CancelOrderResult>(`/sales/orders/${id}/cancel/`, { method: "POST" });
 }
 
 export async function returnOrderProducts(

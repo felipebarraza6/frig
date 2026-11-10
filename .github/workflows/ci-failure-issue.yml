@@ -2,7 +2,7 @@ name: CI failure issue
 
 on:
   workflow_run:
-    workflows: ["CI", "Deploy FRIG web a FTP"]
+    workflows: ["CI", "Deploy FRIG web a FTP", "Nightly smoke"]
     types: [completed]
 
 permissions:

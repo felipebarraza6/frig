@@ -1,7 +1,13 @@
 # Plan: token fuera de localStorage + WebSocket sin `?token=` (P0-08)
 
-**Estado:** diferido — riesgo alto / requiere backend Yggdra + cambio de hosting auth.  
+**Estado:** implementado en `frig.yggdra.cl` (2026-11-10, #62). En hosts de otro sitio sigue el token.  
 **Fecha:** 2026-10-16
+
+## Estado actual
+
+- `src/lib/api/auth-mode.ts` decide por host: misma web que la API (`*.yggdra.cl`, https) → cookie HttpOnly `auth_token` + `X-CSRFToken` (de `GET /accounts/csrf/`); el WebSocket conecta sin `?token=`.
+- `intranet.macanuobowl.cl`, `mani.agenciapatagoniachile.com` y el staging en github.io son otro sitio: el backend emite las cookies con `SameSite=Lax` y el navegador no las envía, así que ahí se mantiene `Authorization: Token`. Para sacarlos del token hay que servirlos bajo `*.yggdra.cl` o darles una API en su propio dominio.
+- Validado en vivo desde `frig.yggdra.cl` con la demo `pos`: login deja la cookie, `/me` y `/sales/orders/` responden 200 sin header, WS abre sin token, POST sin CSRF → 403, con CSRF → 200, logout → 401.
 
 ## Problema
 

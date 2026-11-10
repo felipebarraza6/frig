@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { API_BASE } from "@/lib/api/client";
+import { API_BASE } from "@/lib/api/base";
+import { usesCookieSession } from "@/lib/api/session-storage";
 import { setRealtimeConnection } from "@/lib/realtime/connection";
 
 export type BranchEventScope =
@@ -99,7 +100,7 @@ export function useBranchWebSocket(
       typeof window === "undefined" ||
       !enabled ||
       !branchId ||
-      !token
+      (!token && !usesCookieSession())
     ) {
       return;
     }
@@ -108,9 +109,9 @@ export function useBranchWebSocket(
     setStatus("connecting");
     setRealtimeConnection("connecting");
 
-    const url = `${getWsBaseUrl()}/ws/branch/${branchId}/?token=${encodeURIComponent(
-      token
-    )}`;
+    // Con sesión por cookie el handshake lleva auth_token: nada en la URL.
+    const query = token ? `?token=${encodeURIComponent(token)}` : "";
+    const url = `${getWsBaseUrl()}/ws/branch/${branchId}/${query}`;
     const socket = new WebSocket(url);
     socketRef.current = socket;
 
