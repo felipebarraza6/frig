@@ -411,6 +411,108 @@ export async function fetchTelemetryReadingStats(params: {
   return apiFetch<TelemetryReadingStats>(`/iot-telemetry/readings/stats/?${qs.toString()}`);
 }
 
+// ── Alertas por umbral ──────────────────────────────────────────────────────
+
+export type AlertSeverity = "INFO" | "WARNING" | "ALERT" | "CRITICAL";
+export type ThresholdTarget = "THRESHOLD_MAX" | "THRESHOLD_MIN";
+
+export const ALERT_SEVERITY_LABELS: Record<AlertSeverity, string> = {
+  INFO: "Informativa",
+  WARNING: "Advertencia",
+  ALERT: "Alerta",
+  CRITICAL: "Crítica",
+};
+
+export type TelemetryAlertRule = {
+  id: number;
+  name: string;
+  severity?: AlertSeverity;
+  device?: number | null;
+  variable?: number | null;
+  variable_name?: string;
+  target_type: string;
+  target_type_display?: string;
+  threshold_value?: number | string | null;
+  is_active?: boolean;
+};
+
+export type TelemetryAlertTrigger = {
+  id: number;
+  alert_rule: number;
+  alert_rule_name?: string;
+  device?: number | null;
+  device_name?: string;
+  variable?: number | null;
+  variable_name?: string;
+  triggered_at: string;
+  value_at_trigger?: number | string | null;
+  threshold_breached?: number | string | null;
+  is_acknowledged?: boolean;
+  acknowledged_by_name?: string;
+  acknowledged_at?: string | null;
+};
+
+/** Reglas del dispositivo con su umbral (el listado no trae threshold_value). */
+export async function fetchAlertRules(deviceId: string | number): Promise<TelemetryAlertRule[]> {
+  const data = await apiFetch<unknown>(
+    `/iot-telemetry/alert-rules/?device=${deviceId}&page_size=50`,
+  );
+  const rules = asList<{ id: number }>(data);
+  return Promise.all(
+    rules.map((r) => apiFetch<TelemetryAlertRule>(`/iot-telemetry/alert-rules/${r.id}/`)),
+  );
+}
+
+export async function createAlertRule(payload: {
+  name: string;
+  device: number;
+  variable: number;
+  target_type: ThresholdTarget;
+  threshold_value: number;
+  severity: AlertSeverity;
+}): Promise<TelemetryAlertRule> {
+  return apiFetch<TelemetryAlertRule>("/iot-telemetry/alert-rules/", {
+    method: "POST",
+    body: { ...payload, is_active: true },
+  });
+}
+
+export async function updateAlertRule(
+  id: number,
+  payload: Partial<Pick<TelemetryAlertRule, "is_active">>,
+): Promise<TelemetryAlertRule> {
+  return apiFetch<TelemetryAlertRule>(`/iot-telemetry/alert-rules/${id}/`, {
+    method: "PATCH",
+    body: payload,
+  });
+}
+
+export async function deleteAlertRule(id: number): Promise<void> {
+  return apiFetch<void>(`/iot-telemetry/alert-rules/${id}/`, { method: "DELETE" });
+}
+
+export async function fetchAlertTriggers(params: {
+  device?: string | number;
+  is_acknowledged?: boolean;
+  page_size?: number;
+}): Promise<TelemetryAlertTrigger[]> {
+  const qs = new URLSearchParams({ ordering: "-triggered_at" });
+  if (params.device) qs.set("device", String(params.device));
+  if (params.is_acknowledged !== undefined) {
+    qs.set("is_acknowledged", String(params.is_acknowledged));
+  }
+  qs.set("page_size", String(params.page_size ?? 50));
+  const data = await apiFetch<unknown>(`/iot-telemetry/alert-triggers/?${qs.toString()}`);
+  return asList<TelemetryAlertTrigger>(data);
+}
+
+export async function acknowledgeAlertTrigger(id: number): Promise<TelemetryAlertTrigger> {
+  return apiFetch<TelemetryAlertTrigger>(`/iot-telemetry/alert-triggers/${id}/acknowledge/`, {
+    method: "POST",
+    body: {},
+  });
+}
+
 // ── Proveedores & Proyectos ─────────────────────────────────────────────────
 
 export async function fetchTelemetryProviders(): Promise<TelemetryProvider[]> {

@@ -11,7 +11,7 @@ import {
   publicMenuAbsoluteUrl,
 } from "@/lib/api/public-catalog";
 import { fetchBranchTheme } from "@/lib/api/branches";
-import { getToken } from "@/lib/api/session-storage";
+import { hasSession } from "@/lib/api/session-storage";
 import { useSessionStore } from "@/lib/store/session";
 import { BrandLogo } from "@/components/brand-logo";
 import { useQuery } from "@tanstack/react-query";
@@ -33,7 +33,7 @@ export default function MenuTotemPage({ slug: slugProp }: { slug?: string } = {}
   const { data: branchTheme } = useQuery({
     queryKey: ["branch-theme", catalog?.branch],
     queryFn: () => fetchBranchTheme(String(catalog!.branch)),
-    enabled: Boolean(catalog?.branch) && Boolean(getToken()) && !catalog?.logo,
+    enabled: Boolean(catalog?.branch) && hasSession() && !catalog?.logo,
     staleTime: 5 * 60_000,
   });
 
