@@ -1420,12 +1420,22 @@ export function ProductForm({
       };
       const savedProduct = await onSubmit(payload, effectiveProduct?.id);
 
-      if (galleryRef.current) {
-        await galleryRef.current.flushPending(savedProduct.id);
-      } else if (pendingImagesRef.current.length > 0) {
-        await uploadPendingProductImages(savedProduct.id, pendingImagesRef.current);
+      // La lista del formulario manda: el ref de la galería puede seguir
+      // apuntando a una pestaña que ya se fue y cuyo flush no hace nada.
+      const pendingImages = pendingImagesRef.current;
+      try {
+        if (pendingImages.length > 0) {
+          await uploadPendingProductImages(savedProduct.id, pendingImages);
+          pendingImagesRef.current = [];
+        } else if (galleryRef.current) {
+          await galleryRef.current.flushPending(savedProduct.id);
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "No se pudo subir la imagen";
+        toast.error(message);
+        setError(message);
+        return;
       }
-      pendingImagesRef.current = [];
       await saveSupplierRelation(savedProduct.id);
 
       if (isCompound) {
