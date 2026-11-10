@@ -35,7 +35,6 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import CartPanel from "@/components/pos/cart-panel";
 import { ProductCard } from "@/components/pos/product-card";
@@ -115,6 +114,7 @@ import { PosConfigModal } from "@/components/pos/pos-config-modal";
 import { PosInventoryModal } from "@/components/pos/pos-inventory-modal";
 import { PosProfileButton } from "@/components/pos/pos-profile-button";
 import dynamic from "next/dynamic";
+import { CashierTableTiles } from "@/components/tables/cashier-table-tiles";
 
 const TablesCanvas = dynamic(
   () =>
@@ -203,6 +203,7 @@ export default function PosPage() {
   const [pendingDeliveryPayment, setPendingDeliveryPayment] = useState<"ALL" | "PENDING" | "PARTIAL" | "PAID">("ALL");
   const [pendingDeliveriesQuery, setPendingDeliveriesQuery] = useState("");
   const [showTableMap, setShowTableMap] = useState(false);
+  const [showMobileTablePicker, setShowMobileTablePicker] = useState(false);
   const [showComboPicker, setShowComboPicker] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [collectingOrder, setCollectingOrder] = useState<Order | null>(null);
@@ -1222,37 +1223,17 @@ export default function PosPage() {
 
             {showTables && !isWaiter && (
               <div className="mb-3 flex flex-col gap-2">
-                <Select
-                  value={selectedTable ? String(selectedTable.id) : ""}
-                  onChange={(e) => {
-                    const id = Number(e.target.value);
-                    setSelectedTable(myTables.find((t) => t.id === id) || null);
-                  }}
-                  className="h-8 text-xs"
-                  aria-label="Seleccionar mesa"
-                >
-                  <option value="">Sin mesa</option>
-                  {myTables
-                    .filter(
-                      (t) =>
-                        t.status === "FREE" ||
-                        t.status === "RESERVED" ||
-                        t.id === selectedTable?.id,
-                    )
-                    .map((t) => (
-                      <option key={t.id} value={t.id}>
-                        Mesa {t.number}
-                        {t.shape === "SQUARE"
-                          ? " ▢"
-                          : t.shape === "RECTANGLE"
-                            ? " ▭"
-                            : t.shape === "OVAL"
-                              ? " ⬭"
-                              : " ○"}
-                        {t.area ? ` · ${t.area}` : ""}
-                      </option>
-                    ))}
-                </Select>
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Mesa de la cuenta</p>
+                  <span className="text-[10px] text-muted-foreground">{selectedTable ? `Mesa ${selectedTable.number}` : "Sin mesa"}</span>
+                </div>
+                <CashierTableTiles
+                  tables={myTables}
+                  selectedId={selectedTable?.id ?? null}
+                  onSelect={setSelectedTable}
+                  variant="pos"
+                  maxHeightClass="max-h-56"
+                />
               </div>
             )}
 
@@ -1341,46 +1322,23 @@ export default function PosPage() {
                 {showTables && !isWaiter && (
                   <>
                     <div className="flex items-center gap-2">
-                      <div className="relative shrink-0">
-                        <Table className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                        <select
-                          value={selectedTable?.id ?? ""}
-                          onChange={(e) => {
-                            const id = Number(e.target.value);
-                            setSelectedTable(myTables.find((t) => t.id === id) || null);
-                          }}
-                          className="h-8 appearance-none rounded-lg border border-border/60 bg-background pl-8 pr-7 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                          aria-label={isWaiter ? "Seleccionar mi mesa" : "Seleccionar mesa"}
-                        >
-                          <option value="">{isWaiter ? "Mi mesa" : "Sin mesa"}</option>
-                          {myTables
-                            .filter(
-                              (t) =>
-                                t.status === "FREE" ||
-                                t.status === "RESERVED" ||
-                                t.id === selectedTable?.id,
-                            )
-                            .map((t) => (
-                              <option key={t.id} value={t.id}>
-                                Mesa {t.number}
-                                {t.shape === "SQUARE"
-                                  ? " ▢"
-                                  : t.shape === "RECTANGLE"
-                                    ? " ▭"
-                                    : t.shape === "OVAL"
-                                      ? " ⬭"
-                                      : " ○"}
-                                {t.area ? ` · ${t.area}` : ""}
-                              </option>
-                            ))}
-                        </select>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowMobileTablePicker(true)}
+                        aria-haspopup="dialog"
+                        aria-expanded={showMobileTablePicker}
+                        className="inline-flex h-10 min-w-0 flex-1 items-center gap-2 rounded-lg border border-border/60 bg-background px-3 text-xs font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <Table className="h-4 w-4 shrink-0 text-primary" />
+                        <span className="truncate">{selectedTable ? `Mesa ${selectedTable.number}${selectedTable.area ? ` · ${selectedTable.area}` : ""}` : "Sin mesa · elegir mesa"}</span>
+                        <span className="ml-auto shrink-0 text-muted-foreground">Cambiar</span>
+                      </button>
                       <button
                         type="button"
                         onClick={() => setShowTableMap(true)}
-                        className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-border/60 bg-background px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                        className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg border border-border/60 bg-background px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
-                        Mapa
+                        <Table className="h-3.5 w-3.5" />Mapa
                       </button>
                     </div>
                   </>
@@ -1596,7 +1554,7 @@ export default function PosPage() {
       </section>
 
         {/* Carrito desktop */}
-        <aside className="hidden h-full w-[360px] min-w-0 shrink-0 overflow-hidden bg-background p-3 md:block">
+        <aside className="hidden h-full w-[360px] min-w-0 shrink-0 overflow-hidden bg-background p-3 md:block 2xl:w-[400px]">
           {isWaiter && !selectedTable && !isEditingOrder ? (
             <div className="grid h-full place-items-center rounded-2xl border border-dashed border-border p-6 text-center">
               <div className="flex flex-col items-center gap-3">
@@ -1728,6 +1686,55 @@ export default function PosPage() {
             setModifierGroups([]);
           }}
         />
+      )}
+
+      {showMobileTablePicker && showTables && !isWaiter && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4 md:hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="mobile-table-picker-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowMobileTablePicker(false);
+          }}
+        >
+          <div className="flex max-h-[85dvh] w-full flex-col gap-4 overflow-hidden rounded-t-2xl border-x border-t border-border bg-background p-4 shadow-xl sm:max-w-md sm:rounded-2xl sm:border">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 id="mobile-table-picker-title" className="text-base font-semibold">Seleccionar mesa</h2>
+                <p className="mt-1 text-xs text-muted-foreground">Elige una mesa libre o reservada, o continúa sin mesa.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowMobileTablePicker(false)}
+                aria-label="Cerrar selector de mesas"
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <CashierTableTiles
+              tables={myTables}
+              selectedId={selectedTable?.id ?? null}
+              variant="pos"
+              maxHeightClass="max-h-[55dvh]"
+              onSelect={(table) => {
+                setSelectedTable(table);
+                setShowMobileTablePicker(false);
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setShowMobileTablePicker(false);
+                setShowTableMap(true);
+              }}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Table className="h-4 w-4" /> Abrir mapa de mesas
+            </button>
+          </div>
+        </div>
       )}
 
       {showTableMap && (
