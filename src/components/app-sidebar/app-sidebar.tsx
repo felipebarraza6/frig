@@ -43,6 +43,8 @@ import { logoutLocal } from "@/lib/logout-local";
 import { loginRedirectUrl } from "@/lib/login-slug";
 import { fetchKitchenTickets } from "@/lib/api/kitchen";
 import { BrandLogo } from "@/components/brand-logo";
+import { SponsorBadge } from "@/components/sponsor-badge";
+import { resolveActiveLoginSlug } from "@/lib/sponsors";
 import { useProductBrand } from "@/lib/product-name";
 import { BranchSwitcher } from "@/components/branch-switcher";
 import { CommandPalette, type CommandPaletteItem } from "@/components/command-palette/command-palette";
@@ -314,9 +316,13 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
       >
         {/* Muralla de datos: textura viva sobre el fondo de marca.
             El contenido del nav pinta encima (relative z-10). */}
-        <div aria-hidden className="pointer-events-none absolute inset-0 opacity-25">
-          <HeroPlexus className="h-full w-full" />
-        </div>
+        {!["/sales", "/cash-register"].some(
+          (path) => pathname === path || pathname.startsWith(`${path}/`),
+        ) && (
+          <div aria-hidden className="pointer-events-none absolute inset-0 opacity-25">
+            <HeroPlexus className="h-full w-full" />
+          </div>
+        )}
         <div className="relative z-10 flex shrink-0 items-center gap-2 px-3 py-2">
           <BrandLogo
             src={brandLogo}
@@ -522,6 +528,11 @@ export function AppSidebar({ onNavigate, forceExpanded, defaultOpenGroups }: App
                 </div>
               )}
             </Link>
+            <SponsorBadge
+              slug={resolveActiveLoginSlug(branch)}
+              compact={!effectivelyExpanded}
+              className="mt-1 px-1 text-white/55"
+            />
           </div>
         </div>
       </aside>

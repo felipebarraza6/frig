@@ -1,4 +1,5 @@
 import { apiFetch, apiFile, ApiError, type ApiFileResult } from "@/lib/api/client";
+import { assertOnlineSale } from "@/lib/net/online";
 import type { YggdraSchemas } from "@/lib/api/types";
 import type { CartItem } from "@/lib/store/cart";
 import {
@@ -150,11 +151,21 @@ function buildOrdersQueryString(filter: OrdersFilter): string {
   return qs.toString();
 }
 
-/**
- * Crear una orden de venta (SALE) con sus líneas en un solo POST.
- * El backend asigna branch/owner automáticamente desde el request
- * (X-Branch-ID + token). La fecha se envía en hora local ISO.
- */
+/** Recorre `next` para no quedarse en la primera página (default 10). */
+export async function fetchAllOrderResults(filter: OrdersFilter = {}): Promise<YggdraOrder[]> {
+  const first = await fetchOrders({ ...filter, page_size: filter.page_size ?? 200 });
+  const all = [...(first.results ?? [])];
+  const seen = new Set<string>();
+  let next = first.next ?? null;
+  while (next && !seen.has(next)) {
+    seen.add(next);
+    const page = await fetchOrders({ next });
+    all.push(...(page.results ?? []));
+    next = page.next ?? null;
+  }
+  return all;
+}
+
 export async function fetchOrders(filter: OrdersFilter = {}): Promise<PaginatedOrder> {  if (filter.next) {
     return apiFetch<PaginatedOrder>(filter.next);
   }
@@ -179,11 +190,10 @@ export interface PayOrderPayload {
   cash_register_id?: number | string | null;
   notes?: string | null;
   reference?: string | null;
-  /** Registro de pago desde Ventas, sin exigir caja POS abierta. */
-  skip_cash_register_validation?: boolean;
 }
 
 export async function payOrder(id: string, payload: PayOrderPayload): Promise<YggdraOrder> {
+  assertOnlineSale();
   return apiFetch<YggdraOrder>(`/sales/orders/${id}/pay/`, {
     method: "POST",
     body: payload,
@@ -268,8 +278,14 @@ export async function fetchOrder(id: string): Promise<YggdraOrder> {
   return apiFetch<YggdraOrder>(`/sales/orders/${id}/`);
 }
 
-export async function cancelOrder(id: string): Promise<YggdraOrder> {
-  return apiFetch<YggdraOrder>(`/sales/orders/${id}/cancel/`, { method: "POST" });
+export interface CancelOrderResult {
+  message?: string;
+  order: YggdraOrder;
+  payments_cancelled?: number;
+}
+
+export async function cancelOrder(id: string): Promise<CancelOrderResult> {
+  return apiFetch<CancelOrderResult>(`/sales/orders/${id}/cancel/`, { method: "POST" });
 }
 
 export async function returnOrderProducts(
@@ -282,7 +298,13 @@ export async function returnOrderProducts(
   });
 }
 
+/**
+ * Crear una orden de venta (SALE) con sus líneas en un solo POST.
+ * El backend asigna branch/owner automáticamente desde el request
+ * (X-Branch-ID + token). La fecha se envía en hora local ISO.
+ */
 export async function createOrder(input: CreateOrderInput): Promise<YggdraOrder> {
+  assertOnlineSale();
   const data = await apiFetch<YggdraOrder>("/sales/orders/", {
     method: "POST",
     body: {

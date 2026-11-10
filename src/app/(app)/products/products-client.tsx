@@ -7,6 +7,7 @@ import {
   Plus,
   Search,
   Package,
+  ImageIcon,
   AlertTriangle,
   FileSpreadsheet,
   FileText,
@@ -43,6 +44,10 @@ import { useCurrentBranch, useIsModuleEnabledFromConfig } from "@/lib/store/sess
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 
 import type { YggdraProduct, YggdraSchemas } from "@/lib/api/types";
+import {
+  fetchBranchProductGallery,
+  primaryImageByProduct,
+} from "@/lib/api/product-gallery";
 
 function productStock(p: YggdraProduct): number {
   // Productos que no controlan inventario no tienen stock relevante.
@@ -111,8 +116,44 @@ function colorFor(value: string): { bg: string; text: string } {
   return CATEGORY_PALETTE[index];
 }
 
+function ProductThumb({
+  src,
+  name,
+  colorClass,
+  size = "md",
+}: {
+  src?: string | null;
+  name: string;
+  colorClass: { bg: string; text: string };
+  size?: "sm" | "md";
+}) {
+  const box = size === "sm" ? "h-9 w-9 rounded-lg" : "h-10 w-10 rounded-xl";
+  if (!src) {
+    return (
+      <div
+        className={cn(
+          "flex shrink-0 items-center justify-center",
+          box,
+          colorClass.bg,
+          colorClass.text,
+        )}
+        aria-label={`Sin imagen de ${name}`}
+      >
+        <ImageIcon className={size === "sm" ? "h-4 w-4" : "h-4 w-4"} />
+      </div>
+    );
+  }
+  return (
+    <div className={cn("shrink-0 overflow-hidden bg-muted", box)}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt={name} className="h-full w-full object-cover" />
+    </div>
+  );
+}
+
 interface ProductCardProps {
   product: YggdraProduct;
+  imageUrl?: string | null;
   recipe?: YggdraSchemas["Recipe"] | null;
   ingredients?: YggdraSchemas["RecipeIngredient"][];
   colorClass: { bg: string; text: string };
@@ -122,6 +163,7 @@ interface ProductCardProps {
 
 function ProductCard({
   product,
+  imageUrl,
   recipe,
   colorClass,
   productTypeLabel,
@@ -155,15 +197,7 @@ function ProductCard({
       )}
     >
       <div className="flex items-start gap-2.5 px-3.5 pt-3.5 pb-2">
-        <div
-          className={cn(
-            "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
-            colorClass.bg,
-            colorClass.text,
-          )}
-        >
-          <Package className="h-4 w-4" />
-        </div>
+        <ProductThumb src={imageUrl} name={product.name} colorClass={colorClass} />
         <div className="min-w-0 flex-1">
           <h3 className="truncate text-sm font-semibold leading-snug" title={product.name}>
             {product.name}
@@ -237,6 +271,14 @@ export function ProductsClient() {
   const [view, setView] = useState<"grid" | "list">("grid");
   const [pageUrl, setPageUrl] = useState<{ next?: string | null; previous?: string | null }>({});
   const inventoryEnabled = useIsModuleEnabledFromConfig("inventory");
+  const galleryQuery = useQuery({
+    queryKey: ["product-gallery", "branch"],
+    queryFn: fetchBranchProductGallery,
+  });
+  const imageByProduct = useMemo(
+    () => primaryImageByProduct(galleryQuery.data ?? []),
+    [galleryQuery.data],
+  );
 
   // Debounce del buscador. Evitamos correr el efecto en el montaje inicial para
   // no generar un queryKey distinto (setPageUrl({}) crea una nueva referencia)
@@ -622,6 +664,7 @@ export function ProductsClient() {
                       <ProductCard
                         key={p.id}
                         product={p}
+                        imageUrl={imageByProduct.get(p.id)}
                         recipe={recipesByProductId.get(p.id)}
                         ingredients={ingredientsByRecipeId.get(recipesByProductId.get(p.id)?.id ?? "")}
                         colorClass={colorFor(seed)}
@@ -669,13 +712,12 @@ export function ProductsClient() {
                         >
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-3">
-                              <div className={cn(
-                                "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
-                                colorFor(p.name || p.code || String(p.id)).bg,
-                                colorFor(p.name || p.code || String(p.id)).text,
-                              )}>
-                                <Package className="h-5 w-5" />
-                              </div>
+                              <ProductThumb
+                                src={imageByProduct.get(p.id)}
+                                name={p.name}
+                                colorClass={colorFor(p.name || p.code || String(p.id))}
+                                size="sm"
+                              />
                               <div className="min-w-0">
                                 <p className="truncate font-medium">{p.name}</p>
                                 {p.code && (

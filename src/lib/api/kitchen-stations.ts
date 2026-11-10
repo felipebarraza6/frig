@@ -1,4 +1,5 @@
 import { apiFetch } from "./client";
+import { fetchAllPages } from "./pagination";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 export type YggdraCategory = YggdraSchemas["CategoryProduct"];
@@ -23,8 +24,7 @@ export interface KitchenStationInput {
 
 export async function fetchKitchenStations(): Promise<KitchenStation[]> {
   // El backend filtra por la sucursal activa del request (X-Branch-ID / middleware).
-  const data = await apiFetch<{ results: KitchenStation[] }>("/sales/kitchen-stations/");
-  return data.results;
+  return fetchAllPages<KitchenStation>("/sales/kitchen-stations/");
 }
 
 export async function createKitchenStation(payload: KitchenStationInput): Promise<KitchenStation> {

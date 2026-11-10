@@ -1,4 +1,6 @@
 import { apiFetch, apiFile, type ApiFileResult } from "./client";
+import { assertOnlineSale } from "@/lib/net/online";
+import { fetchAllPages } from "./pagination";
 import type { YggdraSchemas } from "@/lib/api/types";
 import { appendMulti } from "@/lib/api/query-params";
 
@@ -41,12 +43,10 @@ export interface PaymentDirectionSummary {
   [key: string]: unknown;
 }
 
-type PaginatedPaymentMethod = YggdraSchemas["PaginatedPaymentMethodListList"];
 type PaginatedPayment = YggdraSchemas["PaginatedPaymentListList"];
 
 export async function fetchPaymentMethods(): Promise<YggdraPaymentMethod[]> {
-  const data = await apiFetch<PaginatedPaymentMethod>("/finance/payment-methods/");
-  return data.results;
+  return fetchAllPages<YggdraPaymentMethod>("/finance/payment-methods/");
 }
 
 export async function createPaymentMethod(payload: {
@@ -90,6 +90,7 @@ export async function createPayment(
   payload: Omit<YggdraPaymentCreate, "skip_cash_register_validation"> &
     Partial<Pick<YggdraPaymentCreate, "skip_cash_register_validation">>,
 ): Promise<YggdraPayment> {
+  assertOnlineSale();
   return apiFetch<YggdraPayment>("/finance/payments/", {
     method: "POST",
     body: { ...payload, skip_cash_register_validation: payload.skip_cash_register_validation ?? false },

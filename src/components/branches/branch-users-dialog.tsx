@@ -149,7 +149,11 @@ export function BranchUsersDialog({ branch, enabledModules = [], onClose }: Bran
 
   const assign = useMutation({
     mutationFn: (u: BranchUser) =>
-      assignBranchUser(branch.branch_id, userIdOf(u), Number(inviteRoleId)),
+      assignBranchUser(
+        branch.branch_id,
+        userIdOf(u),
+        roleOptions.find((r) => String(r.id) === inviteRoleId)?.code ?? "",
+      ),
     onSuccess: () => {
       toast.success("Usuario asignado a la sucursal.");
       invalidate();
@@ -158,8 +162,8 @@ export function BranchUsersDialog({ branch, enabledModules = [], onClose }: Bran
   });
 
   const changeRole = useMutation({
-    mutationFn: ({ u, roleId }: { u: BranchUser; roleId: number | string }) =>
-      updateBranchUserRole(branch.branch_id, userIdOf(u), roleId),
+    mutationFn: ({ u, role }: { u: BranchUser; role: string }) =>
+      updateBranchUserRole(branch.branch_id, userIdOf(u), role),
     onSuccess: () => {
       toast.success("Rol actualizado.");
       invalidate();
@@ -335,12 +339,9 @@ export function BranchUsersDialog({ branch, enabledModules = [], onClose }: Bran
             <ul className="flex flex-col gap-2">
               {(users ?? []).map((u) => {
                 const isOwnerRow = (u.role_code ?? "").toUpperCase() === "OWNER";
-                const currentRoleId = String(u.role_definition ?? "");
-                // Si el usuario tiene un rol fuera del catálogo FRIG (p. ej.
-                // asignado desde otra app), se muestra como opción solo en su
-                // propia fila para no perderlo al guardar.
-                const currentOutside = currentRoleId
-                  && !roleOptions.some((r) => String(r.id) === currentRoleId);
+                const currentRoleCode = (u.role_code ?? "").toUpperCase();
+                const currentOutside = currentRoleCode
+                  && !roleOptions.some((r) => r.code === currentRoleCode);
                 return (
                   <li
                     key={u.id}
@@ -366,19 +367,19 @@ export function BranchUsersDialog({ branch, enabledModules = [], onClose }: Bran
 
                     {canManage ? (
                       <select
-                        value={currentRoleId}
+                        value={currentRoleCode}
                         disabled={busy}
-                        onChange={(e) => changeRole.mutate({ u, roleId: Number(e.target.value) })}
+                        onChange={(e) => changeRole.mutate({ u, role: e.target.value })}
                         className="h-8 w-32 shrink-0 rounded-lg border border-border bg-background px-1.5 text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary sm:w-36"
                         aria-label={`Rol de ${displayName(u)}`}
                       >
                         {currentOutside && (
-                          <option value={currentRoleId}>
+                          <option value={currentRoleCode}>
                             {getRoleLabel(u.role_code ?? "") ?? u.role_name ?? "Rol actual"}
                           </option>
                         )}
                         {roleOptions.map((r) => (
-                          <option key={r.id} value={r.id}>{r.label}</option>
+                          <option key={r.id} value={r.code}>{r.label}</option>
                         ))}
                       </select>
                     ) : (

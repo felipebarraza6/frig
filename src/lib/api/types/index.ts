@@ -1,4 +1,10 @@
 import type { components } from "./yggdra";
+import { mediaUrl } from "@/lib/api/client";
+
+/** Foto de venta: `primary_image` relativo se resuelve contra el origen de la API. */
+export function posImageFromPrimary(primaryImage: string | null | undefined): string | null {
+  return mediaUrl(primaryImage);
+}
 
 export type YggdraSchemas = components["schemas"];
 // ProductList se genera sin stock_available, pero el backend lo anota
@@ -65,6 +71,22 @@ export function toPosProduct(p: YggdraProduct): PosProduct {
     // tracks_inventory ahora viene en el listado, pero el type generado aún no
     // lo declara; default true = comportamiento actual si el backend no lo envía.
     tracks_inventory: (p as { tracks_inventory?: boolean }).tracks_inventory ?? true,
-    image: imageUrl,
+    image: posImageFromPrimary(imageUrl),
   };
+}
+
+/** Une la foto de `/inventory/products/for-sale/` al producto del POS, con o sin stock. */
+export function attachForSaleImages<T extends { id: number; image?: string | null }>(
+  products: T[],
+  forSale: Array<{ id: number; primary_image?: string | null }>,
+): T[] {
+  const images = new Map<number, string | null>();
+  for (const row of forSale) {
+    images.set(row.id, posImageFromPrimary(row.primary_image));
+  }
+  return products.map((product) => {
+    const image = images.get(product.id);
+    if (!image) return product;
+    return { ...product, image };
+  });
 }

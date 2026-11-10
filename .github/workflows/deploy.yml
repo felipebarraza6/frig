@@ -49,8 +49,22 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
-      # Lint/type-check ya corren en CI de `dev` (ci.yml). Aquí solo build +
-      # export para no duplicar minutos de Actions en cada deploy.
+      # El push a production dispara este workflow con el archivo de ESE
+      # commit. ci.yml no corre en production (y workflow_run leería el
+      # archivo de main), así que lint, tipos y tests tienen que pasar aquí,
+      # antes del FTP. Si fallan, no se sube nada a los tres hosts.
+      - name: Lint
+        run: npm run lint
+
+      - name: Generar tipos de rutas
+        run: npx next typegen
+
+      - name: Type-check
+        run: npm run type-check
+
+      - name: Unit tests
+        run: npm test
+
       - name: Build estático
         run: npm run build
 

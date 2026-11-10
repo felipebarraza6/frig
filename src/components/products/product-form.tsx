@@ -1,7 +1,7 @@
 "use client";
 
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { m, AnimatePresence } from "framer-motion";
 import {
@@ -40,6 +40,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedOverlay } from "@/components/ui/animated-overlay";
 import { useCategoryOptions } from "@/lib/hooks/useCategoryOptions";
 import { fetchProduct, searchProductsByType } from "@/lib/api/products";
+import {
+  ProductGalleryField,
+  type ProductGalleryFieldHandle,
+} from "@/components/products/product-gallery-field";
+import { uploadPendingProductImages } from "@/lib/api/product-gallery";
 import type { ProductPayload } from "@/lib/api/products";
 import type { YggdraProduct } from "@/lib/api/types";
 import {
@@ -517,6 +522,11 @@ export function ProductForm({
   extraActions,
 }: ProductFormProps) {
   const queryClient = useQueryClient();
+  const galleryRef = useRef<ProductGalleryFieldHandle>(null);
+  const pendingImagesRef = useRef<File[]>([]);
+  const rememberPendingImages = useCallback((files: File[]) => {
+    pendingImagesRef.current = files;
+  }, []);
   const { data: loadedProduct, isLoading: loadingProduct } = useQuery<YggdraProductDetail>({
     queryKey: ["products", "detail", productId],
     queryFn: () => fetchProduct(productId!) as Promise<YggdraProductDetail>,
@@ -1410,6 +1420,22 @@ export function ProductForm({
       };
       const savedProduct = await onSubmit(payload, effectiveProduct?.id);
 
+      // La lista del formulario manda: el ref de la galería puede seguir
+      // apuntando a una pestaña que ya se fue y cuyo flush no hace nada.
+      const pendingImages = pendingImagesRef.current;
+      try {
+        if (pendingImages.length > 0) {
+          await uploadPendingProductImages(savedProduct.id, pendingImages);
+          pendingImagesRef.current = [];
+        } else if (galleryRef.current) {
+          await galleryRef.current.flushPending(savedProduct.id);
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "No se pudo subir la imagen";
+        toast.error(message);
+        setError(message);
+        return;
+      }
       await saveSupplierRelation(savedProduct.id);
 
       if (isCompound) {
@@ -1698,6 +1724,12 @@ export function ProductForm({
                     )}
                   </Field>
                 )}
+
+                <ProductGalleryField
+                  ref={galleryRef}
+                  productId={effectiveProduct?.id}
+                  onPendingFilesChange={rememberPendingImages}
+                />
 
                 <Field label="Descripción" htmlFor="product-description" className="sm:col-span-2">
                   <textarea

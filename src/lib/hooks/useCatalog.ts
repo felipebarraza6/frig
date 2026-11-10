@@ -1,7 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api/client";
-import { toPosProduct, type PosProduct, type YggdraCategory } from "@/lib/api/types";
-import type { YggdraPaginatedCategory, YggdraPaginatedProduct } from "@/lib/api/types";
+import { fetchAllPages } from "@/lib/api/pagination";
+import { attachForSaleImages, toPosProduct, type PosProduct, type YggdraCategory } from "@/lib/api/types";
+import type { ProductForSale } from "@/lib/api/products";
+import type { YggdraPaginatedProduct } from "@/lib/api/types";
 import { fetchProductModifierGroups, type ProductModifierGroup } from "@/lib/api/modifier-groups";
 import { useCurrentBranch } from "@/lib/store/session";
 import {
@@ -31,10 +33,13 @@ export function useProducts(enabled = true) {
   return useQuery({
     queryKey: [...PRODUCT_KEYS.all, "sale", branchId],
     queryFn: async () => {
-      const data = await apiFetch<YggdraPaginatedProduct>(
-        "/inventory/products/?is_for_sale=true&is_active=true&page_size=1000",
-      );
-      return data.results.map(toPosProduct);
+      const [data, forSale] = await Promise.all([
+        apiFetch<YggdraPaginatedProduct>(
+          "/inventory/products/?is_for_sale=true&is_active=true&page_size=1000",
+        ),
+        fetchAllPages<ProductForSale>("/inventory/products/for-sale/?ordering=name"),
+      ]);
+      return attachForSaleImages((data.results ?? []).map(toPosProduct), forSale);
     },
     staleTime: 60_000,
     enabled,
@@ -49,8 +54,7 @@ export function useCategories(enabled = true) {
   return useQuery({
     queryKey: CATEGORY_KEYS.all,
     queryFn: async () => {
-      const data = await apiFetch<YggdraPaginatedCategory>("/inventory/categories/");
-      return data.results as YggdraCategory[];
+      return fetchAllPages<YggdraCategory>("/inventory/categories/?is_active=true");
     },
     staleTime: 60_000,
     enabled,

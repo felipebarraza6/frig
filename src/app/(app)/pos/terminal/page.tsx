@@ -59,7 +59,7 @@ import {
 } from "@/lib/api/public-catalog";
 import { fetchCashRegisterStations } from "@/lib/api/cash-register-stations";
 import { CASH_KEYS } from "@/lib/api/keys";
-import { fetchOrders, fetchOrder, cancelOrder, deliverOrder, createOrder, downloadOrderTicketPdf } from "@/lib/api/orders";
+import { fetchAllOrderResults, fetchOrder, cancelOrder, deliverOrder, createOrder, downloadOrderTicketPdf } from "@/lib/api/orders";
 import { searchCustomers, createCustomer } from "@/lib/api/customers";
 
 import { useDownloadFile } from "@/lib/hooks/useDownloadFile";
@@ -110,6 +110,7 @@ import ModifierModal from "@/components/pos/modifier-modal";
 import PosQuickActions from "@/components/pos/pos-quick-actions";
 import { WaiterTablesView } from "@/components/pos/waiter-tables-view";
 import { ComboPickerModal } from "@/components/pos/combo-picker-modal";
+import { Modal } from "@/components/ui/modal";
 import { PosConfigModal } from "@/components/pos/pos-config-modal";
 import { PosInventoryModal } from "@/components/pos/pos-inventory-modal";
 import { PosProfileButton } from "@/components/pos/pos-profile-button";
@@ -443,11 +444,11 @@ export default function PosPage() {
   const { data: openAccountsPage, isLoading: loadingOpenAccounts } = useQuery({
     queryKey: ["orders", "open-accounts", "pos-terminal"],
     queryFn: () =>
-      fetchOrders({
+      fetchAllOrderResults({
         // Incluir tanto cuentas abiertas (SALE pending) como órdenes pendientes.
         payment_status: ["PENDING", "PARTIAL"],
         order_type: ["SALE", "ORDER"],
-      }),
+      }).then((results) => ({ results, count: results.length, next: null, previous: null })),
     staleTime: 15_000,
     refetchInterval: live30s,
   });
@@ -455,12 +456,10 @@ export default function PosPage() {
   const { data: pendingDeliveriesPage, isLoading: loadingPendingDeliveries } = useQuery({
     queryKey: ["orders", "pending-deliveries", "pos-terminal"],
     queryFn: () =>
-      fetchOrders({
-        // Órdenes/ventas aún no entregadas: permanecen en PENDING/IN_PROGRESS
-        // hasta que el cajero/mark registrar la entrega vía deliver/.
+      fetchAllOrderResults({
         status: ["PENDING", "IN_PROGRESS"],
         order_type: ["SALE", "ORDER"],
-      }),
+      }).then((results) => ({ results, count: results.length, next: null, previous: null })),
     staleTime: 15_000,
     refetchInterval: live30s,
   });
@@ -1029,7 +1028,7 @@ export default function PosPage() {
           <button
             type="button"
             onClick={() => setCartOpen(true)}
-            className="relative inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary px-2.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 sm:hidden"
+            className="relative inline-flex h-11 min-h-11 items-center gap-1.5 rounded-lg bg-primary px-2.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 sm:hidden"
             aria-label="Ver cuenta"
           >
             <ShoppingBag className="h-3.5 w-3.5" />
@@ -1634,57 +1633,46 @@ export default function PosPage() {
         </aside>
       </div>
 
-      {/* Carrito móvil / bottom sheet */}
-      {cartOpen && (
-        <div
-          className="fixed inset-0 z-50 flex flex-col justify-end bg-black/50 backdrop-blur-xs md:hidden"
-          role="dialog"
-          aria-modal="true"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setCartOpen(false);
-          }}
-        >
-          <motion.div
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ type: "spring", stiffness: 350, damping: 32 }}
-            className="flex max-h-[92dvh] h-[90dvh] w-full flex-col rounded-t-3xl bg-background shadow-2xl overflow-hidden pb-[env(safe-area-inset-bottom)]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex shrink-0 justify-center py-2.5">
-              <div className="h-1.5 w-12 rounded-full bg-muted-foreground/30" />
-            </div>
-            <CartPanel
-              stationId={activeStationId}
-              selectedTable={selectedTable}
-              existingOrderId={effectiveOrderId}
-              existingOrder={existingOrder}
-              defaultOrderType={queryOrderType ?? undefined}
-              onOrderRegistered={(orderType) => {
-                if (isWaiter) goToWaiterTablesView();
-                else {
-                  clearCart();
-                  startNewOrder(orderType ?? "SALE");
-                }
-                setCartOpen(false);
-                queryClient.invalidateQueries({ queryKey: ["cash-register"] });
-                queryClient.invalidateQueries({ queryKey: ["orders", "open-accounts", "pos-terminal"] });
-                queryClient.invalidateQueries({ queryKey: ["orders", "pending-deliveries", "pos-terminal"] });
-              }}
-              onPostSaleOrder={handlePostSaleOrder}
-              onClose={() => {
-                if (isEditingOrder) {
-                  clearCart();
-                  startNewOrder("SALE");
-                }
-                setCartOpen(false);
-              }}
-              isWaiter={isWaiter}
-            />
-          </motion.div>
+      <Modal
+        open={cartOpen}
+        onClose={() => setCartOpen(false)}
+        ariaLabel="Cuenta"
+        hideCloseButton
+        size="full"
+        containerClassName="z-50 items-end justify-end md:hidden"
+        className="h-[90dvh] max-h-[92dvh] rounded-t-3xl border-0 pb-[env(safe-area-inset-bottom)]"
+      >
+        <div className="flex shrink-0 justify-center py-2.5">
+          <div className="h-1.5 w-12 rounded-full bg-muted-foreground/30" />
         </div>
-      )}
+        <CartPanel
+          stationId={activeStationId}
+          selectedTable={selectedTable}
+          existingOrderId={effectiveOrderId}
+          existingOrder={existingOrder}
+          defaultOrderType={queryOrderType ?? undefined}
+          onOrderRegistered={(orderType) => {
+            if (isWaiter) goToWaiterTablesView();
+            else {
+              clearCart();
+              startNewOrder(orderType ?? "SALE");
+            }
+            setCartOpen(false);
+            queryClient.invalidateQueries({ queryKey: ["cash-register"] });
+            queryClient.invalidateQueries({ queryKey: ["orders", "open-accounts", "pos-terminal"] });
+            queryClient.invalidateQueries({ queryKey: ["orders", "pending-deliveries", "pos-terminal"] });
+          }}
+          onPostSaleOrder={handlePostSaleOrder}
+          onClose={() => {
+            if (isEditingOrder) {
+              clearCart();
+              startNewOrder("SALE");
+            }
+            setCartOpen(false);
+          }}
+          isWaiter={isWaiter}
+        />
+      </Modal>
 
       {/* Bottom bar móvil: acciones del header de web (Inventario/Ajustes) + cobros.
           La Caja queda solo arriba (estado en el header) para no repetirla. */}
@@ -1696,7 +1684,7 @@ export default function PosPage() {
               type="button"
               onClick={() => setInventoryOpen(true)}
               title="Inventario"
-              className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground min-h-[40px]"
+              className="flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <Package className="h-[18px] w-[18px] shrink-0" />
               <span className="truncate px-0.5">Inventario</span>
@@ -1709,7 +1697,7 @@ export default function PosPage() {
               type="button"
               onClick={() => setConfigOpen(true)}
               title="Ajustes de la estación"
-              className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground min-h-[40px]"
+              className="flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <Settings2 className="h-[18px] w-[18px] shrink-0" />
               <span className="truncate px-0.5">Ajustes</span>

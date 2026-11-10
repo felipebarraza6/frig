@@ -93,32 +93,6 @@ export async function fetchDashboardSummary(
   return apiFetch<DashboardSummary>(`/analytics/dashboard/summary/${qs ? `?${qs}` : ""}`);
 }
 
-/** Serie calendario (o por hora si el rango es un solo día). */
-export type TimeSeriesPoint = {
-  date: string;
-  value?: number;
-  sales?: number;
-  orders?: number;
-  count?: number;
-};
-
-export async function fetchTimeSeries(
-  startDate?: string,
-  endDate?: string,
-  branchId?: string | number,
-  metric: "sales" | "orders" = "sales",
-): Promise<TimeSeriesPoint[]> {
-  const params = new URLSearchParams();
-  if (startDate) params.set("start_date", startDate);
-  if (endDate) params.set("end_date", endDate);
-  if (branchId) params.set("branch", String(branchId));
-  params.set("metric", metric);
-  const qs = params.toString();
-  return apiFetch<TimeSeriesPoint[]>(
-    `/analytics/dashboard/time_series/${qs ? `?${qs}` : ""}`,
-  );
-}
-
 export type DashboardOrdersAnalytics = {
   top_products?: {
     product__name: string;

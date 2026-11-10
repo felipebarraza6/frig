@@ -1,7 +1,5 @@
-import { API_BASE, ApiError } from "./client";
 import { apiFetch } from "./client";
-import { getEffectiveBranchId } from "./branch-scope";
-import { getBranchId, getToken } from "./session-storage";
+import { getBranchId } from "./session-storage";
 import type {
   Branch,
   BranchPayload,
@@ -166,11 +164,11 @@ export async function fetchBranchAvailableUsers(branchId: ID): Promise<BranchUse
 export async function assignBranchUser(
   branchId: ID,
   userId: ID,
-  roleDefinition: ID,
+  role: string,
 ): Promise<BranchUser> {
   return apiFetch<BranchUser>(`/branches/${branchId}/users/assign/`, {
     method: "POST",
-    body: { user_id: userId, role_definition: roleDefinition },
+    body: { user_id: userId, role },
   });
 }
 
@@ -198,11 +196,11 @@ export async function toggleBranchUserStatus(
 export async function updateBranchUserRole(
   branchId: ID,
   userId: ID,
-  roleDefinition: ID,
+  role: string,
 ): Promise<unknown> {
   return apiFetch<unknown>(`/branches/${branchId}/update-user-role/`, {
     method: "PUT",
-    body: { user_id: userId, role_definition: roleDefinition },
+    body: { user_id: userId, role },
   });
 }
 
@@ -213,7 +211,7 @@ export async function transferBranchOwnership(
 ): Promise<unknown> {
   return apiFetch<unknown>(`/branches/${branchId}/transfer-ownership/`, {
     method: "POST",
-    body: { user_id: userId },
+    body: { new_owner_id: userId },
   });
 }
 
@@ -553,37 +551,10 @@ export async function updateBranchSiiConfig(
     formData.append("certificate_password", payload.certificate_password);
   }
 
-  const token = getToken();
-  const branchId = getEffectiveBranchId(getBranchId());
-  const headers: Record<string, string> = {};
-  if (token) headers["Authorization"] = `Token ${token}`;
-  if (branchId) headers["X-Branch-ID"] = branchId;
-
-  const res = await fetch(`${API_BASE}/branches/${id}/`, {
+  await apiFetch(`/branches/${id}/`, {
     method: "PATCH",
-    headers,
     body: formData,
-    credentials: "include",
   });
-
-  const text = await res.text();
-  let data: unknown = null;
-  if (text) {
-    try {
-      data = JSON.parse(text);
-    } catch {
-      // respuesta no JSON
-    }
-  }
-
-  if (!res.ok) {
-    let message = `Error ${res.status} al guardar la configuración SII`;
-    if (data && typeof data === "object" && "detail" in data) {
-      const detail = (data as { detail?: unknown }).detail;
-      if (detail) message = String(detail);
-    }
-    throw new ApiError(res.status, message, data);
-  }
 }
 
 export interface BranchThemeConfigPayload {
@@ -638,37 +609,8 @@ export async function updateBranchTheme(
     append(key, value);
   }
 
-  const token = getToken();
-  const branchId = getBranchId();
-  const headers: Record<string, string> = {};
-  if (token) headers["Authorization"] = `Token ${token}`;
-  if (branchId) headers["X-Branch-ID"] = branchId;
-
-  const res = await fetch(`${API_BASE}/branches/${id}/theme-config/`, {
+  return apiFetch<BranchThemeConfig>(`/branches/${id}/theme-config/`, {
     method: "PATCH",
-    headers,
     body: formData,
-    credentials: "include",
   });
-
-  const text = await res.text();
-  let data: unknown = null;
-  if (text) {
-    try {
-      data = JSON.parse(text);
-    } catch {
-      // respuesta no JSON
-    }
-  }
-
-  if (!res.ok) {
-    let message = `Error ${res.status} al guardar el tema`;
-    if (data && typeof data === "object" && "detail" in data) {
-      const detail = (data as { detail?: unknown }).detail;
-      if (detail) message = String(detail);
-    }
-    throw new ApiError(res.status, message, data);
-  }
-
-  return data as BranchThemeConfig;
 }

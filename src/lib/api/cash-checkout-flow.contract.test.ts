@@ -103,19 +103,18 @@ describe("flujo: caja + cobro (contrato mock)", () => {
     await expect(getCurrentCashRegister(3)).rejects.toMatchObject({ status: 403 });
   });
 
-  it("payOrder desde Ventas exige skip_cash_register_validation=false", async () => {
+  it("payOrder desde Ventas no manda skip_cash_register_validation", async () => {
     apiFetch.mockResolvedValueOnce({ id: "ord-1", payment_status: "PAID" });
     const { payOrder } = await import("./orders");
     await payOrder("ord-1", {
       payment_method_id: "pm-1",
       amount: "1000.00",
       cash_register_id: 9,
-      skip_cash_register_validation: false,
     });
     expect(apiFetch.mock.calls[0]![1].body).toMatchObject({
-      skip_cash_register_validation: false,
       cash_register_id: 9,
     });
+    expect(apiFetch.mock.calls[0]![1].body).not.toHaveProperty("skip_cash_register_validation");
     expect(apiFetch.mock.calls[0]![1].body).not.toHaveProperty("order_type");
   });
 

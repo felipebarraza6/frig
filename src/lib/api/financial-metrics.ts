@@ -1,4 +1,5 @@
 import { apiFetch } from "./client";
+import { expensesToFrequencyTotals, revenuesToDailyTotals } from "./finance-charts";
 
 export interface FinancialMetricsSummary {
   total_revenue?: string | number;
@@ -58,7 +59,8 @@ export async function fetchRevenuesByDateRange(
   if (startDate) qs.set("start_date", startDate);
   if (endDate) qs.set("end_date", endDate);
   const q = qs.toString();
-  return apiFetch<RevenueByDateRange>(`/finance/revenues/by_date_range/${q ? `?${q}` : ""}`);
+  const data = await apiFetch<unknown>(`/finance/revenues/by_date_range/${q ? `?${q}` : ""}`);
+  return { results: revenuesToDailyTotals(data) };
 }
 
 export async function fetchExpensesByFrequency(
@@ -67,9 +69,10 @@ export async function fetchExpensesByFrequency(
   const qs = new URLSearchParams();
   if (branchId) qs.set("branch", String(branchId));
   const q = qs.toString();
-  return apiFetch<ExpensesByFrequency>(
+  const data = await apiFetch<unknown>(
     `/finance/fixed-expenses/by_frequency/${q ? `?${q}` : ""}`,
   );
+  return { results: expensesToFrequencyTotals(data) };
 }
 
 function parseAmount(value: unknown): number {
@@ -90,59 +93,6 @@ export function getCurrentMonthRange(): { start: string; end: string } {
   const fmt = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   return { start: fmt(start), end: fmt(end) };
-}
-
-export interface ProfitabilityComparison {
-  period?: string;
-  revenue?: string | number;
-  cost?: string | number;
-  profit?: string | number;
-  margin?: string | number;
-  orders?: number;
-  [key: string]: unknown;
-}
-
-export async function fetchProfitabilityComparison(
-  branchId?: number | string,
-  period?: string,
-  limit?: number,
-): Promise<ProfitabilityComparison[]> {
-  const qs = new URLSearchParams();
-  if (branchId) qs.set("branch", String(branchId));
-  if (period) qs.set("period", period);
-  if (limit) qs.set("limit", String(limit));
-  const q = qs.toString();
-  return apiFetch<ProfitabilityComparison[]>(
-    `/finance/profitability-reports/comparison/${q ? `?${q}` : ""}`,
-  );
-}
-
-export async function fetchProfitabilityReports(
-  params?: { branch?: string; period?: string; start_date?: string; end_date?: string },
-) {
-  const qs = new URLSearchParams();
-  if (params?.branch) qs.set("branch", params.branch);
-  if (params?.period) qs.set("period", params.period);
-  if (params?.start_date) qs.set("start_date", params.start_date);
-  if (params?.end_date) qs.set("end_date", params.end_date);
-  const q = qs.toString();
-  return apiFetch<{ results?: Array<{
-    id: string;
-    branch: number;
-    period: string;
-    period_display: string;
-    start_date: string;
-    end_date: string;
-    total_revenue: string;
-    total_cost: string;
-    gross_profit: string;
-    net_profit: string;
-    net_margin: string;
-    is_automated: boolean;
-    created: string;
-  }>; count?: number }>(
-    `/finance/profitability-reports/${q ? `?${q}` : ""}`,
-  );
 }
 
 export interface ProfitabilityReportDetail {
