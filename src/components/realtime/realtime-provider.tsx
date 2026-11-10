@@ -3,7 +3,7 @@
 import { useEffect, useCallback, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSessionStore } from "@/lib/store/session";
-import { getToken } from "@/lib/api/session-storage";
+import { getToken, hasSession } from "@/lib/api/session-storage";
 import {
   useBranchWebSocket,
   type BranchEventMessage,
@@ -84,7 +84,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   const { status } = useBranchWebSocket(currentBranchId, token, {
     scopes: SCOPES,
     onMessage: handleMessage,
-    enabled: Boolean(currentBranchId && token),
+    enabled: Boolean(currentBranchId && hasSession()),
   });
 
   useEffect(() => {

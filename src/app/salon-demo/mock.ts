@@ -5,22 +5,29 @@
  */
 if (typeof window !== "undefined") {
   const TOKEN_KEY = "frig.token";
+  const COOKIE_SESSION_KEY = "frig.cookie_session";
   const BRANCH_KEY = "frig.branch_id";
   const prevToken = window.localStorage.getItem(TOKEN_KEY);
+  const prevCookieSession = window.localStorage.getItem(COOKIE_SESSION_KEY);
   const prevBranch = window.localStorage.getItem(BRANCH_KEY);
-  const hadRealSession = Boolean(prevToken && prevToken !== "salon-demo-dummy");
+  const hadRealSession =
+    Boolean(prevToken && prevToken !== "salon-demo-dummy") || prevCookieSession === "1";
 
   if (!hadRealSession) {
     window.localStorage.setItem(TOKEN_KEY, "salon-demo-dummy");
+    window.localStorage.setItem(COOKIE_SESSION_KEY, "1");
     window.localStorage.setItem(BRANCH_KEY, "1");
   }
 
+  const restoreKey = (key: string, value: string | null) => {
+    if (value == null) window.localStorage.removeItem(key);
+    else window.localStorage.setItem(key, value);
+  };
   const restore = () => {
     if (hadRealSession) return;
-    if (prevToken == null) window.localStorage.removeItem(TOKEN_KEY);
-    else window.localStorage.setItem(TOKEN_KEY, prevToken);
-    if (prevBranch == null) window.localStorage.removeItem(BRANCH_KEY);
-    else window.localStorage.setItem(BRANCH_KEY, prevBranch);
+    restoreKey(TOKEN_KEY, prevToken);
+    restoreKey(COOKIE_SESSION_KEY, prevCookieSession);
+    restoreKey(BRANCH_KEY, prevBranch);
   };
   window.addEventListener("pagehide", restore);
   window.addEventListener("beforeunload", restore);

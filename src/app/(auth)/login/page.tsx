@@ -16,7 +16,7 @@ import {
   applyThemeConfig,
 } from "@/lib/api/branches";
 import type { BranchThemeConfig } from "@/lib/types";
-import { setToken } from "@/lib/api/session-storage";
+import { saveSession } from "@/lib/api/session-storage";
 import { pickDefaultBranchId, reconcileStoredBranch } from "@/lib/branch-session";
 import { cn } from "@/lib/utils";
 import { FRIG_IDENTITY_STYLE, FRIG_REPO_URL, setTenantFavicon } from "@/lib/frig-identity";
@@ -304,7 +304,7 @@ export default function LoginPage() {
    */
   const completeLogin = useCallback(
     async (res: LoginCompleteResponse) => {
-      setToken(res.token);
+      saveSession(res.token);
       // Organizaciones que el usuario posee: alimentan el guard de /organization.
       setOwnedOrganizations(res.owned_organizations ?? null);
       // Sesión demo: guardar expiración (1h) para avisos/cuenta regresiva.
