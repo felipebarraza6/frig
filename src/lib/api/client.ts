@@ -82,8 +82,10 @@ type ApiOptions = {
   auth?: "auto" | "required" | "none";
   branch?: "auto" | "none";
   /**
-   * Credenciales del fetch. Por defecto `include` (cookie de sesión).
-   * Usar `omit` en endpoints 100% públicos para no mezclar sesión admin.
+   * Credenciales del fetch. En el mismo sitio que la API el default es
+   * `include` (cookie `auth_token`). En otro dominio se fuerza `omit`:
+   * la auth va en `Authorization` y una cookie `SameSite=None` vieja
+   * haría fallar el login por CSRF.
    */
   credentials?: RequestCredentials;
   /** Señal de cancelación opcional. */
@@ -95,6 +97,12 @@ type ApiOptions = {
   /** Interno: el reintento tras un token CSRF vencido se hace una sola vez. */
   csrfRetried?: boolean;
 };
+
+/** Cookies solo en el mismo sitio. Cross-site usa el token de localStorage. */
+function resolveCredentials(requested?: RequestCredentials): RequestCredentials {
+  if (!usesCookieSession()) return "omit";
+  return requested ?? "include";
+}
 
 async function applyAuthHeaders(
   headers: Record<string, string>,
@@ -152,7 +160,7 @@ export async function apiFetch<T>(path: string, opts: ApiOptions = {}): Promise<
     headers = {},
     auth = "required",
     branch = "auto",
-    credentials = "include",
+    credentials: requestedCredentials,
     signal,
     timeoutMs,
     onResponse,
@@ -174,6 +182,7 @@ export async function apiFetch<T>(path: string, opts: ApiOptions = {}): Promise<
     redirectToLogin();
     throw new ApiError(401, "No autenticado");
   }
+  const credentials = resolveCredentials(requestedCredentials);
   await applyAuthHeaders(finalHeaders, method, auth, credentials);
 
   const branchId = resolveBranchHeader();
@@ -187,7 +196,7 @@ export async function apiFetch<T>(path: string, opts: ApiOptions = {}): Promise<
   );
 
   try {
-    // credentials include: cookie HttpOnly de auth_token (omit en públicos).
+    // include solo same-site (cookie auth_token). Cross-site: omit.
     const url = /^https?:\/\//i.test(path) ? path : `${API_BASE}${path}`;
     const res = await fetch(url, {
       method,
@@ -374,7 +383,8 @@ export async function apiFile(
     redirectToLogin();
     throw new ApiError(401, "No autenticado");
   }
-  await applyAuthHeaders(finalHeaders, method, auth, "include");
+  const credentials = resolveCredentials(opts.credentials);
+  await applyAuthHeaders(finalHeaders, method, auth, credentials);
 
   const branchId = resolveBranchHeader();
   if (branch === "auto" && branchId) {
@@ -392,7 +402,7 @@ export async function apiFile(
       method,
       headers: finalHeaders,
       body: body !== undefined ? JSON.stringify(body) : undefined,
-      credentials: "include",
+      credentials,
       signal: requestSignal,
     });
 
