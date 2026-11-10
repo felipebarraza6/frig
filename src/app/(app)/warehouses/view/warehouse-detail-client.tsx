@@ -81,7 +81,7 @@ function FilterChip({
 }
 
 async function exportWarehouseProductsToExcel(warehouseName: string, warehouseId: number) {
-  const XLSX = await import("xlsx");
+  const XLSX = await import("xlsx-js-style");
   const allResults: WarehouseProduct[] = [];
   let next: string | null | undefined;
   let first = true;
