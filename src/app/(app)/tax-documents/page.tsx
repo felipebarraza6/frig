@@ -45,7 +45,7 @@ import { isValidRUT } from "@/lib/validation";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { fetchOrders } from "@/lib/api/orders";
 import { mediaUrl } from "@/lib/api/client";
-import { formatCLP as formatCLPShared, cn } from "@/lib/utils";
+import { formatCLP, cn } from "@/lib/utils";
 import { statusBadge as statusBadgeTokens } from "@/lib/status-styles";
 import { getCurrentMonthRange } from "@/lib/date-range";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
@@ -83,12 +83,6 @@ const QUICK_FILTERS: { id: string; label: string; type?: string; status?: string
 ];
 
 const FILTERS_KEY = "frig.tax-documents.filters";
-
-function formatCLP(value: string | number): string {
-  const num = typeof value === "string" ? parseFloat(value) : value;
-  if (isNaN(num)) return "$0";
-  return new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(num);
-}
 
 function statusBadge(status?: string | null) {
   switch (status) {
@@ -799,7 +793,7 @@ function FromOrderModal({
 
   const orderOptions = (ordersPage?.results ?? []).map((o) => ({
     value: String(o.id),
-    label: `${o.order_number ?? o.id.slice(0, 8)} · ${formatCLPShared(o.total_amount ?? "0")}`,
+    label: `${o.order_number ?? o.id.slice(0, 8)} · ${formatCLP(o.total_amount ?? "0")}`,
     description: o.client?.name ?? "Sin cliente",
   }));
 
@@ -889,7 +883,7 @@ function FromOrderModal({
               />
               {selected && (
                 <p className="text-xs text-muted-foreground">
-                  Total {formatCLPShared(selected.total_amount ?? "0")}
+                  Total {formatCLP(selected.total_amount ?? "0")}
                   {selected.client?.name ? ` · ${selected.client.name}` : ""}
                 </p>
               )}

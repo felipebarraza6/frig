@@ -29,6 +29,7 @@ import {
 } from "@/lib/api/fixed-expenses";
 import { fetchExpenseCategories, type ExpenseCategory } from "@/lib/api/expenses";
 import { useToast } from "@/lib/store/toast";
+import { formatCLP } from "@/lib/utils";
 import { isPositiveAmount, isDateRangeValid } from "@/lib/validation";
 
 const FREQUENCY_OPTIONS = [
@@ -46,12 +47,6 @@ const STATUS_OPTIONS = [
   { value: "PENDING", label: "Pendientes" },
   { value: "CANCELLED", label: "Cancelados" },
 ];
-
-function formatCLP(value: string | number): string {
-  const num = typeof value === "string" ? parseFloat(value) : value;
-  if (isNaN(num)) return "$0";
-  return new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(num);
-}
 
 function statusBadge(status?: string | null) {
   switch (status) {

@@ -1,6 +1,4 @@
-import { apiFetch, API_BASE } from "./client";
-import { getEffectiveBranchId } from "./branch-scope";
-import { getBranchId, getToken } from "./session-storage";
+import { apiFetch } from "./client";
 import type { YggdraSchemas } from "@/lib/api/types";
 
 export type TaxDocumentFolio = YggdraSchemas["TaxDocumentFolio"];
@@ -37,39 +35,10 @@ export async function createTaxFolio(payload: {
   formData.append("caf_file", payload.caf_file);
   if (payload.alert_at != null) formData.append("alert_at", String(payload.alert_at));
 
-  const token = getToken();
-  const branchId = getEffectiveBranchId(getBranchId());
-  const headers: Record<string, string> = {};
-  if (token) headers.Authorization = `Token ${token}`;
-  if (branchId) headers["X-Branch-ID"] = branchId;
-
-  const res = await fetch(`${API_BASE}/finance/folios/`, {
+  return apiFetch<TaxDocumentFolio>("/finance/folios/", {
     method: "POST",
-    headers,
     body: formData,
-    credentials: "include",
   });
-  const text = await res.text();
-  let data: unknown = null;
-  if (text) {
-    try {
-      data = JSON.parse(text);
-    } catch {
-      /* ignore */
-    }
-  }
-  if (!res.ok) {
-    const msg =
-      data && typeof data === "object"
-        ? String(
-            (data as { detail?: string; error?: string }).detail ??
-              (data as { error?: string }).error ??
-              `Error ${res.status}`,
-          )
-        : `Error ${res.status}`;
-    throw new Error(msg);
-  }
-  return data as TaxDocumentFolio;
 }
 
 export async function toggleTaxFolioActive(id: number): Promise<TaxDocumentFolio> {
