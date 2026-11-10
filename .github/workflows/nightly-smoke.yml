@@ -1,0 +1,42 @@
+# Smoke E2E nocturno contra producción (frig.yggdra.cl) con una demo pública.
+# Solo lectura: login, POS y KDS. Falla si hay violaciones de CSP o si la
+# sesión queda legible en localStorage. Un fallo abre issue vía
+# ci-failure-issue.yml.
+
+name: Nightly smoke
+
+on:
+  schedule:
+    - cron: "0 10 * * *" # 07:00 en Chile (UTC-3)
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Instalar Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Smoke
+        run: npx playwright test
+
+      - name: Reporte
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
