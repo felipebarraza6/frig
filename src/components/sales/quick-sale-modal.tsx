@@ -31,12 +31,14 @@ import {
   createOrder,
   editOrder,
   fetchOrder,
+  payOrder,
   type EditOrderItemInput,
   type OrderItemInput,
 } from "@/lib/api/orders";
 import { fetchPaymentMethods, createPayment, type YggdraPaymentMethod } from "@/lib/api/payments";
 import { getCashRegisters, type CashRegister } from "@/lib/api/cash-register";
 import { cashPaymentWithoutRegister } from "@/lib/sales/cash-sale-guard";
+import { advancePaymentError, suggestedAdvance } from "@/lib/sales/advance-payment";
 import { fetchTaxTypes, type TaxType } from "@/lib/api/tax-types";
 import { searchCustomers, createCustomer } from "@/lib/api/customers";
 import { occupyTable, fetchTables } from "@/lib/api/tables";
@@ -157,6 +159,10 @@ export default function QuickSaleModal({
   // En Nueva Venta (SALE) es venta directa y se cobra de inmediato.
   // En Nueva Orden (ORDER) solo se crea la orden y su pago se procesa posteriormente en Pagos.
   const chargeNow = orderType === "SALE";
+  // Anticipo opcional al crear una orden nueva: queda PARTIAL con el saldo pendiente.
+  const [withAdvance, setWithAdvance] = useState(false);
+  const advanceMode = !chargeNow && !existingOrderId && withAdvance;
+  const showPayments = chargeNow || advanceMode;
   const [payments, setPayments] = useState<PaymentLine[]>([]);
   // null = aún no se elige (se preselecciona la primera abierta), "" = sin caja.
   const [cashRegisterChoice, setCashRegisterChoice] = useState<string | null>(null);
@@ -205,6 +211,7 @@ export default function QuickSaleModal({
       setDeliveryDate("");
       setObservation("");
       setPayments([]);
+      setWithAdvance(false);
       setCashRegisterChoice(null);
       setSelectedTaxIds([]);
       setTaxDefaultsApplied(false);
@@ -527,7 +534,7 @@ export default function QuickSaleModal({
       setError("El RUT del cliente no es válido.");
       return;
     }
-    if (chargeNow && payments.some((p) => !isPositiveAmount(parseInt(p.amount || "0", 10)))) {
+    if (showPayments && payments.some((p) => !isPositiveAmount(parseInt(p.amount || "0", 10)))) {
       setError("Todos los montos de pago deben ser mayores a 0.");
       return;
     }
@@ -540,7 +547,7 @@ export default function QuickSaleModal({
       setError("Debes seleccionar o crear un cliente para dejar la venta pendiente.");
       return;
     }
-    if (chargeNow && activeMethods.length === 0) {
+    if (showPayments && activeMethods.length === 0) {
       setError("No hay métodos de pago activos.");
       return;
     }
@@ -548,8 +555,15 @@ export default function QuickSaleModal({
       setError(`Faltan ${formatCLP(Math.round(grandTotal) - paidTotal)} para completar el cobro.`);
       return;
     }
+    if (advanceMode) {
+      const advanceError = advancePaymentError(paidTotal, grandTotal);
+      if (advanceError) {
+        setError(advanceError);
+        return;
+      }
+    }
     if (
-      chargeNow &&
+      showPayments &&
       cashPaymentWithoutRegister(payments, activeMethods, Boolean(selectedRegister))
     ) {
       setError("El efectivo exige una caja abierta. Abre la caja o elige otro medio de pago.");
@@ -650,17 +664,44 @@ export default function QuickSaleModal({
         }
       }
 
+      let advanceFailed: string | null = null;
+      if (advanceMode) {
+        try {
+          for (const payment of payments) {
+            const amount = parseInt(payment.amount || "0", 10);
+            if (amount <= 0) continue;
+            await payOrder(orderId, {
+              payment_method_id: payment.payment_method_id,
+              amount: amount.toFixed(2),
+              cash_register_id: selectedRegister ? selectedRegister.id : null,
+              reference: payment.reference.trim() || null,
+              notes: payment.notes.trim() || "Anticipo",
+            });
+          }
+        } catch (err) {
+          advanceFailed = err instanceof Error ? err.message : "error desconocido";
+        }
+      }
+
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       queryClient.invalidateQueries({ queryKey: ["products"], refetchType: "all" });
       queryClient.invalidateQueries({ queryKey: ["cash-register"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["order", "quick-sale"] });
 
-      toast.success(
-        chargeNow
-          ? "Venta registrada y cobrada"
-          : "Orden creada exitosamente (pendiente de pago)",
-      );
+      if (advanceFailed) {
+        toast.error(
+          `Orden creada, pero no se registró el anticipo: ${advanceFailed}. Cóbralo desde Pagos.`,
+        );
+      } else {
+        toast.success(
+          chargeNow
+            ? "Venta registrada y cobrada"
+            : advanceMode
+              ? `Orden creada con anticipo de ${formatCLP(paidTotal)}; saldo ${formatCLP(Math.max(0, Math.round(grandTotal) - paidTotal))}`
+              : "Orden creada exitosamente (pendiente de pago)",
+        );
+      }
       onClose();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "No se pudo registrar la venta");
@@ -1163,21 +1204,33 @@ export default function QuickSaleModal({
             <div className="rounded-2xl border border-border bg-background p-3">
               <div className="mb-2 flex items-center justify-between">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {chargeNow ? "Cobro inmediato" : "Pago de la orden"}
+                  {chargeNow ? "Cobro inmediato" : advanceMode ? "Anticipo" : "Pago de la orden"}
                 </p>
                 <span
                   className={cn(
                     "rounded-md px-2.5 py-1 text-xs font-medium",
-                    chargeNow ? "bg-primary text-white" : "bg-muted text-muted-foreground",
+                    showPayments ? "bg-primary text-white" : "bg-muted text-muted-foreground",
                   )}
                 >
-                  {chargeNow ? "Venta directa" : "Se paga en Pagos"}
+                  {chargeNow ? "Venta directa" : advanceMode ? "Saldo queda pendiente" : "Se paga en Pagos"}
                 </span>
               </div>
 
-              {chargeNow ? (
+              {showPayments ? (
                 <div className="flex flex-col gap-2">
-                  {payments.length === 0 && (
+                  {advanceMode && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setWithAdvance(false);
+                        setPayments([]);
+                      }}
+                      className="self-start text-xs text-muted-foreground hover:underline"
+                    >
+                      Quitar anticipo
+                    </button>
+                  )}
+                  {chargeNow && payments.length === 0 && (
                     <Button
                       type="button"
                       variant="outline"
@@ -1307,11 +1360,37 @@ export default function QuickSaleModal({
                   </div>
                 </div>
               ) : (
-                <div className="rounded-xl border border-border/60 bg-muted/40 p-3 text-xs text-muted-foreground">
-                  <p className="font-medium text-foreground">Creación de orden sin cobro directo</p>
-                  <p className="mt-0.5">
-                    Esta orden se creará con estado de pago pendiente. El cobro o abono se realiza posteriormente en la sección <strong className="text-foreground">Pagos</strong>.
-                  </p>
+                <div className="flex flex-col gap-2">
+                  <div className="rounded-xl border border-border/60 bg-muted/40 p-3 text-xs text-muted-foreground">
+                    <p className="font-medium text-foreground">Creación de orden sin cobro directo</p>
+                    <p className="mt-0.5">
+                      Esta orden se creará con estado de pago pendiente. El cobro o abono se realiza posteriormente en la sección <strong className="text-foreground">Pagos</strong>.
+                    </p>
+                  </div>
+                  {!existingOrderId && activeMethods.length > 0 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setWithAdvance(true);
+                        setPayments([
+                          {
+                            key: nextKey("pay"),
+                            payment_method_id: activeMethods[0].id,
+                            amount: String(suggestedAdvance(grandTotal)),
+                            reference: "",
+                            notes: "",
+                          },
+                        ]);
+                      }}
+                      disabled={items.length === 0}
+                      className="h-8 self-start text-xs"
+                    >
+                      <Banknote className="mr-1.5 h-3.5 w-3.5" />
+                      Registrar anticipo
+                    </Button>
+                  )}
                 </div>
               )}
 
@@ -1333,6 +1412,14 @@ export default function QuickSaleModal({
                   <span className="text-muted-foreground">Total</span>
                   <span className="text-base font-extrabold tabular-nums">{formatCLP(grandTotal)}</span>
                 </div>
+                {advanceMode && payments.length > 0 && (
+                  <div className="mt-1 flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Anticipo</span>
+                    <span className="font-semibold tabular-nums text-warning">
+                      {formatCLP(paidTotal)} · saldo {formatCLP(remaining)}
+                    </span>
+                  </div>
+                )}
                 {chargeNow && payments.length > 0 && (
                   <div className="mt-1 flex items-center justify-between text-xs">
                     <span className="text-muted-foreground">
@@ -1371,13 +1458,15 @@ export default function QuickSaleModal({
           size="sm"
           onClick={handleSubmit}
           isLoading={saving}
-          disabled={items.length === 0 || (chargeNow && payments.length === 0)}
+          disabled={items.length === 0 || (showPayments && payments.length === 0)}
         >
           {chargeNow
             ? `Registrar y cobrar · ${formatCLP(paidTotal || grandTotal)}`
             : existingOrderId
               ? "Guardar cambios"
-              : "Crear orden"}
+              : advanceMode
+                ? `Crear orden con anticipo · ${formatCLP(paidTotal)}`
+                : "Crear orden"}
         </Button>
       </ModalFooter>
 
