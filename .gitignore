@@ -2,6 +2,8 @@
 legacy/
 .omo/
 graphify-out/
+.qwen/
+.zcode/
 
 # OS
 .DS_Store
