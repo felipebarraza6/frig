@@ -68,7 +68,8 @@ import { fetchRevenues, type Revenue } from "@/lib/api/revenues";
 import { fetchPurchaseOrders, payPurchaseOrder, type PurchaseOrderList } from "@/lib/api/suppliers";
 import { fetchBranchFinanceConfigByBranch } from "@/lib/api/branch-finance-config";
 import { formatCLP, paymentTypeLabel } from "@/lib/utils";
-import { useIsOwner, useIsAdminLocal } from "@/lib/store/session";
+import { useIsOwner, useIsAdminLocal, useCurrentBranch } from "@/lib/store/session";
+import { voucherDownloadLabel, writeThermalPdfFormat, type VoucherPdfFormat } from "@/lib/pdf-format";
 import { useDownloadFile, exportFilename } from "@/lib/hooks/useDownloadFile";
 import { generateExcelBlob } from "@/lib/export-excel";
 
@@ -332,6 +333,7 @@ function buildPendingEntities(
 
 export default function PaymentsPage() {
   const toast = useToast();
+  const branch = useCurrentBranch();
   // Filtros persistidos en localStorage para que sobrevivan recargas/navegación
   const [direction, setDirection] = usePersistedState("frig.payments.direction", "EXPENSE", ["", "INCOME", "EXPENSE"]);
   const [source, setSource] = usePersistedState("frig.payments.source", "", ["", "ORDER", "EXPENSE", "PURCHASE_ORDER", "REVENUE", "REFUND", "OTHER"]);
@@ -650,8 +652,9 @@ export default function PaymentsPage() {
     onError: (err) => toast.error(err instanceof Error ? err.message : "No se pudo actualizar el pago"),
   });
 
-  // Download voucher handler (80mm térmico o A4 según formato)
-  const handleDownloadVoucher = async (id: string, format: "thermal" | "a4") => {
+  // Download voucher handler (80mm, 58mm o A4)
+  const handleDownloadVoucher = async (id: string, format: VoucherPdfFormat) => {
+    if (format !== "a4") writeThermalPdfFormat(format, branch?.id);
     setDownloading(`${id}:${format}`);
     try {
       const blob = await downloadPaymentVoucher(id, format);
@@ -661,7 +664,7 @@ export default function PaymentsPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `comprobante_${id}_${format === "thermal" ? "80mm" : "a4"}.pdf`;
+      a.download = `comprobante_${id}_${voucherDownloadLabel(format)}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } finally {
@@ -1180,6 +1183,17 @@ export default function PaymentsPage() {
                                 <Button
                                   variant="outline"
                                   size="sm"
+                                  className="h-8 gap-1 px-2 text-xs border-success/40 bg-success/10 text-success hover:bg-success/20"
+                                  onClick={() => handleDownloadVoucher(p.id, "thermal_58")}
+                                  isLoading={downloading === `${p.id}:thermal_58`}
+                                  title="Descargar boleta 58mm"
+                                >
+                                  <Receipt className="h-4 w-4" />
+                                  58mm
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
                                   className="h-8 gap-1 px-2 text-xs border-primary/40 bg-primary/10 text-primary hover:bg-primary/20"
                                   onClick={() => handleDownloadVoucher(p.id, "a4")}
                                   isLoading={downloading === `${p.id}:a4`}
@@ -1327,6 +1341,17 @@ export default function PaymentsPage() {
                                 >
                                   <Receipt className="h-4 w-4" />
                                   80mm
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 gap-1 px-2 text-xs border-success/40 bg-success/10 text-success hover:bg-success/20"
+                                  onClick={() => handleDownloadVoucher(p.id, "thermal_58")}
+                                  isLoading={downloading === `${p.id}:thermal_58`}
+                                  title="Descargar boleta 58mm"
+                                >
+                                  <Receipt className="h-4 w-4" />
+                                  58mm
                                 </Button>
                                 <Button
                                   variant="outline"
@@ -1966,7 +1991,7 @@ function EditPaymentForm({ payment, paymentMethods, onClose, onSubmit, isPending
                 {EDIT_STATUS_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
               </Select>
               {status === "COMPLETED" && (
-                <p className="mt-1 text-xs text-muted-foreground">Al completar, el pago queda confirmado y se habilita la descarga de boleta (80mm / A4).</p>
+                <p className="mt-1 text-xs text-muted-foreground">Al completar, el pago queda confirmado y se habilita la descarga de boleta (80mm / 58mm / A4).</p>
               )}
             </div>
             {/* Método de pago */}
@@ -2014,7 +2039,7 @@ type OrderDetail = YggdraSchemas["Order"];
 function PaymentDetailModal({ payment, onClose, onDownloadVoucher, downloading }: {
   payment: YggdraPaymentList | null;
   onClose: () => void;
-  onDownloadVoucher: (id: string, format: "thermal" | "a4") => Promise<void>;
+  onDownloadVoucher: (id: string, format: VoucherPdfFormat) => Promise<void>;
   downloading: string | null;
 }) {
   const isIncome = payment?.payment_direction === "INCOME";
@@ -2075,6 +2100,16 @@ function PaymentDetailModal({ payment, onClose, onDownloadVoucher, downloading }
               >
                 <Receipt className="h-4 w-4" />
                 Boleta 80mm
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 gap-1 px-3 text-xs border-success/40 bg-success/10 text-success hover:bg-success/20"
+                onClick={() => onDownloadVoucher(payment.id, "thermal_58")}
+                isLoading={downloading === `${payment.id}:thermal_58`}
+              >
+                <Receipt className="h-4 w-4" />
+                Boleta 58mm
               </Button>
               <Button
                 variant="outline"

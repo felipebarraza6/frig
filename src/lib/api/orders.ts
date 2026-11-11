@@ -2,6 +2,7 @@ import { apiFetch, apiFile, ApiError, type ApiFileResult } from "@/lib/api/clien
 import { assertOnlineSale } from "@/lib/net/online";
 import type { YggdraSchemas } from "@/lib/api/types";
 import type { CartItem } from "@/lib/store/cart";
+import type { ThermalPdfFormat } from "@/lib/pdf-format";
 import {
   orderTypeLabel,
   orderStatusLabel,
@@ -507,12 +508,18 @@ export function orderProductsToCartItems(
   });
 }
 
-export async function downloadOrderThermalPdf(id: string): Promise<ApiFileResult> {
-  return apiFile(`/sales/orders/${id}/generate-boleta-pdf/`);
+export async function downloadOrderThermalPdf(
+  id: string,
+  format: ThermalPdfFormat = "thermal",
+): Promise<ApiFileResult> {
+  return apiFile(`/sales/orders/${id}/generate-boleta-pdf/?pdf_format=${format}`);
 }
 
-export async function downloadOrderTicketPdf(id: string): Promise<ApiFileResult> {
-  return apiFile(`/sales/orders/${id}/generate-ticket-pdf/`);
+export async function downloadOrderTicketPdf(
+  id: string,
+  format: ThermalPdfFormat = "thermal",
+): Promise<ApiFileResult> {
+  return apiFile(`/sales/orders/${id}/generate-ticket-pdf/?pdf_format=${format}`);
 }
 
 export async function downloadOrderA4Pdf(id: string): Promise<ApiFileResult> {

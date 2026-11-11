@@ -5,6 +5,13 @@ import { FileText, Printer, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/modal";
 import { downloadOrderThermalPdf } from "@/lib/api/orders";
+import {
+  readThermalPdfFormat,
+  thermalDownloadSuffix,
+  withThermalFilename,
+  writeThermalPdfFormat,
+  type ThermalPdfFormat,
+} from "@/lib/pdf-format";
 import { formatCLP } from "@/lib/utils";
 import { useToast } from "@/lib/store/toast";
 import type { CartItem } from "@/lib/store/cart";
@@ -117,7 +124,15 @@ export function PostSaleModal({ order, items, branchName, onClose }: PostSaleMod
   const sponsorSlug = resolveActiveLoginSlug(branch);
   const sponsorLine = sponsorTicketLine(sponsorSlug);
   const [currentOrder, setCurrentOrder] = useState<Order>(order);
-  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [pickedFormat, setPickedFormat] = useState<{
+    branchId?: string | number;
+    format: ThermalPdfFormat;
+  } | null>(null);
+  const pdfFormat =
+    pickedFormat && pickedFormat.branchId === branch?.id
+      ? pickedFormat.format
+      : readThermalPdfFormat(branch?.id);
+  const [downloadingPdf, setDownloadingPdf] = useState<ThermalPdfFormat | null>(null);
   const [downloadingTxt, setDownloadingTxt] = useState(false);
   const [printingTicket, setPrintingTicket] = useState(false);
   const [showPreview, setShowPreview] = useState(true);
@@ -157,14 +172,17 @@ export function PostSaleModal({ order, items, branchName, onClose }: PostSaleMod
     [],
   );
 
-  async function handleDownloadBoleta() {
-    setDownloadingPdf(true);
+  async function handleDownloadBoleta(format: ThermalPdfFormat = pdfFormat) {
+    writeThermalPdfFormat(format, branch?.id);
+    setPickedFormat({ branchId: branch?.id, format });
+    setDownloadingPdf(format);
     try {
-      const { blob, filename } = await downloadOrderThermalPdf(order.id);
+      const { blob, filename } = await downloadOrderThermalPdf(order.id, format);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = filename || `boleta_${order.id.slice(0, 8)}.pdf`;
+      const fallback = `boleta_${order.order_number || order.id.slice(0, 8)}${thermalDownloadSuffix(format)}.pdf`;
+      a.download = withThermalFilename(filename, format, fallback);
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -173,7 +191,7 @@ export function PostSaleModal({ order, items, branchName, onClose }: PostSaleMod
       const message = err instanceof Error ? err.message : "Error al descargar la boleta";
       toast.error(message);
     } finally {
-      setDownloadingPdf(false);
+      setDownloadingPdf(null);
     }
   }
 
@@ -311,14 +329,32 @@ export function PostSaleModal({ order, items, branchName, onClose }: PostSaleMod
         <Button
           variant="outline"
           className="h-auto justify-start gap-3 py-3"
-          onClick={handleDownloadBoleta}
-          isLoading={downloadingPdf}
+          onClick={() => handleDownloadBoleta(pdfFormat)}
+          isLoading={downloadingPdf === pdfFormat}
         >
           <Receipt className="h-5 w-5 text-primary" />
           <div className="text-left">
-            <p className="text-sm font-medium">Boleta (PDF 80mm)</p>
-            <p className="text-xs text-muted-foreground">Comprobante bonito para impresora térmica</p>
+            <p className="text-sm font-medium">
+              Boleta (PDF {pdfFormat === "thermal_58" ? "58mm" : "80mm"})
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {pdfFormat === "thermal_58"
+                ? "Último formato elegido: rollo 58 mm"
+                : "Comprobante bonito para impresora térmica"}
+            </p>
           </div>
+        </Button>
+
+        <Button
+          variant="ghost"
+          className="h-auto justify-start gap-3 py-2"
+          onClick={() => handleDownloadBoleta(pdfFormat === "thermal_58" ? "thermal" : "thermal_58")}
+          isLoading={downloadingPdf != null && downloadingPdf !== pdfFormat}
+        >
+          <Receipt className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm">
+            {pdfFormat === "thermal_58" ? "Boleta 80 mm" : "Boleta 58 mm"}
+          </span>
         </Button>
 
         <Button
