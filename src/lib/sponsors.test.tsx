@@ -10,9 +10,17 @@ import {
 } from "@/lib/sponsors";
 
 describe("SPONSORED_SLUGS", () => {
-  it("marca Arena Negra y Minimarket Buchupureo con Sercotec", () => {
-    expect(SPONSORED_SLUGS["arena-negra"]).toBe("sercotec");
-    expect(SPONSORED_SLUGS["minimarket-buchupureo"]).toBe("sercotec");
+  it("marca todas las sucursales de Michillan con Sercotec", () => {
+    for (const slug of [
+      "revista-cobquecura",
+      "arena-negra",
+      "minimarket-buchupureo",
+      "dimatteo",
+      "hielo-olas-altas",
+      "vignosi",
+    ]) {
+      expect(SPONSORED_SLUGS[slug]).toBe("sercotec");
+    }
   });
 
   it("no patrocina otros slugs", () => {
