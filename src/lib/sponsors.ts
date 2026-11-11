@@ -1,9 +1,8 @@
 /**
  * Negocios con sello de patrocinio (login_slug → patrocinador).
  *
- * Arena Negra: /login/arena-negra.
- * Minimarket Buchupureo: el slug no está en el catálogo de demos; se declara
- * aquí para poder sumar o cambiar slugs sin tocar la UI.
+ * Todas las sucursales de Michillan (org 27) llevan el sello Sercotec.
+ * Se declaran aquí para poder sumar o cambiar slugs sin tocar la UI.
  */
 
 import { getRememberedLoginSlug, normalizeLoginSlug } from "@/lib/login-slug";
@@ -11,8 +10,12 @@ import { getRememberedLoginSlug, normalizeLoginSlug } from "@/lib/login-slug";
 export type SponsorId = "sercotec";
 
 export const SPONSORED_SLUGS: Readonly<Record<string, SponsorId>> = {
+  "revista-cobquecura": "sercotec",
   "arena-negra": "sercotec",
   "minimarket-buchupureo": "sercotec",
+  "dimatteo": "sercotec",
+  "hielo-olas-altas": "sercotec",
+  "vignosi": "sercotec",
 };
 
 export const SPONSOR_COPY: Readonly<
