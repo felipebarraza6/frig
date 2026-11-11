@@ -142400,7 +142400,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                id: string;
+                id: number;
             };
             cookie?: never;
         };
