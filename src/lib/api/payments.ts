@@ -3,6 +3,7 @@ import { assertOnlineSale } from "@/lib/net/online";
 import { fetchAllPages } from "./pagination";
 import type { YggdraSchemas } from "@/lib/api/types";
 import { appendMulti } from "@/lib/api/query-params";
+import type { VoucherPdfFormat } from "@/lib/pdf-format";
 
 export type YggdraPaymentMethod = YggdraSchemas["PaymentMethodList"];
 export type YggdraPayment = YggdraSchemas["Payment"];
@@ -194,7 +195,7 @@ export async function exportPaymentsExcel(filter: PaymentsFilter = {}): Promise<
 
 export async function downloadPaymentVoucher(
   id: string,
-  format: "thermal" | "a4" = "thermal",
+  format: VoucherPdfFormat = "thermal",
 ): Promise<Blob> {
   const res = await apiFile(`/finance/payments/${id}/download-voucher/?pdf_format=${format}`);
   return res.blob;

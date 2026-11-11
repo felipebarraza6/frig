@@ -1,5 +1,6 @@
 import { apiFetch, apiFile, type ApiFileResult } from "./client";
 import type { YggdraSchemas } from "@/lib/api/types";
+import type { VoucherPdfFormat } from "@/lib/pdf-format";
 
 export type Revenue = YggdraSchemas["Revenue"];
 export type RevenueRequest = YggdraSchemas["RevenueRequest"];
@@ -123,7 +124,7 @@ export async function exportRevenuesExcel(filter: RevenuesFilter): Promise<ApiFi
 
 export async function downloadRevenueVoucher(
   id: string,
-  format: "thermal" | "a4" = "thermal",
+  format: VoucherPdfFormat = "thermal",
 ): Promise<ApiFileResult> {
   return apiFile(`/finance/revenues/${id}/download-voucher/?pdf_format=${format}`);
 }

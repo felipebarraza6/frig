@@ -143,6 +143,39 @@ describe("apiFetch", () => {
       }),
     ).toBe("Ya existe una zona activa con ese nombre");
   });
+
+  it("en un dominio custom el POST de login no manda cookies ni pide CSRF", async () => {
+    vi.stubEnv("NEXT_PUBLIC_YGGDRA_API_BASE", "https://api.yggdra.cl/api");
+    vi.stubGlobal("location", {
+      protocol: "https:",
+      hostname: "dimatteo.michillan.cl",
+      origin: "https://dimatteo.michillan.cl",
+      assign: vi.fn(),
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(JSON.stringify({ token: "t" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+    const { apiFetch } = await import("./client");
+    await apiFetch("/accounts/users/login_complete/", {
+      method: "POST",
+      body: { email: "a@b.cl", password: "x" },
+      auth: "none",
+      credentials: "include",
+    });
+    expect(fetch).toHaveBeenCalledOnce();
+    const [url, init] = vi.mocked(fetch).mock.calls[0]!;
+    expect(String(url)).toContain("/accounts/users/login_complete/");
+    expect(init?.credentials).toBe("omit");
+    const headers = init?.headers as Record<string, string>;
+    expect(headers["X-CSRFToken"]).toBeUndefined();
+    expect(headers.Authorization).toBeUndefined();
+  });
 });
 
 describe("apiFetch con sesión por cookie (frig.yggdra.cl)", () => {
