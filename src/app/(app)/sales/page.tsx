@@ -25,6 +25,7 @@ import {
   type OrdersFilter,
   type PaymentInstallment,
 } from "@/lib/api/orders";
+import { thermalDownloadSuffix, withThermalFilename, writeThermalPdfFormat, type ThermalPdfFormat } from "@/lib/pdf-format";
 import { fetchTables } from "@/lib/api/tables";
 import { dayBefore } from "@/lib/stale-orders";
 import { generateTaxDocumentFromOrder } from "@/lib/api/tax-documents";
@@ -229,10 +230,12 @@ type OrderCardProps = {
   cancelPending: boolean;
   onView: (order: Order) => void;
   onTicket: (order: Order) => void;
+  onTicket58: (order: Order) => void;
   onDeliver: (order: Order) => void;
   onPay: (order: Order) => void;
   onMerge: (order: Order) => void;
   onThermal: (order: Order) => void;
+  onThermal58: (order: Order) => void;
   onA4: (order: Order) => void;
   onCancel: (order: Order) => void;
 };
@@ -248,8 +251,10 @@ function orderPaidAmount(order: Order) {
 function PdfFormatFlyout({
   disabled,
   onThermal,
+  onThermal58,
   onA4,
   onReceiptThermal,
+  onReceiptThermal58,
   onReceiptA4,
   triggerClassName,
   align = "left",
@@ -257,8 +262,10 @@ function PdfFormatFlyout({
 }: {
   disabled?: boolean;
   onThermal: () => void;
+  onThermal58: () => void;
   onA4: () => void;
   onReceiptThermal?: () => void;
+  onReceiptThermal58?: () => void;
   onReceiptA4?: () => void;
   triggerClassName?: string;
   align?: "left" | "right";
@@ -306,6 +313,19 @@ function PdfFormatFlyout({
           role="menuitem"
           disabled={disabled}
           onClick={() => {
+            onThermal58();
+            setOpen(false);
+          }}
+          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted disabled:opacity-50"
+        >
+          <Receipt className="h-3.5 w-3.5 text-muted-foreground" />
+          Térmico (58 mm)
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          disabled={disabled}
+          onClick={() => {
             onA4();
             setOpen(false);
           }}
@@ -329,6 +349,19 @@ function PdfFormatFlyout({
             >
               <Receipt className="h-3.5 w-3.5 text-muted-foreground" />
               Boleta 80 mm
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              disabled={disabled}
+              onClick={() => {
+                onReceiptThermal58?.();
+                setOpen(false);
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted disabled:opacity-50"
+            >
+              <Receipt className="h-3.5 w-3.5 text-muted-foreground" />
+              Boleta 58 mm
             </button>
             <button
               type="button"
@@ -397,10 +430,12 @@ function OrderListRow({
   cancelPending,
   onView,
   onTicket,
+  onTicket58,
   onDeliver,
   onPay,
   onMerge,
   onThermal,
+  onThermal58,
   onA4,
   onCancel,
 }: Omit<OrderCardProps, "index" | "showTables" | "tableById">) {
@@ -502,6 +537,15 @@ function OrderListRow({
                       disabled={isDownloading}
                     />
                     <ActionMenuItem
+                      icon={Receipt}
+                      label="Térmico (58 mm)"
+                      onClick={() => {
+                        onTicket58(order);
+                        setMenuOpen(false);
+                      }}
+                      disabled={isDownloading}
+                    />
+                    <ActionMenuItem
                       icon={FileText}
                       label="A4"
                       onClick={() => {
@@ -517,6 +561,15 @@ function OrderListRow({
                           label="Boleta 80 mm"
                           onClick={() => {
                             onThermal(order);
+                            setMenuOpen(false);
+                          }}
+                          disabled={isDownloading}
+                        />
+                        <ActionMenuItem
+                          icon={Receipt}
+                          label="Boleta 58 mm"
+                          onClick={() => {
+                            onThermal58(order);
                             setMenuOpen(false);
                           }}
                           disabled={isDownloading}
@@ -603,10 +656,12 @@ function OrderCard({
   cancelPending,
   onView,
   onTicket,
+  onTicket58,
   onDeliver,
   onPay,
   onMerge,
   onThermal,
+  onThermal58,
   onA4,
   onCancel,
 }: OrderCardProps) {
@@ -694,6 +749,7 @@ function OrderCard({
           <PdfFormatFlyout
             disabled={isDownloading}
             onThermal={() => onTicket(order)}
+            onThermal58={() => onTicket58(order)}
             onA4={() => onA4(order)}
             triggerClassName="inline-flex h-11 min-h-[44px] items-center gap-1 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50 sm:h-9"
           >
@@ -732,6 +788,15 @@ function OrderCard({
                         label="Boleta 80 mm"
                         onClick={() => {
                           onThermal(order);
+                          setMenuOpen(false);
+                        }}
+                        disabled={isDownloading}
+                      />
+                      <ActionMenuItem
+                        icon={Receipt}
+                        label="Boleta 58 mm"
+                        onClick={() => {
+                          onThermal58(order);
                           setMenuOpen(false);
                         }}
                         disabled={isDownloading}
@@ -854,6 +919,15 @@ function OrderCard({
                   disabled={isDownloading}
                 />
                 <ActionMenuItem
+                  icon={Receipt}
+                  label="Térmico (58 mm)"
+                  onClick={() => {
+                    onTicket58(order);
+                    setMenuOpen(false);
+                  }}
+                  disabled={isDownloading}
+                />
+                <ActionMenuItem
                   icon={FileText}
                   label="A4"
                   onClick={() => {
@@ -869,6 +943,15 @@ function OrderCard({
                       label="Boleta 80 mm"
                       onClick={() => {
                         onThermal(order);
+                        setMenuOpen(false);
+                      }}
+                      disabled={isDownloading}
+                    />
+                    <ActionMenuItem
+                      icon={Receipt}
+                      label="Boleta 58 mm"
+                      onClick={() => {
+                        onThermal58(order);
                         setMenuOpen(false);
                       }}
                       disabled={isDownloading}
@@ -1389,10 +1472,17 @@ export default function SalesPage() {
     );
   }
 
-  async function handleDownloadThermalPdf(order: Order) {
-    await downloadFile(() => downloadOrderThermalPdf(order.id), {
-      filename: `boleta_${order.order_number ?? order.id.slice(0, 8)}.pdf`,
-    });
+  function rememberThermal(format: ThermalPdfFormat) {
+    writeThermalPdfFormat(format, branch?.id);
+  }
+
+  async function handleDownloadThermalPdf(order: Order, format: ThermalPdfFormat = "thermal") {
+    rememberThermal(format);
+    const fallback = `boleta_${order.order_number ?? order.id.slice(0, 8)}${thermalDownloadSuffix(format)}.pdf`;
+    await downloadFile(async () => {
+      const file = await downloadOrderThermalPdf(order.id, format);
+      return { ...file, filename: withThermalFilename(file.filename, format, fallback) };
+    }, { filename: fallback });
   }
 
   async function handleDownloadA4Pdf(order: Order) {
@@ -1401,10 +1491,13 @@ export default function SalesPage() {
     });
   }
 
-  async function handleDownloadTicketPdf(order: Order) {
-    await downloadFile(() => downloadOrderTicketPdf(order.id), {
-      filename: `comanda_${order.order_number ?? order.id.slice(0, 8)}.pdf`,
-    });
+  async function handleDownloadTicketPdf(order: Order, format: ThermalPdfFormat = "thermal") {
+    rememberThermal(format);
+    const fallback = `comanda_${order.order_number ?? order.id.slice(0, 8)}${thermalDownloadSuffix(format)}.pdf`;
+    await downloadFile(async () => {
+      const file = await downloadOrderTicketPdf(order.id, format);
+      return { ...file, filename: withThermalFilename(file.filename, format, fallback) };
+    }, { filename: fallback });
   }
 
   async function handleCreateAccount() {
@@ -1807,11 +1900,13 @@ export default function SalesPage() {
                     deliverPending={deliver.isPending}
                     cancelPending={cancel.isPending}
                     onView={setDetail}
-                    onTicket={handleDownloadTicketPdf}
+                    onTicket={(order) => handleDownloadTicketPdf(order, "thermal")}
+                    onTicket58={(order) => handleDownloadTicketPdf(order, "thermal_58")}
                     onDeliver={openDelivering}
                     onPay={setPayingOrder}
                     onMerge={setMergingOrder}
-                    onThermal={handleDownloadThermalPdf}
+                    onThermal={(order) => handleDownloadThermalPdf(order, "thermal")}
+                    onThermal58={(order) => handleDownloadThermalPdf(order, "thermal_58")}
                     onA4={handleDownloadA4Pdf}
                     onCancel={(o) => cancel.mutate(o.id)}
                   />
@@ -1830,11 +1925,13 @@ export default function SalesPage() {
                     deliverPending={deliver.isPending}
                     cancelPending={cancel.isPending}
                     onView={setDetail}
-                    onTicket={handleDownloadTicketPdf}
+                    onTicket={(order) => handleDownloadTicketPdf(order, "thermal")}
+                    onTicket58={(order) => handleDownloadTicketPdf(order, "thermal_58")}
                     onDeliver={openDelivering}
                     onPay={setPayingOrder}
                     onMerge={setMergingOrder}
-                    onThermal={handleDownloadThermalPdf}
+                    onThermal={(order) => handleDownloadThermalPdf(order, "thermal")}
+                    onThermal58={(order) => handleDownloadThermalPdf(order, "thermal_58")}
                     onA4={handleDownloadA4Pdf}
                     onCancel={(o) => cancel.mutate(o.id)}
                   />
@@ -2149,11 +2246,17 @@ export default function SalesPage() {
               )}
               <PdfFormatFlyout
                 disabled={isDownloading}
-                onThermal={() => handleDownloadTicketPdf(detail)}
+                onThermal={() => handleDownloadTicketPdf(detail, "thermal")}
+                onThermal58={() => handleDownloadTicketPdf(detail, "thermal_58")}
                 onA4={() => handleDownloadA4Pdf(detail)}
                 onReceiptThermal={
                   detail.payment_status === "PAID"
-                    ? () => handleDownloadThermalPdf(detail)
+                    ? () => handleDownloadThermalPdf(detail, "thermal")
+                    : undefined
+                }
+                onReceiptThermal58={
+                  detail.payment_status === "PAID"
+                    ? () => handleDownloadThermalPdf(detail, "thermal_58")
                     : undefined
                 }
                 onReceiptA4={
@@ -2803,11 +2906,13 @@ export default function SalesPage() {
                       deliverPending={deliver.isPending}
                       cancelPending={cancel.isPending}
                       onView={setDetail}
-                      onTicket={handleDownloadTicketPdf}
+                      onTicket={(order) => handleDownloadTicketPdf(order, "thermal")}
+                      onTicket58={(order) => handleDownloadTicketPdf(order, "thermal_58")}
                       onDeliver={openDelivering}
                       onPay={setPayingOrder}
                       onMerge={setMergingOrder}
-                      onThermal={handleDownloadThermalPdf}
+                      onThermal={(order) => handleDownloadThermalPdf(order, "thermal")}
+                      onThermal58={(order) => handleDownloadThermalPdf(order, "thermal_58")}
                       onA4={handleDownloadA4Pdf}
                       onCancel={(o) => cancel.mutate(o.id)}
                     />

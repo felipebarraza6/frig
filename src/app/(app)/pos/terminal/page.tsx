@@ -62,6 +62,7 @@ import { fetchAllOrderResults, fetchOrder, cancelOrder, deliverOrder, createOrde
 import { searchCustomers, createCustomer } from "@/lib/api/customers";
 
 import { useDownloadFile } from "@/lib/hooks/useDownloadFile";
+import { readThermalPdfFormat, thermalDownloadSuffix, withThermalFilename } from "@/lib/pdf-format";
 import { fetchPaymentMethods } from "@/lib/api/payments";
 import {
   getCurrentCashRegister,
@@ -419,9 +420,12 @@ export default function PosPage() {
   const { download: downloadFile, isLoading: isDownloadingTicket } = useDownloadFile();
 
   async function handleDownloadTicket(order: Order) {
-    await downloadFile(() => downloadOrderTicketPdf(order.id), {
-      filename: `comanda_${order.order_number ?? order.id.slice(0, 8)}.pdf`,
-    });
+    const format = readThermalPdfFormat(branch?.id);
+    const fallback = `comanda_${order.order_number ?? order.id.slice(0, 8)}${thermalDownloadSuffix(format)}.pdf`;
+    await downloadFile(async () => {
+      const file = await downloadOrderTicketPdf(order.id, format);
+      return { ...file, filename: withThermalFilename(file.filename, format, fallback) };
+    }, { filename: fallback });
   }
 
   const addItem = useCartStore((s) => s.addItem);

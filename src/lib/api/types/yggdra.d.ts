@@ -13215,11 +13215,12 @@ export interface paths {
          * @description Descargar comprobante de pago en PDF.
          *
          *     Parámetros de query:
-         *     - pdf_format: "thermal" (80mm) o "a4" (A4). Por defecto "thermal".
+         *     - pdf_format: "thermal" (80mm), "thermal_58" (58mm) o "a4" (A4). Por defecto "thermal".
          *     - format: (legacy) También aceptado, pero puede causar conflictos con DRF.
          *
          *     GET /api/finance/payments/{id}/download-voucher/?pdf_format=a4
          *     GET /api/finance/payments/{id}/download-voucher/?pdf_format=thermal
+         *     GET /api/finance/payments/{id}/download-voucher/?pdf_format=thermal_58
          *
          *     Lógica:
          *     - Si hay voucher_file adjunto → descargar ese archivo
@@ -13247,10 +13248,11 @@ export interface paths {
         /**
          * @description Generar PDF de comprobante de pago.
          *     GET /api/finance/payments/{id}/generate-pdf/?pdf_format=thermal
+         *     GET /api/finance/payments/{id}/generate-pdf/?pdf_format=thermal_58
          *     GET /api/finance/payments/{id}/generate-pdf/?pdf_format=a4
          *
          *     Parámetros de query:
-         *     - pdf_format: "thermal" (80mm) o "a4" (A4). Por defecto "thermal".
+         *     - pdf_format: "thermal" (80mm), "thermal_58" (58mm) o "a4" (A4). Por defecto "thermal".
          *     - format: (legacy) También aceptado, pero puede causar conflictos con DRF.
          *
          *     NOTA: Se recomienda usar 'pdf_format' en lugar de 'format' para evitar
@@ -13854,7 +13856,7 @@ export interface paths {
         };
         /**
          * Descargar comprobante de ingreso
-         * @description Descarga el comprobante del ingreso. Si hay archivo adjunto, lo descarga. Si no, genera PDF automáticamente. Soporta formatos: thermal (80mm) o a4.
+         * @description Descarga el comprobante del ingreso. Si hay archivo adjunto, lo descarga. Si no, genera PDF automáticamente. pdf_format: thermal (80mm, default), thermal_58 (58mm) o a4. Alias legacy: format.
          */
         get: operations["finance_revenues_download_voucher_retrieve"];
         put?: never;
@@ -13873,8 +13875,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Generar boleta PDF (80mm o A4)
-         * @description Genera un PDF de boleta para el ingreso. Si el ingreso tiene una orden asociada, usa el generador de órdenes. Si no, crea una orden temporal. Soporta formatos: thermal (80mm) o a4.
+         * Generar boleta PDF (80mm, 58mm o A4)
+         * @description Genera un PDF de boleta para el ingreso. Si el ingreso tiene una orden asociada, usa el generador de órdenes. Si no, crea una orden temporal. pdf_format: thermal (80mm, default), thermal_58 (58mm) o a4. Alias legacy: format.
          */
         get: operations["finance_revenues_generate_boleta_pdf_retrieve"];
         put?: never;
@@ -23459,8 +23461,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Generar boleta PDF formato 80mm
-         * @description Genera un PDF de boleta en formato 80mm x 200mm para impresión térmica
+         * Generar boleta PDF térmica (80mm o 58mm)
+         * @description Genera un PDF de boleta para impresión térmica. pdf_format=thermal (default, 80mm) o pdf_format=thermal_58 (rollo 58mm).
          */
         get: operations["sales_orders_generate_boleta_pdf_retrieve"];
         put?: never;
@@ -23479,8 +23481,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Generar comanda PDF formato 80mm
-         * @description Genera un PDF de comanda para cocina en formato térmico 80mm
+         * Generar comanda PDF térmica (80mm o 58mm)
+         * @description Genera un PDF de comanda para cocina. pdf_format=thermal (default, 80mm) o pdf_format=thermal_58 (rollo 58mm).
          */
         get: operations["sales_orders_generate_ticket_pdf_retrieve"];
         put?: never;
@@ -107636,6 +107638,8 @@ export interface operations {
         parameters: {
             query?: {
                 format?: "binary" | "json";
+                /** @description thermal=80mm (default), thermal_58=58mm, a4=A4. */
+                pdf_format?: "a4" | "thermal" | "thermal_58";
             };
             header?: never;
             path: {
@@ -107670,6 +107674,8 @@ export interface operations {
         parameters: {
             query?: {
                 format?: "binary" | "json";
+                /** @description thermal=80mm (default), thermal_58=58mm, a4=A4. */
+                pdf_format?: "a4" | "thermal" | "thermal_58";
             };
             header?: never;
             path: {
@@ -129489,6 +129495,8 @@ export interface operations {
         parameters: {
             query?: {
                 format?: "binary" | "json";
+                /** @description thermal=80mm (default), thermal_58=58mm. Alias: format. */
+                pdf_format?: "thermal" | "thermal_58";
             };
             header?: never;
             path: {
@@ -129523,6 +129531,8 @@ export interface operations {
         parameters: {
             query?: {
                 format?: "binary" | "json";
+                /** @description thermal=80mm (default), thermal_58=58mm. Alias: format. */
+                pdf_format?: "thermal" | "thermal_58";
             };
             header?: never;
             path: {
