@@ -52,14 +52,20 @@ export function normalizeLoginSlug(slug: string | null | undefined): string | nu
   return recoverLoginSlug(slug);
 }
 
-/** Cuerpo de forgot_password: incluye login_slug solo si el portal lo trae. */
+/** Cuerpo de forgot_password: slug y branch_id solo en un portal de marca. */
 export function forgotPasswordBody(
   email: string,
   branchParam?: string | null,
   knownSlugs?: readonly string[],
-): { email: string; login_slug?: string } {
+  branchId?: number | string | null,
+): { email: string; login_slug?: string; branch_id?: number | string } {
   const login_slug = recoverLoginSlug(branchParam, knownSlugs) ?? undefined;
-  return login_slug ? { email, login_slug } : { email };
+  if (!login_slug) return { email };
+  const raw = branchId == null ? "" : String(branchId).trim();
+  if (!raw || !/^\d+$/.test(raw) || Number(raw) <= 0) {
+    return { email, login_slug };
+  }
+  return { email, login_slug, branch_id: Number(raw) };
 }
 
 /** Guarda el slug de la sesión de login (localStorage). */

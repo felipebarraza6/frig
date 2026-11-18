@@ -402,7 +402,12 @@ export default function LoginPage() {
       // Respuesta genérica del backend (anti-enumeración): el mensaje es el
       // mismo exista o no el email.
       await forgotPassword(
-        forgotPasswordBody(forgotEmail, loginSlug, Object.keys(SPONSORED_SLUGS)),
+        forgotPasswordBody(
+          forgotEmail,
+          loginSlug,
+          Object.keys(SPONSORED_SLUGS),
+          brandTheme?.branch_id,
+        ),
       );
       setForgotSent(true);
     } catch (err) {

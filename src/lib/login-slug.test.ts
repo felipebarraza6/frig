@@ -42,6 +42,19 @@ describe("forgotPasswordBody", () => {
   it("el login genérico solo manda el email", () => {
     expect(forgotPasswordBody("a@b.cl", null)).toEqual({ email: "a@b.cl" });
     expect(forgotPasswordBody("a@b.cl", "")).toEqual({ email: "a@b.cl" });
+    expect(forgotPasswordBody("a@b.cl", null, undefined, 15)).toEqual({ email: "a@b.cl" });
+  });
+
+  it("en portal de marca manda branch_id cuando el tema lo trae", () => {
+    expect(forgotPasswordBody("a@b.cl", "arena-negra", undefined, 15)).toEqual({
+      email: "a@b.cl",
+      login_slug: "arena-negra",
+      branch_id: 15,
+    });
+    expect(forgotPasswordBody("a@b.cl", "arena-negra", undefined, "0")).toEqual({
+      email: "a@b.cl",
+      login_slug: "arena-negra",
+    });
   });
 });
 

@@ -48,7 +48,12 @@ export default function ForgotPasswordPage() {
       // Respuesta genérica del backend (anti-enumeración): no sabremos
       // si el email existe; mostramos el mismo mensaje a todos.
       await forgotPassword(
-        forgotPasswordBody(email, getRememberedLoginSlug(), Object.keys(SPONSORED_SLUGS)),
+        forgotPasswordBody(
+          email,
+          getRememberedLoginSlug(),
+          Object.keys(SPONSORED_SLUGS),
+          brandTheme?.branch_id,
+        ),
       );
       setSent(true);
     } catch (err) {
