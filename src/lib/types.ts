@@ -154,6 +154,8 @@ export interface BranchThemeConfig {
   font_size?: string;
   social_links?: Record<string, string>;
   login_welcome_message?: string;
+  /** Id de sucursal cuando el tema público o el landing lo expone. */
+  branch_id?: number;
   [key: string]: unknown;
 }
 
