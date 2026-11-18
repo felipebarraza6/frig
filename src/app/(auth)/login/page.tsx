@@ -26,7 +26,8 @@ import { BrandLogo } from "@/components/brand-logo";
 import { LANDING_USE_CASES } from "@/content/landing";
 import type { LandingUseCase } from "@/content/landing";
 import type { LoginCompleteResponse } from "@/lib/types";
-import { rememberLoginSlug } from "@/lib/login-slug";
+import { forgotPasswordBody, recoverLoginSlug, rememberLoginSlug } from "@/lib/login-slug";
+import { SPONSORED_SLUGS } from "@/lib/sponsors";
 import { SponsorBadge } from "@/components/sponsor-badge";
 import {
   findDemoCredentials,
@@ -186,7 +187,10 @@ export default function LoginPage() {
   // Demo activa según ?branch=<slug> (catálogo local: nombre/color del banner).
   const [loginSlug] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
-    return new URLSearchParams(window.location.search).get("branch");
+    return recoverLoginSlug(
+      new URLSearchParams(window.location.search).get("branch"),
+      Object.keys(SPONSORED_SLUGS),
+    );
   });
   const [demoCase] = useState<LandingUseCase | null>(() => {
     if (!loginSlug) return null;
@@ -224,7 +228,10 @@ export default function LoginPage() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const slug = new URLSearchParams(window.location.search).get("branch");
+      const slug = recoverLoginSlug(
+        new URLSearchParams(window.location.search).get("branch"),
+        Object.keys(SPONSORED_SLUGS),
+      );
       // Persistir slug para que 401/logout vuelvan a /login/<slug> (marca).
       if (slug) rememberLoginSlug(slug);
       let theme = slug
@@ -394,7 +401,9 @@ export default function LoginPage() {
     try {
       // Respuesta genérica del backend (anti-enumeración): el mensaje es el
       // mismo exista o no el email.
-      await forgotPassword({ email: forgotEmail });
+      await forgotPassword(
+        forgotPasswordBody(forgotEmail, loginSlug, Object.keys(SPONSORED_SLUGS)),
+      );
       setForgotSent(true);
     } catch (err) {
       setForgotError(
@@ -647,8 +656,15 @@ export default function LoginPage() {
                   <p className="font-medium">Revisa tu correo</p>
                   <p className="mt-1 opacity-90">
                     Si el email existe en nuestro sistema, recibirás un enlace
-                    para recuperar tu contraseña (válido por 24 horas).
+                    para recuperar tu contraseña (válido por 24 horas). Si tu
+                    sucursal tiene un portal propio, el correo te lleva al
+                    enlace correcto.
                   </p>
+                  {loginSlug ? (
+                    <p className="mt-2 opacity-90">
+                      Portal de esta sucursal: {`/login/${loginSlug}`}
+                    </p>
+                  ) : null}
                 </div>
                 <Button type="button" size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 mt-2 rounded-lg text-white" onClick={backToLogin}>
                   Volver al inicio de sesión

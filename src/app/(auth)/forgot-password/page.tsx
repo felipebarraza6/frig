@@ -11,7 +11,8 @@ import { BrandLogo } from "@/components/brand-logo";
 import { FRIG_IDENTITY_STYLE, FRIG_REPO_URL, setTenantFavicon } from "@/lib/frig-identity";
 import type { BranchThemeConfig } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { loginPath } from "@/lib/login-slug";
+import { forgotPasswordBody, getRememberedLoginSlug, loginPath } from "@/lib/login-slug";
+import { SPONSORED_SLUGS } from "@/lib/sponsors";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -46,7 +47,9 @@ export default function ForgotPasswordPage() {
     try {
       // Respuesta genérica del backend (anti-enumeración): no sabremos
       // si el email existe; mostramos el mismo mensaje a todos.
-      await forgotPassword({ email });
+      await forgotPassword(
+        forgotPasswordBody(email, getRememberedLoginSlug(), Object.keys(SPONSORED_SLUGS)),
+      );
       setSent(true);
     } catch (err) {
       setError(
@@ -125,7 +128,9 @@ export default function ForgotPasswordPage() {
                 <p className="font-medium">Revisa tu correo</p>
                 <p className="mt-1 opacity-90">
                   Si el email existe en nuestro sistema, recibirás un enlace
-                  para recuperar tu contraseña (válido por 24 horas).
+                  para recuperar tu contraseña (válido por 24 horas). Si tu
+                  sucursal tiene un portal propio, el correo te lleva al
+                  enlace correcto.
                 </p>
               </div>
               <Link
