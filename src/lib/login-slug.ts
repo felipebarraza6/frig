@@ -7,14 +7,65 @@
 
 export const LOGIN_SLUG_STORAGE_KEY = "frig.login_slug";
 
-/** Normaliza un slug de login (sin barras ni espacios). */
-export function normalizeLoginSlug(slug: string | null | undefined): string | null {
+/**
+ * Recupera un slug de login usable.
+ *
+ * Corta en el primer punto (Django rechaza puntos) y, si se pasan slugs
+ * conocidos, se queda con el prefijo más largo (`arena-negra-…` → `arena-negra`).
+ */
+export function recoverLoginSlug(
+  slug: string | null | undefined,
+  knownSlugs?: readonly string[],
+): string | null {
   if (!slug) return null;
-  const clean = slug.trim().replace(/^\/+|\/+$/g, "");
-  if (!clean || clean.toLowerCase() === "login") return null;
-  // Evitar valores basura / inyección de path.
-  if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/.test(clean)) return null;
+  let clean = slug.trim().replace(/^\/+|\/+$/g, "").toLowerCase();
+  clean = clean.split("?")[0].split("#")[0];
+  if (clean.includes("/") || clean.includes("\\") || clean.includes("..")) return null;
+  const dot = clean.indexOf(".");
+  if (dot >= 0) clean = clean.slice(0, dot);
+  clean = clean.replace(/[^a-z0-9_-]/g, "").replace(/_+/g, "_").replace(/-+/g, "-");
+  clean = clean.replace(/^[-_]+|[-_]+$/g, "");
+  if (!clean || clean === "login") return null;
+  if (clean.length > 64) clean = clean.slice(0, 64).replace(/[-_]+$/g, "");
+
+  if (knownSlugs?.length) {
+    const sorted = [...knownSlugs]
+      .map((item) => item.trim().toLowerCase())
+      .filter(Boolean)
+      .sort((a, b) => b.length - a.length);
+    for (const key of sorted) {
+      if (clean === key || clean.startsWith(`${key}-`) || clean.startsWith(`${key}_`)) {
+        return key;
+      }
+    }
+  }
+
+  if (!/^[a-z0-9](?:[a-z0-9_-]{0,62}[a-z0-9])?$/.test(clean) && clean.length !== 1) {
+    return null;
+  }
+  if (!/^[a-z0-9][a-z0-9_-]{0,63}$/.test(clean)) return null;
   return clean;
+}
+
+/** Normaliza un slug de login (sin barras, puntos ni espacios). */
+export function normalizeLoginSlug(slug: string | null | undefined): string | null {
+  return recoverLoginSlug(slug);
+}
+
+/** Cuerpo de forgot_password: slug y branch_id solo en un portal de marca. */
+export function forgotPasswordBody(
+  email: string,
+  branchParam?: string | null,
+  knownSlugs?: readonly string[],
+  branchId?: number | string | null,
+): { email: string; login_slug?: string; branch_id?: number | string } {
+  const login_slug = recoverLoginSlug(branchParam, knownSlugs) ?? undefined;
+  if (!login_slug) return { email };
+  const raw = branchId == null ? "" : String(branchId).trim();
+  if (!raw || !/^\d+$/.test(raw) || Number(raw) <= 0) {
+    return { email, login_slug };
+  }
+  return { email, login_slug, branch_id: Number(raw) };
 }
 
 /** Guarda el slug de la sesión de login (localStorage). */

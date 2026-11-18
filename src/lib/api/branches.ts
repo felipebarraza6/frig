@@ -392,7 +392,17 @@ function normalizePublicLoginTheme(data: Record<string, unknown> | null): Branch
         ? ui.border_radius_px
         : undefined,
     motion: typeof ui.motion_enabled === "boolean" ? ui.motion_enabled : undefined,
+    branch_id: publicBranchId(data),
   };
+}
+
+function publicBranchId(data: Record<string, unknown>): number | undefined {
+  const raw = data.branch_id ?? data.branch;
+  if (typeof raw === "number" && Number.isInteger(raw) && raw > 0) return raw;
+  if (typeof raw === "string" && /^\d+$/.test(raw.trim()) && Number(raw) > 0) {
+    return Number(raw);
+  }
+  return undefined;
 }
 
 /** Foreground oscuro del tema, usado como texto sobre colores de marca claros. */
