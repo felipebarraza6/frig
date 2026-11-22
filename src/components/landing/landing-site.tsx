@@ -939,7 +939,6 @@ function Features({ items }: { items?: LandingFeatureItem[] }) {
   }, [items]);
   const [active, setActive] = useState(0);
   const current = feats[Math.min(active, Math.max(feats.length - 1, 0))];
-  const CurrentIcon = current?.icon;
   const scope = current ? (MODULE_SCOPES[current.title] ?? "Frig") : "Frig";
   const dossier = current ? LANDING_MODULE_DOSSIERS[current.title] : undefined;
 
@@ -1025,7 +1024,7 @@ function Features({ items }: { items?: LandingFeatureItem[] }) {
           })}
         </div>
 
-        {current && CurrentIcon && (
+        {current ? (
           <div
             role="tabpanel"
             id="modulo-panel"
@@ -1067,7 +1066,7 @@ function Features({ items }: { items?: LandingFeatureItem[] }) {
               </div>
             )}
           </div>
-        )}
+        ) : null}
       </div>
     </section>
   );

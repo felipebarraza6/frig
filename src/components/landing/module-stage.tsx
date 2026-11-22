@@ -629,7 +629,7 @@ function Diagram({
         notes.map((_, index) => {
           const labelEl = legend.querySelector(`[data-note="${index}"]`);
           const piece = root.querySelector(`.iso-piece[data-note="${index}"]`);
-          if (!labelEl || !piece) return null;
+          if (!labelEl || !(piece instanceof SVGElement)) return null;
           const lb = labelEl.getBoundingClientRect();
           const point = svg instanceof SVGSVGElement ? svg.createSVGPoint() : null;
           if (!point) return null;
