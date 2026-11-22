@@ -1,41 +1,32 @@
-# Deploy automático de FRIG web a los tres hostings por FTP:
-#   - frig.yggdra.cl                (producción)
-#   - intranet.macanuobowl.cl       (intranet Macanuo Bowl)
-#   - mani.agenciapatagoniachile.com (intranet Agencia Patagonia / Mani)
+# Deploy de FRIG web a Cloudflare Workers.
+# Hosts: frig.yggdra.cl, www.frig.yggdra.cl e intranet.macanuobowl.cl.
+# mani.agenciapatagoniachile.com no se publica.
 #
-# Requisitos en GitHub → Settings → Secrets and variables → Actions:
-#   Secrets:
-#     FTP_PASSWORD          contraseña FTP de frig_cd@yggdra.cl
-#     FTP_TARGET_DIR        carpeta destino yggdra ("/")
-#     MACANUO_FTP_PASSWORD  contraseña FTP de cd@macanuobowl.cl
-#     MACANUO_FTP_TARGET_DIR carpeta destino macanuo ("/")
-#     MANI_FTP_PASSWORD     contraseña FTP de agenciapatagonia
-#     MANI_FTP_TARGET_DIR   carpeta destino mani ("mani.agenciapatagoniachile.com/")
+# Secrets:
+#   CLOUDFLARE_API_TOKEN   token con Workers Scripts + zonas yggdra.cl y macanuobowl.cl
+#   CLOUDFLARE_ACCOUNT_ID  cuenta de Cloudflare
+#   CLOUDFLARE_ZONE_ID     opcional; si está, se purga la caché al publicar
 #
-# Nota: el frontend se compila a HTML estático (next.config.ts usa output:"export").
-# Las rutas dinámicas se sirven mediante .htaccess generado por scripts/post-export.mjs.
+# El frontend se compila a HTML estático (output:"export").
+# Apache usa out/.htaccess. Workers usa workers/asset-rewrites.js y out/_headers.
 
-name: Deploy FRIG web a FTP
+name: Deploy FRIG web
 
 on:
   push:
     branches: [production]
   workflow_dispatch:
 
-# Un deploy a la vez: dos pushes seguidos a production no deben pisarse por FTP.
 concurrency:
   group: deploy-production
   cancel-in-progress: false
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
     env:
       NEXT_TELEMETRY_DISABLED: "1"
-      # Se inyecta en build time: NEXT_PUBLIC_* se sustituye en el bundle.
-      # El mismo build sirve para ambos servidores (misma API).
       NEXT_PUBLIC_YGGDRA_API_BASE: "https://api.yggdra.cl/api"
-      # Identificador visible de la versión en la app (Perfil → Aplicación).
       NEXT_PUBLIC_APP_BUILD: "${{ github.run_number }}"
     steps:
       - uses: actions/checkout@v4
@@ -49,10 +40,6 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
-      # El push a production dispara este workflow con el archivo de ESE
-      # commit. ci.yml no corre en production (y workflow_run leería el
-      # archivo de main), así que lint, tipos y tests tienen que pasar aquí,
-      # antes del FTP. Si fallan, no se sube nada a los tres hosts.
       - name: Lint
         run: npm run lint
 
@@ -68,40 +55,47 @@ jobs:
       - name: Build estático
         run: npm run build
 
-      - name: Generar .htaccess para rutas dinámicas
+      - name: Generar .htaccess, _headers y rewrites
         run: node scripts/post-export.mjs
 
-      - name: Subir a frig.yggdra.cl por FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ftp.yggdra.cl
-          port: 21
-          username: frig_cd@yggdra.cl
-          password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: out/
-          server-dir: ${{ secrets.FTP_TARGET_DIR }}
-          # Sin dangerous-clean-slate: la raíz del hosting contiene cgi-bin/
-          # y .well-known/ (renovación SSL) que no deben borrarse.
+      - name: Verificar que el export trae cada chunk que referencia
+        run: node scripts/verify-chunks.mjs
 
-      - name: Subir a intranet.macanuobowl.cl por FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      - uses: actions/upload-artifact@v4
         with:
-          server: ftp.macanuobowl.cl
-          port: 21
-          username: cd@macanuobowl.cl
-          password: ${{ secrets.MACANUO_FTP_PASSWORD }}
-          local-dir: out/
-          server-dir: ${{ secrets.MACANUO_FTP_TARGET_DIR }}
-          # Sin dangerous-clean-slate por el mismo motivo (.well-known de SSL).
+          name: frig-out
+          path: out/
+          retention-days: 5
+          include-hidden-files: true
 
-      - name: Subir a mani.agenciapatagoniachile.com por FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+  deploy-yggdra:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
         with:
-          server: ftp.agenciapatagoniachile.com
-          port: 21
-          username: agenciapatagonia
-          password: ${{ secrets.MANI_FTP_PASSWORD }}
-          local-dir: out/
-          server-dir: ${{ secrets.MANI_FTP_TARGET_DIR }}
-          # Sin dangerous-clean-slate: .well-known de SSL y datos de clientes
-          # del hosting compartido (otros addon domains) no deben borrarse.
+          name: frig-out
+          path: out/
+
+      - name: Publicar FRIG en Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy
+
+      - name: Purgar caché de la zona
+        env:
+          ZONE: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -z "$ZONE" ]; then
+            echo "Sin CLOUDFLARE_ZONE_ID: no se purga la caché."
+            exit 0
+          fi
+          curl -fsS -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE/purge_cache" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            --data '{"purge_everything":true}'

@@ -1,12 +1,16 @@
-/* Service worker de FRIG (PWA).
+/* Service worker de FRIG (PWA). Módulo: el registro usa { type: "module" }.
  * Estrategia:
- *  - Assets estáticos de Next (_next/static, íconos, brand): cache-first.
+ *  - Assets estáticos de Next (_next/static, íconos, brand): cache-first,
+ *    solo si la respuesta es JS, CSS, fuente o imagen. Un HTML de error
+ *    no se guarda como si fuera el chunk.
  *  - Navegaciones (HTML): network-first, fallback al cache offline.
  *  - API Yggdra y mutaciones: passthrough (sin cachear).
  *
  * El build se lee de ?v= en la URL de registro (ServiceWorkerRegister).
  * Al cambiar v, activate borra caches de builds anteriores.
  */
+
+import { isCacheableStatic } from "./sw-policy.mjs";
 
 const BUILD =
   (typeof self !== "undefined" &&
@@ -92,7 +96,7 @@ self.addEventListener("fetch", (event) => {
         (cached) =>
           cached ||
           fetch(request).then((response) => {
-            if (response.ok) {
+            if (isCacheableStatic(response)) {
               const copy = response.clone();
               caches.open(STATIC_CACHE).then((cache) => cache.put(request, copy));
             }

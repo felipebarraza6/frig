@@ -9,7 +9,6 @@ import {
   Bike,
   Boxes,
   ChartColumn,
-  Check,
   ChefHat,
   CreditCard,
   FileText,
@@ -17,7 +16,6 @@ import {
   LayoutDashboard,
   LayoutGrid,
   Leaf,
-  LogIn,
   Menu,
   Monitor,
   QrCode,
@@ -49,8 +47,9 @@ import {
   LANDING_PLANS,
   LANDING_INTEGRATION_UF,
   LANDING_PRICING_NOTE,
-  LANDING_PROOF,
-  LANDING_STAGING,
+  LANDING_CYCLE,
+  LANDING_MODULE_DOSSIERS,
+  LANDING_ORIGIN,
   LANDING_STAGING_URL,
   LANDING_USE_CASES,
   LANDING_VALUE_PROP,
@@ -71,6 +70,8 @@ import { applyThemeConfig } from "@/lib/api/branches";
 import { mediaUrl } from "@/lib/api/client";
 import { publicAsset } from "@/lib/public-asset";
 import { ScrollReveal } from "@/components/landing/scroll-reveal";
+import { HeroFriggReveal } from "@/components/landing/hero-frigg-reveal";
+import { ModuleStage } from "@/components/landing/module-stage";
 import { HeroPlexus } from "@/components/landing/hero-plexus";
 import { FrigWordmarkMatrix } from "@/components/landing/frig-wordmark-matrix";
 import { CheckoutModal } from "@/components/landing/checkout-modal";
@@ -131,7 +132,7 @@ const NAV_LINKS = [
   { href: "#simulador", label: "Producto" },
   { href: "#producto", label: "Módulos" },
   { href: "#precios", label: "Planes" },
-  { href: "#demos", label: "Demos" },
+  { href: "#demos", label: "Casos de uso" },
 ];
 
 /** Quita anclas de secciones retiradas (p. ej. Novedades del CMS). */
@@ -144,7 +145,14 @@ function sanitizeNavLinks(links: LandingNavItem[] | null | undefined): LandingNa
       if (label === "novedades" || label.startsWith("novedad")) return false;
       return Boolean(l.href && l.label);
     })
-    .map((l) => ({ href: l.href, label: l.label }));
+    .map((l) => {
+      const href = (l.href || "").trim();
+      const label = (l.label || "").trim();
+      if (href === "#demos" || label.toLowerCase() === "demos") {
+        return { href: "#demos", label: "Casos de uso" };
+      }
+      return { href, label };
+    });
   return cleaned.length > 0 ? cleaned : NAV_LINKS;
 }
 
@@ -251,7 +259,7 @@ function Nav({
   }, [links]);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-[#0a0a0a]/85 backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0a0a0a]">
       <div className="mx-auto flex h-20 max-w-6xl items-center justify-between px-6 sm:px-8">
         <Link href="/" className="flex items-center gap-2 group">
           <BrandMark
@@ -289,16 +297,14 @@ function Nav({
             })}
           </nav>
 
-          <div className="hidden sm:block h-5 w-px bg-white/10" aria-hidden />
-
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="hidden items-center gap-5 sm:flex">
             {brand.isFrig && (
             <a
               href={GITHUB_URL}
               target="_blank"
               rel="noopener noreferrer"
               aria-label="GitHub de Frig"
-              className="hidden sm:flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-zinc-400 transition-colors hover:border-white/25 hover:text-white"
+              className="text-zinc-500 transition-colors hover:text-[#e8b08a]"
             >
               <GithubIcon className="h-5 w-5" />
             </a>
@@ -306,30 +312,20 @@ function Nav({
             {savedUser ? (
               <Link
                 href="/dashboard"
-                className="btn-copper inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white"
+                className="btn-copper inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white"
               >
                 <LayoutDashboard className="h-4 w-4" />
                 Ir al panel
               </Link>
             ) : (
-              <>
-                <Link
-                  href="/login"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-2 rounded-lg border border-white/15 px-4 py-2 text-sm font-medium text-white transition-colors hover:border-white/30 hover:bg-white/5"
-                >
-                  <LogIn className="h-4 w-4 text-zinc-400" />
-                  Login
-                </Link>
-                <a
-                  href="#precios"
-                  className="btn-copper hidden items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white sm:inline-flex"
-                >
-                  Suscribirse
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </a>
-              </>
+              <Link
+                href="/login"
+                target="_blank"
+                rel="noreferrer"
+                className="btn-copper inline-flex items-center rounded-full px-4 py-2 text-sm font-semibold text-white"
+              >
+                Entrar
+              </Link>
             )}
           </div>
         </div>
@@ -373,18 +369,11 @@ function Nav({
                     target="_blank"
                     rel="noreferrer"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="py-2 text-center rounded-lg border border-white/15 text-white"
+                    className="btn-copper py-2.5 text-center rounded-full text-sm font-semibold text-white"
                   >
-                    Login
+                    Entrar
                   </Link>
                 )}
-                <a
-                  href="#precios"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="btn-copper inline-flex items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold text-white"
-                >
-                  Suscripción
-                </a>
               </div>
             </div>
           </motion.div>
@@ -421,6 +410,14 @@ const EMBERS = [
 ];
 
 
+/** Última palabra del titular en cobre. El resto queda en blanco. */
+function splitLastWord(text: string): { lead: string; accent: string } {
+  const trimmed = text.trim();
+  const space = trimmed.lastIndexOf(" ");
+  if (space <= 0) return { lead: trimmed, accent: "" };
+  return { lead: trimmed.slice(0, space), accent: trimmed.slice(space + 1) };
+}
+
 function Hero({
   hero,
   ctas,
@@ -437,244 +434,146 @@ function Hero({
   brand: LandingBrand;
 }) {
   // Contenido dinámico: el endpoint manda; el copy local es solo fallback.
-  const headline = hero?.headline || LANDING_VALUE_PROP.headline;
-  const narrative = hero?.subhead || LANDING_VALUE_PROP.subhead;
-  const points =
-    hero?.points && hero.points.length > 0 ? hero.points : LANDING_VALUE_PROP.points;
+  const headline = brand.isFrig
+    ? LANDING_VALUE_PROP.headline
+    : hero?.headline || LANDING_VALUE_PROP.headline;
+  const narrative = brand.isFrig
+    ? LANDING_VALUE_PROP.subhead
+    : hero?.subhead || LANDING_VALUE_PROP.subhead;
+  const continuation = brand.isFrig ? LANDING_VALUE_PROP.continuation : "";
+  const primaryHref = brand.isFrig ? "#demos" : (ctas?.primary?.href ?? "#precios");
+  const primaryLabel = brand.isFrig ? "Casos de uso" : (ctas?.primary?.label ?? "Ver planes");
+  const secondaryHref = brand.isFrig ? "#producto" : (ctas?.secondary?.href ?? "#simulador");
+  const secondaryLabel = brand.isFrig ? "Ver los módulos" : (ctas?.secondary?.label ?? "Probar el producto");
+  const { lead, accent } = splitLastWord(headline);
 
   // Sin fundido ligado al scroll: la capa compositada de opacity+transform
   // producía una costura de 1px en el borde del hero con escala de Windows
   // no entera. El contenido del hero queda estático (el fondo ya se mueve).
 
   return (
-    <section id="inicio" className="relative z-10">
-      {/* Sin atmósfera local: la capa cósmica global (nebulosas, plexus,
-          brasas, glow del cursor) da toda la energía sin costuras. */}
-
-      <div className="relative mx-auto flex min-h-[calc(100dvh-5rem)] max-w-6xl flex-col justify-center px-4 py-16 sm:px-6 sm:py-20">
-        <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:gap-16">
-          <div className="flex flex-col items-start text-left">
-            {savedUser && (
-              <div className="mb-6 flex items-center gap-3 rounded-full border border-white/10 bg-white/[0.04] py-1.5 pl-1.5 pr-4">
-                <span
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-white"
-                  style={{ backgroundColor: brand.accent }}
-                >
-                  {sessionDisplayName(savedUser).charAt(0).toUpperCase()}
-                </span>
-                <span className="text-sm text-zinc-300">
-                  {sessionDisplayName(savedUser)}
-                </span>
-                <button
-                  type="button"
-                  disabled={entering}
-                  onClick={onReenter}
-                  className={cn(
-                    "text-sm font-medium disabled:opacity-60",
-                    !entering && "hover:text-white",
-                  )}
-                  style={{ color: brand.accent }}
-                >
-                  {entering ? "Cargando tu panel…" : "Reingresar →"}
-                </button>
-              </div>
-            )}
-
-            <motion.p
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.45, ease: "easeOut" }}
-              className="flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.22em]"
+    <section id="inicio" className="relative z-10 min-h-[calc(100dvh-4.5rem)]">
+      {brand.isFrig && (
+        <HeroFriggReveal
+          src={publicAsset(LANDING_ORIGIN.image)}
+          className="pointer-events-none absolute inset-0 h-full w-full"
+        />
+      )}
+      <div className="relative z-10 mx-auto flex min-h-[calc(100dvh-4.5rem)] max-w-4xl flex-col items-center justify-center px-4 py-12 text-center sm:px-6">
+        {savedUser && (
+          <div className="mb-8 flex items-center gap-3 rounded-full border border-white/10 bg-white/[0.04] py-1.5 pl-1.5 pr-4">
+            <span
+              className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-white"
+              style={{ backgroundColor: brand.accent }}
+            >
+              {sessionDisplayName(savedUser).charAt(0).toUpperCase()}
+            </span>
+            <span className="text-sm text-zinc-300">{sessionDisplayName(savedUser)}</span>
+            <button
+              type="button"
+              disabled={entering}
+              onClick={onReenter}
+              className={cn(
+                "text-sm font-medium disabled:opacity-60",
+                !entering && "hover:text-white",
+              )}
               style={{ color: brand.accent }}
             >
-              <span
-                className="inline-block h-2 w-2 rotate-45"
-                style={{ backgroundColor: brand.accent }}
-                aria-hidden
-              />
-              {hero?.badge || "POS + cocina + caja, en el navegador"}
-            </motion.p>
-
-            <motion.h1
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.55, delay: 0.08, ease: "easeOut" }}
-              className="font-display mt-5 max-w-xl text-[2.6rem] font-semibold leading-[1.02] tracking-tight text-white sm:text-6xl lg:text-[4.25rem]"
-            >
-              {headline}
-            </motion.h1>
-
-            <motion.p
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.55, delay: 0.16, ease: "easeOut" }}
-              className="mt-5 max-w-lg text-base leading-relaxed text-zinc-300 sm:text-lg"
-            >
-              {narrative}
-            </motion.p>
-
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.55, delay: 0.24, ease: "easeOut" }}
-              className="mt-7 flex flex-wrap items-center gap-3"
-            >
-              <a
-                href={ctas?.primary?.href ?? "#precios"}
-                className="btn-copper inline-flex items-center gap-2 rounded-lg px-6 py-3 text-base font-semibold text-white"
-              >
-                {ctas?.primary?.label ?? "Ver planes"}
-                <ArrowRight className="h-4 w-4" />
-              </a>
-              <a
-                href={ctas?.secondary?.href ?? "#simulador"}
-                className="rounded-lg border border-white/15 px-6 py-3 text-base font-semibold text-white transition-colors hover:bg-white/5"
-              >
-                {ctas?.secondary?.label ?? "Probar el producto"}
-              </a>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.45, delay: 0.28, ease: "easeOut" }}
-              className="mt-6"
-            >
-              {LANDING_STAGING_URL ? (
-                <a
-                  href={LANDING_STAGING_URL}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-zinc-300 transition-colors hover:border-white/25 hover:text-white"
-                >
-                  <span
-                    className="h-1.5 w-1.5 rounded-full"
-                    style={{ backgroundColor: brand.accent }}
-                    aria-hidden
-                  />
-                  Versión de staging para revisar
-                  <ArrowRight className="h-3 w-3" />
-                </a>
-              ) : (
-                <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-zinc-300">
-                  <span
-                    className="h-1.5 w-1.5 rounded-full"
-                    style={{ backgroundColor: brand.accent }}
-                    aria-hidden
-                  />
-                  Versión de staging para revisar
-                </span>
-              )}
-            </motion.div>
-
-            <motion.ul
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.55, delay: 0.36, ease: "easeOut" }}
-              className="mt-6 grid max-w-lg grid-cols-1 gap-x-6 gap-y-2.5 text-sm text-zinc-300 sm:grid-cols-2"
-            >
-              {points.map((point) => (
-                <li key={point} className="flex items-start gap-2.5">
-                  <Check className="mt-0.5 h-4 w-4 shrink-0" style={{ color: brand.accent }} />
-                  <span>{point}</span>
-                </li>
-              ))}
-            </motion.ul>
+              {entering ? "Cargando tu panel…" : "Reingresar →"}
+            </button>
           </div>
+        )}
 
-          <motion.div
-            initial={{ opacity: 0, y: 18 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.12, ease: "easeOut" }}
-            className="relative mx-auto w-full max-w-md lg:max-w-none"
-          >
-            <div
-              aria-hidden
-              className="absolute -inset-8 rounded-full opacity-70 blur-3xl"
-              style={{
-                background: `radial-gradient(circle, ${brand.accent}33 0%, transparent 68%)`,
-              }}
-            />
-            <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#101010]/80 p-5 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-sm sm:p-6">
-              <div className="flex items-center justify-between gap-3">
-                <span className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                  <span className="relative flex h-2 w-2">
-                    <span
-                      className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60"
-                      style={{ backgroundColor: brand.accent }}
-                    />
-                    <span
-                      className="relative inline-flex h-2 w-2 rounded-full"
-                      style={{ backgroundColor: brand.accent }}
-                    />
-                  </span>
-                  Turno en vivo
-                </span>
-                <span className="text-[11px] font-medium text-zinc-500">Hoy · 19:42</span>
-              </div>
+        <motion.p
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+          className="flex items-center justify-center gap-3 text-[11px] font-semibold uppercase tracking-[0.28em]"
+          style={{ color: brand.accent }}
+        >
+          <span className="h-px w-8" style={{ backgroundColor: brand.accent }} aria-hidden />
+          {brand.isFrig ? "Gestión comercial" : hero?.badge || "POS + cocina + caja, en el navegador"}
+          <span className="h-px w-8" style={{ backgroundColor: brand.accent }} aria-hidden />
+        </motion.p>
 
-              <div className="mt-5 grid grid-cols-3 gap-2">
-                {[
-                  ["$186.400", "caja"],
-                  ["12", "mesas"],
-                  ["4", "en cocina"],
-                ].map(([value, label]) => (
-                  <div key={label} className="rounded-xl border border-white/8 bg-white/[0.03] px-2.5 py-3">
-                    <p className="font-display text-lg font-semibold tabular-nums text-white sm:text-xl">{value}</p>
-                    <p className="mt-0.5 text-[11px] uppercase tracking-wider text-zinc-500">{label}</p>
-                  </div>
-                ))}
-              </div>
+        <motion.h1
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.06, ease: "easeOut" }}
+          className="font-display mt-6 max-w-3xl text-5xl font-semibold leading-[0.95] tracking-tight text-white [text-shadow:0_2px_22px_rgba(0,0,0,0.85)] sm:text-6xl lg:text-7xl"
+        >
+          {lead}
+          {accent ? (
+            <>
+              {" "}
+              <span className="hero-accent">{accent}</span>
+            </>
+          ) : null}
+        </motion.h1>
 
-              <div className="mt-3 space-y-2">
-                {[
-                  { table: "Mesa 4", item: "Lomo a lo pobre ×2", state: "En plancha", tone: brand.accent },
-                  { table: "Barra", item: "Negroni + tabla", state: "Lista", tone: "#9db68f" },
-                  { table: "Retiro", item: "Combo familiar", state: "Por cobrar", tone: "#e8c07a" },
-                ].map((row) => (
-                  <div
-                    key={row.table}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-white/8 bg-black/30 px-3 py-2.5"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-white">{row.table}</p>
-                      <p className="truncate text-xs text-zinc-500">{row.item}</p>
-                    </div>
-                    <span
-                      className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
-                      style={{ color: row.tone, borderColor: `${row.tone}55` }}
-                    >
-                      {row.state}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-4 flex items-center justify-between border-t border-white/8 pt-4">
-                {brand.isFrig ? (
-                  <FrigWordmarkMatrix className="h-7 w-auto opacity-90" />
-                ) : (
-                  <BrandMark brand={brand} className="h-7 w-auto max-h-7 object-contain" glow={false} />
-                )}
-                <span className="text-xs text-zinc-500">Sin instaladores</span>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-
-        <motion.dl
+        <motion.p
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
-          className="mt-12 grid grid-cols-3 gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/10 sm:mt-16"
+          transition={{ duration: 0.5, delay: 0.12, ease: "easeOut" }}
+          className={cn(
+            "mt-6 max-w-2xl text-base leading-relaxed sm:text-lg",
+            brand.isFrig ? "text-zinc-300" : "text-zinc-500",
+          )}
         >
-          {LANDING_PROOF.map((item) => (
-            <div key={item.label} className="bg-[#0c0c0c]/90 px-3 py-4 text-center sm:px-6 sm:py-5">
-              <dt className="font-display text-2xl font-semibold text-white sm:text-3xl">{item.value}</dt>
-              <dd className="mt-1 text-[11px] leading-snug text-zinc-500 sm:text-sm">{item.label}</dd>
-            </div>
-          ))}
-        </motion.dl>
+          {narrative}
+        </motion.p>
+        {continuation ? (
+          <motion.p
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.16, ease: "easeOut" }}
+            className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400 sm:text-base"
+          >
+            {continuation}
+          </motion.p>
+        ) : null}
+
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.18, ease: "easeOut" }}
+          className="mt-7 flex flex-wrap items-center justify-center gap-3"
+        >
+          <a
+            href={primaryHref}
+            className="btn-copper btn-ember inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold text-white"
+          >
+            {primaryLabel}
+            <ArrowRight className="h-4 w-4" />
+          </a>
+          <a
+            href={secondaryHref}
+            className="inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-zinc-300 transition-colors hover:text-white"
+          >
+            {secondaryLabel}
+          </a>
+        </motion.div>
+
+        <div className="mt-8 opacity-80">
+          {brand.isFrig ? (
+            <FrigWordmarkMatrix className="mx-auto h-6 w-auto" />
+          ) : (
+            <BrandMark brand={brand} className="mx-auto h-6 w-auto max-h-6 object-contain" glow={false} />
+          )}
+        </div>
+        {brand.isFrig && (
+          <p className="mt-6 max-w-md text-[11px] leading-relaxed text-zinc-500">
+            {LANDING_ORIGIN.caption}{" "}
+            <a
+              href={LANDING_ORIGIN.sourceHref}
+              target="_blank"
+              rel="noreferrer"
+              className="underline decoration-white/20 underline-offset-2 hover:text-zinc-300"
+            >
+              {LANDING_ORIGIN.sourceLabel}
+            </a>
+          </p>
+        )}
       </div>
     </section>
   );
@@ -694,8 +593,15 @@ function PricingSection({
   onPickPlan: (p: LandingPlan) => void;
 }) {
   return (
-    <section id="precios" className="relative z-10 pt-10 pb-28 sm:pt-14 sm:pb-44">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+    <div id="precios" className="scroll-mt-24">
+      <p className="flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.22em] text-[#c67d52]">
+        <span className="inline-block h-2 w-2 rotate-45 bg-[#c67d52]" aria-hidden />
+        El plan
+      </p>
+      <p className="mt-3 text-sm leading-relaxed text-zinc-400">
+        La gestión entra completa. El precio es del negocio, no de cada módulo.
+      </p>
+      <div className="mt-5">
         {unavailable || plans.length === 0 ? (
           <div className="mx-auto max-w-md rounded-2xl border border-white/10 bg-[#101010] px-6 py-10 text-center">
             <p className="text-base font-semibold text-white">No pudimos cargar los planes</p>
@@ -712,15 +618,9 @@ function PricingSection({
             )}
           </div>
         ) : null}
-        {/* Flex centrado: con 1, 2 o 3 planes (dinámicos a futuro) todo
-            se acomoda perfecto al medio. */}
-        <div className="flex flex-col items-stretch justify-center gap-4 md:flex-row md:flex-wrap md:items-center">
+        <div className="flex flex-col gap-4">
           {plans.map((p, i) => (
-            <ScrollReveal
-              key={p.id}
-              delay={i * 0.08}
-              className="w-full max-w-sm md:w-[calc(50%-0.5rem)] lg:w-[calc(33.333%-1.334rem)]"
-            >
+            <ScrollReveal key={p.id} delay={i * 0.08} className="w-full">
               <div
                 className={cn(
                   "demo-card relative flex h-full flex-col overflow-hidden rounded-2xl border p-6 transition-colors sm:p-7",
@@ -786,16 +686,15 @@ function PricingSection({
                       : "border border-white/15 text-white hover:bg-white/5",
                   )}
                 >
-                  {p.priceUf === 0 ? "Comenzar gratis" : "Suscribirse"}
+                  Tomar el plan
                 </button>
               </div>
             </ScrollReveal>
           ))}
         </div>
       </div>
-    </section>
+    </div>
   );
-
 }
 
 function SimuladorSection() {
@@ -835,7 +734,15 @@ function demoMonogram(name: string): string {
     .join("");
 }
 
-function UseCases({ items, brand }: { items?: LandingUseCaseItem[]; brand: LandingBrand }) {
+function UseCases({
+  items,
+  brand,
+  plan,
+}: {
+  items?: LandingUseCaseItem[];
+  brand: LandingBrand;
+  plan?: React.ReactNode;
+}) {
   // Endpoint manda (orden + activos); fallback local si no viene nada.
   const cases = items
     ? items
@@ -850,100 +757,53 @@ function UseCases({ items, brand }: { items?: LandingUseCaseItem[]; brand: Landi
         }))
     : LANDING_USE_CASES;
   return (
-    <section id="demos" className="relative z-10 pt-10 pb-28 sm:pt-14 sm:pb-44">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <div className="mb-12 flex flex-col gap-8 sm:flex-row sm:items-end sm:justify-between">
-          <div className="max-w-xl">
-            <p className="flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.22em] text-[#c67d52]">
-              <span
-                className="inline-block h-2 w-2 rotate-45"
-                style={{ backgroundColor: COPPER }}
-                aria-hidden
-              />
-              Demos en vivo
-            </p>
-            <h2 className="font-display mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-              Mira nuestras demos
-            </h2>
-            <p className="mt-4 text-sm leading-relaxed text-zinc-400">
-              Una demo operativa por cada rubro, con datos y flujos reales.
-              Accede libremente y evalúa {brand.name} en primera persona.
-            </p>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-3 self-start rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 sm:self-auto">
-            <span className="relative flex h-2.5 w-2.5">
-              <span
-                className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60"
-                style={{ backgroundColor: COPPER }}
-              />
-              <span
-                className="relative inline-flex h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: COPPER }}
-              />
-            </span>
-            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
-              {cases.length} demos activas
-            </span>
-          </div>
+    <section id="demos" className="relative z-10 scroll-mt-20 py-12 sm:py-16">
+      <div className="mx-auto grid max-w-6xl gap-8 px-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-12">
+        <div className="max-w-2xl lg:col-start-1">
+          <p className="flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.22em] text-[#c67d52]">
+            <span className="inline-block h-2 w-2 rotate-45 bg-[#c67d52]" aria-hidden />
+            Casos de uso
+          </p>
+          <h2 className="font-display mt-3 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+            La gestión, según el negocio
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-zinc-400">
+            Cada caso es un negocio con su venta, su cocina y su cierre. Entras sin registro y recorres cómo se lleva ese rubro en {brand.name}.
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {cases.map((useCase, i) => (
-            <ScrollReveal key={useCase.slug} delay={(i % 3) * 0.05} className="h-full">
-              <Link
-                href={`/login/${useCase.slug}`}
-                target="_blank"
-                rel="noreferrer"
-                className="demo-card group relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#101010] p-5"
-                style={
-                  {
-                    "--brand": useCase.brandColor,
-                    // Fase y ritmo propios: las 9 tarjetas nunca laten al unísono.
-                    "--energy-dur": `${7 + (i % 4) * 1.7}s`,
-                    "--energy-delay": `${(i % 5) * -1.9}s`,
-                    "--energy-spin-dur": `${2.2 + (i % 3) * 0.7}s`,
-                  } as React.CSSProperties
-                }
+        {plan ? (
+          <div className="lg:col-start-2 lg:row-start-1 lg:row-span-2">
+            <div className="lg:sticky lg:top-24">{plan}</div>
+          </div>
+        ) : null}
+
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:col-start-1">
+          {cases.map((useCase) => (
+            <Link
+              key={useCase.slug}
+              href={`/login/${useCase.slug}`}
+              target="_blank"
+              rel="noreferrer"
+              className="group flex items-center gap-3 rounded-xl border border-white/10 bg-[#101010] px-3 py-2.5 transition-colors hover:border-[#c67d52]/40"
+            >
+              <span
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[11px] font-bold text-white"
+                style={{ backgroundColor: useCase.brandColor }}
+                aria-hidden
               >
-                <div className="relative flex items-center gap-3">
-                  <span
-                    className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-sm font-bold text-white"
-                    style={{ backgroundColor: useCase.brandColor }}
-                    aria-hidden
-                  >
-                    {demoMonogram(useCase.name)}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="truncate text-sm font-semibold text-white">
-                      {useCase.name}
-                    </h3>
-                    <p className="truncate text-xs text-zinc-500">{useCase.rubro}</p>
-                  </div>
-                  <span className="relative flex h-2 w-2 shrink-0" title="Demo en vivo">
-                    <span
-                      className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-50"
-                      style={{ backgroundColor: useCase.brandColor }}
-                      aria-hidden
-                    />
-                    <span
-                      className="relative inline-flex h-2 w-2 rounded-full"
-                      style={{ backgroundColor: useCase.brandColor }}
-                      aria-hidden
-                    />
-                  </span>
-                </div>
-
-                <p className="relative mt-3.5 text-sm leading-relaxed text-zinc-400">
+                {demoMonogram(useCase.name)}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold text-white">{useCase.name}</span>
+                <span className="mt-0.5 block truncate text-xs text-zinc-400">
+                  {useCase.rubro}
+                  <span className="text-zinc-600"> · </span>
                   {useCase.highlight}
-                </p>
-
-                <div className="relative mt-auto flex items-center gap-1.5 pt-4 text-sm font-medium text-[#c67d52]">
-                  <span>Abrir demo</span>
-                  <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
-                </div>
-              </Link>
-            </ScrollReveal>
+                </span>
+              </span>
+              <ArrowRight className="h-3.5 w-3.5 shrink-0 text-[#c67d52] opacity-50 transition-all group-hover:translate-x-0.5 group-hover:opacity-100" />
+            </Link>
           ))}
         </div>
       </div>
@@ -983,7 +843,7 @@ function CosmicBackdrop() {
     >
       {/* Red abstracta de energía: nodos que fluyen y se conectan */}
       <div
-        className="absolute inset-0"
+        className="plexus-layer absolute inset-0"
         style={{
           maskImage:
             "radial-gradient(85% 75% at 50% 45%, black 35%, transparent 100%)",
@@ -1027,6 +887,7 @@ const MODULE_SCOPES: Record<string, string> = {
   "Inventario y recetas": "Bodega",
   "Bodegas visuales": "Bodega",
   "Informes y finanzas": "Dinero",
+  "CRM comercial": "Gestión",
   "Facturación electrónica": "SII",
   "Menú QR y pedidos": "Canales",
   "Etiquetas nutricionales": "Producto",
@@ -1076,73 +937,162 @@ function Features({ items }: { items?: LandingFeatureItem[] }) {
     }
     return merged;
   }, [items]);
+  const [active, setActive] = useState(0);
+  const current = feats[Math.min(active, Math.max(feats.length - 1, 0))];
+  const CurrentIcon = current?.icon;
+  const scope = current ? (MODULE_SCOPES[current.title] ?? "Frig") : "Frig";
+  const dossier = current ? LANDING_MODULE_DOSSIERS[current.title] : undefined;
+
   return (
-    <section id="producto" className="relative z-10 pt-10 pb-28 sm:pt-14 sm:pb-36">
+    <section id="producto" className="relative z-10 scroll-mt-20 pt-8 pb-20 sm:pt-10 sm:pb-28">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <div className="mb-8 flex flex-col gap-4 sm:mb-10 sm:flex-row sm:items-end sm:justify-between">
-          <div className="max-w-xl">
-            <p className="flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.22em] text-[#c67d52]">
-              <span className="inline-block h-2 w-2 rotate-45 bg-[#c67d52]" aria-hidden />
-              Módulos
-            </p>
-            <h2 className="font-display mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-              Todo el local, sin menús de más
-            </h2>
-            <p className="mt-3 text-sm leading-relaxed text-zinc-400 sm:text-base">
-              Cada plan incluye el sistema completo. Enciendes lo que tu operación usa y el resto no estorba.
-            </p>
-          </div>
-          <p className="shrink-0 text-sm text-zinc-500">
-            <span className="font-display text-2xl font-semibold text-white">{feats.length}</span>{" "}
-            módulos listos
+        <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+          <h2 className="font-display text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+            La gestión, módulo por módulo
+          </h2>
+          <p className="text-sm text-zinc-500">
+            <span className="font-display text-lg font-semibold text-white">{feats.length}</span>
+            {" "}en la misma cuenta
           </p>
         </div>
-
-        {/* Tabla flexible: columnas en desktop, filas apiladas en móvil.
-            Fondo sólido: las líneas de energía quedan fuera de la tabla. */}
-        <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#101010]">
-          <div className="hidden md:grid grid-cols-[1.1fr_1.6fr_auto] gap-6 border-b border-white/[0.06] px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
-            <span>Módulo</span>
-            <span>Qué hace</span>
-            <span className="text-right">Ámbito</span>
-          </div>
-
-          {feats.map((feature, i) => {
-            const Icon = feature.icon;
-            const scope = MODULE_SCOPES[feature.title] ?? "Frig";
+        <p className="mt-3 max-w-3xl text-sm leading-relaxed text-zinc-400 sm:text-base">
+          Frig no es una lista de programas sueltos. Es la gestión comercial del negocio y, con el tiempo, su ERP. Cada módulo toma un tramo del día y le entrega el dato al que sigue. El recorrido de abajo es esa cadena. En cada ficha está el oficio del módulo y con quién trabaja.
+        </p>
+        <nav
+          className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7"
+          aria-label="Recorrido de la gestión"
+        >
+          {LANDING_CYCLE.map((stage, index) => {
+            const target = feats.findIndex((feature) => feature.title === stage.module);
+            const onStage = current?.title === stage.module;
             return (
-              <div
-                key={feature.title}
+              <button
+                key={stage.module}
+                type="button"
+                disabled={target < 0}
+                onClick={() => target >= 0 && setActive(target)}
+                aria-current={onStage ? "true" : undefined}
                 className={cn(
-                  "grid grid-cols-1 gap-2 px-5 py-5 transition-colors hover:bg-[#161616] md:grid-cols-[1.1fr_1.6fr_auto] md:items-center md:gap-6 md:px-6",
-                  i !== feats.length - 1 &&
-                    "border-b border-white/[0.05]",
+                  "relative z-10 flex h-full flex-col rounded-lg border bg-[#101010] px-2.5 py-2.5 text-left transition-colors",
+                  onStage
+                    ? "border-[#c67d52]"
+                    : "border-white/10 hover:border-[#c67d52]/50",
                 )}
               >
-                <div className="flex items-center gap-3.5">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#c67d52]/25 bg-[#c67d52]/[0.07]">
-                    <Icon className="h-4 w-4" style={{ color: COPPER }} />
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className={cn(
+                      "grid h-5 min-w-5 place-items-center rounded-full px-1 text-[10px] font-semibold",
+                      onStage ? "bg-[#c67d52] text-black" : "bg-white/10 text-zinc-300",
+                    )}
+                  >
+                    {index + 1}
                   </span>
-                  <h3 className="text-sm font-semibold text-white">
-                    {feature.title}
-                  </h3>
-                </div>
-
-                <p className="text-sm leading-relaxed text-zinc-400 md:pr-4">
-                  {feature.description}
-                </p>
-
-                <div className="md:text-right">
-                  <span className="inline-block rounded-full border border-[#c67d52]/25 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#c67d52]">
-                    {scope}
+                  <span className={cn("text-sm font-semibold", onStage ? "text-white" : "text-zinc-100")}>
+                    {stage.label}
                   </span>
-                </div>
-              </div>
+                </span>
+                <span className="mt-1.5 text-xs leading-snug text-zinc-400">{stage.detail}</span>
+              </button>
+            );
+          })}
+        </nav>
+
+        <div
+          role="tablist"
+          aria-label="Módulos de FRIG"
+          className="mt-4 flex flex-wrap gap-x-1 gap-y-1"
+        >
+          {feats.map((feature, i) => {
+            const selected = i === active;
+            return (
+              <button
+                key={feature.title}
+                type="button"
+                role="tab"
+                id={`modulo-tab-${i}`}
+                aria-selected={selected}
+                aria-controls="modulo-panel"
+                onClick={() => setActive(i)}
+                className={cn(
+                  "rounded-full px-3 py-1.5 text-left text-sm transition-colors",
+                  selected ? "bg-white text-black" : "text-zinc-400 hover:text-white",
+                )}
+              >
+                {feature.title}
+              </button>
             );
           })}
         </div>
+
+        {current && CurrentIcon && (
+          <div
+            role="tabpanel"
+            id="modulo-panel"
+            aria-labelledby={`modulo-tab-${active}`}
+            className="mt-8 border-t border-white/10 pt-8"
+          >
+            <div className="flex items-baseline gap-3">
+              <h3 className="font-display text-2xl font-semibold tracking-tight text-white">{current.title}</h3>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#c67d52]">{scope}</span>
+            </div>
+            {dossier ? (
+              <p className="mt-3 max-w-3xl text-sm leading-relaxed text-zinc-300 sm:text-base">{dossier.role}</p>
+            ) : (
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400">{current.description}</p>
+            )}
+            {dossier ? <ModuleStage title={current.title} /> : null}
+            {dossier && (
+              <div className="mt-5">
+                <p className="max-w-3xl text-sm leading-relaxed text-zinc-500">{dossier.method}</p>
+                <p className="mt-3 text-sm text-zinc-400">{dossier.traits.join(" · ")}</p>
+                {dossier.links.length > 0 && (
+                  <p className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+                    <span className="text-zinc-500">Sigue en</span>
+                    {dossier.links.map((name) => {
+                      const index = feats.findIndex((feature) => feature.title === name);
+                      return (
+                        <button
+                          key={name}
+                          type="button"
+                          onClick={() => index >= 0 && setActive(index)}
+                          className="text-zinc-200 underline decoration-white/20 underline-offset-4 transition-colors hover:text-white hover:decoration-[#c67d52]"
+                        >
+                          {name}
+                        </button>
+                      );
+                    })}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </section>
+  );
+}
+
+function BackToTop() {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const hero = document.getElementById("inicio");
+    if (!hero) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => setShow(!entry.isIntersecting),
+      { threshold: 0.2 },
+    );
+    obs.observe(hero);
+    return () => obs.disconnect();
+  }, []);
+  if (!show) return null;
+  return (
+    <a
+      href="#inicio"
+      className="fixed bottom-5 right-4 z-40 rounded-full border border-white/15 bg-[#101010]/90 px-3.5 py-2 text-sm font-medium text-zinc-200 backdrop-blur-sm transition-colors hover:border-[#c67d52]/50 hover:text-white"
+    >
+      ↑ Volver
+    </a>
   );
 }
 
@@ -1188,13 +1138,24 @@ function Footer({
             <span className="font-semibold text-zinc-300">{brand.isFrig ? "Frig" : brand.name}</span>
             <span className="text-xs">
               {brand.isFrig
-                ? "Tu negocio completo, en una sola pantalla · Chile"
+                ? "Gestión comercial del negocio · Chile"
                 : brand.name}
             </span>
           </div>
         </div>
         <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm">
+          <a href="#inicio" className="transition-colors hover:text-white">Inicio</a>
           <a href="#producto" className="transition-colors hover:text-white">Módulos</a>
+          {LANDING_STAGING_URL ? (
+            <a
+              href={LANDING_STAGING_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="transition-colors hover:text-white"
+            >
+              Staging
+            </a>
+          ) : null}
           <a href="#precios" className="transition-colors hover:text-white">Precios</a>
           <Link href="/politicas" className="transition-colors hover:text-white">Privacidad</Link>
           <a
@@ -1319,99 +1280,21 @@ export function LandingSite() {
           brand={brand}
         />
         <SimuladorSection />
-        <Features items={content?.features} />
-        <PricingSection
-          plans={plans}
-          integrationUf={integrationUf}
-          pricingNote={pricingNote}
-          unavailable={plansMissing}
-          contactEmail={contactEmail}
-          onPickPlan={setPlan}
+        <UseCases
+          items={content?.use_cases}
+          brand={brand}
+          plan={
+            <PricingSection
+              plans={plans}
+              integrationUf={integrationUf}
+              pricingNote={pricingNote}
+              unavailable={plansMissing}
+              contactEmail={contactEmail}
+              onPickPlan={setPlan}
+            />
+          }
         />
-        <UseCases items={content?.use_cases} brand={brand} />
-        <section className="relative z-10 pb-20 sm:pb-28">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <ScrollReveal>
-            <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#101010] px-6 py-10 sm:px-10 sm:py-12">
-              <div
-                aria-hidden
-                className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full blur-3xl"
-                style={{ background: `${brand.accent}2e` }}
-              />
-              <div className="relative flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
-                <div className="max-w-xl">
-                  <p
-                    className="flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.22em]"
-                    style={{ color: brand.accent }}
-                  >
-                    <span
-                      className="inline-block h-2 w-2 rotate-45"
-                      style={{ backgroundColor: brand.accent }}
-                      aria-hidden
-                    />
-                    Empieza hoy
-                  </p>
-                  <h2 className="font-display mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-                    Prueba un local real, o arma el tuyo.
-                  </h2>
-                  <p className="mt-3 text-sm leading-relaxed text-zinc-400 sm:text-base">
-                    Entra a una demo sin registro, o elige un plan y deja la operación corriendo esta semana.
-                    {pricingNote ? ` ${pricingNote}` : ""}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  <a
-                    href="#precios"
-                    className="btn-copper inline-flex items-center gap-2 rounded-lg px-6 py-3 text-sm font-semibold text-white"
-                  >
-                    Ver planes
-                    <ArrowRight className="h-4 w-4" />
-                  </a>
-                  <a
-                    href="#demos"
-                    className="rounded-lg border border-white/15 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/5"
-                  >
-                    Abrir una demo
-                  </a>
-                  <a
-                    href={`mailto:${contactEmail}?subject=${encodeURIComponent(demoSubject)}`}
-                    className="inline-flex items-center px-2 py-3 text-sm font-medium text-zinc-400 transition-colors hover:text-white"
-                  >
-                    Escribir a {contactEmail}
-                  </a>
-                </div>
-              </div>
-
-              <div className="relative mt-8 flex flex-col gap-3 border-t border-white/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
-                <div className="max-w-xl">
-                  <p className="text-sm font-semibold text-white">{LANDING_STAGING.title}</p>
-                  <p className="mt-1 text-sm leading-relaxed text-zinc-500">{LANDING_STAGING.body}</p>
-                </div>
-                {LANDING_STAGING_URL ? (
-                  <a
-                    href={LANDING_STAGING_URL}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-white/15 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/5"
-                  >
-                    Abrir staging
-                    <ArrowRight className="h-4 w-4" />
-                  </a>
-                ) : (
-                  <span className="inline-flex shrink-0 items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                    <span
-                      className="h-1.5 w-1.5 rounded-full"
-                      style={{ backgroundColor: brand.accent }}
-                      aria-hidden
-                    />
-                    Ambiente de revisión
-                  </span>
-                )}
-              </div>
-            </div>
-          </ScrollReveal>
-        </div>
-        </section>
+        <Features items={content?.features} />
       </main>
       <Footer
         contactEmail={contactEmail}
@@ -1419,6 +1302,7 @@ export function LandingSite() {
         social={content?.footer?.social}
         brand={brand}
       />
+      <BackToTop />
       <CheckoutModal
         plan={plan}
         integrationUf={integrationUf}

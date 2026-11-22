@@ -469,7 +469,17 @@ a {
 .cosmic-backdrop .fade-on-idle {
   transition: opacity 1s ease;
 }
-.cosmic-backdrop.is-revealing .fade-on-idle {
+.cosmic-backdrop.is-revealing .fade-on-idle,
+.cosmic-backdrop.is-holding-frigg .fade-on-idle {
+  opacity: 0;
+}
+.cosmic-backdrop.is-holding-frigg .fade-on-idle {
+  transition-duration: 0.2s;
+}
+.cosmic-backdrop .plexus-layer {
+  transition: opacity 0.7s ease;
+}
+.cosmic-backdrop.is-showing-frigg .plexus-layer {
   opacity: 0;
 }
 
@@ -636,10 +646,60 @@ a {
   }
 }
 
+.btn-ember {
+  animation: frig-cta-ember 2.6s ease-in-out infinite;
+}
+
+/* Última palabra del hero: brasa bajo el cobre, sin caja. */
+.hero-accent {
+  position: relative;
+  color: #e8b08a;
+}
+.hero-accent::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0.02em;
+  height: 0.045em;
+  border-radius: 999px;
+  transform-origin: center;
+  background: linear-gradient(90deg, transparent, #f0a26a 35%, #ffd9a8 50%, #c67d52 70%, transparent);
+  animation: hero-underline 2.6s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes hero-underline {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scaleX(0.72);
+  }
+  50% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes frig-cta-ember {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(198, 125, 82, 0.55),
+      0 0 12px rgba(240, 162, 106, 0.16);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(255, 217, 168, 0.9),
+      0 0 18px rgba(240, 162, 106, 0.38);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .frig-ember,
   .frig-flame,
-  .frig-fireglow {
+  .frig-fireglow,
+  .btn-ember,
+  .hero-accent::after {
     animation: none;
   }
   .flow-line::after {
@@ -675,4 +735,113 @@ a {
 .frig-dimension-loop {
   animation: frig-flicker 2.6s ease-in-out infinite;
   will-change: filter;
+}
+
+/* Ejemplo isométrico: la línea señala la pieza y, al pasar el mouse, parpadea. */
+.iso-piece {
+  cursor: pointer;
+}
+.iso-leader {
+  fill: #c67d52;
+  stroke: #c67d52;
+  stroke-width: 1.6;
+  stroke-linecap: butt;
+  opacity: 0.9;
+}
+.iso-leader path {
+  fill: none;
+  stroke-dasharray: none;
+}
+.iso-leader polygon {
+  fill: #101010;
+  stroke: #e8b08a;
+  stroke-width: 1.25;
+}
+.iso-leader.is-hot {
+  fill: #fff6ee;
+  stroke: #fff6ee;
+  opacity: 1;
+  filter: drop-shadow(0 0 5px #c67d52);
+}
+.iso-leader.is-hot polygon {
+  fill: #fff6ee;
+  stroke: #fff6ee;
+}
+.iso-leader.is-hot path {
+  stroke-width: 1.7;
+  animation: none;
+}
+.iso-live.is-pointing .iso-leader:not(.is-hot) {
+  opacity: 0.16;
+}
+.iso-piece.is-hot {
+  animation: iso-blink 0.8s ease-in-out infinite;
+}
+@keyframes iso-blink {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 0 transparent);
+  }
+  50% {
+    filter: drop-shadow(0 0 9px #e8b08a);
+  }
+}
+.iso-floor-top {
+  transition: fill 0.35s ease, stroke 0.35s ease, filter 0.35s ease;
+}
+.iso-floor-bloom {
+  fill: none;
+  stroke: #c67d52;
+  stroke-width: 7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0;
+  filter: blur(2.5px);
+}
+.iso-floor-glow {
+  fill: none;
+  stroke: #e8b08a;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 5 11;
+  opacity: 0;
+}
+.iso-art:hover .iso-floor-top {
+  fill: #f0b48c;
+  stroke: #fff6ee;
+  filter: drop-shadow(0 0 7px #c67d52);
+}
+.iso-art:hover .iso-floor-bloom {
+  opacity: 0.9;
+  stroke: #ffd7bf;
+}
+.iso-art:hover .iso-floor-glow {
+  opacity: 1;
+  stroke: #fff8f2;
+  stroke-width: 2.2;
+  filter: drop-shadow(0 0 6px #ffc9a4) drop-shadow(0 0 14px #c67d52);
+  animation: iso-energy 0.55s linear infinite;
+}
+@keyframes iso-energy {
+  to {
+    stroke-dashoffset: -32;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .iso-piece,
+  .iso-floor-glow,
+  .iso-floor-bloom,
+  .iso-floor-top,
+  .iso-leader,
+  .iso-leader path {
+    transition: none;
+    animation: none;
+  }
+  .iso-art:hover .iso-floor-glow,
+  .iso-art:hover .iso-floor-bloom,
+  .iso-piece.is-hot,
+  .iso-leader.is-hot path {
+    animation: none;
+  }
 }

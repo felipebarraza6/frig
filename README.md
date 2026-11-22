@@ -6,7 +6,7 @@ Frig es el punto de venta gastronómico de Ginnung: caja, cocina, mesas, inventa
 
 ## A quién sirve
 
-Locales de comida y grupos con varias sucursales que venden en mostrador, mesa o delivery, y el equipo que administra catálogo, caja y compras. Sitios actuales del mismo build: [frig.yggdra.cl](https://frig.yggdra.cl), intranet.macanuobowl.cl y mani.agenciapatagoniachile.com.
+Locales de comida y grupos con varias sucursales que venden en mostrador, mesa o delivery, y el equipo que administra catálogo, caja y compras. Sitios actuales del mismo build: [frig.yggdra.cl](https://frig.yggdra.cl), www.frig.yggdra.cl e intranet.macanuobowl.cl.
 
 ## Stack
 
@@ -63,7 +63,7 @@ No hay `.env.example` en la rama por defecto. En CI y en el deploy de producció
 | Evento | Workflow | Destino |
 |--------|----------|---------|
 | Push a `dev` | `staging.yml` | GitHub Pages del repo |
-| Push a `production`, o dispatch | `deploy.yml` | FTP a frig.yggdra.cl, intranet.macanuobowl.cl y mani.agenciapatagoniachile.com |
+| Push a `production`, o dispatch | `deploy.yml` | Cloudflare Workers: frig.yggdra.cl, www.frig.yggdra.cl e intranet.macanuobowl.cl |
 | Push a `dev` y PRs | `ci.yml` | Lint, tipos, tests y build. No publica |
 | CI o deploy en rojo | `ci-failure-issue.yml` | Abre o comenta un issue |
 

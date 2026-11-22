@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "sync-contract": "node scripts/sync-contract.mjs",
-    "audit:api": "node scripts/api-audit/crossref.mjs"
+    "audit:api": "node scripts/api-audit/crossref.mjs",
+    "verify:chunks": "node scripts/verify-chunks.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",

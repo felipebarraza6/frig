@@ -16,6 +16,7 @@
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { dynamicRewrites } from "./dynamic-rewrites.mjs";
 
 const outDir = join(dirname(fileURLToPath(import.meta.url)), "..", "out");
 
@@ -42,26 +43,10 @@ const csp = [
   "object-src 'none'",
 ].join("; ");
 
-const dynamicRewrites = [
-  ["^menu/[^/]+/totem/?$", "/menu/__/totem.html"],
-  ["^menu/[^/]+/?$", "/menu/__.html"],
-  ["^login/[^/]+/?$", "/login/__.html"],
-  ["^warehouses/\\d+/?$", "/warehouses/view.html"],
-  ["^kds/station/(\\d+)/?$", "/kds/monitor.html?station_id=$1"],
-  // Link del correo recordatorio de cuotas (plan_checkout/tasks.py).
-  ["^checkout/pay-installment/[^/]+/?$", "/checkout/pay-installment.html"],
-  ["^reset-password/[^/]+/?$", "/reset-password/__.html"],
-  // Link público de levantamiento: /survey/<slug>. Excluye las páginas
-  // estáticas reales /survey/view y /survey/fill (las resuelve la regla 2).
-  ["^survey/(?!(?:view|fill)/?$)[^/]+/?$", "/survey/__.html"],
-  // Legacy: el salón 3D se renombró de /salon-test → /salon-demo
-  ["^salon-test/?$", "/salon-demo.html"],
-];
-
 const dynamicRules = dynamicRewrites
-  .map(([pattern, target]) => {
-    const flags = target.includes("?") ? "[L,QSA]" : "[L]";
-    return `RewriteRule ${pattern} ${target} ${flags}`;
+  .map(({ pattern, apache }) => {
+    const flags = apache.includes("?") ? "[L,QSA]" : "[L]";
+    return `RewriteRule ${pattern} ${apache} ${flags}`;
   })
   .join("\n");
 
@@ -77,14 +62,41 @@ RewriteRule ^(.+?)/?$ /$1.html [L]
 
 # Seguridad (equivalente a los headers que Next servía antes del export estático)
 <IfModule mod_headers.c>
+  # HTML y el service worker no se cachean: un deploy nuevo tiene que verse al recargar.
+  <FilesMatch "\\.html$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+  <Files "sw.js">
+    Header set Cache-Control "no-cache"
+  </Files>
   Header set X-Content-Type-Options "nosniff"
   Header set Referrer-Policy "strict-origin-when-cross-origin"
   Header set X-Frame-Options "SAMEORIGIN"
   Header set Permissions-Policy "camera=(), microphone=(), geolocation=()"
   Header set Strict-Transport-Security "max-age=31536000; includeSubDomains"
   Header set Content-Security-Policy "${csp}"
+  # Chunks con hash. Si Cloudflare tiene una Cache Rule de 4h, hay que quitarla:
+  # este valor es el que el origen anuncia.
+  SetEnvIf Request_URI "^/_next/static/" frig_hashed_static
+  Header set Cache-Control "public, max-age=31536000, immutable" env=frig_hashed_static
 </IfModule>
 `;
 
+const headers = `# Generado por scripts/post-export.mjs — Cloudflare Workers Assets.
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/sw.js
+  Cache-Control: no-cache
+
+/*.html
+  Cache-Control: no-cache
+
+/
+  Cache-Control: no-cache
+`;
+
 writeFileSync(join(outDir, ".htaccess"), htaccess);
+writeFileSync(join(outDir, "_headers"), headers);
 console.log(`OK: ${join(outDir, ".htaccess")}`);
+console.log(`OK: ${join(outDir, "_headers")}`);

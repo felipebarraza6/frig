@@ -3,7 +3,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { QueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
-import { LazyMotion, MotionConfig } from "framer-motion";
+import { LazyMotion, MotionConfig, domAnimation } from "framer-motion";
 import { ApiError } from "@/lib/api/client";
 import { AppProvider } from "@/lib/app-context";
 import { useSessionStore } from "@/lib/store/session";
@@ -15,9 +15,6 @@ import {
   QUERY_PERSIST_MAX_AGE,
   shouldPersistQuery,
 } from "@/lib/query-persist";
-
-const loadFeatures = () =>
-  import("framer-motion").then((res) => res.domAnimation);
 
 function makeQueryClient() {
   return new QueryClient({
@@ -76,7 +73,7 @@ export function Providers({ children }: { children: ReactNode }) {
         client.resumePausedMutations().catch(() => {});
       }}
     >
-      <LazyMotion features={loadFeatures} strict={false}>
+      <LazyMotion features={domAnimation} strict={false}>
         <MotionConfig reducedMotion="user">
           <AppProvider>{children}</AppProvider>
         </MotionConfig>

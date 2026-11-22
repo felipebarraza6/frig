@@ -1,6 +1,6 @@
 "use client";
 
-import { Children, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -575,31 +575,11 @@ function NavGroup({
         {!isOpen && <Icon className="h-3.5 w-3.5 shrink-0" />}
         {title}
       </button>
-      <AnimatePresence initial={false}>
-        {isOpen && (
-          <m.div
-            key="content"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-            className="overflow-hidden"
-          >
-            <div className="flex min-h-0 flex-col gap-0.5 pb-0.5 pl-2 pt-0.5">
-              {Children.map(children, (child, i) => (
-                <m.div
-                  key={i}
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.2, delay: 0.04 * i, ease: "easeOut" }}
-                >
-                  {child}
-                </m.div>
-              ))}
-            </div>
-          </m.div>
-        )}
-      </AnimatePresence>
+      {isOpen && (
+        <div className="flex min-h-0 flex-col gap-0.5 pb-0.5 pl-2 pt-0.5">
+          {children}
+        </div>
+      )}
     </div>
   );
 }
