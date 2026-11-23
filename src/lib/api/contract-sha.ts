@@ -1,3 +1,3 @@
 // GENERADO POR sync-contract (scripts/sync-contract.mjs), no editar.
 // Re-generar con: npm run sync-contract
-export const YGGDRA_SCHEMA_SHA = "07a3622bf42ec68a22b3e498b7ca49efbee224c8804f2b1b3c42684a06a3abea";
+export const YGGDRA_SCHEMA_SHA = "08821e9550b355350e2a2551b7f14c346b1c41201958dc47178ab75cc6fb0048";
