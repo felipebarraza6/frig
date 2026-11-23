@@ -18,6 +18,7 @@ describe("SPONSORED_SLUGS", () => {
       "dimatteo",
       "hielo-olas-altas",
       "vignosi",
+      "uchanas",
     ]) {
       expect(SPONSORED_SLUGS[slug]).toBe("sercotec");
     }

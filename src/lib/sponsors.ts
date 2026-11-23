@@ -16,6 +16,7 @@ export const SPONSORED_SLUGS: Readonly<Record<string, SponsorId>> = {
   "dimatteo": "sercotec",
   "hielo-olas-altas": "sercotec",
   "vignosi": "sercotec",
+  "uchanas": "sercotec",
 };
 
 export const SPONSOR_COPY: Readonly<
