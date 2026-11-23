@@ -15,7 +15,7 @@
 # Nota: el frontend se compila a HTML estático (next.config.ts usa output:"export").
 # Las rutas dinámicas se sirven mediante .htaccess generado por scripts/post-export.mjs.
 
-name: Deploy FRIG web a FTP
+name: Deploy FRIG web a Cloudflare
 
 on:
   push:
